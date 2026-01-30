@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, Target, Sparkles, Download, ChevronRight } from 'lucide-react';
+import { FileText, Target, Sparkles, Download, ChevronRight, Wand2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,12 +13,14 @@ import { EducationSection } from '@/components/editor/EducationSection';
 import { SkillsSection } from '@/components/editor/SkillsSection';
 import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
 import { TemplateSelector } from '@/components/editor/TemplateSelector';
+import { TailorSheet } from '@/components/editor/TailorSheet';
 
 export default function EditorPage() {
   const navigate = useNavigate();
   const { currentResume, matchScore, isAnalyzing } = useResumeStore();
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showTailor, setShowTailor] = useState(false);
 
   if (!currentResume) {
     navigate('/upload');
@@ -42,6 +44,16 @@ export default function EditorPage() {
           >
             <Target className="w-4 h-4" />
             {matchScore ? `Score: ${matchScore.overallScore}%` : 'Analyze'}
+          </Button>
+          
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0 gap-2"
+            onClick={() => setShowTailor(true)}
+          >
+            <Wand2 className="w-4 h-4" />
+            Tailor
           </Button>
           
           <Button
@@ -115,6 +127,7 @@ export default function EditorPage() {
       {/* Sheets */}
       <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
       <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
+      <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
     </MobileLayout>
   );
 }
