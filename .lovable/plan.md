@@ -1,99 +1,103 @@
 
 
-# AI Resume Editor - Implementation Plan
+# Side-by-Side Resume Comparison Feature
 
 ## Overview
-A modern, vibrant AI-powered resume editor that helps job seekers optimize their resumes for specific positions. Users can upload their existing resume, get it scored against job postings, receive gap analysis, and download ATS-friendly resumes.
+Add a comparison view that allows users to see their original resume content alongside the AI-tailored version before applying changes. This helps users understand exactly what changed and make informed decisions about accepting modifications.
 
 ---
 
-## Core Features
+## Design Approach
 
-It has to be mobile app totally as it is meant for mobile users specifically android users
+Since this is a mobile-first Android app, the comparison view needs to be optimized for smaller screens. Rather than a true side-by-side layout (which would be too cramped), we'll implement:
 
-### 1. Landing Page
-- Eye-catching hero section with bold gradients and dynamic animations
-- Clear value proposition: "AI-Powered Resume Optimization"
-- Call-to-action buttons: "Upload Your Resume" and "Sign In"
-- Feature highlights with icons (AI Scoring, Gap Analysis, ATS-Friendly, Multiple Templates)
-
-### 2. Resume Upload & Import
-- Drag-and-drop PDF upload zone with visual feedback
-- PDF parsing to extract resume content (text, sections, experience, skills)
-- Preview of extracted content for user verification
-- Option to manually edit if parsing needs adjustment
-
-### 3. Resume Editor
-- Live preview of the resume with selected template
-- Editable sections: Contact Info, Summary, Experience, Education, Skills, Certifications
-- Rich text editing for descriptions and bullet points
-- Real-time template switching to see how content looks in different designs
-
-### 4. AI-Powered Job Match Scoring
-- Input field for job posting URL or pasted job description
-- AI analyzes resume against job requirements
-- Visual score display (0-100) with breakdown by category:
-  - Skills match percentage
-  - Experience relevance
-  - Keyword alignment
-  - Overall ATS compatibility
-- Actionable insights on what's working well
-
-### 5. AI Gap Analysis
-- Identifies missing keywords from the job description
-- Highlights skills mentioned in job posting but absent from resume
-- Suggests sections that could be added or expanded
-- Recommends specific phrases and terminology to include
-- Priority-ranked list of improvements
-
-### 6. Resume Templates
-- 3-4 modern, ATS-friendly template designs
-- Clean layouts optimized for applicant tracking systems
-- Template preview thumbnails for easy selection
-- Consistent formatting regardless of template choice
-
-### 7. PDF Export
-- One-click PDF download
-- Professional formatting preserved
-- ATS-compatible structure and fonts
-- Filename suggestion based on user name and target role
-
-### 8. Optional User Accounts
-- Resume works fully without login (session-based)
-- Optional account creation to:
-  - Save multiple resume versions
-  - Track different job applications
-  - Access resumes from any device
-- Simple email/password authentication
-
-### 9. Dashboard (for logged-in users)
-- List of saved resumes with last modified date
-- Quick actions: Edit, Duplicate, Download, Delete
-- Create new resume button
-- Recent job matches and scores
+1. **Swipeable tabs** - Toggle between "Original" and "Tailored" views
+2. **Inline diff highlighting** - Visual indicators showing what changed
+3. **Section-by-section comparison** - Expandable cards for each resume section (Summary, Skills, Experience)
 
 ---
 
 ## User Flow
 
-1. **Land** → User arrives at homepage, sees value proposition
-2. **Upload** → Drag-drop PDF resume, content is extracted
-3. **Review** → See parsed resume, make any corrections
-4. **Target** → Paste job description they're applying for
-5. **Score** → AI analyzes and shows match score
-6. **Improve** → Review gap analysis, see what's missing
-7. **Apply Template** → Choose from professional templates
-8. **Export** → Download optimized PDF resume
-9. **Save (optional)** → Create account to save progress
+1. User clicks "Tailor" button on EditorPage
+2. Pastes job description and clicks "Tailor My Resume"
+3. After AI processes, a new "Compare Changes" button appears
+4. Tapping it opens a full-screen comparison sheet
+5. User can swipe between Original/Tailored tabs or expand individual sections to see differences
+6. Added text highlighted in green, removed text shown with strikethrough
+7. User can apply all changes or return to review more
 
 ---
 
-## Technical Approach
+## Implementation Details
 
-- **Frontend**: React with modern UI components, animations, and responsive design
-- **Backend**: Lovable Cloud with edge functions for AI processing
-- **AI**: Lovable AI (Gemini) for job matching and gap analysis
-- **Storage**: Cloud storage for uploaded resumes and user files
-- **Authentication**: Optional email/password login
-- **PDF Handling**: PDF parsing for import, PDF generation for export
+### New Component: CompareSheet.tsx
+
+A full-screen sheet component with:
+- Header with "Compare Changes" title and close button
+- Tab navigation: "Original" | "Tailored" | "Diff"
+- Scrollable content area with collapsible sections:
+  - Summary comparison
+  - Skills comparison (showing added/removed skills)
+  - Experience bullets comparison (per job)
+  - Education details comparison
+- Footer with "Apply Changes" and "Cancel" buttons
+
+### Updates to TailorSheet.tsx
+
+- Add "Compare Changes" button after successful tailoring
+- Store original resume snapshot before tailoring starts (already implemented)
+- Pass both original and tailored data to CompareSheet
+
+### Diff Visualization Logic
+
+Create utility functions in a new file:
+- `highlightAdditions(original, tailored)` - Returns JSX with green highlights for new content
+- `highlightRemovals(original, tailored)` - Shows removed content with strikethrough
+- `compareSkillArrays(original, tailored)` - Identifies added/removed skills
+
+---
+
+## Technical Details
+
+### Files to Create
+
+1. **src/components/editor/CompareSheet.tsx**
+   - Main comparison sheet component
+   - Uses Tabs for Original/Tailored/Diff views
+   - Uses Accordion for collapsible sections
+   - Framer Motion for smooth animations
+
+2. **src/lib/diffUtils.ts**
+   - Text diff algorithm for summary comparison
+   - Array diff for skills comparison
+   - Helper functions for formatting differences
+
+### Files to Modify
+
+1. **src/components/editor/TailorSheet.tsx**
+   - Add state for showing comparison sheet
+   - Add "Compare Changes" button after tailoring completes
+   - Pass original resume and tailor result to CompareSheet
+
+---
+
+## Visual Design
+
+### Color Scheme (following existing design system)
+- **Added content**: `bg-success/20` with `text-success` (green)
+- **Removed content**: `bg-destructive/20` with `line-through` (red)
+- **Unchanged content**: Normal text styling
+
+### Layout
+- Full-height bottom sheet (like existing TailorSheet)
+- Pill-style tab switcher at top
+- Cards with rounded corners for each section
+- Badges showing change counts (+3 skills, -1 skill)
+
+### Mobile Optimizations
+- Touch-friendly swipe between tabs
+- Collapsible sections to reduce scrolling
+- Sticky action buttons at bottom
+- Safe area padding for Android navigation
 
