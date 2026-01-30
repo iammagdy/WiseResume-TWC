@@ -1,87 +1,149 @@
 
+## What’s actually happening (why it feels like a “fake” toast)
+Right now the upload flow can genuinely “succeed” (PDF.js reads the PDF, no error is thrown), but the extracted text is basically one long line per page because we do:
 
-# Fix PDF Upload - Worker Loading Error
+- `textContent.items.map(item => item.str).join(' ')`
 
-## Problem
+That destroys all line breaks and section structure (SUMMARY / EXPERIENCE / EDUCATION / SKILLS), so the regex-based section extraction almost always returns empty arrays/strings. Result: you land in `/editor` with an “empty” resume even though parsing technically ran.
 
-When uploading a PDF resume, you see "Failed to parse PDF. Please try again." This is caused by the PDF.js worker failing to load from an external CDN.
-
-The error message from the console:
-> "Setting up fake worker failed: Failed to fetch dynamically imported module"
-
----
-
-## Root Cause
-
-The current code uses a CDN URL to load the PDF.js worker:
-```javascript
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
-```
-
-This fails because:
-1. PDF.js version 4.x uses ES modules (`.mjs` files), not `.min.js`
-2. The CDN doesn't properly serve the worker for dynamic imports
-3. Version mismatch between the package and CDN
+So the toast isn’t fake — the parser is just producing almost no usable structured data.
 
 ---
 
-## Solution
-
-Use Vite's built-in worker handling with `import.meta.url` to load the worker directly from the installed npm package:
-
-```javascript
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
-```
-
-This approach:
-- Works reliably with Vite's module resolution
-- Keeps the worker in sync with the installed package version
-- Handles ESM modules correctly
-- Works in both development and production builds
+## Goal
+1) Make PDF text extraction preserve line breaks (and be usable even for 2+ pages).  
+2) Make the upload success toast reflect real extraction results (and warn/fail when nothing meaningful was extracted).  
+3) Improve section parsing so “EXPERIENCE / EDUCATION / SKILLS” actually populate.
 
 ---
 
-## Implementation
+## Implementation steps
 
-### File to Modify
+### 1) Fix the PDF text extraction to keep lines (critical)
+**File:** `src/lib/pdfParser.ts`
 
-**`src/lib/pdfParser.ts`**
+Replace the “join all items with spaces” approach with a layout-aware line reconstruction:
 
-Update the worker source configuration from CDN-based to Vite-compatible:
+- For each text item we can read `transform[4]` (x) and `transform[5]` (y).
+- Group items into “lines” by `y` (within a tolerance, e.g. rounding y to the nearest 2–4 units).
+- For each line group:
+  - Sort by x ascending
+  - Join into a single line string
+- Join lines with `\n`
+- Join pages with `\n\n` to keep page separation
 
-```typescript
-import * as pdfjsLib from 'pdfjs-dist';
-import { ResumeData } from '@/types/resume';
-import { v4 as uuidv4 } from 'uuid';
+Also add a simple “two-column safety”:
+- If a single y-line has two clusters far apart (big x-gap), split into two separate lines instead of joining into one (this prevents mixing sidebar + main column into one sentence).
 
-// Configure PDF.js worker using Vite's import.meta.url
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
-```
-
-**Key Change**: Replace line 6 (the old CDN URL) with the `new URL()` pattern that Vite understands.
+**Result:** the extracted text contains real line breaks, and headings appear on their own lines like a normal resume.
 
 ---
 
-## Why This Works
+### 2) Add “no selectable text” detection (scanned PDFs, image PDFs, protected PDFs)
+**File:** `src/lib/pdfParser.ts`
 
-Vite has special handling for the `new URL(..., import.meta.url)` pattern:
-- In development: Serves the worker file directly from node_modules
-- In production: Bundles and includes the worker file in the build output
-- Ensures version consistency between the main library and worker
+After extracting text:
+- If `fullText.trim().length < <threshold>` (ex: 50–100 chars), throw a specific error like:
+  - `new Error("NO_TEXT_EXTRACTED")`
+
+Also detect common PDF.js errors and map them:
+- password-protected
+- corrupted file
+
+This allows the UI to show a helpful message instead of “try again”.
 
 ---
 
-## Testing
+### 3) Improve section parsing to use line-based headings (not fragile regex-only)
+**File:** `src/lib/pdfParser.ts`
 
-After the fix:
-1. Navigate to the Upload page
-2. Select a PDF resume file
-3. The file should parse successfully and navigate to the Editor
-4. Check console for any remaining errors
+Right now the parsing relies heavily on regex patterns that expect real `\n` boundaries and certain formatting.
 
+Once we have real lines, we’ll improve `parseResumeText()` to:
+- Pre-clean text:
+  - normalize whitespace
+  - normalize repeated blank lines to `\n\n`
+- Build `lines[]` from the cleaned text
+- Detect headings by scanning lines:
+  - Summary: `summary|objective|profile|about`
+  - Experience: `experience|work experience|employment|work history`
+  - Education: `education|academic|qualifications`
+  - Skills: `skills|technical skills|core competencies|technologies`
+  - Certifications: `certifications|licenses|credentials`
+- Extract section blocks by taking lines between headings.
+
+Then parse each section:
+- **Skills:** split by commas/bullets/pipes/newlines; filter out junk
+- **Experience:** split into blocks by blank lines; for each block:
+  - try to infer company/position from first 1–2 lines
+  - parse date ranges if present
+  - remaining lines become description / achievements
+- **Education:** similar block-based parsing
+
+This will populate far more reliably across 1–2 page resumes and common formats.
+
+---
+
+### 4) Stop showing “success” unless something was actually extracted
+**File:** `src/pages/UploadPage.tsx`
+
+Change the upload flow to:
+- Parse the PDF → get `resumeData`
+- Compute extraction summary:
+  - `hasAnyContent = email || phone || fullName || skills.length || experience.length || education.length || summary.length`
+- If `NO_TEXT_EXTRACTED` or `hasAnyContent` is false:
+  - Show a clear error toast:
+    - “We uploaded your PDF but couldn’t extract readable text. This usually happens with scanned/image PDFs.”
+  - Do **not** navigate to `/editor`
+- If extraction is partial:
+  - Show a “warning-ish success” toast like:
+    - “Imported resume: found email + 0 jobs + 2 skills. You may need to fill some sections manually.”
+  - Navigate to `/editor`
+- If extraction is good:
+  - “Imported: 3 jobs, 12 skills, 2 education entries”
+
+This removes the “fake success” feeling and makes it obvious what the system extracted.
+
+---
+
+### 5) (Optional but recommended) Add a small “Import result” banner in the Editor
+**File:** `src/pages/EditorPage.tsx` (or a small component)
+
+If the resume is missing key sections after import, show a non-blocking banner:
+- “We couldn’t detect your Experience section. This can happen with heavily designed PDFs.”
+- Suggest re-uploading a simpler PDF or manually adding entries.
+
+This reduces confusion when some resumes don’t parse perfectly.
+
+---
+
+## How we’ll verify it works (end-to-end tests)
+1) Upload a normal text-based PDF (2 pages):
+   - Contact fields should populate (at least email/phone/name if present)
+   - Skills list should get items
+   - Experience should create entries (even if not perfect)
+2) Upload a scanned/image PDF:
+   - You should get a clear error message and stay on the upload page (no navigation to editor)
+3) Upload a password-protected PDF:
+   - You should get a specific message (“This PDF is password protected…”)
+
+---
+
+## Files that will be changed
+- `src/lib/pdfParser.ts`
+  - layout-aware extraction
+  - scanned/password-protected detection
+  - improved section parsing
+- `src/pages/UploadPage.tsx`
+  - only show success when extraction yields data
+  - better error/warning messaging
+  - prevent navigating to editor on “empty extraction”
+- (Optional) `src/pages/EditorPage.tsx`
+  - add an “import quality” banner if major sections are missing
+
+---
+
+## Notes / expectations
+- For clean text-based PDFs, you should see meaningful auto-filled content.
+- For heavily designed resumes (two columns, icons, canvases), extraction can still be imperfect, but the new line reconstruction + block parsing will be much better than the current “single-line” extraction.
+- For scanned resumes, there is no real text to extract (we’ll educate the user and avoid misleading success states).
