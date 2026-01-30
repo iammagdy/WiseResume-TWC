@@ -5,7 +5,7 @@ import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
-import { parseResumePDF } from '@/lib/pdfParser';
+import { parseResumePDF, getExtractionSummary, PDFParseError } from '@/lib/pdfParser';
 import { toast } from 'sonner';
 
 export default function UploadPage() {
@@ -31,12 +31,52 @@ export default function UploadPage() {
 
     try {
       const resumeData = await parseResumePDF(file);
+      const extraction = getExtractionSummary(resumeData);
+
+      if (extraction.isEmpty) {
+        toast.error(
+          'Could not extract any content from this PDF. This may be a scanned document or image-based PDF.',
+          { duration: 5000 }
+        );
+        setIsProcessing(false);
+        return;
+      }
+
       setCurrentResume(resumeData);
-      toast.success('Resume uploaded successfully!');
+
+      if (extraction.isPartial) {
+        toast.warning(
+          `${extraction.summary}. Some sections may need manual entry.`,
+          { duration: 5000 }
+        );
+      } else {
+        toast.success(extraction.summary, { duration: 4000 });
+      }
+
       navigate('/editor');
     } catch (error) {
       console.error('Error parsing PDF:', error);
-      toast.error('Failed to parse PDF. Please try again.');
+      
+      if (error instanceof PDFParseError) {
+        switch (error.code) {
+          case 'PASSWORD_PROTECTED':
+            toast.error('This PDF is password protected. Please upload an unprotected version.');
+            break;
+          case 'CORRUPTED':
+            toast.error('This PDF appears to be corrupted or invalid.');
+            break;
+          case 'NO_TEXT':
+            toast.error(
+              'Could not extract readable text. This usually happens with scanned or image-based PDFs.',
+              { duration: 5000 }
+            );
+            break;
+          default:
+            toast.error('Failed to parse PDF. Please try a different file.');
+        }
+      } else {
+        toast.error('Failed to parse PDF. Please try again.');
+      }
     } finally {
       setIsProcessing(false);
     }
