@@ -72,7 +72,15 @@ export interface GapAnalysis {
   }[];
 }
 
-export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional';
+export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive';
+
+export interface TemplateInfo {
+  id: TemplateId;
+  name: string;
+  description: string;
+  atsScore: 'high' | 'medium' | 'low';
+  category: 'professional' | 'tech' | 'creative';
+}
 
 export interface ResumeTemplate {
   id: TemplateId;
