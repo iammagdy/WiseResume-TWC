@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wand2, Loader2, CheckCircle, ArrowRight, Undo2 } from 'lucide-react';
+import { Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
 import { tailorResume, TailorResult } from '@/lib/aiTailor';
 import { toast } from 'sonner';
+import { CompareSheet } from './CompareSheet';
 
 interface TailorSheetProps {
   open: boolean;
@@ -25,6 +26,7 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   const [isTailoring, setIsTailoring] = useState(false);
   const [tailorResult, setTailorResult] = useState<TailorResult | null>(null);
   const [originalResume, setOriginalResume] = useState<typeof currentResume>(null);
+  const [showCompare, setShowCompare] = useState(false);
 
   const handleTailor = async () => {
     if (!jobDescription.trim()) {
@@ -215,22 +217,32 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
+                <div className="space-y-3 pt-2">
                   <Button
                     variant="outline"
-                    className="flex-1"
-                    onClick={handleRevert}
+                    className="w-full"
+                    onClick={() => setShowCompare(true)}
                   >
-                    <Undo2 className="w-4 h-4 mr-2" />
-                    Discard
+                    <GitCompare className="w-4 h-4 mr-2" />
+                    Compare Changes
                   </Button>
-                  <Button
-                    className="flex-1 gradient-primary"
-                    onClick={handleApplyChanges}
-                  >
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Apply Changes
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={handleRevert}
+                    >
+                      <Undo2 className="w-4 h-4 mr-2" />
+                      Discard
+                    </Button>
+                    <Button
+                      className="flex-1 gradient-primary"
+                      onClick={handleApplyChanges}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Apply Changes
+                    </Button>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -250,6 +262,15 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
           )}
         </div>
       </SheetContent>
+
+      {/* Compare Sheet */}
+      <CompareSheet
+        open={showCompare}
+        onOpenChange={setShowCompare}
+        originalResume={originalResume}
+        tailorResult={tailorResult}
+        onApplyChanges={handleApplyChanges}
+      />
     </Sheet>
   );
 }
