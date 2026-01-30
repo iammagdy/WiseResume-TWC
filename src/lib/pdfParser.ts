@@ -1,12 +1,10 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { ResumeData } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 
-// Configure PDF.js worker using Vite's import.meta.url for reliable module resolution
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
+// Configure PDF.js worker using Vite URL import for reliable bundling in dev + prod
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 export async function parseResumePDF(file: File): Promise<ResumeData> {
   const arrayBuffer = await file.arrayBuffer();
