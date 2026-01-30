@@ -9,6 +9,9 @@ import { ModernTemplate } from '@/components/templates/ModernTemplate';
 import { ClassicTemplate } from '@/components/templates/ClassicTemplate';
 import { MinimalTemplate } from '@/components/templates/MinimalTemplate';
 import { ProfessionalTemplate } from '@/components/templates/ProfessionalTemplate';
+import { DeveloperTemplate } from '@/components/templates/DeveloperTemplate';
+import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
+import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
 import { generatePDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 
@@ -73,6 +76,9 @@ export default function PreviewPage() {
     classic: ClassicTemplate,
     minimal: MinimalTemplate,
     professional: ProfessionalTemplate,
+    developer: DeveloperTemplate,
+    creative: CreativeTemplate,
+    executive: ExecutiveTemplate,
   }[selectedTemplate];
 
   return (
