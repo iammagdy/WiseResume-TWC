@@ -10,6 +10,7 @@ interface PageBreakIndicatorProps {
   containerWidth: number;
   containerHeight: number;
   templateRef?: RefObject<HTMLElement>;
+  manualBreakSections?: string[];
   className?: string;
 }
 
@@ -17,6 +18,7 @@ export function PageBreakIndicator({
   containerWidth, 
   containerHeight,
   templateRef,
+  manualBreakSections,
   className 
 }: PageBreakIndicatorProps) {
   const breaks = useMemo(() => {
@@ -29,7 +31,8 @@ export function PageBreakIndicator({
       return findSmartBreakPositions(
         templateRef.current,
         sourceHeightPerPage,
-        containerHeight
+        containerHeight,
+        manualBreakSections
       );
     }
     
@@ -43,7 +46,10 @@ export function PageBreakIndicator({
     }
     
     return fixedBreaks;
-  }, [containerWidth, containerHeight, templateRef]);
+  }, [containerWidth, containerHeight, templateRef, manualBreakSections]);
+
+  // Different styling for manual vs auto breaks
+  const isManualMode = manualBreakSections && manualBreakSections.length > 0;
 
   if (breaks.length === 0) return null;
 
@@ -55,11 +61,22 @@ export function PageBreakIndicator({
           className="absolute left-0 right-0 flex items-center gap-2 z-10"
           style={{ top: `${breakPosition}px` }}
         >
-          <div className="flex-1 border-t-2 border-dashed border-orange-400/60" />
-          <span className="px-2 py-0.5 text-xs font-medium text-orange-600 bg-orange-100 rounded-full whitespace-nowrap shadow-sm">
+          <div className={cn(
+            "flex-1 border-t-2 border-dashed",
+            isManualMode ? "border-blue-400/60" : "border-orange-400/60"
+          )} />
+          <span className={cn(
+            "px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap shadow-sm",
+            isManualMode 
+              ? "text-blue-600 bg-blue-100" 
+              : "text-orange-600 bg-orange-100"
+          )}>
             Page {index + 1} ends
           </span>
-          <div className="flex-1 border-t-2 border-dashed border-orange-400/60" />
+          <div className={cn(
+            "flex-1 border-t-2 border-dashed",
+            isManualMode ? "border-blue-400/60" : "border-orange-400/60"
+          )} />
         </div>
       ))}
     </div>

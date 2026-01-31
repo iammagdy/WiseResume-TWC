@@ -21,14 +21,14 @@ export function MinimalTemplate({ resume }: TemplateProps) {
 
       {/* Summary */}
       {resume.summary && (
-        <section className="mb-8">
+        <section data-section="summary" className="mb-8">
           <p className="text-gray-600 leading-relaxed">{resume.summary}</p>
         </section>
       )}
 
       {/* Experience */}
       {resume.experience.length > 0 && (
-        <section className="mb-8">
+        <section data-section="experience" className="mb-8">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
             Experience
           </h2>
@@ -53,7 +53,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
 
       {/* Education */}
       {resume.education.length > 0 && (
-        <section className="mb-8">
+        <section data-section="education" className="mb-8">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-4">
             Education
           </h2>
@@ -72,7 +72,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
 
       {/* Skills */}
       {resume.skills.length > 0 && (
-        <section>
+        <section data-section="skills">
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-widest mb-3">
             Skills
           </h2>

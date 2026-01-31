@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ResumeData, JobMatchScore, GapAnalysis, TemplateId } from '@/types/resume';
+import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings } from '@/types/resume';
 
 interface ResumeState {
   currentResume: ResumeData | null;
@@ -9,6 +9,7 @@ interface ResumeState {
   gapAnalysis: GapAnalysis | null;
   isAnalyzing: boolean;
   selectedTemplate: TemplateId;
+  pageBreakSettings: PageBreakSettings;
   
   setCurrentResume: (resume: ResumeData | null) => void;
   updateResume: (updates: Partial<ResumeData>) => void;
@@ -17,6 +18,7 @@ interface ResumeState {
   setGapAnalysis: (analysis: GapAnalysis | null) => void;
   setIsAnalyzing: (analyzing: boolean) => void;
   setSelectedTemplate: (template: TemplateId) => void;
+  setPageBreakSettings: (settings: PageBreakSettings) => void;
   clearAll: () => void;
 }
 
@@ -46,6 +48,7 @@ export const useResumeStore = create<ResumeState>()(
       gapAnalysis: null,
       isAnalyzing: false,
       selectedTemplate: 'modern',
+      pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
       
@@ -60,6 +63,7 @@ export const useResumeStore = create<ResumeState>()(
       setGapAnalysis: (analysis) => set({ gapAnalysis: analysis }),
       setIsAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
       setSelectedTemplate: (template) => set({ selectedTemplate: template }),
+      setPageBreakSettings: (settings) => set({ pageBreakSettings: settings }),
       
       clearAll: () => set({
         currentResume: null,
@@ -68,6 +72,7 @@ export const useResumeStore = create<ResumeState>()(
         gapAnalysis: null,
         isAnalyzing: false,
         selectedTemplate: 'modern',
+        pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
       }),
     }),
     {

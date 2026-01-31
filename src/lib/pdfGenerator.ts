@@ -14,18 +14,34 @@ interface ContentBlock {
 
 /**
  * Finds smart page break positions that avoid cutting through content blocks.
- * Scans for elements with data-break-avoid attribute and adjusts breaks.
+ * Supports both automatic detection and manual section-based breaks.
  */
 export function findSmartBreakPositions(
   sourceElement: HTMLElement,
   sourceHeightPerPage: number,
-  totalHeight: number
+  totalHeight: number,
+  manualBreakSections?: string[]
 ): number[] {
-  // Get all unbreakable blocks
+  const containerRect = sourceElement.getBoundingClientRect();
+
+  // If manual sections specified, find their bottom positions
+  if (manualBreakSections && manualBreakSections.length > 0) {
+    const manualBreaks: number[] = [];
+    
+    manualBreakSections.forEach(sectionId => {
+      const section = sourceElement.querySelector(`[data-section="${sectionId}"]`);
+      if (section) {
+        const rect = section.getBoundingClientRect();
+        manualBreaks.push(rect.bottom - containerRect.top + 8); // 8px padding
+      }
+    });
+    
+    return manualBreaks.filter(b => b < totalHeight && b > 0).sort((a, b) => a - b);
+  }
+
+  // Auto mode: Get all unbreakable blocks
   const blockElements = sourceElement.querySelectorAll('[data-break-avoid]');
   const blocks: ContentBlock[] = [];
-  
-  const containerRect = sourceElement.getBoundingClientRect();
   
   blockElements.forEach(el => {
     const rect = el.getBoundingClientRect();
@@ -112,7 +128,8 @@ export function findSmartBreakPositions(
 export async function generatePDF(
   resume: ResumeData,
   templateId: TemplateId,
-  templateElement?: HTMLElement | null
+  templateElement?: HTMLElement | null,
+  manualBreakSections?: string[]
 ): Promise<Blob> {
   // Find the template element - either passed directly or by query
   let sourceElement = templateElement;
@@ -159,7 +176,12 @@ export async function generatePDF(
     const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
 
     // Calculate smart break positions that avoid cutting content
-    const smartBreaks = findSmartBreakPositions(sourceElement, sourceHeightPerPage, totalHeight);
+    const smartBreaks = findSmartBreakPositions(
+      sourceElement, 
+      sourceHeightPerPage, 
+      totalHeight,
+      manualBreakSections
+    );
     const numPages = smartBreaks.length + 1;
 
     console.log('PDF Generator: Smart pagination', { 
@@ -167,7 +189,8 @@ export async function generatePDF(
       sourceHeightPerPage, 
       numPages,
       totalHeight,
-      smartBreaks 
+      smartBreaks,
+      manualBreakSections 
     });
 
     // Create PDF document

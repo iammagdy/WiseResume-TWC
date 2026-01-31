@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, ArrowLeft, Loader2, Check, Scissors } from 'lucide-react';
@@ -13,10 +13,11 @@ import { DeveloperTemplate } from '@/components/templates/DeveloperTemplate';
 import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
 import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
+import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
 import { generatePDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { TemplateId } from '@/types/resume';
+import { TemplateId, SectionId } from '@/types/resume';
 
 const templates: { id: TemplateId; name: string }[] = [
   { id: 'modern', name: 'Modern' },
@@ -30,11 +31,32 @@ const templates: { id: TemplateId; name: string }[] = [
 
 export default function PreviewPage() {
   const navigate = useNavigate();
-  const { currentResume, selectedTemplate, setSelectedTemplate } = useResumeStore();
+  const { currentResume, selectedTemplate, setSelectedTemplate, pageBreakSettings, setPageBreakSettings } = useResumeStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPageBreaks, setShowPageBreaks] = useState(true);
+  const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 612, height: 792 });
+
+  // Determine which sections exist in resume
+  const availableSections = useMemo(() => {
+    if (!currentResume) return [];
+    const sections: SectionId[] = [];
+    if (currentResume.summary) sections.push('summary');
+    if (currentResume.experience.length > 0) sections.push('experience');
+    if (currentResume.education.length > 0) sections.push('education');
+    if (currentResume.skills.length > 0) sections.push('skills');
+    if (currentResume.certifications.length > 0) sections.push('certifications');
+    return sections;
+  }, [currentResume]);
+
+  // Get manual break sections for passing to components
+  const manualBreakSections = useMemo(() => {
+    if (pageBreakSettings.mode === 'manual' && pageBreakSettings.breakAfterSections.length > 0) {
+      return pageBreakSettings.breakAfterSections;
+    }
+    return undefined;
+  }, [pageBreakSettings]);
 
   // Track container dimensions with ResizeObserver
   useEffect(() => {
@@ -65,7 +87,12 @@ export default function PreviewPage() {
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current);
+      const pdfBlob = await generatePDF(
+        currentResume, 
+        selectedTemplate, 
+        resumeRef.current,
+        manualBreakSections
+      );
       
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
@@ -91,7 +118,12 @@ export default function PreviewPage() {
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current);
+        const pdfBlob = await generatePDF(
+          currentResume, 
+          selectedTemplate, 
+          resumeRef.current,
+          manualBreakSections
+        );
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({
           title: 'My Resume',
@@ -151,16 +183,23 @@ export default function PreviewPage() {
             <span className="text-success font-medium">ATS-Ready</span>
           </div>
           <button
-            onClick={() => setShowPageBreaks(!showPageBreaks)}
+            onClick={() => setShowPageBreakSheet(true)}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-              showPageBreaks
-                ? "bg-orange-100 text-orange-600"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
+              pageBreakSettings.mode === 'manual'
+                ? "bg-blue-100 text-blue-600"
+                : showPageBreaks
+                  ? "bg-orange-100 text-orange-600"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
             <Scissors className="w-3.5 h-3.5" />
             Page breaks
+            {pageBreakSettings.mode === 'manual' && (
+              <span className="ml-1 px-1.5 py-0.5 bg-blue-200 rounded text-xs">
+                {pageBreakSettings.breakAfterSections.length}
+              </span>
+            )}
           </button>
         </div>
 
@@ -180,12 +219,13 @@ export default function PreviewPage() {
             animate={{ opacity: 1, scale: 1 }}
           >
             <TemplateComponent resume={currentResume} />
-            {/* Page break indicators - hidden during PDF generation or when toggled off */}
+            {/* Page break indicators - hidden during PDF generation */}
             {!isGenerating && showPageBreaks && (
               <PageBreakIndicator
                 containerWidth={containerDimensions.width}
                 containerHeight={containerDimensions.height}
                 templateRef={resumeRef}
+                manualBreakSections={manualBreakSections}
               />
             )}
           </motion.div>
@@ -241,6 +281,15 @@ export default function PreviewPage() {
           </div>
         </motion.div>
       </div>
+
+      {/* Page Break Settings Sheet */}
+      <PageBreakSheet
+        open={showPageBreakSheet}
+        onOpenChange={setShowPageBreakSheet}
+        settings={pageBreakSettings}
+        onSettingsChange={setPageBreakSettings}
+        availableSections={availableSections}
+      />
     </MobileLayout>
   );
 }

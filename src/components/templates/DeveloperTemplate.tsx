@@ -93,7 +93,7 @@ export function DeveloperTemplate({ resume }: TemplateProps) {
       <div className="p-6 space-y-5">
         {/* Summary */}
         {resume.summary && (
-          <section>
+          <section data-section="summary">
             <h2 className="text-green-600 font-bold mb-2">
               <span className="text-gray-400">//</span> ABOUT
             </h2>
@@ -105,7 +105,7 @@ export function DeveloperTemplate({ resume }: TemplateProps) {
 
         {/* Tech Stack */}
         {resume.skills.length > 0 && (
-          <section>
+          <section data-section="skills">
             <h2 className="text-green-600 font-bold mb-2">
               <span className="text-gray-400">//</span> TECH_STACK
             </h2>
@@ -146,7 +146,7 @@ export function DeveloperTemplate({ resume }: TemplateProps) {
 
         {/* Experience */}
         {resume.experience.length > 0 && (
-          <section>
+          <section data-section="experience">
             <h2 className="text-green-600 font-bold mb-2">
               <span className="text-gray-400">//</span> EXPERIENCE
             </h2>
@@ -182,7 +182,7 @@ export function DeveloperTemplate({ resume }: TemplateProps) {
 
         {/* Education */}
         {resume.education.length > 0 && (
-          <section>
+          <section data-section="education">
             <h2 className="text-green-600 font-bold mb-2">
               <span className="text-gray-400">//</span> EDUCATION
             </h2>

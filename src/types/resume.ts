@@ -74,6 +74,13 @@ export interface GapAnalysis {
 
 export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive';
 
+export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications';
+
+export interface PageBreakSettings {
+  mode: 'auto' | 'manual';
+  breakAfterSections: SectionId[];
+}
+
 export interface TemplateInfo {
   id: TemplateId;
   name: string;
