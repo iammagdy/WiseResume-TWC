@@ -1,14 +1,28 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Zap } from 'lucide-react';
+import { Plus, X, Zap, Wand2, Layers, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
+import { AIActionBar, AIAction } from './ai/AIActionBar';
+import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
+import { toast } from 'sonner';
 
 export function SkillsSection() {
   const { currentResume, updateResume, gapAnalysis } = useResumeStore();
   const [newSkill, setNewSkill] = useState('');
+  
+  const { enhance, isEnhancing, currentAction } = useAIEnhance({
+    section: 'skills',
+    onApply: (content) => {
+      const skills = content as string[];
+      if (Array.isArray(skills)) {
+        updateResume({ skills });
+        toast.success('Skills updated!');
+      }
+    },
+  });
 
   if (!currentResume) return null;
 
@@ -42,6 +56,31 @@ export function SkillsSection() {
     }
   };
 
+  const handleAIAction = async (actionId: string) => {
+    const result = await enhance(
+      actionId as ActionType,
+      currentResume.skills,
+      currentResume
+    );
+    
+    if (result?.improved) {
+      const skills = result.improved as string[];
+      if (Array.isArray(skills)) {
+        updateResume({ skills });
+        toast.success(`${result.changes?.join(', ') || 'Skills enhanced!'}`);
+      }
+    }
+  };
+
+  const primaryActions: AIAction[] = [
+    { id: 'generate', label: 'Suggest Skills', icon: <Wand2 className="w-3 h-3" /> },
+    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-3 h-3" /> },
+  ];
+
+  const moreActions: AIAction[] = [
+    { id: 'improve', label: 'Improve & Reorder', icon: <Layers className="w-3 h-3" /> },
+  ];
+
   return (
     <div className="space-y-4">
       <h3 className="font-display font-semibold text-lg">Skills</h3>
@@ -59,6 +98,15 @@ export function SkillsSection() {
           <Plus className="w-5 h-5" />
         </Button>
       </div>
+
+      {/* AI Action Bar */}
+      <AIActionBar
+        primaryActions={primaryActions}
+        moreActions={moreActions}
+        onAction={handleAIAction}
+        isLoading={isEnhancing}
+        loadingAction={currentAction}
+      />
 
       {/* Current skills */}
       <div className="flex flex-wrap gap-2">
