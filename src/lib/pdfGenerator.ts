@@ -81,11 +81,10 @@ export async function generatePDF(
       width: sourceWidth,
       height: totalHeight,
       scrollX: 0,
-      scrollY: -window.scrollY,
+      scrollY: 0,
       windowWidth: sourceWidth,
       windowHeight: totalHeight,
-      x: rect.left,
-      y: rect.top,
+      // Note: Don't pass x, y options - they introduce viewport offset issues
     });
 
     console.log('PDF Generator: Canvas captured', { width: canvas.width, height: canvas.height });
@@ -107,36 +106,32 @@ export async function generatePDF(
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
 
-      // Calculate which portion of the source to capture for this page
-      const sourceStartY = pageNum * sourceHeightPerPage;
-      const sourceEndY = Math.min((pageNum + 1) * sourceHeightPerPage, totalHeight);
-      const sourceSliceHeight = sourceEndY - sourceStartY;
+      // Calculate source slice from captured canvas (in canvas pixels)
+      const canvasPageHeight = sourceHeightPerPage * SCALE;
+      const sourceY = pageNum * canvasPageHeight;
+      const remainingHeight = canvas.height - sourceY;
+      const sliceHeight = Math.min(canvasPageHeight, remainingHeight);
 
-      if (sourceSliceHeight <= 0) continue;
+      if (sliceHeight <= 0) continue;
 
-      // Convert to canvas coordinates (multiply by SCALE)
-      const canvasStartY = sourceStartY * SCALE;
-      const canvasSliceHeight = sourceSliceHeight * SCALE;
-
-      // Calculate destination height on page canvas (maintaining aspect ratio)
-      const destHeight = sourceSliceHeight * scaleFactor * SCALE;
+      // Calculate how much of the page this slice fills (1.0 for full pages, less for last page)
+      const pageFillRatio = sliceHeight / canvasPageHeight;
+      const destHeight = PAGE_HEIGHT * SCALE * pageFillRatio;
 
       console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
-        sourceStartY,
-        sourceEndY,
-        sourceSliceHeight,
-        canvasStartY,
-        canvasSliceHeight,
+        sourceY,
+        sliceHeight,
+        pageFillRatio,
         destHeight
       });
 
-      // Draw from captured canvas to page canvas
+      // Draw from captured canvas to page canvas (from top)
       ctx.drawImage(
         canvas,
-        0, canvasStartY,                    // Source x, y
-        canvas.width, canvasSliceHeight,    // Source width, height
-        0, 0,                               // Dest x, y
-        pageCanvas.width, destHeight        // Dest width, height
+        0, sourceY,                    // Source x, y (from captured canvas)
+        canvas.width, sliceHeight,     // Source width, height
+        0, 0,                          // Dest x, y (top-left of page)
+        pageCanvas.width, destHeight   // Dest width, height
       );
 
       // Convert page canvas to PNG
@@ -147,7 +142,7 @@ export async function generatePDF(
       const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       
       // Calculate actual image height on this PDF page
-      const pdfImageHeight = sourceSliceHeight * scaleFactor;
+      const pdfImageHeight = PAGE_HEIGHT * pageFillRatio;
       
       // In PDF, y=0 is BOTTOM. Position image at TOP of page.
       page.drawImage(pngImage, {
