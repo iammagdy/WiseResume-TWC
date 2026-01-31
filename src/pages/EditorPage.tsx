@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, Target, Sparkles, Download, ChevronRight, Wand2 } from 'lucide-react';
+import { Download, ChevronRight, Check } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -14,77 +14,69 @@ import { SkillsSection } from '@/components/editor/SkillsSection';
 import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
 import { TemplateSelector } from '@/components/editor/TemplateSelector';
 import { TailorSheet } from '@/components/editor/TailorSheet';
+import { AIFloatingButton } from '@/components/editor/AIFloatingButton';
+import { AIHubSheet } from '@/components/editor/AIHubSheet';
+import { ProgressBar } from '@/components/editor/ProgressBar';
 
 export default function EditorPage() {
   const navigate = useNavigate();
-  const { currentResume, matchScore, isAnalyzing } = useResumeStore();
+  const { currentResume, matchScore, jobDescription } = useResumeStore();
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
+  const [showAIHub, setShowAIHub] = useState(false);
+  const [activeTab, setActiveTab] = useState('contact');
 
   if (!currentResume) {
-    navigate('/upload');
+    navigate('/');
     return null;
   }
 
+  // Calculate section completion
+  const sectionStatus = {
+    contact: Boolean(currentResume.contactInfo.fullName && currentResume.contactInfo.email),
+    summary: currentResume.summary.length > 30,
+    experience: currentResume.experience.length > 0,
+    education: currentResume.education.length > 0,
+    skills: currentResume.skills.length > 0,
+  };
+
+  const handleImproveSection = () => {
+    // For now, open tailor sheet - could be enhanced to improve specific section
+    setShowTailor(true);
+  };
+
   return (
-    <MobileLayout showHeader headerTitle="Edit Resume" onBack={() => navigate('/upload')}>
+    <MobileLayout showHeader headerTitle="Edit Resume" onBack={() => navigate('/')}>
       <div className="flex-1 flex flex-col">
-        {/* Quick Actions Bar */}
-        <motion.div
-          className="px-4 py-3 flex gap-3 overflow-x-auto border-b border-border scrollbar-hide snap-x-mandatory"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-2 snap-start"
-            onClick={() => setShowJobSheet(true)}
-          >
-            <Target className="w-4 h-4" />
-            {matchScore ? `Score: ${matchScore.overallScore}%` : 'Analyze'}
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-2 snap-start"
-            onClick={() => setShowTailor(true)}
-          >
-            <Wand2 className="w-4 h-4" />
-            Tailor
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-2 snap-start"
-            onClick={() => setShowTemplates(true)}
-          >
-            <FileText className="w-4 h-4" />
-            Templates
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0 gap-2 snap-start"
-            onClick={() => navigate('/preview')}
-          >
-            <Sparkles className="w-4 h-4" />
-            Preview
-          </Button>
-        </motion.div>
+        {/* Progress Bar */}
+        <div className="px-4 py-3 border-b border-border">
+          <ProgressBar resume={currentResume} />
+        </div>
 
         {/* Editor Tabs */}
-        <Tabs defaultValue="contact" className="flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
           <TabsList className="mx-4 mt-3 flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide">
-            <TabsTrigger value="contact" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Contact</TabsTrigger>
-            <TabsTrigger value="summary" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Summary</TabsTrigger>
-            <TabsTrigger value="experience" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Work</TabsTrigger>
-            <TabsTrigger value="education" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Education</TabsTrigger>
-            <TabsTrigger value="skills" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Skills</TabsTrigger>
+            <TabsTrigger value="contact" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              Contact
+              {sectionStatus.contact && <Check className="w-3.5 h-3.5 text-success" />}
+            </TabsTrigger>
+            <TabsTrigger value="summary" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              Summary
+              {sectionStatus.summary && <Check className="w-3.5 h-3.5 text-success" />}
+            </TabsTrigger>
+            <TabsTrigger value="experience" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              Work
+              {sectionStatus.experience && <Check className="w-3.5 h-3.5 text-success" />}
+            </TabsTrigger>
+            <TabsTrigger value="education" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              Education
+              {sectionStatus.education && <Check className="w-3.5 h-3.5 text-success" />}
+            </TabsTrigger>
+            <TabsTrigger value="skills" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              Skills
+              {sectionStatus.skills && <Check className="w-3.5 h-3.5 text-success" />}
+            </TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -114,20 +106,40 @@ export default function EditorPage() {
         >
           <Button
             size="lg"
-            className="w-full h-14 text-lg font-semibold gradient-primary glow-primary"
+            className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={() => navigate('/preview')}
+            style={{
+              boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
+            }}
           >
             <Download className="w-5 h-5 mr-2" />
-            Preview & Export PDF
+            Preview & Export
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
         </motion.div>
+
+        {/* AI Floating Button */}
+        <AIFloatingButton
+          onClick={() => setShowAIHub(true)}
+          hasNotification={!matchScore && jobDescription.length > 0}
+        />
       </div>
 
       {/* Sheets */}
       <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
       <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
       <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
+      <AIHubSheet
+        open={showAIHub}
+        onOpenChange={setShowAIHub}
+        matchScore={matchScore}
+        jobDescription={jobDescription}
+        activeTab={activeTab}
+        onTailor={() => setShowTailor(true)}
+        onAnalyze={() => setShowJobSheet(true)}
+        onImproveSection={handleImproveSection}
+        onChangeTemplate={() => setShowTemplates(true)}
+      />
     </MobileLayout>
   );
 }

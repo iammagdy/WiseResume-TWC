@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, FileText, Check } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Loader2, Check } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -14,22 +14,33 @@ import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
 import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
 import { generatePDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { TemplateId } from '@/types/resume';
+
+const templates: { id: TemplateId; name: string }[] = [
+  { id: 'modern', name: 'Modern' },
+  { id: 'classic', name: 'Classic' },
+  { id: 'minimal', name: 'Minimal' },
+  { id: 'professional', name: 'Professional' },
+  { id: 'developer', name: 'Developer' },
+  { id: 'creative', name: 'Creative' },
+  { id: 'executive', name: 'Executive' },
+];
 
 export default function PreviewPage() {
   const navigate = useNavigate();
-  const { currentResume, selectedTemplate } = useResumeStore();
+  const { currentResume, selectedTemplate, setSelectedTemplate } = useResumeStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
 
   if (!currentResume) {
-    navigate('/upload');
+    navigate('/');
     return null;
   }
 
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      // Pass the ref element to ensure we capture the correct template
       const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current);
       
       const url = URL.createObjectURL(pdfBlob);
@@ -85,21 +96,37 @@ export default function PreviewPage() {
   return (
     <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')}>
       <div className="flex-1 flex flex-col">
-        {/* Template indicator */}
+        {/* Template Quick Switcher */}
         <motion.div
-          className="px-4 py-3 flex items-center gap-3 border-b border-border"
+          className="border-b border-border"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          <FileText className="w-5 h-5 text-muted-foreground" />
-          <span className="text-sm text-muted-foreground">
-            Template: <span className="font-medium text-foreground capitalize">{selectedTemplate}</span>
-          </span>
-          <Check className="w-5 h-5 text-success ml-auto" />
-          <span className="text-sm text-success font-medium">ATS-Ready</span>
+          <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide snap-x snap-mandatory">
+            {templates.map((template) => (
+              <button
+                key={template.id}
+                className={cn(
+                  'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all snap-center touch-manipulation',
+                  selectedTemplate === template.id
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                )}
+                onClick={() => setSelectedTemplate(template.id)}
+              >
+                {template.name}
+              </button>
+            ))}
+          </div>
         </motion.div>
 
-        {/* Preview area - scrollable for multi-page resumes */}
+        {/* ATS Ready Badge */}
+        <div className="px-4 py-2 flex items-center gap-2 text-sm">
+          <Check className="w-4 h-4 text-success" />
+          <span className="text-success font-medium">ATS-Ready</span>
+        </div>
+
+        {/* Preview area */}
         <div className="flex-1 overflow-auto p-4 bg-muted/30">
           <motion.div
             ref={resumeRef}
@@ -109,7 +136,6 @@ export default function PreviewPage() {
               width: '100%',
               maxWidth: '612px',
               minHeight: '792px',
-              // Remove aspectRatio to allow content to grow naturally
             }}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -126,9 +152,12 @@ export default function PreviewPage() {
         >
           <Button
             size="lg"
-            className="w-full h-14 text-lg font-semibold gradient-primary glow-primary"
+            className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={handleDownload}
             disabled={isGenerating}
+            style={{
+              boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
+            }}
           >
             {isGenerating ? (
               <>

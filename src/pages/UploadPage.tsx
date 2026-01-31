@@ -1,9 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react';
+import { Upload, FileText, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { 
   parseResumePDF, 
@@ -45,7 +44,6 @@ export default function UploadPage() {
       
       setCurrentResume(resumeData);
       
-      // Show OCR-specific warning
       toast.warning(
         'Resume extracted via OCR. Please review all sections for accuracy.',
         { duration: 6000 }
@@ -95,7 +93,6 @@ export default function UploadPage() {
     try {
       const result = await parseResumePDF(file);
       
-      // If OCR is needed, show the prompt dialog
       if (result.needsOCR) {
         setPendingFile(file);
         setEstimatedTime(estimateOCRTime(result.pageCount));
@@ -104,7 +101,6 @@ export default function UploadPage() {
         return;
       }
       
-      // Standard extraction succeeded
       const resumeData = result.data!;
       const extraction = getExtractionSummary(resumeData);
 
@@ -141,7 +137,6 @@ export default function UploadPage() {
             toast.error('This PDF appears to be corrupted or invalid.');
             break;
           case 'NO_TEXT':
-            // This shouldn't happen anymore since we return needsOCR instead
             toast.error(
               'Could not extract readable text. This usually happens with scanned or image-based PDFs.',
               { duration: 5000 }
@@ -189,9 +184,9 @@ export default function UploadPage() {
       <div className="flex-1 flex flex-col px-4 py-6">
         {/* Upload Zone */}
         <motion.div
-          className={`flex-1 min-h-[320px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 relative ${
+          className={`flex-1 min-h-[280px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 relative ${
             isDragging 
-              ? 'border-primary bg-primary/10 glow-primary' 
+              ? 'border-primary bg-primary/10' 
               : 'border-border hover:border-primary/50'
           } ${isProcessing ? 'pointer-events-none' : ''}`}
           onDrop={handleDrop}
@@ -217,7 +212,7 @@ export default function UploadPage() {
               <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
               <p className="text-lg font-semibold mb-2">Analyzing Resume</p>
               <p className="text-sm text-muted-foreground text-center">
-                AI is extracting your information...
+                Extracting your information...
               </p>
               {fileName && (
                 <p className="text-sm text-muted-foreground mt-3 truncate max-w-[240px]">
@@ -228,77 +223,47 @@ export default function UploadPage() {
           ) : (
             <>
               <motion.div
-                className="w-24 h-24 rounded-full gradient-primary flex items-center justify-center mb-6 glow-primary"
+                className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mb-5"
                 animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
+                style={{
+                  boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.4)',
+                }}
               >
                 {isDragging ? (
-                  <FileText className="w-12 h-12 text-primary-foreground" />
+                  <FileText className="w-10 h-10 text-primary-foreground" />
                 ) : (
-                  <Upload className="w-12 h-12 text-primary-foreground" />
+                  <Upload className="w-10 h-10 text-primary-foreground" />
                 )}
               </motion.div>
               
-              <h2 className="text-xl font-display font-semibold mb-3 text-center">
-                {isDragging ? 'Drop to Upload' : 'Upload Your Resume'}
+              <h2 className="text-xl font-display font-semibold mb-2 text-center">
+                {isDragging ? 'Drop to Upload' : 'Upload Your PDF'}
               </h2>
               
-              <p className="text-muted-foreground text-center text-base mb-5 max-w-[280px]">
-                Drag and drop your PDF resume here, or tap to browse
+              <p className="text-muted-foreground text-center text-sm mb-4 max-w-[260px]">
+                Drag and drop or tap to browse
               </p>
 
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <FileText className="w-5 h-5" />
-                <span>PDF files only, max 10MB</span>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <FileText className="w-4 h-4" />
+                <span>PDF only, max 10MB</span>
               </div>
             </>
           )}
         </motion.div>
 
-        {/* Tips */}
+        {/* Tips - More Compact */}
         <motion.div
-          className="mt-6 p-5 rounded-2xl glass border border-border"
+          className="mt-5 p-4 rounded-xl bg-muted/50 border border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex items-start gap-4">
-            <AlertCircle className="w-6 h-6 text-secondary shrink-0 mt-0.5" />
-            <div>
-              <h3 className="font-semibold text-base mb-2">Tips for best results</h3>
-              <ul className="text-sm text-muted-foreground space-y-1.5">
-                <li>• Use a text-based PDF (not scanned image)</li>
-                <li>• Keep formatting simple and clean</li>
-                <li>• Include all relevant sections</li>
-              </ul>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Skip option */}
-        <motion.div
-          className="mt-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Button
-            variant="ghost"
-            className="w-full text-muted-foreground"
-            onClick={() => {
-              setCurrentResume({
-                contactInfo: { fullName: '', email: '', phone: '', location: '' },
-                summary: '',
-                experience: [],
-                education: [],
-                skills: [],
-                certifications: [],
-                templateId: 'modern',
-              });
-              navigate('/editor');
-            }}
-          >
-            Or start with a blank resume
-          </Button>
+          <h3 className="font-medium text-sm mb-2">Tips for best results</h3>
+          <ul className="text-xs text-muted-foreground space-y-1">
+            <li>• Use a text-based PDF (not scanned)</li>
+            <li>• Keep formatting simple</li>
+          </ul>
         </motion.div>
       </div>
       
