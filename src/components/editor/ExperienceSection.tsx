@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Wand2, Target, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -9,10 +9,31 @@ import { Switch } from '@/components/ui/switch';
 import { useResumeStore } from '@/store/resumeStore';
 import { Experience } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
+import { AIActionBar, AIAction } from './ai/AIActionBar';
+import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
+import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 
 export function ExperienceSection() {
   const { currentResume, updateResume } = useResumeStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [enhancingExpId, setEnhancingExpId] = useState<string | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
+  const [originalDescription, setOriginalDescription] = useState('');
+
+  const { enhance, isEnhancing, currentAction, result, apply, discard } = useAIEnhance({
+    section: 'experience',
+    onApply: (content) => {
+      if (enhancingExpId && content) {
+        const improved = content as { description?: string; achievements?: string[] };
+        updateExperience(enhancingExpId, {
+          description: improved.description,
+          achievements: improved.achievements || [],
+        });
+      }
+      setShowDialog(false);
+      setEnhancingExpId(null);
+    },
+  });
 
   if (!currentResume) return null;
 
@@ -46,6 +67,33 @@ export function ExperienceSection() {
       experience: currentResume.experience.filter((exp) => exp.id !== id),
     });
   };
+
+  const handleAIAction = async (actionId: string, exp: Experience) => {
+    setEnhancingExpId(exp.id);
+    setOriginalDescription(exp.description);
+    
+    const enhanceResult = await enhance(
+      actionId as ActionType,
+      { description: exp.description, position: exp.position, company: exp.company },
+      currentResume
+    );
+    
+    if (enhanceResult) {
+      setShowDialog(true);
+    }
+  };
+
+  const primaryActions: AIAction[] = [
+    { id: 'improve', label: 'Improve', icon: <Wand2 className="w-3 h-3" /> },
+    { id: 'add_metrics', label: 'Add Metrics', icon: <BarChart3 className="w-3 h-3" /> },
+    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-3 h-3" /> },
+  ];
+
+  const moreActions: AIAction[] = [
+    { id: 'generate_bullets', label: 'Generate Bullets' },
+    { id: 'expand', label: 'Expand' },
+    { id: 'shorten', label: 'Shorten' },
+  ];
 
   return (
     <div className="space-y-4">
@@ -184,6 +232,16 @@ export function ExperienceSection() {
                           />
                         </div>
 
+                        {/* AI Action Bar for this experience */}
+                        <AIActionBar
+                          primaryActions={primaryActions}
+                          moreActions={moreActions}
+                          onAction={(actionId) => handleAIAction(actionId, exp)}
+                          isLoading={isEnhancing && enhancingExpId === exp.id}
+                          loadingAction={currentAction}
+                          disabled={!exp.description && !exp.position}
+                        />
+
                         <Button
                           variant="destructive"
                           size="sm"
@@ -202,6 +260,24 @@ export function ExperienceSection() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* AI Enhancement Dialog */}
+      <AIEnhanceDialog
+        isOpen={showDialog}
+        original={originalDescription}
+        improved={(result?.improved as { description?: string })?.description || ''}
+        changes={result?.changes || []}
+        suggestions={result?.suggestions}
+        onApply={() => {
+          apply();
+          setShowDialog(false);
+        }}
+        onDiscard={() => {
+          discard();
+          setShowDialog(false);
+        }}
+        title="Enhanced Experience"
+      />
     </div>
   );
 }

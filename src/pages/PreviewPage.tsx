@@ -102,6 +102,7 @@ export default function PreviewPage() {
         <div className="flex-1 overflow-auto p-4 bg-muted/30">
           <motion.div
             ref={resumeRef}
+            data-resume-template
             className="bg-white text-black mx-auto shadow-2xl"
             style={{ 
               width: '100%',

@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.parse-resume]
 verify_jwt = false
+
+[functions.enhance-section]
+verify_jwt = false

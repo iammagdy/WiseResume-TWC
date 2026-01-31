@@ -1,10 +1,18 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
-import { User, Mail, Phone, MapPin, Linkedin, Globe } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Linkedin, Globe, Wand2, CheckCircle } from 'lucide-react';
+import { AIActionBar, AIAction } from './ai/AIActionBar';
+import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
+import { toast } from 'sonner';
 
 export function ContactSection() {
   const { currentResume, updateResume } = useResumeStore();
+
+  const { enhance, isEnhancing, currentAction } = useAIEnhance({
+    section: 'contact',
+    onApply: () => {},
+  });
 
   if (!currentResume) return null;
 
@@ -16,6 +24,32 @@ export function ContactSection() {
       },
     });
   };
+
+  const handleAIAction = async (actionId: string) => {
+    const result = await enhance(
+      actionId as ActionType,
+      currentResume.contactInfo,
+      currentResume
+    );
+    
+    if (result?.improved) {
+      const improved = result.improved as { linkedin?: string; portfolio?: string };
+      if (improved.linkedin) {
+        handleChange('linkedin', improved.linkedin);
+      }
+      if (improved.portfolio) {
+        handleChange('portfolio', improved.portfolio);
+      }
+      toast.success(result.changes?.join(', ') || 'Contact info improved!');
+    } else if (result?.suggestions) {
+      toast.success(`💡 ${result.suggestions.join(' • ')}`);
+    }
+  };
+
+  const primaryActions: AIAction[] = [
+    { id: 'improve', label: 'Format & Validate', icon: <CheckCircle className="w-3 h-3" /> },
+    { id: 'generate', label: 'Suggest Links', icon: <Wand2 className="w-3 h-3" /> },
+  ];
 
   return (
     <div className="space-y-4">
@@ -108,6 +142,14 @@ export function ContactSection() {
           />
         </div>
       </div>
+
+      {/* AI Action Bar */}
+      <AIActionBar
+        primaryActions={primaryActions}
+        onAction={handleAIAction}
+        isLoading={isEnhancing}
+        loadingAction={currentAction}
+      />
     </div>
   );
 }

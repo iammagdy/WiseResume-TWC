@@ -1,16 +1,24 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar, Wand2, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
 import { Education } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
+import { AIActionBar, AIAction } from './ai/AIActionBar';
+import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
+import { toast } from 'sonner';
 
 export function EducationSection() {
   const { currentResume, updateResume } = useResumeStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const { enhance, isEnhancing, currentAction } = useAIEnhance({
+    section: 'education',
+    onApply: () => {},
+  });
 
   if (!currentResume) return null;
 
@@ -43,6 +51,23 @@ export function EducationSection() {
     });
   };
 
+  const handleAIAction = async (actionId: string) => {
+    const result = await enhance(
+      actionId as ActionType,
+      currentResume.education,
+      currentResume
+    );
+    
+    if (result?.suggestions) {
+      toast.success(`💡 ${result.suggestions.join(' • ')}`);
+    }
+  };
+
+  const primaryActions: AIAction[] = [
+    { id: 'generate', label: 'Suggest Coursework', icon: <BookOpen className="w-3 h-3" /> },
+    { id: 'improve', label: 'Improve', icon: <Wand2 className="w-3 h-3" /> },
+  ];
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -52,6 +77,16 @@ export function EducationSection() {
           Add
         </Button>
       </div>
+
+      {/* AI Action Bar */}
+      {currentResume.education.length > 0 && (
+        <AIActionBar
+          primaryActions={primaryActions}
+          onAction={handleAIAction}
+          isLoading={isEnhancing}
+          loadingAction={currentAction}
+        />
+      )}
 
       <AnimatePresence>
         {currentResume.education.length === 0 ? (
