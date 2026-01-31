@@ -6,7 +6,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 interface TextItem {
   str: string;
-  transform: number[];
+  // pdfjs can return this as an Array or a TypedArray depending on build/runtime
+  transform: ArrayLike<number>;
   width?: number;
   height?: number;
   hasEOL?: boolean;
@@ -14,7 +15,16 @@ interface TextItem {
 
 // Type guard to filter out TextMarkedContent items (which lack str/transform)
 function isTextItem(item: any): item is TextItem {
-  return typeof item.str === 'string' && Array.isArray(item.transform);
+  const t = item?.transform;
+  // Accept both Array and TypedArray (Float32Array), avoid filtering out real text
+  return (
+    typeof item?.str === 'string' &&
+    t &&
+    typeof t.length === 'number' &&
+    t.length >= 6 &&
+    typeof t[4] === 'number' &&
+    typeof t[5] === 'number'
+  );
 }
 
 interface LineGroup {
