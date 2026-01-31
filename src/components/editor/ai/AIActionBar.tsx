@@ -36,14 +36,14 @@ export function AIActionBar({
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-2 p-3 rounded-xl bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20"
+      className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 to-secondary/5 border border-primary/20"
     >
-      <div className="flex items-center gap-1.5 text-primary">
+      <div className="flex items-center gap-1.5 text-primary shrink-0">
         <Sparkles className="w-4 h-4" />
-        <span className="text-xs font-medium">AI Assist</span>
+        <span className="text-sm font-medium hidden sm:inline">AI Assist</span>
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto flex-1 scrollbar-hide">
+      <div className="flex items-center gap-2 overflow-x-auto flex-1 scrollbar-hide snap-x-mandatory">
         {primaryActions.map((action) => (
           <Button
             key={action.id}
@@ -51,12 +51,12 @@ export function AIActionBar({
             size="sm"
             onClick={() => onAction(action.id)}
             disabled={disabled || isLoading}
-            className="shrink-0 h-8 px-3 text-xs gap-1.5 border-primary/30 hover:bg-primary hover:text-primary-foreground transition-colors"
+            className="shrink-0 h-10 px-4 text-sm gap-2 border-primary/30 hover:bg-primary hover:text-primary-foreground transition-colors snap-start touch-manipulation"
           >
             {isLoading && loadingAction === action.id ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
             ) : action.icon ? (
-              action.icon
+              <span className="[&>svg]:w-4 [&>svg]:h-4">{action.icon}</span>
             ) : null}
             {action.label}
           </Button>
@@ -69,20 +69,21 @@ export function AIActionBar({
                 variant="outline"
                 size="sm"
                 disabled={disabled || isLoading}
-                className="shrink-0 h-8 px-3 text-xs gap-1 border-primary/30"
+                className="shrink-0 h-10 px-4 text-sm gap-1.5 border-primary/30 snap-start touch-manipulation"
               >
                 More
-                <ChevronDown className="w-3 h-3" />
+                <ChevronDown className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="min-w-[160px]">
               {moreActions.map((action) => (
                 <DropdownMenuItem
                   key={action.id}
                   onClick={() => onAction(action.id)}
                   disabled={isLoading}
+                  className="py-3 text-sm"
                 >
-                  {action.icon}
+                  {action.icon && <span className="[&>svg]:w-4 [&>svg]:h-4">{action.icon}</span>}
                   <span className="ml-2">{action.label}</span>
                 </DropdownMenuItem>
               ))}

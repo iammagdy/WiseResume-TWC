@@ -121,11 +121,11 @@ export function SkillsSection() {
             >
               <Badge
                 variant="secondary"
-                className="h-8 px-3 gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                className="h-10 px-4 gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-sm"
                 onClick={() => removeSkill(skill)}
               >
                 {skill}
-                <X className="w-3 h-3" />
+                <X className="w-4 h-4" />
               </Badge>
             </motion.div>
           ))}
@@ -160,10 +160,10 @@ export function SkillsSection() {
                 <Badge
                   key={skill}
                   variant="outline"
-                  className="h-8 px-3 gap-2 cursor-pointer border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-colors"
+                  className="h-10 px-4 gap-2 cursor-pointer border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-colors touch-manipulation active:scale-95 text-sm"
                   onClick={() => addSuggestedSkill(skill)}
                 >
-                  <Plus className="w-3 h-3" />
+                  <Plus className="w-4 h-4" />
                   {skill}
                 </Badge>
               ))}
@@ -173,7 +173,7 @@ export function SkillsSection() {
 
       {/* Quick add common skills */}
       <div className="p-4 rounded-xl bg-muted/50 border border-border">
-        <h4 className="font-semibold text-sm mb-2">Common Skills</h4>
+        <h4 className="font-semibold text-sm mb-3">Common Skills</h4>
         <div className="flex flex-wrap gap-2">
           {['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'AWS', 'Git', 'Agile', 'Leadership', 'Communication']
             .filter((skill) => !currentResume.skills.includes(skill))
@@ -182,7 +182,7 @@ export function SkillsSection() {
               <Badge
                 key={skill}
                 variant="outline"
-                className="h-7 px-2 text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                className="h-9 px-3 text-sm cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors touch-manipulation active:scale-95"
                 onClick={() => addSuggestedSkill(skill)}
               >
                 + {skill}

@@ -85,7 +85,7 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl">
+      <SheetContent side="bottom" className="h-[90vh]">
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <Wand2 className="w-5 h-5 text-primary" />
@@ -93,7 +93,7 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
           </SheetTitle>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(90vh-100px)] space-y-4 pb-20">
+        <div className="overflow-y-auto h-[calc(90vh-140px)] space-y-4 pb-20">
           {/* Job Description Input */}
           <div>
             <label className="text-sm font-medium mb-2 block">
@@ -103,9 +103,9 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
               placeholder="Paste the job posting you want to tailor your resume for..."
-              className="min-h-[120px] resize-none"
+              className="min-h-[140px] resize-none text-base"
             />
-            <p className="text-xs text-muted-foreground mt-2">
+            <p className="text-sm text-muted-foreground mt-2">
               The AI will rewrite your resume to match this job's requirements
             </p>
           </div>
@@ -251,8 +251,8 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
           {/* Tips */}
           {!tailorResult && !isTailoring && (
             <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <h4 className="font-semibold text-sm mb-2">How it works</h4>
-              <ul className="text-xs text-muted-foreground space-y-1">
+              <h4 className="font-semibold text-sm mb-3">How it works</h4>
+              <ul className="text-sm text-muted-foreground space-y-2">
                 <li>• AI analyzes the job requirements and keywords</li>
                 <li>• Your experience is rewritten to highlight relevant skills</li>
                 <li>• Summary and bullet points are optimized for ATS</li>

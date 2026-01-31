@@ -45,14 +45,14 @@ export function AIEnhanceDialog({
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Sparkles className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-lg bg-primary/10">
+                <Sparkles className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="font-semibold">{title}</h3>
+              <h3 className="font-semibold text-lg">{title}</h3>
             </div>
-            <Button variant="ghost" size="icon" onClick={onDiscard}>
-              <X className="w-4 h-4" />
+            <Button variant="ghost" size="icon" onClick={onDiscard} className="min-w-[44px] min-h-[44px]">
+              <X className="w-5 h-5" />
             </Button>
           </div>
 
@@ -107,20 +107,22 @@ export function AIEnhanceDialog({
           </ScrollArea>
 
           {/* Actions */}
-          <div className="flex gap-3 p-4 border-t border-border">
+          <div className="flex flex-col sm:flex-row gap-3 p-4 border-t border-border">
             <Button
               variant="outline"
-              className="flex-1"
+              size="lg"
+              className="flex-1 h-12"
               onClick={onDiscard}
             >
-              <X className="w-4 h-4 mr-2" />
+              <X className="w-5 h-5 mr-2" />
               Discard
             </Button>
             <Button
-              className="flex-1 gradient-primary"
+              size="lg"
+              className="flex-1 h-12 gradient-primary"
               onClick={onApply}
             >
-              <Check className="w-4 h-4 mr-2" />
+              <Check className="w-5 h-5 mr-2" />
               Apply Changes
             </Button>
           </div>

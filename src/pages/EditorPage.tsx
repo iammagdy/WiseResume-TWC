@@ -32,14 +32,14 @@ export default function EditorPage() {
       <div className="flex-1 flex flex-col">
         {/* Quick Actions Bar */}
         <motion.div
-          className="px-4 py-3 flex gap-2 overflow-x-auto border-b border-border"
+          className="px-4 py-3 flex gap-3 overflow-x-auto border-b border-border scrollbar-hide snap-x-mandatory"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
         >
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0 gap-2"
+            className="shrink-0 gap-2 snap-start"
             onClick={() => setShowJobSheet(true)}
           >
             <Target className="w-4 h-4" />
@@ -49,7 +49,7 @@ export default function EditorPage() {
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0 gap-2"
+            className="shrink-0 gap-2 snap-start"
             onClick={() => setShowTailor(true)}
           >
             <Wand2 className="w-4 h-4" />
@@ -59,7 +59,7 @@ export default function EditorPage() {
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0 gap-2"
+            className="shrink-0 gap-2 snap-start"
             onClick={() => setShowTemplates(true)}
           >
             <FileText className="w-4 h-4" />
@@ -69,7 +69,7 @@ export default function EditorPage() {
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0 gap-2"
+            className="shrink-0 gap-2 snap-start"
             onClick={() => navigate('/preview')}
           >
             <Sparkles className="w-4 h-4" />
@@ -79,12 +79,12 @@ export default function EditorPage() {
 
         {/* Editor Tabs */}
         <Tabs defaultValue="contact" className="flex-1 flex flex-col">
-          <TabsList className="mx-4 mt-3 grid grid-cols-5 h-auto p-1">
-            <TabsTrigger value="contact" className="text-xs py-2">Contact</TabsTrigger>
-            <TabsTrigger value="summary" className="text-xs py-2">Summary</TabsTrigger>
-            <TabsTrigger value="experience" className="text-xs py-2">Work</TabsTrigger>
-            <TabsTrigger value="education" className="text-xs py-2">Education</TabsTrigger>
-            <TabsTrigger value="skills" className="text-xs py-2">Skills</TabsTrigger>
+          <TabsList className="mx-4 mt-3 flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide">
+            <TabsTrigger value="contact" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Contact</TabsTrigger>
+            <TabsTrigger value="summary" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Summary</TabsTrigger>
+            <TabsTrigger value="experience" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Work</TabsTrigger>
+            <TabsTrigger value="education" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Education</TabsTrigger>
+            <TabsTrigger value="skills" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0">Skills</TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -108,7 +108,7 @@ export default function EditorPage() {
 
         {/* Bottom Action Bar */}
         <motion.div
-          className="sticky bottom-0 p-4 glass border-t border-border"
+          className="sticky bottom-0 p-4 pb-safe glass border-t border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >

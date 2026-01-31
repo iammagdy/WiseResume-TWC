@@ -61,7 +61,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
+      <SheetContent side="bottom" className="h-[90vh]">
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <Target className="w-5 h-5 text-primary" />
@@ -69,7 +69,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
           </SheetTitle>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(85vh-100px)] space-y-4 pb-20">
+        <div className="overflow-y-auto h-[calc(90vh-140px)] space-y-4 pb-20">
           {/* Job Description Input */}
           <div>
             <label className="text-sm font-medium mb-2 block">
@@ -79,7 +79,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
               placeholder="Paste the job posting here..."
-              className="min-h-[120px] resize-none"
+              className="min-h-[140px] resize-none text-base"
             />
           </div>
 

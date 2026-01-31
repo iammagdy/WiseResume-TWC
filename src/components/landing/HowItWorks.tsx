@@ -40,7 +40,7 @@ export function HowItWorks() {
         How It Works
       </motion.h2>
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {steps.map((step, index) => (
           <motion.div
             key={step.step}
@@ -52,18 +52,18 @@ export function HowItWorks() {
           >
             {/* Step number */}
             <div className="relative">
-              <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center glow-primary">
-                <step.icon className="w-6 h-6 text-primary-foreground" />
+              <div className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center glow-primary">
+                <step.icon className="w-7 h-7 text-primary-foreground" />
               </div>
-              <span className="absolute -top-2 -right-2 text-xs font-bold text-primary">
+              <span className="absolute -top-2 -right-2 text-sm font-bold text-primary">
                 {step.step}
               </span>
             </div>
 
             {/* Content */}
             <div className="flex-1">
-              <h3 className="font-semibold text-base">{step.title}</h3>
-              <p className="text-sm text-muted-foreground">{step.description}</p>
+              <h3 className="font-semibold text-lg">{step.title}</h3>
+              <p className="text-base text-muted-foreground">{step.description}</p>
             </div>
 
             {/* Connector line (except last) */}
