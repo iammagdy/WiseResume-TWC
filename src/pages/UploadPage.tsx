@@ -215,9 +215,9 @@ export default function UploadPage() {
               animate={{ opacity: 1 }}
             >
               <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
-              <p className="text-lg font-semibold mb-2">Processing Resume</p>
+              <p className="text-lg font-semibold mb-2">Analyzing Resume</p>
               <p className="text-sm text-muted-foreground text-center">
-                Extracting your information...
+                AI is extracting your information...
               </p>
               {fileName && (
                 <p className="text-xs text-muted-foreground mt-2 truncate max-w-[200px]">

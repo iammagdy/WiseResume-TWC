@@ -2,7 +2,7 @@
  * PDF Resume Parser
  * 
  * Main entry point for parsing PDF resumes. Uses layout-aware text extraction
- * to preserve line breaks and structure, then parses into structured resume data.
+ * to preserve line breaks and structure, then uses AI to parse into structured resume data.
  * 
  * Supports OCR fallback for scanned/image-based PDFs via parseResumePDFWithOCR.
  */
@@ -27,6 +27,59 @@ export interface ParseResult {
 }
 
 /**
+ * Call the AI edge function to parse resume text into structured data.
+ * Falls back to local regex parsing if AI fails.
+ */
+async function parseTextWithAI(text: string): Promise<ResumeData> {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  try {
+    console.log('Calling AI to parse resume text...');
+    
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-resume`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('AI parsing failed:', response.status, error);
+      
+      // Throw specific errors for rate limits and payment issues
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please try again in a moment.');
+      }
+      if (response.status === 402) {
+        throw new Error('AI credits exhausted. Please add more credits.');
+      }
+      
+      throw new Error(error.error || 'AI parsing failed');
+    }
+
+    const data = await response.json();
+    console.log('AI parsing successful');
+    return data;
+  } catch (error) {
+    console.error('AI parsing error, falling back to local parser:', error);
+    
+    // Re-throw rate limit and payment errors
+    if (error instanceof Error && 
+        (error.message.includes('Rate limit') || error.message.includes('credits'))) {
+      throw error;
+    }
+    
+    // Fall back to local regex parsing for network errors
+    console.log('Using fallback local parser...');
+    return parseResumeText(text);
+  }
+}
+
+/**
  * Parse a PDF file and extract structured resume data.
  * Returns a ParseResult indicating whether OCR is needed.
  */
@@ -42,8 +95,8 @@ export async function parseResumePDF(file: File): Promise<ParseResult> {
     };
   }
   
-  // Parse into structured data
-  const data = parseResumeText(extraction.text);
+  // Parse into structured data using AI
+  const data = await parseTextWithAI(extraction.text);
   
   return {
     success: true,
@@ -68,8 +121,8 @@ export async function parseResumePDFWithOCR(
   // Extract text using OCR
   const text = await extractTextWithOCR(file, onProgress);
   
-  // Parse into structured data using existing parser
-  return parseResumeText(text);
+  // Parse into structured data using AI
+  return parseTextWithAI(text);
 }
 
 /**
