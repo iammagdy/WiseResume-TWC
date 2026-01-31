@@ -1,168 +1,291 @@
 
-# Fix PDF Rendering Issue - Blank Space at Top of Pages
+# Smart Page Breaks - Avoid Cutting Through Content
 
-## Problem Analysis
+## Problem
 
-The downloaded PDF shows incorrect rendering with:
-1. **Large blank space at the top** of each page
-2. **Content pushed down** rather than starting from the top
+The PDF export cuts through content blocks (job entries, education items, skill sections) because it slices at fixed pixel intervals without considering the actual content structure.
 
-### Root Causes Identified
-
-Looking at the console logs and code:
-
+**Current behavior:**
 ```
-sourceWidth: 604, totalHeight: 1701
-scaleFactor: 1.0132 (nearly 1:1)
-sourceHeightPerPage: 781.64px
+Page 1: Header + Summary + Experience (cut mid-job-entry) ✗
+Page 2: ...rest of job entry (awkward continuation) ✗
 ```
 
-**Issue 1: html2canvas capture offset**
-The current code passes `x: rect.left` and `y: rect.top` to html2canvas, which includes the element's position within the viewport. Since the resume preview is inside a scrollable container with padding, this offset gets baked into the capture, creating blank space.
+**Desired behavior:**
+```
+Page 1: Header + Summary + Complete job entries that fit ✓
+Page 2: Next complete job entries (clean break) ✓
+```
 
-**Issue 2: Inconsistent scaling math**
-The `destHeight` calculation uses `sourceSliceHeight * scaleFactor * SCALE` but doesn't properly account for the relationship between the captured canvas and the target page dimensions.
+## Solution Approach
 
-**Issue 3: Canvas slice positioning**
-When drawing slices onto page canvases, the source coordinates need to use the scaled canvas dimensions consistently.
+Implement **content-aware page breaking** that:
+1. Identifies all "unbreakable" content blocks in the resume
+2. Calculates where fixed breaks would naturally fall
+3. Adjusts break positions to occur between blocks, not through them
 
-## Solution
+## Technical Implementation
 
-### Fix 1: Remove position offsets from html2canvas
-Remove `x` and `y` options that introduce unwanted offsets:
+### Strategy: DOM-based Block Detection
+
+Before capturing with html2canvas, scan the template for content blocks and their positions:
 
 ```typescript
-// BEFORE (problematic)
-const canvas = await html2canvas(sourceElement, {
-  ...
-  x: rect.left,  // REMOVE
-  y: rect.top,   // REMOVE
-});
+// Find all unbreakable sections
+const blocks = sourceElement.querySelectorAll('[data-break-avoid], section, .experience-item, .education-item');
 
-// AFTER (fixed)
-const canvas = await html2canvas(sourceElement, {
-  ...
-  // Don't pass x, y - let html2canvas capture from element origin
+// Get their bounding boxes relative to the template
+blocks.forEach(block => {
+  const rect = block.getBoundingClientRect();
+  // Store top/bottom positions
 });
 ```
 
-### Fix 2: Correct the scaling math
-Simplify the page slice calculations:
+### Algorithm: Smart Break Positioning
 
-```typescript
-// Canvas is captured at SCALE (2x)
-// We need to slice it into PDF-page-sized chunks
-
-// Each PDF page in canvas pixels
-const canvasPageHeight = sourceHeightPerPage * SCALE;
-
-// For each page, slice from the captured canvas
-const sourceY = pageNum * canvasPageHeight;
-const sliceHeight = Math.min(canvasPageHeight, canvas.height - sourceY);
-
-// Draw to fill the page canvas from top
-ctx.drawImage(
-  canvas,
-  0, sourceY,                         // Source from captured canvas
-  canvas.width, sliceHeight,          // Source dimensions
-  0, 0,                               // Dest at top-left
-  pageCanvas.width, pageCanvas.height // Fill destination
-);
+```
+For each natural page break position:
+  1. Find all content blocks that span across the break
+  2. If a block is being cut:
+     a. Option A: Move break UP to just before the block starts
+     b. Option B: Move break DOWN to just after the block ends
+  3. Choose the option that wastes less space
+  4. Ensure minimum content per page (avoid nearly-empty pages)
 ```
 
-### Fix 3: Correct PDF image placement
-Ensure image fills page from the top:
+### Visual Diagram
 
-```typescript
-// The image should fill the PDF page from the top
-// For full pages: fill entire page
-// For partial pages: fill proportionally from top
+```
+┌─────────────────────────────┐
+│ Header                      │
+│ Summary                     │
+│ ─────────────────────────── │
+│ Job 1 - Position            │
+│   Company, Dates            │
+│   Description...            │
+│ ─────────────────────────── │
+│ Job 2 - Position            │  ← Natural break falls HERE (mid-job)
+│   Company, Dates            │
+│   Description...            │
+├─────────────────────────────┤
+│ Job 3 - Position            │
+└─────────────────────────────┘
 
-const pdfSliceHeight = (sliceHeight / SCALE) * scaleFactor;
+        ↓ SMART ADJUSTMENT ↓
 
-page.drawImage(pngImage, {
-  x: 0,
-  y: PAGE_HEIGHT - pdfSliceHeight,  // Position at top
-  width: PAGE_WIDTH,
-  height: pdfSliceHeight,
-});
+┌─────────────────────────────┐
+│ Header                      │
+│ Summary                     │
+│ ─────────────────────────── │
+│ Job 1 - Position            │
+│   Company, Dates            │
+│   Description...            │
+├─────────────────────────────┤  ← Break moved UP (before Job 2)
+│ Job 2 - Position            │
+│   Company, Dates            │
+│   Description...            │
+│ ─────────────────────────── │
+│ Job 3 - Position            │
+└─────────────────────────────┘
 ```
 
 ## File Changes
 
-| File | Changes |
-|------|---------|
-| `src/lib/pdfGenerator.ts` | Fix html2canvas options, correct scaling/slicing math |
+| File | Action | Changes |
+|------|---------|---------|
+| `src/lib/pdfGenerator.ts` | Modify | Add smart break detection algorithm, adjust page slicing |
+| `src/components/templates/*.tsx` | Modify | Add `data-break-avoid` attributes to unbreakable sections |
+| `src/components/editor/PageBreakIndicator.tsx` | Modify | Show smart break positions instead of fixed intervals |
 
 ## Detailed Implementation
 
-### Updated pdfGenerator.ts
+### 1. Template Markup (All Templates)
+
+Add `data-break-avoid` to content blocks that shouldn't be split:
+
+```tsx
+// Experience item
+<div key={exp.id} data-break-avoid className="...">
+  <h3>{exp.position}</h3>
+  <p>{exp.company}</p>
+  <p>{exp.description}</p>
+</div>
+
+// Education item  
+<div key={edu.id} data-break-avoid className="...">
+  <h3>{edu.degree}</h3>
+  <p>{edu.institution}</p>
+</div>
+
+// Section headers (keep with first item)
+<section data-break-avoid className="mb-6">
+  <h2>Experience</h2>
+  {/* first experience item inline or grouped */}
+</section>
+```
+
+### 2. Smart Break Calculator (pdfGenerator.ts)
 
 ```typescript
-// html2canvas call - remove x/y offset
-const canvas = await html2canvas(sourceElement, {
-  scale: SCALE,
-  useCORS: true,
-  allowTaint: true,
-  backgroundColor: '#ffffff',
-  logging: false,
-  width: sourceWidth,
-  height: totalHeight,
-  scrollX: 0,
-  scrollY: 0,        // Fixed: use 0 instead of -window.scrollY
-  windowWidth: sourceWidth,
-  windowHeight: totalHeight,
-  // Removed: x and y options that caused offset issues
-});
+interface ContentBlock {
+  top: number;
+  bottom: number;
+  element: HTMLElement;
+}
 
-// Page processing - corrected math
-for (let pageNum = 0; pageNum < numPages; pageNum++) {
-  // ... create pageCanvas ...
+function findSmartBreakPositions(
+  sourceElement: HTMLElement,
+  sourceHeightPerPage: number,
+  totalHeight: number
+): number[] {
+  // 1. Get all unbreakable blocks
+  const blockElements = sourceElement.querySelectorAll('[data-break-avoid]');
+  const blocks: ContentBlock[] = [];
   
-  // Calculate source slice from captured canvas (in canvas pixels)
-  const canvasPageHeight = sourceHeightPerPage * SCALE;
-  const sourceY = pageNum * canvasPageHeight;
-  const remainingHeight = canvas.height - sourceY;
-  const sliceHeight = Math.min(canvasPageHeight, remainingHeight);
+  const containerRect = sourceElement.getBoundingClientRect();
   
-  if (sliceHeight <= 0) continue;
-  
-  // Calculate how much of the page this slice fills
-  const pageFillRatio = sliceHeight / canvasPageHeight;
-  const destHeight = PAGE_HEIGHT * SCALE * pageFillRatio;
-  
-  // Draw from top of page canvas
-  ctx.drawImage(
-    canvas,
-    0, sourceY,                    // Source position
-    canvas.width, sliceHeight,     // Source size
-    0, 0,                          // Dest position (top-left)
-    pageCanvas.width, destHeight   // Dest size
-  );
-  
-  // ... embed in PDF ...
-  
-  const pdfImageHeight = PAGE_HEIGHT * pageFillRatio;
-  page.drawImage(pngImage, {
-    x: 0,
-    y: PAGE_HEIGHT - pdfImageHeight,
-    width: PAGE_WIDTH,
-    height: pdfImageHeight,
+  blockElements.forEach(el => {
+    const rect = el.getBoundingClientRect();
+    blocks.push({
+      top: rect.top - containerRect.top,
+      bottom: rect.bottom - containerRect.top,
+      element: el as HTMLElement,
+    });
   });
+  
+  // 2. Calculate natural break positions
+  const naturalBreaks: number[] = [];
+  let pos = sourceHeightPerPage;
+  while (pos < totalHeight) {
+    naturalBreaks.push(pos);
+    pos += sourceHeightPerPage;
+  }
+  
+  // 3. Adjust each break to avoid cutting blocks
+  const smartBreaks: number[] = [];
+  let cumulativeOffset = 0;
+  
+  for (const naturalBreak of naturalBreaks) {
+    const adjustedBreak = naturalBreak + cumulativeOffset;
+    
+    // Find block being cut by this break
+    const cuttingBlock = blocks.find(
+      b => b.top < adjustedBreak && b.bottom > adjustedBreak
+    );
+    
+    if (cuttingBlock) {
+      // Option A: Break before block
+      const breakBefore = cuttingBlock.top - 8; // 8px padding
+      const wastedSpaceBefore = adjustedBreak - breakBefore;
+      
+      // Option B: Break after block  
+      const breakAfter = cuttingBlock.bottom + 8;
+      const extraContentAfter = breakAfter - adjustedBreak;
+      
+      // Choose option that wastes less space (with limit)
+      const maxWaste = sourceHeightPerPage * 0.25; // Max 25% waste
+      
+      if (wastedSpaceBefore <= extraContentAfter && wastedSpaceBefore < maxWaste) {
+        smartBreaks.push(breakBefore);
+        cumulativeOffset += (breakBefore - adjustedBreak);
+      } else if (extraContentAfter < maxWaste) {
+        smartBreaks.push(breakAfter);
+        cumulativeOffset += (breakAfter - adjustedBreak);
+      } else {
+        // Block is too large, must cut through it
+        smartBreaks.push(adjustedBreak);
+      }
+    } else {
+      smartBreaks.push(adjustedBreak);
+    }
+  }
+  
+  return smartBreaks;
 }
 ```
 
+### 3. Updated PDF Generation Flow
+
+```typescript
+export async function generatePDF(...) {
+  // ... existing setup ...
+  
+  // Calculate smart break positions
+  const smartBreaks = findSmartBreakPositions(
+    sourceElement, 
+    sourceHeightPerPage, 
+    totalHeight
+  );
+  
+  // Number of pages based on smart breaks
+  const numPages = smartBreaks.length + 1;
+  
+  // Process pages using smart break positions
+  for (let pageNum = 0; pageNum < numPages; pageNum++) {
+    const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
+    const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
+    const pageHeight = pageEnd - pageStart;
+    
+    // Slice canvas from pageStart to pageEnd
+    // ... rest of existing logic with variable page heights ...
+  }
+}
+```
+
+### 4. Update PageBreakIndicator
+
+Pass smart break positions instead of calculating fixed ones:
+
+```typescript
+// Option A: Calculate in indicator (simpler)
+export function PageBreakIndicator({ 
+  containerWidth, 
+  containerHeight,
+  templateRef,  // NEW: ref to template element
+  className 
+}: PageBreakIndicatorProps) {
+  const breaks = useMemo(() => {
+    if (!templateRef?.current) {
+      // Fallback to fixed breaks
+      return calculateFixedBreaks(containerWidth, containerHeight);
+    }
+    return findSmartBreakPositions(templateRef.current, ...);
+  }, [templateRef, containerWidth, containerHeight]);
+  
+  // ... render breaks ...
+}
+```
+
+## Templates to Update
+
+All 7 templates need `data-break-avoid` attributes:
+
+1. **ModernTemplate.tsx** - Experience items, education items, skills section
+2. **ClassicTemplate.tsx** - Same pattern
+3. **MinimalTemplate.tsx** - Same pattern
+4. **ProfessionalTemplate.tsx** - Same pattern
+5. **DeveloperTemplate.tsx** - Same pattern
+6. **CreativeTemplate.tsx** - Same pattern
+7. **ExecutiveTemplate.tsx** - Same pattern
+
+## Edge Cases Handled
+
+1. **Block larger than page height**: Accept the cut (can't avoid)
+2. **Nearly empty pages**: Set minimum content threshold (e.g., 20%)
+3. **Section headers**: Group header with first item to avoid orphaned headers
+4. **Cascading adjustments**: Each break adjustment affects subsequent breaks
+
 ## Testing Plan
 
-1. Generate a PDF with a multi-page resume
-2. Verify content starts at the top of page 1 (no blank space)
-3. Verify page breaks occur at correct positions
-4. Verify last page shows remaining content at top (not centered/bottom)
-5. Compare with page break indicators in preview
+1. Create resume with many experience entries spanning 2-3 pages
+2. Verify page break indicators show smart positions
+3. Download PDF and confirm no content is cut mid-block
+4. Test with different templates
+5. Test edge case: single very long entry that can't avoid being cut
 
 ## Summary
 
-- Remove `x`, `y` options from html2canvas to avoid viewport offset capture
-- Use `scrollY: 0` instead of `-window.scrollY` 
-- Recalculate slice heights using canvas coordinates consistently
-- Ensure partial pages fill from the top down
+- Add `data-break-avoid` markers to template content blocks
+- Implement smart break algorithm that scans DOM for block boundaries
+- Adjust page slices to break between content, not through it
+- Update PageBreakIndicator to show accurate smart positions
