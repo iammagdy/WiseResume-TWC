@@ -5,7 +5,15 @@ import { Upload, FileText, AlertCircle, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
-import { parseResumePDF, getExtractionSummary, PDFParseError } from '@/lib/pdfParser';
+import { 
+  parseResumePDF, 
+  parseResumePDFWithOCR,
+  getExtractionSummary, 
+  PDFParseError,
+  estimateOCRTime,
+  OCRProgressCallback,
+} from '@/lib/pdfParser';
+import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { toast } from 'sonner';
 
 export default function UploadPage() {
@@ -14,6 +22,61 @@ export default function UploadPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  
+  // OCR fallback state
+  const [showOCRPrompt, setShowOCRPrompt] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [isOCRProcessing, setIsOCRProcessing] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState<{ page: number; total: number; status?: string } | null>(null);
+  const [estimatedTime, setEstimatedTime] = useState<string>('');
+
+  const handleOCRConfirm = useCallback(async () => {
+    if (!pendingFile) return;
+    
+    setIsOCRProcessing(true);
+    
+    try {
+      const progressCallback: OCRProgressCallback = (progress) => {
+        setOcrProgress({ page: progress.page, total: progress.total, status: progress.status });
+      };
+      
+      const resumeData = await parseResumePDFWithOCR(pendingFile, progressCallback);
+      const extraction = getExtractionSummary(resumeData);
+      
+      setCurrentResume(resumeData);
+      
+      // Show OCR-specific warning
+      toast.warning(
+        'Resume extracted via OCR. Please review all sections for accuracy.',
+        { duration: 6000 }
+      );
+      
+      if (extraction.isPartial) {
+        toast.info(extraction.summary, { duration: 4000 });
+      }
+      
+      navigate('/editor');
+    } catch (error) {
+      console.error('OCR extraction failed:', error);
+      toast.error(
+        error instanceof Error 
+          ? error.message 
+          : 'OCR extraction failed. The PDF may be too low quality.',
+        { duration: 5000 }
+      );
+    } finally {
+      setIsOCRProcessing(false);
+      setShowOCRPrompt(false);
+      setPendingFile(null);
+      setOcrProgress(null);
+    }
+  }, [pendingFile, setCurrentResume, navigate]);
+
+  const handleOCRCancel = useCallback(() => {
+    setShowOCRPrompt(false);
+    setPendingFile(null);
+    setIsProcessing(false);
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
@@ -30,12 +93,24 @@ export default function UploadPage() {
     setIsProcessing(true);
 
     try {
-      const resumeData = await parseResumePDF(file);
+      const result = await parseResumePDF(file);
+      
+      // If OCR is needed, show the prompt dialog
+      if (result.needsOCR) {
+        setPendingFile(file);
+        setEstimatedTime(estimateOCRTime(result.pageCount));
+        setShowOCRPrompt(true);
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Standard extraction succeeded
+      const resumeData = result.data!;
       const extraction = getExtractionSummary(resumeData);
 
       if (extraction.isEmpty) {
         toast.error(
-          'Could not extract any content from this PDF. This may be a scanned document or image-based PDF.',
+          'Could not extract any content from this PDF.',
           { duration: 5000 }
         );
         setIsProcessing(false);
@@ -66,6 +141,7 @@ export default function UploadPage() {
             toast.error('This PDF appears to be corrupted or invalid.');
             break;
           case 'NO_TEXT':
+            // This shouldn't happen anymore since we return needsOCR instead
             toast.error(
               'Could not extract readable text. This usually happens with scanned or image-based PDFs.',
               { duration: 5000 }
@@ -225,6 +301,16 @@ export default function UploadPage() {
           </Button>
         </motion.div>
       </div>
+      
+      {/* OCR Prompt Dialog */}
+      <OCRPromptDialog
+        open={showOCRPrompt}
+        onConfirm={handleOCRConfirm}
+        onCancel={handleOCRCancel}
+        isProcessing={isOCRProcessing}
+        progress={ocrProgress ?? undefined}
+        estimatedTime={estimatedTime}
+      />
     </MobileLayout>
   );
 }
