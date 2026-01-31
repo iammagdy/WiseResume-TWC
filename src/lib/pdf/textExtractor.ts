@@ -7,6 +7,14 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 interface TextItem {
   str: string;
   transform: number[];
+  width?: number;
+  height?: number;
+  hasEOL?: boolean;
+}
+
+// Type guard to filter out TextMarkedContent items (which lack str/transform)
+function isTextItem(item: any): item is TextItem {
+  return typeof item.str === 'string' && Array.isArray(item.transform);
 }
 
 interface LineGroup {
@@ -81,15 +89,19 @@ export async function extractTextFromPDF(file: File): Promise<string> {
  * Reconstruct text with proper line breaks using Y-coordinate grouping.
  * Handles two-column layouts by detecting large X gaps.
  */
-function reconstructPageText(items: TextItem[]): string {
-  if (items.length === 0) return '';
+function reconstructPageText(items: any[]): string {
+  // Filter to only actual TextItem objects (not TextMarkedContent)
+  const textItems = items.filter(isTextItem);
+  
+  if (textItems.length === 0) return '';
 
   // Group items by Y coordinate (with tolerance for slight variations)
   const Y_TOLERANCE = 3;
   const lineGroups: LineGroup[] = [];
 
-  for (const item of items) {
-    if (!item.str.trim()) continue;
+  for (const item of textItems) {
+    const text = item.str.trim();
+    if (!text) continue;
     
     const x = item.transform[4];
     const y = Math.round(item.transform[5] / Y_TOLERANCE) * Y_TOLERANCE;
