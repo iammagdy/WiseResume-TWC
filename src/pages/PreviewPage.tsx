@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, Check } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Loader2, Check, Scissors } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -32,6 +32,7 @@ export default function PreviewPage() {
   const navigate = useNavigate();
   const { currentResume, selectedTemplate, setSelectedTemplate } = useResumeStore();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showPageBreaks, setShowPageBreaks] = useState(true);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 612, height: 792 });
 
@@ -143,10 +144,24 @@ export default function PreviewPage() {
           </div>
         </motion.div>
 
-        {/* ATS Ready Badge */}
-        <div className="px-4 py-2 flex items-center gap-2 text-sm">
-          <Check className="w-4 h-4 text-success" />
-          <span className="text-success font-medium">ATS-Ready</span>
+        {/* ATS Ready Badge & Page Break Toggle */}
+        <div className="px-4 py-2 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-2">
+            <Check className="w-4 h-4 text-success" />
+            <span className="text-success font-medium">ATS-Ready</span>
+          </div>
+          <button
+            onClick={() => setShowPageBreaks(!showPageBreaks)}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
+              showPageBreaks
+                ? "bg-orange-100 text-orange-600"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            )}
+          >
+            <Scissors className="w-3.5 h-3.5" />
+            Page breaks
+          </button>
         </div>
 
         {/* Preview area */}
@@ -165,8 +180,8 @@ export default function PreviewPage() {
             animate={{ opacity: 1, scale: 1 }}
           >
             <TemplateComponent resume={currentResume} />
-            {/* Page break indicators - hidden during PDF generation */}
-            {!isGenerating && (
+            {/* Page break indicators - hidden during PDF generation or when toggled off */}
+            {!isGenerating && showPageBreaks && (
               <PageBreakIndicator
                 containerWidth={containerDimensions.width}
                 containerHeight={containerDimensions.height}
