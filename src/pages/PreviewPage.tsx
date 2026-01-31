@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, ArrowLeft, Loader2, Check } from 'lucide-react';
@@ -12,6 +12,7 @@ import { ProfessionalTemplate } from '@/components/templates/ProfessionalTemplat
 import { DeveloperTemplate } from '@/components/templates/DeveloperTemplate';
 import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
 import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
+import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { generatePDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,28 @@ export default function PreviewPage() {
   const { currentResume, selectedTemplate, setSelectedTemplate } = useResumeStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
+  const [containerDimensions, setContainerDimensions] = useState({ width: 612, height: 792 });
+
+  // Track container dimensions with ResizeObserver
+  useEffect(() => {
+    const element = resumeRef.current;
+    if (!element) return;
+
+    const updateDimensions = () => {
+      setContainerDimensions({
+        width: element.offsetWidth || 612,
+        height: element.scrollHeight || element.offsetHeight || 792,
+      });
+    };
+
+    // Initial measurement
+    updateDimensions();
+
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    resizeObserver.observe(element);
+
+    return () => resizeObserver.disconnect();
+  }, [selectedTemplate]);
 
   if (!currentResume) {
     navigate('/');
@@ -131,7 +154,8 @@ export default function PreviewPage() {
           <motion.div
             ref={resumeRef}
             data-resume-template
-            className="bg-white text-black mx-auto shadow-2xl"
+            data-capturing={isGenerating ? "true" : undefined}
+            className="bg-white text-black mx-auto shadow-2xl relative"
             style={{ 
               width: '100%',
               maxWidth: '612px',
@@ -141,6 +165,13 @@ export default function PreviewPage() {
             animate={{ opacity: 1, scale: 1 }}
           >
             <TemplateComponent resume={currentResume} />
+            {/* Page break indicators - hidden during PDF generation */}
+            {!isGenerating && (
+              <PageBreakIndicator
+                containerWidth={containerDimensions.width}
+                containerHeight={containerDimensions.height}
+              />
+            )}
           </motion.div>
         </div>
 
