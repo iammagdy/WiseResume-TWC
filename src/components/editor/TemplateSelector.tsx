@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
-import { Check, FileText, Code, Palette, Briefcase, Sparkles, AlertTriangle } from 'lucide-react';
+import { Check, FileText, AlertTriangle, Sparkles } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
 import { TemplateId, TemplateInfo } from '@/types/resume';
+import { TemplateThumbnail } from './TemplateThumbnail';
 
 interface TemplateSelectorProps {
   open: boolean;
@@ -62,12 +63,6 @@ const templates: TemplateInfo[] = [
   },
 ];
 
-const categoryIcons = {
-  professional: Briefcase,
-  tech: Code,
-  creative: Palette,
-};
-
 const atsScoreColors = {
   high: 'bg-success/20 text-success border-success/30',
   medium: 'bg-warning/20 text-warning border-warning/30',
@@ -81,7 +76,7 @@ const atsScoreLabels = {
 };
 
 export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) {
-  const { selectedTemplate, setSelectedTemplate, updateResume } = useResumeStore();
+  const { selectedTemplate, setSelectedTemplate, updateResume, currentResume } = useResumeStore();
 
   const handleSelect = (id: TemplateId) => {
     setSelectedTemplate(id);
@@ -89,9 +84,45 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
     onOpenChange(false);
   };
 
+  // Use sample data if no resume loaded
+  const previewResume = currentResume || {
+    contactInfo: {
+      fullName: 'John Doe',
+      email: 'john@example.com',
+      phone: '(555) 123-4567',
+      location: 'San Francisco, CA',
+    },
+    summary: 'Experienced professional with a passion for excellence.',
+    experience: [
+      {
+        id: '1',
+        company: 'Tech Corp',
+        position: 'Senior Developer',
+        startDate: 'Jan 2020',
+        endDate: 'Present',
+        current: true,
+        description: 'Leading development initiatives',
+        achievements: ['Led team of 5 engineers', 'Increased efficiency by 40%'],
+      },
+    ],
+    education: [
+      {
+        id: '1',
+        institution: 'State University',
+        degree: 'Bachelor of Science',
+        field: 'Computer Science',
+        startDate: '2012',
+        endDate: '2016',
+      },
+    ],
+    skills: ['JavaScript', 'React', 'Node.js', 'Python'],
+    certifications: [],
+    templateId: 'modern',
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[75vh] rounded-t-3xl">
+      <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl">
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
@@ -111,46 +142,31 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(75vh-180px)] pb-4">
-          {templates.map((template, index) => {
-            const CategoryIcon = categoryIcons[template.category];
-            
-            return (
-              <motion.button
-                key={template.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
-                onClick={() => handleSelect(template.id)}
-                className={`relative p-3 rounded-2xl border-2 transition-all text-left ${
-                  selectedTemplate === template.id
-                    ? 'border-primary bg-primary/10'
-                    : 'border-border hover:border-primary/50'
-                }`}
-              >
-                {/* Template preview placeholder */}
-                <div className="aspect-[8.5/11] bg-muted rounded-lg mb-2 flex flex-col items-center justify-center relative overflow-hidden">
-                  <CategoryIcon className="w-6 h-6 text-muted-foreground" />
-                  
-                  {/* Mini template preview hint */}
-                  {template.id === 'developer' && (
-                    <div className="absolute inset-x-0 top-0 h-4 bg-gray-800" />
-                  )}
-                  {template.id === 'creative' && (
-                    <div className="absolute inset-y-0 left-0 w-1/3 bg-violet-500/30" />
-                  )}
-                  {template.id === 'professional' && (
-                    <div className="absolute inset-x-0 top-0 h-5 bg-slate-700" />
-                  )}
-                  {template.id === 'executive' && (
-                    <div className="absolute inset-x-0 top-6 h-0.5 bg-amber-500 mx-4" />
-                  )}
-                </div>
-
+        <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(80vh-180px)] pb-4">
+          {templates.map((template, index) => (
+            <motion.button
+              key={template.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.03 }}
+              onClick={() => handleSelect(template.id)}
+              className={`relative p-2 rounded-2xl border-2 transition-all text-left ${
+                selectedTemplate === template.id
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50'
+              }`}
+            >
+              {/* Real template preview */}
+              <div className="mb-2 relative">
+                <TemplateThumbnail 
+                  templateId={template.id} 
+                  resume={previewResume} 
+                />
+                
                 {/* ATS Badge */}
                 <Badge
                   variant="outline"
-                  className={`absolute top-2 left-2 text-[10px] px-1.5 py-0 ${atsScoreColors[template.atsScore]}`}
+                  className={`absolute top-1 left-1 text-[10px] px-1.5 py-0 ${atsScoreColors[template.atsScore]}`}
                 >
                   {template.atsScore === 'medium' && (
                     <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
@@ -158,18 +174,18 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
                   {atsScoreLabels[template.atsScore]}
                 </Badge>
 
-                <h3 className="font-semibold text-sm">{template.name}</h3>
-                <p className="text-xs text-muted-foreground line-clamp-1">{template.description}</p>
-
                 {/* Selected indicator */}
                 {selectedTemplate === template.id && (
-                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
                     <Check className="w-3 h-3 text-primary-foreground" />
                   </div>
                 )}
-              </motion.button>
-            );
-          })}
+              </div>
+
+              <h3 className="font-semibold text-sm">{template.name}</h3>
+              <p className="text-xs text-muted-foreground line-clamp-1">{template.description}</p>
+            </motion.button>
+          ))}
         </div>
       </SheetContent>
     </Sheet>
