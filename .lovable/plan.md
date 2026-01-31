@@ -1,144 +1,168 @@
 
-# Visual Page Break Indicators for Resume Preview
+# Fix PDF Rendering Issue - Blank Space at Top of Pages
 
-## Overview
+## Problem Analysis
 
-Add visual indicators in the preview to show users exactly where their resume content will be split across pages when exported to PDF. This helps users optimize their resume layout before downloading.
+The downloaded PDF shows incorrect rendering with:
+1. **Large blank space at the top** of each page
+2. **Content pushed down** rather than starting from the top
 
-## Current State
+### Root Causes Identified
 
-- **PreviewPage**: Renders the resume template in a single scrollable container
-- **PDF Generator**: Uses `sourceHeightPerPage = PAGE_HEIGHT / scaleFactor ≈ 782px` to determine page breaks
-- **No visual feedback**: Users can't see where page breaks will occur until after PDF export
-
-## Design Approach
-
-Create a visual overlay system that shows dashed lines at each page boundary:
+Looking at the console logs and code:
 
 ```
-┌─────────────────────────────┐
-│                             │
-│   Resume Content Page 1     │
-│                             │
-├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┤ ← "Page 1 ends here"
-│                             │
-│   Resume Content Page 2     │
-│                             │
-├ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─┤ ← "Page 2 ends here"
-│                             │
-│   Remaining Content         │
-│                             │
-└─────────────────────────────┘
+sourceWidth: 604, totalHeight: 1701
+scaleFactor: 1.0132 (nearly 1:1)
+sourceHeightPerPage: 781.64px
 ```
 
-## Implementation Details
+**Issue 1: html2canvas capture offset**
+The current code passes `x: rect.left` and `y: rect.top` to html2canvas, which includes the element's position within the viewport. Since the resume preview is inside a scrollable container with padding, this offset gets baked into the capture, creating blank space.
 
-### New Component: `PageBreakIndicator.tsx`
+**Issue 2: Inconsistent scaling math**
+The `destHeight` calculation uses `sourceSliceHeight * scaleFactor * SCALE` but doesn't properly account for the relationship between the captured canvas and the target page dimensions.
 
-Create a component that renders page break lines as an overlay:
+**Issue 3: Canvas slice positioning**
+When drawing slices onto page canvases, the source coordinates need to use the scaled canvas dimensions consistently.
 
-**Props:**
-- `containerHeight`: Total height of the resume container
-- `pageHeight`: Height of one page (calculated from scale factor)
+## Solution
 
-**Logic:**
+### Fix 1: Remove position offsets from html2canvas
+Remove `x` and `y` options that introduce unwanted offsets:
+
 ```typescript
-// Calculate page break positions
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-const sourceWidth = containerRef.width || 612;
-const scaleFactor = PAGE_WIDTH / sourceWidth;
-const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
+// BEFORE (problematic)
+const canvas = await html2canvas(sourceElement, {
+  ...
+  x: rect.left,  // REMOVE
+  y: rect.top,   // REMOVE
+});
 
-// Generate break positions: 782px, 1564px, 2346px, etc.
-const breaks = [];
-let position = sourceHeightPerPage;
-while (position < totalHeight) {
-  breaks.push(position);
-  position += sourceHeightPerPage;
+// AFTER (fixed)
+const canvas = await html2canvas(sourceElement, {
+  ...
+  // Don't pass x, y - let html2canvas capture from element origin
+});
+```
+
+### Fix 2: Correct the scaling math
+Simplify the page slice calculations:
+
+```typescript
+// Canvas is captured at SCALE (2x)
+// We need to slice it into PDF-page-sized chunks
+
+// Each PDF page in canvas pixels
+const canvasPageHeight = sourceHeightPerPage * SCALE;
+
+// For each page, slice from the captured canvas
+const sourceY = pageNum * canvasPageHeight;
+const sliceHeight = Math.min(canvasPageHeight, canvas.height - sourceY);
+
+// Draw to fill the page canvas from top
+ctx.drawImage(
+  canvas,
+  0, sourceY,                         // Source from captured canvas
+  canvas.width, sliceHeight,          // Source dimensions
+  0, 0,                               // Dest at top-left
+  pageCanvas.width, pageCanvas.height // Fill destination
+);
+```
+
+### Fix 3: Correct PDF image placement
+Ensure image fills page from the top:
+
+```typescript
+// The image should fill the PDF page from the top
+// For full pages: fill entire page
+// For partial pages: fill proportionally from top
+
+const pdfSliceHeight = (sliceHeight / SCALE) * scaleFactor;
+
+page.drawImage(pngImage, {
+  x: 0,
+  y: PAGE_HEIGHT - pdfSliceHeight,  // Position at top
+  width: PAGE_WIDTH,
+  height: pdfSliceHeight,
+});
+```
+
+## File Changes
+
+| File | Changes |
+|------|---------|
+| `src/lib/pdfGenerator.ts` | Fix html2canvas options, correct scaling/slicing math |
+
+## Detailed Implementation
+
+### Updated pdfGenerator.ts
+
+```typescript
+// html2canvas call - remove x/y offset
+const canvas = await html2canvas(sourceElement, {
+  scale: SCALE,
+  useCORS: true,
+  allowTaint: true,
+  backgroundColor: '#ffffff',
+  logging: false,
+  width: sourceWidth,
+  height: totalHeight,
+  scrollX: 0,
+  scrollY: 0,        // Fixed: use 0 instead of -window.scrollY
+  windowWidth: sourceWidth,
+  windowHeight: totalHeight,
+  // Removed: x and y options that caused offset issues
+});
+
+// Page processing - corrected math
+for (let pageNum = 0; pageNum < numPages; pageNum++) {
+  // ... create pageCanvas ...
+  
+  // Calculate source slice from captured canvas (in canvas pixels)
+  const canvasPageHeight = sourceHeightPerPage * SCALE;
+  const sourceY = pageNum * canvasPageHeight;
+  const remainingHeight = canvas.height - sourceY;
+  const sliceHeight = Math.min(canvasPageHeight, remainingHeight);
+  
+  if (sliceHeight <= 0) continue;
+  
+  // Calculate how much of the page this slice fills
+  const pageFillRatio = sliceHeight / canvasPageHeight;
+  const destHeight = PAGE_HEIGHT * SCALE * pageFillRatio;
+  
+  // Draw from top of page canvas
+  ctx.drawImage(
+    canvas,
+    0, sourceY,                    // Source position
+    canvas.width, sliceHeight,     // Source size
+    0, 0,                          // Dest position (top-left)
+    pageCanvas.width, destHeight   // Dest size
+  );
+  
+  // ... embed in PDF ...
+  
+  const pdfImageHeight = PAGE_HEIGHT * pageFillRatio;
+  page.drawImage(pngImage, {
+    x: 0,
+    y: PAGE_HEIGHT - pdfImageHeight,
+    width: PAGE_WIDTH,
+    height: pdfImageHeight,
+  });
 }
 ```
 
-**Rendering:**
-- Absolute positioned dashed lines at each break point
-- Semi-transparent background bar with "Page X ends here" label
-- Subtle animation on scroll to draw attention
+## Testing Plan
 
-### File Changes
+1. Generate a PDF with a multi-page resume
+2. Verify content starts at the top of page 1 (no blank space)
+3. Verify page breaks occur at correct positions
+4. Verify last page shows remaining content at top (not centered/bottom)
+5. Compare with page break indicators in preview
 
-| File | Action | Changes |
-|------|--------|---------|
-| `src/components/editor/PageBreakIndicator.tsx` | Create | New component for page break overlays |
-| `src/pages/PreviewPage.tsx` | Modify | Add PageBreakIndicator with ResizeObserver for dynamic height |
+## Summary
 
-### PreviewPage Integration
-
-1. **Track container dimensions** using a ResizeObserver to get real-time height
-2. **Calculate page breaks** using the same formula as pdfGenerator.ts
-3. **Render indicators** as absolute positioned elements inside the preview container
-4. **Hide indicators during PDF generation** so they don't appear in the export
-
-### Visual Design
-
-**Page Break Line:**
-```tsx
-<div className="absolute left-0 right-0 flex items-center gap-2">
-  <div className="flex-1 border-t-2 border-dashed border-orange-400/60" />
-  <span className="px-2 py-0.5 text-xs text-orange-600 bg-orange-100 rounded-full">
-    Page {pageNum} ends
-  </span>
-  <div className="flex-1 border-t-2 border-dashed border-orange-400/60" />
-</div>
-```
-
-**Styling:**
-- Orange/amber color to stand out from content without being intrusive
-- Dashed border for "cut here" visual metaphor
-- Small pill badge with page number
-- Semi-transparent so content underneath is visible
-
-### Calculations (matching pdfGenerator.ts)
-
-```typescript
-// Constants (same as PDF generator)
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
-
-// Calculate where breaks occur in the preview
-function calculatePageBreaks(containerWidth: number, containerHeight: number) {
-  const scaleFactor = PAGE_WIDTH / containerWidth;
-  const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
-  
-  const breaks: number[] = [];
-  let position = sourceHeightPerPage;
-  
-  while (position < containerHeight) {
-    breaks.push(position);
-    position += sourceHeightPerPage;
-  }
-  
-  return breaks;
-}
-```
-
-### Hide During Export
-
-Add a data attribute or class to hide indicators during PDF capture:
-
-```tsx
-<PageBreakIndicator 
-  className="print:hidden [data-capturing='true']_&:hidden"
-  breaks={pageBreaks} 
-/>
-```
-
-In PreviewPage, set `data-capturing="true"` on the container before PDF generation.
-
-## Summary of Changes
-
-1. **Create PageBreakIndicator component** - Renders dashed lines with page labels
-2. **Add ResizeObserver** - Track resume container height in real-time
-3. **Calculate break positions** - Using same math as PDF generator
-4. **Position absolutely** - Overlay on top of resume content
-5. **Hide during export** - Ensure indicators don't appear in downloaded PDF
-6. **Responsive to templates** - Recalculate when template changes or content updates
+- Remove `x`, `y` options from html2canvas to avoid viewport offset capture
+- Use `scrollY: 0` instead of `-window.scrollY` 
+- Recalculate slice heights using canvas coordinates consistently
+- Ensure partial pages fill from the top down
