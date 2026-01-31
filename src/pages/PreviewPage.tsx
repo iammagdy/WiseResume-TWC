@@ -98,7 +98,7 @@ export default function PreviewPage() {
           <span className="text-xs text-success">ATS-Ready</span>
         </motion.div>
 
-        {/* Preview area */}
+        {/* Preview area - scrollable for multi-page resumes */}
         <div className="flex-1 overflow-auto p-4 bg-muted/30">
           <motion.div
             ref={resumeRef}
@@ -107,7 +107,7 @@ export default function PreviewPage() {
               width: '100%',
               maxWidth: '612px',
               minHeight: '792px',
-              aspectRatio: '8.5/11',
+              // Remove aspectRatio to allow content to grow naturally
             }}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
