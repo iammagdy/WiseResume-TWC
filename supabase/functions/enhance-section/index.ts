@@ -1,8 +1,8 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface EnhanceRequest {
@@ -15,23 +15,34 @@ interface EnhanceRequest {
   };
 }
 
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-const LOVABLE_URL = 'https://api.lovable.dev/v1';
-
 async function callLovableAI(messages: { role: string; content: string }[], tools?: unknown[]) {
-  const response = await fetch(`${LOVABLE_URL}/chat/completions`, {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+  
+  if (!LOVABLE_API_KEY) {
+    throw new Error('LOVABLE_API_KEY is not configured');
+  }
+
+  console.log('Calling Lovable AI gateway...');
+
+  const body: Record<string, unknown> = {
+    model: 'google/gemini-2.5-flash',
+    messages,
+    temperature: 0.7,
+  };
+
+  // Add tools if provided
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = { type: 'function', function: { name: 'enhance_content' } };
+  }
+
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${LOVABLE_API_KEY}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages,
-      tools,
-      tool_choice: tools ? { type: 'function', function: { name: 'enhance_content' } } : undefined,
-      temperature: 0.7,
-    }),
+    body: JSON.stringify(body),
   });
 
   if (response.status === 429) {
@@ -78,88 +89,17 @@ ${JSON.stringify(currentContent, null, 2)}
     generate_bullets: `Convert this description into powerful bullet points. Each bullet should start with a strong action verb and include a specific achievement or responsibility.`,
   };
 
-  return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve);
+  return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
+
+IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks:
+{
+  "improved": <the enhanced content - string for summary, object for experience/education, array for skills>,
+  "changes": ["<change 1>", "<change 2>"],
+  "suggestions": ["<optional suggestion 1>"]
+}`;
 }
 
-function getToolSchema(section: string) {
-  const schemas: Record<string, unknown> = {
-    summary: {
-      type: 'object',
-      properties: {
-        improved: { type: 'string', description: 'The enhanced summary text' },
-        changes: { type: 'array', items: { type: 'string' }, description: 'List of changes made' },
-        suggestions: { type: 'array', items: { type: 'string' }, description: 'Additional suggestions' },
-      },
-      required: ['improved', 'changes'],
-    },
-    experience: {
-      type: 'object',
-      properties: {
-        improved: {
-          type: 'object',
-          properties: {
-            description: { type: 'string' },
-            achievements: { type: 'array', items: { type: 'string' } },
-          },
-        },
-        changes: { type: 'array', items: { type: 'string' } },
-        suggestions: { type: 'array', items: { type: 'string' } },
-      },
-      required: ['improved', 'changes'],
-    },
-    education: {
-      type: 'object',
-      properties: {
-        improved: {
-          type: 'object',
-          properties: {
-            relevantCoursework: { type: 'array', items: { type: 'string' } },
-            honorsAwards: { type: 'array', items: { type: 'string' } },
-          },
-        },
-        changes: { type: 'array', items: { type: 'string' } },
-        suggestions: { type: 'array', items: { type: 'string' } },
-      },
-      required: ['improved', 'changes'],
-    },
-    skills: {
-      type: 'object',
-      properties: {
-        improved: { type: 'array', items: { type: 'string' }, description: 'Enhanced skills list' },
-        changes: { type: 'array', items: { type: 'string' } },
-        suggestions: { type: 'array', items: { type: 'string' } },
-        categories: {
-          type: 'object',
-          properties: {
-            technical: { type: 'array', items: { type: 'string' } },
-            soft: { type: 'array', items: { type: 'string' } },
-            tools: { type: 'array', items: { type: 'string' } },
-          },
-        },
-      },
-      required: ['improved', 'changes'],
-    },
-    contact: {
-      type: 'object',
-      properties: {
-        improved: {
-          type: 'object',
-          properties: {
-            linkedin: { type: 'string' },
-            portfolio: { type: 'string' },
-          },
-        },
-        changes: { type: 'array', items: { type: 'string' } },
-        suggestions: { type: 'array', items: { type: 'string' } },
-      },
-      required: ['improved', 'changes'],
-    },
-  };
-
-  return schemas[section] || schemas.summary;
-}
-
-Deno.serve(async (req) => {
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -170,39 +110,38 @@ Deno.serve(async (req) => {
     console.log(`Enhancing ${section} with action: ${action}`);
 
     const prompt = buildPrompt(section, action, currentContent, context);
-    const toolSchema = getToolSchema(section);
 
-    const tools = [{
-      type: 'function',
-      function: {
-        name: 'enhance_content',
-        description: 'Return the enhanced resume content',
-        parameters: toolSchema,
-      },
-    }];
-
+    // Call AI without tools - simpler and more reliable
     const result = await callLovableAI([
       { role: 'user', content: prompt },
-    ], tools);
+    ]);
 
-    // Extract the tool call result
-    const toolCall = result.choices?.[0]?.message?.tool_calls?.[0];
+    const content = result.choices?.[0]?.message?.content;
     
-    if (!toolCall) {
-      // Fallback to parsing the message content
-      const content = result.choices?.[0]?.message?.content;
-      console.log('No tool call, using message content:', content);
-      
-      return new Response(JSON.stringify({
+    if (!content) {
+      throw new Error('No content in AI response');
+    }
+
+    console.log('AI response received, parsing...');
+
+    // Parse the JSON from the AI response
+    let enhancedContent;
+    try {
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        enhancedContent = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('No JSON found in response');
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', content);
+      // Return a fallback response
+      enhancedContent = {
         improved: content,
         changes: ['AI enhanced the content'],
         suggestions: [],
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      };
     }
-
-    const enhancedContent = JSON.parse(toolCall.function.arguments);
 
     console.log('Enhancement complete:', JSON.stringify(enhancedContent).slice(0, 200));
 
@@ -213,7 +152,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Enhancement error:', error);
 
-    if (error.message === 'RATE_LIMIT') {
+    if (error instanceof Error && error.message === 'RATE_LIMIT') {
       return new Response(JSON.stringify({
         error: 'rate_limit',
         message: 'Too many requests. Please wait a moment and try again.',
@@ -223,7 +162,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (error.message === 'PAYMENT_REQUIRED') {
+    if (error instanceof Error && error.message === 'PAYMENT_REQUIRED') {
       return new Response(JSON.stringify({
         error: 'payment_required',
         message: 'AI credits exhausted. Please check your account.',
