@@ -88,7 +88,7 @@ export function CreativeTemplate({ resume }: TemplateProps) {
             </h2>
             <div className="space-y-3">
               {resume.education.map((edu) => (
-                <div key={edu.id}>
+                <div key={edu.id} data-break-avoid>
                   <p className="font-semibold">{edu.degree}</p>
                   {edu.field && <p className="text-violet-200 text-xs">{edu.field}</p>}
                   <p className="text-violet-300 text-xs">{edu.institution}</p>
@@ -134,7 +134,7 @@ export function CreativeTemplate({ resume }: TemplateProps) {
             </h2>
             <div className="space-y-4">
               {resume.experience.map((exp) => (
-                <div key={exp.id} className="relative pl-4 border-l-2 border-violet-200">
+                <div key={exp.id} data-break-avoid className="relative pl-4 border-l-2 border-violet-200">
                   <div className="absolute w-2 h-2 bg-violet-500 rounded-full -left-[5px] top-1"></div>
                   <div className="flex justify-between items-start mb-1">
                     <div>

@@ -34,7 +34,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
           </h2>
           <div className="space-y-5">
             {resume.experience.map((exp) => (
-              <div key={exp.id}>
+              <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-baseline mb-1">
                   <h3 className="font-medium text-gray-900">{exp.position}</h3>
                   <span className="text-xs text-gray-400">
@@ -59,7 +59,7 @@ export function MinimalTemplate({ resume }: TemplateProps) {
           </h2>
           <div className="space-y-3">
             {resume.education.map((edu) => (
-              <div key={edu.id}>
+              <div key={edu.id} data-break-avoid>
                 <h3 className="font-medium text-gray-900">
                   {edu.degree} {edu.field && `in ${edu.field}`}
                 </h3>

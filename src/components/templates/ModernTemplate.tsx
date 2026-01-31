@@ -40,7 +40,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
           </h2>
           <div className="space-y-4">
             {resume.experience.map((exp) => (
-              <div key={exp.id}>
+              <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-bold text-gray-900">{exp.position}</h3>
@@ -67,7 +67,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
           </h2>
           <div className="space-y-3">
             {resume.education.map((edu) => (
-              <div key={edu.id} className="flex justify-between">
+              <div key={edu.id} data-break-avoid className="flex justify-between">
                 <div>
                   <h3 className="font-bold text-gray-900">{edu.degree} {edu.field && `in ${edu.field}`}</h3>
                   <p className="text-gray-600">{edu.institution}</p>
