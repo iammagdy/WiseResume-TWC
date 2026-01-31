@@ -56,8 +56,17 @@ export async function generatePDF(
     
     // Calculate scale factor to fit to PDF page width
     const scaleFactor = PAGE_WIDTH / sourceWidth;
-    const scaledHeight = totalHeight * scaleFactor;
-    const numPages = Math.ceil(scaledHeight / PAGE_HEIGHT);
+    
+    // How much source height fits on one PDF page
+    const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
+    const numPages = Math.ceil(totalHeight / sourceHeightPerPage);
+
+    console.log('PDF Generator: Pagination', { 
+      scaleFactor, 
+      sourceHeightPerPage, 
+      numPages,
+      totalHeight 
+    });
 
     // Create PDF document
     const pdfDoc = await PDFDocument.create();
@@ -72,24 +81,21 @@ export async function generatePDF(
       width: sourceWidth,
       height: totalHeight,
       scrollX: 0,
-      scrollY: -window.scrollY, // Account for page scroll
+      scrollY: -window.scrollY,
       windowWidth: sourceWidth,
       windowHeight: totalHeight,
-      // Ensure we capture the element at its current position
       x: rect.left,
       y: rect.top,
     });
 
     console.log('PDF Generator: Canvas captured', { width: canvas.width, height: canvas.height });
 
-    // Validate canvas has content
     if (canvas.width === 0 || canvas.height === 0) {
       throw new Error('Canvas capture resulted in empty image');
     }
 
     // Process pages
     for (let pageNum = 0; pageNum < numPages; pageNum++) {
-      // Create a temporary canvas for this page
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = PAGE_WIDTH * SCALE;
       pageCanvas.height = PAGE_HEIGHT * SCALE;
@@ -101,22 +107,36 @@ export async function generatePDF(
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
 
-      // Calculate source region for this page
-      const sourceY = pageNum * (PAGE_HEIGHT / scaleFactor) * SCALE;
-      const sourceHeight = Math.min(
-        (PAGE_HEIGHT / scaleFactor) * SCALE,
-        canvas.height - sourceY
-      );
+      // Calculate which portion of the source to capture for this page
+      const sourceStartY = pageNum * sourceHeightPerPage;
+      const sourceEndY = Math.min((pageNum + 1) * sourceHeightPerPage, totalHeight);
+      const sourceSliceHeight = sourceEndY - sourceStartY;
 
-      if (sourceHeight <= 0) continue;
+      if (sourceSliceHeight <= 0) continue;
 
-      // Draw the portion of the full canvas onto this page
+      // Convert to canvas coordinates (multiply by SCALE)
+      const canvasStartY = sourceStartY * SCALE;
+      const canvasSliceHeight = sourceSliceHeight * SCALE;
+
+      // Calculate destination height on page canvas (maintaining aspect ratio)
+      const destHeight = sourceSliceHeight * scaleFactor * SCALE;
+
+      console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
+        sourceStartY,
+        sourceEndY,
+        sourceSliceHeight,
+        canvasStartY,
+        canvasSliceHeight,
+        destHeight
+      });
+
+      // Draw from captured canvas to page canvas
       ctx.drawImage(
         canvas,
-        0, sourceY, // Source x, y
-        canvas.width, sourceHeight, // Source width, height
-        0, 0, // Dest x, y
-        pageCanvas.width, (sourceHeight / canvas.width) * pageCanvas.width // Dest width, height (maintaining aspect ratio)
+        0, canvasStartY,                    // Source x, y
+        canvas.width, canvasSliceHeight,    // Source width, height
+        0, 0,                               // Dest x, y
+        pageCanvas.width, destHeight        // Dest width, height
       );
 
       // Convert page canvas to PNG
@@ -126,12 +146,15 @@ export async function generatePDF(
       // Add page to PDF
       const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       
-      // Draw the image on the page
+      // Calculate actual image height on this PDF page
+      const pdfImageHeight = sourceSliceHeight * scaleFactor;
+      
+      // In PDF, y=0 is BOTTOM. Position image at TOP of page.
       page.drawImage(pngImage, {
         x: 0,
-        y: 0,
+        y: PAGE_HEIGHT - pdfImageHeight,
         width: PAGE_WIDTH,
-        height: PAGE_HEIGHT,
+        height: pdfImageHeight,
       });
     }
 
