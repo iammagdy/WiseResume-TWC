@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { FileText, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
+import { AppIcon } from './AppIcon';
 
 interface AppLogoProps {
   showTagline?: boolean;
@@ -41,34 +42,16 @@ export function AppLogo({ showTagline = true, size = 'lg' }: AppLogoProps) {
       transition={{ duration: 0.4, ease: 'easeOut' }}
     >
       {/* Logo Icon */}
-      <div className="relative">
-        <motion.div
-          className={`${s.icon} rounded-2xl gradient-primary flex items-center justify-center shadow-lg`}
-          style={{
-            boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-          }}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <FileText className={`${s.iconInner} text-primary-foreground`} />
-        </motion.div>
-        
-        {/* Sparkle overlay */}
-        <motion.div
-          className="absolute -top-1 -right-1"
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.8, 1, 0.8],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        >
-          <Sparkles className={`${s.sparkle} text-primary`} />
-        </motion.div>
-      </div>
+      <motion.div
+        className="relative"
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        style={{
+          filter: 'drop-shadow(0 8px 24px hsl(var(--primary) / 0.4))',
+        }}
+      >
+        <AppIcon size={s.icon === 'w-16 h-16' ? 64 : s.icon === 'w-14 h-14' ? 56 : 40} />
+      </motion.div>
 
       {/* App Name */}
       <div className="text-center">
