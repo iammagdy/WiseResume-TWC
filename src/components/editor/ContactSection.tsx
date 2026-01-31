@@ -33,16 +33,24 @@ export function ContactSection() {
     );
     
     if (result?.improved) {
-      const improved = result.improved as { linkedin?: string; portfolio?: string };
-      if (improved.linkedin) {
-        handleChange('linkedin', improved.linkedin);
-      }
-      if (improved.portfolio) {
-        handleChange('portfolio', improved.portfolio);
-      }
+      const improved = result.improved as {
+        fullName?: string;
+        email?: string;
+        phone?: string;
+        location?: string;
+        linkedin?: string;
+        portfolio?: string;
+      };
+      // Apply ALL contact fields that were improved
+      if (improved.fullName) handleChange('fullName', improved.fullName);
+      if (improved.email) handleChange('email', improved.email);
+      if (improved.phone) handleChange('phone', improved.phone);
+      if (improved.location) handleChange('location', improved.location);
+      if (improved.linkedin) handleChange('linkedin', improved.linkedin);
+      if (improved.portfolio) handleChange('portfolio', improved.portfolio);
       toast.success(result.changes?.join(', ') || 'Contact info improved!');
     } else if (result?.suggestions) {
-      toast.success(`💡 ${result.suggestions.join(' • ')}`);
+      toast.info(`💡 ${result.suggestions.join(' • ')}`);
     }
   };
 

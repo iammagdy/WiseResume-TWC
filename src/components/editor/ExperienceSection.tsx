@@ -24,10 +24,18 @@ export function ExperienceSection() {
     section: 'experience',
     onApply: (content) => {
       if (enhancingExpId && content) {
-        const improved = content as { description?: string; achievements?: string[] };
+        const improved = content as {
+          description?: string;
+          achievements?: string[];
+          position?: string;
+          company?: string;
+        };
+        // Apply ALL experience fields that were improved
         updateExperience(enhancingExpId, {
-          description: improved.description,
-          achievements: improved.achievements || [],
+          ...(improved.description && { description: improved.description }),
+          ...(improved.achievements && { achievements: improved.achievements }),
+          ...(improved.position && { position: improved.position }),
+          ...(improved.company && { company: improved.company }),
         });
       }
       setShowDialog(false);
