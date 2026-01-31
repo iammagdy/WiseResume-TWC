@@ -73,7 +73,7 @@ export function AppLogo({ showTagline = true, size = 'lg' }: AppLogoProps) {
       {/* App Name */}
       <div className="text-center">
         <h1 className={`${s.name} font-display font-bold gradient-text`}>
-          ResumeAI
+          WiseResume
         </h1>
         
         {showTagline && (
