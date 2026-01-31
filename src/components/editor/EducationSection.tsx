@@ -114,21 +114,23 @@ export function EducationSection() {
               >
                 <button
                   onClick={() => setExpandedId(expandedId === edu.id ? null : edu.id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[56px]"
                 >
-                  <div className="text-left">
-                    <p className="font-semibold text-sm">
+                  <div className="text-left flex-1 min-w-0 pr-3">
+                    <p className="font-semibold text-sm truncate">
                       {edu.degree || `Degree ${index + 1}`}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground truncate">
                       {edu.institution || 'Institution name'}
                     </p>
                   </div>
-                  {expandedId === edu.id ? (
-                    <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  )}
+                  <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
+                    {expandedId === edu.id ? (
+                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
                 </button>
 
                 <AnimatePresence>
@@ -141,15 +143,15 @@ export function EducationSection() {
                     >
                       <div className="p-4 pt-0 space-y-4 border-t border-border">
                         <div>
-                          <Label className="text-xs flex items-center gap-1 mb-1">
-                            <GraduationCap className="w-3 h-3" />
+                          <Label className="text-sm flex items-center gap-1.5 mb-2">
+                            <GraduationCap className="w-4 h-4" />
                             Institution
                           </Label>
                           <Input
                             value={edu.institution}
                             onChange={(e) => updateEducation(edu.id, { institution: e.target.value })}
                             placeholder="University Name"
-                            className="h-10"
+                            className="h-12"
                           />
                         </div>
 
@@ -169,55 +171,55 @@ export function EducationSection() {
                               value={edu.field}
                               onChange={(e) => updateEducation(edu.id, { field: e.target.value })}
                               placeholder="Computer Science"
-                              className="h-10"
+                              className="h-12"
                             />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <Label className="text-xs flex items-center gap-1 mb-1">
-                              <Calendar className="w-3 h-3" />
+                            <Label className="text-sm flex items-center gap-1.5 mb-2">
+                              <Calendar className="w-4 h-4" />
                               Start Date
                             </Label>
                             <Input
                               value={edu.startDate}
                               onChange={(e) => updateEducation(edu.id, { startDate: e.target.value })}
                               placeholder="2016"
-                              className="h-10"
+                              className="h-12"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs flex items-center gap-1 mb-1">
-                              <Calendar className="w-3 h-3" />
+                            <Label className="text-sm flex items-center gap-1.5 mb-2">
+                              <Calendar className="w-4 h-4" />
                               End Date
                             </Label>
                             <Input
                               value={edu.endDate}
                               onChange={(e) => updateEducation(edu.id, { endDate: e.target.value })}
                               placeholder="2020"
-                              className="h-10"
+                              className="h-12"
                             />
                           </div>
                         </div>
 
                         <div>
-                          <Label className="text-xs mb-1 block">GPA (optional)</Label>
+                          <Label className="text-sm mb-2 block">GPA (optional)</Label>
                           <Input
                             value={edu.gpa || ''}
                             onChange={(e) => updateEducation(edu.id, { gpa: e.target.value })}
                             placeholder="3.8/4.0"
-                            className="h-10"
+                            className="h-12"
                           />
                         </div>
 
                         <Button
                           variant="destructive"
-                          size="sm"
+                          size="lg"
                           onClick={() => deleteEducation(edu.id)}
                           className="w-full gap-2"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                           Delete Education
                         </Button>
                       </div>

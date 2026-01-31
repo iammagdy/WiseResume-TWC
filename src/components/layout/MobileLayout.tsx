@@ -18,7 +18,7 @@ export function MobileLayout({
     <div className="min-h-screen min-h-[100dvh] flex flex-col bg-background">
       {showHeader && (
         <motion.header 
-          className="sticky top-0 z-50 glass border-b border-border px-4 py-3"
+          className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe"
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
         >
@@ -26,7 +26,8 @@ export function MobileLayout({
             {onBack && (
               <button 
                 onClick={onBack}
-                className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+                aria-label="Go back"
               >
                 <svg 
                   className="w-6 h-6" 
@@ -52,7 +53,7 @@ export function MobileLayout({
         </motion.header>
       )}
       
-      <main className="flex-1 overflow-y-auto overflow-x-hidden">
+      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-safe">
         {children}
       </main>
     </div>

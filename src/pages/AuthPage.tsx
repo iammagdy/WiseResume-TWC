@@ -94,16 +94,16 @@ export default function AuthPage() {
 
   return (
     <MobileLayout>
-      <div className="flex-1 flex flex-col px-4 py-8">
+      <div className="flex-1 flex flex-col px-4 py-8 pb-safe">
         {/* Back button */}
         <motion.button
           onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-muted-foreground mb-8"
+          className="flex items-center gap-2 text-muted-foreground mb-8 min-h-[44px] touch-manipulation active:opacity-70"
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
         >
           <ArrowLeft className="w-5 h-5" />
-          Back to Home
+          <span className="text-base">Back to Home</span>
         </motion.button>
 
         <motion.div
@@ -124,9 +124,9 @@ export default function AuthPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <Label htmlFor="email" className="flex items-center gap-2 mb-2">
+              <Label htmlFor="email" className="flex items-center gap-2 mb-2 text-sm">
                 <Mail className="w-4 h-4 text-muted-foreground" />
                 Email
               </Label>
@@ -137,12 +137,13 @@ export default function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 className="h-12"
+                autoComplete="email"
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="password" className="flex items-center gap-2 mb-2">
+              <Label htmlFor="password" className="flex items-center gap-2 mb-2 text-sm">
                 <Lock className="w-4 h-4 text-muted-foreground" />
                 Password
               </Label>
@@ -153,13 +154,14 @@ export default function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-12 pr-12"
+                  className="h-12 pr-14"
+                  autoComplete={isLogin ? 'current-password' : 'new-password'}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
@@ -184,11 +186,11 @@ export default function AuthPage() {
           </form>
 
           {/* Toggle */}
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline"
+              className="text-primary hover:underline text-base min-h-[44px] touch-manipulation"
             >
               {isLogin
                 ? "Don't have an account? Sign up"

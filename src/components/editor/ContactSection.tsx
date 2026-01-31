@@ -67,6 +67,7 @@ export function ContactSection() {
             onChange={(e) => handleChange('fullName', e.target.value)}
             placeholder="John Doe"
             className="h-12"
+            autoComplete="name"
           />
         </div>
 
@@ -82,6 +83,7 @@ export function ContactSection() {
             onChange={(e) => handleChange('email', e.target.value)}
             placeholder="john@example.com"
             className="h-12"
+            autoComplete="email"
           />
         </div>
 
@@ -97,6 +99,7 @@ export function ContactSection() {
             onChange={(e) => handleChange('phone', e.target.value)}
             placeholder="+1 (555) 123-4567"
             className="h-12"
+            autoComplete="tel"
           />
         </div>
 
@@ -111,6 +114,7 @@ export function ContactSection() {
             onChange={(e) => handleChange('location', e.target.value)}
             placeholder="New York, NY"
             className="h-12"
+            autoComplete="address-level2"
           />
         </div>
 
@@ -121,6 +125,7 @@ export function ContactSection() {
           </Label>
           <Input
             id="linkedin"
+            type="url"
             value={currentResume.contactInfo.linkedin || ''}
             onChange={(e) => handleChange('linkedin', e.target.value)}
             placeholder="https://linkedin.com/in/johndoe"
@@ -135,6 +140,7 @@ export function ContactSection() {
           </Label>
           <Input
             id="portfolio"
+            type="url"
             value={currentResume.contactInfo.portfolio || ''}
             onChange={(e) => handleChange('portfolio', e.target.value)}
             placeholder="https://johndoe.com"

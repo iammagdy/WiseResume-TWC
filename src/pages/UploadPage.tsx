@@ -189,7 +189,7 @@ export default function UploadPage() {
       <div className="flex-1 flex flex-col px-4 py-6">
         {/* Upload Zone */}
         <motion.div
-          className={`flex-1 min-h-[300px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-6 ${
+          className={`flex-1 min-h-[320px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 relative ${
             isDragging 
               ? 'border-primary bg-primary/10 glow-primary' 
               : 'border-border hover:border-primary/50'
@@ -220,7 +220,7 @@ export default function UploadPage() {
                 AI is extracting your information...
               </p>
               {fileName && (
-                <p className="text-xs text-muted-foreground mt-2 truncate max-w-[200px]">
+                <p className="text-sm text-muted-foreground mt-3 truncate max-w-[240px]">
                   {fileName}
                 </p>
               )}
@@ -228,26 +228,26 @@ export default function UploadPage() {
           ) : (
             <>
               <motion.div
-                className="w-20 h-20 rounded-full gradient-primary flex items-center justify-center mb-6 glow-primary"
+                className="w-24 h-24 rounded-full gradient-primary flex items-center justify-center mb-6 glow-primary"
                 animate={isDragging ? { scale: 1.1 } : { scale: 1 }}
               >
                 {isDragging ? (
-                  <FileText className="w-10 h-10 text-primary-foreground" />
+                  <FileText className="w-12 h-12 text-primary-foreground" />
                 ) : (
-                  <Upload className="w-10 h-10 text-primary-foreground" />
+                  <Upload className="w-12 h-12 text-primary-foreground" />
                 )}
               </motion.div>
               
-              <h2 className="text-xl font-display font-semibold mb-2 text-center">
+              <h2 className="text-xl font-display font-semibold mb-3 text-center">
                 {isDragging ? 'Drop to Upload' : 'Upload Your Resume'}
               </h2>
               
-              <p className="text-muted-foreground text-center text-sm mb-4">
+              <p className="text-muted-foreground text-center text-base mb-5 max-w-[280px]">
                 Drag and drop your PDF resume here, or tap to browse
               </p>
 
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <FileText className="w-4 h-4" />
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <FileText className="w-5 h-5" />
                 <span>PDF files only, max 10MB</span>
               </div>
             </>
@@ -256,16 +256,16 @@ export default function UploadPage() {
 
         {/* Tips */}
         <motion.div
-          className="mt-6 p-4 rounded-2xl glass border border-border"
+          className="mt-6 p-5 rounded-2xl glass border border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-secondary shrink-0 mt-0.5" />
+          <div className="flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-secondary shrink-0 mt-0.5" />
             <div>
-              <h3 className="font-semibold text-sm mb-1">Tips for best results</h3>
-              <ul className="text-xs text-muted-foreground space-y-1">
+              <h3 className="font-semibold text-base mb-2">Tips for best results</h3>
+              <ul className="text-sm text-muted-foreground space-y-1.5">
                 <li>• Use a text-based PDF (not scanned image)</li>
                 <li>• Keep formatting simple and clean</li>
                 <li>• Include all relevant sections</li>

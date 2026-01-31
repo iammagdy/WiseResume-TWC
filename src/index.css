@@ -174,6 +174,50 @@
   .touch-manipulation {
     touch-action: manipulation;
   }
+
+  /* Mobile touch target - minimum 44x44px */
+  .touch-target {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* Safe area padding for Android navigation bar */
+  .pb-safe {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+
+  /* Horizontal scroll with fade indicators */
+  .scroll-fade-x {
+    mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 16px, black calc(100% - 16px), transparent);
+  }
+
+  /* Active state for touch feedback */
+  .touch-active:active {
+    transform: scale(0.98);
+    opacity: 0.9;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Scroll snap for horizontal lists */
+  .snap-x-mandatory {
+    scroll-snap-type: x mandatory;
+  }
+  .snap-start {
+    scroll-snap-align: start;
+  }
 }
 
 /* Animations */

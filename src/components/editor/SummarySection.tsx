@@ -60,7 +60,11 @@ export function SummarySection() {
           placeholder="Write a brief professional summary highlighting your key qualifications, experience, and career goals..."
           className="min-h-[200px] resize-none"
         />
-        <p className="text-xs text-muted-foreground mt-2">
+        <p className={`text-sm mt-2 ${
+          currentResume.summary.length > 500 
+            ? 'text-warning font-medium' 
+            : 'text-muted-foreground'
+        }`}>
           {currentResume.summary.length}/500 characters recommended
         </p>
       </div>
@@ -93,8 +97,8 @@ export function SummarySection() {
       />
 
       <div className="p-4 rounded-xl bg-muted/50 border border-border">
-        <h4 className="font-semibold text-sm mb-2">Tips for a great summary</h4>
-        <ul className="text-xs text-muted-foreground space-y-1">
+        <h4 className="font-semibold text-sm mb-3">Tips for a great summary</h4>
+        <ul className="text-sm text-muted-foreground space-y-2">
           <li>• Start with your years of experience and specialty</li>
           <li>• Include 2-3 key achievements with metrics</li>
           <li>• Mention skills relevant to your target role</li>

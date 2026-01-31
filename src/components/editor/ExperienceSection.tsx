@@ -132,21 +132,23 @@ export function ExperienceSection() {
                 {/* Header - Always visible */}
                 <button
                   onClick={() => setExpandedId(expandedId === exp.id ? null : exp.id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[56px]"
                 >
-                  <div className="text-left">
-                    <p className="font-semibold text-sm">
+                  <div className="text-left flex-1 min-w-0 pr-3">
+                    <p className="font-semibold text-sm truncate">
                       {exp.position || `Position ${index + 1}`}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground truncate">
                       {exp.company || 'Company name'}
                     </p>
                   </div>
-                  {expandedId === exp.id ? (
-                    <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                  )}
+                  <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
+                    {expandedId === exp.id ? (
+                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
                 </button>
 
                 {/* Expanded content */}
@@ -159,49 +161,49 @@ export function ExperienceSection() {
                       className="overflow-hidden"
                     >
                       <div className="p-4 pt-0 space-y-4 border-t border-border">
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <Label className="text-xs flex items-center gap-1 mb-1">
-                              <Briefcase className="w-3 h-3" />
+                            <Label className="text-sm flex items-center gap-1.5 mb-2">
+                              <Briefcase className="w-4 h-4" />
                               Position
                             </Label>
                             <Input
                               value={exp.position}
                               onChange={(e) => updateExperience(exp.id, { position: e.target.value })}
                               placeholder="Job Title"
-                              className="h-10"
+                              className="h-12"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs flex items-center gap-1 mb-1">
-                              <Building2 className="w-3 h-3" />
+                            <Label className="text-sm flex items-center gap-1.5 mb-2">
+                              <Building2 className="w-4 h-4" />
                               Company
                             </Label>
                             <Input
                               value={exp.company}
                               onChange={(e) => updateExperience(exp.id, { company: e.target.value })}
                               placeholder="Company Name"
-                              className="h-10"
+                              className="h-12"
                             />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div>
-                            <Label className="text-xs flex items-center gap-1 mb-1">
-                              <Calendar className="w-3 h-3" />
+                            <Label className="text-sm flex items-center gap-1.5 mb-2">
+                              <Calendar className="w-4 h-4" />
                               Start Date
                             </Label>
                             <Input
                               value={exp.startDate}
                               onChange={(e) => updateExperience(exp.id, { startDate: e.target.value })}
                               placeholder="Jan 2020"
-                              className="h-10"
+                              className="h-12"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs flex items-center gap-1 mb-1">
-                              <Calendar className="w-3 h-3" />
+                            <Label className="text-sm flex items-center gap-1.5 mb-2">
+                              <Calendar className="w-4 h-4" />
                               End Date
                             </Label>
                             <Input
@@ -209,26 +211,26 @@ export function ExperienceSection() {
                               onChange={(e) => updateExperience(exp.id, { endDate: e.target.value })}
                               placeholder="Present"
                               disabled={exp.current}
-                              className="h-10"
+                              className="h-12"
                             />
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-3 py-1">
                           <Switch
                             checked={exp.current}
                             onCheckedChange={(checked) => updateExperience(exp.id, { current: checked })}
                           />
-                          <Label className="text-xs">Currently working here</Label>
+                          <Label className="text-sm">Currently working here</Label>
                         </div>
 
                         <div>
-                          <Label className="text-xs mb-1 block">Description</Label>
+                          <Label className="text-sm mb-2 block">Description</Label>
                           <Textarea
                             value={exp.description}
                             onChange={(e) => updateExperience(exp.id, { description: e.target.value })}
                             placeholder="Describe your responsibilities and achievements..."
-                            className="min-h-[100px] resize-none"
+                            className="min-h-[120px] resize-none text-base"
                           />
                         </div>
 
@@ -244,11 +246,11 @@ export function ExperienceSection() {
 
                         <Button
                           variant="destructive"
-                          size="sm"
+                          size="lg"
                           onClick={() => deleteExperience(exp.id)}
                           className="w-full gap-2"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                           Delete Experience
                         </Button>
                       </div>

@@ -122,7 +122,7 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[80vh] rounded-t-3xl">
+      <SheetContent side="bottom" className="h-[85vh]">
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
@@ -131,9 +131,9 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
         </SheetHeader>
 
         {/* ATS Info Banner */}
-        <div className="mb-4 p-3 rounded-xl bg-muted/50 border border-border flex items-start gap-3">
+        <div className="mb-4 p-4 rounded-xl bg-muted/50 border border-border flex items-start gap-4">
           <Sparkles className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-          <div className="text-xs">
+          <div className="text-sm">
             <p className="font-medium text-foreground mb-1">About ATS Compatibility</p>
             <p className="text-muted-foreground">
               ATS (Applicant Tracking Systems) scan resumes before recruiters see them. 
@@ -142,7 +142,7 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 overflow-y-auto max-h-[calc(80vh-180px)] pb-4">
+        <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[calc(85vh-220px)] pb-4">
           {templates.map((template, index) => (
             <motion.button
               key={template.id}
@@ -150,14 +150,14 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.03 }}
               onClick={() => handleSelect(template.id)}
-              className={`relative p-2 rounded-2xl border-2 transition-all text-left ${
+              className={`relative p-3 rounded-2xl border-2 transition-all text-left touch-manipulation active:scale-[0.98] ${
                 selectedTemplate === template.id
                   ? 'border-primary bg-primary/10'
                   : 'border-border hover:border-primary/50'
               }`}
             >
               {/* Real template preview */}
-              <div className="mb-2 relative">
+              <div className="mb-3 relative">
                 <TemplateThumbnail 
                   templateId={template.id} 
                   resume={previewResume} 
@@ -166,24 +166,24 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
                 {/* ATS Badge */}
                 <Badge
                   variant="outline"
-                  className={`absolute top-1 left-1 text-[10px] px-1.5 py-0 ${atsScoreColors[template.atsScore]}`}
+                  className={`absolute top-1.5 left-1.5 text-xs px-2 py-0.5 ${atsScoreColors[template.atsScore]}`}
                 >
                   {template.atsScore === 'medium' && (
-                    <AlertTriangle className="w-2.5 h-2.5 mr-0.5" />
+                    <AlertTriangle className="w-3 h-3 mr-1" />
                   )}
                   {atsScoreLabels[template.atsScore]}
                 </Badge>
 
                 {/* Selected indicator */}
                 {selectedTemplate === template.id && (
-                  <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                    <Check className="w-3 h-3 text-primary-foreground" />
+                  <div className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                    <Check className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
               </div>
 
-              <h3 className="font-semibold text-sm">{template.name}</h3>
-              <p className="text-xs text-muted-foreground line-clamp-1">{template.description}</p>
+              <h3 className="font-semibold text-base">{template.name}</h3>
+              <p className="text-sm text-muted-foreground line-clamp-1">{template.description}</p>
             </motion.button>
           ))}
         </div>

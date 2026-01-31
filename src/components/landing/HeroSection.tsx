@@ -74,14 +74,14 @@ export function HeroSection({ onUploadClick, onSignInClick }: HeroSectionProps) 
 
         {/* CTA Buttons */}
         <motion.div
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
         >
           <Button
             size="lg"
-            className="w-full h-14 text-lg font-semibold gradient-primary hover:opacity-90 glow-primary transition-all active:scale-98 touch-manipulation"
+            className="w-full h-14 text-lg font-semibold gradient-primary hover:opacity-90 glow-primary transition-all active:scale-[0.98] touch-manipulation"
             onClick={onUploadClick}
           >
             <FileCheck className="w-5 h-5 mr-2" />
@@ -91,7 +91,7 @@ export function HeroSection({ onUploadClick, onSignInClick }: HeroSectionProps) 
           <Button
             variant="outline"
             size="lg"
-            className="w-full h-14 text-lg font-semibold border-primary/50 hover:bg-primary/10 transition-all active:scale-98 touch-manipulation"
+            className="w-full h-14 text-lg font-semibold border-primary/50 hover:bg-primary/10 transition-all active:scale-[0.98] touch-manipulation"
             onClick={onSignInClick}
           >
             Sign In to Save Progress
@@ -148,21 +148,21 @@ export function FeatureHighlights() {
         Everything You Need
       </motion.h2>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         {features.map((feature, index) => (
           <motion.div
             key={feature.title}
-            className="p-4 rounded-2xl glass border border-border hover:border-primary/30 transition-colors"
+            className="p-5 rounded-2xl glass border border-border hover:border-primary/30 transition-colors touch-manipulation active:scale-[0.98]"
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: index * 0.1 }}
           >
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 border ${colorClasses[feature.color as keyof typeof colorClasses]}`}>
-              <feature.icon className="w-5 h-5" />
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-3 border ${colorClasses[feature.color as keyof typeof colorClasses]}`}>
+              <feature.icon className="w-6 h-6" />
             </div>
-            <h3 className="font-semibold text-sm mb-1">{feature.title}</h3>
-            <p className="text-xs text-muted-foreground">{feature.description}</p>
+            <h3 className="font-semibold text-base mb-1">{feature.title}</h3>
+            <p className="text-sm text-muted-foreground">{feature.description}</p>
           </motion.div>
         ))}
       </div>

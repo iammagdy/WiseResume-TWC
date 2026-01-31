@@ -87,16 +87,16 @@ export default function PreviewPage() {
       <div className="flex-1 flex flex-col">
         {/* Template indicator */}
         <motion.div
-          className="px-4 py-3 flex items-center gap-2 border-b border-border"
+          className="px-4 py-3 flex items-center gap-3 border-b border-border"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          <FileText className="w-4 h-4 text-muted-foreground" />
+          <FileText className="w-5 h-5 text-muted-foreground" />
           <span className="text-sm text-muted-foreground">
             Template: <span className="font-medium text-foreground capitalize">{selectedTemplate}</span>
           </span>
-          <Check className="w-4 h-4 text-success ml-auto" />
-          <span className="text-xs text-success">ATS-Ready</span>
+          <Check className="w-5 h-5 text-success ml-auto" />
+          <span className="text-sm text-success font-medium">ATS-Ready</span>
         </motion.div>
 
         {/* Preview area - scrollable for multi-page resumes */}
@@ -120,7 +120,7 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-          className="sticky bottom-0 p-4 glass border-t border-border space-y-3"
+          className="sticky bottom-0 p-4 pb-safe glass border-t border-border space-y-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -150,7 +150,7 @@ export default function PreviewPage() {
               className="flex-1 h-12"
               onClick={() => navigate('/editor')}
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-5 h-5 mr-2" />
               Edit
             </Button>
             <Button
@@ -159,7 +159,7 @@ export default function PreviewPage() {
               className="flex-1 h-12"
               onClick={handleShare}
             >
-              <Share2 className="w-4 h-4 mr-2" />
+              <Share2 className="w-5 h-5 mr-2" />
               Share
             </Button>
           </div>
