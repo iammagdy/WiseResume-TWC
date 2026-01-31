@@ -13,71 +13,86 @@ const SCALE = 2; // Higher scale for better quality
  */
 export async function generatePDF(
   resume: ResumeData,
-  templateId: TemplateId
+  templateId: TemplateId,
+  templateElement?: HTMLElement | null
 ): Promise<Blob> {
-  // Find or create the hidden render container
-  let container = document.getElementById('pdf-render-container');
+  // Find the template element - either passed directly or by query
+  let sourceElement = templateElement;
   
-  if (!container) {
-    container = document.createElement('div');
-    container.id = 'pdf-render-container';
-    container.style.cssText = `
-      position: fixed;
-      left: -9999px;
-      top: 0;
-      width: ${PAGE_WIDTH}px;
-      background: white;
-      z-index: -1000;
-    `;
-    document.body.appendChild(container);
+  if (!sourceElement) {
+    sourceElement = document.querySelector('[data-resume-template]') as HTMLElement;
+  }
+  
+  if (!sourceElement) {
+    // Fallback: try to find by class or other selectors
+    sourceElement = document.querySelector('.bg-white.text-black.mx-auto.shadow-2xl') as HTMLElement;
   }
 
-  // Get the template element from the preview
-  const previewElement = document.querySelector('[data-resume-template]') as HTMLElement;
-  
-  if (!previewElement) {
+  if (!sourceElement) {
     throw new Error('Resume template not found. Please ensure the preview is visible.');
   }
 
-  // Clone the template into our container
-  const clone = previewElement.cloneNode(true) as HTMLElement;
-  clone.style.width = `${PAGE_WIDTH}px`;
-  clone.style.minHeight = `${PAGE_HEIGHT}px`;
-  clone.style.background = 'white';
-  clone.style.color = 'black';
-  container.innerHTML = '';
-  container.appendChild(clone);
-
   // Wait for fonts and images to load
   await document.fonts.ready;
-  await new Promise(resolve => setTimeout(resolve, 100));
+  await new Promise(resolve => setTimeout(resolve, 200));
 
   try {
-    // Calculate the total height of the content
-    const totalHeight = clone.scrollHeight;
-    const numPages = Math.ceil(totalHeight / PAGE_HEIGHT);
+    // Get the actual dimensions of the source element
+    const rect = sourceElement.getBoundingClientRect();
+    const sourceWidth = Math.max(rect.width, PAGE_WIDTH);
+    const totalHeight = Math.max(sourceElement.scrollHeight, PAGE_HEIGHT);
+    
+    // Calculate scale factor to fit to PDF page width
+    const scaleFactor = PAGE_WIDTH / sourceWidth;
+    const scaledHeight = totalHeight * scaleFactor;
+    const numPages = Math.ceil(scaledHeight / PAGE_HEIGHT);
 
     // Create PDF document
     const pdfDoc = await PDFDocument.create();
 
-    for (let pageNum = 0; pageNum < numPages; pageNum++) {
-      // Capture each page section
-      const canvas = await html2canvas(clone, {
-        scale: SCALE,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        width: PAGE_WIDTH,
-        height: PAGE_HEIGHT,
-        x: 0,
-        y: pageNum * PAGE_HEIGHT,
-        windowWidth: PAGE_WIDTH,
-        windowHeight: totalHeight,
-        logging: false,
-      });
+    // Capture the entire element at once
+    const canvas = await html2canvas(sourceElement, {
+      scale: SCALE,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+      width: sourceWidth,
+      height: totalHeight,
+    });
 
-      // Convert canvas to PNG
-      const imgData = canvas.toDataURL('image/png');
+    // Process pages
+    for (let pageNum = 0; pageNum < numPages; pageNum++) {
+      // Create a temporary canvas for this page
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = PAGE_WIDTH * SCALE;
+      pageCanvas.height = PAGE_HEIGHT * SCALE;
+      const ctx = pageCanvas.getContext('2d');
+      
+      if (!ctx) continue;
+
+      // Fill white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+      // Calculate source region for this page
+      const sourceY = pageNum * (PAGE_HEIGHT / scaleFactor) * SCALE;
+      const sourceHeight = Math.min(
+        (PAGE_HEIGHT / scaleFactor) * SCALE,
+        canvas.height - sourceY
+      );
+
+      // Draw the portion of the full canvas onto this page
+      ctx.drawImage(
+        canvas,
+        0, sourceY, // Source x, y
+        canvas.width, sourceHeight, // Source width, height
+        0, 0, // Dest x, y
+        pageCanvas.width, (sourceHeight / canvas.width) * pageCanvas.width // Dest width, height (maintaining aspect ratio)
+      );
+
+      // Convert page canvas to PNG
+      const imgData = pageCanvas.toDataURL('image/png');
       const pngImage = await pdfDoc.embedPng(imgData);
 
       // Add page to PDF
@@ -97,8 +112,8 @@ export async function generatePDF(
     const buffer = pdfBytes.buffer as ArrayBuffer;
     
     return new Blob([buffer], { type: 'application/pdf' });
-  } finally {
-    // Clean up
-    container.innerHTML = '';
+  } catch (error) {
+    console.error('PDF capture error:', error);
+    throw new Error('Failed to capture resume template. Please try again.');
   }
 }

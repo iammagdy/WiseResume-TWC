@@ -29,7 +29,8 @@ export default function PreviewPage() {
   const handleDownload = async () => {
     setIsGenerating(true);
     try {
-      const pdfBlob = await generatePDF(currentResume, selectedTemplate);
+      // Pass the ref element to ensure we capture the correct template
+      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current);
       
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
@@ -55,7 +56,7 @@ export default function PreviewPage() {
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        const pdfBlob = await generatePDF(currentResume, selectedTemplate);
+        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current);
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({
           title: 'My Resume',
