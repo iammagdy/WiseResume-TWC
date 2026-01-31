@@ -1,0 +1,141 @@
+/**
+ * OCR Extraction Module
+ * 
+ * Uses Tesseract.js to perform OCR on PDF pages rendered to canvas.
+ * This is used as a fallback when standard text extraction fails (scanned/image PDFs).
+ */
+
+import * as pdfjsLib from 'pdfjs-dist';
+import { createWorker, Worker } from 'tesseract.js';
+
+export interface OCRProgress {
+  page: number;
+  total: number;
+  status: string;
+}
+
+export type OCRProgressCallback = (progress: OCRProgress) => void;
+
+/**
+ * Extract text from a PDF using OCR.
+ * Renders each page to canvas and runs Tesseract OCR on the image.
+ * 
+ * @param file - The PDF file to process
+ * @param onProgress - Optional callback for progress updates
+ * @returns Promise<string> - The extracted text from all pages
+ */
+export async function extractTextWithOCR(
+  file: File,
+  onProgress?: OCRProgressCallback
+): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  
+  // Load PDF document
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const numPages = pdf.numPages;
+  
+  // Initialize Tesseract worker once for all pages (more efficient)
+  onProgress?.({ page: 0, total: numPages, status: 'Initializing OCR engine...' });
+  
+  let worker: Worker;
+  try {
+    worker = await createWorker('eng');
+  } catch (error) {
+    console.error('Failed to initialize Tesseract worker:', error);
+    throw new Error(
+      'Failed to initialize OCR engine. Please check your internet connection and try again.'
+    );
+  }
+  
+  const pageTexts: string[] = [];
+  
+  try {
+    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+      onProgress?.({ 
+        page: pageNum, 
+        total: numPages, 
+        status: `Processing page ${pageNum} of ${numPages}...` 
+      });
+      
+      const pageText = await extractPageWithOCR(pdf, pageNum, worker);
+      pageTexts.push(pageText);
+    }
+  } finally {
+    // Always terminate worker to free memory
+    await worker.terminate();
+  }
+  
+  const fullText = pageTexts.join('\n\n');
+  
+  // Check if OCR produced meaningful content
+  const cleanedText = fullText.replace(/\s+/g, ' ').trim();
+  if (cleanedText.length < 20) {
+    throw new Error(
+      'OCR could not extract readable text. The PDF may be too low quality or contain no recognizable text.'
+    );
+  }
+  
+  return fullText;
+}
+
+/**
+ * Render a single PDF page to canvas and run OCR on it.
+ */
+async function extractPageWithOCR(
+  pdf: pdfjsLib.PDFDocumentProxy,
+  pageNum: number,
+  worker: Worker
+): Promise<string> {
+  const page = await pdf.getPage(pageNum);
+  
+  // Render at 2x scale for better OCR accuracy
+  const scale = 2;
+  const viewport = page.getViewport({ scale });
+  
+  // Create canvas for rendering
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  
+  if (!context) {
+    throw new Error('Failed to create canvas context for OCR');
+  }
+  
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  
+  // Render PDF page to canvas
+  await page.render({
+    canvasContext: context,
+    viewport: viewport,
+  }).promise;
+  
+  // Convert canvas to image data for Tesseract
+  const imageData = canvas.toDataURL('image/png');
+  
+  // Run OCR on the rendered image
+  const { data: { text } } = await worker.recognize(imageData);
+  
+  // Clean up canvas to free memory
+  canvas.width = 0;
+  canvas.height = 0;
+  
+  return text.trim();
+}
+
+/**
+ * Estimate OCR processing time based on page count.
+ * Returns a human-readable string.
+ */
+export function estimateOCRTime(pageCount: number): string {
+  // Rough estimate: ~10-15 seconds per page on average
+  const minSeconds = pageCount * 10;
+  const maxSeconds = pageCount * 20;
+  
+  if (maxSeconds < 60) {
+    return `${minSeconds}-${maxSeconds} seconds`;
+  } else {
+    const minMinutes = Math.ceil(minSeconds / 60);
+    const maxMinutes = Math.ceil(maxSeconds / 60);
+    return `${minMinutes}-${maxMinutes} minutes`;
+  }
+}

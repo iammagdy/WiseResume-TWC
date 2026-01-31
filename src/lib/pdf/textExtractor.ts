@@ -50,10 +50,23 @@ export class PDFParseError extends Error {
 }
 
 /**
+ * Result from text extraction, including metadata about extraction quality.
+ */
+export interface ExtractionResult {
+  text: string;
+  method: 'text';
+  pageCount: number;
+  needsOCR: boolean; // True if text extraction found nothing usable
+}
+
+/**
  * Extract text from PDF with layout-aware line reconstruction.
  * Groups text items by Y coordinate to preserve line breaks.
+ * 
+ * Returns an ExtractionResult with metadata about extraction quality.
+ * If needsOCR is true, the caller should offer OCR as a fallback.
  */
-export async function extractTextFromPDF(file: File): Promise<string> {
+export async function extractTextFromPDF(file: File): Promise<ExtractionResult> {
   const arrayBuffer = await file.arrayBuffer();
   
   let pdf;
@@ -91,26 +104,35 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   }
 
   const fullText = pageTexts.join('\n\n');
+  const pageCount = pdf.numPages;
 
   // Check if we got meaningful text
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();
   // Be conservative: only classify as "no text" when extraction is truly empty/near-empty.
-  // Some PDFs yield shorter strings but are still valid and should be allowed through.
   const hasLetters = /[A-Za-z]/.test(cleanedText);
+  
   if (cleanedText.length === 0 || (!hasLetters && cleanedText.length < 20)) {
-    // Helpful debug for cases where selectable text exists but extraction is weak
-    console.warn('PDF extraction produced too little text', {
-      pages: pdf.numPages,
+    // Instead of throwing, return needsOCR flag so UI can offer OCR
+    console.warn('PDF extraction produced too little text - OCR may be needed', {
+      pages: pageCount,
       cleanedChars: cleanedText.length,
       debugPages,
     });
-    throw new PDFParseError(
-      'Could not extract readable text from this PDF. This usually happens with scanned documents or image-based PDFs.',
-      'NO_TEXT'
-    );
+    
+    return {
+      text: '',
+      method: 'text',
+      pageCount,
+      needsOCR: true,
+    };
   }
 
-  return fullText;
+  return {
+    text: fullText,
+    method: 'text',
+    pageCount,
+    needsOCR: false,
+  };
 }
 
 /**
