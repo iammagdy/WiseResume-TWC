@@ -13,6 +13,12 @@ interface TextItem {
   hasEOL?: boolean;
 }
 
+type AnyTextItem = { str: string; transform?: unknown; hasEOL?: boolean };
+
+function hasStr(item: any): item is AnyTextItem {
+  return typeof item?.str === 'string';
+}
+
 // Type guard to filter out TextMarkedContent items (which lack str/transform)
 function isTextItem(item: any): item is TextItem {
   const t = item?.transform;
@@ -73,11 +79,14 @@ export async function extractTextFromPDF(file: File): Promise<string> {
   }
 
   const pageTexts: string[] = [];
+  const debugPages: Array<{ page: number; rawItems: number; extractedChars: number }> = [];
 
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = reconstructPageText(textContent.items as TextItem[]);
+    const textContent = await page.getTextContent({ includeMarkedContent: false } as any);
+    const rawItems = Array.isArray((textContent as any)?.items) ? (textContent as any).items.length : 0;
+    const pageText = reconstructPageText((textContent as any).items as any[]);
+    debugPages.push({ page: i, rawItems, extractedChars: pageText.length });
     pageTexts.push(pageText);
   }
 
@@ -85,7 +94,16 @@ export async function extractTextFromPDF(file: File): Promise<string> {
 
   // Check if we got meaningful text
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();
-  if (cleanedText.length < 50) {
+  // Be conservative: only classify as "no text" when extraction is truly empty/near-empty.
+  // Some PDFs yield shorter strings but are still valid and should be allowed through.
+  const hasLetters = /[A-Za-z]/.test(cleanedText);
+  if (cleanedText.length === 0 || (!hasLetters && cleanedText.length < 20)) {
+    // Helpful debug for cases where selectable text exists but extraction is weak
+    console.warn('PDF extraction produced too little text', {
+      pages: pdf.numPages,
+      cleanedChars: cleanedText.length,
+      debugPages,
+    });
     throw new PDFParseError(
       'Could not extract readable text from this PDF. This usually happens with scanned documents or image-based PDFs.',
       'NO_TEXT'
@@ -100,10 +118,26 @@ export async function extractTextFromPDF(file: File): Promise<string> {
  * Handles two-column layouts by detecting large X gaps.
  */
 function reconstructPageText(items: any[]): string {
-  // Filter to only actual TextItem objects (not TextMarkedContent)
-  const textItems = items.filter(isTextItem);
-  
-  if (textItems.length === 0) return '';
+  // Prefer layout-aware reconstruction when we have coordinates...
+  const strItems = items.filter(hasStr);
+  const textItems = strItems.filter(isTextItem);
+
+  // ...but fall back to a simpler join if pdf.js doesn't provide usable transforms.
+  // This avoids false "image-based" classifications for selectable-text PDFs.
+  if (textItems.length === 0) {
+    const parts: string[] = [];
+    for (const it of strItems) {
+      const t = it.str.replace(/\s+/g, ' ').trim();
+      if (!t) continue;
+      parts.push(t);
+      if ((it as any).hasEOL) parts.push('\n');
+    }
+    const joined = parts.join(' ');
+    return joined
+      .replace(/ *\n */g, '\n')
+      .replace(/[\t\r\f\v ]+/g, ' ')
+      .trim();
+  }
 
   // Group items by Y coordinate (with tolerance for slight variations)
   const Y_TOLERANCE = 3;
