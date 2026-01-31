@@ -29,18 +29,30 @@ export async function generatePDF(
   }
 
   if (!sourceElement) {
+    console.error('PDF Generator: No template element found');
     throw new Error('Resume template not found. Please ensure the preview is visible.');
   }
 
   // Wait for fonts and images to load
   await document.fonts.ready;
-  await new Promise(resolve => setTimeout(resolve, 200));
+  await new Promise(resolve => setTimeout(resolve, 300));
 
   try {
     // Get the actual dimensions of the source element
     const rect = sourceElement.getBoundingClientRect();
-    const sourceWidth = Math.max(rect.width, PAGE_WIDTH);
-    const totalHeight = Math.max(sourceElement.scrollHeight, PAGE_HEIGHT);
+    
+    // Use the element's natural width/height, falling back to computed values
+    const computedStyle = window.getComputedStyle(sourceElement);
+    const sourceWidth = Math.max(
+      sourceElement.offsetWidth || rect.width || parseInt(computedStyle.width) || PAGE_WIDTH,
+      PAGE_WIDTH / 2 // Minimum sensible width
+    );
+    const totalHeight = Math.max(
+      sourceElement.scrollHeight || sourceElement.offsetHeight || rect.height || PAGE_HEIGHT,
+      PAGE_HEIGHT / 2 // Minimum sensible height
+    );
+    
+    console.log('PDF Generator: Capturing element', { sourceWidth, totalHeight, rect });
     
     // Calculate scale factor to fit to PDF page width
     const scaleFactor = PAGE_WIDTH / sourceWidth;
@@ -50,7 +62,7 @@ export async function generatePDF(
     // Create PDF document
     const pdfDoc = await PDFDocument.create();
 
-    // Capture the entire element at once
+    // Capture the element directly (don't clone - preserves all styles including Tailwind)
     const canvas = await html2canvas(sourceElement, {
       scale: SCALE,
       useCORS: true,
@@ -59,7 +71,21 @@ export async function generatePDF(
       logging: false,
       width: sourceWidth,
       height: totalHeight,
+      scrollX: 0,
+      scrollY: -window.scrollY, // Account for page scroll
+      windowWidth: sourceWidth,
+      windowHeight: totalHeight,
+      // Ensure we capture the element at its current position
+      x: rect.left,
+      y: rect.top,
     });
+
+    console.log('PDF Generator: Canvas captured', { width: canvas.width, height: canvas.height });
+
+    // Validate canvas has content
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error('Canvas capture resulted in empty image');
+    }
 
     // Process pages
     for (let pageNum = 0; pageNum < numPages; pageNum++) {
@@ -81,6 +107,8 @@ export async function generatePDF(
         (PAGE_HEIGHT / scaleFactor) * SCALE,
         canvas.height - sourceY
       );
+
+      if (sourceHeight <= 0) continue;
 
       // Draw the portion of the full canvas onto this page
       ctx.drawImage(
@@ -111,6 +139,7 @@ export async function generatePDF(
     const pdfBytes = await pdfDoc.save();
     const buffer = pdfBytes.buffer as ArrayBuffer;
     
+    console.log('PDF Generator: PDF created successfully');
     return new Blob([buffer], { type: 'application/pdf' });
   } catch (error) {
     console.error('PDF capture error:', error);
