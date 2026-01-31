@@ -58,8 +58,15 @@ export function EducationSection() {
       currentResume
     );
     
-    if (result?.suggestions) {
-      toast.success(`💡 ${result.suggestions.join(' • ')}`);
+    if (result?.improved) {
+      // Apply improved education entries
+      const improvedEducation = result.improved as Education[];
+      if (Array.isArray(improvedEducation) && improvedEducation.length > 0) {
+        updateResume({ education: improvedEducation });
+        toast.success(result.changes?.join(', ') || 'Education improved!');
+      }
+    } else if (result?.suggestions) {
+      toast.info(`💡 ${result.suggestions.join(' • ')}`);
     }
   };
 
