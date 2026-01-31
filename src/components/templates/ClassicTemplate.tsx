@@ -37,7 +37,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
           </h2>
           <div className="space-y-4">
             {resume.experience.map((exp) => (
-              <div key={exp.id}>
+              <div key={exp.id} data-break-avoid>
                 <div className="flex justify-between">
                   <strong className="text-gray-900">{exp.position}</strong>
                   <span className="text-xs text-gray-500">
@@ -62,7 +62,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
           </h2>
           <div className="space-y-2">
             {resume.education.map((edu) => (
-              <div key={edu.id} className="flex justify-between">
+              <div key={edu.id} data-break-avoid className="flex justify-between">
                 <div>
                   <strong className="text-gray-900">{edu.institution}</strong>
                   <p className="text-gray-600 text-xs">

@@ -185,6 +185,7 @@ export default function PreviewPage() {
               <PageBreakIndicator
                 containerWidth={containerDimensions.width}
                 containerHeight={containerDimensions.height}
+                templateRef={resumeRef}
               />
             )}
           </motion.div>

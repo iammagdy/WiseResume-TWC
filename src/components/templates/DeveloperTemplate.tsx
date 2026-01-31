@@ -152,7 +152,7 @@ export function DeveloperTemplate({ resume }: TemplateProps) {
             </h2>
             <div className="border-l-2 border-gray-200 pl-3 space-y-4">
               {resume.experience.map((exp) => (
-                <div key={exp.id}>
+                <div key={exp.id} data-break-avoid>
                   <div className="flex justify-between items-baseline flex-wrap gap-1">
                     <h3 className="text-gray-900">
                       <span className="text-green-500">&gt;</span> {exp.position}
@@ -188,7 +188,7 @@ export function DeveloperTemplate({ resume }: TemplateProps) {
             </h2>
             <div className="border-l-2 border-gray-200 pl-3 space-y-2">
               {resume.education.map((edu) => (
-                <div key={edu.id} className="flex justify-between items-baseline flex-wrap gap-1">
+                <div key={edu.id} data-break-avoid className="flex justify-between items-baseline flex-wrap gap-1">
                   <span className="text-gray-900">
                     <span className="text-green-500">&gt;</span> {edu.degree}
                     {edu.field && ` in ${edu.field}`}

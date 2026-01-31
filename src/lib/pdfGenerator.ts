@@ -7,6 +7,104 @@ const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 const SCALE = 2; // Higher scale for better quality
 
+interface ContentBlock {
+  top: number;
+  bottom: number;
+}
+
+/**
+ * Finds smart page break positions that avoid cutting through content blocks.
+ * Scans for elements with data-break-avoid attribute and adjusts breaks.
+ */
+export function findSmartBreakPositions(
+  sourceElement: HTMLElement,
+  sourceHeightPerPage: number,
+  totalHeight: number
+): number[] {
+  // Get all unbreakable blocks
+  const blockElements = sourceElement.querySelectorAll('[data-break-avoid]');
+  const blocks: ContentBlock[] = [];
+  
+  const containerRect = sourceElement.getBoundingClientRect();
+  
+  blockElements.forEach(el => {
+    const rect = el.getBoundingClientRect();
+    blocks.push({
+      top: rect.top - containerRect.top,
+      bottom: rect.bottom - containerRect.top,
+    });
+  });
+
+  // Sort blocks by top position
+  blocks.sort((a, b) => a.top - b.top);
+  
+  // Calculate natural break positions
+  const naturalBreaks: number[] = [];
+  let pos = sourceHeightPerPage;
+  while (pos < totalHeight) {
+    naturalBreaks.push(pos);
+    pos += sourceHeightPerPage;
+  }
+  
+  if (naturalBreaks.length === 0) {
+    return [];
+  }
+
+  // Adjust each break to avoid cutting blocks
+  const smartBreaks: number[] = [];
+  let cumulativeOffset = 0;
+  
+  for (let i = 0; i < naturalBreaks.length; i++) {
+    const naturalBreak = naturalBreaks[i];
+    const adjustedBreak = naturalBreak + cumulativeOffset;
+    
+    // Find block being cut by this break
+    const cuttingBlock = blocks.find(
+      b => b.top < adjustedBreak && b.bottom > adjustedBreak
+    );
+    
+    if (cuttingBlock) {
+      // Option A: Break before block (move up)
+      const breakBefore = cuttingBlock.top - 8; // 8px padding
+      const wastedSpaceBefore = adjustedBreak - breakBefore;
+      
+      // Option B: Break after block (move down)
+      const breakAfter = cuttingBlock.bottom + 8;
+      const extraContentAfter = breakAfter - adjustedBreak;
+      
+      // Maximum waste allowed (25% of page height)
+      const maxWaste = sourceHeightPerPage * 0.25;
+      
+      // Ensure we don't create pages that are too short (minimum 20% of page)
+      const minPageContent = sourceHeightPerPage * 0.20;
+      const previousBreak = i === 0 ? 0 : smartBreaks[i - 1];
+      
+      if (wastedSpaceBefore <= extraContentAfter && wastedSpaceBefore < maxWaste) {
+        // Check if breaking before would leave enough content on current page
+        if (breakBefore - previousBreak >= minPageContent) {
+          smartBreaks.push(breakBefore);
+          cumulativeOffset += (breakBefore - adjustedBreak);
+        } else {
+          // Push break after to avoid tiny page
+          smartBreaks.push(breakAfter);
+          cumulativeOffset += (breakAfter - adjustedBreak);
+        }
+      } else if (extraContentAfter < maxWaste) {
+        smartBreaks.push(breakAfter);
+        cumulativeOffset += (breakAfter - adjustedBreak);
+      } else {
+        // Block is too large, must cut through it
+        smartBreaks.push(adjustedBreak);
+      }
+    } else {
+      smartBreaks.push(adjustedBreak);
+    }
+  }
+  
+  // Filter out any breaks that exceed total height
+  return smartBreaks.filter(b => b < totalHeight && b > 0);
+}
+
 /**
  * Generates a PDF from the resume by capturing the rendered React template.
  * This ensures WYSIWYG - what you see in preview is what you get in PDF.
@@ -59,13 +157,17 @@ export async function generatePDF(
     
     // How much source height fits on one PDF page
     const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
-    const numPages = Math.ceil(totalHeight / sourceHeightPerPage);
 
-    console.log('PDF Generator: Pagination', { 
+    // Calculate smart break positions that avoid cutting content
+    const smartBreaks = findSmartBreakPositions(sourceElement, sourceHeightPerPage, totalHeight);
+    const numPages = smartBreaks.length + 1;
+
+    console.log('PDF Generator: Smart pagination', { 
       scaleFactor, 
       sourceHeightPerPage, 
       numPages,
-      totalHeight 
+      totalHeight,
+      smartBreaks 
     });
 
     // Create PDF document
@@ -93,8 +195,13 @@ export async function generatePDF(
       throw new Error('Canvas capture resulted in empty image');
     }
 
-    // Process pages
+    // Process pages using smart break positions
     for (let pageNum = 0; pageNum < numPages; pageNum++) {
+      // Calculate page boundaries using smart breaks
+      const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
+      const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
+      const pageContentHeight = pageEnd - pageStart;
+
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = PAGE_WIDTH * SCALE;
       pageCanvas.height = PAGE_HEIGHT * SCALE;
@@ -107,22 +214,22 @@ export async function generatePDF(
       ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
 
       // Calculate source slice from captured canvas (in canvas pixels)
-      const canvasPageHeight = sourceHeightPerPage * SCALE;
-      const sourceY = pageNum * canvasPageHeight;
-      const remainingHeight = canvas.height - sourceY;
-      const sliceHeight = Math.min(canvasPageHeight, remainingHeight);
+      const sourceY = pageStart * SCALE;
+      const sliceHeight = pageContentHeight * SCALE;
 
       if (sliceHeight <= 0) continue;
 
-      // Calculate how much of the page this slice fills (1.0 for full pages, less for last page)
-      const pageFillRatio = sliceHeight / canvasPageHeight;
-      const destHeight = PAGE_HEIGHT * SCALE * pageFillRatio;
+      // Calculate how much of the PDF page this content fills
+      const pdfContentHeight = pageContentHeight * scaleFactor;
+      const destHeight = pdfContentHeight * SCALE;
 
       console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
+        pageStart,
+        pageEnd,
+        pageContentHeight,
+        pdfContentHeight,
         sourceY,
-        sliceHeight,
-        pageFillRatio,
-        destHeight
+        sliceHeight
       });
 
       // Draw from captured canvas to page canvas (from top)
@@ -141,15 +248,12 @@ export async function generatePDF(
       // Add page to PDF
       const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       
-      // Calculate actual image height on this PDF page
-      const pdfImageHeight = PAGE_HEIGHT * pageFillRatio;
-      
       // In PDF, y=0 is BOTTOM. Position image at TOP of page.
       page.drawImage(pngImage, {
         x: 0,
-        y: PAGE_HEIGHT - pdfImageHeight,
+        y: PAGE_HEIGHT - pdfContentHeight,
         width: PAGE_WIDTH,
-        height: pdfImageHeight,
+        height: pdfContentHeight,
       });
     }
 

@@ -1,4 +1,6 @@
 import { cn } from '@/lib/utils';
+import { findSmartBreakPositions } from '@/lib/pdfGenerator';
+import { useMemo, RefObject } from 'react';
 
 // PDF dimensions (must match pdfGenerator.ts)
 const PAGE_WIDTH = 612;
@@ -7,26 +9,41 @@ const PAGE_HEIGHT = 792;
 interface PageBreakIndicatorProps {
   containerWidth: number;
   containerHeight: number;
+  templateRef?: RefObject<HTMLElement>;
   className?: string;
 }
 
 export function PageBreakIndicator({ 
   containerWidth, 
   containerHeight,
+  templateRef,
   className 
 }: PageBreakIndicatorProps) {
-  // Calculate page breaks using same math as PDF generator
-  const scaleFactor = PAGE_WIDTH / containerWidth;
-  const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
-  
-  // Generate break positions
-  const breaks: number[] = [];
-  let position = sourceHeightPerPage;
-  
-  while (position < containerHeight) {
-    breaks.push(position);
-    position += sourceHeightPerPage;
-  }
+  const breaks = useMemo(() => {
+    // Calculate scale factor and source height per page
+    const scaleFactor = PAGE_WIDTH / containerWidth;
+    const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
+    
+    // If we have a template ref, use smart breaks
+    if (templateRef?.current) {
+      return findSmartBreakPositions(
+        templateRef.current,
+        sourceHeightPerPage,
+        containerHeight
+      );
+    }
+    
+    // Fallback to fixed breaks
+    const fixedBreaks: number[] = [];
+    let position = sourceHeightPerPage;
+    
+    while (position < containerHeight) {
+      fixedBreaks.push(position);
+      position += sourceHeightPerPage;
+    }
+    
+    return fixedBreaks;
+  }, [containerWidth, containerHeight, templateRef]);
 
   if (breaks.length === 0) return null;
 
