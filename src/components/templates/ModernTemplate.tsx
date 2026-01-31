@@ -24,7 +24,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
 
       {/* Summary */}
       {resume.summary && (
-        <section className="mb-6">
+        <section data-section="summary" className="mb-6">
           <h2 className="text-lg font-bold text-purple-600 mb-2 uppercase tracking-wide">
             Summary
           </h2>
@@ -34,7 +34,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
 
       {/* Experience */}
       {resume.experience.length > 0 && (
-        <section className="mb-6">
+        <section data-section="experience" className="mb-6">
           <h2 className="text-lg font-bold text-purple-600 mb-3 uppercase tracking-wide">
             Experience
           </h2>
@@ -61,7 +61,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
 
       {/* Education */}
       {resume.education.length > 0 && (
-        <section className="mb-6">
+        <section data-section="education" className="mb-6">
           <h2 className="text-lg font-bold text-purple-600 mb-3 uppercase tracking-wide">
             Education
           </h2>
@@ -81,7 +81,7 @@ export function ModernTemplate({ resume }: TemplateProps) {
 
       {/* Skills */}
       {resume.skills.length > 0 && (
-        <section>
+        <section data-section="skills">
           <h2 className="text-lg font-bold text-purple-600 mb-2 uppercase tracking-wide">
             Skills
           </h2>

@@ -36,7 +36,7 @@ export function ExecutiveTemplate({ resume }: TemplateProps) {
 
       {/* Executive Summary */}
       {resume.summary && (
-        <section className="mb-8">
+        <section data-section="summary" className="mb-8">
           <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
             Executive Summary
           </h2>
@@ -63,7 +63,7 @@ export function ExecutiveTemplate({ resume }: TemplateProps) {
 
       {/* Professional Experience */}
       {resume.experience.length > 0 && (
-        <section className="mb-8">
+        <section data-section="experience" className="mb-8">
           <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-4">
             Professional Experience
           </h2>
@@ -90,7 +90,7 @@ export function ExecutiveTemplate({ resume }: TemplateProps) {
       <div className="grid grid-cols-2 gap-8">
         {/* Education */}
         {resume.education.length > 0 && (
-          <section>
+          <section data-section="education">
             <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
               Education
             </h2>
@@ -109,7 +109,7 @@ export function ExecutiveTemplate({ resume }: TemplateProps) {
 
         {/* Core Competencies */}
         {resume.skills.length > 0 && (
-          <section>
+          <section data-section="skills">
             <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
               Core Competencies
             </h2>

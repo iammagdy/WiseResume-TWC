@@ -25,7 +25,7 @@ export function ProfessionalTemplate({ resume }: TemplateProps) {
         <aside className="w-1/3 space-y-5">
           {/* Skills */}
           {resume.skills.length > 0 && (
-            <section>
+            <section data-section="skills">
               <h2 className="text-sm font-bold text-gray-900 mb-2 pb-1 border-b-2 border-gray-900">
                 SKILLS
               </h2>
@@ -39,7 +39,7 @@ export function ProfessionalTemplate({ resume }: TemplateProps) {
 
           {/* Education */}
           {resume.education.length > 0 && (
-            <section>
+            <section data-section="education">
               <h2 className="text-sm font-bold text-gray-900 mb-2 pb-1 border-b-2 border-gray-900">
                 EDUCATION
               </h2>
@@ -61,7 +61,7 @@ export function ProfessionalTemplate({ resume }: TemplateProps) {
         <main className="flex-1">
           {/* Summary */}
           {resume.summary && (
-            <section className="mb-5">
+            <section data-section="summary" className="mb-5">
               <h2 className="text-sm font-bold text-gray-900 mb-2 pb-1 border-b-2 border-gray-900">
                 PROFILE
               </h2>
@@ -71,7 +71,7 @@ export function ProfessionalTemplate({ resume }: TemplateProps) {
 
           {/* Experience */}
           {resume.experience.length > 0 && (
-            <section>
+            <section data-section="experience">
               <h2 className="text-sm font-bold text-gray-900 mb-3 pb-1 border-b-2 border-gray-900">
                 PROFESSIONAL EXPERIENCE
               </h2>

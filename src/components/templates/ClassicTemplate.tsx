@@ -21,7 +21,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
 
       {/* Objective/Summary */}
       {resume.summary && (
-        <section className="mb-5">
+        <section data-section="summary" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-200 pb-1">
             PROFESSIONAL SUMMARY
           </h2>
@@ -31,7 +31,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
 
       {/* Experience */}
       {resume.experience.length > 0 && (
-        <section className="mb-5">
+        <section data-section="experience" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 mb-3 border-b border-gray-200 pb-1">
             WORK EXPERIENCE
           </h2>
@@ -56,7 +56,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
 
       {/* Education */}
       {resume.education.length > 0 && (
-        <section className="mb-5">
+        <section data-section="education" className="mb-5">
           <h2 className="text-sm font-bold text-gray-900 mb-3 border-b border-gray-200 pb-1">
             EDUCATION
           </h2>
@@ -78,7 +78,7 @@ export function ClassicTemplate({ resume }: TemplateProps) {
 
       {/* Skills */}
       {resume.skills.length > 0 && (
-        <section>
+        <section data-section="skills">
           <h2 className="text-sm font-bold text-gray-900 mb-2 border-b border-gray-200 pb-1">
             SKILLS
           </h2>

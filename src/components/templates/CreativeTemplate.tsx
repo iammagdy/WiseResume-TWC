@@ -63,7 +63,7 @@ export function CreativeTemplate({ resume }: TemplateProps) {
 
         {/* Skills */}
         {resume.skills.length > 0 && (
-          <section className="mb-6">
+          <section data-section="skills" className="mb-6">
             <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-violet-200">
               Skills
             </h2>
@@ -82,7 +82,7 @@ export function CreativeTemplate({ resume }: TemplateProps) {
 
         {/* Education */}
         {resume.education.length > 0 && (
-          <section>
+          <section data-section="education">
             <h2 className="text-xs font-bold uppercase tracking-wider mb-3 text-violet-200">
               Education
             </h2>
@@ -116,7 +116,7 @@ export function CreativeTemplate({ resume }: TemplateProps) {
 
         {/* Summary */}
         {resume.summary && (
-          <section className="mb-6">
+          <section data-section="summary" className="mb-6">
             <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
               <span className="w-6 h-0.5 bg-violet-500"></span>
               About Me
@@ -127,7 +127,7 @@ export function CreativeTemplate({ resume }: TemplateProps) {
 
         {/* Experience */}
         {resume.experience.length > 0 && (
-          <section className="mb-6">
+          <section data-section="experience" className="mb-6">
             <h2 className="text-sm font-bold text-gray-900 mb-3 flex items-center gap-2">
               <span className="w-6 h-0.5 bg-violet-500"></span>
               Experience
@@ -156,7 +156,7 @@ export function CreativeTemplate({ resume }: TemplateProps) {
 
         {/* Certifications if any */}
         {resume.certifications && resume.certifications.length > 0 && (
-          <section>
+          <section data-section="certifications">
             <h2 className="text-sm font-bold text-gray-900 mb-2 flex items-center gap-2">
               <span className="w-6 h-0.5 bg-violet-500"></span>
               Certifications
