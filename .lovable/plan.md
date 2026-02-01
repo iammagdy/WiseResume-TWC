@@ -1,361 +1,378 @@
 
-# Manual Page Break Controls - User-Defined Section Breaks
 
-## Problem Analysis
+# Make the Tailor Feature Legendary
 
-Looking at the screenshot, page 3 shows:
-1. **Education and Skills crammed at top** with excessive white space below
-2. The smart algorithm is making decisions automatically, but the result isn't ideal
-3. Users need **direct control** over where page breaks occur
+## Current State Analysis
 
-The current smart break algorithm works well for avoiding cuts through content, but it can't know user preferences like:
-- "I want Experience to fill pages 1-2, then Education starts fresh on page 3"
-- "Keep all my skills on the same page as education"
+The existing tailor feature provides:
+- Basic job description input
+- AI-powered resume rewriting
+- Simple diff comparison
+- Apply/discard workflow
 
-## Solution: Section-Based Page Break Controls
+**What's missing for a "legendary" experience:**
+1. No real-time streaming feedback
+2. No granular control (all-or-nothing changes)
+3. No job URL parsing (users must copy-paste)
+4. No tailor history or versioning
+5. No per-section selective application
+6. No suggested missing skills to add
+7. Limited visual feedback during processing
+8. No match score preview before/after
 
-Allow users to **insert manual page breaks after specific sections** in the Preview page. This gives full control while keeping the UI simple.
+---
 
-### User Experience
+## The Legendary Tailor Experience
 
-```
-┌─────────────────────────────────────────┐
-│ [Modern] [Classic] [Minimal] ...        │  ← Template switcher
-├─────────────────────────────────────────┤
-│ ✓ ATS-Ready       [Page breaks ▾]       │  ← Dropdown instead of toggle
-├─────────────────────────────────────────┤
-│                                         │
-│  ┌─────────────────────────────────┐   │
-│  │  CONTACT INFO                   │   │
-│  │  ...                            │   │
-│  │  ────────────────────────────── │   │
-│  │  SUMMARY                        │   │
-│  │  ...                            │   │
-│  │  ────────────────────────────── │   │
-│  │  EXPERIENCE                     │   │
-│  │  Job 1...                       │   │
-│  │  Job 2...                       │   │
-│  │                                 │   │
-│  │  ═══ Page 1 ends ═══════════    │   │  ← Auto break indicator
-│  │                                 │   │
-│  │  Job 3...                       │   │
-│  │  Job 4...                       │   │
-│  └─────────────────────────────────┘   │
-│                                         │
-└─────────────────────────────────────────┘
-```
+### Feature 1: Smart Job Input with URL Parsing
 
-### Page Break Settings Sheet
-
-When user clicks "Page breaks", show a settings sheet:
+Instead of just a textarea, add intelligent job input:
 
 ```
-┌─────────────────────────────────────────┐
-│  Page Break Settings                  ✕ │
-├─────────────────────────────────────────┤
-│                                         │
-│  Force page break after:                │
-│                                         │
-│  ○ Auto (smart detection)               │
-│                                         │
-│  Or select sections:                    │
-│  ┌─────────────────────────────────────┐│
-│  │ [ ] After Summary                   ││
-│  │ [✓] After Experience     ← PAGE 1   ││
-│  │ [ ] After Education                 ││
-│  │ [ ] After Skills                    ││
-│  └─────────────────────────────────────┘│
-│                                         │
-│  Preview shows X pages                  │
-│                                         │
-│  [Apply Changes]                        │
-│                                         │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│  🔗 Paste job URL or description                    │
+│  ┌───────────────────────────────────────────────┐  │
+│  │ https://linkedin.com/jobs/view/12345...       │  │
+│  └───────────────────────────────────────────────┘  │
+│                                                     │
+│  [Parse Job Posting]  or  [Paste Manually ↓]       │
+│                                                     │
+│  ✓ LinkedIn  ✓ Indeed  ✓ Glassdoor  ✓ Any URL     │
+└─────────────────────────────────────────────────────┘
 ```
+
+- Auto-detect if input is URL vs text
+- Extract job details (title, company, requirements)
+- Cache parsed job data for reuse
+
+### Feature 2: Live Streaming with Step-by-Step Progress
+
+Replace static "AI is working..." with animated progress:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ✨ Tailoring Your Resume                           │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ✓ Analyzing job requirements           [Complete] │
+│  ✓ Matching your experience                [Done]  │
+│  ● Rewriting summary...                  [Active]  │
+│  ○ Optimizing skills                     [Pending] │
+│  ○ Enhancing achievements                [Pending] │
+│  ○ Generating recommendations            [Pending] │
+│                                                     │
+│  ────────────────────────────────── 45%            │
+│                                                     │
+│  💡 Found 8 matching keywords to add               │
+│  📊 Projected match score: 78% → 92%               │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+### Feature 3: Section-by-Section Selective Apply
+
+Allow users to accept/reject changes per section:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  📋 Review Changes                                  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ [✓] Summary                     ⬆️ +15pts   │   │
+│  │     "Results-driven developer..." → Preview │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ [✓] Skills                      ⬆️ +12pts   │   │
+│  │     +5 added  -2 removed        → Preview   │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ┌─────────────────────────────────────────────┐   │
+│  │ [ ] Experience                  ⬆️ +8pts    │   │
+│  │     3 bullet points rewritten   → Preview   │   │
+│  └─────────────────────────────────────────────┘   │
+│                                                     │
+│  ────────────────────────────────────────────────  │
+│  Apply selected: +27 points → Score: 89%           │
+│  [Apply Selected] [Apply All]                      │
+└─────────────────────────────────────────────────────┘
+```
+
+### Feature 4: Before/After Match Score Comparison
+
+Show immediate impact of changes:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  📊 Impact Preview                                  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│    BEFORE            AFTER                         │
+│   ┌──────┐         ┌──────┐                        │
+│   │  62  │   →→→   │  91  │                        │
+│   │  %   │         │  %   │                        │
+│   └──────┘         └──────┘                        │
+│   Average          Excellent                       │
+│                                                     │
+│  Improvements:                                     │
+│  ├─ Skills Match:      55% → 95%  (+40)           │
+│  ├─ Keywords:          48% → 88%  (+40)           │
+│  ├─ Experience:        72% → 90%  (+18)           │
+│  └─ ATS Compatibility: 75% → 92%  (+17)           │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+### Feature 5: Missing Skills Suggestions with One-Click Add
+
+Suggest skills from job that aren't on resume:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  💡 Skills Gap Analysis                             │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Required by job but missing from resume:          │
+│                                                     │
+│  [+ Add] Kubernetes       - mentioned 4x in job    │
+│  [+ Add] CI/CD            - mentioned 3x in job    │
+│  [+ Add] Agile/Scrum      - mentioned 2x in job    │
+│                                                     │
+│  You have these but not emphasized:                │
+│  [⬆ Boost] Docker         - move to top           │
+│  [⬆ Boost] AWS            - add more context      │
+│                                                     │
+│  [Add All Suggested Skills]                        │
+└─────────────────────────────────────────────────────┘
+```
+
+### Feature 6: Tailor History & Quick Revert
+
+Save previous tailored versions:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  📜 Tailor History                                  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Today                                             │
+│  ├─ Senior Developer @ Google        Score: 91%   │
+│  │   [Restore] [Compare]                          │
+│  └─ Frontend Lead @ Meta             Score: 85%   │
+│      [Restore] [Compare]                          │
+│                                                     │
+│  Yesterday                                         │
+│  └─ Full Stack @ Startup             Score: 78%   │
+│      [Restore] [Compare]                          │
+│                                                     │
+│  [Clear History]                                   │
+└─────────────────────────────────────────────────────┘
+```
+
+### Feature 7: Cover Letter Generator (Bonus)
+
+One-click cover letter from tailored resume:
+
+```
+┌─────────────────────────────────────────────────────┐
+│  ✉️ Bonus: Generate Cover Letter                    │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  Based on your tailored resume, generate a         │
+│  matching cover letter for this position.          │
+│                                                     │
+│  Tone: [Professional ▾]                            │
+│  Length: [Standard ▾]                              │
+│                                                     │
+│  [Generate Cover Letter]                           │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Technical Implementation
 
-### 1. Data Model Changes
-
-Add page break preferences to the resume store:
+### New Types
 
 ```typescript
-// src/types/resume.ts
-export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications';
-
-export interface PageBreakSettings {
-  mode: 'auto' | 'manual';
-  breakAfterSections: SectionId[];  // e.g., ['experience'] means break after experience
+// src/types/resume.ts additions
+export interface TailorHistory {
+  id: string;
+  jobTitle: string;
+  company: string;
+  jobDescription: string;
+  tailorResult: TailorResult;
+  scoreBeforeAfter: { before: number; after: number };
+  appliedSections: string[];
+  createdAt: string;
 }
 
-// src/store/resumeStore.ts
-interface ResumeState {
-  // ... existing fields
-  pageBreakSettings: PageBreakSettings;
-  setPageBreakSettings: (settings: PageBreakSettings) => void;
+export interface SectionChange {
+  sectionId: 'summary' | 'skills' | 'experience' | 'education';
+  enabled: boolean;
+  impactScore: number;
+  preview: string;
+  original: unknown;
+  tailored: unknown;
+}
+
+export interface SkillSuggestion {
+  skill: string;
+  reason: string;
+  frequency: number; // times mentioned in job
+  action: 'add' | 'boost';
+}
+
+export interface TailorProgress {
+  step: 'analyzing' | 'matching' | 'rewriting_summary' | 'optimizing_skills' | 
+        'enhancing_experience' | 'generating_recs' | 'complete';
+  progress: number;
+  message: string;
 }
 ```
 
-### 2. Template Changes
-
-Add `data-section` attributes to each major section for identification:
-
-```tsx
-// All templates
-<section data-section="summary" className="mb-6">
-  <h2>Summary</h2>
-  ...
-</section>
-
-<section data-section="experience" className="mb-6">
-  <h2>Experience</h2>
-  ...
-</section>
-// etc.
-```
-
-### 3. PDF Generator Updates
-
-Modify `findSmartBreakPositions` to accept manual break positions:
+### Enhanced Edge Function Response
 
 ```typescript
-export function findSmartBreakPositions(
-  sourceElement: HTMLElement,
-  sourceHeightPerPage: number,
-  totalHeight: number,
-  manualBreakSections?: string[]  // NEW: sections after which to force break
-): number[] {
-  // If manual sections specified, find their bottom positions
-  if (manualBreakSections && manualBreakSections.length > 0) {
-    const manualBreaks: number[] = [];
-    const containerRect = sourceElement.getBoundingClientRect();
-    
-    manualBreakSections.forEach(sectionId => {
-      const section = sourceElement.querySelector(`[data-section="${sectionId}"]`);
-      if (section) {
-        const rect = section.getBoundingClientRect();
-        manualBreaks.push(rect.bottom - containerRect.top + 8); // 8px padding
-      }
-    });
-    
-    return manualBreaks.filter(b => b < totalHeight && b > 0).sort((a, b) => a - b);
-  }
+// supabase/functions/tailor-resume/index.ts - enhanced response
+interface EnhancedTailorResult {
+  // Existing fields
+  summary: string;
+  skills: string[];
+  experience: Experience[];
+  education: Education[];
+  keyChanges: string[];
   
-  // Existing smart break logic...
+  // New legendary features
+  sectionScores: {
+    summary: { before: number; after: number };
+    skills: { before: number; after: number };
+    experience: { before: number; after: number };
+    education: { before: number; after: number };
+  };
+  overallScore: { before: number; after: number };
+  missingSkills: SkillSuggestion[];
+  boostableSkills: SkillSuggestion[];
+  jobParsed: {
+    title: string;
+    company: string;
+    keyRequirements: string[];
+    niceToHaves: string[];
+  };
+  coverLetterPrompt?: string; // Pre-built prompt for cover letter
 }
 ```
 
-### 4. New Components
+### New Components
 
-**PageBreakSheet.tsx** - Settings panel for page break configuration:
+| Component | Purpose |
+|-----------|---------|
+| `TailorSheet.tsx` | Complete rewrite with new features |
+| `TailorProgress.tsx` | Animated step-by-step progress indicator |
+| `SectionChangeCard.tsx` | Selectable section with toggle + preview |
+| `SkillSuggestionList.tsx` | Missing/boost skill suggestions |
+| `ScoreComparison.tsx` | Before/after score visualization |
+| `TailorHistorySheet.tsx` | History list with restore/compare |
+| `CoverLetterGenerator.tsx` | Cover letter generation modal |
+| `JobUrlParser.tsx` | Smart job input with URL detection |
 
-```tsx
-interface PageBreakSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  settings: PageBreakSettings;
-  onSettingsChange: (settings: PageBreakSettings) => void;
-  availableSections: SectionId[];
+### Store Updates
+
+```typescript
+// src/store/resumeStore.ts additions
+interface ResumeState {
+  // Existing...
+  
+  // New tailor state
+  tailorHistory: TailorHistory[];
+  addTailorHistory: (entry: TailorHistory) => void;
+  clearTailorHistory: () => void;
+  restoreTailorVersion: (id: string) => void;
 }
 ```
 
-### 5. PreviewPage Updates
-
-- Replace toggle button with dropdown that opens PageBreakSheet
-- Pass manual break sections to PDF generator
-- Update PageBreakIndicator to show manual vs auto breaks
-
-## File Changes
+### File Changes Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/types/resume.ts` | Modify | Add `SectionId` and `PageBreakSettings` types |
-| `src/store/resumeStore.ts` | Modify | Add `pageBreakSettings` state and setter |
-| `src/lib/pdfGenerator.ts` | Modify | Accept manual break sections parameter |
-| `src/components/templates/*.tsx` | Modify | Add `data-section` attributes to all 7 templates |
-| `src/components/editor/PageBreakSheet.tsx` | Create | New settings sheet component |
-| `src/components/editor/PageBreakIndicator.tsx` | Modify | Support manual break mode with different styling |
-| `src/pages/PreviewPage.tsx` | Modify | Integrate PageBreakSheet and pass settings |
+| `src/types/resume.ts` | Modify | Add new tailor-related types |
+| `src/store/resumeStore.ts` | Modify | Add tailor history state |
+| `src/lib/aiTailor.ts` | Modify | Add streaming support, new response types |
+| `src/components/editor/TailorSheet.tsx` | Rewrite | Complete redesign with all features |
+| `src/components/editor/tailor/TailorProgress.tsx` | Create | Animated progress component |
+| `src/components/editor/tailor/SectionChangeCard.tsx` | Create | Selectable section card |
+| `src/components/editor/tailor/SkillSuggestionList.tsx` | Create | Skill suggestions UI |
+| `src/components/editor/tailor/ScoreComparison.tsx` | Create | Before/after score viz |
+| `src/components/editor/tailor/TailorHistorySheet.tsx` | Create | History management |
+| `src/components/editor/tailor/CoverLetterGenerator.tsx` | Create | Cover letter modal |
+| `src/components/editor/tailor/JobUrlParser.tsx` | Create | Smart job input |
+| `supabase/functions/tailor-resume/index.ts` | Modify | Enhanced AI prompts, streaming, richer response |
+| `supabase/functions/parse-job-url/index.ts` | Create | URL parsing edge function |
+| `supabase/functions/generate-cover-letter/index.ts` | Create | Cover letter generation |
+| `supabase/config.toml` | Modify | Add new functions |
 
-## Detailed Component Design
+---
 
-### PageBreakSheet Component
+## User Flow
 
-```tsx
-// src/components/editor/PageBreakSheet.tsx
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Checkbox } from '@/components/ui/checkbox';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-
-const SECTION_LABELS: Record<SectionId, string> = {
-  summary: 'Summary',
-  experience: 'Experience', 
-  education: 'Education',
-  skills: 'Skills',
-  certifications: 'Certifications',
-};
-
-export function PageBreakSheet({ 
-  open, 
-  onOpenChange, 
-  settings, 
-  onSettingsChange,
-  availableSections 
-}: PageBreakSheetProps) {
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-auto max-h-[70vh]">
-        <SheetHeader>
-          <SheetTitle>Page Break Settings</SheetTitle>
-        </SheetHeader>
-        
-        <div className="py-4 space-y-6">
-          {/* Mode Selection */}
-          <RadioGroup 
-            value={settings.mode} 
-            onValueChange={(mode) => onSettingsChange({ ...settings, mode: mode as 'auto' | 'manual' })}
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="auto" id="auto" />
-              <Label htmlFor="auto">Auto (smart detection)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="manual" id="manual" />
-              <Label htmlFor="manual">Manual (choose sections)</Label>
-            </div>
-          </RadioGroup>
-          
-          {/* Section Checkboxes (only when manual) */}
-          {settings.mode === 'manual' && (
-            <div className="space-y-3 pl-4 border-l-2 border-primary/20">
-              <p className="text-sm text-muted-foreground">Force page break after:</p>
-              {availableSections.map((section) => (
-                <div key={section} className="flex items-center space-x-2">
-                  <Checkbox 
-                    id={section}
-                    checked={settings.breakAfterSections.includes(section)}
-                    onCheckedChange={(checked) => {
-                      const newSections = checked 
-                        ? [...settings.breakAfterSections, section]
-                        : settings.breakAfterSections.filter(s => s !== section);
-                      onSettingsChange({ ...settings, breakAfterSections: newSections });
-                    }}
-                  />
-                  <Label htmlFor={section}>{SECTION_LABELS[section]}</Label>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <Button className="w-full" onClick={() => onOpenChange(false)}>
-          Apply
-        </Button>
-      </SheetContent>
-    </Sheet>
-  );
-}
+```
+User clicks "Tailor Resume"
+     ↓
+┌──────────────────────┐
+│ Smart Job Input      │ ← Paste URL or text
+└──────────────────────┘
+     ↓
+[Tailor My Resume]
+     ↓
+┌──────────────────────┐
+│ Live Progress Steps  │ ← Animated checklist
+│ + Score Preview      │
+└──────────────────────┘
+     ↓
+┌──────────────────────┐
+│ Section-by-Section   │ ← Toggle sections to apply
+│ Review Panel         │
+│ + Skill Suggestions  │
+│ + Score Comparison   │
+└──────────────────────┘
+     ↓
+[Apply Selected Changes]
+     ↓
+┌──────────────────────┐
+│ Success + History    │ ← Saved to history
+│ + Cover Letter CTA   │
+└──────────────────────┘
 ```
 
-### Updated PreviewPage Flow
+---
 
-```tsx
-// In PreviewPage.tsx
-const { pageBreakSettings, setPageBreakSettings } = useResumeStore();
-const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
+## Visual Polish
 
-// Determine which sections exist in resume
-const availableSections = useMemo(() => {
-  const sections: SectionId[] = [];
-  if (currentResume.summary) sections.push('summary');
-  if (currentResume.experience.length > 0) sections.push('experience');
-  if (currentResume.education.length > 0) sections.push('education');
-  if (currentResume.skills.length > 0) sections.push('skills');
-  if (currentResume.certifications.length > 0) sections.push('certifications');
-  return sections;
-}, [currentResume]);
+### Animations
+- Progress steps slide in sequentially
+- Score numbers animate up (counting animation)
+- Section cards have subtle hover effects
+- Toggle switches have satisfying spring physics
+- Success state has confetti/sparkle burst
 
-// Pass to indicator and PDF generator
-const manualBreakSections = pageBreakSettings.mode === 'manual' 
-  ? pageBreakSettings.breakAfterSections 
-  : undefined;
-```
+### Color Coding
+- Green: Improvements, additions, high scores
+- Blue: Neutral changes, information
+- Orange: Warnings, things to review
+- Purple: AI suggestions, premium features
 
-### Updated PageBreakIndicator
+---
 
-```tsx
-export function PageBreakIndicator({ 
-  containerWidth, 
-  containerHeight,
-  templateRef,
-  manualBreakSections,  // NEW
-  className 
-}: PageBreakIndicatorProps) {
-  const breaks = useMemo(() => {
-    const scaleFactor = PAGE_WIDTH / containerWidth;
-    const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
-    
-    if (templateRef?.current) {
-      return findSmartBreakPositions(
-        templateRef.current,
-        sourceHeightPerPage,
-        containerHeight,
-        manualBreakSections  // Pass through
-      );
-    }
-    // ... fallback
-  }, [containerWidth, containerHeight, templateRef, manualBreakSections]);
+## Impact
 
-  // Different styling for manual vs auto breaks
-  const isManualMode = manualBreakSections && manualBreakSections.length > 0;
-  
-  return (
-    <div className={cn("absolute inset-0 pointer-events-none", className)}>
-      {breaks.map((breakPosition, index) => (
-        <div
-          key={index}
-          className="absolute left-0 right-0 flex items-center gap-2 z-10"
-          style={{ top: `${breakPosition}px` }}
-        >
-          <div className={cn(
-            "flex-1 border-t-2 border-dashed",
-            isManualMode ? "border-blue-400/60" : "border-orange-400/60"
-          )} />
-          <span className={cn(
-            "px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap shadow-sm",
-            isManualMode 
-              ? "text-blue-600 bg-blue-100" 
-              : "text-orange-600 bg-orange-100"
-          )}>
-            Page {index + 1} ends
-          </span>
-          <div className={cn(
-            "flex-1 border-t-2 border-dashed",
-            isManualMode ? "border-blue-400/60" : "border-orange-400/60"
-          )} />
-        </div>
-      ))}
-    </div>
-  );
-}
-```
+This legendary tailor feature will:
 
-## Edge Cases
+1. **Increase engagement** - Interactive section selection keeps users involved
+2. **Build trust** - Transparent score comparison shows real value
+3. **Save time** - URL parsing eliminates copy-paste friction
+4. **Provide control** - Per-section apply gives users agency
+5. **Add value** - Cover letter generation is a major bonus
+6. **Enable iteration** - History allows A/B testing different approaches
 
-1. **No sections selected in manual mode**: Fall back to auto mode
-2. **Section doesn't exist**: Skip it (e.g., user removed all education)
-3. **Break after last section**: Ignore (no need to break after final content)
-4. **Overlapping manual breaks**: Sort by position, remove duplicates
-
-## Testing Checklist
-
-1. Open Preview page with multi-page resume
-2. Click "Page breaks" to open settings sheet
-3. Select "Manual" mode
-4. Check "After Experience" - verify page 1 ends after experience section
-5. Check "After Education" - verify 3 pages with education on page 2
-6. Switch back to "Auto" - verify smart breaks resume
-7. Download PDF - verify breaks match preview
-8. Test with different templates
