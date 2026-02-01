@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult } from '@/types/resume';
+import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ResumeState {
@@ -12,6 +12,8 @@ interface ResumeState {
   selectedTemplate: TemplateId;
   pageBreakSettings: PageBreakSettings;
   tailorHistory: TailorHistory[];
+  generatedCoverLetter: string | null;
+  coverLetterJobContext: CoverLetterContext | null;
   
   setCurrentResume: (resume: ResumeData | null) => void;
   updateResume: (updates: Partial<ResumeData>) => void;
@@ -24,6 +26,7 @@ interface ResumeState {
   addTailorHistory: (entry: Omit<TailorHistory, 'id' | 'createdAt'>) => void;
   clearTailorHistory: () => void;
   restoreTailorVersion: (id: string) => void;
+  setGeneratedCoverLetter: (letter: string | null, context?: CoverLetterContext) => void;
   clearAll: () => void;
 }
 
@@ -55,6 +58,8 @@ export const useResumeStore = create<ResumeState>()(
       selectedTemplate: 'modern',
       pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
       tailorHistory: [],
+      generatedCoverLetter: null,
+      coverLetterJobContext: null,
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
       
@@ -102,6 +107,11 @@ export const useResumeStore = create<ResumeState>()(
         }
       },
       
+      setGeneratedCoverLetter: (letter, context) => set({
+        generatedCoverLetter: letter,
+        coverLetterJobContext: context || null,
+      }),
+      
       clearAll: () => set({
         currentResume: null,
         jobDescription: '',
@@ -111,6 +121,8 @@ export const useResumeStore = create<ResumeState>()(
         selectedTemplate: 'modern',
         pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
         tailorHistory: [],
+        generatedCoverLetter: null,
+        coverLetterJobContext: null,
       }),
     }),
     {

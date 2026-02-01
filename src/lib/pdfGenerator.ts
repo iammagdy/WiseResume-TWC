@@ -1,11 +1,12 @@
 import html2canvas from 'html2canvas';
-import { PDFDocument } from 'pdf-lib';
-import { ResumeData, TemplateId } from '@/types/resume';
+import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
+import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume';
 
 // PDF dimensions (Letter size in points)
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 const SCALE = 2; // Higher scale for better quality
+const MARGIN = 72; // 1 inch margins for cover letter
 
 interface ContentBlock {
   top: number;
@@ -122,6 +123,77 @@ export function findSmartBreakPositions(
 }
 
 /**
+ * Wraps text to fit within a maximum width, returning an array of lines.
+ */
+function wrapText(
+  text: string,
+  font: PDFFont,
+  fontSize: number,
+  maxWidth: number
+): string[] {
+  const paragraphs = text.split('\n');
+  const lines: string[] = [];
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') {
+      lines.push(''); // Preserve empty lines for paragraph breaks
+      continue;
+    }
+
+    const words = paragraph.split(/\s+/);
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const width = font.widthOfTextAtSize(testLine, fontSize);
+
+      if (width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+
+    if (currentLine) lines.push(currentLine);
+  }
+
+  return lines;
+}
+
+/**
+ * Adds page numbers to all pages in the PDF document.
+ */
+async function addPageNumbers(
+  pdfDoc: PDFDocument,
+  options: PDFOptions = {}
+): Promise<void> {
+  const { showPageNumbers = true, pageNumberFormat = 'full' } = options;
+  
+  if (!showPageNumbers) return;
+
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const pages = pdfDoc.getPages();
+  const numPages = pages.length;
+
+  for (let i = 0; i < numPages; i++) {
+    const page = pages[i];
+    const pageText = pageNumberFormat === 'simple' 
+      ? `${i + 1}` 
+      : `Page ${i + 1} of ${numPages}`;
+    const textWidth = font.widthOfTextAtSize(pageText, 9);
+
+    page.drawText(pageText, {
+      x: (PAGE_WIDTH - textWidth) / 2,
+      y: 20,
+      size: 9,
+      font,
+      color: rgb(0.5, 0.5, 0.5),
+    });
+  }
+}
+
+/**
  * Generates a PDF from the resume by capturing the rendered React template.
  * This ensures WYSIWYG - what you see in preview is what you get in PDF.
  */
@@ -129,7 +201,8 @@ export async function generatePDF(
   resume: ResumeData,
   templateId: TemplateId,
   templateElement?: HTMLElement | null,
-  manualBreakSections?: string[]
+  manualBreakSections?: string[],
+  options?: PDFOptions
 ): Promise<Blob> {
   // Find the template element - either passed directly or by query
   let sourceElement = templateElement;
@@ -287,6 +360,9 @@ export async function generatePDF(
       });
     }
 
+    // Add page numbers
+    await addPageNumbers(pdfDoc, options);
+
     // Generate PDF bytes
     const pdfBytes = await pdfDoc.save();
     const buffer = pdfBytes.buffer as ArrayBuffer;
@@ -297,4 +373,149 @@ export async function generatePDF(
     console.error('PDF capture error:', error);
     throw new Error('Failed to capture resume template. Please try again.');
   }
+}
+
+/**
+ * Generates a cover letter PDF with native text rendering.
+ */
+export async function generateCoverLetterPDF(
+  coverLetter: string,
+  contactInfo: ContactInfo,
+  options?: PDFOptions
+): Promise<Blob> {
+  const pdfDoc = await PDFDocument.create();
+  const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+
+  const contentWidth = PAGE_WIDTH - (MARGIN * 2);
+  const lines = wrapText(coverLetter, font, 11, contentWidth);
+
+  let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  let y = PAGE_HEIGHT - MARGIN;
+
+  // Add header with contact info
+  if (contactInfo.fullName) {
+    page.drawText(contactInfo.fullName, {
+      x: MARGIN,
+      y,
+      size: 16,
+      font: boldFont,
+      color: rgb(0, 0, 0),
+    });
+    y -= 20;
+  }
+
+  // Contact details line
+  const contactDetails = [contactInfo.email, contactInfo.phone, contactInfo.location]
+    .filter(Boolean)
+    .join(' | ');
+  if (contactDetails) {
+    page.drawText(contactDetails, {
+      x: MARGIN,
+      y,
+      size: 10,
+      font,
+      color: rgb(0.3, 0.3, 0.3),
+    });
+    y -= 30;
+  }
+
+  // Add date
+  const today = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  page.drawText(today, {
+    x: MARGIN,
+    y,
+    size: 11,
+    font,
+    color: rgb(0, 0, 0),
+  });
+  y -= 30;
+
+  // Draw cover letter content
+  const lineHeight = 16;
+  for (const line of lines) {
+    if (y < MARGIN + 30) {
+      // New page needed
+      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+      y = PAGE_HEIGHT - MARGIN;
+    }
+
+    if (line === '') {
+      y -= lineHeight; // Paragraph break
+    } else {
+      page.drawText(line, {
+        x: MARGIN,
+        y,
+        size: 11,
+        font,
+        color: rgb(0, 0, 0),
+      });
+      y -= lineHeight;
+    }
+  }
+
+  // Add page numbers
+  await addPageNumbers(pdfDoc, options);
+
+  const pdfBytes = await pdfDoc.save();
+  return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+}
+
+/**
+ * Generates a combined PDF with cover letter followed by resume.
+ */
+export async function generateCombinedPDF(
+  resume: ResumeData,
+  templateId: TemplateId,
+  coverLetter: string,
+  templateElement?: HTMLElement | null,
+  manualBreakSections?: string[],
+  options?: PDFOptions
+): Promise<Blob> {
+  // Generate cover letter PDF first
+  const coverLetterBlob = await generateCoverLetterPDF(
+    coverLetter,
+    resume.contactInfo,
+    { showPageNumbers: false } // We'll add page numbers to the combined doc
+  );
+  const coverLetterBytes = await coverLetterBlob.arrayBuffer();
+  const coverLetterDoc = await PDFDocument.load(coverLetterBytes);
+
+  // Generate resume PDF
+  const resumeBlob = await generatePDF(
+    resume,
+    templateId,
+    templateElement,
+    manualBreakSections,
+    { showPageNumbers: false } // We'll add page numbers to the combined doc
+  );
+  const resumeBytes = await resumeBlob.arrayBuffer();
+  const resumeDoc = await PDFDocument.load(resumeBytes);
+
+  // Create combined document
+  const combinedDoc = await PDFDocument.create();
+
+  // Copy cover letter pages
+  const coverLetterPages = await combinedDoc.copyPages(
+    coverLetterDoc,
+    coverLetterDoc.getPageIndices()
+  );
+  coverLetterPages.forEach(page => combinedDoc.addPage(page));
+
+  // Copy resume pages
+  const resumePages = await combinedDoc.copyPages(
+    resumeDoc,
+    resumeDoc.getPageIndices()
+  );
+  resumePages.forEach(page => combinedDoc.addPage(page));
+
+  // Add page numbers to the combined document
+  await addPageNumbers(combinedDoc, options);
+
+  const pdfBytes = await combinedDoc.save();
+  return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
 }

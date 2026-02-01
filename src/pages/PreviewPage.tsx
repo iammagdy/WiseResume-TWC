@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, Check, Scissors } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -14,10 +14,11 @@ import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
 import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
-import { generatePDF } from '@/lib/pdfGenerator';
+import { ExportOptionsSheet } from '@/components/editor/ExportOptionsSheet';
+import { generatePDF, generateCoverLetterPDF, generateCombinedPDF } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { TemplateId, SectionId } from '@/types/resume';
+import { TemplateId, SectionId, ExportType } from '@/types/resume';
 
 const templates: { id: TemplateId; name: string }[] = [
   { id: 'modern', name: 'Modern' },
@@ -31,10 +32,19 @@ const templates: { id: TemplateId; name: string }[] = [
 
 export default function PreviewPage() {
   const navigate = useNavigate();
-  const { currentResume, selectedTemplate, setSelectedTemplate, pageBreakSettings, setPageBreakSettings } = useResumeStore();
+  const { 
+    currentResume, 
+    selectedTemplate, 
+    setSelectedTemplate, 
+    pageBreakSettings, 
+    setPageBreakSettings,
+    generatedCoverLetter,
+    coverLetterJobContext,
+  } = useResumeStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPageBreaks, setShowPageBreaks] = useState(true);
   const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
+  const [showExportSheet, setShowExportSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [containerDimensions, setContainerDimensions] = useState({ width: 612, height: 792 });
 
@@ -84,29 +94,73 @@ export default function PreviewPage() {
     return null;
   }
 
-  const handleDownload = async () => {
+  const handleExport = async (type: ExportType, showPageNumbers: boolean) => {
     setIsGenerating(true);
     try {
-      const pdfBlob = await generatePDF(
-        currentResume, 
-        selectedTemplate, 
-        resumeRef.current,
-        manualBreakSections
-      );
-      
+      let pdfBlob: Blob;
+      let fileName: string;
+      const baseName = currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
+      const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const };
+
+      switch (type) {
+        case 'cover-letter':
+          if (!generatedCoverLetter) {
+            toast.error('Generate a cover letter first');
+            return;
+          }
+          pdfBlob = await generateCoverLetterPDF(
+            generatedCoverLetter,
+            currentResume.contactInfo,
+            pdfOptions
+          );
+          fileName = `${baseName}_Cover_Letter.pdf`;
+          break;
+
+        case 'combined':
+          if (!generatedCoverLetter) {
+            toast.error('Generate a cover letter first');
+            return;
+          }
+          pdfBlob = await generateCombinedPDF(
+            currentResume,
+            selectedTemplate,
+            generatedCoverLetter,
+            resumeRef.current,
+            manualBreakSections,
+            pdfOptions
+          );
+          fileName = `${baseName}_Application_Package.pdf`;
+          break;
+
+        case 'resume':
+        default:
+          pdfBlob = await generatePDF(
+            currentResume,
+            selectedTemplate,
+            resumeRef.current,
+            manualBreakSections,
+            pdfOptions
+          );
+          fileName = `${baseName}_Resume.pdf`;
+          break;
+      }
+
       const url = URL.createObjectURL(pdfBlob);
       const link = document.createElement('a');
       link.href = url;
-      const fileName = currentResume.contactInfo.fullName 
-        ? `${currentResume.contactInfo.fullName.replace(/\s+/g, '_')}_Resume.pdf`
-        : 'Resume.pdf';
       link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      
-      toast.success('Resume downloaded!');
+
+      const successMessages: Record<ExportType, string> = {
+        'resume': 'Resume downloaded!',
+        'cover-letter': 'Cover letter downloaded!',
+        'combined': 'Application package downloaded!',
+      };
+      toast.success(successMessages[type]);
+      setShowExportSheet(false);
     } catch (error) {
       console.error('PDF generation error:', error);
       toast.error('Failed to generate PDF. Please try again.');
@@ -115,14 +169,19 @@ export default function PreviewPage() {
     }
   };
 
+  const handleQuickDownload = async () => {
+    await handleExport('resume', true);
+  };
+
   const handleShare = async () => {
     if (navigator.share) {
       try {
         const pdfBlob = await generatePDF(
-          currentResume, 
-          selectedTemplate, 
+          currentResume,
+          selectedTemplate,
           resumeRef.current,
-          manualBreakSections
+          manualBreakSections,
+          { showPageNumbers: true }
         );
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({
@@ -135,7 +194,7 @@ export default function PreviewPage() {
       }
     } else {
       toast.info('Share not supported. Downloading instead.');
-      handleDownload();
+      handleQuickDownload();
     }
   };
 
@@ -237,27 +296,38 @@ export default function PreviewPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <Button
-            size="lg"
-            className="w-full h-14 text-lg font-semibold gradient-primary"
-            onClick={handleDownload}
-            disabled={isGenerating}
-            style={{
-              boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-            }}
-          >
-            {isGenerating ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Generating PDF...
-              </>
-            ) : (
-              <>
-                <Download className="w-5 h-5 mr-2" />
-                Download PDF
-              </>
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              size="lg"
+              className="flex-1 h-14 text-lg font-semibold gradient-primary"
+              onClick={handleQuickDownload}
+              disabled={isGenerating}
+              style={{
+                boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
+              }}
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5 mr-2" />
+                  Download
+                </>
+              )}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-14 px-4"
+              onClick={() => setShowExportSheet(true)}
+              disabled={isGenerating}
+            >
+              <ChevronDown className="w-5 h-5" />
+            </Button>
+          </div>
 
           <div className="flex gap-3">
             <Button
@@ -289,6 +359,16 @@ export default function PreviewPage() {
         settings={pageBreakSettings}
         onSettingsChange={setPageBreakSettings}
         availableSections={availableSections}
+      />
+
+      {/* Export Options Sheet */}
+      <ExportOptionsSheet
+        open={showExportSheet}
+        onOpenChange={setShowExportSheet}
+        hasCoverLetter={!!generatedCoverLetter}
+        coverLetterContext={coverLetterJobContext}
+        onExport={handleExport}
+        isExporting={isGenerating}
       />
     </MobileLayout>
   );
