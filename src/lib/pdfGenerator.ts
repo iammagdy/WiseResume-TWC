@@ -242,9 +242,15 @@ export async function generatePDF(
 
       if (sliceHeight <= 0) continue;
 
-      // Calculate how much of the PDF page this content fills
-      const pdfContentHeight = pageContentHeight * scaleFactor;
-      const destHeight = pdfContentHeight * SCALE;
+      // FIX: Scale the slice uniformly to fit PDF page width
+      // Calculate the scale needed to fit source width to page width
+      const sourceSliceWidth = canvas.width;
+      const destSliceWidth = pageCanvas.width;
+      const uniformScale = destSliceWidth / sourceSliceWidth;
+      const destSliceHeight = sliceHeight * uniformScale;
+
+      // Calculate PDF content height for proper positioning
+      const pdfContentHeight = destSliceHeight / SCALE;
 
       console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
         pageStart,
@@ -252,16 +258,17 @@ export async function generatePDF(
         pageContentHeight,
         pdfContentHeight,
         sourceY,
-        sliceHeight
+        sliceHeight,
+        uniformScale
       });
 
-      // Draw from captured canvas to page canvas (from top)
+      // Draw maintaining aspect ratio (uniform scaling)
       ctx.drawImage(
         canvas,
-        0, sourceY,                    // Source x, y (from captured canvas)
-        canvas.width, sliceHeight,     // Source width, height
-        0, 0,                          // Dest x, y (top-left of page)
-        pageCanvas.width, destHeight   // Dest width, height
+        0, sourceY,                        // Source x, y (from captured canvas)
+        sourceSliceWidth, sliceHeight,     // Source width, height
+        0, 0,                              // Dest x, y (top-left of page)
+        destSliceWidth, destSliceHeight    // Dest width, height (scaled uniformly)
       );
 
       // Convert page canvas to PNG
