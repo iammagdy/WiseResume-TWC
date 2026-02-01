@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { FileText, Loader2, Copy, Check, Download, Sparkles } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { ResumeData } from '@/types/resume';
 import { generateCoverLetter } from '@/lib/aiTailor';
+import { useResumeStore } from '@/store/resumeStore';
 import { toast } from 'sonner';
 
 interface CoverLetterGeneratorProps {
@@ -14,6 +15,8 @@ interface CoverLetterGeneratorProps {
   onOpenChange: (open: boolean) => void;
   resume: ResumeData | null;
   jobDescription: string;
+  jobTitle?: string;
+  jobCompany?: string;
 }
 
 type Tone = 'professional' | 'enthusiastic' | 'conversational';
@@ -23,11 +26,15 @@ export function CoverLetterGenerator({
   onOpenChange,
   resume,
   jobDescription,
+  jobTitle,
+  jobCompany,
 }: CoverLetterGeneratorProps) {
   const [tone, setTone] = useState<Tone>('professional');
   const [isGenerating, setIsGenerating] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  const { setGeneratedCoverLetter } = useResumeStore();
 
   const handleGenerate = async () => {
     if (!resume || !jobDescription) {
@@ -39,6 +46,13 @@ export function CoverLetterGenerator({
     try {
       const letter = await generateCoverLetter(resume, jobDescription, tone);
       setCoverLetter(letter);
+      
+      // Save to store for combined PDF export
+      setGeneratedCoverLetter(letter, {
+        title: jobTitle || 'Position',
+        company: jobCompany || 'Company',
+      });
+      
       toast.success('Cover letter generated!');
     } catch (error) {
       console.error('Cover letter error:', error);

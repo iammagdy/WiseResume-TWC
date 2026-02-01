@@ -166,3 +166,17 @@ export interface TailorProgress {
   progress: number;
   message: string;
 }
+
+// ===== PDF OPTIONS =====
+
+export interface PDFOptions {
+  showPageNumbers?: boolean;
+  pageNumberFormat?: 'simple' | 'full'; // "1" vs "Page 1 of 3"
+}
+
+export type ExportType = 'resume' | 'cover-letter' | 'combined';
+
+export interface CoverLetterContext {
+  title: string;
+  company: string;
+}
