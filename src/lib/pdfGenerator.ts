@@ -162,15 +162,20 @@ function wrapText(
 }
 
 /**
- * Adds page numbers to all pages in the PDF document.
+ * Adds page footer with page numbers and optional branding badge.
  */
-async function addPageNumbers(
+async function addPageFooter(
   pdfDoc: PDFDocument,
   options: PDFOptions = {}
 ): Promise<void> {
-  const { showPageNumbers = true, pageNumberFormat = 'full' } = options;
+  const { 
+    showPageNumbers = true, 
+    pageNumberFormat = 'full',
+    showBranding = true 
+  } = options;
   
-  if (!showPageNumbers) return;
+  // Skip if nothing to render
+  if (!showPageNumbers && !showBranding) return;
 
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const pages = pdfDoc.getPages();
@@ -178,18 +183,36 @@ async function addPageNumbers(
 
   for (let i = 0; i < numPages; i++) {
     const page = pages[i];
-    const pageText = pageNumberFormat === 'simple' 
-      ? `${i + 1}` 
-      : `Page ${i + 1} of ${numPages}`;
-    const textWidth = font.widthOfTextAtSize(pageText, 9);
+    
+    // Page numbers (positioned higher to make room for branding)
+    if (showPageNumbers) {
+      const pageText = pageNumberFormat === 'simple' 
+        ? `${i + 1}` 
+        : `Page ${i + 1} of ${numPages}`;
+      const textWidth = font.widthOfTextAtSize(pageText, 9);
 
-    page.drawText(pageText, {
-      x: (PAGE_WIDTH - textWidth) / 2,
-      y: 20,
-      size: 9,
-      font,
-      color: rgb(0.5, 0.5, 0.5),
-    });
+      page.drawText(pageText, {
+        x: (PAGE_WIDTH - textWidth) / 2,
+        y: showBranding ? 28 : 20, // Move up if branding shown
+        size: 9,
+        font,
+        color: rgb(0.5, 0.5, 0.5),
+      });
+    }
+    
+    // Professional branding badge
+    if (showBranding) {
+      const brandingText = '✦ Created with WiseResume · part of WiseUniverse';
+      const brandingWidth = font.widthOfTextAtSize(brandingText, 7);
+
+      page.drawText(brandingText, {
+        x: (PAGE_WIDTH - brandingWidth) / 2,
+        y: 12,
+        size: 7,
+        font,
+        color: rgb(0.55, 0.55, 0.55), // Lighter than page number
+      });
+    }
   }
 }
 
@@ -360,8 +383,8 @@ export async function generatePDF(
       });
     }
 
-    // Add page numbers
-    await addPageNumbers(pdfDoc, options);
+    // Add page footer (numbers + branding)
+    await addPageFooter(pdfDoc, options);
 
     // Generate PDF bytes
     const pdfBytes = await pdfDoc.save();
@@ -458,8 +481,8 @@ export async function generateCoverLetterPDF(
     }
   }
 
-  // Add page numbers
-  await addPageNumbers(pdfDoc, options);
+  // Add page footer (numbers + branding)
+  await addPageFooter(pdfDoc, options);
 
   const pdfBytes = await pdfDoc.save();
   return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
@@ -513,8 +536,8 @@ export async function generateCombinedPDF(
   );
   resumePages.forEach(page => combinedDoc.addPage(page));
 
-  // Add page numbers to the combined document
-  await addPageNumbers(combinedDoc, options);
+  // Add page footer to the combined document
+  await addPageFooter(combinedDoc, options);
 
   const pdfBytes = await combinedDoc.save();
   return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });

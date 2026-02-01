@@ -13,7 +13,7 @@ interface ExportOptionsSheetProps {
   onOpenChange: (open: boolean) => void;
   hasCoverLetter: boolean;
   coverLetterContext?: CoverLetterContext | null;
-  onExport: (type: ExportType, showPageNumbers: boolean) => void;
+  onExport: (type: ExportType, showPageNumbers: boolean, showBranding: boolean) => void;
   isExporting: boolean;
 }
 
@@ -27,6 +27,7 @@ export function ExportOptionsSheet({
 }: ExportOptionsSheetProps) {
   const [selectedType, setSelectedType] = useState<ExportType>('resume');
   const [showPageNumbers, setShowPageNumbers] = useState(true);
+  const [showBranding, setShowBranding] = useState(true);
 
   const exportOptions = [
     {
@@ -57,7 +58,7 @@ export function ExportOptionsSheet({
   ];
 
   const handleExport = () => {
-    onExport(selectedType, showPageNumbers);
+    onExport(selectedType, showPageNumbers, showBranding);
   };
 
   return (
@@ -113,21 +114,42 @@ export function ExportOptionsSheet({
             ))}
           </div>
 
-          {/* Page numbers toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-            <div className="space-y-0.5">
-              <Label htmlFor="page-numbers" className="font-medium">
-                Page Numbers
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Show "Page X of Y" in footer
-              </p>
+          {/* Footer options */}
+          <div className="space-y-3">
+            {/* Page numbers toggle */}
+            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="page-numbers" className="font-medium">
+                  Page Numbers
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Show "Page X of Y" in footer
+                </p>
+              </div>
+              <Switch
+                id="page-numbers"
+                checked={showPageNumbers}
+                onCheckedChange={setShowPageNumbers}
+              />
             </div>
-            <Switch
-              id="page-numbers"
-              checked={showPageNumbers}
-              onCheckedChange={setShowPageNumbers}
-            />
+
+            {/* Branding badge toggle */}
+            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+              <div className="space-y-0.5">
+                <Label htmlFor="branding" className="font-medium flex items-center gap-1.5">
+                  <span className="text-primary">✦</span>
+                  WiseResume Badge
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Professional prestige stamp
+                </p>
+              </div>
+              <Switch
+                id="branding"
+                checked={showBranding}
+                onCheckedChange={setShowBranding}
+              />
+            </div>
           </div>
 
           {/* Export button */}
