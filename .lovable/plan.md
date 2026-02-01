@@ -1,378 +1,147 @@
 
 
-# Make the Tailor Feature Legendary
+# Fix Stretched Font on Page 3 of PDF
 
-## Current State Analysis
+## Problem Analysis
 
-The existing tailor feature provides:
-- Basic job description input
-- AI-powered resume rewriting
-- Simple diff comparison
-- Apply/discard workflow
+Looking at the screenshot, the text on page 3 of the generated PDF appears **vertically stretched** - the fonts are too tall and distorted. This happens because the PDF generator is stretching content to fill the page height rather than maintaining proper aspect ratio.
 
-**What's missing for a "legendary" experience:**
-1. No real-time streaming feedback
-2. No granular control (all-or-nothing changes)
-3. No job URL parsing (users must copy-paste)
-4. No tailor history or versioning
-5. No per-section selective application
-6. No suggested missing skills to add
-7. Limited visual feedback during processing
-8. No match score preview before/after
+### Root Cause
 
----
-
-## The Legendary Tailor Experience
-
-### Feature 1: Smart Job Input with URL Parsing
-
-Instead of just a textarea, add intelligent job input:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  🔗 Paste job URL or description                    │
-│  ┌───────────────────────────────────────────────┐  │
-│  │ https://linkedin.com/jobs/view/12345...       │  │
-│  └───────────────────────────────────────────────┘  │
-│                                                     │
-│  [Parse Job Posting]  or  [Paste Manually ↓]       │
-│                                                     │
-│  ✓ LinkedIn  ✓ Indeed  ✓ Glassdoor  ✓ Any URL     │
-└─────────────────────────────────────────────────────┘
-```
-
-- Auto-detect if input is URL vs text
-- Extract job details (title, company, requirements)
-- Cache parsed job data for reuse
-
-### Feature 2: Live Streaming with Step-by-Step Progress
-
-Replace static "AI is working..." with animated progress:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  ✨ Tailoring Your Resume                           │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ✓ Analyzing job requirements           [Complete] │
-│  ✓ Matching your experience                [Done]  │
-│  ● Rewriting summary...                  [Active]  │
-│  ○ Optimizing skills                     [Pending] │
-│  ○ Enhancing achievements                [Pending] │
-│  ○ Generating recommendations            [Pending] │
-│                                                     │
-│  ────────────────────────────────── 45%            │
-│                                                     │
-│  💡 Found 8 matching keywords to add               │
-│  📊 Projected match score: 78% → 92%               │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
-### Feature 3: Section-by-Section Selective Apply
-
-Allow users to accept/reject changes per section:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  📋 Review Changes                                  │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  ┌─────────────────────────────────────────────┐   │
-│  │ [✓] Summary                     ⬆️ +15pts   │   │
-│  │     "Results-driven developer..." → Preview │   │
-│  └─────────────────────────────────────────────┘   │
-│                                                     │
-│  ┌─────────────────────────────────────────────┐   │
-│  │ [✓] Skills                      ⬆️ +12pts   │   │
-│  │     +5 added  -2 removed        → Preview   │   │
-│  └─────────────────────────────────────────────┘   │
-│                                                     │
-│  ┌─────────────────────────────────────────────┐   │
-│  │ [ ] Experience                  ⬆️ +8pts    │   │
-│  │     3 bullet points rewritten   → Preview   │   │
-│  └─────────────────────────────────────────────┘   │
-│                                                     │
-│  ────────────────────────────────────────────────  │
-│  Apply selected: +27 points → Score: 89%           │
-│  [Apply Selected] [Apply All]                      │
-└─────────────────────────────────────────────────────┘
-```
-
-### Feature 4: Before/After Match Score Comparison
-
-Show immediate impact of changes:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  📊 Impact Preview                                  │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│    BEFORE            AFTER                         │
-│   ┌──────┐         ┌──────┐                        │
-│   │  62  │   →→→   │  91  │                        │
-│   │  %   │         │  %   │                        │
-│   └──────┘         └──────┘                        │
-│   Average          Excellent                       │
-│                                                     │
-│  Improvements:                                     │
-│  ├─ Skills Match:      55% → 95%  (+40)           │
-│  ├─ Keywords:          48% → 88%  (+40)           │
-│  ├─ Experience:        72% → 90%  (+18)           │
-│  └─ ATS Compatibility: 75% → 92%  (+17)           │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
-### Feature 5: Missing Skills Suggestions with One-Click Add
-
-Suggest skills from job that aren't on resume:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  💡 Skills Gap Analysis                             │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  Required by job but missing from resume:          │
-│                                                     │
-│  [+ Add] Kubernetes       - mentioned 4x in job    │
-│  [+ Add] CI/CD            - mentioned 3x in job    │
-│  [+ Add] Agile/Scrum      - mentioned 2x in job    │
-│                                                     │
-│  You have these but not emphasized:                │
-│  [⬆ Boost] Docker         - move to top           │
-│  [⬆ Boost] AWS            - add more context      │
-│                                                     │
-│  [Add All Suggested Skills]                        │
-└─────────────────────────────────────────────────────┘
-```
-
-### Feature 6: Tailor History & Quick Revert
-
-Save previous tailored versions:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  📜 Tailor History                                  │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  Today                                             │
-│  ├─ Senior Developer @ Google        Score: 91%   │
-│  │   [Restore] [Compare]                          │
-│  └─ Frontend Lead @ Meta             Score: 85%   │
-│      [Restore] [Compare]                          │
-│                                                     │
-│  Yesterday                                         │
-│  └─ Full Stack @ Startup             Score: 78%   │
-│      [Restore] [Compare]                          │
-│                                                     │
-│  [Clear History]                                   │
-└─────────────────────────────────────────────────────┘
-```
-
-### Feature 7: Cover Letter Generator (Bonus)
-
-One-click cover letter from tailored resume:
-
-```
-┌─────────────────────────────────────────────────────┐
-│  ✉️ Bonus: Generate Cover Letter                    │
-├─────────────────────────────────────────────────────┤
-│                                                     │
-│  Based on your tailored resume, generate a         │
-│  matching cover letter for this position.          │
-│                                                     │
-│  Tone: [Professional ▾]                            │
-│  Length: [Standard ▾]                              │
-│                                                     │
-│  [Generate Cover Letter]                           │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
----
-
-## Technical Implementation
-
-### New Types
+In `pdfGenerator.ts`, the `drawImage` call incorrectly scales the canvas slice:
 
 ```typescript
-// src/types/resume.ts additions
-export interface TailorHistory {
-  id: string;
-  jobTitle: string;
-  company: string;
-  jobDescription: string;
-  tailorResult: TailorResult;
-  scoreBeforeAfter: { before: number; after: number };
-  appliedSections: string[];
-  createdAt: string;
-}
-
-export interface SectionChange {
-  sectionId: 'summary' | 'skills' | 'experience' | 'education';
-  enabled: boolean;
-  impactScore: number;
-  preview: string;
-  original: unknown;
-  tailored: unknown;
-}
-
-export interface SkillSuggestion {
-  skill: string;
-  reason: string;
-  frequency: number; // times mentioned in job
-  action: 'add' | 'boost';
-}
-
-export interface TailorProgress {
-  step: 'analyzing' | 'matching' | 'rewriting_summary' | 'optimizing_skills' | 
-        'enhancing_experience' | 'generating_recs' | 'complete';
-  progress: number;
-  message: string;
-}
+// Current (WRONG) - stretches content to fill different height
+ctx.drawImage(
+  canvas,
+  0, sourceY,                    // Source x, y
+  canvas.width, sliceHeight,     // Source width, height
+  0, 0,                          // Dest x, y
+  pageCanvas.width, destHeight   // Dest width, height ← DIFFERENT RATIO
+);
 ```
 
-### Enhanced Edge Function Response
+The issue is:
+- `sliceHeight` = actual content height in canvas pixels
+- `destHeight` = scaled PDF height (different value)
+
+When source and destination heights differ, the content gets stretched vertically.
+
+### Visual of the Problem
+
+```
+SOURCE (canvas slice)          DEST (page canvas)
+┌───────────────────┐         ┌───────────────────┐
+│ Skills:           │  ───►   │ Skills:           │
+│ • React           │ STRETCH │ •                 │
+│ • TypeScript      │         │   R               │
+│                   │         │    e              │
+└───────────────────┘         │     a             │
+  Height: 200px               │      c            │
+                              │       t           │
+                              │ •                 │
+                              │   T               │
+                              │    y...           │
+                              └───────────────────┘
+                                Height: 400px
+```
+
+## Solution
+
+**Maintain 1:1 pixel ratio** when drawing from source to destination canvas. The content should be drawn at its natural size, not stretched to fill.
+
+### Fix in pdfGenerator.ts
 
 ```typescript
-// supabase/functions/tailor-resume/index.ts - enhanced response
-interface EnhancedTailorResult {
-  // Existing fields
-  summary: string;
-  skills: string[];
-  experience: Experience[];
-  education: Education[];
-  keyChanges: string[];
+// CORRECTED - maintain aspect ratio
+ctx.drawImage(
+  canvas,
+  0, sourceY,                    // Source x, y
+  canvas.width, sliceHeight,     // Source width, height
+  0, 0,                          // Dest x, y
+  pageCanvas.width, sliceHeight  // Dest width, height ← SAME RATIO
+);
+```
+
+The key change: destination height should match source height (`sliceHeight`) rather than a different calculated `destHeight`.
+
+## Detailed Implementation
+
+The page drawing loop needs this fix:
+
+```typescript
+// Process pages using smart break positions
+for (let pageNum = 0; pageNum < numPages; pageNum++) {
+  const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
+  const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
+  const pageContentHeight = pageEnd - pageStart;
+
+  const pageCanvas = document.createElement('canvas');
+  pageCanvas.width = PAGE_WIDTH * SCALE;
+  pageCanvas.height = PAGE_HEIGHT * SCALE;
+  const ctx = pageCanvas.getContext('2d');
   
-  // New legendary features
-  sectionScores: {
-    summary: { before: number; after: number };
-    skills: { before: number; after: number };
-    experience: { before: number; after: number };
-    education: { before: number; after: number };
-  };
-  overallScore: { before: number; after: number };
-  missingSkills: SkillSuggestion[];
-  boostableSkills: SkillSuggestion[];
-  jobParsed: {
-    title: string;
-    company: string;
-    keyRequirements: string[];
-    niceToHaves: string[];
-  };
-  coverLetterPrompt?: string; // Pre-built prompt for cover letter
-}
-```
+  if (!ctx) continue;
 
-### New Components
+  // Fill white background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
 
-| Component | Purpose |
-|-----------|---------|
-| `TailorSheet.tsx` | Complete rewrite with new features |
-| `TailorProgress.tsx` | Animated step-by-step progress indicator |
-| `SectionChangeCard.tsx` | Selectable section with toggle + preview |
-| `SkillSuggestionList.tsx` | Missing/boost skill suggestions |
-| `ScoreComparison.tsx` | Before/after score visualization |
-| `TailorHistorySheet.tsx` | History list with restore/compare |
-| `CoverLetterGenerator.tsx` | Cover letter generation modal |
-| `JobUrlParser.tsx` | Smart job input with URL detection |
+  // Calculate source slice from captured canvas (in canvas pixels)
+  const sourceY = pageStart * SCALE;
+  const sliceHeight = pageContentHeight * SCALE;
 
-### Store Updates
+  if (sliceHeight <= 0) continue;
 
-```typescript
-// src/store/resumeStore.ts additions
-interface ResumeState {
-  // Existing...
+  // FIX: Scale the slice uniformly to fit PDF page width
+  // Calculate the scale needed to fit source width to page width
+  const sourceSliceWidth = canvas.width;
+  const destSliceWidth = pageCanvas.width;
+  const uniformScale = destSliceWidth / sourceSliceWidth;
+  const destSliceHeight = sliceHeight * uniformScale;
+
+  // Draw maintaining aspect ratio (uniform scaling)
+  ctx.drawImage(
+    canvas,
+    0, sourceY,                        // Source x, y
+    sourceSliceWidth, sliceHeight,     // Source width, height  
+    0, 0,                              // Dest x, y (top-left)
+    destSliceWidth, destSliceHeight    // Dest width, height (scaled uniformly)
+  );
+
+  // Calculate PDF content height for proper positioning
+  const pdfContentHeight = destSliceHeight / SCALE;
   
-  // New tailor state
-  tailorHistory: TailorHistory[];
-  addTailorHistory: (entry: TailorHistory) => void;
-  clearTailorHistory: () => void;
-  restoreTailorVersion: (id: string) => void;
+  // ... rest of PDF embedding unchanged
 }
 ```
 
-### File Changes Summary
+## File Changes
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/types/resume.ts` | Modify | Add new tailor-related types |
-| `src/store/resumeStore.ts` | Modify | Add tailor history state |
-| `src/lib/aiTailor.ts` | Modify | Add streaming support, new response types |
-| `src/components/editor/TailorSheet.tsx` | Rewrite | Complete redesign with all features |
-| `src/components/editor/tailor/TailorProgress.tsx` | Create | Animated progress component |
-| `src/components/editor/tailor/SectionChangeCard.tsx` | Create | Selectable section card |
-| `src/components/editor/tailor/SkillSuggestionList.tsx` | Create | Skill suggestions UI |
-| `src/components/editor/tailor/ScoreComparison.tsx` | Create | Before/after score viz |
-| `src/components/editor/tailor/TailorHistorySheet.tsx` | Create | History management |
-| `src/components/editor/tailor/CoverLetterGenerator.tsx` | Create | Cover letter modal |
-| `src/components/editor/tailor/JobUrlParser.tsx` | Create | Smart job input |
-| `supabase/functions/tailor-resume/index.ts` | Modify | Enhanced AI prompts, streaming, richer response |
-| `supabase/functions/parse-job-url/index.ts` | Create | URL parsing edge function |
-| `supabase/functions/generate-cover-letter/index.ts` | Create | Cover letter generation |
-| `supabase/config.toml` | Modify | Add new functions |
+| File | Change |
+|------|--------|
+| `src/lib/pdfGenerator.ts` | Fix canvas drawImage to use uniform scaling instead of stretching |
 
----
+## Expected Result
 
-## User Flow
+After the fix:
+- Text on all pages will have the same font size and aspect ratio
+- Content that takes less than a full page will have white space at the bottom (correct behavior)
+- No more stretched/distorted text
 
 ```
-User clicks "Tailor Resume"
-     ↓
-┌──────────────────────┐
-│ Smart Job Input      │ ← Paste URL or text
-└──────────────────────┘
-     ↓
-[Tailor My Resume]
-     ↓
-┌──────────────────────┐
-│ Live Progress Steps  │ ← Animated checklist
-│ + Score Preview      │
-└──────────────────────┘
-     ↓
-┌──────────────────────┐
-│ Section-by-Section   │ ← Toggle sections to apply
-│ Review Panel         │
-│ + Skill Suggestions  │
-│ + Score Comparison   │
-└──────────────────────┘
-     ↓
-[Apply Selected Changes]
-     ↓
-┌──────────────────────┐
-│ Success + History    │ ← Saved to history
-│ + Cover Letter CTA   │
-└──────────────────────┘
+PAGE 3 (AFTER FIX)
+┌───────────────────────┐
+│ SKILLS                │
+│ • Loyalty Program Mgmt│  ← Normal sized text
+│ • Account Management  │
+│ • CRM                 │
+│ • Revenue Growth      │
+│ • Business Analysis   │
+│ • Data Analysis       │
+│                       │
+│                       │  ← White space (correct)
+│                       │
+└───────────────────────┘
 ```
-
----
-
-## Visual Polish
-
-### Animations
-- Progress steps slide in sequentially
-- Score numbers animate up (counting animation)
-- Section cards have subtle hover effects
-- Toggle switches have satisfying spring physics
-- Success state has confetti/sparkle burst
-
-### Color Coding
-- Green: Improvements, additions, high scores
-- Blue: Neutral changes, information
-- Orange: Warnings, things to review
-- Purple: AI suggestions, premium features
-
----
-
-## Impact
-
-This legendary tailor feature will:
-
-1. **Increase engagement** - Interactive section selection keeps users involved
-2. **Build trust** - Transparent score comparison shows real value
-3. **Save time** - URL parsing eliminates copy-paste friction
-4. **Provide control** - Per-section apply gives users agency
-5. **Add value** - Cover letter generation is a major bonus
-6. **Enable iteration** - History allows A/B testing different approaches
 
