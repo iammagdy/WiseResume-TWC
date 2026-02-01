@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings } from '@/types/resume';
+import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult } from '@/types/resume';
+import { v4 as uuidv4 } from 'uuid';
 
 interface ResumeState {
   currentResume: ResumeData | null;
@@ -10,6 +11,7 @@ interface ResumeState {
   isAnalyzing: boolean;
   selectedTemplate: TemplateId;
   pageBreakSettings: PageBreakSettings;
+  tailorHistory: TailorHistory[];
   
   setCurrentResume: (resume: ResumeData | null) => void;
   updateResume: (updates: Partial<ResumeData>) => void;
@@ -19,6 +21,9 @@ interface ResumeState {
   setIsAnalyzing: (analyzing: boolean) => void;
   setSelectedTemplate: (template: TemplateId) => void;
   setPageBreakSettings: (settings: PageBreakSettings) => void;
+  addTailorHistory: (entry: Omit<TailorHistory, 'id' | 'createdAt'>) => void;
+  clearTailorHistory: () => void;
+  restoreTailorVersion: (id: string) => void;
   clearAll: () => void;
 }
 
@@ -41,7 +46,7 @@ const defaultResume: ResumeData = {
 
 export const useResumeStore = create<ResumeState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       currentResume: null,
       jobDescription: '',
       matchScore: null,
@@ -49,6 +54,7 @@ export const useResumeStore = create<ResumeState>()(
       isAnalyzing: false,
       selectedTemplate: 'modern',
       pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
+      tailorHistory: [],
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
       
@@ -65,6 +71,37 @@ export const useResumeStore = create<ResumeState>()(
       setSelectedTemplate: (template) => set({ selectedTemplate: template }),
       setPageBreakSettings: (settings) => set({ pageBreakSettings: settings }),
       
+      addTailorHistory: (entry) => set((state) => ({
+        tailorHistory: [
+          {
+            ...entry,
+            id: uuidv4(),
+            createdAt: new Date().toISOString(),
+          },
+          ...state.tailorHistory.slice(0, 9), // Keep last 10
+        ],
+      })),
+      
+      clearTailorHistory: () => set({ tailorHistory: [] }),
+      
+      restoreTailorVersion: (id) => {
+        const state = get();
+        const entry = state.tailorHistory.find(h => h.id === id);
+        if (entry && state.currentResume) {
+          const result = entry.tailorResult;
+          set({
+            currentResume: {
+              ...state.currentResume,
+              summary: result.summary,
+              skills: result.skills,
+              experience: result.experience,
+              education: result.education,
+            },
+            jobDescription: entry.jobDescription,
+          });
+        }
+      },
+      
       clearAll: () => set({
         currentResume: null,
         jobDescription: '',
@@ -73,6 +110,7 @@ export const useResumeStore = create<ResumeState>()(
         isAnalyzing: false,
         selectedTemplate: 'modern',
         pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
+        tailorHistory: [],
       }),
     }),
     {

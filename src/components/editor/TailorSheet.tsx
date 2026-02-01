@@ -1,32 +1,76 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare } from 'lucide-react';
+import { 
+  Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
+  History, FileText, Sparkles, ChevronRight
+} from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
-import { tailorResume, TailorResult } from '@/lib/aiTailor';
+import { tailorResumeWithProgress } from '@/lib/aiTailor';
 import { toast } from 'sonner';
 import { CompareSheet } from './CompareSheet';
+import { TailorProgressComponent } from './tailor/TailorProgress';
+import { SectionChangeCard } from './tailor/SectionChangeCard';
+import { SkillSuggestionList } from './tailor/SkillSuggestionList';
+import { ScoreComparison } from './tailor/ScoreComparison';
+import { TailorHistorySheet } from './tailor/TailorHistorySheet';
+import { CoverLetterGenerator } from './tailor/CoverLetterGenerator';
+import { JobUrlParser } from './tailor/JobUrlParser';
+import { 
+  EnhancedTailorResult, 
+  TailorProgress, 
+  TailorSectionId,
+  ResumeData 
+} from '@/types/resume';
+import { cn } from '@/lib/utils';
 
 interface TailorSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+const SECTION_LABELS: Record<TailorSectionId, string> = {
+  summary: 'Summary',
+  skills: 'Skills',
+  experience: 'Experience',
+  education: 'Education',
+};
+
 export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   const { 
     currentResume, 
     jobDescription, 
     setJobDescription,
-    updateResume 
+    updateResume,
+    tailorHistory,
+    addTailorHistory,
+    clearTailorHistory,
+    restoreTailorVersion,
   } = useResumeStore();
 
   const [isTailoring, setIsTailoring] = useState(false);
-  const [tailorResult, setTailorResult] = useState<TailorResult | null>(null);
-  const [originalResume, setOriginalResume] = useState<typeof currentResume>(null);
+  const [tailorResult, setTailorResult] = useState<EnhancedTailorResult | null>(null);
+  const [originalResume, setOriginalResume] = useState<ResumeData | null>(null);
+  const [progress, setProgress] = useState<TailorProgress | null>(null);
   const [showCompare, setShowCompare] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showCoverLetter, setShowCoverLetter] = useState(false);
+  const [parsedJobInfo, setParsedJobInfo] = useState<{ title: string; company: string } | null>(null);
+
+  // Section toggles
+  const [enabledSections, setEnabledSections] = useState<TailorSectionId[]>([
+    'summary', 'skills', 'experience', 'education'
+  ]);
+
+  const toggleSection = (sectionId: TailorSectionId) => {
+    setEnabledSections(prev => 
+      prev.includes(sectionId)
+        ? prev.filter(s => s !== sectionId)
+        : [...prev, sectionId]
+    );
+  };
 
   const handleTailor = async () => {
     if (!jobDescription.trim()) {
@@ -41,33 +85,69 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
 
     setIsTailoring(true);
     setOriginalResume(currentResume);
+    setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
+    setEnabledSections(['summary', 'skills', 'experience', 'education']);
 
     try {
-      const result = await tailorResume(currentResume, jobDescription);
+      const result = await tailorResumeWithProgress(
+        currentResume, 
+        jobDescription,
+        (p) => setProgress(p)
+      );
       setTailorResult(result);
+      
+      // Set parsed job info if available
+      if (result.jobParsed) {
+        setParsedJobInfo({
+          title: result.jobParsed.title,
+          company: result.jobParsed.company,
+        });
+      }
+      
       toast.success('Resume tailored successfully!');
     } catch (error) {
       console.error('Tailor error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to tailor resume');
     } finally {
       setIsTailoring(false);
+      setProgress(null);
     }
   };
 
   const handleApplyChanges = () => {
     if (!tailorResult || !currentResume) return;
 
-    updateResume({
-      summary: tailorResult.summary,
-      skills: tailorResult.skills,
-      experience: tailorResult.experience.map((exp, index) => ({
+    const updates: Partial<ResumeData> = {};
+    
+    if (enabledSections.includes('summary')) {
+      updates.summary = tailorResult.summary;
+    }
+    if (enabledSections.includes('skills')) {
+      updates.skills = tailorResult.skills;
+    }
+    if (enabledSections.includes('experience')) {
+      updates.experience = tailorResult.experience.map((exp, index) => ({
         ...currentResume.experience[index],
         ...exp,
-      })),
-      education: tailorResult.education.map((edu, index) => ({
+      }));
+    }
+    if (enabledSections.includes('education')) {
+      updates.education = tailorResult.education.map((edu, index) => ({
         ...currentResume.education[index],
         ...edu,
-      })),
+      }));
+    }
+
+    updateResume(updates);
+
+    // Save to history
+    addTailorHistory({
+      jobTitle: parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position',
+      company: parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company',
+      jobDescription,
+      tailorResult,
+      scoreBeforeAfter: tailorResult.overallScore,
+      appliedSections: enabledSections,
     });
 
     toast.success('Changes applied to your resume!');
@@ -81,85 +161,85 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
       toast.info('Reverted to original resume');
     }
     setTailorResult(null);
+    setProgress(null);
   };
+
+  const handleAddSkill = (skill: string) => {
+    if (!currentResume) return;
+    const newSkills = [...currentResume.skills, skill];
+    updateResume({ skills: newSkills });
+    toast.success(`Added "${skill}" to your skills`);
+  };
+
+  const handleBoostSkill = (skill: string) => {
+    if (!currentResume) return;
+    // Move skill to top
+    const newSkills = [skill, ...currentResume.skills.filter(s => s !== skill)];
+    updateResume({ skills: newSkills });
+    toast.success(`Moved "${skill}" to the top`);
+  };
+
+  const handleAddAllSkills = () => {
+    if (!tailorResult || !currentResume) return;
+    const newSkills = [
+      ...tailorResult.missingSkills.map(s => s.skill),
+      ...currentResume.skills,
+    ];
+    updateResume({ skills: newSkills });
+    toast.success(`Added ${tailorResult.missingSkills.length} skills`);
+  };
+
+  const handleRestoreVersion = (id: string) => {
+    restoreTailorVersion(id);
+    toast.success('Restored previous version');
+  };
+
+  // Calculate effective score based on selected sections
+  const effectiveScore = useMemo(() => {
+    if (!tailorResult) return null;
+    const before = tailorResult.overallScore.before;
+    const maxImprovement = tailorResult.overallScore.after - before;
+    const sectionWeight = enabledSections.length / 4;
+    return Math.round(before + (maxImprovement * sectionWeight));
+  }, [tailorResult, enabledSections]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[90vh]">
+      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl">
         <SheetHeader className="pb-4">
-          <SheetTitle className="flex items-center gap-2">
-            <Wand2 className="w-5 h-5 text-primary" />
-            AI Resume Tailor
-          </SheetTitle>
+          <div className="flex items-center justify-between">
+            <SheetTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" />
+              AI Resume Tailor
+            </SheetTitle>
+            {tailorHistory.length > 0 && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowHistory(true)}
+              >
+                <History className="w-4 h-4 mr-1" />
+                History
+              </Button>
+            )}
+          </div>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(90vh-140px)] space-y-4 pb-20">
-          {/* Job Description Input */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">
-              Target Job Description
-            </label>
-            <Textarea
-              value={jobDescription}
-              onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Paste the job posting you want to tailor your resume for..."
-              className="min-h-[140px] resize-none text-base"
-            />
-            <p className="text-sm text-muted-foreground mt-2">
-              The AI will rewrite your resume to match this job's requirements
-            </p>
-          </div>
-
-          <Button
-            className="w-full h-12 gradient-primary font-semibold"
-            onClick={handleTailor}
-            disabled={isTailoring || !jobDescription.trim()}
-          >
-            {isTailoring ? (
-              <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Tailoring Resume...
-              </>
-            ) : (
-              <>
-                <Wand2 className="w-5 h-5 mr-2" />
-                Tailor My Resume
-              </>
-            )}
-          </Button>
-
+        <div className="overflow-y-auto h-[calc(92vh-140px)] space-y-4 pb-24">
           {/* Tailoring Progress */}
           <AnimatePresence>
-            {isTailoring && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="p-4 rounded-xl bg-primary/10 border border-primary/30"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">AI is working...</p>
-                    <p className="text-xs text-muted-foreground">
-                      Optimizing your resume for the target role
-                    </p>
-                  </div>
-                </div>
-                <div className="space-y-2 text-xs text-muted-foreground">
-                  <p>• Analyzing job requirements...</p>
-                  <p>• Matching your experience...</p>
-                  <p>• Rewriting content with keywords...</p>
-                </div>
-              </motion.div>
+            {isTailoring && progress && (
+              <TailorProgressComponent
+                progress={progress}
+                projectedScore={tailorResult?.overallScore}
+                matchingKeywords={tailorResult?.missingSkills?.length}
+              />
             )}
           </AnimatePresence>
 
           {/* Results */}
           <AnimatePresence>
-            {tailorResult && (
+            {tailorResult && !isTailoring && (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -168,53 +248,129 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                 {/* Success Header */}
                 <div className="p-4 rounded-xl bg-success/10 border border-success/30">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-5 h-5 text-success" />
+                    <Sparkles className="w-5 h-5 text-success" />
                     <h4 className="font-semibold">Resume Tailored!</h4>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Review the changes below and apply them to your resume.
+                    Review changes below and select which sections to apply.
                   </p>
                 </div>
+
+                {/* Score Comparison */}
+                <ScoreComparison
+                  beforeScore={tailorResult.overallScore.before}
+                  afterScore={tailorResult.overallScore.after}
+                  sectionScores={tailorResult.sectionScores}
+                  selectedSections={enabledSections}
+                />
+
+                {/* Section Changes */}
+                <div className="space-y-3">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-primary" />
+                    Select Changes to Apply
+                  </h4>
+
+                  <SectionChangeCard
+                    sectionId="summary"
+                    title={SECTION_LABELS.summary}
+                    enabled={enabledSections.includes('summary')}
+                    onToggle={() => toggleSection('summary')}
+                    impactScore={tailorResult.sectionScores.summary.after - tailorResult.sectionScores.summary.before}
+                    changesSummary="Professional summary rewritten"
+                    preview={
+                      <p className="text-muted-foreground leading-relaxed">
+                        {tailorResult.summary}
+                      </p>
+                    }
+                  />
+
+                  <SectionChangeCard
+                    sectionId="skills"
+                    title={SECTION_LABELS.skills}
+                    enabled={enabledSections.includes('skills')}
+                    onToggle={() => toggleSection('skills')}
+                    impactScore={tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before}
+                    changesSummary={`${tailorResult.skills.length} skills optimized`}
+                    preview={
+                      <div className="flex flex-wrap gap-2">
+                        {tailorResult.skills.slice(0, 10).map((skill, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {skill}
+                          </Badge>
+                        ))}
+                        {tailorResult.skills.length > 10 && (
+                          <Badge variant="outline" className="text-xs">
+                            +{tailorResult.skills.length - 10} more
+                          </Badge>
+                        )}
+                      </div>
+                    }
+                  />
+
+                  <SectionChangeCard
+                    sectionId="experience"
+                    title={SECTION_LABELS.experience}
+                    enabled={enabledSections.includes('experience')}
+                    onToggle={() => toggleSection('experience')}
+                    impactScore={tailorResult.sectionScores.experience.after - tailorResult.sectionScores.experience.before}
+                    changesSummary={`${tailorResult.experience.length} positions enhanced`}
+                    preview={
+                      <ul className="space-y-2">
+                        {tailorResult.experience.slice(0, 2).map((exp, i) => (
+                          <li key={i} className="text-muted-foreground">
+                            <span className="font-medium text-foreground">{exp.position}</span>
+                            <span className="text-xs"> @ {exp.company}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    }
+                  />
+
+                  <SectionChangeCard
+                    sectionId="education"
+                    title={SECTION_LABELS.education}
+                    enabled={enabledSections.includes('education')}
+                    onToggle={() => toggleSection('education')}
+                    impactScore={tailorResult.sectionScores.education.after - tailorResult.sectionScores.education.before}
+                    changesSummary={`${tailorResult.education.length} entries refined`}
+                    preview={
+                      <ul className="space-y-1">
+                        {tailorResult.education.map((edu, i) => (
+                          <li key={i} className="text-muted-foreground text-sm">
+                            {edu.degree} in {edu.field} - {edu.institution}
+                          </li>
+                        ))}
+                      </ul>
+                    }
+                  />
+                </div>
+
+                {/* Skill Suggestions */}
+                {(tailorResult.missingSkills?.length > 0 || tailorResult.boostableSkills?.length > 0) && (
+                  <SkillSuggestionList
+                    missingSkills={tailorResult.missingSkills || []}
+                    boostableSkills={tailorResult.boostableSkills || []}
+                    onAddSkill={handleAddSkill}
+                    onBoostSkill={handleBoostSkill}
+                    onAddAll={handleAddAllSkills}
+                  />
+                )}
 
                 {/* Key Changes */}
                 {tailorResult.keyChanges && tailorResult.keyChanges.length > 0 && (
                   <div className="p-4 rounded-xl bg-card border border-border">
-                    <h4 className="font-semibold text-sm mb-3">Key Changes Made</h4>
+                    <h4 className="font-semibold text-sm mb-3">Key Improvements</h4>
                     <ul className="space-y-2">
-                      {tailorResult.keyChanges.map((change, i) => (
+                      {tailorResult.keyChanges.slice(0, 5).map((change, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm">
-                          <ArrowRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                          <ChevronRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                           <span className="text-muted-foreground">{change}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-
-                {/* Preview Summary */}
-                <div className="p-4 rounded-xl bg-card border border-border">
-                  <h4 className="font-semibold text-sm mb-2">New Summary</h4>
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {tailorResult.summary}
-                  </p>
-                </div>
-
-                {/* Skills Preview */}
-                <div className="p-4 rounded-xl bg-card border border-border">
-                  <h4 className="font-semibold text-sm mb-3">Optimized Skills</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {tailorResult.skills.slice(0, 12).map((skill, i) => (
-                      <Badge key={i} variant="secondary" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {tailorResult.skills.length > 12 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{tailorResult.skills.length - 12} more
-                      </Badge>
-                    )}
-                  </div>
-                </div>
 
                 {/* Action Buttons */}
                 <div className="space-y-3 pt-2">
@@ -226,6 +382,17 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                     <GitCompare className="w-4 h-4 mr-2" />
                     Compare Changes
                   </Button>
+
+                  {/* Cover Letter CTA */}
+                  <Button
+                    variant="outline"
+                    className="w-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 hover:border-purple-500/50"
+                    onClick={() => setShowCoverLetter(true)}
+                  >
+                    <FileText className="w-4 h-4 mr-2 text-purple-500" />
+                    Generate Matching Cover Letter
+                  </Button>
+
                   <div className="flex gap-3">
                     <Button
                       variant="outline"
@@ -238,27 +405,76 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                     <Button
                       className="flex-1 gradient-primary"
                       onClick={handleApplyChanges}
+                      disabled={enabledSections.length === 0}
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Apply Changes
+                      Apply ({enabledSections.length})
                     </Button>
                   </div>
+
+                  {effectiveScore && (
+                    <p className="text-xs text-center text-muted-foreground">
+                      Applying {enabledSections.length} sections → Score: {effectiveScore}%
+                    </p>
+                  )}
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Tips */}
+          {/* Initial State - Job Input */}
           {!tailorResult && !isTailoring && (
-            <div className="p-4 rounded-xl bg-muted/50 border border-border">
-              <h4 className="font-semibold text-sm mb-3">How it works</h4>
-              <ul className="text-sm text-muted-foreground space-y-2">
-                <li>• AI analyzes the job requirements and keywords</li>
-                <li>• Your experience is rewritten to highlight relevant skills</li>
-                <li>• Summary and bullet points are optimized for ATS</li>
-                <li>• You review and approve all changes before applying</li>
-              </ul>
-            </div>
+            <>
+              <JobUrlParser
+                value={jobDescription}
+                onChange={setJobDescription}
+                onParsed={setParsedJobInfo}
+              />
+
+              <Button
+                className="w-full h-12 gradient-primary font-semibold"
+                onClick={handleTailor}
+                disabled={isTailoring || !jobDescription.trim()}
+              >
+                {isTailoring ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Tailoring Resume...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-5 h-5 mr-2" />
+                    Tailor My Resume
+                  </>
+                )}
+              </Button>
+
+              {/* Tips */}
+              <div className="p-4 rounded-xl bg-muted/50 border border-border">
+                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  What's new in AI Tailor
+                </h4>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li className="flex items-start gap-2">
+                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                    <span><strong>Section-by-section control</strong> - Choose which changes to apply</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                    <span><strong>Match scores</strong> - See before/after improvement</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                    <span><strong>Skills gap analysis</strong> - Add missing keywords with one click</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                    <span><strong>Cover letter generator</strong> - Create matching cover letters</span>
+                  </li>
+                </ul>
+              </div>
+            </>
           )}
         </div>
       </SheetContent>
@@ -270,6 +486,23 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
         originalResume={originalResume}
         tailorResult={tailorResult}
         onApplyChanges={handleApplyChanges}
+      />
+
+      {/* History Sheet */}
+      <TailorHistorySheet
+        open={showHistory}
+        onOpenChange={setShowHistory}
+        history={tailorHistory}
+        onRestore={handleRestoreVersion}
+        onClear={clearTailorHistory}
+      />
+
+      {/* Cover Letter Generator */}
+      <CoverLetterGenerator
+        open={showCoverLetter}
+        onOpenChange={setShowCoverLetter}
+        resume={currentResume}
+        jobDescription={jobDescription}
       />
     </Sheet>
   );

@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.enhance-section]
 verify_jwt = false
+
+[functions.parse-job-url]
+verify_jwt = false
+
+[functions.generate-cover-letter]
+verify_jwt = false
