@@ -94,13 +94,13 @@ export default function PreviewPage() {
     return null;
   }
 
-  const handleExport = async (type: ExportType, showPageNumbers: boolean) => {
+  const handleExport = async (type: ExportType, showPageNumbers: boolean, showBranding: boolean = true) => {
     setIsGenerating(true);
     try {
       let pdfBlob: Blob;
       let fileName: string;
       const baseName = currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
-      const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const };
+      const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
 
       switch (type) {
         case 'cover-letter':

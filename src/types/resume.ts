@@ -172,6 +172,7 @@ export interface TailorProgress {
 export interface PDFOptions {
   showPageNumbers?: boolean;
   pageNumberFormat?: 'simple' | 'full'; // "1" vs "Page 1 of 3"
+  showBranding?: boolean; // WiseResume prestige stamp
 }
 
 export type ExportType = 'resume' | 'cover-letter' | 'combined';
