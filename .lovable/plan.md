@@ -1,357 +1,223 @@
 
+# Professional Branding Badge for PDF Exports
 
-# PDF Enhancement: Page Numbers + Combined Resume & Cover Letter Export
+## Design Philosophy
 
-## Overview
-
-Two powerful enhancements to the PDF export system:
-
-1. **Visual Page Numbers** - Add elegant "Page X of Y" footers to each PDF page
-2. **Combined Package Export** - Export tailored resume + cover letter as a single PDF
+The goal is to create a **prestige stamp** that users are proud to have on their resume - similar to how "Made with Squarespace" or "Powered by Shopify" feels aspirational rather than cheap. The branding should whisper quality, not shout advertisement.
 
 ---
 
-## Feature 1: Page Number Footers
+## Visual Design Concept
 
-### Visual Design
+### The Badge Style
 
-Each PDF page will have a subtle footer showing page information:
+A subtle, elegant footer badge that appears professional and adds credibility:
 
 ```
-┌─────────────────────────────────────────┐
-│                                         │
-│         Resume content...               │
-│                                         │
-│                                         │
-│                                         │
-│                                         │
-├─────────────────────────────────────────┤
-│                                         │
-│           Page 1 of 3                   │  ← Centered footer
-│                                         │
-└─────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                                                                 │
+│                    [Resume Content]                             │
+│                                                                 │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│                 Page 1 of 3                                     │  ← Page number (centered)
+│                                                                 │
+│        ✦ Created with WiseResume · part of WiseUniverse        │  ← Branding (subtle, right-aligned or centered)
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### Implementation
+### Style Options
 
-Using `pdf-lib`'s native text drawing capabilities to add page numbers directly to the PDF (not via canvas capture):
+**Option A: Minimal Line (Recommended)**
+```
+✦ Created with WiseResume · part of WiseUniverse
+```
+- Subtle star/sparkle icon (✦) to match the AI sparkle branding
+- Thin separator dot (·) feels premium
+- Light gray color (#808080 or 50% gray)
+- Small font size (7-8pt)
 
-```typescript
-// After drawing the resume image, add page number text
-import { rgb, StandardFonts } from 'pdf-lib';
-
-// Embed a standard font
-const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-
-for (let pageNum = 0; pageNum < numPages; pageNum++) {
-  const page = pdfDoc.getPage(pageNum);
-  const pageText = `Page ${pageNum + 1} of ${numPages}`;
-  const textWidth = font.widthOfTextAtSize(pageText, 9);
-  
-  // Draw centered at bottom with padding
-  page.drawText(pageText, {
-    x: (PAGE_WIDTH - textWidth) / 2,
-    y: 20, // 20pt from bottom
-    size: 9,
-    font,
-    color: rgb(0.5, 0.5, 0.5), // Gray color
-  });
-}
+**Option B: With Copyright Symbol**
+```
+© Created with WiseResume · part of WiseUniverse
 ```
 
-### Options
-
-Add a toggle to enable/disable page numbers:
-
-```typescript
-interface PDFOptions {
-  showPageNumbers?: boolean;
-  pageNumberFormat?: 'simple' | 'full'; // "1" vs "Page 1 of 3"
-}
-
-export async function generatePDF(
-  resume: ResumeData,
-  templateId: TemplateId,
-  templateElement?: HTMLElement | null,
-  manualBreakSections?: string[],
-  options?: PDFOptions // NEW
-): Promise<Blob>
+**Option C: Badge with Year**
+```
+✦ Created with WiseResume · WiseUniverse © 2026
 ```
 
 ---
 
-## Feature 2: Combined Resume + Cover Letter PDF Package
+## Technical Implementation
 
-### User Flow
+### Positioning Strategy
 
-From the Preview page or after generating a cover letter:
-
-```
-┌─────────────────────────────────────────┐
-│  Export Options                         │
-├─────────────────────────────────────────┤
-│                                         │
-│  ◉ Resume only (PDF)                    │
-│  ○ Cover letter only (PDF)              │
-│  ○ Resume + Cover Letter (Combined PDF) │
-│                                         │
-│  Cover letter available: ✓              │
-│  (From: Software Engineer @ Google)     │
-│                                         │
-│  [Download PDF]                         │
-│                                         │
-└─────────────────────────────────────────┘
-```
-
-### Combined PDF Structure
+The branding will be placed below the page number, near the bottom edge but with tasteful margins:
 
 ```
-┌─────────────────────────────────────────┐
-│          COVER LETTER                   │  ← Page 1: Cover letter (full page)
-│                                         │
-│  Dear Hiring Manager,                   │
-│  ...                                    │
-│  Sincerely,                             │
-│  [Name]                                 │
-│                                         │
-│           Page 1 of 4                   │
-├─────────────────────────────────────────┤
-│          RESUME                         │  ← Pages 2-4: Resume pages
-│                                         │
-│  John Doe                               │
-│  ...                                    │
-│                                         │
-│           Page 2 of 4                   │
-└─────────────────────────────────────────┘
+┌────────────────────────────────────────────┐
+│                                            │
+│              Content Area                  │
+│                                            │
+│                                            │
+├────────────────────────────────────────────┤
+│           y=28: "Page 1 of 3"              │  ← Page number at y=28
+│  y=12: "✦ Created with WiseResume..."      │  ← Branding at y=12
+│ ─────────────────────────────────────────  │
+│           Bottom edge (y=0)                │
+└────────────────────────────────────────────┘
 ```
 
-### Technical Implementation
+### Color Palette for Branding
 
-Create a new function to generate the combined PDF:
+Using very subtle, professional colors:
+- **Light gray text**: `rgb(0.55, 0.55, 0.55)` - slightly lighter than page numbers
+- **Optional accent**: The sparkle character could use a very subtle purple tint on colored templates
+
+### PDF Generation Changes
+
+Update the `addPageNumbers` function to also add the branding badge:
 
 ```typescript
-// src/lib/pdfGenerator.ts
-
-export async function generateCombinedPDF(
-  resume: ResumeData,
-  templateId: TemplateId,
-  coverLetter: string,
-  templateElement?: HTMLElement | null,
-  manualBreakSections?: string[]
-): Promise<Blob> {
-  // 1. Create the PDF document
-  const pdfDoc = await PDFDocument.create();
-  
-  // 2. Add cover letter page(s) first
-  await addCoverLetterPages(pdfDoc, coverLetter, resume.contactInfo);
-  
-  // 3. Generate resume pages and append
-  await addResumePages(pdfDoc, resume, templateId, templateElement, manualBreakSections);
-  
-  // 4. Add page numbers to all pages
-  await addPageNumbers(pdfDoc);
-  
-  // 5. Save and return
-  const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes.buffer], { type: 'application/pdf' });
-}
-
-async function addCoverLetterPages(
-  pdfDoc: PDFDocument, 
-  coverLetter: string,
-  contactInfo: ContactInfo
+async function addPageFooter(
+  pdfDoc: PDFDocument,
+  options: PDFOptions = {}
 ): Promise<void> {
-  const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
-  const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
-  
-  // Create first page
-  let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  
-  // Add header with contact info
-  const headerY = PAGE_HEIGHT - 72; // 1 inch margin
-  page.drawText(contactInfo.fullName, {
-    x: 72,
-    y: headerY,
-    size: 16,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-  
-  // Add date, greeting, body paragraphs with word wrapping
-  // Handle multi-page cover letters if needed
-  const lines = wrapText(coverLetter, font, 11, PAGE_WIDTH - 144);
-  let y = headerY - 60;
-  
-  for (const line of lines) {
-    if (y < 72) { // New page needed
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      y = PAGE_HEIGHT - 72;
+  const { 
+    showPageNumbers = true, 
+    pageNumberFormat = 'full',
+    showBranding = true  // NEW: Toggle for branding
+  } = options;
+
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const pages = pdfDoc.getPages();
+  const numPages = pages.length;
+
+  for (let i = 0; i < numPages; i++) {
+    const page = pages[i];
+    
+    // Page numbers (existing, moved up slightly)
+    if (showPageNumbers) {
+      const pageText = pageNumberFormat === 'simple' 
+        ? `${i + 1}` 
+        : `Page ${i + 1} of ${numPages}`;
+      const textWidth = font.widthOfTextAtSize(pageText, 9);
+      page.drawText(pageText, {
+        x: (PAGE_WIDTH - textWidth) / 2,
+        y: 28,  // Moved up from 20 to 28
+        size: 9,
+        font,
+        color: rgb(0.5, 0.5, 0.5),
+      });
     }
-    page.drawText(line, {
-      x: 72,
-      y,
-      size: 11,
-      font,
-      color: rgb(0, 0, 0),
-    });
-    y -= 16; // Line height
+    
+    // NEW: Branding badge
+    if (showBranding) {
+      const brandingText = '✦ Created with WiseResume · part of WiseUniverse';
+      const brandingWidth = font.widthOfTextAtSize(brandingText, 7);
+      page.drawText(brandingText, {
+        x: (PAGE_WIDTH - brandingWidth) / 2,  // Centered
+        y: 12,  // Below page number
+        size: 7,
+        font,
+        color: rgb(0.55, 0.55, 0.55),  // Lighter than page number
+      });
+    }
   }
 }
 ```
 
-### State Management
-
-Store the cover letter in the resume store for access from Preview page:
+### PDFOptions Type Update
 
 ```typescript
-// src/store/resumeStore.ts additions
-interface ResumeState {
-  // ... existing
-  generatedCoverLetter: string | null;
-  coverLetterJobContext: { title: string; company: string } | null;
-  setGeneratedCoverLetter: (letter: string | null, context?: { title: string; company: string }) => void;
+export interface PDFOptions {
+  showPageNumbers?: boolean;
+  pageNumberFormat?: 'simple' | 'full';
+  showBranding?: boolean;  // NEW: Toggle for WiseResume branding
 }
 ```
 
-### Updated CoverLetterGenerator
+### Export Options UI Update
 
-Save the generated cover letter to state:
+Add a toggle for branding (defaulting to ON):
 
-```typescript
-// In CoverLetterGenerator.tsx
-const { setGeneratedCoverLetter } = useResumeStore();
-
-const handleGenerate = async () => {
-  // ... existing generation code
-  const letter = await generateCoverLetter(resume, jobDescription, tone);
-  setCoverLetter(letter);
-  // NEW: Save to store for combined export
-  setGeneratedCoverLetter(letter, { title: jobTitle, company: jobCompany });
-};
 ```
-
-### New UI Components
-
-**ExportOptionsSheet.tsx** - Export options dialog:
-
-```tsx
-interface ExportOptionsSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  hasCoverLetter: boolean;
-  coverLetterContext?: { title: string; company: string };
-  onExport: (type: 'resume' | 'cover-letter' | 'combined') => void;
-  isExporting: boolean;
-}
+┌─────────────────────────────────────────────────────────────┐
+│  Export Options                                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Page Numbers                              [ON]     │   │
+│  │  Show "Page X of Y" in footer                       │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  WiseResume Badge                          [ON]     │   │  ← NEW toggle
+│  │  Professional branding stamp                        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  [Download PDF]                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
-
-**PreviewPage Updates**:
-- Add "Export Options" button alongside Download
-- Show combined export option when cover letter is available
-- Update download handler to support all export types
 
 ---
 
-## File Changes Summary
+## Visual Polish
+
+### Why This Feels Premium
+
+1. **Minimal typography** - Small 7pt font doesn't compete with content
+2. **Subtle color** - 55% gray blends into background, not distracting
+3. **Tasteful spacing** - Positioned at bottom margin, respects content
+4. **Premium symbol** - The ✦ sparkle adds a touch of quality
+5. **Brand hierarchy** - "WiseResume" is the focus, "WiseUniverse" is secondary
+
+### Comparison to Competitors
+
+| Platform | Branding Style |
+|----------|----------------|
+| Canva | Prominent watermark on free tier (feels cheap) |
+| Resume.io | None or small logo |
+| Indeed | None |
+| **WiseResume** | ✦ Subtle footer badge (feels aspirational) |
+
+---
+
+## File Changes
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/lib/pdfGenerator.ts` | Modify | Add page numbers, create combined PDF function |
-| `src/store/resumeStore.ts` | Modify | Add cover letter state |
-| `src/components/editor/ExportOptionsSheet.tsx` | Create | Export options dialog |
-| `src/components/editor/tailor/CoverLetterGenerator.tsx` | Modify | Save cover letter to store |
-| `src/pages/PreviewPage.tsx` | Modify | Integrate export options |
-| `src/types/resume.ts` | Modify | Add PDFOptions interface |
+| `src/types/resume.ts` | Modify | Add `showBranding` to PDFOptions |
+| `src/lib/pdfGenerator.ts` | Modify | Rename `addPageNumbers` to `addPageFooter`, add branding text |
+| `src/components/editor/ExportOptionsSheet.tsx` | Modify | Add branding toggle switch |
+| `src/pages/PreviewPage.tsx` | Modify | Pass branding option to export handler |
 
 ---
 
-## Technical Details
+## User Control
 
-### pdf-lib Text Drawing
+The branding is **on by default** but users can toggle it off in Export Options. This respects user choice while encouraging brand visibility.
 
-For cover letter pages, we'll use pdf-lib's native text capabilities:
-
-```typescript
-import { PDFDocument, StandardFonts, rgb, PageSizes } from 'pdf-lib';
-
-// Word wrapping helper
-function wrapText(
-  text: string, 
-  font: PDFFont, 
-  fontSize: number, 
-  maxWidth: number
-): string[] {
-  const words = text.split(/\s+/);
-  const lines: string[] = [];
-  let currentLine = '';
-
-  for (const word of words) {
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const width = font.widthOfTextAtSize(testLine, fontSize);
-    
-    if (width > maxWidth && currentLine) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
-    }
-  }
-  
-  if (currentLine) lines.push(currentLine);
-  return lines;
-}
 ```
-
-### Page Number Styling Options
-
-```typescript
-interface PageNumberStyle {
-  format: 'simple' | 'full' | 'roman';
-  position: 'center' | 'right' | 'left';
-  fontSize: number;
-  color: { r: number; g: number; b: number };
-  marginBottom: number;
-}
-
-// Examples:
-// simple: "1", "2", "3"
-// full: "Page 1 of 3"
-// roman: "i", "ii", "iii" (for cover letter), then "1", "2" for resume
+Default state: [✓] WiseResume Badge - ON
+User can disable if needed for specific use cases
 ```
 
 ---
 
-## User Experience
+## Copy Finalization
 
-### Preview Page Updated Actions
-
+**Final badge text:**
 ```
-┌─────────────────────────────────────────┐
-│  [Download PDF ▾]                       │  ← Dropdown with options
-├─────────────────────────────────────────┤
-│  ○ Resume Only                          │
-│  ○ Resume + Cover Letter                │  ← Only if cover letter exists
-│  ─────────────────                      │
-│  ☑ Show page numbers                    │
-└─────────────────────────────────────────┘
+✦ Created with WiseResume · part of WiseUniverse
 ```
 
-### Success Toast
-
-```
-┌─────────────────────────────────────────┐
-│ ✓ Application Package Downloaded!       │
-│   4-page PDF with cover letter + resume │
-└─────────────────────────────────────────┘
-```
-
----
-
-## Edge Cases
-
-1. **No cover letter generated** - Hide combined export option
-2. **Very long cover letter** - Handle multi-page cover letters
-3. **Special characters** - Ensure proper text encoding
-4. **Paragraph breaks** - Parse `\n\n` as paragraph separators
-5. **Page numbering across sections** - Continuous numbering or restart for resume
+**Character breakdown:**
+- `✦` - Four-pointed star (U+2726) - matches AI sparkle branding
+- `Created with WiseResume` - Main brand attribution
+- `·` - Middle dot separator (U+00B7) - cleaner than bullet or dash
+- `part of WiseUniverse` - Parent brand mention, lowercase for humility
 
