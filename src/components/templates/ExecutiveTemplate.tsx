@@ -46,7 +46,7 @@ export function ExecutiveTemplate({ resume }: TemplateProps) {
 
       {/* Key Achievements highlight - using first experience's achievements */}
       {resume.experience[0]?.achievements && resume.experience[0].achievements.length > 0 && (
-        <section className="mb-8 bg-amber-50 p-4 border-l-4 border-amber-600">
+        <section data-break-avoid className="mb-8 bg-amber-50 p-4 border-l-4 border-amber-600">
           <h2 className="text-xs font-semibold text-amber-700 uppercase tracking-[0.2em] mb-3">
             Key Achievements
           </h2>
