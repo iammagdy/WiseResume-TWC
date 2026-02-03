@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { findSmartBreakPositions } from '@/lib/pdfGenerator';
-import { useState, useEffect, RefObject } from 'react';
+import { useState, useEffect, RefObject, useMemo } from 'react';
 
 // PDF dimensions (must match pdfGenerator.ts)
 const PAGE_WIDTH = 612;
@@ -21,6 +21,15 @@ export function PageBreakIndicator({
 }: PageBreakIndicatorProps) {
   const [breaks, setBreaks] = useState<number[]>([]);
 
+  // Create a stable key that changes when manual break sections change
+  // This forces the effect to re-run and recreate the observer with fresh closures
+  const breakKey = useMemo(() => 
+    manualBreakSections?.join(',') || 'auto', 
+    [manualBreakSections]
+  );
+
+  const isManualMode = manualBreakSections && manualBreakSections.length > 0;
+
   useEffect(() => {
     const element = templateRef?.current;
     if (!element) return;
@@ -34,6 +43,7 @@ export function PageBreakIndicator({
       // Account for footer space - matches PDF generator
       const sourceHeightPerPage = PRINTABLE_HEIGHT / scaleFactor;
 
+      // Pass the current manualBreakSections (captured fresh via breakKey dependency)
       const newBreaks = findSmartBreakPositions(
         element,
         sourceHeightPerPage,
@@ -44,18 +54,15 @@ export function PageBreakIndicator({
       setBreaks(newBreaks);
     };
 
-    // Calculate initially
+    // Calculate immediately when settings change
     calculateBreaks();
 
-    // Re-calculate when content changes
+    // Re-calculate when content resizes
     const observer = new ResizeObserver(calculateBreaks);
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [templateRef, manualBreakSections]);
-
-  // Different styling for manual vs auto breaks
-  const isManualMode = manualBreakSections && manualBreakSections.length > 0;
+  }, [templateRef, breakKey, manualBreakSections]);
 
   if (breaks.length === 0) return null;
 
@@ -63,26 +70,36 @@ export function PageBreakIndicator({
     <div className={cn("absolute inset-0 pointer-events-none", className)}>
       {breaks.map((breakPosition, index) => (
         <div
-          key={index}
-          className="absolute left-0 right-0 flex items-center gap-2 z-10"
+          key={`${breakKey}-${index}`}
+          className="absolute left-0 right-0 z-10"
           style={{ top: `${breakPosition}px` }}
         >
-          <div className={cn(
-            "flex-1 border-t-2 border-dashed",
-            isManualMode ? "border-blue-400/60" : "border-orange-400/60"
-          )} />
-          <span className={cn(
-            "px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap shadow-sm",
-            isManualMode 
-              ? "text-blue-600 bg-blue-100" 
-              : "text-orange-600 bg-orange-100"
-          )}>
-            Page {index + 1} ends
-          </span>
-          <div className={cn(
-            "flex-1 border-t-2 border-dashed",
-            isManualMode ? "border-blue-400/60" : "border-orange-400/60"
-          )} />
+          {isManualMode ? (
+            // Enhanced visual for manual breaks
+            <>
+              {/* Gradient page boundary line */}
+              <div className="h-0.5 bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
+              
+              {/* Page end badge */}
+              <div className="flex justify-center -mt-3">
+                <span className="px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full shadow-lg flex items-center gap-1">
+                  📄 Page {index + 1} ends here
+                </span>
+              </div>
+              
+              {/* Visual separator space */}
+              <div className="h-4 bg-gradient-to-b from-blue-100/30 to-transparent" />
+            </>
+          ) : (
+            // Original dashed line for auto breaks
+            <div className="flex items-center gap-2">
+              <div className="flex-1 border-t-2 border-dashed border-orange-400/60" />
+              <span className="px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap shadow-sm text-orange-600 bg-orange-100">
+                Page {index + 1} ends
+              </span>
+              <div className="flex-1 border-t-2 border-dashed border-orange-400/60" />
+            </div>
+          )}
         </div>
       ))}
     </div>
