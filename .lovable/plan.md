@@ -1,137 +1,203 @@
 
-# Fix: Inconsistent Font Scaling Across PDF Pages
+# Fix: Page Break Indicator and PDF Export Mismatch
 
-## Problem Analysis
+## Problem Identified
 
-Looking at your screenshots, the issue is clear:
-- **Page 1**: Font looks correct and crisp
-- **Page 2**: Font appears stretched/taller
-- **Page 3**: Font appears compressed/smaller
+Looking at your screenshots:
+- **Live Preview (dark mode)**: "Page 1 ends" indicator appears AFTER "Customer Care Supervisor / Etisalat Emirates"
+- **Exported PDF (light mode)**: Page cuts BEFORE that entry, with "Corporate Mobility Operations Coordinator" text truncated/partially visible
 
-This happens because the PDF export uses **image-based rendering** (html2canvas), and each page slice is being scaled differently based on its content height.
+The root cause is that the `PageBreakIndicator` and `generatePDF` function calculate break positions using **different element dimensions**.
 
-### Root Cause
-
-The current code captures the entire resume as one big image, then slices it into pages. The problem is:
+### Why This Happens
 
 ```
-Page 1: 800px content → drawn at height X
-Page 2: 400px content → drawn at height X/2 (stretched to fill)  
-Page 3: 1200px content → drawn at height X*1.5 (compressed to fit)
+┌──────────────────────────────────────────────────────────────┐
+│  PageBreakIndicator                  generatePDF             │
+│  ─────────────────                   ───────────             │
+│  Uses: containerDimensions           Uses: getBoundingClientRect │
+│        from ResizeObserver                  + scrollHeight    │
+│                                                               │
+│  containerWidth: 360px               sourceWidth: 612px      │
+│  containerHeight: 1200px             totalHeight: 1400px     │
+│                                                               │
+│  Result: Different scale factors → Different break positions │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-When smart/manual page breaks create pages with different content heights, the scaling becomes inconsistent because each slice maintains aspect ratio but gets drawn at different sizes in the PDF.
+On mobile:
+1. The preview element is responsive and may be narrower than 612px
+2. ResizeObserver captures `offsetWidth` and `offsetHeight`
+3. PDF generator captures potentially different `scrollHeight` and uses the template's render dimensions
+4. The `findSmartBreakPositions()` function returns different results for each
 
 ---
 
 ## Solution
 
-The fix is to use a **consistent scale factor** based on the original source-to-PDF width ratio, and draw each page slice at its **true scaled height** rather than variable heights.
+Ensure both the indicator and PDF generator use **the exact same dimensions source** - the actual template element's properties. 
 
 ### Key Changes
 
-1. Calculate the **global scale factor** once (source width → PDF width)
-2. Apply this **same scale** to all page slices
-3. Draw each slice at its **proportionally scaled height** on the canvas
-4. Ensure the PDF image uses **consistent 1:1 scaling** from the page canvas
+1. **`PageBreakIndicator.tsx`**: Instead of accepting separate `containerWidth`/`containerHeight` props, use the `templateRef` directly to measure dimensions (consistent with PDF generator)
 
-### Code Fix in `generatePDF` function
+2. **`PreviewPage.tsx`**: Remove the dimension tracking via ResizeObserver, since the indicator will measure directly from the template ref
+
+3. **Add a dependency trigger**: Re-calculate breaks when the template content changes
+
+### Before vs After
+
+**Before (dimensions mismatch):**
+```
+PageBreakIndicator:
+  scaleFactor = PAGE_WIDTH / containerWidth  (360px on mobile)
+  sourceHeightPerPage = PAGE_HEIGHT / scaleFactor
+  → Calculates breaks based on mobile preview width
+
+generatePDF:
+  scaleFactor = PAGE_WIDTH / sourceElement.offsetWidth (612px)
+  sourceHeightPerPage = PAGE_HEIGHT / scaleFactor
+  → Calculates breaks based on actual template width
+```
+
+**After (unified dimensions):**
+```
+Both use:
+  scaleFactor = PAGE_WIDTH / templateElement.offsetWidth
+  sourceHeightPerPage = PAGE_HEIGHT / scaleFactor
+  totalHeight = templateElement.scrollHeight
+  → Same break positions
+```
+
+---
+
+## Technical Implementation
+
+### File: `src/components/editor/PageBreakIndicator.tsx`
+
+Change the component to directly read dimensions from the template ref:
 
 ```typescript
-// Use the GLOBAL scale factor for ALL pages (not per-page)
-const globalScaleFactor = PAGE_WIDTH / sourceWidth;
+export function PageBreakIndicator({ 
+  templateRef,
+  manualBreakSections,
+  className 
+}: PageBreakIndicatorProps) {
+  const [breaks, setBreaks] = useState<number[]>([]);
 
-for (let pageNum = 0; pageNum < numPages; pageNum++) {
-  const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
-  const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
-  const pageContentHeight = pageEnd - pageStart;
+  useEffect(() => {
+    const element = templateRef?.current;
+    if (!element) return;
 
-  // Calculate the scaled height in PDF points
-  const pdfContentHeight = pageContentHeight * globalScaleFactor;
+    const calculateBreaks = () => {
+      // Use the SAME dimension logic as generatePDF
+      const containerWidth = element.offsetWidth || PAGE_WIDTH;
+      const containerHeight = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
+      
+      const scaleFactor = PAGE_WIDTH / containerWidth;
+      const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
 
-  // Create page canvas at the exact size needed (scaled)
-  const pageCanvas = document.createElement('canvas');
-  pageCanvas.width = PAGE_WIDTH * SCALE;
-  pageCanvas.height = Math.ceil(pdfContentHeight * SCALE);
-  
-  // Source slice from captured canvas (in canvas pixels)
-  const sourceY = pageStart * SCALE;
-  const sourceSliceHeight = pageContentHeight * SCALE;
-  
-  // Draw the slice - scaled uniformly by global factor
-  ctx.drawImage(
-    canvas,
-    0, sourceY,                              // Source position
-    canvas.width, sourceSliceHeight,         // Source size
-    0, 0,                                    // Dest position  
-    pageCanvas.width, pageCanvas.height      // Dest size (maintains aspect ratio)
-  );
+      const newBreaks = findSmartBreakPositions(
+        element,
+        sourceHeightPerPage,
+        containerHeight,
+        manualBreakSections
+      );
+      
+      setBreaks(newBreaks);
+    };
 
-  // Add to PDF - the image is already at correct scale
-  page.drawImage(pngImage, {
-    x: 0,
-    y: PAGE_HEIGHT - pdfContentHeight,
-    width: PAGE_WIDTH,
-    height: pdfContentHeight,
-  });
+    // Calculate initially
+    calculateBreaks();
+
+    // Re-calculate when content changes
+    const observer = new ResizeObserver(calculateBreaks);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [templateRef, manualBreakSections]);
+
+  // ... rest of render
 }
 ```
 
----
+### File: `src/pages/PreviewPage.tsx`
 
-## Visual Explanation
+Remove the separate dimension tracking:
 
-### Before (Current Bug)
-```
-┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
-│ Page 1              │  │ Page 2              │  │ Page 3              │
-│ 800px → 792pt       │  │ 400px → 792pt       │  │ 300px → 792pt       │
-│                     │  │                     │  │                     │
-│ Font: Normal ✓      │  │ Font: STRETCHED ✗   │  │ Font: compressed ✗  │
-│                     │  │ (double height)     │  │ (squished)          │
-└─────────────────────┘  └─────────────────────┘  └─────────────────────┘
-```
+```typescript
+// REMOVE this state and effect:
+// const [containerDimensions, setContainerDimensions] = useState(...)
+// useEffect(() => { ... ResizeObserver ... }, []);
 
-### After (Fixed)
-```
-┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────────┐
-│ Page 1              │  │ Page 2              │  │ Page 3              │
-│ 800px → 650pt       │  │ 400px → 325pt       │  │ 300px → 244pt       │
-│                     │  │                     │  │                     │
-│ Font: Normal ✓      │  │ Font: Normal ✓      │  │ Font: Normal ✓      │
-│                     │  │ (partial page)      │  │ (partial page)      │
-│ [white space below] │  │ [white space below] │  │ [white space below] │
-└─────────────────────┘  └─────────────────────┘  └─────────────────────┘
+// SIMPLIFY the PageBreakIndicator usage:
+<PageBreakIndicator
+  templateRef={resumeRef}
+  manualBreakSections={manualBreakSections}
+/>
 ```
 
 ---
 
-## File Changes
+## File Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/lib/pdfGenerator.ts` | Fix the page slicing and scaling logic in `generatePDF` function (lines 317-384) |
+| `src/components/editor/PageBreakIndicator.tsx` | Remove `containerWidth`/`containerHeight` props, measure directly from `templateRef` using same logic as PDF generator |
+| `src/pages/PreviewPage.tsx` | Remove dimension tracking state and effect, simplify PageBreakIndicator props |
 
 ---
 
-## Technical Details
+## Visual Diagram
 
-### The Math
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         BEFORE (Bug)                            │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Mobile Preview                    PDF Export                  │
+│   ┌──────────────┐                  ┌──────────────┐           │
+│   │ Experience   │                  │ Experience   │           │
+│   │ Job 1        │                  │ Job 1        │           │
+│   │ Job 2        │                  │ Job 2        │           │
+│   │ Job 3        │                  │ Job 3 [CUT]  │ ← Wrong!  │
+│   │──Page Break──│ ← Shows here    ├──────────────┤           │
+│   │ Job 4        │                  │ Job 4        │           │
+│   │ Education    │                  │ Education    │           │
+│   └──────────────┘                  └──────────────┘           │
+│                                                                 │
+│   Different scale                   Different scale             │
+│   factors used!                     factors used!               │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
 
-If the source resume is 612px wide (matching PDF width), then:
-- `globalScaleFactor = 612 / 612 = 1.0` (no scaling needed)
-
-If source is 816px wide (wider template):
-- `globalScaleFactor = 612 / 816 = 0.75` (scale down 75%)
-- A 400px tall slice becomes: 400 × 0.75 = 300pt in PDF
-
-This ensures **every pixel of the resume gets scaled by the same factor**, maintaining consistent font sizes across all pages.
+┌─────────────────────────────────────────────────────────────────┐
+│                         AFTER (Fixed)                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│   Mobile Preview                    PDF Export                  │
+│   ┌──────────────┐                  ┌──────────────┐           │
+│   │ Experience   │                  │ Experience   │           │
+│   │ Job 1        │                  │ Job 1        │           │
+│   │ Job 2        │                  │ Job 2        │           │
+│   │ Job 3        │                  │ Job 3        │           │
+│   │──Page Break──│ ← Shows here    ├──────────────┤ ← Matches! │
+│   │ Job 4        │                  │ Job 4        │           │
+│   │ Education    │                  │ Education    │           │
+│   └──────────────┘                  └──────────────┘           │
+│                                                                 │
+│   Same dimensions                   Same dimensions             │
+│   from templateRef!                 from templateRef!           │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Mobile Considerations
 
-This fix works for all templates because:
-1. It uses the actual template element dimensions
-2. The scale factor is calculated dynamically based on the template's width
-3. All 7 templates (Modern, Classic, Minimal, Professional, Developer, Creative, Executive) will render consistently
+This fix ensures:
+1. Works on all screen sizes (phone, tablet, desktop)
+2. Works with all 7 resume templates
+3. WYSIWYG: What you see in preview is exactly what you get in PDF
+4. Manual and auto page break modes both work correctly
