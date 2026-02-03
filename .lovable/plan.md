@@ -1,168 +1,132 @@
 
-
-# Fix: Manual Page Breaks Not Reflecting in Live Preview
-
-## Problem Identified
-
-When users switch to manual mode and select sections to break after (e.g., "break after Experience"), the live preview:
-1. **May not update immediately** - the page break lines don't refresh when settings change
-2. **Doesn't show true page boundaries** - only shows dashed indicator lines, not a visual "this is page 1, this is page 2" separation
-
-The user expects: when they set "break after Summary", the preview should clearly show that Summary ends Page 1, and Experience starts Page 2.
+## Goal
+Stop “broken pages” by making the pagination engine truly understand **where each section (Summary/Experience/Education/Skills/Certifications) starts and ends**, and ensure **no job entry (or other `data-break-avoid` block) gets split across pages** unless it is physically too tall to fit on a single page.
 
 ---
 
-## Root Causes
+## What’s happening (why it still feels overwhelming)
+Today the page-break engine mostly relies on:
+- `data-break-avoid` blocks (job entries, education items, etc.)
+- `data-section="education"` wrappers to place **manual** breaks
 
-### 1. Stale Reference in useEffect
-The `PageBreakIndicator` component has this effect:
-```typescript
-useEffect(() => {
-  // ... calculate breaks
-}, [templateRef, manualBreakSections]);
-```
+This works in simple one-column layouts, but can break down when:
+1. A “section end” isn’t a single clean Y-position (two-column/grid templates like Executive/Professional).
+2. The algorithm decides splitting is “better” than wasting space, even if a job entry would fit perfectly on the next page.
 
-The problem: `templateRef` is a stable `RefObject` - its identity never changes. The effect correctly depends on `manualBreakSections`, but the `ResizeObserver` may interfere with recalculation timing.
-
-### 2. No Visual Page Separation in Preview
-Currently, the preview shows:
-- A dashed line with "Page 1 ends" label
-- But content continues flowing below it
-
-Users expect:
-- A clear visual boundary showing "End of Page 1"
-- A gap or separator before "Page 2" content
-- Visual feedback that the break is being respected
-
-### 3. Missing Dependency Trigger
-The `ResizeObserver` callback (`calculateBreaks`) is created once and doesn't have access to the latest `manualBreakSections` due to closure capture.
+Net effect: the system doesn’t always respect the “true end of section/page” concept the way a document editor does.
 
 ---
 
-## Solution
+## Implementation approach (high confidence fix)
 
-### 1. Fix useEffect Dependencies and Re-calculation
-Add proper triggering when manual break sections change by:
-- Creating a unique key based on `manualBreakSections`
-- Using `useCallback` for the calculation function to ensure fresh closures
+### 1) Make “section bounds” accurate and layout-aware
+**File:** `src/lib/pdfGenerator.ts`
 
-### 2. Add Visual Page Boundaries in Preview
-Enhance the `PageBreakIndicator` to show:
-- A more prominent visual separator for manual breaks
-- "Page 1 ends here" with visual page boundary styling
-- A subtle page number indicator for each page region
+Add a small “layout map” step that:
+- Finds all real section DOM nodes: `sourceElement.querySelectorAll('[data-section]')`
+- Computes **outer bounds** for each section (top/bottom), including margins (because `offsetHeight` excludes margins)
+- Computes a second list of **flow blocks** that represent anything that should never be cut in manual breaks:
+  - all `[data-section]`
+  - all `[data-break-avoid]`
 
-### 3. Immediate Recalculation on Settings Change
-Ensure the observer callback always has access to current `manualBreakSections` by using refs or recreating the observer when settings change.
-
----
-
-## Implementation Plan
-
-### File: `src/components/editor/PageBreakIndicator.tsx`
-
-**Changes:**
-1. Use a `key` based on `manualBreakSections.join(',')` to force re-render when sections change
-2. Wrap `calculateBreaks` in `useCallback` with proper dependencies
-3. Recreate the `ResizeObserver` when `manualBreakSections` changes
-4. Add enhanced visual styling for manual mode:
-   - Solid divider line with gradient fade effect
-   - "End of Page X" badge with page icon
-   - Subtle page region background tint (optional)
-
-```typescript
-// Add a key trigger for manual break changes
-const breakKey = useMemo(() => 
-  manualBreakSections?.join(',') || 'auto', 
-  [manualBreakSections]
-);
-
-useEffect(() => {
-  const element = templateRef?.current;
-  if (!element) return;
-
-  const calculateBreaks = () => {
-    // ... calculation logic using current manualBreakSections
-  };
-
-  calculateBreaks();
-  
-  const observer = new ResizeObserver(calculateBreaks);
-  observer.observe(element);
-
-  return () => observer.disconnect();
-}, [templateRef, breakKey]); // Use breakKey instead of manualBreakSections directly
-```
-
-**Enhanced Visual for Manual Breaks:**
-```tsx
-{isManualMode && (
-  <div className="absolute left-0 right-0 z-10" style={{ top: `${breakPosition}px` }}>
-    {/* Page boundary line */}
-    <div className="h-px bg-gradient-to-r from-transparent via-blue-500 to-transparent" />
-    
-    {/* Page end badge */}
-    <div className="flex justify-center -mt-3">
-      <span className="px-3 py-1 bg-blue-500 text-white text-xs font-semibold rounded-full shadow-lg">
-        📄 Page {index + 1} ends here
-      </span>
-    </div>
-    
-    {/* Visual separator space */}
-    <div className="h-4 bg-gradient-to-b from-blue-50/50 to-transparent" />
-  </div>
-)}
-```
+#### Why this matters
+In multi-column/grid layouts, “Education ends” may visually depend on what’s happening in the other column. We need manual breaks to end the page at a Y-position that doesn’t slice through parallel column content.
 
 ---
 
-## File Changes Summary
+### 2) Fix manual breaks so they end the page at the “safe” Y-position
+**File:** `src/lib/pdfGenerator.ts` (inside `findSmartBreakPositions` manual mode)
 
-| File | Change |
-|------|--------|
-| `src/components/editor/PageBreakIndicator.tsx` | Fix useEffect closure, add visual page boundaries for manual mode |
+Current manual break behavior:
+- break after section = `section.bottom + 8`
 
----
+New behavior:
+- break after section = `maxBottom + padding`, where:
+  - `baseline = selectedSection.bottom`
+  - `maxBottom = max( block.bottom )` for **all flow blocks** that have `block.top < baseline` (i.e., content that has “already started” above this break line)
 
-## Technical Details
-
-### The Closure Problem
-```typescript
-// BEFORE (problematic):
-useEffect(() => {
-  const calculateBreaks = () => {
-    // Uses manualBreakSections from closure
-    findSmartBreakPositions(..., manualBreakSections);
-  };
-  
-  // Observer created once with stale closure
-  const observer = new ResizeObserver(calculateBreaks);
-}, [templateRef, manualBreakSections]); // manualBreakSections change doesn't recreate observer
-
-// AFTER (fixed):
-const breakKey = manualBreakSections?.join(',') || 'auto';
-
-useEffect(() => {
-  const calculateBreaks = () => {
-    // Now uses fresh manualBreakSections because effect re-runs on breakKey change
-    findSmartBreakPositions(..., manualBreakSections);
-  };
-  
-  calculateBreaks(); // Immediate calculation
-  
-  const observer = new ResizeObserver(calculateBreaks);
-  observer.observe(element);
-  
-  return () => observer.disconnect(); // Cleanup old observer
-}, [templateRef, breakKey]); // breakKey changes → effect re-runs → new observer
-```
+This guarantees:
+- If another column started earlier and runs longer, we won’t cut it.
+- Manual breaks behave like “end the page here cleanly”.
 
 ---
 
-## Expected Result
+### 3) Make auto-pagination never split a `data-break-avoid` block that can fit on a page
+**File:** `src/lib/pdfGenerator.ts` (`computeAutoBreaksInSegment`)
 
-1. **Immediate feedback**: When user selects "break after Summary" in the sheet, the preview instantly shows the page break at the correct position
-2. **Clear visual boundary**: Manual breaks show a prominent "Page 1 ends here" separator instead of just a dashed line
-3. **WYSIWYG**: What users see in preview exactly matches what they get in the downloaded PDF
-4. **Professional feel**: Visual page boundaries make the app feel like a premium document editor
+Current behavior:
+- If avoiding a split wastes “too much space”, the algorithm may still cut through a `data-break-avoid` block.
 
+New behavior:
+- If the cutting block’s height `<= sourceHeightPerPage`, it is **always moved to the next page** (break-before), even if it creates extra whitespace.
+- Only if a block is **taller than a full page** do we allow splitting it.
+
+This directly addresses “Job entry / bullets being split”.
+
+---
+
+### 4) Add “section header orphan protection” without editing every template
+**File:** `src/lib/pdfGenerator.ts` (`findSmartBreakPositions`)
+
+To avoid cases like:
+- “EDUCATION” header appears at bottom of Page 1 with no education item under it
+
+We’ll synthesize extra “keep-with-next” blocks:
+- For each `[data-section]`, measure:
+  - the header element (first heading inside)
+  - plus the first content block (often the first `data-break-avoid` child, otherwise first meaningful child)
+- Add a block covering `header.top -> firstItem.bottom` into the `blocks` array so the auto break logic won’t split them apart.
+
+No template changes required, and it improves every template consistently.
+
+---
+
+### 5) Make the manual-break UI order match the actual template order (reduces confusion)
+**File:** `src/pages/PreviewPage.tsx` (+ small update to `PageBreakSheet.tsx` if needed)
+
+Right now `availableSections` is built from resume data in a fixed order (`summary, experience, education, skills...`), which can mismatch the visual/template order (especially for multi-column templates).
+
+Update PreviewPage to:
+- After render, read the DOM order of `[data-section]` in the preview
+- Build `availableSections` in the real on-screen order (filtering by what exists)
+
+This helps users pick “break after Education” and have it mean what they visually expect.
+
+---
+
+## Files expected to change
+1. `src/lib/pdfGenerator.ts`
+   - Add margin-aware bounds helper
+   - Add section/flow block scanning
+   - Improve manual forced break calculation
+   - Update auto-break decision logic to never split `data-break-avoid` blocks that fit
+   - Add section header orphan protection (synthetic blocks)
+
+2. `src/pages/PreviewPage.tsx`
+   - Compute `availableSections` based on template DOM order
+
+3. (Optional minor) `src/components/editor/PageBreakSheet.tsx`
+   - If needed, adjust labels/ordering display to match the new computed `availableSections`
+
+---
+
+## Testing checklist (what you’ll verify after implementation)
+1. **Executive template**
+   - Auto mode: confirm no job entry splits across pages (unless a single entry is longer than one full page).
+   - Manual mode: select “break after Experience”
+     - Page 2 must start cleanly at Education/Skills area with no bleed.
+   - Manual mode: select “break after Education”
+     - In the Executive grid area, the break should end at a “safe” point (not cutting the parallel column).
+
+2. **Professional template (multi-column)**
+   - Manual “break after Summary” should not slice the sidebar (skills/education).
+
+3. **Preview vs Downloaded PDF**
+   - Break lines in live preview must match the final PDF pagination.
+
+---
+
+## Success criteria
+- Manual breaks behave like a real document editor: “End page here” means **nothing below that line appears on that page**, even in multi-column layouts.
+- Auto pagination never splits a `data-break-avoid` job entry unless it is larger than a full page.
+- Section headers are never orphaned at the bottom of a page.
