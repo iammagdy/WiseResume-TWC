@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -16,6 +16,7 @@ import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
 import { ExportOptionsSheet } from '@/components/editor/ExportOptionsSheet';
 import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
+import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TemplateId, SectionId, ExportType } from '@/types/resume';
@@ -47,6 +48,9 @@ export default function PreviewPage() {
   const [showExportSheet, setShowExportSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
+  
+  // Get template configuration for the selected template
+  const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
 
   // Update section ordering based on actual DOM layout after render
   // This ensures sections are shown in their visual order (important for multi-column templates)
@@ -248,19 +252,31 @@ export default function PreviewPage() {
             onClick={() => setShowPageBreakSheet(true)}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-              pageBreakSettings.mode === 'manual'
-                ? "bg-blue-100 text-blue-600"
-                : showPageBreaks
-                  ? "bg-orange-100 text-orange-600"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              // Show different styles based on template support
+              !templateConfig.supportsPageBreaks
+                ? "bg-muted text-muted-foreground"
+                : pageBreakSettings.mode === 'manual'
+                  ? "bg-blue-100 text-blue-600"
+                  : showPageBreaks
+                    ? "bg-orange-100 text-orange-600"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
             )}
           >
-            <Scissors className="w-3.5 h-3.5" />
-            Page breaks
-            {pageBreakSettings.mode === 'manual' && (
-              <span className="ml-1 px-1.5 py-0.5 bg-blue-200 rounded text-xs">
-                {pageBreakSettings.breakAfterSections.length}
-              </span>
+            {templateConfig.singlePageOptimized ? (
+              <>
+                <FileText className="w-3.5 h-3.5" />
+                Single-page
+              </>
+            ) : (
+              <>
+                <Scissors className="w-3.5 h-3.5" />
+                Page breaks
+                {pageBreakSettings.mode === 'manual' && templateConfig.supportsManualBreaks && (
+                  <span className="ml-1 px-1.5 py-0.5 bg-blue-200 rounded text-xs">
+                    {pageBreakSettings.breakAfterSections.length}
+                  </span>
+                )}
+              </>
             )}
           </button>
         </div>
@@ -281,11 +297,12 @@ export default function PreviewPage() {
             animate={{ opacity: 1, scale: 1 }}
           >
             <TemplateComponent resume={currentResume} />
-            {/* Page break indicators - hidden during PDF generation */}
-            {!isGenerating && showPageBreaks && (
+            {/* Page break indicators - hidden during PDF generation or for single-page templates */}
+            {!isGenerating && showPageBreaks && templateConfig.supportsPageBreaks && (
               <PageBreakIndicator
                 templateRef={resumeRef}
                 manualBreakSections={manualBreakSections}
+                templateConfig={templateConfig}
               />
             )}
           </motion.div>
@@ -360,6 +377,8 @@ export default function PreviewPage() {
         settings={pageBreakSettings}
         onSettingsChange={setPageBreakSettings}
         availableSections={availableSections}
+        templateConfig={templateConfig}
+        onSwitchTemplate={setSelectedTemplate}
       />
 
       {/* Export Options Sheet */}
