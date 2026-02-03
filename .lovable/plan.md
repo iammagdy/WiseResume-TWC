@@ -1,122 +1,84 @@
 
-# Fix: True "End Page Here" for Manual Page Breaks
 
-## Problem
+## Fix: Job Entries Getting Split Across Pages (Executive Template)
 
-When user selects "break after Experience":
-- **Current behavior**: Content after Experience still appears on page 1 (partially visible, then masked by white footer rectangle)
-- **Desired behavior**: Page 1 ends EXACTLY at Experience with clean white space below - no subsequent content visible at all
+### Problem Identified
 
-```
-CURRENT (Broken):                    DESIRED (Professional):
-┌─────────────────────┐              ┌─────────────────────┐
-│ Summary             │              │ Summary             │
-│ Experience          │              │ Experience          │
-│ ─ Job 1            │              │ ─ Job 1            │
-│ ─ Job 2            │              │ ─ Job 2            │
-│ ─ Job 3            │              │                     │
-│ Education [faded]   │ ← Bleeding!  │                     │ ← Clean!
-│─────────────────────│              │                     │
-│ Page 1 of 2         │              ├─────────────────────┤
-└─────────────────────┘              │ Page 1 of 2         │
-                                     └─────────────────────┘
-```
+In the **Executive Template**, job entries (experience items) are being split across PDF pages, making the downloaded CV look unprofessional. Specifically:
+- A job entry starts on Page 1 but part of it appears on Page 2
+- The "Key Achievements" highlight box can also be awkwardly split from related content
 
-## Root Cause
+### Root Causes
 
-The PDF generation slices content from the canvas starting at `pageStart` and ending at `pageEnd` (the forced break position). However:
+1. **Key Achievements section missing `data-break-avoid`**: The Executive template's "Key Achievements" highlight box (the amber-colored box) doesn't have `data-break-avoid`, so it can be separated from the experience it summarizes
 
-1. The slice height `pdfContentHeight` may be less than `PRINTABLE_HEIGHT`
-2. The slice is positioned at the TOP of the PDF page (`y: PAGE_HEIGHT - pdfContentHeight`)
-3. This leaves a GAP between the content and the footer
-4. That gap currently contains... nothing (transparent/previous content)
+2. **Smart break algorithm too aggressive**: The current thresholds allow cutting through blocks when they are "too large" (over 25% page height). For resumes with detailed job entries, this threshold is too low
 
-But when manual breaks are involved, the content IS ending early by design - we need to fill the rest with white!
+3. **Section headers can be orphaned**: When a section title (like "PROFESSIONAL EXPERIENCE") falls near the bottom of a page, it might appear alone without any content below it - this is called an "orphaned header"
 
-## Solution
+---
 
-After drawing the content image to each PDF page, **fill the entire page with white FIRST, then draw the content on top**. This ensures any "unused" space on the page is clean white.
+### Implementation Plan
 
-Alternatively (more efficient): Draw the white footer mask to cover the ENTIRE unused area below the content, not just the fixed footer zone.
+#### 1. Fix Executive Template - Add missing `data-break-avoid`
+**File**: `src/components/templates/ExecutiveTemplate.tsx`
 
-### Approach: Extend the white mask to cover all unused space
+- Add `data-break-avoid` to the Key Achievements section (the amber highlight box)
+- This ensures the achievements block stays together and doesn't get awkwardly split
 
-```typescript
-// Current: Only masks footer zone
-page.drawRectangle({
-  x: 0,
-  y: 0,
-  width: PAGE_WIDTH,
-  height: FOOTER_RESERVED_PT, // 44pt
-  color: rgb(1, 1, 1),
-});
+#### 2. Improve Smart Break Algorithm Thresholds
+**File**: `src/lib/pdfGenerator.ts`
 
-// NEW: Mask everything below the content
-const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
-page.drawRectangle({
-  x: 0,
-  y: 0,
-  width: PAGE_WIDTH,
-  height: contentBottomY, // Covers from bottom to where content ends
-  color: rgb(1, 1, 1),
-});
-```
+- Increase the "max waste" threshold from 25% to 35% - this means the algorithm will try harder to avoid cutting blocks
+- Reduce the "min page content" threshold from 20% to 15% - allows shorter pages when necessary to prevent splits
+- Add orphan protection: If a break would leave less than 20% of a block on the current page, move the entire block to the next page
 
-This way:
-- If content fills the page → mask = small (just footer zone)
-- If content ends early (manual break) → mask = large (entire blank area + footer)
+#### 3. Add Section Header Protection
+**File**: `src/lib/pdfGenerator.ts`
 
-## Implementation Details
+- Detect when a section header (element with `data-section`) is followed by content
+- If the header would appear at the bottom of a page without its first content block, move the header to the next page too
 
-### File: `src/lib/pdfGenerator.ts`
+---
 
-In the page generation loop (around lines 433-454), replace the fixed footer mask with a dynamic mask that covers ALL unused space:
-
-```typescript
-// Add page to PDF
-const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-
-// In PDF, y=0 is BOTTOM. Position image at TOP of page.
-page.drawImage(pngImage, {
-  x: 0,
-  y: PAGE_HEIGHT - pdfContentHeight,
-  width: PAGE_WIDTH,
-  height: pdfContentHeight,
-});
-
-// Draw white rectangle to cleanly mask ALL unused space below content
-// This ensures manual page breaks result in clean white space (professional look)
-const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
-if (contentBottomY > 0) {
-  page.drawRectangle({
-    x: 0,
-    y: 0,
-    width: PAGE_WIDTH,
-    height: contentBottomY, // Covers everything from bottom up to content edge
-    color: rgb(1, 1, 1), // White
-  });
-}
-```
-
-## Why This Makes WiseResume Different
-
-This "true page break" behavior is exactly what professional document editing tools (Word, Google Docs) provide but most resume builders lack:
-
-1. **User Control**: "I want page 1 to end HERE" actually works
-2. **ATS Friendly**: Clean page boundaries help parsing
-3. **Professional Look**: No bleed-through, no truncated text
-4. **Intuitive**: What You See Is What You Get
-
-## File Changes Summary
+### Code Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/lib/pdfGenerator.ts` | Replace fixed `FOOTER_RESERVED_PT` height mask with dynamic `contentBottomY` mask that covers all unused page space |
+| `src/components/templates/ExecutiveTemplate.tsx` | Add `data-break-avoid` to Key Achievements section |
+| `src/lib/pdfGenerator.ts` | Improve threshold values and add orphan protection logic |
 
-## Expected Result
+---
 
-- When user selects "break after Experience":
-  - Page 1: Shows Summary + Experience + clean white space + footer
-  - Page 2: Starts with Education at the TOP
-- Clean, professional appearance matching enterprise document tools
-- Differentiator from other resume apps in the market
+### Technical Details
+
+**Improved break thresholds:**
+```
+Before:
+- maxWaste = 25% of page height
+- minPageContent = 20% of page height
+
+After:
+- maxWaste = 35% of page height  
+- minPageContent = 15% of page height
+- Orphan threshold = 20% of block height (if less than this on current page, move entire block)
+```
+
+**Key Achievements section fix:**
+```jsx
+// Before
+<section className="mb-8 bg-amber-50 p-4 border-l-4 border-amber-600">
+
+// After  
+<section data-break-avoid className="mb-8 bg-amber-50 p-4 border-l-4 border-amber-600">
+```
+
+---
+
+### Expected Result
+
+- Job entries (experience items) will stay together on a single page
+- The Key Achievements highlight box will not be split from its content
+- Section headers will always have at least their first content item on the same page
+- Professional, clean page breaks that look like industry-standard Word/Google Docs output
+
