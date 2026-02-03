@@ -202,7 +202,7 @@ async function addPageFooter(
     
     // Professional branding badge
     if (showBranding) {
-      const brandingText = '✦ Created with WiseResume · part of WiseUniverse';
+      const brandingText = '• Created with WiseResume · part of WiseUniverse';
       const brandingWidth = font.widthOfTextAtSize(brandingText, 7);
 
       page.drawText(brandingText, {
