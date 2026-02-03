@@ -71,11 +71,24 @@ function computeAutoBreaksInSegment(
       const breakAfter = cuttingBlock.bottom + 8;
       const extraContentAfter = breakAfter - naturalBreak;
       
-      // Maximum waste allowed (25% of page height)
-      const maxWaste = sourceHeightPerPage * 0.25;
+      // Maximum waste allowed (35% of page height) - increased to avoid splitting blocks
+      const maxWaste = sourceHeightPerPage * 0.35;
       
-      // Ensure we don't create pages that are too short (minimum 20% of page)
-      const minPageContent = sourceHeightPerPage * 0.20;
+      // Ensure we don't create pages that are too short (minimum 15% of page)
+      const minPageContent = sourceHeightPerPage * 0.15;
+      
+      // Orphan protection: If less than 20% of the block would fit on current page,
+      // move the entire block to next page to avoid orphaned content
+      const blockHeight = cuttingBlock.bottom - cuttingBlock.top;
+      const contentOnCurrentPage = naturalBreak - cuttingBlock.top;
+      const orphanThreshold = blockHeight * 0.20;
+      
+      // Force break before if the block would be orphaned (too little on current page)
+      if (contentOnCurrentPage < orphanThreshold && breakBefore - currentPos >= minPageContent) {
+        breaks.push(breakBefore);
+        currentPos = breakBefore;
+        continue;
+      }
       
       if (wastedSpaceBefore <= extraContentAfter && wastedSpaceBefore < maxWaste) {
         if (breakBefore - currentPos >= minPageContent) {
