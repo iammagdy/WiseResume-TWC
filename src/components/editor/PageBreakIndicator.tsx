@@ -5,6 +5,8 @@ import { useState, useEffect, RefObject } from 'react';
 // PDF dimensions (must match pdfGenerator.ts)
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
+const FOOTER_RESERVED_PT = 44;
+const PRINTABLE_HEIGHT = PAGE_HEIGHT - FOOTER_RESERVED_PT;
 
 interface PageBreakIndicatorProps {
   templateRef?: RefObject<HTMLElement>;
@@ -29,7 +31,8 @@ export function PageBreakIndicator({
       const containerHeight = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
       
       const scaleFactor = PAGE_WIDTH / containerWidth;
-      const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
+      // Account for footer space - matches PDF generator
+      const sourceHeightPerPage = PRINTABLE_HEIGHT / scaleFactor;
 
       const newBreaks = findSmartBreakPositions(
         element,
