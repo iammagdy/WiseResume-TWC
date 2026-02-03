@@ -1,136 +1,120 @@
 
-## Goal
-Fix the remaining “PDF is truncated / cuts earlier than the page-break line in preview” problem so the exported PDF matches the live preview page-break indicator on mobile, across all resume templates.
+# Fix: Page Break "Bleed-Through" / Content Overlap in Footer Zone
+
+## Problem Identified
+
+Looking at your screenshot, I can see that content from the resume is visible in the area between page 1's content and the footer ("Page 1 of 3" / "Created with WiseResume"). This looks unprofessional because:
+
+1. The content image is drawn starting from the TOP of the page
+2. The footer (page numbers + branding) is drawn at the BOTTOM (at y=28 and y=12)
+3. **There's no "clean cut" or white space between the content and footer**
+
+The current code places content correctly but doesn't ensure a clean visual separation before the footer area.
 
 ---
 
-## What’s most likely causing the truncation (based on current code)
-There are two issues in the current pagination logic that can still produce “truncated” pages even after the earlier indicator + scaling fixes:
+## Root Cause
 
-### 1) Manual breaks currently disable smart auto-pagination
-In `findSmartBreakPositions()` (in `src/lib/pdfGenerator.ts`), when `manualBreakSections` is provided, the function returns only the manual section-break positions and does **not** add additional breaks inside long sections.
+The PDF generation draws the content slice and then draws the footer text **on top** of whatever is there. If content runs close to or into the footer zone, you see this "bleed-through" effect where content is partially visible behind the footer.
 
-If the user forces a break “after Experience”, but Experience itself spans multiple pages, the generator tries to place all of that content into a single PDF page slice. That overflow will look like truncation/cropping.
-
-### 2) Break calculations rely on `getBoundingClientRect()` (transform-sensitive)
-`findSmartBreakPositions()` measures block and section positions using `getBoundingClientRect()`. On `/preview`, the resume container is a `motion.div` with scale animation (`scale: 0.95 → 1`). Transforms affect `getBoundingClientRect()` but **do not** affect `scrollHeight/offsetHeight`.
-
-So the break offsets can be computed in one coordinate system (transformed rects) but used in another (layout px). On mobile this can shift break positions enough to split a job entry unexpectedly.
-
-### (Optional but important) Footer overlay space
-The PDF footer (page numbers + branding) is drawn on top of the page at the bottom. If we let content run all the way to the bottom edge, the footer can visually “truncate” the last line. The pagination logic should reserve a small bottom “footer safe area” for consistent results.
-
----
-
-## Implementation changes (readable + template-safe)
-
-### A) Make manual breaks “forced boundaries” but still allow auto breaks inside them
-Update `findSmartBreakPositions()` so manual mode works like this:
-
-- Compute the “forced” break positions (after selected sections).
-- Split the document into segments:  
-  `[0 → forced1]`, `[forced1 → forced2]`, …, `[lastForced → totalHeight]`
-- Inside each segment:
-  - run the same smart auto-break logic as “Auto mode” (using `[data-break-avoid]`) to add additional breaks when needed.
-- Always include the forced breaks in the final returned list.
-
-Result: manual breaks remain honored, but long sections never overflow a single page slice.
-
-**Files**
-- `src/lib/pdfGenerator.ts` (function: `findSmartBreakPositions`)
+```
+Current Behavior:
+┌─────────────────────────┐
+│ Content...              │
+│ ...                     │
+│ Last line of content    │
+│ [ghosted next-page text]│ ← Content bleeds here
+│─────────────────────────│
+│ Page 1 of 3             │ ← Footer drawn on top
+│ • Created with WiseResume│
+└─────────────────────────┘
+```
 
 ---
 
-### B) Replace `getBoundingClientRect()` measurements with transform-agnostic layout offsets
-Still in `findSmartBreakPositions()`:
-- Stop using `getBoundingClientRect()` for block positions and manual section break positions.
-- Compute each block’s top/bottom relative to the container using layout-based metrics:
-  - a helper that walks `offsetParent` to compute a stable `relativeTop`
-  - `bottom = relativeTop + offsetHeight`
+## Solution
 
-This makes preview indicator and PDF export consistent even when transforms/animations are present (mobile-first and framer-motion-safe).
+After drawing each page's content image, **draw a white rectangle** over the footer zone to create a clean "cutoff". This ensures:
 
-**Files**
-- `src/lib/pdfGenerator.ts` (function: `findSmartBreakPositions`)
+1. Any content that visually extends into the footer area is covered
+2. A clean white separation exists before the page numbers
+3. Professional appearance on all pages
 
----
+### Visual After Fix:
 
-### C) Reserve a footer “safe area” in pagination and in the indicator (prevents bottom-line truncation)
-Introduce a constant like:
-- `FOOTER_RESERVED_PT = 44` (enough for “Page X of Y” + branding)
-
-Then:
-- Use `PRINTABLE_PAGE_HEIGHT = PAGE_HEIGHT - FOOTER_RESERVED_PT`
-- Compute `sourceHeightPerPage` based on `PRINTABLE_PAGE_HEIGHT` instead of full `PAGE_HEIGHT`
-
-Apply this consistently in:
-1) `generatePDF()` break calculation
-2) `PageBreakIndicator` break calculation (so the preview line matches what can actually fit above the footer)
-
-**Files**
-- `src/lib/pdfGenerator.ts` (function: `generatePDF`)
-- `src/components/editor/PageBreakIndicator.tsx`
+```
+Fixed Behavior:
+┌─────────────────────────┐
+│ Content...              │
+│ ...                     │
+│ Last line of content    │
+│                         │ ← Clean white space
+├─────────────────────────┤
+│ Page 1 of 3             │
+│ • Created with WiseResume│
+└─────────────────────────┘
+```
 
 ---
 
-## Concrete code-level steps (what will be edited)
+## Implementation
 
-### 1) `src/lib/pdfGenerator.ts`
-- Refactor `findSmartBreakPositions()`:
-  - Add helpers:
-    - `getRelativeTop(element, container)` using `offsetTop` + `offsetParent` walking
-    - `getBlockBounds(element, container)` returning `{top, bottom}`
-  - Build:
-    - `forcedBreaks` from `[data-section="..."]` bottoms
-    - `blocks` from `[data-break-avoid]` bounds
-  - Add an internal function `computeAutoBreaks(segmentStart, segmentEnd)` that:
-    - iteratively chooses the next break at `start + sourceHeightPerPage`
-    - adjusts if it cuts a block (move before/after using the existing “waste” thresholds)
-    - ensures monotonic progress and never exceeds the segment end
-  - Return combined breaks:
-    - `auto breaks in segment` + `forced break` + `auto breaks in next segment` …
+### File: `src/lib/pdfGenerator.ts`
 
-- Update `generatePDF()` to use footer-safe height:
-  - `const printableHeight = PAGE_HEIGHT - FOOTER_RESERVED_PT;`
-  - `const sourceHeightPerPage = printableHeight / globalScaleFactor;`
+In the page generation loop, after drawing the content image to the PDF page, add a **white rectangle overlay** that covers the footer zone:
+
+```typescript
+// Add page to PDF
+const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+
+// Draw the content image at TOP of page
+page.drawImage(pngImage, {
+  x: 0,
+  y: PAGE_HEIGHT - pdfContentHeight,
+  width: PAGE_WIDTH,
+  height: pdfContentHeight,
+});
+
+// *** NEW: Draw white rectangle over footer zone for clean cutoff ***
+page.drawRectangle({
+  x: 0,
+  y: 0,
+  width: PAGE_WIDTH,
+  height: FOOTER_RESERVED_PT,
+  color: rgb(1, 1, 1), // White
+});
+```
 
 This ensures:
-- No overflow slices
-- No footer overlap on bottom lines
-- Break lines match between preview and export
-
-### 2) `src/components/editor/PageBreakIndicator.tsx`
-- Use the same footer-safe printable height:
-  - `const printableHeight = PAGE_HEIGHT - FOOTER_RESERVED_PT;`
-  - `const sourceHeightPerPage = printableHeight / scaleFactor;`
+- Content can never visually appear in the footer zone
+- Clean professional separation between content and footer
+- Footer text is drawn on a clean white background
 
 ---
 
-## Testing checklist (mobile-first + all templates)
-1) On `/preview` (mobile viewport):
-   - Auto mode ON: export Resume PDF and verify:
-     - page break lines match exported page boundaries
-     - no job entry is split mid-block
-     - no “truncated” bottom line
-2) Manual mode:
-   - Select “break after Experience” (and other sections)
-   - Export and verify:
-     - Experience spanning multiple pages still paginates correctly
-     - Forced breaks still occur at the chosen section boundaries
-3) Repeat quick exports on at least 3 templates:
-   - Modern, Classic, Creative (Creative is most layout-different)
-4) Verify Combined PDF export (resume + cover letter) still looks correct.
+## File Changes
+
+| File | Change |
+|------|--------|
+| `src/lib/pdfGenerator.ts` | Add white rectangle overlay in footer zone after drawing page content (around line 443) |
 
 ---
 
-## Expected outcome
-- The preview page-break indicator and the exported PDF will match on mobile.
-- Manual breaks will no longer cause overflow truncation.
-- Auto breaks will reliably avoid cutting `data-break-avoid` blocks.
-- Footer will never visually “cut” content at the bottom.
+## Technical Details
+
+- `FOOTER_RESERVED_PT = 44` - The height reserved for the footer
+- The white rectangle is drawn AFTER the content image (so it covers any bleed)
+- The footer text is drawn AFTER this in `addPageFooter()` (so it appears on top of the white)
+
+### Drawing Order:
+1. Page content image (positioned at top)
+2. White rectangle (covers footer zone - creates clean cutoff)
+3. Footer text (page numbers + branding - drawn on clean white)
 
 ---
 
-## Notes / non-goals (for now)
-- We’re keeping the image-based resume export (html2canvas) since it preserves template styling.
-- If you later want “true text PDF” export (selectable text), that’s a separate larger feature requiring font embedding and layout reflow.
+## Expected Result
+
+- Clean visual separation between content and footer on every page
+- No "ghosted" or "bleed-through" content visible near page numbers
+- Professional appearance matching industry-standard resume PDFs
