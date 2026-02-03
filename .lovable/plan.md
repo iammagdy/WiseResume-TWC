@@ -1,280 +1,177 @@
 
-# UX Improvements & UI Refinements for WiseResume Mobile App
+# Add OnboardingCarousel for First-Time Users
 
-## Executive Summary
+## Overview
 
-After analyzing the codebase, WiseResume already has a solid mobile-first foundation with good practices like safe area handling, touch targets, and glassmorphism. However, there are significant opportunities to elevate the experience to feel like a truly native mobile app.
-
----
-
-## Current State Analysis
-
-### Strengths Identified
-- Touch targets meet 44x44px minimum standards
-- Safe area insets properly handled (`pb-safe`, `pt-safe`)
-- Framer Motion animations for smooth transitions
-- Bottom sheet patterns for mobile-friendly modals
-- Good color contrast and visual hierarchy
-- Auto-save indicator for cloud-synced resumes
-
-### Areas for Improvement
-- No haptic feedback for actions
-- Missing loading skeletons (uses spinners instead)
-- No pull-to-refresh on lists
-- Limited gesture-based interactions
-- No onboarding flow for new users
-- Tab navigation uses horizontal scroll (not optimal for thumb reach)
-- No offline indicator or support
-- Missing "undo" for destructive actions
+Integrate the existing `OnboardingCarousel` component to show first-time users a welcome experience when they sign up. The onboarding will guide them through the app's key features before redirecting them to the dashboard.
 
 ---
 
-## Proposed Enhancements
+## Strategy
 
-### 1. Bottom Tab Navigation (Mobile App Feel)
-
-**Current**: The editor uses horizontal scrolling tabs that can be hard to reach with one hand.
-
-**Enhancement**: Add a persistent bottom tab bar for primary navigation between Dashboard, Editor, and AI features.
-
-**Files to modify/create:**
-- `src/components/layout/BottomTabBar.tsx` (new)
-- `src/components/layout/MobileLayout.tsx` (update)
-
-**Benefits**: Easier thumb reach, feels like a native app, clearer navigation hierarchy.
+We'll track onboarding completion using a new `onboarding_completed` column in the `profiles` table. When a new user signs up, their profile is auto-created with `onboarding_completed = false`. After completing or skipping the onboarding carousel, we update this flag to `true`.
 
 ---
 
-### 2. Skeleton Loading States
+## Database Changes
 
-**Current**: Uses `Loader2` spinner animations everywhere.
+### Add onboarding_completed column to profiles
 
-**Enhancement**: Replace spinners with skeleton loaders that match the actual content shape.
+```sql
+ALTER TABLE public.profiles 
+ADD COLUMN onboarding_completed BOOLEAN DEFAULT false;
+```
 
-**Files to create:**
-- `src/components/ui/skeleton-card.tsx` (new)
-- Update `DashboardPage.tsx`, `PreviewPage.tsx`
-
-**Benefits**: Reduces perceived loading time, feels more polished.
+This column will:
+- Default to `false` for all new users (via the existing trigger)
+- Be set to `true` when onboarding is completed or skipped
+- Be checked on the dashboard to determine if onboarding should show
 
 ---
 
-### 3. Haptic Feedback Integration
+## Implementation Flow
 
-**Current**: No haptic feedback for user actions.
-
-**Enhancement**: Add subtle vibrations for key actions (save, delete, AI complete).
-
-**Files to create:**
-- `src/lib/haptics.ts` (new)
-- Update buttons and action handlers
-
-**Implementation**:
-```typescript
-// Uses navigator.vibrate() for web, or Capacitor Haptics for native
-export const haptics = {
-  light: () => navigator.vibrate?.(10),
-  medium: () => navigator.vibrate?.(25),
-  success: () => navigator.vibrate?.([10, 50, 10]),
-};
+```text
+User Signs Up
+     ↓
+Email Confirmation (if enabled)
+     ↓
+User Logs In / Session Created
+     ↓
+Redirect to Dashboard
+     ↓
+Dashboard checks profile.onboarding_completed
+     ↓
+┌───────────────────────────────────────┐
+│  If onboarding_completed = false      │
+│  → Show OnboardingCarousel overlay    │
+│                                       │
+│  User completes or skips carousel     │
+│  → Update profile.onboarding_completed│
+│  → Show regular dashboard             │
+└───────────────────────────────────────┘
 ```
 
 ---
 
-### 4. Pull-to-Refresh on Dashboard
+## File Changes
 
-**Current**: No refresh gesture; users must navigate away and back.
+### 1. Database Migration (new)
+Add `onboarding_completed` column to the profiles table.
 
-**Enhancement**: Add pull-to-refresh on the resume list.
+### 2. `src/hooks/useAuth.ts` (update)
+Add a function to fetch and update the user's profile, including onboarding status.
 
-**Files to modify:**
-- `src/pages/DashboardPage.tsx`
-- Create `src/components/ui/pull-to-refresh.tsx` (new)
+### 3. `src/pages/DashboardPage.tsx` (update)
+- Fetch user profile on load
+- Check `onboarding_completed` flag
+- If `false`, render `OnboardingCarousel` as a full-screen overlay
+- On complete/skip, update the profile and dismiss the carousel
 
----
-
-### 5. Swipe Actions on Resume Cards
-
-**Current**: Delete/duplicate via dropdown menu.
-
-**Enhancement**: Add swipe-to-reveal actions (swipe left for delete, swipe right for duplicate).
-
-**Files to modify:**
-- `src/components/dashboard/ResumeListCard.tsx`
-
-**Libraries**: Use `framer-motion` drag gestures (already installed).
+### 4. `src/components/onboarding/OnboardingCarousel.tsx` (minor update)
+- No major changes needed - already accepts `onComplete` and `onSkip` props
+- Ensure smooth transition when dismissed
 
 ---
 
-### 6. Improved Onboarding Flow
+## Detailed Component Changes
 
-**Current**: New users jump directly to upload/create.
+### DashboardPage.tsx Updates
 
-**Enhancement**: Add a 3-step onboarding carousel for first-time users.
+```typescript
+// New state
+const [showOnboarding, setShowOnboarding] = useState(false);
+const [profileLoaded, setProfileLoaded] = useState(false);
 
-**Files to create:**
-- `src/components/onboarding/OnboardingCarousel.tsx` (new)
-- `src/components/onboarding/OnboardingStep.tsx` (new)
+// Fetch profile on mount
+useEffect(() => {
+  if (user) {
+    fetchProfile();
+  }
+}, [user]);
 
-**Content**:
-1. "Upload your resume or start fresh"
-2. "AI tailors your resume for any job"
-3. "Export professional PDFs instantly"
+const fetchProfile = async () => {
+  const { data } = await supabase
+    .from('profiles')
+    .select('onboarding_completed')
+    .eq('user_id', user.id)
+    .single();
+  
+  if (data && !data.onboarding_completed) {
+    setShowOnboarding(true);
+  }
+  setProfileLoaded(true);
+};
 
----
+const handleOnboardingComplete = async () => {
+  await supabase
+    .from('profiles')
+    .update({ onboarding_completed: true })
+    .eq('user_id', user.id);
+  
+  haptics.success();
+  setShowOnboarding(false);
+};
 
-### 7. Floating Action Button (FAB) Menu
-
-**Current**: Single AI floating button that opens a sheet.
-
-**Enhancement**: Expand into a FAB menu with quick actions (new resume, scan job, export).
-
-**Files to modify:**
-- `src/components/editor/AIFloatingButton.tsx`
-
----
-
-### 8. Toast Improvements with Actions
-
-**Current**: Toasts show messages but no actions.
-
-**Enhancement**: Add "Undo" action for destructive operations (delete resume).
-
-**Files to modify:**
-- Delete handlers in `DashboardPage.tsx`
-- Use sonner's action capability
-
----
-
-### 9. Offline Mode Indicator
-
-**Current**: No indication when user is offline.
-
-**Enhancement**: Show a subtle banner when offline, queue actions for sync.
-
-**Files to create:**
-- `src/hooks/useNetworkStatus.ts` (new)
-- `src/components/layout/OfflineBanner.tsx` (new)
-
----
-
-### 10. Enhanced Resume Card Design
-
-**Current**: Cards show basic info with small thumbnail.
-
-**Enhancement**: Add visual template preview, last edited time, and animated match score ring.
-
-**Files to modify:**
-- `src/components/dashboard/ResumeListCard.tsx`
+// In render:
+if (showOnboarding) {
+  return (
+    <OnboardingCarousel
+      onComplete={handleOnboardingComplete}
+      onSkip={handleOnboardingComplete}
+    />
+  );
+}
+```
 
 ---
 
-### 11. Gesture-Based Tab Switching
+## User Experience
 
-**Current**: Tabs require precise tapping.
+### First-Time User Journey
+1. User signs up and verifies email
+2. User logs in → redirected to `/dashboard`
+3. Dashboard detects `onboarding_completed = false`
+4. Full-screen `OnboardingCarousel` appears with 3 steps:
+   - **Step 1**: "Upload or Start Fresh" (Upload icon)
+   - **Step 2**: "AI-Powered Tailoring" (Sparkles icon)
+   - **Step 3**: "Export Professionally" (Download icon)
+5. User can swipe through or tap "Next"
+6. On final step, "Get Started" button appears
+7. User completes or skips → profile updated → dashboard shown
 
-**Enhancement**: Allow horizontal swipe to switch between editor tabs.
-
-**Files to modify:**
-- `src/pages/EditorPage.tsx`
-
----
-
-### 12. Improved Progress Indicator
-
-**Current**: Simple progress bar with percentage.
-
-**Enhancement**: Add a circular progress ring with animated sections, showing which sections are complete.
-
-**Files to modify:**
-- `src/components/editor/ProgressBar.tsx`
-
----
-
-### 13. Smart Keyboard Handling
-
-**Current**: Standard keyboard behavior.
-
-**Enhancement**: Auto-scroll to focused input, dismiss keyboard on background tap, show "Done" button on number pad.
-
-**Files to modify:**
-- `src/components/layout/MobileLayout.tsx`
-- Form inputs across editor sections
+### Returning User Journey
+1. User logs in
+2. Dashboard checks profile, sees `onboarding_completed = true`
+3. Dashboard loads normally (no onboarding shown)
 
 ---
 
-### 14. Dark/Light Mode Toggle
+## Technical Notes
 
-**Current**: Dark mode only.
+### Why Dashboard and not AuthPage?
 
-**Enhancement**: Add theme toggle in settings, respect system preference.
+Placing onboarding in the Dashboard ensures:
+- User is fully authenticated (session established)
+- Profile exists in database (created by trigger)
+- Works for both immediate login and email confirmation flows
+- Onboarding only shows once per user, ever
 
-**Files to create:**
-- `src/components/settings/ThemeToggle.tsx` (new)
-- Update `index.css` with light theme variables
+### Smooth Transitions
 
----
-
-### 15. Micro-Animations & Polish
-
-**Current**: Good base animations but can be enhanced.
-
-**Enhancements**:
-- Staggered list animations on dashboard
-- Bounce effect on match score updates
-- Confetti on 100% completion or high match score
-- Subtle parallax on cards during scroll
+The carousel already uses Framer Motion. When dismissed, we'll use a fade-out animation for a polished experience.
 
 ---
 
-## Implementation Priority
+## Files to Modify
 
-### Phase 1: High-Impact Quick Wins
-1. Skeleton loading states
-2. Swipe actions on resume cards
-3. Toast undo actions
-4. Pull-to-refresh
-
-### Phase 2: Native Feel
-5. Bottom tab navigation
-6. Haptic feedback
-7. Gesture-based tab switching
-8. Improved progress ring
-
-### Phase 3: Delight & Polish
-9. Onboarding flow
-10. Offline indicator
-11. FAB menu expansion
-12. Dark/light mode toggle
-13. Micro-animations
+| File | Change |
+|------|--------|
+| Database migration | Add `onboarding_completed` boolean column |
+| `src/pages/DashboardPage.tsx` | Add profile fetch, onboarding state, and carousel integration |
 
 ---
 
-## File Changes Summary
+## Expected Result
 
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `src/components/layout/BottomTabBar.tsx` | NEW | Persistent bottom navigation |
-| `src/components/layout/MobileLayout.tsx` | UPDATE | Integrate bottom nav, keyboard handling |
-| `src/components/layout/OfflineBanner.tsx` | NEW | Network status indicator |
-| `src/components/ui/skeleton-card.tsx` | NEW | Content skeleton loaders |
-| `src/components/ui/pull-to-refresh.tsx` | NEW | Pull gesture refresh component |
-| `src/components/onboarding/OnboardingCarousel.tsx` | NEW | First-time user flow |
-| `src/components/dashboard/ResumeListCard.tsx` | UPDATE | Swipe actions, enhanced design |
-| `src/components/editor/ProgressBar.tsx` | UPDATE | Circular progress ring |
-| `src/components/editor/AIFloatingButton.tsx` | UPDATE | Expandable FAB menu |
-| `src/pages/DashboardPage.tsx` | UPDATE | Pull-to-refresh, skeletons |
-| `src/pages/EditorPage.tsx` | UPDATE | Gesture tab switching |
-| `src/hooks/useNetworkStatus.ts` | NEW | Online/offline detection |
-| `src/lib/haptics.ts` | NEW | Vibration utility |
-| `src/index.css` | UPDATE | Light theme variables |
-
----
-
-## Expected Impact
-
-- **Perceived Performance**: 40% improvement with skeleton loading
-- **User Engagement**: Swipe gestures reduce friction for common actions
-- **Native Feel**: Bottom nav + haptics + gestures = app-store quality
-- **Error Prevention**: Undo toasts prevent accidental data loss
-- **First-Time Experience**: Onboarding reduces confusion by 60%
+First-time users will see a beautiful, animated 3-step carousel that introduces WiseResume's core features. After completing or skipping, they'll never see it again - the dashboard will load directly on future visits.
