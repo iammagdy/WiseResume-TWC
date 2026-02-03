@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, Search, LogOut, Loader2 } from 'lucide-react';
+import { Plus, Search, LogOut } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,9 +9,12 @@ import { AppLogo } from '@/components/brand/AppLogo';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { CreateResumeDialog } from '@/components/dashboard/CreateResumeDialog';
 import { EmptyState } from '@/components/dashboard/EmptyState';
+import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
+import { haptics } from '@/lib/haptics';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,13 +29,15 @@ import {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading, signOut } = useAuth();
-  const { data: resumes, isLoading: resumesLoading } = useResumes();
+  const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
+  const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
+  const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -44,6 +49,7 @@ export default function DashboardPage() {
   const handleEdit = (resumeId: string) => {
     const resume = resumes?.find(r => r.id === resumeId);
     if (resume) {
+      haptics.light();
       setCurrentResumeId(resumeId);
       setCurrentResume(dbToResumeData(resume));
       navigate('/editor');
@@ -51,7 +57,12 @@ export default function DashboardPage() {
   };
 
   const handleDuplicate = (resumeId: string) => {
-    duplicateResume.mutate(resumeId);
+    haptics.success();
+    duplicateResume.mutate(resumeId, {
+      onSuccess: () => {
+        toast.success('Resume duplicated successfully');
+      },
+    });
   };
 
   const handleDelete = (resumeId: string) => {
@@ -60,12 +71,36 @@ export default function DashboardPage() {
 
   const confirmDelete = () => {
     if (deleteResumeId) {
-      deleteResume.mutate(deleteResumeId);
+      const resumeToDelete = resumes?.find(r => r.id === deleteResumeId);
+      
+      // Store for potential undo
+      if (resumeToDelete) {
+        setDeletedResume({ id: resumeToDelete.id, title: resumeToDelete.title });
+      }
+      
+      haptics.warning();
+      deleteResume.mutate(deleteResumeId, {
+        onSuccess: () => {
+          // Show toast with undo option
+          toast.success(`"${resumeToDelete?.title}" deleted`, {
+            action: {
+              label: 'Undo',
+              onClick: () => {
+                // Note: True undo would require soft delete in DB
+                // For now, we just show the message
+                toast.info('Undo not available - resume permanently deleted');
+              },
+            },
+            duration: 5000,
+          });
+        },
+      });
       setDeleteResumeId(null);
     }
   };
 
   const handleSignOut = async () => {
+    haptics.medium();
     await signOut();
     navigate('/');
   };
@@ -87,8 +122,18 @@ export default function DashboardPage() {
   if (authLoading) {
     return (
       <MobileLayout>
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="flex-1 flex flex-col">
+          <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between border-b border-border">
+            <div className="w-24 h-8 rounded bg-muted animate-pulse" />
+            <div className="w-20 h-8 rounded bg-muted animate-pulse" />
+          </header>
+          <div className="px-4 pt-4 pb-3">
+            <div className="w-32 h-7 rounded bg-muted animate-pulse mb-2" />
+            <div className="w-20 h-5 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="px-4">
+            <SkeletonCardList count={3} />
+          </div>
         </div>
       </MobileLayout>
     );
@@ -120,7 +165,10 @@ export default function DashboardPage() {
             </p>
           </div>
           <Button
-            onClick={() => setShowCreateDialog(true)}
+            onClick={() => {
+              haptics.light();
+              setShowCreateDialog(true);
+            }}
             className="gradient-primary"
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -145,8 +193,8 @@ export default function DashboardPage() {
 
         {/* Content */}
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <div className="flex-1 px-4 pb-safe">
+            <SkeletonCardList count={3} />
           </div>
         ) : !resumes || resumes.length === 0 ? (
           <EmptyState onCreateNew={() => setShowCreateDialog(true)} />
@@ -169,7 +217,18 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto px-4 pb-safe">
-            <div className="space-y-3 pb-4">
+            <motion.div 
+              className="space-y-3 pb-4"
+              initial="hidden"
+              animate="visible"
+              variants={{
+                visible: {
+                  transition: {
+                    staggerChildren: 0.05,
+                  },
+                },
+              }}
+            >
               {filteredResumes.map((resume, index) => (
                 <ResumeListCard
                   key={resume.id}
@@ -180,7 +239,7 @@ export default function DashboardPage() {
                   delay={index * 0.05}
                 />
               ))}
-            </div>
+            </motion.div>
           </div>
         )}
       </div>
@@ -203,7 +262,7 @@ export default function DashboardPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => haptics.light()}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
