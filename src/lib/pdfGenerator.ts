@@ -1,6 +1,7 @@
 import html2canvas from 'html2canvas';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions, SectionId } from '@/types/resume';
+import { TemplateConfig, getTemplateConfig } from '@/lib/templateConfig';
 
 // PDF dimensions (Letter size in points)
 const PAGE_WIDTH = 612;
@@ -233,13 +234,22 @@ function computeAutoBreaksInSegment(
  * 
  * LAYOUT-AWARE: For manual breaks, calculates safe Y-position that doesn't
  * slice through parallel columns in multi-column layouts.
+ * 
+ * TEMPLATE-AWARE: For fixed-sidebar templates, returns empty array (no breaks).
+ * For linear-grid templates, treats grid sections as unbreakable units.
  */
 export function findSmartBreakPositions(
   sourceElement: HTMLElement,
   sourceHeightPerPage: number,
   totalHeight: number,
-  manualBreakSections?: string[]
+  manualBreakSections?: string[],
+  templateConfig?: TemplateConfig
 ): number[] {
+  // For fixed-sidebar templates (Creative, Professional), no page breaks
+  if (templateConfig?.layout === 'fixed-sidebar') {
+    return [];
+  }
+  
   // Scan DOM for all sections and flow blocks
   const { sections, flowBlocks } = scanLayoutBlocks(sourceElement);
   
@@ -249,15 +259,43 @@ export function findSmartBreakPositions(
   // Combine all blocks for break avoidance
   const allBlocks: ContentBlock[] = [...flowBlocks, ...headerBlocks];
   
+  // For linear-grid templates (Executive), mark grid sections as unbreakable
+  if (templateConfig?.layout === 'linear-grid') {
+    // Find sections that are NOT in the breakable list - these are grid sections
+    const breakableSectionIds = templateConfig.breakableSections;
+    sections.forEach(section => {
+      if (!breakableSectionIds.includes(section.id)) {
+        // This section is part of the grid - mark entire grid area as unbreakable
+        // Find all grid sibling sections and create a mega-block
+        const gridSections = sections.filter(s => !breakableSectionIds.includes(s.id));
+        if (gridSections.length > 0) {
+          const gridTop = Math.min(...gridSections.map(s => s.top));
+          const gridBottom = Math.max(...gridSections.map(s => s.bottom));
+          allBlocks.push({
+            top: gridTop,
+            bottom: gridBottom,
+            sectionId: 'grid-block'
+          });
+        }
+      }
+    });
+  }
+  
   // Sort blocks by top position
   allBlocks.sort((a, b) => a.top - b.top);
 
   // If manual sections specified, use hybrid mode with layout-aware breaks
   if (manualBreakSections && manualBreakSections.length > 0) {
+    // Filter manual sections to only those allowed by template config
+    const allowedSections = templateConfig?.breakableSections || manualBreakSections;
+    const validManualSections = manualBreakSections.filter(s => 
+      allowedSections.includes(s as SectionId)
+    );
+    
     // Get forced break positions from manual sections
     const forcedBreaks: number[] = [];
     
-    manualBreakSections.forEach(sectionId => {
+    validManualSections.forEach(sectionId => {
       const targetSection = sections.find(s => s.id === sectionId);
       if (!targetSection) return;
       
@@ -433,6 +471,11 @@ async function addPageFooter(
 /**
  * Generates a PDF from the resume by capturing the rendered React template.
  * This ensures WYSIWYG - what you see in preview is what you get in PDF.
+ * 
+ * TEMPLATE-AWARE: Uses template configuration to determine pagination strategy.
+ * - fixed-sidebar templates: Single page capture (no pagination)
+ * - linear-grid templates: Respects grid boundaries
+ * - linear templates: Full smart pagination
  */
 export async function generatePDF(
   resume: ResumeData,
@@ -441,6 +484,9 @@ export async function generatePDF(
   manualBreakSections?: string[],
   options?: PDFOptions
 ): Promise<Blob> {
+  // Get template configuration
+  const templateConfig = getTemplateConfig(templateId);
+  
   // Find the template element - either passed directly or by query
   let sourceElement = templateElement;
   
@@ -477,7 +523,12 @@ export async function generatePDF(
       PAGE_HEIGHT / 2 // Minimum sensible height
     );
     
-    console.log('PDF Generator: Capturing element', { sourceWidth, totalHeight, rect });
+    console.log('PDF Generator: Capturing element', { 
+      sourceWidth, 
+      totalHeight, 
+      rect, 
+      templateLayout: templateConfig.layout 
+    });
     
     // GLOBAL scale factor - used consistently for ALL pages
     const globalScaleFactor = PAGE_WIDTH / sourceWidth;
@@ -486,15 +537,22 @@ export async function generatePDF(
     const sourceHeightPerPage = PRINTABLE_HEIGHT / globalScaleFactor;
 
     // Calculate smart break positions that avoid cutting content
+    // Pass template config for template-aware pagination
     const smartBreaks = findSmartBreakPositions(
       sourceElement, 
       sourceHeightPerPage, 
       totalHeight,
-      manualBreakSections
+      manualBreakSections,
+      templateConfig
     );
-    const numPages = smartBreaks.length + 1;
+    
+    // For fixed-sidebar templates, always single page regardless of content height
+    const numPages = templateConfig.layout === 'fixed-sidebar' 
+      ? 1 
+      : smartBreaks.length + 1;
 
     console.log('PDF Generator: Smart pagination', { 
+      templateLayout: templateConfig.layout,
       globalScaleFactor, 
       sourceHeightPerPage, 
       numPages,

@@ -1,6 +1,7 @@
 import { cn } from '@/lib/utils';
 import { findSmartBreakPositions } from '@/lib/pdfGenerator';
 import { useState, useEffect, RefObject, useMemo } from 'react';
+import { TemplateConfig } from '@/lib/templateConfig';
 
 // PDF dimensions (must match pdfGenerator.ts)
 const PAGE_WIDTH = 612;
@@ -11,12 +12,14 @@ const PRINTABLE_HEIGHT = PAGE_HEIGHT - FOOTER_RESERVED_PT;
 interface PageBreakIndicatorProps {
   templateRef?: RefObject<HTMLElement>;
   manualBreakSections?: string[];
+  templateConfig?: TemplateConfig;
   className?: string;
 }
 
 export function PageBreakIndicator({ 
   templateRef,
   manualBreakSections,
+  templateConfig,
   className 
 }: PageBreakIndicatorProps) {
   const [breaks, setBreaks] = useState<number[]>([]);
@@ -29,8 +32,17 @@ export function PageBreakIndicator({
   );
 
   const isManualMode = manualBreakSections && manualBreakSections.length > 0;
+  
+  // Don't show indicators for fixed-sidebar templates (single-page optimized)
+  const shouldShowIndicators = !templateConfig?.singlePageOptimized;
 
   useEffect(() => {
+    // Skip if template doesn't support page breaks
+    if (!shouldShowIndicators) {
+      setBreaks([]);
+      return;
+    }
+    
     const element = templateRef?.current;
     if (!element) return;
 
@@ -48,7 +60,8 @@ export function PageBreakIndicator({
         element,
         sourceHeightPerPage,
         containerHeight,
-        manualBreakSections
+        manualBreakSections,
+        templateConfig
       );
       
       setBreaks(newBreaks);
@@ -62,9 +75,10 @@ export function PageBreakIndicator({
     observer.observe(element);
 
     return () => observer.disconnect();
-  }, [templateRef, breakKey, manualBreakSections]);
+  }, [templateRef, breakKey, manualBreakSections, shouldShowIndicators, templateConfig]);
 
-  if (breaks.length === 0) return null;
+  // Don't render anything for single-page templates or if no breaks
+  if (!shouldShowIndicators || breaks.length === 0) return null;
 
   return (
     <div className={cn("absolute inset-0 pointer-events-none", className)}>
