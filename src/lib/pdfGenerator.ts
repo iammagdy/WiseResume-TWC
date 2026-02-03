@@ -5,6 +5,8 @@ import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume'
 // PDF dimensions (Letter size in points)
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
+const FOOTER_RESERVED_PT = 44; // Space for page numbers + branding
+const PRINTABLE_HEIGHT = PAGE_HEIGHT - FOOTER_RESERVED_PT;
 const SCALE = 2; // Higher scale for better quality
 const MARGIN = 72; // 1 inch margins for cover letter
 
@@ -14,8 +16,99 @@ interface ContentBlock {
 }
 
 /**
+ * Gets element's top position relative to container using layout-based offsets.
+ * Transform-agnostic - not affected by CSS transforms/animations.
+ */
+function getRelativeTop(element: HTMLElement, container: HTMLElement): number {
+  let top = 0;
+  let curr: HTMLElement | null = element;
+  
+  while (curr && curr !== container && container.contains(curr)) {
+    top += curr.offsetTop;
+    curr = curr.offsetParent as HTMLElement | null;
+  }
+  
+  return top;
+}
+
+/**
+ * Gets element bounds relative to container using layout offsets.
+ */
+function getBlockBounds(element: HTMLElement, container: HTMLElement): ContentBlock {
+  const top = getRelativeTop(element, container);
+  return {
+    top,
+    bottom: top + element.offsetHeight
+  };
+}
+
+/**
+ * Computes auto breaks within a segment, avoiding cutting blocks.
+ */
+function computeAutoBreaksInSegment(
+  segmentStart: number,
+  segmentEnd: number,
+  sourceHeightPerPage: number,
+  blocks: ContentBlock[]
+): number[] {
+  const breaks: number[] = [];
+  let currentPos = segmentStart;
+  
+  while (currentPos + sourceHeightPerPage < segmentEnd) {
+    let naturalBreak = currentPos + sourceHeightPerPage;
+    
+    // Find block being cut by this break
+    const cuttingBlock = blocks.find(
+      b => b.top < naturalBreak && b.bottom > naturalBreak && b.top >= currentPos
+    );
+    
+    if (cuttingBlock) {
+      // Option A: Break before block (move up)
+      const breakBefore = cuttingBlock.top - 8;
+      const wastedSpaceBefore = naturalBreak - breakBefore;
+      
+      // Option B: Break after block (move down)
+      const breakAfter = cuttingBlock.bottom + 8;
+      const extraContentAfter = breakAfter - naturalBreak;
+      
+      // Maximum waste allowed (25% of page height)
+      const maxWaste = sourceHeightPerPage * 0.25;
+      
+      // Ensure we don't create pages that are too short (minimum 20% of page)
+      const minPageContent = sourceHeightPerPage * 0.20;
+      
+      if (wastedSpaceBefore <= extraContentAfter && wastedSpaceBefore < maxWaste) {
+        if (breakBefore - currentPos >= minPageContent) {
+          breaks.push(breakBefore);
+          currentPos = breakBefore;
+        } else if (breakAfter < segmentEnd) {
+          breaks.push(breakAfter);
+          currentPos = breakAfter;
+        } else {
+          // Can't fit, move to segment end
+          break;
+        }
+      } else if (extraContentAfter < maxWaste && breakAfter < segmentEnd) {
+        breaks.push(breakAfter);
+        currentPos = breakAfter;
+      } else {
+        // Block is too large, must cut through it
+        breaks.push(naturalBreak);
+        currentPos = naturalBreak;
+      }
+    } else {
+      breaks.push(naturalBreak);
+      currentPos = naturalBreak;
+    }
+  }
+  
+  return breaks;
+}
+
+/**
  * Finds smart page break positions that avoid cutting through content blocks.
  * Supports both automatic detection and manual section-based breaks.
+ * Uses transform-agnostic layout measurements for consistency.
  */
 export function findSmartBreakPositions(
   sourceElement: HTMLElement,
@@ -23,103 +116,74 @@ export function findSmartBreakPositions(
   totalHeight: number,
   manualBreakSections?: string[]
 ): number[] {
-  const containerRect = sourceElement.getBoundingClientRect();
-
-  // If manual sections specified, find their bottom positions
-  if (manualBreakSections && manualBreakSections.length > 0) {
-    const manualBreaks: number[] = [];
-    
-    manualBreakSections.forEach(sectionId => {
-      const section = sourceElement.querySelector(`[data-section="${sectionId}"]`);
-      if (section) {
-        const rect = section.getBoundingClientRect();
-        manualBreaks.push(rect.bottom - containerRect.top + 8); // 8px padding
-      }
-    });
-    
-    return manualBreaks.filter(b => b < totalHeight && b > 0).sort((a, b) => a - b);
-  }
-
-  // Auto mode: Get all unbreakable blocks
+  // Get all unbreakable blocks using layout-based measurements
   const blockElements = sourceElement.querySelectorAll('[data-break-avoid]');
   const blocks: ContentBlock[] = [];
   
   blockElements.forEach(el => {
-    const rect = el.getBoundingClientRect();
-    blocks.push({
-      top: rect.top - containerRect.top,
-      bottom: rect.bottom - containerRect.top,
-    });
+    const htmlEl = el as HTMLElement;
+    blocks.push(getBlockBounds(htmlEl, sourceElement));
   });
 
   // Sort blocks by top position
   blocks.sort((a, b) => a.top - b.top);
-  
-  // Calculate natural break positions
-  const naturalBreaks: number[] = [];
-  let pos = sourceHeightPerPage;
-  while (pos < totalHeight) {
-    naturalBreaks.push(pos);
-    pos += sourceHeightPerPage;
-  }
-  
-  if (naturalBreaks.length === 0) {
-    return [];
+
+  // If manual sections specified, use hybrid mode
+  if (manualBreakSections && manualBreakSections.length > 0) {
+    // Get forced break positions from manual sections (using layout offsets)
+    const forcedBreaks: number[] = [];
+    
+    manualBreakSections.forEach(sectionId => {
+      const section = sourceElement.querySelector(`[data-section="${sectionId}"]`) as HTMLElement | null;
+      if (section) {
+        const bounds = getBlockBounds(section, sourceElement);
+        forcedBreaks.push(bounds.bottom + 8); // 8px padding after section
+      }
+    });
+    
+    // Sort and filter forced breaks
+    const sortedForcedBreaks = forcedBreaks
+      .filter(b => b < totalHeight && b > 0)
+      .sort((a, b) => a - b);
+    
+    // Build segments between forced breaks
+    const allBreaks: number[] = [];
+    let segmentStart = 0;
+    
+    for (const forcedBreak of sortedForcedBreaks) {
+      // Add auto breaks within this segment
+      const autoBreaks = computeAutoBreaksInSegment(
+        segmentStart,
+        forcedBreak,
+        sourceHeightPerPage,
+        blocks
+      );
+      allBreaks.push(...autoBreaks);
+      
+      // Add the forced break itself
+      allBreaks.push(forcedBreak);
+      segmentStart = forcedBreak;
+    }
+    
+    // Handle remaining content after last forced break
+    if (segmentStart < totalHeight) {
+      const autoBreaks = computeAutoBreaksInSegment(
+        segmentStart,
+        totalHeight,
+        sourceHeightPerPage,
+        blocks
+      );
+      allBreaks.push(...autoBreaks);
+    }
+    
+    // Remove duplicates and sort
+    return [...new Set(allBreaks)]
+      .filter(b => b < totalHeight && b > 0)
+      .sort((a, b) => a - b);
   }
 
-  // Adjust each break to avoid cutting blocks
-  const smartBreaks: number[] = [];
-  let cumulativeOffset = 0;
-  
-  for (let i = 0; i < naturalBreaks.length; i++) {
-    const naturalBreak = naturalBreaks[i];
-    const adjustedBreak = naturalBreak + cumulativeOffset;
-    
-    // Find block being cut by this break
-    const cuttingBlock = blocks.find(
-      b => b.top < adjustedBreak && b.bottom > adjustedBreak
-    );
-    
-    if (cuttingBlock) {
-      // Option A: Break before block (move up)
-      const breakBefore = cuttingBlock.top - 8; // 8px padding
-      const wastedSpaceBefore = adjustedBreak - breakBefore;
-      
-      // Option B: Break after block (move down)
-      const breakAfter = cuttingBlock.bottom + 8;
-      const extraContentAfter = breakAfter - adjustedBreak;
-      
-      // Maximum waste allowed (25% of page height)
-      const maxWaste = sourceHeightPerPage * 0.25;
-      
-      // Ensure we don't create pages that are too short (minimum 20% of page)
-      const minPageContent = sourceHeightPerPage * 0.20;
-      const previousBreak = i === 0 ? 0 : smartBreaks[i - 1];
-      
-      if (wastedSpaceBefore <= extraContentAfter && wastedSpaceBefore < maxWaste) {
-        // Check if breaking before would leave enough content on current page
-        if (breakBefore - previousBreak >= minPageContent) {
-          smartBreaks.push(breakBefore);
-          cumulativeOffset += (breakBefore - adjustedBreak);
-        } else {
-          // Push break after to avoid tiny page
-          smartBreaks.push(breakAfter);
-          cumulativeOffset += (breakAfter - adjustedBreak);
-        }
-      } else if (extraContentAfter < maxWaste) {
-        smartBreaks.push(breakAfter);
-        cumulativeOffset += (breakAfter - adjustedBreak);
-      } else {
-        // Block is too large, must cut through it
-        smartBreaks.push(adjustedBreak);
-      }
-    } else {
-      smartBreaks.push(adjustedBreak);
-    }
-  }
-  
-  // Filter out any breaks that exceed total height
-  return smartBreaks.filter(b => b < totalHeight && b > 0);
+  // Pure auto mode - compute breaks for entire document
+  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, blocks);
 }
 
 /**
@@ -268,8 +332,8 @@ export async function generatePDF(
     // GLOBAL scale factor - used consistently for ALL pages
     const globalScaleFactor = PAGE_WIDTH / sourceWidth;
     
-    // How much source height fits on one PDF page
-    const sourceHeightPerPage = PAGE_HEIGHT / globalScaleFactor;
+    // How much source height fits on one PDF page (accounting for footer)
+    const sourceHeightPerPage = PRINTABLE_HEIGHT / globalScaleFactor;
 
     // Calculate smart break positions that avoid cutting content
     const smartBreaks = findSmartBreakPositions(
