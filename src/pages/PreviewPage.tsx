@@ -46,7 +46,6 @@ export default function PreviewPage() {
   const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
-  const [containerDimensions, setContainerDimensions] = useState({ width: 612, height: 792 });
 
   // Determine which sections exist in resume
   const availableSections = useMemo(() => {
@@ -68,26 +67,6 @@ export default function PreviewPage() {
     return undefined;
   }, [pageBreakSettings]);
 
-  // Track container dimensions with ResizeObserver
-  useEffect(() => {
-    const element = resumeRef.current;
-    if (!element) return;
-
-    const updateDimensions = () => {
-      setContainerDimensions({
-        width: element.offsetWidth || 612,
-        height: element.scrollHeight || element.offsetHeight || 792,
-      });
-    };
-
-    // Initial measurement
-    updateDimensions();
-
-    const resizeObserver = new ResizeObserver(updateDimensions);
-    resizeObserver.observe(element);
-
-    return () => resizeObserver.disconnect();
-  }, [selectedTemplate]);
 
   if (!currentResume) {
     navigate('/');
@@ -281,8 +260,6 @@ export default function PreviewPage() {
             {/* Page break indicators - hidden during PDF generation */}
             {!isGenerating && showPageBreaks && (
               <PageBreakIndicator
-                containerWidth={containerDimensions.width}
-                containerHeight={containerDimensions.height}
                 templateRef={resumeRef}
                 manualBreakSections={manualBreakSections}
               />

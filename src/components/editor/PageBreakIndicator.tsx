@@ -1,52 +1,55 @@
 import { cn } from '@/lib/utils';
 import { findSmartBreakPositions } from '@/lib/pdfGenerator';
-import { useMemo, RefObject } from 'react';
+import { useState, useEffect, RefObject } from 'react';
 
 // PDF dimensions (must match pdfGenerator.ts)
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
 
 interface PageBreakIndicatorProps {
-  containerWidth: number;
-  containerHeight: number;
   templateRef?: RefObject<HTMLElement>;
   manualBreakSections?: string[];
   className?: string;
 }
 
 export function PageBreakIndicator({ 
-  containerWidth, 
-  containerHeight,
   templateRef,
   manualBreakSections,
   className 
 }: PageBreakIndicatorProps) {
-  const breaks = useMemo(() => {
-    // Calculate scale factor and source height per page
-    const scaleFactor = PAGE_WIDTH / containerWidth;
-    const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
-    
-    // If we have a template ref, use smart breaks
-    if (templateRef?.current) {
-      return findSmartBreakPositions(
-        templateRef.current,
+  const [breaks, setBreaks] = useState<number[]>([]);
+
+  useEffect(() => {
+    const element = templateRef?.current;
+    if (!element) return;
+
+    const calculateBreaks = () => {
+      // Use the SAME dimension logic as generatePDF for WYSIWYG accuracy
+      const containerWidth = element.offsetWidth || PAGE_WIDTH;
+      const containerHeight = element.scrollHeight || element.offsetHeight || PAGE_HEIGHT;
+      
+      const scaleFactor = PAGE_WIDTH / containerWidth;
+      const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
+
+      const newBreaks = findSmartBreakPositions(
+        element,
         sourceHeightPerPage,
         containerHeight,
         manualBreakSections
       );
-    }
-    
-    // Fallback to fixed breaks
-    const fixedBreaks: number[] = [];
-    let position = sourceHeightPerPage;
-    
-    while (position < containerHeight) {
-      fixedBreaks.push(position);
-      position += sourceHeightPerPage;
-    }
-    
-    return fixedBreaks;
-  }, [containerWidth, containerHeight, templateRef, manualBreakSections]);
+      
+      setBreaks(newBreaks);
+    };
+
+    // Calculate initially
+    calculateBreaks();
+
+    // Re-calculate when content changes
+    const observer = new ResizeObserver(calculateBreaks);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [templateRef, manualBreakSections]);
 
   // Different styling for manual vs auto breaks
   const isManualMode = manualBreakSections && manualBreakSections.length > 0;
