@@ -1,73 +1,82 @@
 
-# Fix: Page Break "Bleed-Through" / Content Overlap in Footer Zone
+# Fix: True "End Page Here" for Manual Page Breaks
 
-## Problem Identified
+## Problem
 
-Looking at your screenshot, I can see that content from the resume is visible in the area between page 1's content and the footer ("Page 1 of 3" / "Created with WiseResume"). This looks unprofessional because:
+When user selects "break after Experience":
+- **Current behavior**: Content after Experience still appears on page 1 (partially visible, then masked by white footer rectangle)
+- **Desired behavior**: Page 1 ends EXACTLY at Experience with clean white space below - no subsequent content visible at all
 
-1. The content image is drawn starting from the TOP of the page
-2. The footer (page numbers + branding) is drawn at the BOTTOM (at y=28 and y=12)
-3. **There's no "clean cut" or white space between the content and footer**
-
-The current code places content correctly but doesn't ensure a clean visual separation before the footer area.
-
----
+```
+CURRENT (Broken):                    DESIRED (Professional):
+┌─────────────────────┐              ┌─────────────────────┐
+│ Summary             │              │ Summary             │
+│ Experience          │              │ Experience          │
+│ ─ Job 1            │              │ ─ Job 1            │
+│ ─ Job 2            │              │ ─ Job 2            │
+│ ─ Job 3            │              │                     │
+│ Education [faded]   │ ← Bleeding!  │                     │ ← Clean!
+│─────────────────────│              │                     │
+│ Page 1 of 2         │              ├─────────────────────┤
+└─────────────────────┘              │ Page 1 of 2         │
+                                     └─────────────────────┘
+```
 
 ## Root Cause
 
-The PDF generation draws the content slice and then draws the footer text **on top** of whatever is there. If content runs close to or into the footer zone, you see this "bleed-through" effect where content is partially visible behind the footer.
+The PDF generation slices content from the canvas starting at `pageStart` and ending at `pageEnd` (the forced break position). However:
 
-```
-Current Behavior:
-┌─────────────────────────┐
-│ Content...              │
-│ ...                     │
-│ Last line of content    │
-│ [ghosted next-page text]│ ← Content bleeds here
-│─────────────────────────│
-│ Page 1 of 3             │ ← Footer drawn on top
-│ • Created with WiseResume│
-└─────────────────────────┘
-```
+1. The slice height `pdfContentHeight` may be less than `PRINTABLE_HEIGHT`
+2. The slice is positioned at the TOP of the PDF page (`y: PAGE_HEIGHT - pdfContentHeight`)
+3. This leaves a GAP between the content and the footer
+4. That gap currently contains... nothing (transparent/previous content)
 
----
+But when manual breaks are involved, the content IS ending early by design - we need to fill the rest with white!
 
 ## Solution
 
-After drawing each page's content image, **draw a white rectangle** over the footer zone to create a clean "cutoff". This ensures:
+After drawing the content image to each PDF page, **fill the entire page with white FIRST, then draw the content on top**. This ensures any "unused" space on the page is clean white.
 
-1. Any content that visually extends into the footer area is covered
-2. A clean white separation exists before the page numbers
-3. Professional appearance on all pages
+Alternatively (more efficient): Draw the white footer mask to cover the ENTIRE unused area below the content, not just the fixed footer zone.
 
-### Visual After Fix:
+### Approach: Extend the white mask to cover all unused space
 
+```typescript
+// Current: Only masks footer zone
+page.drawRectangle({
+  x: 0,
+  y: 0,
+  width: PAGE_WIDTH,
+  height: FOOTER_RESERVED_PT, // 44pt
+  color: rgb(1, 1, 1),
+});
+
+// NEW: Mask everything below the content
+const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
+page.drawRectangle({
+  x: 0,
+  y: 0,
+  width: PAGE_WIDTH,
+  height: contentBottomY, // Covers from bottom to where content ends
+  color: rgb(1, 1, 1),
+});
 ```
-Fixed Behavior:
-┌─────────────────────────┐
-│ Content...              │
-│ ...                     │
-│ Last line of content    │
-│                         │ ← Clean white space
-├─────────────────────────┤
-│ Page 1 of 3             │
-│ • Created with WiseResume│
-└─────────────────────────┘
-```
 
----
+This way:
+- If content fills the page → mask = small (just footer zone)
+- If content ends early (manual break) → mask = large (entire blank area + footer)
 
-## Implementation
+## Implementation Details
 
 ### File: `src/lib/pdfGenerator.ts`
 
-In the page generation loop, after drawing the content image to the PDF page, add a **white rectangle overlay** that covers the footer zone:
+In the page generation loop (around lines 433-454), replace the fixed footer mask with a dynamic mask that covers ALL unused space:
 
 ```typescript
 // Add page to PDF
 const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 
-// Draw the content image at TOP of page
+// In PDF, y=0 is BOTTOM. Position image at TOP of page.
 page.drawImage(pngImage, {
   x: 0,
   y: PAGE_HEIGHT - pdfContentHeight,
@@ -75,46 +84,39 @@ page.drawImage(pngImage, {
   height: pdfContentHeight,
 });
 
-// *** NEW: Draw white rectangle over footer zone for clean cutoff ***
-page.drawRectangle({
-  x: 0,
-  y: 0,
-  width: PAGE_WIDTH,
-  height: FOOTER_RESERVED_PT,
-  color: rgb(1, 1, 1), // White
-});
+// Draw white rectangle to cleanly mask ALL unused space below content
+// This ensures manual page breaks result in clean white space (professional look)
+const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
+if (contentBottomY > 0) {
+  page.drawRectangle({
+    x: 0,
+    y: 0,
+    width: PAGE_WIDTH,
+    height: contentBottomY, // Covers everything from bottom up to content edge
+    color: rgb(1, 1, 1), // White
+  });
+}
 ```
 
-This ensures:
-- Content can never visually appear in the footer zone
-- Clean professional separation between content and footer
-- Footer text is drawn on a clean white background
+## Why This Makes WiseResume Different
 
----
+This "true page break" behavior is exactly what professional document editing tools (Word, Google Docs) provide but most resume builders lack:
 
-## File Changes
+1. **User Control**: "I want page 1 to end HERE" actually works
+2. **ATS Friendly**: Clean page boundaries help parsing
+3. **Professional Look**: No bleed-through, no truncated text
+4. **Intuitive**: What You See Is What You Get
+
+## File Changes Summary
 
 | File | Change |
 |------|--------|
-| `src/lib/pdfGenerator.ts` | Add white rectangle overlay in footer zone after drawing page content (around line 443) |
-
----
-
-## Technical Details
-
-- `FOOTER_RESERVED_PT = 44` - The height reserved for the footer
-- The white rectangle is drawn AFTER the content image (so it covers any bleed)
-- The footer text is drawn AFTER this in `addPageFooter()` (so it appears on top of the white)
-
-### Drawing Order:
-1. Page content image (positioned at top)
-2. White rectangle (covers footer zone - creates clean cutoff)
-3. Footer text (page numbers + branding - drawn on clean white)
-
----
+| `src/lib/pdfGenerator.ts` | Replace fixed `FOOTER_RESERVED_PT` height mask with dynamic `contentBottomY` mask that covers all unused page space |
 
 ## Expected Result
 
-- Clean visual separation between content and footer on every page
-- No "ghosted" or "bleed-through" content visible near page numbers
-- Professional appearance matching industry-standard resume PDFs
+- When user selects "break after Experience":
+  - Page 1: Shows Summary + Experience + clean white space + footer
+  - Page 2: Starts with Education at the TOP
+- Clean, professional appearance matching enterprise document tools
+- Differentiator from other resume apps in the market
