@@ -1,6 +1,6 @@
 import html2canvas from 'html2canvas';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
-import { ResumeData, TemplateId, ContactInfo, PDFOptions } from '@/types/resume';
+import { ResumeData, TemplateId, ContactInfo, PDFOptions, SectionId } from '@/types/resume';
 
 // PDF dimensions (Letter size in points)
 const PAGE_WIDTH = 612;
@@ -13,6 +13,15 @@ const MARGIN = 72; // 1 inch margins for cover letter
 interface ContentBlock {
   top: number;
   bottom: number;
+  sectionId?: string; // For section blocks
+  isHeader?: boolean; // For orphan protection synthetic blocks
+}
+
+interface SectionInfo {
+  id: SectionId;
+  top: number;
+  bottom: number;
+  element: HTMLElement;
 }
 
 /**
@@ -33,17 +42,117 @@ function getRelativeTop(element: HTMLElement, container: HTMLElement): number {
 
 /**
  * Gets element bounds relative to container using layout offsets.
+ * Includes margins for accurate layout-aware measurements.
  */
 function getBlockBounds(element: HTMLElement, container: HTMLElement): ContentBlock {
   const top = getRelativeTop(element, container);
+  const style = window.getComputedStyle(element);
+  const marginTop = parseFloat(style.marginTop) || 0;
+  const marginBottom = parseFloat(style.marginBottom) || 0;
+  
   return {
-    top,
-    bottom: top + element.offsetHeight
+    top: top - marginTop,
+    bottom: top + element.offsetHeight + marginBottom
   };
 }
 
 /**
+ * Gets section bounds with margin-aware measurements.
+ */
+function getSectionBounds(element: HTMLElement, container: HTMLElement): ContentBlock {
+  const top = getRelativeTop(element, container);
+  const style = window.getComputedStyle(element);
+  const marginTop = parseFloat(style.marginTop) || 0;
+  const marginBottom = parseFloat(style.marginBottom) || 0;
+  
+  return {
+    top: top - marginTop,
+    bottom: top + element.offsetHeight + marginBottom,
+    sectionId: element.getAttribute('data-section') || undefined
+  };
+}
+
+/**
+ * Scans the DOM for all sections and flow blocks (content that shouldn't be cut).
+ * Returns sections in their actual DOM order.
+ */
+function scanLayoutBlocks(sourceElement: HTMLElement): {
+  sections: SectionInfo[];
+  flowBlocks: ContentBlock[];
+} {
+  // Get all sections in DOM order
+  const sectionElements = sourceElement.querySelectorAll('[data-section]');
+  const sections: SectionInfo[] = [];
+  
+  sectionElements.forEach(el => {
+    const htmlEl = el as HTMLElement;
+    const bounds = getSectionBounds(htmlEl, sourceElement);
+    sections.push({
+      id: htmlEl.getAttribute('data-section') as SectionId,
+      top: bounds.top,
+      bottom: bounds.bottom,
+      element: htmlEl
+    });
+  });
+  
+  // Get all flow blocks (sections + break-avoid elements)
+  const flowBlocks: ContentBlock[] = [];
+  
+  // Add all sections as flow blocks
+  sections.forEach(section => {
+    flowBlocks.push({
+      top: section.top,
+      bottom: section.bottom,
+      sectionId: section.id
+    });
+  });
+  
+  // Add all break-avoid blocks
+  const breakAvoidElements = sourceElement.querySelectorAll('[data-break-avoid]');
+  breakAvoidElements.forEach(el => {
+    const htmlEl = el as HTMLElement;
+    flowBlocks.push(getBlockBounds(htmlEl, sourceElement));
+  });
+  
+  return { sections, flowBlocks };
+}
+
+/**
+ * Creates synthetic "keep-with-next" blocks to prevent section header orphaning.
+ * Combines section header with first content item into single unbreakable unit.
+ */
+function createHeaderProtectionBlocks(sourceElement: HTMLElement, sections: SectionInfo[]): ContentBlock[] {
+  const protectedBlocks: ContentBlock[] = [];
+  
+  sections.forEach(section => {
+    // Find the header element (first h2 or h3 inside the section)
+    const header = section.element.querySelector('h2, h3') as HTMLElement | null;
+    if (!header) return;
+    
+    // Find the first content element after the header
+    const firstContent = section.element.querySelector('[data-break-avoid]') as HTMLElement | null;
+    const firstMeaningfulChild = section.element.querySelector('p, ul, div:not(:first-child)') as HTMLElement | null;
+    
+    const contentElement = firstContent || firstMeaningfulChild;
+    if (!contentElement) return;
+    
+    // Create a synthetic block that spans from header to first content end
+    const headerBounds = getBlockBounds(header, sourceElement);
+    const contentBounds = getBlockBounds(contentElement, sourceElement);
+    
+    protectedBlocks.push({
+      top: headerBounds.top,
+      bottom: contentBounds.bottom,
+      isHeader: true
+    });
+  });
+  
+  return protectedBlocks;
+}
+
+/**
  * Computes auto breaks within a segment, avoiding cutting blocks.
+ * STRICT MODE: Never split a data-break-avoid block that can fit on a page.
  */
 function computeAutoBreaksInSegment(
   segmentStart: number,
@@ -63,32 +172,32 @@ function computeAutoBreaksInSegment(
     );
     
     if (cuttingBlock) {
-      // Option A: Break before block (move up)
+      const blockHeight = cuttingBlock.bottom - cuttingBlock.top;
+      
+      // STRICT: If block fits on a single page, NEVER split it - always move to next page
+      if (blockHeight <= sourceHeightPerPage) {
+        // Break before the block - move it entirely to next page
+        const breakBefore = cuttingBlock.top - 8;
+        
+        // Ensure we don't create empty pages
+        const minPageContent = sourceHeightPerPage * 0.10;
+        if (breakBefore - currentPos >= minPageContent) {
+          breaks.push(breakBefore);
+          currentPos = breakBefore;
+          continue;
+        }
+      }
+      
+      // Block is too large to fit on a single page - we have to split it
+      // Use the original logic to minimize waste
       const breakBefore = cuttingBlock.top - 8;
       const wastedSpaceBefore = naturalBreak - breakBefore;
       
-      // Option B: Break after block (move down)
       const breakAfter = cuttingBlock.bottom + 8;
       const extraContentAfter = breakAfter - naturalBreak;
       
-      // Maximum waste allowed (35% of page height) - increased to avoid splitting blocks
       const maxWaste = sourceHeightPerPage * 0.35;
-      
-      // Ensure we don't create pages that are too short (minimum 15% of page)
       const minPageContent = sourceHeightPerPage * 0.15;
-      
-      // Orphan protection: If less than 20% of the block would fit on current page,
-      // move the entire block to next page to avoid orphaned content
-      const blockHeight = cuttingBlock.bottom - cuttingBlock.top;
-      const contentOnCurrentPage = naturalBreak - cuttingBlock.top;
-      const orphanThreshold = blockHeight * 0.20;
-      
-      // Force break before if the block would be orphaned (too little on current page)
-      if (contentOnCurrentPage < orphanThreshold && breakBefore - currentPos >= minPageContent) {
-        breaks.push(breakBefore);
-        currentPos = breakBefore;
-        continue;
-      }
       
       if (wastedSpaceBefore <= extraContentAfter && wastedSpaceBefore < maxWaste) {
         if (breakBefore - currentPos >= minPageContent) {
@@ -98,14 +207,13 @@ function computeAutoBreaksInSegment(
           breaks.push(breakAfter);
           currentPos = breakAfter;
         } else {
-          // Can't fit, move to segment end
           break;
         }
       } else if (extraContentAfter < maxWaste && breakAfter < segmentEnd) {
         breaks.push(breakAfter);
         currentPos = breakAfter;
       } else {
-        // Block is too large, must cut through it
+        // Must cut through oversized block
         breaks.push(naturalBreak);
         currentPos = naturalBreak;
       }
@@ -122,6 +230,9 @@ function computeAutoBreaksInSegment(
  * Finds smart page break positions that avoid cutting through content blocks.
  * Supports both automatic detection and manual section-based breaks.
  * Uses transform-agnostic layout measurements for consistency.
+ * 
+ * LAYOUT-AWARE: For manual breaks, calculates safe Y-position that doesn't
+ * slice through parallel columns in multi-column layouts.
  */
 export function findSmartBreakPositions(
   sourceElement: HTMLElement,
@@ -129,29 +240,42 @@ export function findSmartBreakPositions(
   totalHeight: number,
   manualBreakSections?: string[]
 ): number[] {
-  // Get all unbreakable blocks using layout-based measurements
-  const blockElements = sourceElement.querySelectorAll('[data-break-avoid]');
-  const blocks: ContentBlock[] = [];
+  // Scan DOM for all sections and flow blocks
+  const { sections, flowBlocks } = scanLayoutBlocks(sourceElement);
   
-  blockElements.forEach(el => {
-    const htmlEl = el as HTMLElement;
-    blocks.push(getBlockBounds(htmlEl, sourceElement));
-  });
-
+  // Add section header protection blocks
+  const headerBlocks = createHeaderProtectionBlocks(sourceElement, sections);
+  
+  // Combine all blocks for break avoidance
+  const allBlocks: ContentBlock[] = [...flowBlocks, ...headerBlocks];
+  
   // Sort blocks by top position
-  blocks.sort((a, b) => a.top - b.top);
+  allBlocks.sort((a, b) => a.top - b.top);
 
-  // If manual sections specified, use hybrid mode
+  // If manual sections specified, use hybrid mode with layout-aware breaks
   if (manualBreakSections && manualBreakSections.length > 0) {
-    // Get forced break positions from manual sections (using layout offsets)
+    // Get forced break positions from manual sections
     const forcedBreaks: number[] = [];
     
     manualBreakSections.forEach(sectionId => {
-      const section = sourceElement.querySelector(`[data-section="${sectionId}"]`) as HTMLElement | null;
-      if (section) {
-        const bounds = getBlockBounds(section, sourceElement);
-        forcedBreaks.push(bounds.bottom + 8); // 8px padding after section
-      }
+      const targetSection = sections.find(s => s.id === sectionId);
+      if (!targetSection) return;
+      
+      const baseline = targetSection.bottom;
+      
+      // LAYOUT-AWARE: Find the maximum bottom of all blocks that started above the baseline
+      // This ensures we don't cut through parallel columns
+      let maxBottom = baseline;
+      
+      flowBlocks.forEach(block => {
+        // If this block started above our baseline, include its full extent
+        if (block.top < baseline && block.bottom > maxBottom) {
+          maxBottom = block.bottom;
+        }
+      });
+      
+      // Add padding after the safe position
+      forcedBreaks.push(maxBottom + 8);
     });
     
     // Sort and filter forced breaks
@@ -169,7 +293,7 @@ export function findSmartBreakPositions(
         segmentStart,
         forcedBreak,
         sourceHeightPerPage,
-        blocks
+        allBlocks
       );
       allBreaks.push(...autoBreaks);
       
@@ -184,7 +308,7 @@ export function findSmartBreakPositions(
         segmentStart,
         totalHeight,
         sourceHeightPerPage,
-        blocks
+        allBlocks
       );
       allBreaks.push(...autoBreaks);
     }
@@ -195,8 +319,21 @@ export function findSmartBreakPositions(
       .sort((a, b) => a - b);
   }
 
-  // Pure auto mode - compute breaks for entire document
-  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, blocks);
+  // Pure auto mode - compute breaks for entire document using all blocks
+  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks);
+}
+
+/**
+ * Gets sections in their actual DOM order (for UI ordering).
+ * Returns section IDs based on visual layout position.
+ */
+export function getSectionsInDOMOrder(sourceElement: HTMLElement): SectionId[] {
+  const { sections } = scanLayoutBlocks(sourceElement);
+  
+  // Sort by top position (visual order)
+  sections.sort((a, b) => a.top - b.top);
+  
+  return sections.map(s => s.id);
 }
 
 /**

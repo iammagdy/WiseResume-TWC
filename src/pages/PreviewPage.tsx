@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown } from 'lucide-react';
@@ -15,7 +15,7 @@ import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
 import { ExportOptionsSheet } from '@/components/editor/ExportOptionsSheet';
-import { generatePDF, generateCoverLetterPDF, generateCombinedPDF } from '@/lib/pdfGenerator';
+import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TemplateId, SectionId, ExportType } from '@/types/resume';
@@ -46,9 +46,33 @@ export default function PreviewPage() {
   const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
+  const [domSections, setDomSections] = useState<SectionId[]>([]);
 
-  // Determine which sections exist in resume
+  // Update section ordering based on actual DOM layout after render
+  // This ensures sections are shown in their visual order (important for multi-column templates)
+  useEffect(() => {
+    const updateSectionOrder = () => {
+      if (!resumeRef.current) return;
+      
+      // Small delay to ensure template has rendered
+      requestAnimationFrame(() => {
+        if (resumeRef.current) {
+          const orderedSections = getSectionsInDOMOrder(resumeRef.current);
+          setDomSections(orderedSections);
+        }
+      });
+    };
+
+    updateSectionOrder();
+  }, [currentResume, selectedTemplate]);
+
+  // Use DOM-ordered sections, falling back to data-based ordering if DOM hasn't rendered yet
   const availableSections = useMemo(() => {
+    if (domSections.length > 0) {
+      return domSections;
+    }
+    
+    // Fallback: data-based order (used before first render)
     if (!currentResume) return [];
     const sections: SectionId[] = [];
     if (currentResume.summary) sections.push('summary');
@@ -57,7 +81,7 @@ export default function PreviewPage() {
     if (currentResume.skills.length > 0) sections.push('skills');
     if (currentResume.certifications.length > 0) sections.push('certifications');
     return sections;
-  }, [currentResume]);
+  }, [currentResume, domSections]);
 
   // Get manual break sections for passing to components
   const manualBreakSections = useMemo(() => {
