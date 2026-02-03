@@ -442,15 +442,18 @@ export async function generatePDF(
         height: pdfContentHeight,
       });
 
-      // Draw white rectangle over footer zone for clean cutoff
-      // This masks any content that bleeds into the footer area
-      page.drawRectangle({
-        x: 0,
-        y: 0,
-        width: PAGE_WIDTH,
-        height: FOOTER_RESERVED_PT,
-        color: rgb(1, 1, 1), // White
-      });
+      // Draw white rectangle to cleanly mask ALL unused space below content
+      // This ensures manual page breaks result in clean white space (professional look)
+      const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
+      if (contentBottomY > 0) {
+        page.drawRectangle({
+          x: 0,
+          y: 0,
+          width: PAGE_WIDTH,
+          height: contentBottomY, // Covers everything from bottom up to content edge
+          color: rgb(1, 1, 1), // White
+        });
+      }
     }
 
     // Add page footer (numbers + branding)
