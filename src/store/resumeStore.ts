@@ -5,6 +5,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 interface ResumeState {
   currentResume: ResumeData | null;
+  currentResumeId: string | null;
+  isSaving: boolean;
+  lastSavedAt: Date | null;
   jobDescription: string;
   matchScore: JobMatchScore | null;
   gapAnalysis: GapAnalysis | null;
@@ -16,6 +19,9 @@ interface ResumeState {
   coverLetterJobContext: CoverLetterContext | null;
   
   setCurrentResume: (resume: ResumeData | null) => void;
+  setCurrentResumeId: (id: string | null) => void;
+  setIsSaving: (saving: boolean) => void;
+  setLastSavedAt: (date: Date | null) => void;
   updateResume: (updates: Partial<ResumeData>) => void;
   setJobDescription: (description: string) => void;
   setMatchScore: (score: JobMatchScore | null) => void;
@@ -51,6 +57,9 @@ export const useResumeStore = create<ResumeState>()(
   persist(
     (set, get) => ({
       currentResume: null,
+      currentResumeId: null,
+      isSaving: false,
+      lastSavedAt: null,
       jobDescription: '',
       matchScore: null,
       gapAnalysis: null,
@@ -62,6 +71,9 @@ export const useResumeStore = create<ResumeState>()(
       coverLetterJobContext: null,
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
+      setCurrentResumeId: (id) => set({ currentResumeId: id }),
+      setIsSaving: (saving) => set({ isSaving: saving }),
+      setLastSavedAt: (date) => set({ lastSavedAt: date }),
       
       updateResume: (updates) => set((state) => ({
         currentResume: state.currentResume 
@@ -114,6 +126,9 @@ export const useResumeStore = create<ResumeState>()(
       
       clearAll: () => set({
         currentResume: null,
+        currentResumeId: null,
+        isSaving: false,
+        lastSavedAt: null,
         jobDescription: '',
         matchScore: null,
         gapAnalysis: null,

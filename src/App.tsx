@@ -8,6 +8,7 @@ import UploadPage from "./pages/UploadPage";
 import EditorPage from "./pages/EditorPage";
 import PreviewPage from "./pages/PreviewPage";
 import AuthPage from "./pages/AuthPage";
+import DashboardPage from "./pages/DashboardPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/editor" element={<EditorPage />} />
           <Route path="/preview" element={<PreviewPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

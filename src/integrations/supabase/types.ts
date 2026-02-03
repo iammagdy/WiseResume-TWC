@@ -14,7 +14,90 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      resumes: {
+        Row: {
+          certifications: Json | null
+          contact_info: Json
+          created_at: string | null
+          education: Json | null
+          experience: Json | null
+          id: string
+          is_primary: boolean | null
+          job_match_score: number | null
+          skills: Json | null
+          summary: string | null
+          target_company: string | null
+          target_job_title: string | null
+          template_id: string | null
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          certifications?: Json | null
+          contact_info?: Json
+          created_at?: string | null
+          education?: Json | null
+          experience?: Json | null
+          id?: string
+          is_primary?: boolean | null
+          job_match_score?: number | null
+          skills?: Json | null
+          summary?: string | null
+          target_company?: string | null
+          target_job_title?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          certifications?: Json | null
+          contact_info?: Json
+          created_at?: string | null
+          education?: Json | null
+          experience?: Json | null
+          id?: string
+          is_primary?: boolean | null
+          job_match_score?: number | null
+          skills?: Json | null
+          summary?: string | null
+          target_company?: string | null
+          target_job_title?: string | null
+          template_id?: string | null
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

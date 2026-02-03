@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Target, Wand2, Plus } from 'lucide-react';
+import { Upload, FileText, Target, Wand2, Plus, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { AppLogo } from '@/components/brand/AppLogo';
 import { FeatureCarousel } from '@/components/landing/FeatureCarousel';
@@ -12,6 +12,7 @@ import { ActionCard } from '@/components/home/ActionCard';
 import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
 import { TailorSheet } from '@/components/editor/TailorSheet';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +26,7 @@ import {
 
 const Index = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const { currentResume, matchScore, clearAll, setCurrentResume } = useResumeStore();
   
   const [showJobSheet, setShowJobSheet] = useState(false);
@@ -32,6 +34,24 @@ const Index = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const hasResume = currentResume !== null;
+
+  // Redirect authenticated users to dashboard
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/dashboard');
+    }
+  }, [authLoading, user, navigate]);
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <MobileLayout>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      </MobileLayout>
+    );
+  }
 
   const handleUpload = () => {
     navigate('/upload');
