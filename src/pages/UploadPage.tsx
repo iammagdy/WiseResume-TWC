@@ -4,6 +4,8 @@ import { motion } from 'framer-motion';
 import { Upload, FileText, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
+import { useResumeMutations } from '@/hooks/useResumes';
 import { 
   parseResumePDF, 
   parseResumePDFWithOCR,
@@ -17,7 +19,9 @@ import { toast } from 'sonner';
 
 export default function UploadPage() {
   const navigate = useNavigate();
-  const { setCurrentResume } = useResumeStore();
+  const { user } = useAuth();
+  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const { createResume } = useResumeMutations();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -42,7 +46,26 @@ export default function UploadPage() {
       const resumeData = await parseResumePDFWithOCR(pendingFile, progressCallback);
       const extraction = getExtractionSummary(resumeData);
       
-      setCurrentResume(resumeData);
+      // If user is authenticated, save to cloud
+      if (user) {
+        try {
+          const newResume = await createResume.mutateAsync({
+            resume: resumeData,
+            title: resumeData.contactInfo.fullName || 'Uploaded Resume',
+          });
+          setCurrentResumeId(newResume.id);
+          setCurrentResume({
+            ...resumeData,
+            id: newResume.id,
+          });
+        } catch (error) {
+          console.error('Failed to save to cloud:', error);
+          // Still set locally even if cloud save fails
+          setCurrentResume(resumeData);
+        }
+      } else {
+        setCurrentResume(resumeData);
+      }
       
       toast.warning(
         'Resume extracted via OCR. Please review all sections for accuracy.',
@@ -68,7 +91,7 @@ export default function UploadPage() {
       setPendingFile(null);
       setOcrProgress(null);
     }
-  }, [pendingFile, setCurrentResume, navigate]);
+  }, [pendingFile, user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
 
   const handleOCRCancel = useCallback(() => {
     setShowOCRPrompt(false);
@@ -113,7 +136,26 @@ export default function UploadPage() {
         return;
       }
 
-      setCurrentResume(resumeData);
+      // If user is authenticated, save to cloud
+      if (user) {
+        try {
+          const newResume = await createResume.mutateAsync({
+            resume: resumeData,
+            title: resumeData.contactInfo.fullName || 'Uploaded Resume',
+          });
+          setCurrentResumeId(newResume.id);
+          setCurrentResume({
+            ...resumeData,
+            id: newResume.id,
+          });
+        } catch (error) {
+          console.error('Failed to save to cloud:', error);
+          // Still set locally even if cloud save fails
+          setCurrentResume(resumeData);
+        }
+      } else {
+        setCurrentResume(resumeData);
+      }
 
       if (extraction.isPartial) {
         toast.warning(
@@ -151,7 +193,7 @@ export default function UploadPage() {
     } finally {
       setIsProcessing(false);
     }
-  }, [setCurrentResume, navigate]);
+  }, [user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

@@ -63,13 +63,13 @@ export default function AuthPage() {
         }
 
         toast.success('Welcome back!');
-        navigate('/');
+        navigate('/dashboard');
       } else {
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: `${window.location.origin}/dashboard`,
           },
         });
 

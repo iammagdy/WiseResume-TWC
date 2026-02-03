@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, ChevronRight, Check } from 'lucide-react';
+import { Download, ChevronRight, Check, Cloud, CloudOff } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
+import { useResumeMutations } from '@/hooks/useResumes';
 import { ContactSection } from '@/components/editor/ContactSection';
 import { SummarySection } from '@/components/editor/SummarySection';
 import { ExperienceSection } from '@/components/editor/ExperienceSection';
@@ -20,12 +22,83 @@ import { ProgressBar } from '@/components/editor/ProgressBar';
 
 export default function EditorPage() {
   const navigate = useNavigate();
-  const { currentResume, matchScore, jobDescription } = useResumeStore();
+  const { user } = useAuth();
+  const { 
+    currentResume, 
+    currentResumeId,
+    matchScore, 
+    jobDescription,
+    isSaving,
+    setIsSaving,
+    setLastSavedAt,
+  } = useResumeStore();
+  const { updateResume } = useResumeMutations();
+  
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
   const [showAIHub, setShowAIHub] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
+  
+  // Track last saved version to detect changes
+  const lastSavedResumeRef = useRef<string>('');
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-save for authenticated users
+  const saveToCloud = useCallback(async () => {
+    if (!user || !currentResumeId || !currentResume) return;
+    
+    const currentResumeJson = JSON.stringify(currentResume);
+    if (currentResumeJson === lastSavedResumeRef.current) return;
+    
+    setIsSaving(true);
+    try {
+      await updateResume.mutateAsync({
+        resumeId: currentResumeId,
+        updates: currentResume,
+      });
+      lastSavedResumeRef.current = currentResumeJson;
+      setLastSavedAt(new Date());
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  }, [user, currentResumeId, currentResume, updateResume, setIsSaving, setLastSavedAt]);
+
+  // Debounced auto-save effect
+  useEffect(() => {
+    if (!user || !currentResumeId || !currentResume) return;
+    
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    // Set new timeout for debounced save
+    saveTimeoutRef.current = setTimeout(() => {
+      saveToCloud();
+    }, 2000); // 2 second debounce
+    
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [currentResume, user, currentResumeId, saveToCloud]);
+
+  // Save on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      // Trigger immediate save on unmount
+      if (user && currentResumeId && currentResume) {
+        saveToCloud();
+      }
+    };
+  }, []);
 
   if (!currentResume) {
     navigate('/');
@@ -46,12 +119,43 @@ export default function EditorPage() {
     setShowTailor(true);
   };
 
+  const handleBack = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
+    }
+  };
+
   return (
-    <MobileLayout showHeader headerTitle="Edit Resume" onBack={() => navigate('/')}>
+    <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack}>
       <div className="flex-1 flex flex-col">
-        {/* Progress Bar */}
+        {/* Progress Bar with Save Status */}
         <div className="px-4 py-3 border-b border-border">
-          <ProgressBar resume={currentResume} />
+          <div className="flex items-center justify-between mb-2">
+            <ProgressBar resume={currentResume} />
+            {user && currentResumeId && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+                {isSaving ? (
+                  <>
+                    <Cloud className="w-3.5 h-3.5 animate-pulse" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Cloud className="w-3.5 h-3.5 text-success" />
+                    <span>Saved</span>
+                  </>
+                )}
+              </div>
+            )}
+            {user && !currentResumeId && (
+              <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+                <CloudOff className="w-3.5 h-3.5" />
+                <span>Local</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Editor Tabs */}
