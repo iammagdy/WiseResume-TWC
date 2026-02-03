@@ -441,6 +441,16 @@ export async function generatePDF(
         width: PAGE_WIDTH,
         height: pdfContentHeight,
       });
+
+      // Draw white rectangle over footer zone for clean cutoff
+      // This masks any content that bleeds into the footer area
+      page.drawRectangle({
+        x: 0,
+        y: 0,
+        width: PAGE_WIDTH,
+        height: FOOTER_RESERVED_PT,
+        color: rgb(1, 1, 1), // White
+      });
     }
 
     // Add page footer (numbers + branding)
