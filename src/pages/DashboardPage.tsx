@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, LogOut } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
@@ -10,11 +10,13 @@ import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { CreateResumeDialog } from '@/components/dashboard/CreateResumeDialog';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
+import { OnboardingCarousel } from '@/components/onboarding/OnboardingCarousel';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +39,29 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [profileLoaded, setProfileLoaded] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check onboarding status when user is authenticated
+  useEffect(() => {
+    const checkOnboardingStatus = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('onboarding_completed')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (data && !data.onboarding_completed) {
+          setShowOnboarding(true);
+        }
+        setProfileLoaded(true);
+      }
+    };
+    
+    checkOnboardingStatus();
+  }, [user]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -45,6 +69,17 @@ export default function DashboardPage() {
       navigate('/auth');
     }
   }, [authLoading, user, navigate]);
+
+  const handleOnboardingComplete = async () => {
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ onboarding_completed: true })
+        .eq('user_id', user.id);
+    }
+    haptics.success();
+    setShowOnboarding(false);
+  };
 
   const handleEdit = (resumeId: string) => {
     const resume = resumes?.find(r => r.id === resumeId);
@@ -119,7 +154,26 @@ export default function DashboardPage() {
   const isLoading = authLoading || resumesLoading;
   const hasResumes = filteredResumes && filteredResumes.length > 0;
 
-  if (authLoading) {
+  // Show onboarding for first-time users
+  if (showOnboarding) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50"
+        >
+          <OnboardingCarousel
+            onComplete={handleOnboardingComplete}
+            onSkip={handleOnboardingComplete}
+          />
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
+
+  if (authLoading || !profileLoaded) {
     return (
       <MobileLayout>
         <div className="flex-1 flex flex-col">
