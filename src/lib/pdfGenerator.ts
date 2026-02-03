@@ -265,11 +265,11 @@ export async function generatePDF(
     
     console.log('PDF Generator: Capturing element', { sourceWidth, totalHeight, rect });
     
-    // Calculate scale factor to fit to PDF page width
-    const scaleFactor = PAGE_WIDTH / sourceWidth;
+    // GLOBAL scale factor - used consistently for ALL pages
+    const globalScaleFactor = PAGE_WIDTH / sourceWidth;
     
     // How much source height fits on one PDF page
-    const sourceHeightPerPage = PAGE_HEIGHT / scaleFactor;
+    const sourceHeightPerPage = PAGE_HEIGHT / globalScaleFactor;
 
     // Calculate smart break positions that avoid cutting content
     const smartBreaks = findSmartBreakPositions(
@@ -281,7 +281,7 @@ export async function generatePDF(
     const numPages = smartBreaks.length + 1;
 
     console.log('PDF Generator: Smart pagination', { 
-      scaleFactor, 
+      globalScaleFactor, 
       sourceHeightPerPage, 
       numPages,
       totalHeight,
@@ -305,7 +305,6 @@ export async function generatePDF(
       scrollY: 0,
       windowWidth: sourceWidth,
       windowHeight: totalHeight,
-      // Note: Don't pass x, y options - they introduce viewport offset issues
     });
 
     console.log('PDF Generator: Canvas captured', { width: canvas.width, height: canvas.height });
@@ -314,16 +313,20 @@ export async function generatePDF(
       throw new Error('Canvas capture resulted in empty image');
     }
 
-    // Process pages using smart break positions
+    // Process pages using smart break positions with CONSISTENT scaling
     for (let pageNum = 0; pageNum < numPages; pageNum++) {
       // Calculate page boundaries using smart breaks
       const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
       const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
       const pageContentHeight = pageEnd - pageStart;
 
+      // Calculate the scaled height in PDF points using GLOBAL scale factor
+      const pdfContentHeight = pageContentHeight * globalScaleFactor;
+
+      // Create page canvas at the exact size needed for this slice
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = PAGE_WIDTH * SCALE;
-      pageCanvas.height = PAGE_HEIGHT * SCALE;
+      pageCanvas.height = Math.ceil(pdfContentHeight * SCALE);
       const ctx = pageCanvas.getContext('2d');
       
       if (!ctx) continue;
@@ -332,21 +335,11 @@ export async function generatePDF(
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
 
-      // Calculate source slice from captured canvas (in canvas pixels)
+      // Source slice from captured canvas (in canvas pixels)
       const sourceY = pageStart * SCALE;
-      const sliceHeight = pageContentHeight * SCALE;
+      const sourceSliceHeight = pageContentHeight * SCALE;
 
-      if (sliceHeight <= 0) continue;
-
-      // FIX: Scale the slice uniformly to fit PDF page width
-      // Calculate the scale needed to fit source width to page width
-      const sourceSliceWidth = canvas.width;
-      const destSliceWidth = pageCanvas.width;
-      const uniformScale = destSliceWidth / sourceSliceWidth;
-      const destSliceHeight = sliceHeight * uniformScale;
-
-      // Calculate PDF content height for proper positioning
-      const pdfContentHeight = destSliceHeight / SCALE;
+      if (sourceSliceHeight <= 0) continue;
 
       console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
         pageStart,
@@ -354,17 +347,19 @@ export async function generatePDF(
         pageContentHeight,
         pdfContentHeight,
         sourceY,
-        sliceHeight,
-        uniformScale
+        sourceSliceHeight,
+        globalScaleFactor
       });
 
-      // Draw maintaining aspect ratio (uniform scaling)
+      // Draw the slice - scaled uniformly by global factor
+      // Source: full width, slice height from captured canvas
+      // Dest: full page canvas (already sized to match scaled dimensions)
       ctx.drawImage(
         canvas,
-        0, sourceY,                        // Source x, y (from captured canvas)
-        sourceSliceWidth, sliceHeight,     // Source width, height
-        0, 0,                              // Dest x, y (top-left of page)
-        destSliceWidth, destSliceHeight    // Dest width, height (scaled uniformly)
+        0, sourceY,                              // Source x, y
+        canvas.width, sourceSliceHeight,         // Source width, height
+        0, 0,                                    // Dest x, y
+        pageCanvas.width, pageCanvas.height      // Dest width, height (maintains aspect ratio)
       );
 
       // Convert page canvas to PNG
@@ -375,6 +370,7 @@ export async function generatePDF(
       const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
       
       // In PDF, y=0 is BOTTOM. Position image at TOP of page.
+      // The image is already at correct scale, just position it
       page.drawImage(pngImage, {
         x: 0,
         y: PAGE_HEIGHT - pdfContentHeight,
