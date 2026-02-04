@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search } from 'lucide-react';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AppLogo } from '@/components/brand/AppLogo';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
+import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
 import { CreateResumeDialog } from '@/components/dashboard/CreateResumeDialog';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
@@ -37,6 +38,7 @@ export default function DashboardPage() {
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
@@ -135,7 +137,6 @@ export default function DashboardPage() {
     }
   };
 
-
   // Filter resumes by search query
   const filteredResumes = resumes?.filter(resume => {
     if (!searchQuery) return true;
@@ -147,8 +148,20 @@ export default function DashboardPage() {
     );
   });
 
+  // Organize resumes into hierarchy
+  const resumeHierarchy = useMemo(() => {
+    if (!filteredResumes) return null;
+    return organizeResumeHierarchy(filteredResumes);
+  }, [filteredResumes]);
+
   const isLoading = authLoading || resumesLoading;
   const hasResumes = filteredResumes && filteredResumes.length > 0;
+
+  // Handle creating a tailored version
+  const handleCreateTailored = (parentId: string) => {
+    setCreateTailoredParentId(parentId);
+    setShowCreateDialog(true);
+  };
 
   // Show onboarding for first-time users
   if (showOnboarding) {
@@ -260,7 +273,7 @@ export default function DashboardPage() {
         ) : (
           <div className="flex-1 overflow-y-auto px-4 pb-safe">
             <motion.div 
-              className="space-y-3 pb-4"
+              className="space-y-4 pb-4"
               initial="hidden"
               animate="visible"
               variants={{
@@ -271,16 +284,54 @@ export default function DashboardPage() {
                 },
               }}
             >
-              {filteredResumes.map((resume, index) => (
-                <ResumeListCard
-                  key={resume.id}
-                  resume={resume}
-                  onEdit={handleEdit}
-                  onDuplicate={handleDuplicate}
-                  onDelete={handleDelete}
-                  delay={index * 0.05}
-                />
-              ))}
+              {resumeHierarchy && (
+                <>
+                  {/* Render master resumes with their tailored versions */}
+                  {resumeHierarchy.masterResumes.map((masterResume, index) => {
+                    const tailoredVersions = resumeHierarchy.tailoredByParent[masterResume.id] || [];
+                    
+                    if (tailoredVersions.length > 0) {
+                      return (
+                        <ResumeGroup
+                          key={masterResume.id}
+                          masterResume={masterResume}
+                          tailoredVersions={tailoredVersions}
+                          onEdit={handleEdit}
+                          onDuplicate={handleDuplicate}
+                          onDelete={handleDelete}
+                          onCreateTailored={handleCreateTailored}
+                          delay={index * 0.05}
+                        />
+                      );
+                    }
+                    
+                    // Single resume without tailored versions
+                    return (
+                      <ResumeListCard
+                        key={masterResume.id}
+                        resume={masterResume}
+                        onEdit={handleEdit}
+                        onDuplicate={handleDuplicate}
+                        onDelete={handleDelete}
+                        delay={index * 0.05}
+                      />
+                    );
+                  })}
+                  
+                  {/* Render orphaned tailored resumes (parent was deleted) */}
+                  {resumeHierarchy.orphanTailored.map((resume, index) => (
+                    <ResumeListCard
+                      key={resume.id}
+                      resume={resume}
+                      onEdit={handleEdit}
+                      onDuplicate={handleDuplicate}
+                      onDelete={handleDelete}
+                      delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
+                      showTailoredBadge
+                    />
+                  ))}
+                </>
+              )}
             </motion.div>
           </div>
         )}
@@ -289,8 +340,12 @@ export default function DashboardPage() {
       {/* Create Resume Dialog */}
       <CreateResumeDialog
         open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (!open) setCreateTailoredParentId(null);
+        }}
         existingResumes={resumes || []}
+        parentResumeId={createTailoredParentId}
       />
 
       {/* Delete Confirmation Dialog */}

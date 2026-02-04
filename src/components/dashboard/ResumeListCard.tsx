@@ -8,7 +8,9 @@ import {
   Star,
   FileText,
   Target,
-  Clock
+  Clock,
+  GitBranch,
+  Crown
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -30,6 +32,8 @@ interface ResumeListCardProps {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   delay?: number;
+  showMasterBadge?: boolean;
+  showTailoredBadge?: boolean;
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -40,6 +44,8 @@ export function ResumeListCard({
   onDuplicate,
   onDelete,
   delay = 0,
+  showMasterBadge = false,
+  showTailoredBadge = false,
 }: ResumeListCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -179,13 +185,25 @@ export function ResumeListCard({
             {/* Content */}
             <div className="flex-1 min-w-0">
               {/* Title Row */}
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 {resume.is_primary && (
                   <Star className="w-4 h-4 text-warning fill-warning flex-shrink-0" />
                 )}
                 <h3 className="font-semibold text-foreground truncate">
                   {resume.title}
                 </h3>
+                {showMasterBadge && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary">
+                    <Crown className="w-3 h-3" />
+                    Master
+                  </Badge>
+                )}
+                {showTailoredBadge && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+                    <GitBranch className="w-3 h-3" />
+                    Tailored
+                  </Badge>
+                )}
               </div>
 
               {/* Target Job */}
