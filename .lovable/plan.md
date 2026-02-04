@@ -1,277 +1,369 @@
 
-# Add Settings Tab to Bottom Navigation
+
+# Add Profile Editing Feature
 
 ## Overview
 
-Add a fourth tab (Settings) to the bottom navigation bar and create a dedicated Settings page where users can manage their preferences and account details. This provides a centralized location for all user settings, following the native mobile app pattern.
+Add the ability for users to edit their display name and avatar directly from the Settings page. The profile data will be stored in the existing `profiles` table which already has `full_name` and `avatar_url` columns.
 
 ---
 
-## Current State
+## Design Approach
 
-The `BottomTabBar` component already imports the `Settings` icon from lucide-react but doesn't use it. Currently there are 3 tabs:
-- Home (Dashboard)
-- Editor
-- New (Upload)
+Create a bottom sheet that slides up when the user taps on their profile card in the Settings page. This follows the app's mobile-first design pattern and provides a focused editing experience.
+
+**User Flow:**
+1. User taps on profile card in Settings
+2. Bottom sheet slides up with edit form
+3. User can update display name and/or select a new avatar
+4. Changes are saved to the database and immediately reflected in the UI
 
 ---
 
 ## Implementation Strategy
 
-1. Add a Settings tab to `BottomTabBar`
-2. Create a new `SettingsPage` component
-3. Add the route to `App.tsx`
-4. Design a mobile-friendly settings interface with:
-   - User profile section (email, avatar)
-   - Theme preferences
-   - Account actions (sign out, reset onboarding)
+### Avatar Handling
+
+For avatar management, we have two approaches:
+
+**Option A: Avatar URL Input** (Simpler)
+- User pastes a URL to their avatar image
+- No storage bucket needed
+- Works with any image URL (Gravatar, social media, etc.)
+
+**Option B: Avatar Upload** (More Complete)
+- Create a storage bucket for avatars
+- User uploads image from device
+- Image stored in backend storage
+- Returns a public URL
+
+**Recommendation:** Start with Option A (URL input) for simplicity, with the ability to add upload later. This avoids the need for storage bucket setup.
+
+---
+
+## Database
+
+The `profiles` table already has the necessary columns:
+- `full_name` (text, nullable)
+- `avatar_url` (text, nullable)
+
+No database changes required!
 
 ---
 
 ## File Changes
 
-### 1. Update `src/components/layout/BottomTabBar.tsx`
+### 1. Create `src/components/settings/EditProfileSheet.tsx`
 
-Add Settings as the fourth tab:
-
-```typescript
-const tabs: TabItem[] = [
-  { 
-    path: '/dashboard', 
-    icon: Home, 
-    label: 'Home',
-    matchPaths: ['/dashboard']
-  },
-  { 
-    path: '/editor', 
-    icon: FileText, 
-    label: 'Editor',
-    matchPaths: ['/editor', '/preview']
-  },
-  { 
-    path: '/upload', 
-    icon: Sparkles, 
-    label: 'New',
-    matchPaths: ['/upload']
-  },
-  { 
-    path: '/settings',   // NEW
-    icon: Settings, 
-    label: 'Settings',
-    matchPaths: ['/settings']
-  },
-];
-```
-
-### 2. Create `src/pages/SettingsPage.tsx`
-
-A dedicated settings page with:
-
-**Sections:**
-- **Profile Card**: User email and avatar (from auth)
-- **Appearance**: Theme toggle using the existing `ThemeToggle` component
-- **Account**: Sign out button, reset onboarding option
-- **About**: App version, help links
-
-**Design:**
-- Uses `MobileLayout` with `showBottomNav`
-- Grouped settings with section headers
-- Touch-friendly buttons and toggles
-- Consistent with app's mobile-first design language
-
-```text
-Layout Preview:
-+----------------------------------+
-|         Settings                 |  <- Header
-+----------------------------------+
-|  [Avatar]  user@email.com        |  <- Profile card
-+----------------------------------+
-|  APPEARANCE                      |
-|  [Light] [Dark] [System]         |  <- ThemeToggle
-+----------------------------------+
-|  ACCOUNT                         |
-|  > Reset Onboarding              |
-|  > Sign Out                      |
-+----------------------------------+
-|  ABOUT                           |
-|  WiseResume v1.0                 |
-+----------------------------------+
-|  [Home] [Editor] [New] [Settings]|
-+----------------------------------+
-```
-
-### 3. Update `src/App.tsx`
-
-Add the settings route:
+A bottom sheet component for editing profile details:
 
 ```typescript
-import SettingsPage from "./pages/SettingsPage";
-
-// In Routes:
-<Route path="/settings" element={<SettingsPage />} />
+interface EditProfileSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  profile: {
+    fullName: string | null;
+    avatarUrl: string | null;
+  };
+  userId: string;
+  onUpdate: (profile: { fullName: string | null; avatarUrl: string | null }) => void;
+}
 ```
 
-### 4. Update `src/pages/DashboardPage.tsx`
+**Features:**
+- Display name input field
+- Avatar URL input field with preview
+- Real-time avatar preview when URL changes
+- Save and Cancel buttons
+- Loading state during save
+- Validation for image URLs
 
-Remove the Sign Out button from the header since it's now in Settings:
-- Remove the `LogOut` import
-- Remove the Sign Out button from the header
-- Keep only the `ThemeDropdown` in the header (for quick access)
+### 2. Create `src/hooks/useProfile.ts`
+
+A custom hook for fetching and updating profile data:
+
+```typescript
+export function useProfile(userId: string | undefined) {
+  // Fetch profile from database
+  // Return profile data, loading state, and update function
+}
+```
+
+**Features:**
+- Fetches profile data for the current user
+- Provides an `updateProfile` mutation function
+- Handles optimistic updates
+- Returns loading and error states
+
+### 3. Update `src/pages/SettingsPage.tsx`
+
+Integrate the profile editing feature:
+- Import `EditProfileSheet` and `useProfile` hook
+- Fetch profile data on mount
+- Display `full_name` if available (instead of just email)
+- Make the profile card tappable to open the edit sheet
+- Show edit indicator (chevron or pencil icon)
+- Refresh profile data after updates
 
 ---
 
-## SettingsPage Component Structure
+## Component Design
+
+### Profile Card (Updated)
+
+```text
+┌──────────────────────────────────────────┐
+│  [Avatar]   John Doe                     │
+│             john@email.com         [>]   │
+│             Tap to edit profile          │
+└──────────────────────────────────────────┘
+```
+
+### Edit Profile Sheet
+
+```text
+┌──────────────────────────────────────────┐
+│            ━━━━                          │  <- Drag handle
+│                                          │
+│         [Avatar Preview]                 │
+│              64x64                       │
+│                                          │
+│  Display Name                            │
+│  ┌────────────────────────────────────┐  │
+│  │ John Doe                           │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│  Avatar URL (optional)                   │
+│  ┌────────────────────────────────────┐  │
+│  │ https://example.com/avatar.jpg     │  │
+│  └────────────────────────────────────┘  │
+│  Paste a link to your profile picture    │
+│                                          │
+│  ┌─────────────┐  ┌─────────────────────┐│
+│  │   Cancel    │  │    Save Changes     ││
+│  └─────────────┘  └─────────────────────┘│
+└──────────────────────────────────────────┘
+```
+
+---
+
+## Technical Implementation
+
+### useProfile Hook
 
 ```typescript
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { User, LogOut, RotateCcw, Info } from 'lucide-react';
-import { MobileLayout } from '@/components/layout/MobileLayout';
-import { ThemeToggle } from '@/components/settings/ThemeToggle';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/hooks/useAuth';
-import { haptics } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export default function SettingsPage() {
-  const navigate = useNavigate();
-  const { user, loading, signOut } = useAuth();
+interface Profile {
+  fullName: string | null;
+  avatarUrl: string | null;
+}
 
-  // Redirect if not authenticated
+export function useProfile(userId: string | undefined) {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
+    if (!userId) {
+      setLoading(false);
+      return;
     }
-  }, [loading, user, navigate]);
 
-  const handleSignOut = async () => {
-    haptics.medium();
-    await signOut();
-    navigate('/');
-  };
-
-  const handleResetOnboarding = async () => {
-    if (user) {
-      await supabase
+    const fetchProfile = async () => {
+      const { data, error } = await supabase
         .from('profiles')
-        .update({ onboarding_completed: false })
-        .eq('user_id', user.id);
+        .select('full_name, avatar_url')
+        .eq('user_id', userId)
+        .single();
+
+      if (data) {
+        setProfile({
+          fullName: data.full_name,
+          avatarUrl: data.avatar_url,
+        });
+      }
+      setLoading(false);
+    };
+
+    fetchProfile();
+  }, [userId]);
+
+  const updateProfile = async (updates: Partial<Profile>) => {
+    if (!userId) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        full_name: updates.fullName,
+        avatar_url: updates.avatarUrl,
+      })
+      .eq('user_id', userId);
+
+    if (error) {
+      toast.error('Failed to update profile');
+      throw error;
+    }
+
+    setProfile((prev) => prev ? { ...prev, ...updates } : null);
+    toast.success('Profile updated successfully');
+  };
+
+  return { profile, loading, updateProfile };
+}
+```
+
+### EditProfileSheet Component
+
+```typescript
+import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { User, Camera } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { haptics } from '@/lib/haptics';
+
+interface EditProfileSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  profile: {
+    fullName: string | null;
+    avatarUrl: string | null;
+  } | null;
+  onSave: (data: { fullName: string | null; avatarUrl: string | null }) => Promise<void>;
+}
+
+export function EditProfileSheet({
+  open,
+  onOpenChange,
+  profile,
+  onSave,
+}: EditProfileSheetProps) {
+  const [fullName, setFullName] = useState(profile?.fullName || '');
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync form state when profile changes
+  useEffect(() => {
+    if (profile) {
+      setFullName(profile.fullName || '');
+      setAvatarUrl(profile.avatarUrl || '');
+    }
+  }, [profile]);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave({
+        fullName: fullName.trim() || null,
+        avatarUrl: avatarUrl.trim() || null,
+      });
       haptics.success();
-      toast.success('Onboarding reset. Refresh to see it again.');
+      onOpenChange(false);
+    } catch (error) {
+      haptics.error();
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Get user initials for avatar fallback
   const getInitials = () => {
-    if (user?.email) {
-      return user.email.charAt(0).toUpperCase();
+    if (fullName) {
+      return fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
     }
     return 'U';
   };
 
-  if (loading) {
-    return <MobileLayout showBottomNav>Loading...</MobileLayout>;
-  }
-
   return (
-    <MobileLayout showBottomNav>
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="pt-safe pt-4 pb-3 px-4 border-b border-border">
-          <h1 className="text-xl font-bold">Settings</h1>
-        </header>
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="h-auto max-h-[90vh]">
+        <SheetHeader>
+          <SheetTitle>Edit Profile</SheetTitle>
+        </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Profile Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border"
-          >
-            <Avatar className="h-14 w-14">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {getInitials()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{user?.email}</p>
-              <p className="text-sm text-muted-foreground">Account</p>
-            </div>
-          </motion.div>
-
-          {/* Appearance Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-          >
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              APPEARANCE
-            </h2>
-            <div className="p-4 rounded-xl bg-card border border-border">
-              <ThemeToggle className="w-full justify-center" />
-            </div>
-          </motion.div>
-
-          {/* Account Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              ACCOUNT
-            </h2>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
-              <Button
-                variant="ghost"
-                className="w-full justify-start h-12 px-4 rounded-none"
-                onClick={handleResetOnboarding}
-              >
-                <RotateCcw className="w-4 h-4 mr-3" />
-                Reset Onboarding
-              </Button>
-              <Separator />
-              <Button
-                variant="ghost"
-                className="w-full justify-start h-12 px-4 rounded-none text-destructive hover:text-destructive"
-                onClick={handleSignOut}
-              >
-                <LogOut className="w-4 h-4 mr-3" />
-                Sign Out
-              </Button>
-            </div>
-          </motion.div>
-
-          {/* About Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              ABOUT
-            </h2>
-            <div className="p-4 rounded-xl bg-card border border-border">
-              <div className="flex items-center gap-3">
-                <Info className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">
-                  WiseResume v1.0.0
-                </span>
+        <div className="space-y-6 py-6">
+          {/* Avatar Preview */}
+          <div className="flex justify-center">
+            <div className="relative">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={avatarUrl || undefined} />
+                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-muted flex items-center justify-center border-2 border-background">
+                <Camera className="w-3.5 h-3.5 text-muted-foreground" />
               </div>
             </div>
-          </motion.div>
+          </div>
+
+          {/* Display Name */}
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Display Name</Label>
+            <Input
+              id="fullName"
+              placeholder="Enter your name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
+
+          {/* Avatar URL */}
+          <div className="space-y-2">
+            <Label htmlFor="avatarUrl">Avatar URL</Label>
+            <Input
+              id="avatarUrl"
+              placeholder="https://example.com/avatar.jpg"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Paste a link to your profile picture (optional)
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex-1 gradient-primary"
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
         </div>
-      </div>
-    </MobileLayout>
+      </SheetContent>
+    </Sheet>
   );
 }
 ```
+
+### Updated SettingsPage Integration
+
+Key changes:
+1. Import and use `useProfile` hook
+2. Add state for edit sheet visibility
+3. Make profile card tappable
+4. Display full name when available
+5. Show chevron icon to indicate tapability
+6. Pass profile data and save handler to EditProfileSheet
 
 ---
 
@@ -279,43 +371,42 @@ export default function SettingsPage() {
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| `src/components/layout/BottomTabBar.tsx` | UPDATE | Add Settings tab to navigation |
-| `src/pages/SettingsPage.tsx` | NEW | Create settings page with profile, theme, and account sections |
-| `src/App.tsx` | UPDATE | Add /settings route |
-| `src/pages/DashboardPage.tsx` | UPDATE | Remove Sign Out button from header (moved to Settings) |
+| `src/hooks/useProfile.ts` | NEW | Hook for fetching and updating profile data |
+| `src/components/settings/EditProfileSheet.tsx` | NEW | Bottom sheet for editing profile |
+| `src/pages/SettingsPage.tsx` | UPDATE | Integrate profile editing, make card tappable |
 
 ---
 
 ## User Experience
 
-### Navigation
-- 4 tabs: Home, Editor, New, Settings
-- Settings icon appears as the rightmost tab
-- Active state indicator works consistently with other tabs
-
-### Settings Page Features
-1. **Profile Card**: Shows user email with avatar (or initial fallback)
-2. **Theme Toggle**: Full `ThemeToggle` component with Light/Dark/System options
-3. **Reset Onboarding**: Allows users to replay the welcome carousel
-4. **Sign Out**: Clear account action with destructive styling
-5. **About**: App version information
-
-### Animations
-- Staggered entrance animations for each section
-- Consistent with app's motion design language
-- Haptic feedback on all interactive elements
+1. User navigates to Settings tab
+2. Profile card shows current avatar and name (or email if no name set)
+3. Chevron icon indicates the card is tappable
+4. Tapping opens a smooth bottom sheet
+5. User can:
+   - Update their display name
+   - Paste an avatar URL with live preview
+6. Save button updates the database
+7. Success toast confirms the change
+8. Profile card immediately reflects the new data
+9. Haptic feedback throughout for native feel
 
 ---
 
-## Design Considerations
+## Validation & Edge Cases
 
-### Why move Sign Out to Settings?
-- Cleaner dashboard header
-- Groups all account-related actions together
-- Follows iOS/Android native app patterns
-- Less visual clutter on main screen
+- Empty display name: Allowed (will fall back to email display)
+- Invalid avatar URL: Shows fallback initials
+- Network error: Toast error message, sheet stays open
+- Long names: Truncated with ellipsis in display
+- No profile record: Auto-created on signup via database trigger
 
-### Keep ThemeDropdown in Dashboard header?
-- Yes - provides quick access for frequent theme switchers
-- Settings page has the full ThemeToggle for detailed selection
-- Redundancy is acceptable for convenience
+---
+
+## Future Enhancements (Not in Scope)
+
+- Direct avatar upload to storage bucket
+- Image cropping/resizing before upload
+- Avatar selection from preset options
+- Social media avatar import (Google, etc.)
+
