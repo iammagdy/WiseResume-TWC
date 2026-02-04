@@ -2,9 +2,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
 import { User, Mail, Phone, MapPin, Linkedin, Globe, Wand2, CheckCircle } from 'lucide-react';
-import { AIActionBar, AIAction } from './ai/AIActionBar';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { toast } from 'sonner';
+import { InlineAIButton } from './InlineAIButton';
 
 export function ContactSection() {
   const { currentResume, updateResume } = useResumeStore();
@@ -41,7 +41,6 @@ export function ContactSection() {
         linkedin?: string;
         portfolio?: string;
       };
-      // Apply ALL contact fields that were improved
       if (improved.fullName) handleChange('fullName', improved.fullName);
       if (improved.email) handleChange('email', improved.email);
       if (improved.phone) handleChange('phone', improved.phone);
@@ -54,14 +53,16 @@ export function ContactSection() {
     }
   };
 
-  const primaryActions: AIAction[] = [
-    { id: 'improve', label: 'Format & Validate', icon: <CheckCircle className="w-3 h-3" /> },
-    { id: 'generate', label: 'Suggest Links', icon: <Wand2 className="w-3 h-3" /> },
-  ];
-
   return (
     <div className="space-y-4">
-      <h3 className="font-display font-semibold text-lg mb-4">Contact Information</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-semibold text-lg">Contact Information</h3>
+        <InlineAIButton
+          section="contact"
+          onAction={handleAIAction}
+          isLoading={isEnhancing}
+        />
+      </div>
       
       <div className="space-y-4">
         <div>
@@ -156,14 +157,6 @@ export function ContactSection() {
           />
         </div>
       </div>
-
-      {/* AI Action Bar */}
-      <AIActionBar
-        primaryActions={primaryActions}
-        onAction={handleAIAction}
-        isLoading={isEnhancing}
-        loadingAction={currentAction}
-      />
     </div>
   );
 }

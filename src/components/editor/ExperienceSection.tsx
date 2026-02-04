@@ -9,9 +9,11 @@ import { Switch } from '@/components/ui/switch';
 import { useResumeStore } from '@/store/resumeStore';
 import { Experience } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
-import { AIActionBar, AIAction } from './ai/AIActionBar';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
+import { InlineAIButton } from './InlineAIButton';
+import { AIContextualNudge } from './AIContextualNudge';
+import { useResumeNudges } from '@/hooks/useResumeNudges';
 
 export function ExperienceSection() {
   const { currentResume, updateResume } = useResumeStore();
@@ -30,7 +32,6 @@ export function ExperienceSection() {
           position?: string;
           company?: string;
         };
-        // Apply ALL experience fields that were improved
         updateExperience(enhancingExpId, {
           ...(improved.description && { description: improved.description }),
           ...(improved.achievements && { achievements: improved.achievements }),
@@ -43,7 +44,13 @@ export function ExperienceSection() {
     },
   });
 
+  const { getNudgeForSection, dismissNudge } = useResumeNudges({
+    resume: currentResume,
+  });
+
   if (!currentResume) return null;
+
+  const nudge = getNudgeForSection('experience');
 
   const addExperience = () => {
     const newExp: Experience = {
@@ -91,27 +98,54 @@ export function ExperienceSection() {
     }
   };
 
-  const primaryActions: AIAction[] = [
-    { id: 'improve', label: 'Improve', icon: <Wand2 className="w-3 h-3" /> },
-    { id: 'add_metrics', label: 'Add Metrics', icon: <BarChart3 className="w-3 h-3" /> },
-    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-3 h-3" /> },
-  ];
+  const handleHeaderAction = async (actionId: string) => {
+    // Handle action for the first experience or show add prompt
+    if (currentResume.experience.length > 0) {
+      const firstExp = currentResume.experience[0];
+      await handleAIAction(actionId, firstExp);
+    } else {
+      addExperience();
+    }
+  };
 
-  const moreActions: AIAction[] = [
-    { id: 'generate_bullets', label: 'Generate Bullets' },
-    { id: 'expand', label: 'Expand' },
-    { id: 'shorten', label: 'Shorten' },
-  ];
+  const handleNudgeAction = () => {
+    if (nudge) {
+      if (currentResume.experience.length === 0) {
+        addExperience();
+      } else {
+        const firstExp = currentResume.experience[0];
+        handleAIAction(nudge.action, firstExp);
+      }
+      dismissNudge(nudge.trigger);
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-display font-semibold text-lg">Work Experience</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-display font-semibold text-lg">Work Experience</h3>
+          <InlineAIButton
+            section="experience"
+            onAction={handleHeaderAction}
+            isLoading={isEnhancing}
+            disabled={currentResume.experience.length === 0}
+          />
+        </div>
         <Button variant="outline" size="sm" onClick={addExperience} className="gap-2">
           <Plus className="w-4 h-4" />
           Add
         </Button>
       </div>
+
+      {/* Contextual Nudge */}
+      <AIContextualNudge
+        show={!!nudge}
+        message={nudge?.message || ''}
+        actionLabel={nudge?.actionLabel || ''}
+        onAction={handleNudgeAction}
+        onDismiss={() => nudge && dismissNudge(nudge.trigger)}
+      />
 
       <AnimatePresence>
         {currentResume.experience.length === 0 ? (
@@ -233,7 +267,15 @@ export function ExperienceSection() {
                         </div>
 
                         <div>
-                          <Label className="text-sm mb-2 block">Description</Label>
+                          <div className="flex items-center justify-between mb-2">
+                            <Label className="text-sm">Description</Label>
+                            <InlineAIButton
+                              section="experience"
+                              onAction={(actionId) => handleAIAction(actionId, exp)}
+                              isLoading={isEnhancing && enhancingExpId === exp.id}
+                              disabled={!exp.description && !exp.position}
+                            />
+                          </div>
                           <Textarea
                             value={exp.description}
                             onChange={(e) => updateExperience(exp.id, { description: e.target.value })}
@@ -241,16 +283,6 @@ export function ExperienceSection() {
                             className="min-h-[120px] resize-none text-base"
                           />
                         </div>
-
-                        {/* AI Action Bar for this experience */}
-                        <AIActionBar
-                          primaryActions={primaryActions}
-                          moreActions={moreActions}
-                          onAction={(actionId) => handleAIAction(actionId, exp)}
-                          isLoading={isEnhancing && enhancingExpId === exp.id}
-                          loadingAction={currentAction}
-                          disabled={!exp.description && !exp.position}
-                        />
 
                         <Button
                           variant="destructive"

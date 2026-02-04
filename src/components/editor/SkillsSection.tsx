@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
-import { AIActionBar, AIAction } from './ai/AIActionBar';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { toast } from 'sonner';
+import { InlineAIButton } from './InlineAIButton';
+import { AIContextualNudge } from './AIContextualNudge';
+import { useResumeNudges } from '@/hooks/useResumeNudges';
 
 export function SkillsSection() {
-  const { currentResume, updateResume, gapAnalysis } = useResumeStore();
+  const { currentResume, updateResume, gapAnalysis, jobDescription } = useResumeStore();
   const [newSkill, setNewSkill] = useState('');
   
   const { enhance, isEnhancing, currentAction } = useAIEnhance({
@@ -24,7 +26,17 @@ export function SkillsSection() {
     },
   });
 
+  const hasMissingSkills = gapAnalysis && gapAnalysis.missingSkills.length > 0;
+  
+  const { getNudgeForSection, dismissNudge } = useResumeNudges({
+    resume: currentResume,
+    jobDescription,
+    hasMissingSkills,
+  });
+
   if (!currentResume) return null;
+
+  const nudge = getNudgeForSection('skills');
 
   const addSkill = () => {
     if (!newSkill.trim()) return;
@@ -72,18 +84,32 @@ export function SkillsSection() {
     }
   };
 
-  const primaryActions: AIAction[] = [
-    { id: 'generate', label: 'Suggest Skills', icon: <Wand2 className="w-3 h-3" /> },
-    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-3 h-3" /> },
-  ];
-
-  const moreActions: AIAction[] = [
-    { id: 'improve', label: 'Improve & Reorder', icon: <Layers className="w-3 h-3" /> },
-  ];
+  const handleNudgeAction = () => {
+    if (nudge) {
+      handleAIAction(nudge.action);
+      dismissNudge(nudge.trigger);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      <h3 className="font-display font-semibold text-lg">Skills</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-semibold text-lg">Skills</h3>
+        <InlineAIButton
+          section="skills"
+          onAction={handleAIAction}
+          isLoading={isEnhancing}
+        />
+      </div>
+
+      {/* Contextual Nudge */}
+      <AIContextualNudge
+        show={!!nudge}
+        message={nudge?.message || ''}
+        actionLabel={nudge?.actionLabel || ''}
+        onAction={handleNudgeAction}
+        onDismiss={() => nudge && dismissNudge(nudge.trigger)}
+      />
 
       {/* Add skill input */}
       <div className="flex gap-2">
@@ -98,15 +124,6 @@ export function SkillsSection() {
           <Plus className="w-5 h-5" />
         </Button>
       </div>
-
-      {/* AI Action Bar */}
-      <AIActionBar
-        primaryActions={primaryActions}
-        moreActions={moreActions}
-        onAction={handleAIAction}
-        isLoading={isEnhancing}
-        loadingAction={currentAction}
-      />
 
       {/* Current skills */}
       <div className="flex flex-wrap gap-2">

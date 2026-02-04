@@ -15,6 +15,9 @@ interface SettingsState {
   defaultTemplate: TemplateId;
   pdfDefaults: PDFOptions;
   
+  // Onboarding
+  hasSeenAIIntro: boolean;
+  
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
   setShowAIEnhancementTips: (value: boolean) => void;
@@ -22,6 +25,7 @@ interface SettingsState {
   setAnalyticsEnabled: (value: boolean) => void;
   setDefaultTemplate: (template: TemplateId) => void;
   setPdfDefaults: (defaults: Partial<PDFOptions>) => void;
+  setHasSeenAIIntro: (value: boolean) => void;
   resetSettings: () => void;
 }
 
@@ -36,6 +40,7 @@ const defaultSettings = {
     pageNumberFormat: 'full' as const,
     showBranding: true,
   },
+  hasSeenAIIntro: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -52,6 +57,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           pdfDefaults: { ...state.pdfDefaults, ...defaults },
         })),
+      setHasSeenAIIntro: (value) => set({ hasSeenAIIntro: value }),
       resetSettings: () => set(defaultSettings),
     }),
     {
