@@ -216,7 +216,7 @@ export default function PreviewPage() {
   }[selectedTemplate];
 
   return (
-    <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')}>
+    <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')} showBottomNav>
       <div className="flex-1 flex flex-col">
         {/* Template Quick Switcher */}
         <motion.div
@@ -310,7 +310,7 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-          className="sticky bottom-0 p-4 pb-safe glass border-t border-border space-y-3"
+          className="sticky bottom-16 p-4 glass border-t border-border space-y-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >

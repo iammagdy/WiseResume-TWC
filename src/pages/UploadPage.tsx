@@ -222,7 +222,7 @@ export default function UploadPage() {
   }, [handleFile]);
 
   return (
-    <MobileLayout showHeader headerTitle="Upload Resume" onBack={() => navigate('/')}>
+    <MobileLayout showHeader headerTitle="Upload Resume" onBack={() => navigate('/dashboard')} showBottomNav>
       <div className="flex-1 flex flex-col px-4 py-6">
         {/* Upload Zone */}
         <motion.div
