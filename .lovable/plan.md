@@ -1,165 +1,200 @@
 
-# Add Dark/Light Theme Toggle to Dashboard Header
+# Enable Bottom Tab Navigation for Native App-Like Navigation
 
 ## Overview
 
-Integrate a theme toggle into the dashboard header, allowing users to switch between light, dark, and system themes. The existing `ThemeToggle` component is already functional - we just need to create a compact header-friendly version and integrate it.
+Integrate the existing `BottomTabBar` component into the app's main pages to provide persistent, thumb-friendly navigation between Home (Dashboard), Editor, and New (Upload) screens - creating a native mobile app experience.
 
 ---
 
-## Design Approach
+## Current State
 
-The current `ThemeToggle` component is a segmented button bar that works well in settings pages but is too large for a header. We'll create a compact dropdown variant that:
+The `BottomTabBar` component already exists with:
+- Three tabs: Home (dashboard), Editor, New (upload)
+- Active state detection with path matching
+- Haptic feedback on tab selection
+- Animated indicator dot for active tab
+- Safe area padding for notched devices
 
-1. Shows a single icon button (Sun/Moon based on current theme)
-2. Opens a dropdown menu with all three options
-3. Includes haptic feedback and smooth animations
+However, it's not currently integrated into any pages.
+
+---
+
+## Integration Strategy
+
+The bottom tab bar should appear on these pages:
+- `/dashboard` - Home tab active
+- `/editor` - Editor tab active
+- `/preview` - Editor tab active (part of editing flow)
+- `/upload` - New tab active
+
+Pages where it should NOT appear:
+- `/` (Index) - Landing page for unauthenticated users
+- `/auth` - Authentication page
+
+---
+
+## Implementation Approach
+
+### Option A: Add to MobileLayout (Recommended)
+
+Update `MobileLayout` to conditionally render `BottomTabBar` based on a prop. This centralizes the logic and ensures consistent padding.
+
+```typescript
+// MobileLayout.tsx
+interface MobileLayoutProps {
+  children: ReactNode;
+  showBottomNav?: boolean;  // Already exists!
+  // ...other props
+}
+
+// When showBottomNav is true:
+// 1. Render BottomTabBar at the bottom
+// 2. Add pb-20 padding to main content (already done!)
+```
+
+### Option B: Add to Individual Pages
+
+Add `BottomTabBar` to each page component individually.
+
+**Recommendation**: Option A is cleaner since `MobileLayout` already has `showBottomNav` prop and applies `pb-20` padding when true.
 
 ---
 
 ## File Changes
 
-### 1. Create Compact Theme Dropdown (`src/components/settings/ThemeDropdown.tsx`)
+### 1. Update `src/components/layout/MobileLayout.tsx`
 
-A header-friendly version that uses a dropdown menu:
+Import and render `BottomTabBar` when `showBottomNav` is true:
 
 ```typescript
-// Shows icon button that opens dropdown with Light/Dark/System options
-// Uses current theme to determine which icon to show
-// Includes haptic feedback on selection
+import { BottomTabBar } from './BottomTabBar';
+
+// In the component:
+return (
+  <div className="min-h-screen min-h-[100dvh] flex flex-col bg-background">
+    <OfflineBanner />
+    {showHeader && (/* header */)}
+    <main className={`flex-1 overflow-y-auto ${showBottomNav ? 'pb-20' : 'pb-safe'}`}>
+      {children}
+    </main>
+    {showBottomNav && <BottomTabBar />}  {/* Add this */}
+  </div>
+);
 ```
 
-**Component Features:**
-- Single icon button (Sun for light, Moon for dark, Monitor for system)
-- Dropdown with all three options and checkmarks for active
-- Smooth icon rotation animation on theme change
-- Uses existing localStorage persistence logic
+### 2. Update `src/pages/DashboardPage.tsx`
 
-### 2. Update Dashboard Header (`src/pages/DashboardPage.tsx`)
-
-Add the theme toggle to the header, between the logo and Sign Out button:
+Enable bottom nav on the dashboard:
 
 ```diff
-<header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between border-b border-border">
-  <AppLogo size="sm" />
-+ <div className="flex items-center gap-2">
-+   <ThemeDropdown />
-    <Button variant="ghost" size="sm" onClick={handleSignOut}>
-      <LogOut className="w-4 h-4 mr-2" />
-      Sign Out
-    </Button>
-+ </div>
-</header>
+- <MobileLayout>
++ <MobileLayout showBottomNav>
+```
+
+### 3. Update `src/pages/EditorPage.tsx`
+
+Enable bottom nav on the editor:
+
+```diff
+- <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack}>
++ <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack} showBottomNav>
+```
+
+The editor has a sticky bottom action bar that needs adjustment:
+- Change from `sticky bottom-0` to account for tab bar height
+- Use `bottom-[64px]` or similar offset
+
+### 4. Update `src/pages/PreviewPage.tsx`
+
+Enable bottom nav on the preview:
+
+```diff
+- <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')}>
++ <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')} showBottomNav>
+```
+
+Similar adjustment needed for the sticky bottom actions.
+
+### 5. Update `src/pages/UploadPage.tsx`
+
+Enable bottom nav on the upload page:
+
+```diff
+- <MobileLayout showHeader headerTitle="Upload Resume" onBack={() => navigate('/')}>
++ <MobileLayout showHeader headerTitle="Upload Resume" onBack={() => navigate('/')} showBottomNav>
 ```
 
 ---
 
-## ThemeDropdown Component Design
+## Layout Considerations
+
+### Bottom Action Bars
+
+The Editor and Preview pages have sticky bottom action bars. With the tab bar present, these need adjustments:
+
+**Current Editor Page:**
+```tsx
+<motion.div className="sticky bottom-0 p-4 pb-safe glass ...">
+  {/* Preview & Export button */}
+</motion.div>
+```
+
+**Updated for Tab Bar:**
+```tsx
+<motion.div className="sticky bottom-20 p-4 glass ...">
+  {/* No pb-safe needed since tab bar handles it */}
+</motion.div>
+```
+
+The `bottom-20` (80px) accounts for the 64px tab bar + some margin.
+
+### Content Padding
+
+`MobileLayout` already handles this:
+- When `showBottomNav` is true: `pb-20` padding on main content
+- When false: `pb-safe` for device safe area only
+
+---
+
+## Visual Flow
 
 ```text
-┌──────────────────┐
-│  [🌙] ▾         │  ← Icon button with dropdown indicator
-└──────────────────┘
-        │
-        ▼
-┌──────────────────┐
-│ ☀️ Light      ✓ │  ← Dropdown menu
-│ 🌙 Dark         │
-│ 🖥️ System       │
-└──────────────────┘
+┌──────────────────────────────────┐
+│         App Header               │
+├──────────────────────────────────┤
+│                                  │
+│                                  │
+│       Page Content               │
+│                                  │
+│                                  │
+├──────────────────────────────────┤
+│  [Action Bar if any]             │
+├──────────────────────────────────┤
+│  🏠 Home    📄 Editor   ✨ New   │
+│            ●                     │  ← Active indicator
+└──────────────────────────────────┘
 ```
-
-**Behavior:**
-- Icon reflects current effective theme (not system preference)
-- Checkmark shows which option is selected
-- Haptic feedback on selection
-- Dropdown closes after selection
 
 ---
 
-## Technical Implementation
+## Navigation Tab Refinements
 
-### ThemeDropdown.tsx
+### Current Tabs
+| Tab | Icon | Path | Match Paths |
+|-----|------|------|-------------|
+| Home | Home | /dashboard | /dashboard |
+| Editor | FileText | /editor | /editor, /preview |
+| New | Sparkles | /upload | /upload |
 
-```typescript
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Moon, Sun, Monitor, Check } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { haptics } from '@/lib/haptics';
+### Recommended Enhancement
 
-type Theme = 'light' | 'dark' | 'system';
+The "New" tab currently navigates to `/upload`, but the dashboard already has a "New Resume" button that opens a dialog. Consider:
 
-export function ThemeDropdown() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return (localStorage.getItem('theme') as Theme) || 'dark';
-  });
+1. **Keep as-is**: Direct to upload page (simple)
+2. **Open CreateResumeDialog**: Show the choice between upload/blank (more aligned with existing UX)
 
-  // Apply theme effect (same as ThemeToggle)
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark' : 'light';
-      root.classList.remove('light', 'dark');
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.remove('light', 'dark');
-      root.classList.add(theme);
-    }
-    localStorage.setItem('theme', theme);
-  }, [theme]);
-
-  const handleChange = (newTheme: Theme) => {
-    haptics.selection();
-    setTheme(newTheme);
-  };
-
-  // Determine which icon to show based on effective theme
-  const getEffectiveTheme = () => {
-    if (theme === 'system') {
-      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    return theme;
-  };
-
-  const ThemeIcon = getEffectiveTheme() === 'dark' ? Moon : Sun;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-9 w-9">
-          <ThemeIcon className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => handleChange('light')}>
-          <Sun className="mr-2 h-4 w-4" />
-          Light
-          {theme === 'light' && <Check className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleChange('dark')}>
-          <Moon className="mr-2 h-4 w-4" />
-          Dark
-          {theme === 'dark' && <Check className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => handleChange('system')}>
-          <Monitor className="mr-2 h-4 w-4" />
-          System
-          {theme === 'system' && <Check className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-```
+**Recommendation**: Keep as-is for v1 - the upload page provides a focused experience for adding new resumes.
 
 ---
 
@@ -167,33 +202,39 @@ export function ThemeDropdown() {
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| `src/components/settings/ThemeDropdown.tsx` | NEW | Compact dropdown theme toggle for headers |
-| `src/pages/DashboardPage.tsx` | UPDATE | Add ThemeDropdown to header |
+| `src/components/layout/MobileLayout.tsx` | UPDATE | Import and render BottomTabBar when showBottomNav=true |
+| `src/pages/DashboardPage.tsx` | UPDATE | Add showBottomNav prop to MobileLayout |
+| `src/pages/EditorPage.tsx` | UPDATE | Add showBottomNav prop, adjust bottom action bar |
+| `src/pages/PreviewPage.tsx` | UPDATE | Add showBottomNav prop, adjust bottom action bar |
+| `src/pages/UploadPage.tsx` | UPDATE | Add showBottomNav prop |
 
 ---
 
 ## User Experience
 
-1. User sees a moon/sun icon in the dashboard header
-2. Tapping opens a dropdown with Light, Dark, System options
-3. Current selection shows a checkmark
-4. Selecting an option immediately applies the theme with haptic feedback
-5. Theme preference persists across sessions via localStorage
+### Before
+- Users navigate via back buttons and explicit navigation actions
+- Moving between dashboard, editor, and upload requires multiple taps
+
+### After
+- Persistent bottom tab bar on main app screens
+- Single-tap navigation to any primary section
+- Active tab clearly indicated with primary color + animated dot
+- Haptic feedback on tab selection
+- Familiar pattern from native iOS/Android apps
 
 ---
 
-## Light Theme Preview
+## Edge Cases
 
-The light theme CSS variables are already defined in `index.css`:
-- Clean white background with subtle gray accents
-- Purple primary color (slightly muted for readability)
-- Proper contrast ratios for accessibility
-- Adapted gradient colors for light mode
+### Editor Without Active Resume
+- If user taps Editor tab but no resume is loaded, redirect to dashboard
+- This is already handled by the EditorPage itself
 
----
+### Keyboard Open
+- Bottom tab bar remains visible but may be pushed up by keyboard
+- Consider hiding during text input (future enhancement)
 
-## Future Enhancements (Not in Scope)
-
-- Add theme toggle to EditorPage header for consistent access
-- Animate the icon change (sun spinning to moon)
-- Sync theme preference to user profile in database
+### Animations
+- Tab bar animates in from bottom on mount
+- Active indicator animates smoothly between tabs using Framer Motion's layoutId
