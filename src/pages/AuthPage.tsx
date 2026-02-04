@@ -75,7 +75,7 @@ export default function AuthPage() {
         toast.success('Welcome back!');
         navigate('/dashboard');
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -92,7 +92,14 @@ export default function AuthPage() {
           return;
         }
 
-        toast.success('Check your email to confirm your account!');
+        // If auto-confirm is enabled, user gets a session immediately
+        if (data.session) {
+          toast.success('Account created successfully!');
+          navigate('/dashboard');
+        } else {
+          toast.success('Account created! You can now sign in.');
+          setMode('login');
+        }
       }
     } catch (error) {
       console.error('Auth error:', error);
