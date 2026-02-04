@@ -6,6 +6,7 @@ import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { AppLogo } from '@/components/brand/AppLogo';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
@@ -82,6 +83,12 @@ export default function DashboardPage() {
     }
     haptics.success();
     setShowOnboarding(false);
+  };
+
+  const handleRefresh = async () => {
+    await refetch();
+    haptics.success();
+    toast.success('Resumes refreshed');
   };
 
   const handleEdit = (resumeId: string) => {
@@ -246,7 +253,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Content */}
+        {/* Content with Pull-to-Refresh */}
         {isLoading ? (
           <div className="flex-1 px-4 pb-safe">
             <SkeletonCardList count={3} />
@@ -271,69 +278,71 @@ export default function DashboardPage() {
             </motion.div>
           </div>
         ) : (
-          <div className="flex-1 overflow-y-auto px-4 pb-safe">
-            <motion.div 
-              className="space-y-4 pb-4"
-              initial="hidden"
-              animate="visible"
-              variants={{
-                visible: {
-                  transition: {
-                    staggerChildren: 0.05,
+          <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-hidden">
+            <div className="px-4 pb-safe h-full overflow-y-auto">
+              <motion.div 
+                className="space-y-4 pb-4"
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.05,
+                    },
                   },
-                },
-              }}
-            >
-              {resumeHierarchy && (
-                <>
-                  {/* Render master resumes with their tailored versions */}
-                  {resumeHierarchy.masterResumes.map((masterResume, index) => {
-                    const tailoredVersions = resumeHierarchy.tailoredByParent[masterResume.id] || [];
-                    
-                    if (tailoredVersions.length > 0) {
+                }}
+              >
+                {resumeHierarchy && (
+                  <>
+                    {/* Render master resumes with their tailored versions */}
+                    {resumeHierarchy.masterResumes.map((masterResume, index) => {
+                      const tailoredVersions = resumeHierarchy.tailoredByParent[masterResume.id] || [];
+                      
+                      if (tailoredVersions.length > 0) {
+                        return (
+                          <ResumeGroup
+                            key={masterResume.id}
+                            masterResume={masterResume}
+                            tailoredVersions={tailoredVersions}
+                            onEdit={handleEdit}
+                            onDuplicate={handleDuplicate}
+                            onDelete={handleDelete}
+                            onCreateTailored={handleCreateTailored}
+                            delay={index * 0.05}
+                          />
+                        );
+                      }
+                      
+                      // Single resume without tailored versions
                       return (
-                        <ResumeGroup
+                        <ResumeListCard
                           key={masterResume.id}
-                          masterResume={masterResume}
-                          tailoredVersions={tailoredVersions}
+                          resume={masterResume}
                           onEdit={handleEdit}
                           onDuplicate={handleDuplicate}
                           onDelete={handleDelete}
-                          onCreateTailored={handleCreateTailored}
                           delay={index * 0.05}
                         />
                       );
-                    }
+                    })}
                     
-                    // Single resume without tailored versions
-                    return (
+                    {/* Render orphaned tailored resumes (parent was deleted) */}
+                    {resumeHierarchy.orphanTailored.map((resume, index) => (
                       <ResumeListCard
-                        key={masterResume.id}
-                        resume={masterResume}
+                        key={resume.id}
+                        resume={resume}
                         onEdit={handleEdit}
                         onDuplicate={handleDuplicate}
                         onDelete={handleDelete}
-                        delay={index * 0.05}
+                        delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
+                        showTailoredBadge
                       />
-                    );
-                  })}
-                  
-                  {/* Render orphaned tailored resumes (parent was deleted) */}
-                  {resumeHierarchy.orphanTailored.map((resume, index) => (
-                    <ResumeListCard
-                      key={resume.id}
-                      resume={resume}
-                      onEdit={handleEdit}
-                      onDuplicate={handleDuplicate}
-                      onDelete={handleDelete}
-                      delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
-                      showTailoredBadge
-                    />
-                  ))}
-                </>
-              )}
-            </motion.div>
-          </div>
+                    ))}
+                  </>
+                )}
+              </motion.div>
+            </div>
+          </PullToRefresh>
         )}
       </div>
 
