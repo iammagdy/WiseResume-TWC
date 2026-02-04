@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
-import { FileText, Wand2, Target, Minimize2 } from 'lucide-react';
-import { AIActionBar, AIAction } from './ai/AIActionBar';
+import { FileText } from 'lucide-react';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
+import { InlineAIButton } from './InlineAIButton';
+import { AIContextualNudge } from './AIContextualNudge';
+import { useResumeNudges } from '@/hooks/useResumeNudges';
 
 export function SummarySection() {
   const { currentResume, updateResume } = useResumeStore();
@@ -19,7 +21,13 @@ export function SummarySection() {
     },
   });
 
+  const { getNudgeForSection, dismissNudge } = useResumeNudges({
+    resume: currentResume,
+  });
+
   if (!currentResume) return null;
+
+  const nudge = getNudgeForSection('summary');
 
   const handleAction = async (actionId: string) => {
     const enhanceResult = await enhance(
@@ -33,20 +41,32 @@ export function SummarySection() {
     }
   };
 
-  const primaryActions: AIAction[] = [
-    { id: 'generate', label: 'Generate', icon: <Wand2 className="w-3 h-3" /> },
-    { id: 'improve', label: 'Improve', icon: <Wand2 className="w-3 h-3" /> },
-    { id: 'ats_optimize', label: 'ATS Optimize', icon: <Target className="w-3 h-3" /> },
-  ];
-
-  const moreActions: AIAction[] = [
-    { id: 'shorten', label: 'Make Shorter', icon: <Minimize2 className="w-3 h-3" /> },
-    { id: 'expand', label: 'Expand', icon: <Wand2 className="w-3 h-3" /> },
-  ];
+  const handleNudgeAction = () => {
+    if (nudge) {
+      handleAction(nudge.action);
+      dismissNudge(nudge.trigger);
+    }
+  };
 
   return (
     <div className="space-y-4">
-      <h3 className="font-display font-semibold text-lg mb-4">Professional Summary</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-semibold text-lg">Professional Summary</h3>
+        <InlineAIButton
+          section="summary"
+          onAction={handleAction}
+          isLoading={isEnhancing}
+        />
+      </div>
+
+      {/* Contextual Nudge */}
+      <AIContextualNudge
+        show={!!nudge}
+        message={nudge?.message || ''}
+        actionLabel={nudge?.actionLabel || ''}
+        onAction={handleNudgeAction}
+        onDismiss={() => nudge && dismissNudge(nudge.trigger)}
+      />
       
       <div>
         <Label htmlFor="summary" className="flex items-center gap-2 mb-2">
@@ -68,15 +88,6 @@ export function SummarySection() {
           {currentResume.summary.length}/500 characters recommended
         </p>
       </div>
-
-      {/* AI Action Bar */}
-      <AIActionBar
-        primaryActions={primaryActions}
-        moreActions={moreActions}
-        onAction={handleAction}
-        isLoading={isEnhancing}
-        loadingAction={currentAction}
-      />
 
       {/* AI Enhancement Dialog */}
       <AIEnhanceDialog

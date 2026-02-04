@@ -6,6 +6,7 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations } from '@/hooks/useResumes';
 import { ContactSection } from '@/components/editor/ContactSection';
@@ -17,11 +18,13 @@ import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
 import { TemplateSelector } from '@/components/editor/TemplateSelector';
 import { TailorSheet } from '@/components/editor/TailorSheet';
 import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
+import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 
 export default function EditorPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
   const { 
     currentResume, 
     currentResumeId,
@@ -37,10 +40,27 @@ export default function EditorPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
+  const [showAIIntro, setShowAIIntro] = useState(false);
   
   // Track last saved version to detect changes
   const lastSavedResumeRef = useRef<string>('');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Show AI intro for first-time users after resume loads
+  useEffect(() => {
+    if (currentResume && !hasSeenAIIntro) {
+      // Small delay to let the editor render first
+      const timer = setTimeout(() => {
+        setShowAIIntro(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentResume, hasSeenAIIntro]);
+
+  const handleDismissAIIntro = () => {
+    setShowAIIntro(false);
+    setHasSeenAIIntro(true);
+  };
 
   // Auto-save for authenticated users
   const saveToCloud = useCallback(async () => {
@@ -230,6 +250,12 @@ export default function EditorPage() {
           </Button>
         </motion.div>
       </div>
+
+      {/* AI Intro Tooltip for First-Time Users */}
+      <AIIntroTooltip
+        show={showAIIntro}
+        onDismiss={handleDismissAIIntro}
+      />
 
       {/* Sheets */}
       <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />

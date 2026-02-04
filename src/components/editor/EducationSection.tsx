@@ -7,9 +7,11 @@ import { Label } from '@/components/ui/label';
 import { useResumeStore } from '@/store/resumeStore';
 import { Education } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
-import { AIActionBar, AIAction } from './ai/AIActionBar';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { toast } from 'sonner';
+import { InlineAIButton } from './InlineAIButton';
+import { AIContextualNudge } from './AIContextualNudge';
+import { useResumeNudges } from '@/hooks/useResumeNudges';
 
 export function EducationSection() {
   const { currentResume, updateResume } = useResumeStore();
@@ -20,7 +22,13 @@ export function EducationSection() {
     onApply: () => {},
   });
 
+  const { getNudgeForSection, dismissNudge } = useResumeNudges({
+    resume: currentResume,
+  });
+
   if (!currentResume) return null;
+
+  const nudge = getNudgeForSection('education');
 
   const addEducation = () => {
     const newEdu: Education = {
@@ -59,7 +67,6 @@ export function EducationSection() {
     );
     
     if (result?.improved) {
-      // Apply improved education entries
       const improvedEducation = result.improved as Education[];
       if (Array.isArray(improvedEducation) && improvedEducation.length > 0) {
         updateResume({ education: improvedEducation });
@@ -70,30 +77,43 @@ export function EducationSection() {
     }
   };
 
-  const primaryActions: AIAction[] = [
-    { id: 'generate', label: 'Suggest Coursework', icon: <BookOpen className="w-3 h-3" /> },
-    { id: 'improve', label: 'Improve', icon: <Wand2 className="w-3 h-3" /> },
-  ];
+  const handleNudgeAction = () => {
+    if (nudge) {
+      if (currentResume.education.length === 0) {
+        addEducation();
+      } else {
+        handleAIAction(nudge.action);
+      }
+      dismissNudge(nudge.trigger);
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-display font-semibold text-lg">Education</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="font-display font-semibold text-lg">Education</h3>
+          <InlineAIButton
+            section="education"
+            onAction={handleAIAction}
+            isLoading={isEnhancing}
+            disabled={currentResume.education.length === 0}
+          />
+        </div>
         <Button variant="outline" size="sm" onClick={addEducation} className="gap-2">
           <Plus className="w-4 h-4" />
           Add
         </Button>
       </div>
 
-      {/* AI Action Bar */}
-      {currentResume.education.length > 0 && (
-        <AIActionBar
-          primaryActions={primaryActions}
-          onAction={handleAIAction}
-          isLoading={isEnhancing}
-          loadingAction={currentAction}
-        />
-      )}
+      {/* Contextual Nudge */}
+      <AIContextualNudge
+        show={!!nudge}
+        message={nudge?.message || ''}
+        actionLabel={nudge?.actionLabel || ''}
+        onAction={handleNudgeAction}
+        onDismiss={() => nudge && dismissNudge(nudge.trigger)}
+      />
 
       <AnimatePresence>
         {currentResume.education.length === 0 ? (
