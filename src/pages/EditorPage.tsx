@@ -16,8 +16,7 @@ import { SkillsSection } from '@/components/editor/SkillsSection';
 import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
 import { TemplateSelector } from '@/components/editor/TemplateSelector';
 import { TailorSheet } from '@/components/editor/TailorSheet';
-import { AIFloatingButton } from '@/components/editor/AIFloatingButton';
-import { AIHubSheet } from '@/components/editor/AIHubSheet';
+import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 
 export default function EditorPage() {
@@ -37,7 +36,6 @@ export default function EditorPage() {
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
-  const [showAIHub, setShowAIHub] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   
   // Track last saved version to detect changes
@@ -202,6 +200,16 @@ export default function EditorPage() {
           </div>
         </Tabs>
 
+        {/* AI Assistant Bar - Replaces FAB */}
+        <AIAssistantBar
+          matchScore={matchScore}
+          jobDescription={jobDescription}
+          onTailor={() => setShowTailor(true)}
+          onAnalyze={() => setShowJobSheet(true)}
+          onImprove={handleImproveSection}
+          onChangeTemplate={() => setShowTemplates(true)}
+        />
+
         {/* Bottom Action Bar */}
         <motion.div
           className="sticky bottom-16 p-4 glass border-t border-border"
@@ -221,29 +229,12 @@ export default function EditorPage() {
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
         </motion.div>
-
-        {/* AI Floating Button */}
-        <AIFloatingButton
-          onClick={() => setShowAIHub(true)}
-          hasNotification={!matchScore && jobDescription.length > 0}
-        />
       </div>
 
       {/* Sheets */}
       <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
       <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
       <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
-      <AIHubSheet
-        open={showAIHub}
-        onOpenChange={setShowAIHub}
-        matchScore={matchScore}
-        jobDescription={jobDescription}
-        activeTab={activeTab}
-        onTailor={() => setShowTailor(true)}
-        onAnalyze={() => setShowJobSheet(true)}
-        onImproveSection={handleImproveSection}
-        onChangeTemplate={() => setShowTemplates(true)}
-      />
     </MobileLayout>
   );
 }
