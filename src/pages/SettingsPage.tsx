@@ -1,13 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, RotateCcw, Info } from 'lucide-react';
+import { LogOut, RotateCcw, Info, ChevronRight } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
+import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -15,6 +17,8 @@ import { toast } from 'sonner';
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, loading, signOut } = useAuth();
+  const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -40,13 +44,29 @@ export default function SettingsPage() {
     }
   };
 
+  const handleOpenEditProfile = () => {
+    haptics.light();
+    setEditProfileOpen(true);
+  };
+
   // Get user initials for avatar fallback
   const getInitials = () => {
+    if (profile?.fullName) {
+      return profile.fullName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+    }
     if (user?.email) {
       return user.email.charAt(0).toUpperCase();
     }
     return 'U';
   };
+
+  // Display name: prefer profile full_name, fallback to email
+  const displayName = profile?.fullName || user?.email || 'User';
 
   if (loading) {
     return (
@@ -67,23 +87,27 @@ export default function SettingsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Profile Section */}
-          <motion.div
+          {/* Profile Section - Tappable */}
+          <motion.button
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border"
+            onClick={handleOpenEditProfile}
+            className="w-full flex items-center gap-4 p-4 rounded-xl bg-card border border-border text-left active:scale-[0.98] transition-transform touch-manipulation"
           >
             <Avatar className="h-14 w-14">
-              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
               <AvatarFallback className="bg-primary text-primary-foreground">
                 {getInitials()}
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{user?.email}</p>
-              <p className="text-sm text-muted-foreground">Account</p>
+              <p className="font-medium truncate">{displayName}</p>
+              <p className="text-sm text-muted-foreground truncate">
+                {profile?.fullName ? user?.email : 'Tap to edit profile'}
+              </p>
             </div>
-          </motion.div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+          </motion.button>
 
           {/* Appearance Section */}
           <motion.div
@@ -149,6 +173,15 @@ export default function SettingsPage() {
           </motion.div>
         </div>
       </div>
+
+      {/* Edit Profile Sheet */}
+      <EditProfileSheet
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        profile={profile}
+        userEmail={user?.email}
+        onSave={updateProfile}
+      />
     </MobileLayout>
   );
 }
