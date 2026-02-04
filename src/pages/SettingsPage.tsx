@@ -1,15 +1,38 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LogOut, RotateCcw, Info, ChevronRight } from 'lucide-react';
+import { 
+  LogOut, 
+  RotateCcw, 
+  Info, 
+  ChevronRight, 
+  FileSliders, 
+  Download, 
+  Trash2,
+  Bell,
+  BellOff,
+  Sparkles,
+  Shield,
+  Database,
+  BarChart3,
+  CloudOff
+} from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
-import { Button } from '@/components/ui/button';
+import { SettingsRow } from '@/components/settings/SettingsRow';
+import { DefaultTemplateSheet } from '@/components/settings/DefaultTemplateSheet';
+import { PDFDefaultsSheet } from '@/components/settings/PDFDefaultsSheet';
+import { DataExportSheet } from '@/components/settings/DataExportSheet';
+import { DeleteDataDialog } from '@/components/settings/DeleteDataDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
+import { useResumes } from '@/hooks/useResumes';
+import { useSettingsStore } from '@/store/settingsStore';
+import { useResumeStore } from '@/store/resumeStore';
+import { TEMPLATE_CONFIGS } from '@/lib/templateConfig';
 import { haptics } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -18,7 +41,31 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, loading, signOut } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id);
+  const { data: resumes = [] } = useResumes();
+  const { currentResumeId } = useResumeStore();
+  
+  // Settings store
+  const {
+    showAutoSaveToasts,
+    setShowAutoSaveToasts,
+    showAIEnhancementTips,
+    setShowAIEnhancementTips,
+    localOnlyMode,
+    setLocalOnlyMode,
+    analyticsEnabled,
+    setAnalyticsEnabled,
+    defaultTemplate,
+    setDefaultTemplate,
+    pdfDefaults,
+    setPdfDefaults,
+  } = useSettingsStore();
+
+  // Sheet states
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [templateSheetOpen, setTemplateSheetOpen] = useState(false);
+  const [pdfDefaultsSheetOpen, setPdfDefaultsSheetOpen] = useState(false);
+  const [dataExportSheetOpen, setDataExportSheetOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -47,6 +94,11 @@ export default function SettingsPage() {
   const handleOpenEditProfile = () => {
     haptics.light();
     setEditProfileOpen(true);
+  };
+
+  const handleDataDeleted = async () => {
+    await signOut();
+    navigate('/');
   };
 
   // Get user initials for avatar fallback
@@ -123,33 +175,145 @@ export default function SettingsPage() {
             </div>
           </motion.div>
 
-          {/* Account Section */}
+          {/* Editor Preferences Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              EDITOR PREFERENCES
+            </h2>
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <SettingsRow
+                type="navigation"
+                label="Default Template"
+                value={TEMPLATE_CONFIGS[defaultTemplate].name}
+                icon={<FileSliders className="w-4 h-4" />}
+                onClick={() => setTemplateSheetOpen(true)}
+              />
+              <Separator />
+              <SettingsRow
+                type="navigation"
+                label="PDF Export Settings"
+                icon={<Download className="w-4 h-4" />}
+                onClick={() => setPdfDefaultsSheetOpen(true)}
+              />
+            </div>
+          </motion.div>
+
+          {/* Notifications Section */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              NOTIFICATIONS
+            </h2>
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <SettingsRow
+                type="toggle"
+                label="Auto-save Toasts"
+                description="Show save confirmations"
+                icon={showAutoSaveToasts ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+                checked={showAutoSaveToasts}
+                onCheckedChange={setShowAutoSaveToasts}
+              />
+              <Separator />
+              <SettingsRow
+                type="toggle"
+                label="AI Enhancement Tips"
+                description="Proactive improvement suggestions"
+                icon={<Sparkles className="w-4 h-4" />}
+                checked={showAIEnhancementTips}
+                onCheckedChange={setShowAIEnhancementTips}
+              />
+            </div>
+          </motion.div>
+
+          {/* Data & Export Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              DATA & EXPORT
+            </h2>
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <SettingsRow
+                type="navigation"
+                label="Export Resumes"
+                description={`${resumes.length} resume${resumes.length !== 1 ? 's' : ''} available`}
+                icon={<Database className="w-4 h-4" />}
+                onClick={() => setDataExportSheetOpen(true)}
+              />
+            </div>
+          </motion.div>
+
+          {/* Privacy Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.14 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              PRIVACY
+            </h2>
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <SettingsRow
+                type="toggle"
+                label="Local-Only Mode"
+                description="Keep data on device only"
+                icon={<CloudOff className="w-4 h-4" />}
+                checked={localOnlyMode}
+                onCheckedChange={setLocalOnlyMode}
+              />
+              <Separator />
+              <SettingsRow
+                type="toggle"
+                label="Analytics"
+                description="Help improve WiseResume"
+                icon={<BarChart3 className="w-4 h-4" />}
+                checked={analyticsEnabled}
+                onCheckedChange={setAnalyticsEnabled}
+              />
+            </div>
+          </motion.div>
+
+          {/* Account Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.16 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               ACCOUNT
             </h2>
             <div className="rounded-xl bg-card border border-border overflow-hidden">
-              <Button
-                variant="ghost"
-                className="w-full justify-start h-12 px-4 rounded-none"
+              <SettingsRow
+                type="button"
+                label="Reset Onboarding"
+                icon={<RotateCcw className="w-4 h-4" />}
                 onClick={handleResetOnboarding}
-              >
-                <RotateCcw className="w-4 h-4 mr-3" />
-                Reset Onboarding
-              </Button>
+              />
               <Separator />
-              <Button
-                variant="ghost"
-                className="w-full justify-start h-12 px-4 rounded-none text-destructive hover:text-destructive"
+              <SettingsRow
+                type="button"
+                label="Delete All Data"
+                icon={<Trash2 className="w-4 h-4" />}
+                onClick={() => setDeleteDialogOpen(true)}
+                destructive
+              />
+              <Separator />
+              <SettingsRow
+                type="button"
+                label="Sign Out"
+                icon={<LogOut className="w-4 h-4" />}
                 onClick={handleSignOut}
-              >
-                <LogOut className="w-4 h-4 mr-3" />
-                Sign Out
-              </Button>
+                destructive
+              />
             </div>
           </motion.div>
 
@@ -157,7 +321,7 @@ export default function SettingsPage() {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
+            transition={{ delay: 0.18 }}
           >
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               ABOUT
@@ -174,7 +338,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Edit Profile Sheet */}
+      {/* Sheets and Dialogs */}
       <EditProfileSheet
         open={editProfileOpen}
         onOpenChange={setEditProfileOpen}
@@ -182,6 +346,39 @@ export default function SettingsPage() {
         userEmail={user?.email}
         onSave={updateProfile}
       />
+
+      <DefaultTemplateSheet
+        open={templateSheetOpen}
+        onOpenChange={setTemplateSheetOpen}
+        selectedTemplate={defaultTemplate}
+        onSelect={setDefaultTemplate}
+      />
+
+      <PDFDefaultsSheet
+        open={pdfDefaultsSheetOpen}
+        onOpenChange={setPdfDefaultsSheetOpen}
+        pdfDefaults={pdfDefaults}
+        onUpdate={setPdfDefaults}
+      />
+
+      <DataExportSheet
+        open={dataExportSheetOpen}
+        onOpenChange={setDataExportSheetOpen}
+        resumes={resumes}
+        userEmail={user?.email ?? null}
+        userName={profile?.fullName ?? null}
+        currentResumeId={currentResumeId}
+      />
+
+      {user && (
+        <DeleteDataDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          userId={user.id}
+          resumeCount={resumes.length}
+          onDeleted={handleDataDeleted}
+        />
+      )}
     </MobileLayout>
   );
 }

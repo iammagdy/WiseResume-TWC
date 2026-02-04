@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Download, FileText, Package, Loader2, Check } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { ExportType, CoverLetterContext } from '@/types/resume';
+import { useSettingsStore } from '@/store/settingsStore';
 import { cn } from '@/lib/utils';
 
 interface ExportOptionsSheetProps {
@@ -25,9 +26,19 @@ export function ExportOptionsSheet({
   onExport,
   isExporting,
 }: ExportOptionsSheetProps) {
+  const { pdfDefaults } = useSettingsStore();
+  
   const [selectedType, setSelectedType] = useState<ExportType>('resume');
-  const [showPageNumbers, setShowPageNumbers] = useState(true);
-  const [showBranding, setShowBranding] = useState(true);
+  const [showPageNumbers, setShowPageNumbers] = useState(pdfDefaults.showPageNumbers ?? true);
+  const [showBranding, setShowBranding] = useState(pdfDefaults.showBranding ?? true);
+
+  // Sync with defaults when sheet opens
+  useEffect(() => {
+    if (open) {
+      setShowPageNumbers(pdfDefaults.showPageNumbers ?? true);
+      setShowBranding(pdfDefaults.showBranding ?? true);
+    }
+  }, [open, pdfDefaults]);
 
   const exportOptions = [
     {
