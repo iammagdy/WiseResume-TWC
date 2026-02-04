@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_usage_logs: {
+        Row: {
+          action_type: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          resume_id: string | null
+          section: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          resume_id?: string | null
+          section?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          resume_id?: string | null
+          section?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_logs_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -54,6 +92,7 @@ export type Database = {
           id: string
           is_primary: boolean | null
           job_match_score: number | null
+          parent_resume_id: string | null
           skills: Json | null
           summary: string | null
           target_company: string | null
@@ -72,6 +111,7 @@ export type Database = {
           id?: string
           is_primary?: boolean | null
           job_match_score?: number | null
+          parent_resume_id?: string | null
           skills?: Json | null
           summary?: string | null
           target_company?: string | null
@@ -90,6 +130,7 @@ export type Database = {
           id?: string
           is_primary?: boolean | null
           job_match_score?: number | null
+          parent_resume_id?: string | null
           skills?: Json | null
           summary?: string | null
           target_company?: string | null
@@ -99,7 +140,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "resumes_parent_resume_id_fkey"
+            columns: ["parent_resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

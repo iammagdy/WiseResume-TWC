@@ -20,6 +20,7 @@ export interface DatabaseResume {
   target_company: string | null;
   job_match_score: number | null;
   is_primary: boolean;
+  parent_resume_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,6 +41,7 @@ function parseDbResume(dbResume: {
   target_company: string | null;
   job_match_score: number | null;
   is_primary: boolean | null;
+  parent_resume_id: string | null;
   created_at: string;
   updated_at: string;
 }): DatabaseResume {
@@ -58,6 +60,7 @@ function parseDbResume(dbResume: {
     target_company: dbResume.target_company,
     job_match_score: dbResume.job_match_score,
     is_primary: dbResume.is_primary || false,
+    parent_resume_id: dbResume.parent_resume_id,
     created_at: dbResume.created_at,
     updated_at: dbResume.updated_at,
   };
