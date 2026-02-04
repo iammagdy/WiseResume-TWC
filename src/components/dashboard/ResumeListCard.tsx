@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { 
   MoreVertical, 
@@ -15,6 +15,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +39,45 @@ interface ResumeListCardProps {
 
 const SWIPE_THRESHOLD = 80;
 
+// Calculate resume completion percentage based on filled sections
+function calculateResumeCompletion(resume: DatabaseResume): number {
+  let filled = 0;
+  const total = 5; // contact, summary, experience, education, skills
+
+  // Check contact (has name and email)
+  const contact = resume.contact_info as { name?: string; email?: string } | null;
+  if (contact?.name && contact?.email) filled++;
+
+  // Check summary (meaningful content)
+  if (resume.summary && resume.summary.length > 20) filled++;
+
+  // Check experience (at least one entry)
+  const experience = resume.experience as unknown[] | null;
+  if (experience && experience.length > 0) filled++;
+
+  // Check education (at least one entry)
+  const education = resume.education as unknown[] | null;
+  if (education && education.length > 0) filled++;
+
+  // Check skills (at least 3 skills)
+  const skills = resume.skills as unknown[] | null;
+  if (skills && skills.length >= 3) filled++;
+
+  return Math.round((filled / total) * 100);
+}
+
+function getCompletionColor(percentage: number): string {
+  if (percentage >= 80) return 'bg-success';
+  if (percentage >= 50) return 'bg-warning';
+  return 'bg-destructive';
+}
+
+function getCompletionTextColor(percentage: number): string {
+  if (percentage >= 80) return 'text-success';
+  if (percentage >= 50) return 'text-warning';
+  return 'text-destructive';
+}
+
 export function ResumeListCard({
   resume,
   onEdit,
@@ -59,17 +99,8 @@ export function ResumeListCard({
   const hasTargetJob = resume.target_job_title || resume.target_company;
   const matchScore = resume.job_match_score;
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-success';
-    if (score >= 60) return 'text-warning';
-    return 'text-destructive';
-  };
-
-  const getScoreBg = (score: number) => {
-    if (score >= 80) return 'bg-success/10 text-success border-success/20';
-    if (score >= 60) return 'bg-warning/10 text-warning border-warning/20';
-    return 'bg-destructive/10 text-destructive border-destructive/20';
-  };
+  // Calculate completion percentage
+  const completionPercentage = useMemo(() => calculateResumeCompletion(resume), [resume]);
 
   const handleDragStart = () => {
     setIsDragging(true);
@@ -221,11 +252,25 @@ export function ResumeListCard({
                 </p>
               )}
 
+              {/* Completion Progress */}
+              <div className="flex items-center gap-2 mb-2">
+                <Progress 
+                  value={completionPercentage} 
+                  className="h-1.5 flex-1"
+                />
+                <span className={cn(
+                  'text-xs font-medium',
+                  getCompletionTextColor(completionPercentage)
+                )}>
+                  {completionPercentage}%
+                </span>
+              </div>
+
               {/* Bottom Row: Time */}
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
+                  Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
               </div>
             </div>
