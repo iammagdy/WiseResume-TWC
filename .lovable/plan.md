@@ -1,361 +1,427 @@
 
 
-# UX Enhancement Plan: AI-Centric Resume Builder
+# Phase 2: Inline AI Buttons & Contextual Nudges
 
-## Executive Summary
+## Overview
 
-Based on your priorities (mixed user personas, upload-first experience, AI Hub as central feature, and AI adoption as the key metric), this plan transforms WiseResume into an **AI-first resume builder** while addressing your two main pain points: PDF upload abandonment and AI feature discoverability.
-
----
-
-## Key Insights From Your Answers
-
-| Priority | Your Answer | Strategic Implication |
-|----------|-------------|----------------------|
-| Users | Mixed (active seekers, occasional, first-timers) | UI must work for all skill levels |
-| First Action | Upload existing PDF | Optimize upload flow as primary path |
-| AI Visibility | Central AI Hub | Make AI the core editing experience |
-| Pain Points | Upload failures + AI discovery | Critical fixes needed |
-| Resume Strategy | One master + tailored versions | Support version management |
-| Success Metric | AI feature adoption | Track and optimize AI engagement |
+This phase transforms the resume editor from a passive form into an AI-first experience by:
+1. Adding **Inline AI Buttons** to each section header for quick, contextual enhancements
+2. Implementing **Contextual AI Nudges** that proactively suggest improvements based on resume state
+3. Adding a **First-Time AI Intro** tooltip to educate new users about AI capabilities
 
 ---
 
-## Current State Analysis
+## Current State
 
-### Strengths
-- Mobile-first design with haptics and bottom sheets
-- Clean onboarding carousel for first-time users
-- AI features exist (Tailor, Analyze, Enhance)
-- Good progress indicators and auto-save
+Each section (Contact, Summary, Experience, Education, Skills) currently has:
+- An `AIActionBar` component at the bottom with multiple AI actions
+- Section-specific headers with "Add" buttons for lists
+- No proactive suggestions or inline shortcuts
 
-### Critical Issues Identified
-
-#### 1. PDF Upload Flow (Pain Point A)
-```text
-Current: Upload → Wait → Success/Error → Editor
-
-Problems:
-- No real-time feedback during parsing (just spinner)
-- Error messages are technical ("NO_TEXT", "CORRUPTED")
-- OCR prompt appears AFTER initial failure (feels like error)
-- No way to recover from partial extraction
-- Users don't understand why their PDF might not work
-```
-
-#### 2. AI Feature Discoverability (Pain Point B)
-```text
-Current Discovery Path:
-Home → Editor → Notice FAB → Tap → AI Hub → Choose Action
-
-Problems:
-- AI Hub is hidden behind floating button (easy to miss)
-- No proactive AI suggestions during editing
-- AI actions feel like "extras" not core experience
-- No contextual prompts ("Your summary could be stronger")
-- New users don't know AI features exist
-```
+The `settingsStore` already has `showAIEnhancementTips` which we'll use to control nudge visibility.
 
 ---
 
-## Proposed Solutions
+## New Components
 
-### Solution 1: Enhanced Upload Experience
+### 1. InlineAIButton
 
-**Goal:** Reduce upload abandonment by 50%
-
-#### A. Pre-Upload Education
-Add a quick inline tip BEFORE upload starts:
+A compact, eye-catching button that sits in section headers for quick AI access.
 
 ```text
 ┌──────────────────────────────────────────┐
-│         Upload Your PDF                  │
-│                                          │
-│   [Drag & Drop Zone]                     │
-│                                          │
-├──────────────────────────────────────────┤
-│  💡 For best results:                    │
-│  ✓ Text-based PDFs work best             │
-│  ✓ Keep formatting simple                │
-│  ✓ Scanned PDFs? We'll try OCR          │
+│  Professional Summary            [✨ AI] │
+│  ──────────────────────────────────────  │
+│  [Textarea content...]                   │
 └──────────────────────────────────────────┘
 ```
 
-#### B. Progressive Parsing Feedback
-Replace single spinner with step-by-step progress:
+**Component: `src/components/editor/InlineAIButton.tsx`**
 
-```text
-Step 1: Reading PDF... ✓
-Step 2: Detecting text...
-Step 3: Extracting sections...
-Step 4: AI enhancement...
+- Small sparkle icon with gradient background
+- Opens a quick-action dropdown (no bottom sheet)
+- Actions are section-specific:
+  - Summary: Generate, Improve, Shorten
+  - Experience: Improve, Add Metrics, ATS Optimize
+  - Skills: Suggest Skills, ATS Optimize
+  - Education: Suggest Coursework, Improve
+  - Contact: Format & Validate
+
+**Implementation:**
+```typescript
+interface InlineAIButtonProps {
+  section: SectionType;
+  onAction: (actionId: string) => void;
+  isLoading?: boolean;
+  disabled?: boolean;
+}
 ```
 
-#### C. Friendly Error Recovery
-Current: "Could not extract readable text. This usually happens with scanned or image-based PDFs."
+### 2. AIContextualNudge
 
-Proposed:
-```text
-┌──────────────────────────────────────────┐
-│  📄 We had trouble reading this PDF      │
-│                                          │
-│  Don't worry! Here are your options:     │
-│                                          │
-│  [🔍 Try OCR Scanning]                   │
-│  Works for scanned documents             │
-│                                          │
-│  [✏️ Start Fresh Instead]               │
-│  We'll guide you step by step            │
-│                                          │
-│  [📤 Try Different PDF]                  │
-│  Upload another version                  │
-└──────────────────────────────────────────┘
-```
-
-#### D. Partial Success Handling
-When some sections are extracted but not others:
+Smart suggestion cards that appear based on resume quality signals.
 
 ```text
 ┌──────────────────────────────────────────┐
-│  ✓ We found most of your resume!         │
+│  💡 AI Suggestion                        │
 │                                          │
-│  Extracted:                              │
-│  ✓ Contact info                          │
-│  ✓ 3 work experiences                    │
-│  ✗ Skills (not detected)                 │
+│  Your summary is quite short. Want AI    │
+│  to expand it with relevant details?     │
 │                                          │
-│  [Continue & Add Skills Later]           │
-│  [Let AI Help Fill Gaps] ⭐ Recommended  │
+│              [Expand]  [Dismiss]         │
 └──────────────────────────────────────────┘
 ```
 
----
+**Component: `src/components/editor/AIContextualNudge.tsx`**
 
-### Solution 2: AI Hub as Core Experience
+**Trigger Logic (per section):**
 
-**Goal:** Increase AI feature adoption by 3x
+| Section | Trigger Condition | Nudge Message |
+|---------|------------------|---------------|
+| Summary | Length < 50 chars | "Your summary is too short. Let AI help expand it." |
+| Summary | Length > 500 chars | "Your summary is long. Want to make it more concise?" |
+| Summary | No metrics detected | "Add achievement metrics to stand out." |
+| Experience | Empty description | "Add a description to improve your resume." |
+| Experience | No bullet points | "Break this into bullet points for better readability." |
+| Skills | Less than 3 skills | "Add more skills to improve your match score." |
+| Skills | Job set + missing skills | "You're missing key skills for this role." |
+| Education | Empty fields | "Complete your education details." |
 
-#### A. Redesigned Editor with AI-First Layout
-
-Current: Tabs at top, AI FAB in corner
-
-Proposed: AI woven into the editing experience
-
-```text
-┌──────────────────────────────────────────┐
-│  ← Edit Resume              [Saved ✓]    │
-├──────────────────────────────────────────┤
-│  [Contact][Summary][Work][Edu][Skills]   │
-├──────────────────────────────────────────┤
-│                                          │
-│  Summary                          [✨ AI]│
-│  ┌────────────────────────────────────┐  │
-│  │ [Current summary text...]          │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-│  ┌────────────────────────────────────┐  │
-│  │ 💡 AI Suggestion                   │  │
-│  │ "Your summary is generic. Tap to   │  │
-│  │  make it specific to [Target Job]" │  │
-│  │              [Apply] [Dismiss]     │  │
-│  └────────────────────────────────────┘  │
-│                                          │
-├──────────────────────────────────────────┤
-│          [Preview & Export]              │
-├──────────────────────────────────────────┤
-│  🔮 AI Assistant           [Match: 72%]  │
-│  [Tailor] [Analyze] [Improve] [Template] │
-└──────────────────────────────────────────┘
+**Implementation:**
+```typescript
+interface AIContextualNudgeProps {
+  show: boolean;
+  message: string;
+  actionLabel: string;
+  onAction: () => void;
+  onDismiss: () => void;
+}
 ```
 
-Key changes:
-1. **Inline AI buttons** per section (not hidden)
-2. **Contextual AI suggestions** appear when relevant
-3. **Persistent AI bar** at bottom (not just a FAB)
-4. **Match score** always visible when job is set
+### 3. AIIntroTooltip
 
-#### B. AI Assistant Bar (Replacing FAB)
-
-Replace the floating button with a persistent, expandable bar:
-
-```text
-Collapsed (default):
-┌──────────────────────────────────────────┐
-│  🔮 AI Assistant        Match: --  [↑]   │
-└──────────────────────────────────────────┘
-
-Expanded (on tap or when suggestion available):
-┌──────────────────────────────────────────┐
-│  🔮 AI Assistant                    [↓]  │
-├──────────────────────────────────────────┤
-│  [🎯 Tailor for Job]  [📊 Analyze Match] │
-│  [✨ Improve Section] [📄 Change Layout] │
-├──────────────────────────────────────────┤
-│  💡 Tip: Paste a job URL to get a        │
-│     personalized match score             │
-└──────────────────────────────────────────┘
-```
-
-Benefits:
-- Always visible (not hidden behind icon)
-- Shows match score when available
-- Collapses to save space during editing
-- Expands with helpful tips for new users
-
-#### C. Proactive AI Nudges
-
-Trigger contextual suggestions based on resume state:
-
-| Trigger | AI Nudge |
-|---------|----------|
-| Summary < 50 words | "Your summary is short. Want AI to expand it?" |
-| No skills added | "Add skills to improve your match score" |
-| Generic bullet points | "These bullets could be stronger. Enhance with AI?" |
-| Job description set but no tailoring | "Ready to tailor for [Job Title]?" |
-| Low match score | "Your score is 45%. Here's how to improve it" |
-
-#### D. First-Time AI Onboarding
-
-After first upload, show a quick AI intro:
+A one-time education tooltip for first-time AI users.
 
 ```text
 ┌──────────────────────────────────────────┐
 │         ✨ Meet Your AI Assistant        │
 │                                          │
 │  I can help you:                         │
+│  • Tailor your resume for any job        │
+│  • Score how well you match              │
+│  • Improve weak sections                 │
 │                                          │
-│  🎯 Tailor your resume for any job       │
-│  📊 Score how well you match             │
-│  ✨ Improve weak sections                │
-│                                          │
-│  Tap the AI bar below to get started!    │
+│  Tap the AI buttons to get started!      │
 │                                          │
 │           [Got It!]                      │
 └──────────────────────────────────────────┘
 ```
 
+**Component: `src/components/editor/AIIntroTooltip.tsx`**
+
+- Shows once per user (tracked in settingsStore)
+- Appears after first resume is loaded in editor
+- Dismisses on tap, never shows again
+- Points to the AI Assistant Bar
+
 ---
 
-### Solution 3: Master + Tailored Versions UX
+## File Changes
 
-Support your users' mental model (one master, many tailored versions).
+### New Files to Create
 
-#### Dashboard Redesign
+| File | Purpose |
+|------|---------|
+| `src/components/editor/InlineAIButton.tsx` | Compact AI trigger in section headers |
+| `src/components/editor/AIContextualNudge.tsx` | Smart suggestion cards |
+| `src/components/editor/AIIntroTooltip.tsx` | First-time user education |
+| `src/hooks/useResumeNudges.ts` | Logic to determine which nudges to show |
 
-```text
-┌──────────────────────────────────────────┐
-│  My Resumes                              │
-├──────────────────────────────────────────┤
-│  📄 Software Engineer Resume  [MASTER]   │
-│      Last edited 2h ago                  │
-│                                          │
-│      Tailored Versions:                  │
-│      ├─ Google SWE (92% match)           │
-│      ├─ Meta Frontend (87% match)        │
-│      └─ + Create tailored version        │
-├──────────────────────────────────────────┤
-│  📄 Product Manager Resume               │
-│      Last edited 3d ago                  │
-│                                          │
-│      No tailored versions yet            │
-│      └─ + Tailor for a job               │
-└──────────────────────────────────────────┘
+### Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/store/settingsStore.ts` | Add `hasSeenAIIntro` flag |
+| `src/components/editor/SummarySection.tsx` | Add InlineAIButton + nudge logic |
+| `src/components/editor/ExperienceSection.tsx` | Add InlineAIButton + nudge logic |
+| `src/components/editor/SkillsSection.tsx` | Add InlineAIButton + nudge logic |
+| `src/components/editor/EducationSection.tsx` | Add InlineAIButton + nudge logic |
+| `src/components/editor/ContactSection.tsx` | Add InlineAIButton |
+| `src/pages/EditorPage.tsx` | Add AIIntroTooltip integration |
+
+---
+
+## Detailed Implementation
+
+### 1. InlineAIButton Component
+
+```typescript
+// Quick-access AI button with dropdown menu
+export function InlineAIButton({
+  section,
+  onAction,
+  isLoading,
+  disabled,
+}: InlineAIButtonProps) {
+  // Section-specific actions defined
+  const actions = getActionsForSection(section);
+  
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2 gap-1.5 text-primary hover:bg-primary/10"
+          disabled={disabled || isLoading}
+        >
+          {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+          <span className="text-xs font-medium">AI</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        {actions.map((action) => (
+          <DropdownMenuItem key={action.id} onClick={() => onAction(action.id)}>
+            {action.icon}
+            {action.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 ```
 
-Benefits:
-- Visual hierarchy (master vs tailored)
-- Match scores on tailored versions
-- Easy to create new tailored versions
-- Clear organization
+### 2. AIContextualNudge Component
+
+```typescript
+// Contextual suggestion card with animation
+export function AIContextualNudge({
+  show,
+  message,
+  actionLabel,
+  onAction,
+  onDismiss,
+}: AIContextualNudgeProps) {
+  if (!show) return null;
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10, height: 0 }}
+      animate={{ opacity: 1, y: 0, height: 'auto' }}
+      exit={{ opacity: 0, y: -10, height: 0 }}
+      className="p-3 rounded-xl bg-primary/5 border border-primary/20"
+    >
+      <div className="flex items-start gap-2">
+        <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-sm text-muted-foreground">{message}</p>
+          <div className="flex items-center gap-2 mt-2">
+            <Button size="sm" onClick={onAction}>{actionLabel}</Button>
+            <Button variant="ghost" size="sm" onClick={onDismiss}>Dismiss</Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+```
+
+### 3. useResumeNudges Hook
+
+Centralizes nudge logic across all sections:
+
+```typescript
+interface NudgeState {
+  section: SectionType;
+  trigger: string;
+  message: string;
+  actionLabel: string;
+  action: ActionType;
+}
+
+export function useResumeNudges(resume: ResumeData | null, jobDescription?: string) {
+  const { showAIEnhancementTips } = useSettingsStore();
+  const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
+  
+  const nudges: NudgeState[] = useMemo(() => {
+    if (!resume || !showAIEnhancementTips) return [];
+    
+    const active: NudgeState[] = [];
+    
+    // Summary nudges
+    if (resume.summary.length < 50 && resume.summary.length > 0) {
+      active.push({
+        section: 'summary',
+        trigger: 'short_summary',
+        message: 'Your summary is quite short. Let AI expand it with relevant details.',
+        actionLabel: 'Expand',
+        action: 'expand',
+      });
+    }
+    
+    // Skills nudges
+    if (resume.skills.length < 3) {
+      active.push({
+        section: 'skills',
+        trigger: 'few_skills',
+        message: 'Add more skills to improve your match score.',
+        actionLabel: 'Suggest Skills',
+        action: 'generate',
+      });
+    }
+    
+    // ... more nudge conditions
+    
+    return active.filter(n => !dismissedNudges.has(n.trigger));
+  }, [resume, jobDescription, showAIEnhancementTips, dismissedNudges]);
+  
+  const dismissNudge = (trigger: string) => {
+    setDismissedNudges(prev => new Set([...prev, trigger]));
+  };
+  
+  const getNudgeForSection = (section: SectionType) => 
+    nudges.find(n => n.section === section);
+  
+  return { nudges, getNudgeForSection, dismissNudge };
+}
+```
+
+### 4. Settings Store Update
+
+Add `hasSeenAIIntro` to track first-time experience:
+
+```typescript
+interface SettingsState {
+  // ... existing fields
+  hasSeenAIIntro: boolean;
+  setHasSeenAIIntro: (value: boolean) => void;
+}
+```
+
+### 5. Section Header Updates
+
+Each section header will be updated to include the InlineAIButton:
+
+**Before:**
+```tsx
+<h3 className="font-display font-semibold text-lg">Professional Summary</h3>
+```
+
+**After:**
+```tsx
+<div className="flex items-center justify-between mb-4">
+  <h3 className="font-display font-semibold text-lg">Professional Summary</h3>
+  <InlineAIButton 
+    section="summary" 
+    onAction={handleAction} 
+    isLoading={isEnhancing} 
+  />
+</div>
+```
+
+### 6. EditorPage Integration
+
+Add the AIIntroTooltip as an overlay:
+
+```tsx
+export default function EditorPage() {
+  const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
+  
+  return (
+    <MobileLayout>
+      {/* ... existing content */}
+      
+      {/* First-time AI intro */}
+      <AIIntroTooltip 
+        show={!hasSeenAIIntro && !!currentResume}
+        onDismiss={() => setHasSeenAIIntro(true)}
+      />
+    </MobileLayout>
+  );
+}
+```
 
 ---
 
-## Implementation Priority
+## Nudge Trigger Matrix
 
-### Phase 1: Critical Fixes (Week 1-2)
-1. **Upload error recovery flow** - Friendly error screens with clear actions
-2. **Progressive parsing feedback** - Step-by-step progress during upload
-3. **AI bar replacement** - Replace FAB with persistent AI Assistant bar
+| Section | Trigger | Condition | Priority |
+|---------|---------|-----------|----------|
+| Summary | `short_summary` | 0 < length < 50 | High |
+| Summary | `long_summary` | length > 500 | Medium |
+| Summary | `empty_summary` | length === 0 | High |
+| Experience | `empty_description` | Any exp with no description | High |
+| Experience | `no_metrics` | Description without numbers | Medium |
+| Skills | `few_skills` | skills.length < 3 | High |
+| Skills | `missing_job_skills` | Job set + gap analysis shows missing | High |
+| Education | `incomplete_edu` | Any edu missing institution or degree | Medium |
 
-### Phase 2: AI Integration (Week 2-3)
-4. **Inline AI buttons** - Add AI buttons to each section header
-5. **Contextual AI nudges** - Smart suggestions based on resume state
-6. **First-time AI intro** - Onboarding tooltip after first upload
-
-### Phase 3: Polish (Week 3-4)
-7. **Master/tailored version UX** - Dashboard hierarchy
-8. **AI adoption analytics** - Track feature usage
-9. **Proactive tips** - Ongoing helpful suggestions
+Only ONE nudge per section will be shown (highest priority).
 
 ---
 
-## Files to Modify
+## Visual Design
 
-| File | Changes | Priority |
-|------|---------|----------|
-| `src/pages/UploadPage.tsx` | Progressive feedback, error recovery UI | High |
-| `src/components/upload/UploadErrorRecovery.tsx` | NEW - Friendly error handling component | High |
-| `src/pages/EditorPage.tsx` | Replace FAB with AI Assistant bar, add inline AI buttons | High |
-| `src/components/editor/AIAssistantBar.tsx` | NEW - Persistent AI bar component | High |
-| `src/components/editor/AIFloatingButton.tsx` | REMOVE or repurpose | Medium |
-| `src/components/editor/InlineAIButton.tsx` | NEW - Per-section AI buttons | Medium |
-| `src/components/editor/AIContextualNudge.tsx` | NEW - Smart suggestion cards | Medium |
-| `src/components/onboarding/AIIntroTooltip.tsx` | NEW - First-time AI education | Medium |
-| `src/pages/DashboardPage.tsx` | Master/tailored version hierarchy | Low |
-| `src/store/resumeStore.ts` | Track master vs tailored relationships | Low |
+### InlineAIButton States
+
+```text
+Default:   [✨ AI]  (gradient sparkle, primary text)
+Hover:     [✨ AI]  (bg-primary/10)
+Loading:   [⟳ AI]  (spinning loader)
+Disabled:  [✨ AI]  (opacity-50, cursor-not-allowed)
+```
+
+### Nudge Card Styling
+
+- Light primary background (`bg-primary/5`)
+- Subtle border (`border-primary/20`)
+- Lightbulb icon in primary color
+- Staggered entrance animation
+- Dismisses with fade-out + collapse
+
+### AIIntroTooltip
+
+- Modal overlay with backdrop blur
+- Centered card with gradient accent
+- List of capabilities with icons
+- Single "Got It!" CTA button
+- Haptic feedback on dismiss
 
 ---
 
-## New Components
+## Mobile Considerations
 
-### 1. AIAssistantBar
-Persistent bottom bar replacing the FAB:
-- Shows match score when available
-- Collapses/expands on tap
-- Contains all AI actions
-- Shows tips for new users
+- InlineAIButton dropdown positioned at edge (`align="end"`)
+- Nudges collapse smoothly to avoid layout jumps
+- All touch targets minimum 44px
+- Haptic feedback on all interactions
+- Nudges respect `showAIEnhancementTips` setting
 
-### 2. UploadErrorRecovery
-Friendly error handling with clear recovery paths:
-- OCR option
-- Start fresh option
-- Try different file option
-- Explains why in simple terms
+---
 
-### 3. InlineAIButton
-Small button on each section header:
-- "Improve with AI" for summary
-- "Suggest skills" for skills section
-- "Enhance bullets" for experience
+## Implementation Order
 
-### 4. AIContextualNudge
-Smart suggestion cards that appear when:
-- Section could be improved
-- User hasn't tried AI features
-- Match score is low
+1. **Create InlineAIButton** component with section-specific actions
+2. **Create AIContextualNudge** component with animation
+3. **Create useResumeNudges** hook with trigger logic
+4. **Update settingsStore** with `hasSeenAIIntro`
+5. **Create AIIntroTooltip** component
+6. **Update SummarySection** (template for other sections)
+7. **Update ExperienceSection** with inline button + nudges
+8. **Update SkillsSection** with inline button + nudges
+9. **Update EducationSection** with inline button
+10. **Update ContactSection** with inline button
+11. **Integrate AIIntroTooltip** in EditorPage
 
 ---
 
 ## Success Metrics
 
-Track these to measure improvement:
-
-| Metric | Current (Estimate) | Target |
-|--------|-------------------|--------|
-| Upload completion rate | ~60% | 85% |
-| AI feature discovery | ~30% | 70% |
-| AI feature adoption | ~20% | 50% |
-| Tailor feature usage | ~15% | 40% |
-| Time to first AI action | 5+ minutes | < 2 minutes |
-
----
-
-## Summary
-
-This plan addresses your two critical pain points:
-
-1. **PDF Upload** → Friendly errors, progressive feedback, clear recovery options
-2. **AI Discovery** → Persistent AI bar, inline buttons, contextual nudges, onboarding
-
-The result is a resume builder where AI feels like a helpful co-pilot rather than a hidden feature, while making the upload experience forgiving and recoverable.
+After implementation:
+- Inline AI buttons visible in all 5 section headers
+- Contextual nudges appear based on resume state
+- First-time users see AI intro once
+- AI tips can be toggled off in settings
+- Nudges can be individually dismissed
 
