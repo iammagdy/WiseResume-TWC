@@ -1,200 +1,277 @@
 
-# Enable Bottom Tab Navigation for Native App-Like Navigation
+# Add Settings Tab to Bottom Navigation
 
 ## Overview
 
-Integrate the existing `BottomTabBar` component into the app's main pages to provide persistent, thumb-friendly navigation between Home (Dashboard), Editor, and New (Upload) screens - creating a native mobile app experience.
+Add a fourth tab (Settings) to the bottom navigation bar and create a dedicated Settings page where users can manage their preferences and account details. This provides a centralized location for all user settings, following the native mobile app pattern.
 
 ---
 
 ## Current State
 
-The `BottomTabBar` component already exists with:
-- Three tabs: Home (dashboard), Editor, New (upload)
-- Active state detection with path matching
-- Haptic feedback on tab selection
-- Animated indicator dot for active tab
-- Safe area padding for notched devices
-
-However, it's not currently integrated into any pages.
+The `BottomTabBar` component already imports the `Settings` icon from lucide-react but doesn't use it. Currently there are 3 tabs:
+- Home (Dashboard)
+- Editor
+- New (Upload)
 
 ---
 
-## Integration Strategy
+## Implementation Strategy
 
-The bottom tab bar should appear on these pages:
-- `/dashboard` - Home tab active
-- `/editor` - Editor tab active
-- `/preview` - Editor tab active (part of editing flow)
-- `/upload` - New tab active
-
-Pages where it should NOT appear:
-- `/` (Index) - Landing page for unauthenticated users
-- `/auth` - Authentication page
-
----
-
-## Implementation Approach
-
-### Option A: Add to MobileLayout (Recommended)
-
-Update `MobileLayout` to conditionally render `BottomTabBar` based on a prop. This centralizes the logic and ensures consistent padding.
-
-```typescript
-// MobileLayout.tsx
-interface MobileLayoutProps {
-  children: ReactNode;
-  showBottomNav?: boolean;  // Already exists!
-  // ...other props
-}
-
-// When showBottomNav is true:
-// 1. Render BottomTabBar at the bottom
-// 2. Add pb-20 padding to main content (already done!)
-```
-
-### Option B: Add to Individual Pages
-
-Add `BottomTabBar` to each page component individually.
-
-**Recommendation**: Option A is cleaner since `MobileLayout` already has `showBottomNav` prop and applies `pb-20` padding when true.
+1. Add a Settings tab to `BottomTabBar`
+2. Create a new `SettingsPage` component
+3. Add the route to `App.tsx`
+4. Design a mobile-friendly settings interface with:
+   - User profile section (email, avatar)
+   - Theme preferences
+   - Account actions (sign out, reset onboarding)
 
 ---
 
 ## File Changes
 
-### 1. Update `src/components/layout/MobileLayout.tsx`
+### 1. Update `src/components/layout/BottomTabBar.tsx`
 
-Import and render `BottomTabBar` when `showBottomNav` is true:
+Add Settings as the fourth tab:
 
 ```typescript
-import { BottomTabBar } from './BottomTabBar';
-
-// In the component:
-return (
-  <div className="min-h-screen min-h-[100dvh] flex flex-col bg-background">
-    <OfflineBanner />
-    {showHeader && (/* header */)}
-    <main className={`flex-1 overflow-y-auto ${showBottomNav ? 'pb-20' : 'pb-safe'}`}>
-      {children}
-    </main>
-    {showBottomNav && <BottomTabBar />}  {/* Add this */}
-  </div>
-);
+const tabs: TabItem[] = [
+  { 
+    path: '/dashboard', 
+    icon: Home, 
+    label: 'Home',
+    matchPaths: ['/dashboard']
+  },
+  { 
+    path: '/editor', 
+    icon: FileText, 
+    label: 'Editor',
+    matchPaths: ['/editor', '/preview']
+  },
+  { 
+    path: '/upload', 
+    icon: Sparkles, 
+    label: 'New',
+    matchPaths: ['/upload']
+  },
+  { 
+    path: '/settings',   // NEW
+    icon: Settings, 
+    label: 'Settings',
+    matchPaths: ['/settings']
+  },
+];
 ```
 
-### 2. Update `src/pages/DashboardPage.tsx`
+### 2. Create `src/pages/SettingsPage.tsx`
 
-Enable bottom nav on the dashboard:
+A dedicated settings page with:
 
-```diff
-- <MobileLayout>
-+ <MobileLayout showBottomNav>
-```
+**Sections:**
+- **Profile Card**: User email and avatar (from auth)
+- **Appearance**: Theme toggle using the existing `ThemeToggle` component
+- **Account**: Sign out button, reset onboarding option
+- **About**: App version, help links
 
-### 3. Update `src/pages/EditorPage.tsx`
-
-Enable bottom nav on the editor:
-
-```diff
-- <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack}>
-+ <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack} showBottomNav>
-```
-
-The editor has a sticky bottom action bar that needs adjustment:
-- Change from `sticky bottom-0` to account for tab bar height
-- Use `bottom-[64px]` or similar offset
-
-### 4. Update `src/pages/PreviewPage.tsx`
-
-Enable bottom nav on the preview:
-
-```diff
-- <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')}>
-+ <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')} showBottomNav>
-```
-
-Similar adjustment needed for the sticky bottom actions.
-
-### 5. Update `src/pages/UploadPage.tsx`
-
-Enable bottom nav on the upload page:
-
-```diff
-- <MobileLayout showHeader headerTitle="Upload Resume" onBack={() => navigate('/')}>
-+ <MobileLayout showHeader headerTitle="Upload Resume" onBack={() => navigate('/')} showBottomNav>
-```
-
----
-
-## Layout Considerations
-
-### Bottom Action Bars
-
-The Editor and Preview pages have sticky bottom action bars. With the tab bar present, these need adjustments:
-
-**Current Editor Page:**
-```tsx
-<motion.div className="sticky bottom-0 p-4 pb-safe glass ...">
-  {/* Preview & Export button */}
-</motion.div>
-```
-
-**Updated for Tab Bar:**
-```tsx
-<motion.div className="sticky bottom-20 p-4 glass ...">
-  {/* No pb-safe needed since tab bar handles it */}
-</motion.div>
-```
-
-The `bottom-20` (80px) accounts for the 64px tab bar + some margin.
-
-### Content Padding
-
-`MobileLayout` already handles this:
-- When `showBottomNav` is true: `pb-20` padding on main content
-- When false: `pb-safe` for device safe area only
-
----
-
-## Visual Flow
+**Design:**
+- Uses `MobileLayout` with `showBottomNav`
+- Grouped settings with section headers
+- Touch-friendly buttons and toggles
+- Consistent with app's mobile-first design language
 
 ```text
-┌──────────────────────────────────┐
-│         App Header               │
-├──────────────────────────────────┤
-│                                  │
-│                                  │
-│       Page Content               │
-│                                  │
-│                                  │
-├──────────────────────────────────┤
-│  [Action Bar if any]             │
-├──────────────────────────────────┤
-│  🏠 Home    📄 Editor   ✨ New   │
-│            ●                     │  ← Active indicator
-└──────────────────────────────────┘
+Layout Preview:
++----------------------------------+
+|         Settings                 |  <- Header
++----------------------------------+
+|  [Avatar]  user@email.com        |  <- Profile card
++----------------------------------+
+|  APPEARANCE                      |
+|  [Light] [Dark] [System]         |  <- ThemeToggle
++----------------------------------+
+|  ACCOUNT                         |
+|  > Reset Onboarding              |
+|  > Sign Out                      |
++----------------------------------+
+|  ABOUT                           |
+|  WiseResume v1.0                 |
++----------------------------------+
+|  [Home] [Editor] [New] [Settings]|
++----------------------------------+
 ```
+
+### 3. Update `src/App.tsx`
+
+Add the settings route:
+
+```typescript
+import SettingsPage from "./pages/SettingsPage";
+
+// In Routes:
+<Route path="/settings" element={<SettingsPage />} />
+```
+
+### 4. Update `src/pages/DashboardPage.tsx`
+
+Remove the Sign Out button from the header since it's now in Settings:
+- Remove the `LogOut` import
+- Remove the Sign Out button from the header
+- Keep only the `ThemeDropdown` in the header (for quick access)
 
 ---
 
-## Navigation Tab Refinements
+## SettingsPage Component Structure
 
-### Current Tabs
-| Tab | Icon | Path | Match Paths |
-|-----|------|------|-------------|
-| Home | Home | /dashboard | /dashboard |
-| Editor | FileText | /editor | /editor, /preview |
-| New | Sparkles | /upload | /upload |
+```typescript
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { User, LogOut, RotateCcw, Info } from 'lucide-react';
+import { MobileLayout } from '@/components/layout/MobileLayout';
+import { ThemeToggle } from '@/components/settings/ThemeToggle';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { useAuth } from '@/hooks/useAuth';
+import { haptics } from '@/lib/haptics';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
-### Recommended Enhancement
+export default function SettingsPage() {
+  const navigate = useNavigate();
+  const { user, loading, signOut } = useAuth();
 
-The "New" tab currently navigates to `/upload`, but the dashboard already has a "New Resume" button that opens a dialog. Consider:
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [loading, user, navigate]);
 
-1. **Keep as-is**: Direct to upload page (simple)
-2. **Open CreateResumeDialog**: Show the choice between upload/blank (more aligned with existing UX)
+  const handleSignOut = async () => {
+    haptics.medium();
+    await signOut();
+    navigate('/');
+  };
 
-**Recommendation**: Keep as-is for v1 - the upload page provides a focused experience for adding new resumes.
+  const handleResetOnboarding = async () => {
+    if (user) {
+      await supabase
+        .from('profiles')
+        .update({ onboarding_completed: false })
+        .eq('user_id', user.id);
+      haptics.success();
+      toast.success('Onboarding reset. Refresh to see it again.');
+    }
+  };
+
+  // Get user initials for avatar fallback
+  const getInitials = () => {
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return 'U';
+  };
+
+  if (loading) {
+    return <MobileLayout showBottomNav>Loading...</MobileLayout>;
+  }
+
+  return (
+    <MobileLayout showBottomNav>
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="pt-safe pt-4 pb-3 px-4 border-b border-border">
+          <h1 className="text-xl font-bold">Settings</h1>
+        </header>
+
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* Profile Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border"
+          >
+            <Avatar className="h-14 w-14">
+              <AvatarImage src={user?.user_metadata?.avatar_url} />
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {getInitials()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium truncate">{user?.email}</p>
+              <p className="text-sm text-muted-foreground">Account</p>
+            </div>
+          </motion.div>
+
+          {/* Appearance Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              APPEARANCE
+            </h2>
+            <div className="p-4 rounded-xl bg-card border border-border">
+              <ThemeToggle className="w-full justify-center" />
+            </div>
+          </motion.div>
+
+          {/* Account Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              ACCOUNT
+            </h2>
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <Button
+                variant="ghost"
+                className="w-full justify-start h-12 px-4 rounded-none"
+                onClick={handleResetOnboarding}
+              >
+                <RotateCcw className="w-4 h-4 mr-3" />
+                Reset Onboarding
+              </Button>
+              <Separator />
+              <Button
+                variant="ghost"
+                className="w-full justify-start h-12 px-4 rounded-none text-destructive hover:text-destructive"
+                onClick={handleSignOut}
+              >
+                <LogOut className="w-4 h-4 mr-3" />
+                Sign Out
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* About Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              ABOUT
+            </h2>
+            <div className="p-4 rounded-xl bg-card border border-border">
+              <div className="flex items-center gap-3">
+                <Info className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  WiseResume v1.0.0
+                </span>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </MobileLayout>
+  );
+}
+```
 
 ---
 
@@ -202,39 +279,43 @@ The "New" tab currently navigates to `/upload`, but the dashboard already has a 
 
 | File | Change Type | Description |
 |------|-------------|-------------|
-| `src/components/layout/MobileLayout.tsx` | UPDATE | Import and render BottomTabBar when showBottomNav=true |
-| `src/pages/DashboardPage.tsx` | UPDATE | Add showBottomNav prop to MobileLayout |
-| `src/pages/EditorPage.tsx` | UPDATE | Add showBottomNav prop, adjust bottom action bar |
-| `src/pages/PreviewPage.tsx` | UPDATE | Add showBottomNav prop, adjust bottom action bar |
-| `src/pages/UploadPage.tsx` | UPDATE | Add showBottomNav prop |
+| `src/components/layout/BottomTabBar.tsx` | UPDATE | Add Settings tab to navigation |
+| `src/pages/SettingsPage.tsx` | NEW | Create settings page with profile, theme, and account sections |
+| `src/App.tsx` | UPDATE | Add /settings route |
+| `src/pages/DashboardPage.tsx` | UPDATE | Remove Sign Out button from header (moved to Settings) |
 
 ---
 
 ## User Experience
 
-### Before
-- Users navigate via back buttons and explicit navigation actions
-- Moving between dashboard, editor, and upload requires multiple taps
+### Navigation
+- 4 tabs: Home, Editor, New, Settings
+- Settings icon appears as the rightmost tab
+- Active state indicator works consistently with other tabs
 
-### After
-- Persistent bottom tab bar on main app screens
-- Single-tap navigation to any primary section
-- Active tab clearly indicated with primary color + animated dot
-- Haptic feedback on tab selection
-- Familiar pattern from native iOS/Android apps
+### Settings Page Features
+1. **Profile Card**: Shows user email with avatar (or initial fallback)
+2. **Theme Toggle**: Full `ThemeToggle` component with Light/Dark/System options
+3. **Reset Onboarding**: Allows users to replay the welcome carousel
+4. **Sign Out**: Clear account action with destructive styling
+5. **About**: App version information
+
+### Animations
+- Staggered entrance animations for each section
+- Consistent with app's motion design language
+- Haptic feedback on all interactive elements
 
 ---
 
-## Edge Cases
+## Design Considerations
 
-### Editor Without Active Resume
-- If user taps Editor tab but no resume is loaded, redirect to dashboard
-- This is already handled by the EditorPage itself
+### Why move Sign Out to Settings?
+- Cleaner dashboard header
+- Groups all account-related actions together
+- Follows iOS/Android native app patterns
+- Less visual clutter on main screen
 
-### Keyboard Open
-- Bottom tab bar remains visible but may be pushed up by keyboard
-- Consider hiding during text input (future enhancement)
-
-### Animations
-- Tab bar animates in from bottom on mount
-- Active indicator animates smoothly between tabs using Framer Motion's layoutId
+### Keep ThemeDropdown in Dashboard header?
+- Yes - provides quick access for frequent theme switchers
+- Settings page has the full ThemeToggle for detailed selection
+- Redundancy is acceptable for convenience
