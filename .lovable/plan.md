@@ -1,318 +1,145 @@
 
 
-# UX Enhancement: Mobile Fixes, Auth Improvements & Dashboard Polish
+# Critical Bug Fix: Invalid Hook Call Error
 
-## Overview
+## Problem Identified
 
-This plan addresses multiple usability improvements to make WiseResume a truly mobile-first experience with better authentication flows and enhanced dashboard interactions.
+The app is experiencing a **"Invalid hook call"** error that breaks the entire application:
 
----
-
-## Part 1: Mobile Input Fixes (Prevents iOS Auto-Zoom)
-
-### Issue
-iOS Safari automatically zooms when users tap on inputs with font-size less than 16px. The current `Textarea` uses `text-sm` (14px).
-
-### Changes
-
-**File: `src/components/ui/textarea.tsx`**
-- Change `text-sm` to `text-base` (16px) to prevent iOS zoom
-- Add responsive sizing: `text-base md:text-sm` (16px mobile, 14px desktop)
-
-**File: `src/components/ui/input.tsx`**
-- Already has `text-base md:text-sm` - no changes needed
-- Default height is `h-10`, but AuthPage already overrides to `h-12`
-
----
-
-## Part 2: Password Reset Flow
-
-### Current State
-- No "Forgot Password" link on login form
-- No password reset functionality
-
-### New Components & Changes
-
-**File: `src/pages/AuthPage.tsx`**
-Add new state and UI for password reset:
-
-```text
-[Login Form]
-┌─────────────────────────────────────────┐
-│  Email: [                             ] │
-│  Password: [                          ] │
-│                                         │
-│  Forgot password?  <-- NEW LINK         │
-│                                         │
-│  [Sign In]                              │
-└─────────────────────────────────────────┘
-
-[Reset Password Mode]
-┌─────────────────────────────────────────┐
-│  Reset Your Password                    │
-│                                         │
-│  Enter your email and we'll send you    │
-│  a link to reset your password.         │
-│                                         │
-│  Email: [                             ] │
-│                                         │
-│  [Send Reset Link]                      │
-│                                         │
-│  Back to Sign In                        │
-└─────────────────────────────────────────┘
+```
+Warning: Invalid hook call. Hooks can only be called inside of the body of a function component.
 ```
 
-### Implementation Details
+The error occurs in `OfflineBanner` → `useNetworkStatus` and prevents the Auth page (and likely all pages using `MobileLayout`) from rendering.
 
-1. Add `isForgotPassword` state
-2. Add `handlePasswordReset` function using `supabase.auth.resetPasswordForEmail()`
-3. Add conditional UI for reset mode
-4. Use `redirectTo` option to specify reset callback URL
+### Root Cause Analysis
 
----
+After investigating the console logs and code:
 
-## Part 3: Social Authentication (Google Sign-In)
+1. **Stale Cache/HMR Issue**: The error line numbers don't match the actual source code (error says line 3, but `useState` is on line 9 of `useNetworkStatus.ts`). This indicates a bundler cache mismatch.
 
-### New Components
-
-**File: `src/pages/AuthPage.tsx`**
-Add social auth buttons:
-
-```text
-┌─────────────────────────────────────────┐
-│  [Email Form...]                        │
-│                                         │
-│  ─────────── or ───────────             │
-│                                         │
-│  [G] Continue with Google               │
-│  [] Continue with Apple                │
-└─────────────────────────────────────────┘
-```
-
-### Implementation Steps
-
-1. Configure Google OAuth using the `supabase--configure-social-auth` tool
-2. Import the lovable auth module
-3. Add Google and Apple sign-in buttons
-4. Handle OAuth redirects
-
-### Button Styling
-- Full-width buttons matching the primary CTA
-- Google: White background with Google "G" logo
-- Apple: Black background with Apple logo
-- Both: Minimum 48px height, proper touch targets
+2. **Potential Module Initialization Order**: The `src/integrations/lovable/index.ts` imports `supabase` client at the top level and calls `createLovableAuth({})` at module load time, which could cause issues during HMR.
 
 ---
 
-## Part 4: Pull-to-Refresh on Dashboard
+## Fix Plan
 
-### Current State
-- `PullToRefresh` component exists but is not used
-- Dashboard list uses manual refresh only
+### Step 1: Fix the Lovable Auth Initialization (Safety Check)
 
-### Changes
+**File: `src/integrations/lovable/index.ts`**
 
-**File: `src/pages/DashboardPage.tsx`**
-Wrap the resume list with `PullToRefresh`:
+Move the `createLovableAuth` call to be lazy-loaded to avoid any potential module initialization issues:
 
 ```typescript
-import { PullToRefresh } from '@/components/ui/pull-to-refresh';
+// src/integrations/lovable/index.ts
+import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
+import { supabase } from "../supabase/client";
 
-// In the content area:
-<PullToRefresh 
-  onRefresh={async () => {
-    await refetch();
-    haptics.success();
-  }}
-  className="flex-1"
->
-  {/* Resume list content */}
-</PullToRefresh>
-```
+// Lazy initialization to avoid module load issues
+let lovableAuthInstance: ReturnType<typeof createLovableAuth> | null = null;
 
-### Behavior
-- Pull down from top of list triggers refresh
-- Haptic feedback on pull threshold and completion
-- Spinner animation during refresh
-- Toast notification on completion (optional)
-
----
-
-## Part 5: Enhanced Resume Cards
-
-### Current State
-- Cards show title, job, company, and dates
-- No visual indication of completeness
-
-### Enhancements
-
-**File: `src/components/dashboard/ResumeListCard.tsx`**
-
-1. **Resume Completion Percentage**
-   - Calculate based on filled sections
-   - Show as small progress ring or bar
-   - Color-coded: red (<50%), yellow (50-80%), green (>80%)
-
-2. **Relative Timestamps**
-   - Change "Last edited: Jan 4, 2025" to "Last edited: 2 hours ago"
-   - Use `date-fns` `formatDistanceToNow()` (already installed)
-
-3. **Quick Preview Thumbnail** (Optional - Future Phase)
-   - Small thumbnail of first page
-   - Would require PDF rendering
-
----
-
-## File Changes Summary
-
-| File | Changes |
-|------|---------|
-| `src/components/ui/textarea.tsx` | Fix font size for iOS (text-base) |
-| `src/pages/AuthPage.tsx` | Add forgot password, social auth |
-| `src/pages/DashboardPage.tsx` | Integrate PullToRefresh |
-| `src/components/dashboard/ResumeListCard.tsx` | Add completion %, relative time |
-
----
-
-## Detailed Implementation
-
-### 1. Textarea iOS Fix
-
-```typescript
-// src/components/ui/textarea.tsx
-className={cn(
-  "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-  className,
-)}
-```
-
-### 2. Password Reset in AuthPage
-
-```typescript
-// New state
-const [isForgotPassword, setIsForgotPassword] = useState(false);
-
-// Reset handler
-const handlePasswordReset = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  try {
-    emailSchema.parse(email);
-  } catch {
-    toast.error('Please enter a valid email address');
-    return;
+function getLovableAuth() {
+  if (!lovableAuthInstance) {
+    lovableAuthInstance = createLovableAuth({});
   }
-  
-  setIsLoading(true);
-  
-  try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth?reset=true`,
-    });
-    
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    
-    toast.success('Check your email for the reset link!');
-    setIsForgotPassword(false);
-  } finally {
-    setIsLoading(false);
-  }
-};
-```
-
-### 3. Social Auth Buttons
-
-```typescript
-// After configuring social auth, import:
-import { lovable } from "@/integrations/lovable/index";
-
-// Google sign-in handler
-const handleGoogleSignIn = async () => {
-  setIsLoading(true);
-  const { error } = await lovable.auth.signInWithOAuth("google", {
-    redirect_uri: window.location.origin,
-  });
-  
-  if (error) {
-    toast.error('Failed to sign in with Google');
-    setIsLoading(false);
-  }
-};
-
-// Apple sign-in handler
-const handleAppleSignIn = async () => {
-  setIsLoading(true);
-  const { error } = await lovable.auth.signInWithOAuth("apple", {
-    redirect_uri: window.location.origin,
-  });
-  
-  if (error) {
-    toast.error('Failed to sign in with Apple');
-    setIsLoading(false);
-  }
-};
-```
-
-### 4. Resume Completion Calculation
-
-```typescript
-// Utility function for completion percentage
-function calculateResumeCompletion(resume: DatabaseResume): number {
-  let filled = 0;
-  let total = 5; // contact, summary, experience, education, skills
-  
-  // Check contact (has name and email)
-  if (resume.contact_info?.name && resume.contact_info?.email) filled++;
-  
-  // Check summary
-  if (resume.summary && resume.summary.length > 20) filled++;
-  
-  // Check experience
-  if (resume.experience && resume.experience.length > 0) filled++;
-  
-  // Check education
-  if (resume.education && resume.education.length > 0) filled++;
-  
-  // Check skills
-  if (resume.skills && resume.skills.length >= 3) filled++;
-  
-  return Math.round((filled / total) * 100);
+  return lovableAuthInstance;
 }
+
+type SignInOptions = {
+  redirect_uri?: string;
+  extraParams?: Record<string, string>;
+};
+
+export const lovable = {
+  auth: {
+    signInWithOAuth: async (provider: "google" | "apple", opts?: SignInOptions) => {
+      const lovableAuth = getLovableAuth();
+      const result = await lovableAuth.signInWithOAuth(provider, {
+        redirect_uri: opts?.redirect_uri,
+        extraParams: {
+          ...opts?.extraParams,
+        },
+      });
+
+      if (result.redirected) {
+        return result;
+      }
+
+      if (result.error) {
+        return result;
+      }
+
+      try {
+        await supabase.auth.setSession(result.tokens);
+      } catch (e) {
+        return { error: e instanceof Error ? e : new Error(String(e)) };
+      }
+      return result;
+    },
+  },
+};
 ```
 
-### 5. Relative Timestamps
+### Step 2: Ensure `useNetworkStatus` is Properly Exported
+
+**File: `src/hooks/useNetworkStatus.ts`**
+
+The hook looks correct, but let's ensure proper exports:
 
 ```typescript
-import { formatDistanceToNow } from 'date-fns';
-
-// In ResumeListCard
-<p className="text-xs text-muted-foreground">
-  Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
-</p>
+// No changes needed - hook is properly implemented
 ```
+
+### Step 3: Clear Vite Cache and Rebuild
+
+After making changes, the Vite cache will automatically rebuild. This should resolve any stale bundle issues.
 
 ---
 
-## Implementation Order
+## After Fix: Testing Plan
 
-1. **Fix textarea iOS zoom** (1 line change, immediate impact)
-2. **Add password reset flow** (high value for user trust)
-3. **Configure and add social auth** (reduces friction)
-4. **Integrate pull-to-refresh** (native mobile feel)
-5. **Enhance resume cards** (better information display)
+Once the bug is fixed, we can properly test:
+
+### Test 1: CV Import Flow
+1. Navigate to `/upload`
+2. Upload a PDF resume
+3. Verify the parsing progress steps work correctly
+4. Check that the resume data appears in the editor
+
+### Test 2: AI Tailor Feature
+1. Navigate to `/editor` with a resume loaded
+2. Open the Tailor Sheet
+3. Paste a job description or URL
+4. Click "Tailor My Resume"
+5. Verify the AI tailoring process completes
+6. Review and apply changes
+
+---
+
+## Technical Details
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/integrations/lovable/index.ts` | Lazy-load `createLovableAuth` to prevent module initialization issues |
+
+### Why This Fix Works
+
+1. **Lazy Initialization**: By deferring `createLovableAuth()` until the first actual use, we avoid any potential race conditions during Vite's HMR or initial module loading.
+
+2. **Cache Reset**: Any code changes will trigger Vite to rebuild the affected modules, clearing stale cache.
+
+3. **No Breaking Changes**: The API surface (`lovable.auth.signInWithOAuth`) remains identical.
 
 ---
 
 ## Success Criteria
 
 After implementation:
-- iOS users won't experience zoom when tapping textareas
-- Users can reset forgotten passwords via email
-- Users can sign in with Google or Apple
-- Dashboard supports native pull-to-refresh gesture
-- Resume cards show completion percentage and relative timestamps
-- All touch targets meet 44-48px minimum size
+- Auth page loads without console errors
+- All pages using `MobileLayout` render correctly  
+- Google/Apple sign-in buttons work
+- Upload page allows PDF import
+- Tailor feature functions end-to-end
 
