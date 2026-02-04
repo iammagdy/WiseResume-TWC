@@ -11,6 +11,8 @@ interface TabItem {
   matchPaths?: string[];
 }
 
+
+
 const tabs: TabItem[] = [
   { 
     path: '/dashboard', 
@@ -29,6 +31,12 @@ const tabs: TabItem[] = [
     icon: Sparkles, 
     label: 'New',
     matchPaths: ['/upload']
+  },
+  { 
+    path: '/settings', 
+    icon: Settings, 
+    label: 'Settings',
+    matchPaths: ['/settings']
   },
 ];
 

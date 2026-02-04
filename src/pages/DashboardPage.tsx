@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, LogOut } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
@@ -135,11 +135,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSignOut = async () => {
-    haptics.medium();
-    await signOut();
-    navigate('/');
-  };
 
   // Filter resumes by search query
   const filteredResumes = resumes?.filter(resume => {
@@ -200,18 +195,7 @@ export default function DashboardPage() {
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between border-b border-border">
           <AppLogo size="sm" />
-          <div className="flex items-center gap-1">
-            <ThemeDropdown />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSignOut}
-              className="text-muted-foreground"
-            >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
+          <ThemeDropdown />
         </header>
 
         {/* Title Bar */}
