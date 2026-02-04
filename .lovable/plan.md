@@ -1,412 +1,385 @@
 
 
-# Add Profile Editing Feature
+# Enhanced Settings Page - Comprehensive Options
 
 ## Overview
 
-Add the ability for users to edit their display name and avatar directly from the Settings page. The profile data will be stored in the existing `profiles` table which already has `full_name` and `avatar_url` columns.
+Add powerful new settings sections to give users full control over their data, notifications, privacy, and editor preferences. This transforms the Settings page into a comprehensive control center that respects user autonomy while enhancing the app experience.
 
 ---
 
-## Design Approach
+## New Features Summary
 
-Create a bottom sheet that slides up when the user taps on their profile card in the Settings page. This follows the app's mobile-first design pattern and provides a focused editing experience.
+Based on your preferences, we'll implement:
 
-**User Flow:**
-1. User taps on profile card in Settings
-2. Bottom sheet slides up with edit form
-3. User can update display name and/or select a new avatar
-4. Changes are saved to the database and immediately reflected in the UI
-
----
-
-## Implementation Strategy
-
-### Avatar Handling
-
-For avatar management, we have two approaches:
-
-**Option A: Avatar URL Input** (Simpler)
-- User pastes a URL to their avatar image
-- No storage bucket needed
-- Works with any image URL (Gravatar, social media, etc.)
-
-**Option B: Avatar Upload** (More Complete)
-- Create a storage bucket for avatars
-- User uploads image from device
-- Image stored in backend storage
-- Returns a public URL
-
-**Recommendation:** Start with Option A (URL input) for simplicity, with the ability to add upload later. This avoids the need for storage bucket setup.
+| Category | Features |
+|----------|----------|
+| **Data Export** | Export all resumes as JSON, export individual resume as JSON |
+| **Notifications** | AI enhancement tips toggle, auto-save notification toggle |
+| **Privacy** | Delete all data, analytics opt-out, local-only mode |
+| **Editor Preferences** | Default template picker, PDF export defaults |
 
 ---
 
-## Database
+## User Experience
 
-The `profiles` table already has the necessary columns:
-- `full_name` (text, nullable)
-- `avatar_url` (text, nullable)
-
-No database changes required!
-
----
-
-## File Changes
-
-### 1. Create `src/components/settings/EditProfileSheet.tsx`
-
-A bottom sheet component for editing profile details:
-
-```typescript
-interface EditProfileSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  profile: {
-    fullName: string | null;
-    avatarUrl: string | null;
-  };
-  userId: string;
-  onUpdate: (profile: { fullName: string | null; avatarUrl: string | null }) => void;
-}
-```
-
-**Features:**
-- Display name input field
-- Avatar URL input field with preview
-- Real-time avatar preview when URL changes
-- Save and Cancel buttons
-- Loading state during save
-- Validation for image URLs
-
-### 2. Create `src/hooks/useProfile.ts`
-
-A custom hook for fetching and updating profile data:
-
-```typescript
-export function useProfile(userId: string | undefined) {
-  // Fetch profile from database
-  // Return profile data, loading state, and update function
-}
-```
-
-**Features:**
-- Fetches profile data for the current user
-- Provides an `updateProfile` mutation function
-- Handles optimistic updates
-- Returns loading and error states
-
-### 3. Update `src/pages/SettingsPage.tsx`
-
-Integrate the profile editing feature:
-- Import `EditProfileSheet` and `useProfile` hook
-- Fetch profile data on mount
-- Display `full_name` if available (instead of just email)
-- Make the profile card tappable to open the edit sheet
-- Show edit indicator (chevron or pencil icon)
-- Refresh profile data after updates
-
----
-
-## Component Design
-
-### Profile Card (Updated)
+### Settings Page Layout (Updated)
 
 ```text
 ┌──────────────────────────────────────────┐
-│  [Avatar]   John Doe                     │
-│             john@email.com         [>]   │
-│             Tap to edit profile          │
+│         Settings                         │
+├──────────────────────────────────────────┤
+│  [Avatar]  John Doe                   >  │
+│            john@email.com                │
+├──────────────────────────────────────────┤
+│  APPEARANCE                              │
+│  [Light] [Dark] [System]                 │
+├──────────────────────────────────────────┤
+│  EDITOR PREFERENCES               [NEW]  │
+│  > Default Template           Modern  >  │
+│  > PDF Export Settings               >   │
+├──────────────────────────────────────────┤
+│  NOTIFICATIONS                    [NEW]  │
+│  Auto-save toasts           [Switch]     │
+│  AI enhancement tips        [Switch]     │
+├──────────────────────────────────────────┤
+│  DATA & EXPORT                    [NEW]  │
+│  > Export All Resumes                >   │
+│  > Export Current Resume             >   │
+├──────────────────────────────────────────┤
+│  PRIVACY                          [NEW]  │
+│  Local-only mode            [Switch]     │
+│  Analytics                  [Switch]     │
+├──────────────────────────────────────────┤
+│  ACCOUNT                                 │
+│  > Reset Onboarding                      │
+│  > Delete All Data          [Red]        │
+│  > Sign Out                 [Red]        │
+├──────────────────────────────────────────┤
+│  ABOUT                                   │
+│  WiseResume v1.0.0                       │
+└──────────────────────────────────────────┘
+│  [Home] [Editor] [New] [Settings]        │
 └──────────────────────────────────────────┘
 ```
 
-### Edit Profile Sheet
+---
+
+## Implementation Details
+
+### 1. Create Settings Store
+
+A new Zustand store to persist user preferences locally:
+
+**File: `src/store/settingsStore.ts`**
+
+```typescript
+interface SettingsState {
+  // Notifications
+  showAutoSaveToasts: boolean;
+  showAIEnhancementTips: boolean;
+  
+  // Privacy
+  localOnlyMode: boolean;
+  analyticsEnabled: boolean;
+  
+  // Editor Preferences
+  defaultTemplate: TemplateId;
+  pdfDefaults: {
+    showPageNumbers: boolean;
+    pageNumberFormat: 'simple' | 'full';
+    showBranding: boolean;
+  };
+  
+  // Actions
+  setShowAutoSaveToasts: (value: boolean) => void;
+  setShowAIEnhancementTips: (value: boolean) => void;
+  setLocalOnlyMode: (value: boolean) => void;
+  setAnalyticsEnabled: (value: boolean) => void;
+  setDefaultTemplate: (template: TemplateId) => void;
+  setPdfDefaults: (defaults: Partial<PDFOptions>) => void;
+}
+```
+
+Uses `persist` middleware for localStorage persistence.
+
+---
+
+### 2. Editor Preferences Section
+
+#### Default Template Picker
+
+A bottom sheet showing all 7 templates with thumbnails:
+- Uses existing `TemplateThumbnail` component
+- Horizontal scroll or 2-column grid
+- Checkmark on selected template
+- Selection persisted to settings store
+
+**Component: `src/components/settings/DefaultTemplateSheet.tsx`**
 
 ```text
 ┌──────────────────────────────────────────┐
-│            ━━━━                          │  <- Drag handle
+│            ━━━━                          │
+│  Select Default Template                 │
 │                                          │
-│         [Avatar Preview]                 │
-│              64x64                       │
+│  ┌────────┐  ┌────────┐  ┌────────┐     │
+│  │ Modern │  │ Classic│  │Minimal │     │
+│  │   ✓    │  │        │  │        │     │
+│  └────────┘  └────────┘  └────────┘     │
 │                                          │
-│  Display Name                            │
+│  ┌────────┐  ┌────────┐  ┌────────┐     │
+│  │  Prof  │  │  Dev   │  │Creative│     │
+│  │        │  │        │  │        │     │
+│  └────────┘  └────────┘  └────────┘     │
+│                                          │
+│  ┌────────┐                              │
+│  │  Exec  │                              │
+│  │        │                              │
+│  └────────┘                              │
+└──────────────────────────────────────────┘
+```
+
+#### PDF Export Defaults
+
+A bottom sheet with toggle switches for default PDF options:
+
+**Component: `src/components/settings/PDFDefaultsSheet.tsx`**
+
+```text
+┌──────────────────────────────────────────┐
+│            ━━━━                          │
+│  PDF Export Defaults                     │
+│                                          │
+│  Show page numbers          [Switch]     │
+│                                          │
+│  Page number format                      │
+│  [Simple (1)]  [Full (Page 1 of 3)]      │
+│                                          │
+│  Show WiseResume branding   [Switch]     │
+│                                          │
+│  These settings will apply to all new    │
+│  PDF exports by default.                 │
+│                                          │
+│          ┌──────────────────┐            │
+│          │       Done       │            │
+│          └──────────────────┘            │
+└──────────────────────────────────────────┘
+```
+
+---
+
+### 3. Notifications Section
+
+Simple toggle switches with immediate effect:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Auto-save toasts | Show "Changes saved" notifications | ON |
+| AI enhancement tips | Proactive suggestions for resume improvement | ON |
+
+Implementation:
+- Modify `useResumes.ts` to check `showAutoSaveToasts` before showing save confirmation
+- Create hook `useAITips` that periodically checks resume quality and shows contextual tips when enabled
+
+---
+
+### 4. Data Export Section
+
+#### Export All Resumes
+
+Button that:
+1. Fetches all user's resumes from database
+2. Formats as JSON with metadata
+3. Triggers download as `wiseresume-backup-{date}.json`
+4. Includes contact info, all resume versions, and settings
+
+**Export Format:**
+```json
+{
+  "exportVersion": "1.0",
+  "exportDate": "2026-02-04T10:30:00Z",
+  "profile": {
+    "fullName": "John Doe",
+    "email": "john@example.com"
+  },
+  "resumes": [
+    {
+      "id": "uuid",
+      "title": "Software Engineer Resume",
+      "contactInfo": {...},
+      "summary": "...",
+      "experience": [...],
+      "education": [...],
+      "skills": [...],
+      "certifications": [...],
+      "templateId": "modern",
+      "createdAt": "...",
+      "updatedAt": "..."
+    }
+  ],
+  "settings": {
+    "defaultTemplate": "modern",
+    "pdfDefaults": {...}
+  }
+}
+```
+
+#### Export Current Resume
+
+- Available when a resume is loaded in the editor
+- Quick JSON download of single resume
+- Useful for sharing resume data or manual backup
+
+**Component: `src/components/settings/DataExportSheet.tsx`**
+
+---
+
+### 5. Privacy Section
+
+#### Local-Only Mode
+
+When enabled:
+- Resume changes saved to localStorage only
+- No sync to cloud database
+- Warning banner shows "Local mode - not synced"
+- Useful for sensitive resumes users don't want in cloud
+
+**Implementation:**
+- Check `localOnlyMode` in `useResumes` mutations
+- If true, save to Zustand store (localStorage) instead of Supabase
+- Show indicator in dashboard header
+
+#### Analytics Opt-Out
+
+- Toggle to disable any future analytics
+- Respects user privacy preferences
+- Persisted locally
+
+#### Delete All Data
+
+Destructive action with confirmation:
+1. User taps "Delete All Data"
+2. Confirmation dialog with warning
+3. Type "DELETE" to confirm
+4. Removes:
+   - All resumes from database
+   - Profile data
+   - Local storage
+   - Signs user out
+
+**Component: `src/components/settings/DeleteDataDialog.tsx`**
+
+```text
+┌──────────────────────────────────────────┐
+│  Delete All Data                         │
+│                                          │
+│  ⚠️ This will permanently delete:        │
+│                                          │
+│  • All your resumes (5 resumes)          │
+│  • Your profile information              │
+│  • All local data and preferences        │
+│                                          │
+│  This action cannot be undone.           │
+│                                          │
+│  Type DELETE to confirm:                 │
 │  ┌────────────────────────────────────┐  │
-│  │ John Doe                           │  │
+│  │                                    │  │
 │  └────────────────────────────────────┘  │
-│                                          │
-│  Avatar URL (optional)                   │
-│  ┌────────────────────────────────────┐  │
-│  │ https://example.com/avatar.jpg     │  │
-│  └────────────────────────────────────┘  │
-│  Paste a link to your profile picture    │
 │                                          │
 │  ┌─────────────┐  ┌─────────────────────┐│
-│  │   Cancel    │  │    Save Changes     ││
+│  │   Cancel    │  │   Delete Forever    ││
 │  └─────────────┘  └─────────────────────┘│
 └──────────────────────────────────────────┘
 ```
 
 ---
 
-## Technical Implementation
+## Files to Create
 
-### useProfile Hook
+| File | Purpose |
+|------|---------|
+| `src/store/settingsStore.ts` | Zustand store for all user preferences |
+| `src/components/settings/DefaultTemplateSheet.tsx` | Template picker bottom sheet |
+| `src/components/settings/PDFDefaultsSheet.tsx` | PDF options bottom sheet |
+| `src/components/settings/DataExportSheet.tsx` | Export options bottom sheet |
+| `src/components/settings/DeleteDataDialog.tsx` | Confirmation dialog for data deletion |
+| `src/components/settings/SettingsRow.tsx` | Reusable row component for settings items |
+| `src/lib/dataExport.ts` | Utility functions for JSON export |
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/pages/SettingsPage.tsx` | Add all new sections and integrate sheets |
+| `src/hooks/useResumes.ts` | Check `showAutoSaveToasts` before showing notifications |
+| `src/pages/EditorPage.tsx` | Use `defaultTemplate` from settings for new resumes |
+| `src/components/editor/ExportOptionsSheet.tsx` | Pre-fill with `pdfDefaults` from settings |
+
+---
+
+## Technical Considerations
+
+### Mobile-Optimized Interactions
+
+- All new settings use bottom sheets for editing (consistent with existing patterns)
+- Toggle switches for binary options (no modals needed)
+- Large touch targets (min 44px)
+- Haptic feedback on all interactions
+- Staggered entrance animations for visual polish
+
+### Data Safety
+
+- Export includes full backup capability
+- Delete confirmation requires typing "DELETE"
+- Local-only mode clearly indicated
+- No data loss without explicit user action
+
+### Performance
+
+- Settings store uses localStorage (instant access)
+- Lazy-load export functionality (not needed on initial load)
+- No database reads for displaying settings (all local)
+
+---
+
+## Settings Store Integration
+
+The new settings will be used throughout the app:
 
 ```typescript
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+// In any component
+import { useSettingsStore } from '@/store/settingsStore';
 
-interface Profile {
-  fullName: string | null;
-  avatarUrl: string | null;
+const { 
+  showAutoSaveToasts, 
+  defaultTemplate,
+  pdfDefaults 
+} = useSettingsStore();
+
+// Check before showing toast
+if (showAutoSaveToasts) {
+  toast.success('Changes saved');
 }
 
-export function useProfile(userId: string | undefined) {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+// Use default template for new resumes
+const newResume = { ...defaultResume, templateId: defaultTemplate };
 
-  useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      return;
-    }
-
-    const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url')
-        .eq('user_id', userId)
-        .single();
-
-      if (data) {
-        setProfile({
-          fullName: data.full_name,
-          avatarUrl: data.avatar_url,
-        });
-      }
-      setLoading(false);
-    };
-
-    fetchProfile();
-  }, [userId]);
-
-  const updateProfile = async (updates: Partial<Profile>) => {
-    if (!userId) return;
-
-    const { error } = await supabase
-      .from('profiles')
-      .update({
-        full_name: updates.fullName,
-        avatar_url: updates.avatarUrl,
-      })
-      .eq('user_id', userId);
-
-    if (error) {
-      toast.error('Failed to update profile');
-      throw error;
-    }
-
-    setProfile((prev) => prev ? { ...prev, ...updates } : null);
-    toast.success('Profile updated successfully');
-  };
-
-  return { profile, loading, updateProfile };
-}
+// Pre-fill PDF export options
+generatePDF(resume, templateId, element, breaks, pdfDefaults);
 ```
 
-### EditProfileSheet Component
-
-```typescript
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { User, Camera } from 'lucide-react';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { haptics } from '@/lib/haptics';
-
-interface EditProfileSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  profile: {
-    fullName: string | null;
-    avatarUrl: string | null;
-  } | null;
-  onSave: (data: { fullName: string | null; avatarUrl: string | null }) => Promise<void>;
-}
-
-export function EditProfileSheet({
-  open,
-  onOpenChange,
-  profile,
-  onSave,
-}: EditProfileSheetProps) {
-  const [fullName, setFullName] = useState(profile?.fullName || '');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatarUrl || '');
-  const [isSaving, setIsSaving] = useState(false);
-
-  // Sync form state when profile changes
-  useEffect(() => {
-    if (profile) {
-      setFullName(profile.fullName || '');
-      setAvatarUrl(profile.avatarUrl || '');
-    }
-  }, [profile]);
-
-  const handleSave = async () => {
-    setIsSaving(true);
-    try {
-      await onSave({
-        fullName: fullName.trim() || null,
-        avatarUrl: avatarUrl.trim() || null,
-      });
-      haptics.success();
-      onOpenChange(false);
-    } catch (error) {
-      haptics.error();
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const getInitials = () => {
-    if (fullName) {
-      return fullName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    }
-    return 'U';
-  };
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-auto max-h-[90vh]">
-        <SheetHeader>
-          <SheetTitle>Edit Profile</SheetTitle>
-        </SheetHeader>
-
-        <div className="space-y-6 py-6">
-          {/* Avatar Preview */}
-          <div className="flex justify-center">
-            <div className="relative">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={avatarUrl || undefined} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                  {getInitials()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-muted flex items-center justify-center border-2 border-background">
-                <Camera className="w-3.5 h-3.5 text-muted-foreground" />
-              </div>
-            </div>
-          </div>
-
-          {/* Display Name */}
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Display Name</Label>
-            <Input
-              id="fullName"
-              placeholder="Enter your name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-            />
-          </div>
-
-          {/* Avatar URL */}
-          <div className="space-y-2">
-            <Label htmlFor="avatarUrl">Avatar URL</Label>
-            <Input
-              id="avatarUrl"
-              placeholder="https://example.com/avatar.jpg"
-              value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Paste a link to your profile picture (optional)
-            </p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex-1 gradient-primary"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
-```
-
-### Updated SettingsPage Integration
-
-Key changes:
-1. Import and use `useProfile` hook
-2. Add state for edit sheet visibility
-3. Make profile card tappable
-4. Display full name when available
-5. Show chevron icon to indicate tapability
-6. Pass profile data and save handler to EditProfileSheet
-
 ---
 
-## Files Summary
+## Migration & Defaults
 
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `src/hooks/useProfile.ts` | NEW | Hook for fetching and updating profile data |
-| `src/components/settings/EditProfileSheet.tsx` | NEW | Bottom sheet for editing profile |
-| `src/pages/SettingsPage.tsx` | UPDATE | Integrate profile editing, make card tappable |
+For existing users:
+- All notification settings default to ON (current behavior)
+- Analytics defaults to ON
+- Local-only mode defaults to OFF
+- Default template defaults to 'modern'
+- PDF defaults: page numbers ON, full format, branding ON
 
----
-
-## User Experience
-
-1. User navigates to Settings tab
-2. Profile card shows current avatar and name (or email if no name set)
-3. Chevron icon indicates the card is tappable
-4. Tapping opens a smooth bottom sheet
-5. User can:
-   - Update their display name
-   - Paste an avatar URL with live preview
-6. Save button updates the database
-7. Success toast confirms the change
-8. Profile card immediately reflects the new data
-9. Haptic feedback throughout for native feel
-
----
-
-## Validation & Edge Cases
-
-- Empty display name: Allowed (will fall back to email display)
-- Invalid avatar URL: Shows fallback initials
-- Network error: Toast error message, sheet stays open
-- Long names: Truncated with ellipsis in display
-- No profile record: Auto-created on signup via database trigger
-
----
-
-## Future Enhancements (Not in Scope)
-
-- Direct avatar upload to storage bucket
-- Image cropping/resizing before upload
-- Avatar selection from preset options
-- Social media avatar import (Google, etc.)
+No database migration needed - all settings are stored in localStorage via Zustand persist middleware.
 
