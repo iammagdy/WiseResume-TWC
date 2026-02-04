@@ -128,7 +128,7 @@ export default function EditorPage() {
   };
 
   return (
-    <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack}>
+    <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack} showBottomNav>
       <div className="flex-1 flex flex-col">
         {/* Progress Bar with Save Status */}
         <div className="px-4 py-3 border-b border-border">
@@ -204,7 +204,7 @@ export default function EditorPage() {
 
         {/* Bottom Action Bar */}
         <motion.div
-          className="sticky bottom-0 p-4 pb-safe glass border-t border-border"
+          className="sticky bottom-16 p-4 glass border-t border-border"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >

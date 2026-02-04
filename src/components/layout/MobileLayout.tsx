@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { OfflineBanner } from './OfflineBanner';
+import { BottomTabBar } from './BottomTabBar';
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -106,6 +107,8 @@ export function MobileLayout({
       >
         {children}
       </main>
+      
+      {showBottomNav && <BottomTabBar />}
     </div>
   );
 }
