@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
+ import { TextareaFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
 import { FileText } from 'lucide-react';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
@@ -12,6 +11,7 @@ import { useResumeNudges } from '@/hooks/useResumeNudges';
 export function SummarySection() {
   const { currentResume, updateResume } = useResumeStore();
   const [showDialog, setShowDialog] = useState(false);
+   const [touched, setTouched] = useState(false);
   
   const { enhance, isEnhancing, currentAction, result, apply, discard } = useAIEnhance({
     section: 'summary',
@@ -28,6 +28,16 @@ export function SummarySection() {
   if (!currentResume) return null;
 
   const nudge = getNudgeForSection('summary');
+ 
+   // Validation
+   const getSummaryError = (): string | undefined => {
+     const summary = currentResume.summary;
+     if (!summary || summary.trim() === '') return 'Professional summary is required';
+     if (summary.length < 50) return 'Summary should be at least 50 characters';
+     return undefined;
+   };
+ 
+   const summaryError = getSummaryError();
 
   const handleAction = async (actionId: string) => {
     const enhanceResult = await enhance(
@@ -68,26 +78,21 @@ export function SummarySection() {
         onDismiss={() => nudge && dismissNudge(nudge.trigger)}
       />
       
-      <div>
-        <Label htmlFor="summary" className="flex items-center gap-2 mb-2">
-          <FileText className="w-4 h-4 text-muted-foreground" />
-          Summary
-        </Label>
-        <Textarea
-          id="summary"
-          value={currentResume.summary}
-          onChange={(e) => updateResume({ summary: e.target.value })}
-          placeholder="Write a brief professional summary highlighting your key qualifications, experience, and career goals..."
-          className="min-h-[200px] resize-none"
-        />
-        <p className={`text-sm mt-2 ${
-          currentResume.summary.length > 500 
-            ? 'text-warning font-medium' 
-            : 'text-muted-foreground'
-        }`}>
-          {currentResume.summary.length}/500 characters recommended
-        </p>
-      </div>
+       <TextareaFormField
+         id="summary"
+         label="Summary"
+         icon={<FileText className="w-4 h-4" />}
+         value={currentResume.summary}
+         onChange={(value) => updateResume({ summary: value })}
+         onBlur={() => setTouched(true)}
+         placeholder="Write a brief professional summary highlighting your key qualifications, experience, and career goals..."
+         rows={8}
+         maxLength={500}
+         showCount
+         error={summaryError}
+         touched={touched}
+         required
+       />
 
       {/* AI Enhancement Dialog */}
       <AIEnhanceDialog

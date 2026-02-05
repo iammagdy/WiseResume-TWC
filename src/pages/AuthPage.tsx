@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+ import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+ import { InputFormField } from '@/components/ui/form-field';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
@@ -25,29 +24,50 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+   const [touched, setTouched] = useState<{ email: boolean; password: boolean }>({
+     email: false,
+     password: false,
+   });
+ 
+   // Validation errors
+   const getEmailError = (): string | undefined => {
+     if (!email) return 'Email is required';
+     try {
+       emailSchema.parse(email);
+       return undefined;
+     } catch (e) {
+       if (e instanceof z.ZodError) {
+         return e.errors[0]?.message;
+       }
+       return 'Invalid email';
+     }
+   };
+ 
+   const getPasswordError = (): string | undefined => {
+     if (!password) return 'Password is required';
+     try {
+       passwordSchema.parse(password);
+       return undefined;
+     } catch (e) {
+       if (e instanceof z.ZodError) {
+         return e.errors[0]?.message;
+       }
+       return 'Invalid password';
+     }
+   };
+ 
+   const emailError = getEmailError();
+   const passwordError = getPasswordError();
 
-  const validateEmail = () => {
-    try {
-      emailSchema.parse(email);
-      return true;
-    } catch {
-      toast.error('Please enter a valid email address');
-      return false;
-    }
+   const validateInputs = (): boolean => {
+     setTouched({ email: true, password: true });
+     return !emailError && !passwordError;
   };
-
-  const validateInputs = () => {
-    if (!validateEmail()) return false;
-
-    try {
-      passwordSchema.parse(password);
-    } catch {
-      toast.error('Password must be at least 6 characters');
-      return false;
-    }
-
-    return true;
-  };
+ 
+   const validateEmail = (): boolean => {
+     setTouched(prev => ({ ...prev, email: true }));
+     return !emailError;
+   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,22 +223,20 @@ export default function AuthPage() {
           {/* Forgot Password Form */}
           {isForgotPassword ? (
             <form onSubmit={handlePasswordReset} className="space-y-5">
-              <div>
-                <Label htmlFor="email" className="flex items-center gap-2 mb-2 text-sm">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="h-12"
-                  autoComplete="email"
-                  required
-                />
-              </div>
+               <InputFormField
+                 id="reset-email"
+                 label="Email"
+                 type="email"
+                 icon={<Mail className="w-4 h-4" />}
+                 value={email}
+                 onChange={setEmail}
+                 onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
+                 placeholder="you@example.com"
+                 autoComplete="email"
+                 error={emailError}
+                 touched={touched.email}
+                 required
+               />
 
               <Button
                 type="submit"
@@ -250,48 +268,44 @@ export default function AuthPage() {
             <>
               {/* Login/Signup Form */}
               <form onSubmit={handleSubmit} className="space-y-5">
-                <div>
-                  <Label htmlFor="email" className="flex items-center gap-2 mb-2 text-sm">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    Email
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="h-12"
-                    autoComplete="email"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="password" className="flex items-center gap-2 mb-2 text-sm">
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                    Password
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="h-12 pr-14"
-                      autoComplete={isLogin ? 'current-password' : 'new-password'}
-                      required
-                    />
-                    <button
+                 <InputFormField
+                   id="email"
+                   label="Email"
+                   type="email"
+                   icon={<Mail className="w-4 h-4" />}
+                   value={email}
+                   onChange={setEmail}
+                   onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
+                   placeholder="you@example.com"
+                   autoComplete="email"
+                   error={emailError}
+                   touched={touched.email}
+                   required
+                 />
+ 
+                 <InputFormField
+                   id="password"
+                   label="Password"
+                   type={showPassword ? 'text' : 'password'}
+                   icon={<Lock className="w-4 h-4" />}
+                   value={password}
+                   onChange={setPassword}
+                   onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
+                   placeholder="••••••••"
+                   autoComplete={isLogin ? 'current-password' : 'new-password'}
+                   error={passwordError}
+                   touched={touched.password}
+                   required
+                   rightElement={
+                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
-                  </div>
-                </div>
+                   }
+                 />
 
                 {/* Forgot Password Link */}
                 {isLogin && (
