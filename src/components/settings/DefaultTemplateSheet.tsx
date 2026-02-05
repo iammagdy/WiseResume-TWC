@@ -16,35 +16,35 @@ interface DefaultTemplateSheetProps {
 // Sample resume data for thumbnails
 const sampleResume: ResumeData = {
   contactInfo: {
-    fullName: 'Alex Johnson',
-    email: 'alex@email.com',
+    fullName: 'Wise Megz',
+    email: 'megz@wiseuniverse.ai',
     phone: '(555) 123-4567',
-    location: 'San Francisco, CA',
+    location: 'Wise Universe HQ',
   },
-  summary: 'Experienced professional with expertise in software development and team leadership.',
+  summary: 'AI Navigator with expertise in cosmic systems and starship interfaces.',
   experience: [
     {
       id: '1',
-      company: 'Tech Corp',
-      position: 'Senior Developer',
+      company: 'Wise Universe',
+      position: 'AI Navigator',
       startDate: '2020-01',
       endDate: '',
       current: true,
-      description: 'Leading development teams',
-      achievements: ['Increased productivity by 40%'],
+      description: 'Navigating interstellar AI missions',
+      achievements: ['Pioneered quantum navigation systems'],
     },
   ],
   education: [
     {
       id: '1',
-      institution: 'State University',
+      institution: 'Cosmic Academy',
       degree: 'Bachelor of Science',
-      field: 'Computer Science',
+      field: 'Space Engineering',
       startDate: '2014-09',
       endDate: '2018-05',
     },
   ],
-  skills: ['React', 'TypeScript', 'Node.js', 'Python'],
+  skills: ['AI Systems', 'Cosmic Navigation', 'Starship UI', 'Quantum Computing'],
   certifications: [],
   templateId: 'modern',
 };
