@@ -1,160 +1,171 @@
 
-# Fix Email Confirmation & Authentication Testing
 
-## Problem Analysis
+# Profile Customization Options - Implementation Plan
 
-After thorough investigation, I found:
+## Overview
+This plan adds enhanced profile customization options for users after they sign in, building on the existing `EditProfileSheet` component and `profiles` table. The improvements will provide a richer personalization experience while maintaining the mobile-first design.
 
-### Current State
-1. **Signup works**: The account `magdy.saber@outlook.com` was created successfully
-2. **Email hook works**: Lovable Cloud's email hook ran successfully (`"success": true`)
-3. **Email NOT confirmed**: `email_confirmed_at` is NULL
-4. **Login fails**: Returns "Invalid login credentials" because email isn't verified
+## Current State Analysis
 
-### Root Cause
-The Lovable Cloud email system's hook reports success, but the email may not be reaching the inbox. This could be due to:
-- Email going to spam/junk folder
-- Outlook email filtering
-- Temporary email delivery delay
+The app currently has:
+- Basic profile editing via `EditProfileSheet` (display name + avatar URL)
+- Profile data stored in Supabase `profiles` table with `full_name` and `avatar_url` columns
+- Settings page with profile section at the top
+- Onboarding carousel shown for new users
 
----
+## Proposed Enhancements
 
-## Solution Plan
+### 1. Expand Profile Fields
+Add new profile data points that are meaningful for a resume-building app:
+- **Job Title / Current Role** - For dashboard greeting personalization
+- **Industry** - To improve AI tailoring suggestions  
+- **Career Level** (Entry/Mid/Senior/Executive) - For template recommendations
+- **Location** - For job search optimization
+- **LinkedIn URL** - Quick access for resume building
 
-### Part 1: Immediate Fix - Enable Auto-Confirm for Development Testing
+### 2. Enhanced Edit Profile Sheet
+Transform the basic edit sheet into a comprehensive profile customization experience:
+- Add new input fields for expanded profile data
+- Include profile completion indicator
+- Better visual hierarchy with sections
+- Avatar upload via file picker (not just URL)
 
-For testing purposes, we can temporarily enable auto-confirm for email signups so users can sign in immediately without email verification.
-
-**Action**: Use the configure-auth tool to enable auto-confirm
-
----
-
-### Part 2: Improve User Experience
-
-**File: `src/pages/AuthPage.tsx`**
-
-Add better messaging and a resend confirmation email option:
-
-1. After signup, show clearer instructions:
-   - "Check your inbox AND spam folder"
-   - "Email may take a few minutes to arrive"
-
-2. Add a "Resend confirmation email" button for users who didn't receive it
-
-3. Improve error handling for unconfirmed email login attempts:
-   - Currently shows "Invalid login credentials" which is confusing
-   - Should show "Please confirm your email first" with resend option
+### 3. Post-Sign-In Profile Setup (Optional)
+For new users, after completing onboarding, prompt them to complete their profile with key information.
 
 ---
 
-### Part 3: Test All Auth Flows
+## Implementation Steps
 
-After fixes, we'll verify:
+### Step 1: Database Migration
+Add new columns to the `profiles` table:
 
-1. **Email/Password Signup**: Create account → auto-confirm → redirect to dashboard
-2. **Email/Password Login**: Sign in with confirmed account
-3. **Google Sign-In**: OAuth flow → redirect back → authenticated
-4. **Apple Sign-In**: OAuth flow → redirect back → authenticated
-5. **Password Reset**: Request reset → receive email (if configured) → reset password
-6. **Forgot Password**: Enter email → show success message
-
----
-
-## Implementation Details
-
-### Step 1: Configure Auto-Confirm
-
-Enable auto-confirm for email signups so users can test immediately:
-- This allows instant access after signup
-- No email verification required during development
-
-### Step 2: Update AuthPage for Better UX
-
-```typescript
-// Add state for resend functionality
-const [showResendOption, setShowResendOption] = useState(false);
-const [resendLoading, setResendLoading] = useState(false);
-
-// Improve signup success message
-toast.success('Account created! You can now sign in.', {
-  description: 'For production, you would receive a confirmation email.',
-});
-
-// Handle unconfirmed email login error better
-if (error.message.includes('Email not confirmed')) {
-  toast.error('Please confirm your email before signing in', {
-    description: 'Check your inbox and spam folder for the confirmation link.',
-    action: {
-      label: 'Resend',
-      onClick: () => handleResendConfirmation(),
-    },
-  });
-  return;
-}
-
-// Add resend confirmation function
-const handleResendConfirmation = async () => {
-  setResendLoading(true);
-  try {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: email,
-    });
-    if (error) throw error;
-    toast.success('Confirmation email sent! Check your inbox.');
-  } catch (error) {
-    toast.error('Failed to resend confirmation email');
-  } finally {
-    setResendLoading(false);
-  }
-};
+```sql
+ALTER TABLE public.profiles 
+ADD COLUMN job_title text,
+ADD COLUMN industry text,
+ADD COLUMN career_level text,
+ADD COLUMN location text,
+ADD COLUMN linkedin_url text,
+ADD COLUMN profile_completed boolean DEFAULT false;
 ```
 
-### Step 3: Add Success Redirect After Signup
+### Step 2: Update useProfile Hook
+Extend `src/hooks/useProfile.ts` to include the new fields:
+- Add new fields to Profile interface
+- Update fetch query to select new columns
+- Update `updateProfile` function to handle new fields
 
-Since auto-confirm is enabled, redirect users directly to dashboard after signup:
+### Step 3: Enhance EditProfileSheet Component
+Redesign `src/components/settings/EditProfileSheet.tsx`:
+- Add sections: "Basic Info" and "Professional Details"
+- Include inputs for job title, industry (with select), career level (segmented control), location, and LinkedIn
+- Add profile completion progress bar
+- Improve avatar section with file upload via Supabase Storage
 
+### Step 4: Create Storage Bucket for Avatars
+Set up Supabase Storage to handle avatar uploads:
+- Create "avatars" bucket
+- Add RLS policies for authenticated users
+- Implement upload handler in profile sheet
+
+### Step 5: Update Settings Page
+Modify `src/pages/SettingsPage.tsx`:
+- Display job title under name in profile section
+- Show profile completion percentage
+- Add "Complete Profile" call-to-action if incomplete
+
+### Step 6: Create Profile Setup Modal (Optional)
+Add `src/components/settings/ProfileSetupSheet.tsx`:
+- Shown after onboarding for new users
+- Guides users through completing their profile
+- Can be skipped and accessed later from settings
+
+---
+
+## Technical Details
+
+### Profile Interface (Extended)
 ```typescript
-// In signup success handler
-const { data, error } = await supabase.auth.signUp({...});
-
-if (!error && data.session) {
-  // User is auto-confirmed, redirect to dashboard
-  toast.success('Account created successfully!');
-  navigate('/dashboard');
-} else if (!error) {
-  // Fallback: Show confirmation message
-  toast.success('Check your email to confirm your account!');
+interface Profile {
+  fullName: string | null;
+  avatarUrl: string | null;
+  jobTitle: string | null;
+  industry: string | null;
+  careerLevel: 'entry' | 'mid' | 'senior' | 'executive' | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  profileCompleted: boolean;
 }
+```
+
+### Industry Options
+Predefined list: Technology, Finance, Healthcare, Education, Marketing, Engineering, Design, Sales, Legal, Consulting, Other
+
+### Career Level Options
+- Entry Level (0-2 years)
+- Mid Level (3-5 years)  
+- Senior Level (6-10 years)
+- Executive (10+ years)
+
+### Storage Bucket Configuration
+```sql
+-- Create avatars bucket (via Supabase dashboard or migration)
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('avatars', 'avatars', true);
+
+-- RLS policy for uploads
+CREATE POLICY "Users can upload own avatar"
+ON storage.objects FOR INSERT
+WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
+-- RLS policy for reading
+CREATE POLICY "Public avatar access"  
+ON storage.objects FOR SELECT
+USING (bucket_id = 'avatars');
 ```
 
 ---
 
-## Files to Modify
+## Files to Create/Modify
 
-| File | Changes |
-|------|---------|
-| (Auth Config) | Enable auto-confirm for email signups |
-| `src/pages/AuthPage.tsx` | Add resend option, improve error handling, auto-redirect on signup |
-
----
-
-## Testing Checklist
-
-After implementation:
-
-- [ ] Sign up with new email → Should auto-confirm and redirect to dashboard
-- [ ] Sign in with existing account → Should work and redirect to dashboard
-- [ ] Click "Continue with Google" → Should open Google OAuth, then redirect back authenticated
-- [ ] Click "Continue with Apple" → Should open Apple OAuth, then redirect back authenticated
-- [ ] Click "Forgot password" → Should show reset form and send email (may need spam check)
-- [ ] Try login with wrong password → Should show clear error message
+| File | Action |
+|------|--------|
+| Database | Add migration for new profile columns |
+| Database | Create avatars storage bucket |
+| `src/hooks/useProfile.ts` | Add new profile fields |
+| `src/components/settings/EditProfileSheet.tsx` | Complete redesign with new fields |
+| `src/pages/SettingsPage.tsx` | Update profile section display |
+| `src/components/settings/ProfileSetupSheet.tsx` | New component for post-signup setup |
+| `src/pages/DashboardPage.tsx` | Optional: Show profile completion prompt |
 
 ---
 
-## Important Notes
+## User Flow
 
-1. **Auto-confirm is for development**: In production, you may want to re-enable email confirmation for security
-2. **Check spam folders**: Lovable Cloud emails may be filtered by Outlook
-3. **Google OAuth is managed**: No additional setup needed, it uses Lovable's managed credentials
-4. **Apple OAuth is managed**: Same as Google, managed by Lovable Cloud
+```text
+Sign Up / Sign In
+      |
+      v
+[New User?] --Yes--> Onboarding Carousel
+      |                      |
+      No                     v
+      |              Complete Onboarding
+      |                      |
+      v                      v
+  Dashboard <---- Profile Setup Prompt (Optional)
+      |                      |
+      v                      |
+Settings > Edit Profile <----+
+```
+
+---
+
+## Benefits
+
+1. **Personalized Experience** - Dashboard greetings, AI suggestions tailored to industry/level
+2. **Better Resume Building** - Pre-fill resume contact info from profile
+3. **Template Recommendations** - Suggest appropriate templates based on career level
+4. **Profile Completion Gamification** - Progress indicator encourages full setup
+5. **Professional Avatar Management** - Easy upload instead of URL pasting
+
