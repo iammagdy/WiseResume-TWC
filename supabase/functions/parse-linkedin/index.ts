@@ -43,13 +43,34 @@
        );
      }
  
+   // Detect URL-only input to prevent AI hallucination
+   const trimmedText = profileText.trim();
+   const isUrlOnly = /^https?:\/\/(www\.)?linkedin\.com/i.test(trimmedText) && 
+                     trimmedText.split('\n').length <= 3 && 
+                     trimmedText.length < 500;
+
+   if (isUrlOnly) {
+     return new Response(
+       JSON.stringify({ 
+         error: "Please paste the full profile content, not just the URL. Go to your LinkedIn profile, select all (Ctrl+A), copy (Ctrl+C), and paste the complete text." 
+       }),
+       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+     );
+   }
+
      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
      if (!LOVABLE_API_KEY) {
        throw new Error("LOVABLE_API_KEY is not configured");
      }
  
-     const systemPrompt = `You are an expert at extracting structured resume data from LinkedIn profile text. 
- Your task is to parse the provided LinkedIn profile content and extract the following sections:
+   const systemPrompt = `You are an expert at extracting structured resume data from LinkedIn profile text.
+
+IMPORTANT RULES:
+- If the input is ONLY a URL (like "https://linkedin.com/in/username"), return EMPTY arrays and null summary. Do NOT make up or guess information.
+- Only extract data that is explicitly present in the provided text.
+- Never fabricate or hallucinate data.
+
+Your task is to parse the provided LinkedIn profile content and extract the following sections:
  
  1. **Summary/About**: The profile summary or about section
  2. **Experience**: Work history with job titles, companies, dates, locations, and descriptions
