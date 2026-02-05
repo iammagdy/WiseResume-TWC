@@ -1,87 +1,135 @@
 
-# Fix: "Launch Your Resume" Navigation Loop
+# Update Demo Data to "Wise Megz"
 
-## Problem Identified
+## Overview
 
-When clicking "Launch Your Resume", the app enters an infinite loop:
+Replace all demo/sample resume data with the name "Wise Megz" and update related placeholder information to be consistent.
 
-1. User clicks button → navigates to `/editor`
-2. `EditorPage` checks `if (!currentResume)` → redirects to `/`
-3. User lands on Index → clicks button again → loop repeats
+---
 
-The issue is that **no new resume is created** before navigating to the editor.
+## Files to Update
 
-## Root Cause
+| File | Current Name | New Name |
+|------|--------------|----------|
+| `src/components/landing/TemplateGallery.tsx` | Alex Johnson | Wise Megz |
+| `src/components/settings/DefaultTemplateSheet.tsx` | Alex Johnson | Wise Megz |
+| `src/components/editor/TemplateSelector.tsx` | John Doe | Wise Megz |
 
-In `src/components/landing/HeroSection.tsx`:
+---
+
+## Detailed Changes
+
+### 1. `src/components/landing/TemplateGallery.tsx`
+
+**Current:**
 ```typescript
-const handleLaunch = () => {
-  triggerHaptic.medium();
-  navigate('/editor');  // ← No resume created!
+const sampleResume: ResumeData = {
+  contactInfo: {
+    fullName: 'Alex Johnson',
+    email: 'alex@example.com',
+    ...
+  },
+  experience: [{ company: 'Tech Corp', ... }],
+  education: [{ institution: 'University of Technology', ... }],
+  ...
 };
 ```
 
-In `src/pages/EditorPage.tsx`:
+**Updated:**
 ```typescript
-if (!currentResume) {
-  navigate('/');  // ← Redirects back to landing
-  return null;
-}
+const sampleResume: ResumeData = {
+  contactInfo: {
+    fullName: 'Wise Megz',
+    email: 'megz@wiseuniverse.ai',
+    ...
+  },
+  experience: [{ company: 'Wise Universe', position: 'AI Navigator', ... }],
+  education: [{ institution: 'Cosmic Academy', degree: 'B.S.', field: 'Space Engineering', ... }],
+  ...
+};
 ```
 
-## Solution
+---
 
-Modify `handleLaunch` in `HeroSection.tsx` to create a new blank resume before navigating to the editor.
+### 2. `src/components/settings/DefaultTemplateSheet.tsx`
+
+**Current:**
+```typescript
+const sampleResume: ResumeData = {
+  contactInfo: {
+    fullName: 'Alex Johnson',
+    email: 'alex@email.com',
+    ...
+  },
+  experience: [{ company: 'Tech Corp', ... }],
+  education: [{ institution: 'State University', ... }],
+  ...
+};
+```
+
+**Updated:**
+```typescript
+const sampleResume: ResumeData = {
+  contactInfo: {
+    fullName: 'Wise Megz',
+    email: 'megz@wiseuniverse.ai',
+    ...
+  },
+  experience: [{ company: 'Wise Universe', position: 'AI Navigator', ... }],
+  education: [{ institution: 'Cosmic Academy', ... }],
+  ...
+};
+```
+
+---
+
+### 3. `src/components/editor/TemplateSelector.tsx`
+
+**Current:**
+```typescript
+const previewResume = currentResume || {
+  contactInfo: {
+    fullName: 'John Doe',
+    email: 'john@example.com',
+    ...
+  },
+  experience: [{ company: 'Tech Corp', ... }],
+  education: [{ institution: 'State University', ... }],
+  ...
+};
+```
+
+**Updated:**
+```typescript
+const previewResume = currentResume || {
+  contactInfo: {
+    fullName: 'Wise Megz',
+    email: 'megz@wiseuniverse.ai',
+    ...
+  },
+  experience: [{ company: 'Wise Universe', position: 'AI Navigator', ... }],
+  education: [{ institution: 'Cosmic Academy', ... }],
+  ...
+};
+```
+
+---
+
+## Summary of Data Updates
+
+| Field | Old Value | New Value (Space Theme) |
+|-------|-----------|-------------------------|
+| Full Name | Alex Johnson / John Doe | Wise Megz |
+| Email | alex@example.com | megz@wiseuniverse.ai |
+| Location | San Francisco, CA | Wise Universe HQ |
+| Company | Tech Corp | Wise Universe |
+| Position | Senior Developer | AI Navigator |
+| Institution | State University | Cosmic Academy |
+| Field | Computer Science | Space Engineering |
+| Skills | JS, React, Node | AI Systems, Cosmic Navigation, Starship UI, Quantum Computing |
+
+---
 
 ## Implementation
 
-### File: `src/components/landing/HeroSection.tsx`
-
-**Changes:**
-1. Import `useResumeStore` from the store
-2. Update `handleLaunch` to:
-   - Create a new blank resume using `setCurrentResume`
-   - Clear any existing resume ID (new resume, not saved yet)
-   - Then navigate to `/editor`
-
-**Updated code:**
-```typescript
-import { useResumeStore } from '@/store/resumeStore';
-
-export function HeroSection() {
-  const navigate = useNavigate();
-  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
-
-  const handleLaunch = () => {
-    triggerHaptic.medium();
-    // Create a new blank resume before navigating
-    setCurrentResume({
-      contactInfo: {
-        fullName: '',
-        email: '',
-        phone: '',
-        location: '',
-        linkedin: '',
-        portfolio: '',
-      },
-      summary: '',
-      experience: [],
-      education: [],
-      skills: [],
-      certifications: [],
-      templateId: 'modern',
-    });
-    setCurrentResumeId(null); // New resume, not saved to cloud yet
-    navigate('/editor');
-  };
-  // ... rest unchanged
-}
-```
-
-## Technical Details
-
-| Aspect | Detail |
-|--------|--------|
-| Files changed | 1 (`src/components/landing/HeroSection.tsx`) |
-| Risk level | Low - simple state initialization |
-| Testing | Click "Launch Your Resume" → should open editor with blank form |
+3 files will be updated with consistent "Wise Megz" demo data that aligns with the space/Wise Universe theme.
