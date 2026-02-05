@@ -1,219 +1,265 @@
 
-
-# Landing Page Enhancement Plan
+# Space-Themed Landing Page Redesign
 
 ## Overview
 
-Transform the landing page into a more engaging, conversion-focused experience with animated visuals, social proof, and a clear value proposition while maintaining the mobile-first "prestige" aesthetic.
+Transform the landing page from a web-app look into an immersive mobile-app experience with a space/cosmic theme, aligning with the "Wise AI Universe" brand where WiseResume is launched from a planet.
 
 ---
 
-## Current vs. Enhanced Structure
+## Design Direction
 
-```text
-CURRENT                           ENHANCED
-┌─────────────────────┐          ┌─────────────────────┐
-│      Logo           │          │   Animated Gradient │
-│     Tagline         │          │      Background     │
-├─────────────────────┤          │                     │
-│   Choice Card 1     │          │      Logo           │
-│   Choice Card 2     │          │   Power Headline    │
-├─────────────────────┤          │    Subheadline      │
-│  Feature Carousel   │          ├─────────────────────┤
-├─────────────────────┤          │   Primary CTA       │
-│    Sign In Link     │          │   Secondary CTA     │
-└─────────────────────┘          │   "Free • 5 min"    │
-                                 ├─────────────────────┤
-                                 │   Social Proof      │
-                                 │  ⭐⭐⭐⭐⭐ 4.9       │
-                                 │  "12K+ resumes"     │
-                                 ├─────────────────────┤
-                                 │   How It Works      │
-                                 │  1 → 2 → 3 steps    │
-                                 ├─────────────────────┤
-                                 │  Feature Grid       │
-                                 │  (replaces carousel)│
-                                 ├─────────────────────┤
-                                 │  Template Preview   │
-                                 │  (swipeable gallery)│
-                                 ├─────────────────────┤
-                                 │   Bottom CTA        │
-                                 │   Sign In Link      │
-                                 └─────────────────────┘
-```
+### Space Theme Elements
+
+| Element | Implementation |
+|---------|----------------|
+| Background | Deep space with animated stars, nebula gradients |
+| Planet | WiseResume planet as the hero focal point |
+| Stars | Twinkling star field with parallax depth |
+| Colors | Deep purples, cosmic blues, cyan accents, stardust gold |
+| Motion | Floating animations, orbital movements, subtle pulsing |
+| Typography | Futuristic but readable, "Space Grotesk" already in use |
+
+### Mobile-App Feel Improvements
+
+| Aspect | Change |
+|--------|--------|
+| Layout | Full-screen sections with scroll-snap |
+| Navigation | Swipe indicators, bottom-anchored CTAs |
+| Touch | Large touch targets, haptic-ready interactions |
+| Transitions | Smooth page-like section transitions |
+| Status bar | Dark/immersive mode feel |
 
 ---
 
-## New Components
+## Component Redesigns
 
-| Component | Purpose |
-|-----------|---------|
-| `HeroSection.tsx` | Animated gradient background, headline, CTAs |
-| `SocialProofBar.tsx` | Star rating, user count, trust badges |
-| `HowItWorks.tsx` | 3-step animated process visualization |
-| `FeatureGrid.tsx` | Replace carousel with visible grid |
-| `TemplateGallery.tsx` | Swipeable template previews |
-| `BottomCTA.tsx` | Final conversion section |
+### 1. SpaceBackground Component (NEW)
 
----
+Creates the immersive cosmic backdrop:
 
-## Component Details
-
-### 1. HeroSection
-
-**Visual Design:**
-- Subtle animated gradient background (dark purple to blue shifting)
-- Glassmorphism card overlay
-- App logo with glow effect
-
-**Content:**
 ```text
 ┌─────────────────────────────────────┐
-│         [Animated Gradient BG]      │
+│ ✦    *          ✧      *          │
+│         ✦              ✧           │
+│    *        [Nebula Gradient]   ✦  │
+│ ✧      *           ✦        *     │
+│         ✦    *          ✧         │
+└─────────────────────────────────────┘
+```
+
+- Deep space gradient (dark blue to purple to black)
+- Animated twinkling stars (CSS + JS)
+- Subtle nebula cloud overlay
+- Parallax effect on scroll
+
+---
+
+### 2. HeroSection Redesign
+
+Transform into a "Planet Landing" experience:
+
+```text
+┌─────────────────────────────────────┐
+│         [Star Field BG]            │
 │                                     │
-│            🎯 WiseResume            │
+│        🪐 [WiseResume Planet]       │
+│          (Animated orbit ring)      │
 │                                     │
-│     Land Your Dream Job Faster      │
+│      ✨ Welcome to WiseResume       │
 │                                     │
-│   AI-powered resumes that get       │
-│   past ATS and impress recruiters   │
+│     Your AI Career Companion in     │
+│        the Wise Universe            │
 │                                     │
 │   ┌─────────────────────────────┐  │
-│   │   ✨ Create Your Resume     │  │
+│   │  🚀 Launch Your Resume      │  │
 │   └─────────────────────────────┘  │
 │                                     │
-│      📄 I have a resume to upload   │
+│       📄 Upload existing resume     │
 │                                     │
-│      Free • No credit card • 5 min  │
+│     [Scroll indicator - chevron]    │
 └─────────────────────────────────────┘
 ```
 
-**Animation:**
-- Gradient shifts slowly (20s loop)
-- Logo has subtle pulse glow
-- CTAs have hover/press scale effects
+**Key Changes:**
+- Full viewport height with centered content
+- Planet graphic as hero image (replace logo momentarily)
+- "Launch" terminology for space theme
+- Animated orbit ring around planet
+- Floating particles/stardust
+- Scroll indicator at bottom
 
 ---
 
-### 2. SocialProofBar
+### 3. Planet Logo Component (NEW)
 
-Compact trust indicators below hero:
+Create a planet visual for WiseResume:
+
+```text
+        .-"""-.
+       /        \
+      |  🅦  🅡  |  ← WR initials on planet
+       \        /
+        `-....-'
+          |||     ← Saturn-like ring (orbital path)
+```
+
+- Gradient sphere with "WR" or document icon
+- Animated orbital ring
+- Glow effect matching primary color
+- Floats subtly up/down
+
+---
+
+### 4. SocialProofBar Redesign
+
+Space-themed metrics display:
 
 ```text
 ┌─────────────────────────────────────┐
-│  ⭐ 4.9  •  12K+ Resumes  •  Free   │
+│   🌟 4.9    📄 12K+    ⚡ Free      │
+│  Stellar   Missions   To Launch    │
 └─────────────────────────────────────┘
 ```
 
-- Animated count-up on scroll into view
-- Uses `framer-motion` for number animation
-- Subtle glass background
+- Glass/frosted card appearance
+- Star icons instead of generic icons
+- Space terminology ("Missions" = resumes created)
 
 ---
 
-### 3. HowItWorks
+### 5. HowItWorks Redesign
 
-Three-step horizontal process:
+"Mission Control" themed steps:
 
 ```text
 ┌─────────────────────────────────────┐
-│          How It Works               │
+│       Mission Control               │
 │                                     │
-│   ┌───┐      ┌───┐      ┌───┐      │
-│   │ 1 │ ──→  │ 2 │ ──→  │ 3 │      │
-│   └───┘      └───┘      └───┘      │
-│  Upload     AI Tailors   Export    │
-│  or Create  for the Job  as PDF    │
+│  🛸──────🤖──────📡                 │
+│                                     │
+│  Upload    AI        Export         │
+│  Docking   Enhance   Transmit       │
 └─────────────────────────────────────┘
 ```
 
-- Icons animate sequentially on scroll
-- Connecting line draws itself
-- Step numbers have gradient backgrounds
+- Orbital path connecting steps
+- Rocket/satellite icons
+- Space-themed labels
+- Animated "flight path" line
 
 ---
 
-### 4. FeatureGrid (Replace Carousel)
+### 6. FeatureGrid Redesign
 
-More visible 3-column grid (stacks on mobile):
+"Cosmic Capabilities" cards:
 
 ```text
 ┌─────────────────────────────────────┐
+│       Cosmic Capabilities           │
+│                                     │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐│
-│  │  🎯     │ │  ✨     │ │  📄     ││
-│  │ AI Score│ │ Tailor  │ │ Export  ││
-│  │ Match to│ │ Optimize│ │ Pro PDF ││
-│  │ any job │ │ each app│ │ instant ││
+│  │  🎯     │ │  🛸     │ │  📡     ││
+│  │ Orbit   │ │ Warp    │ │ Beam    ││
+│  │ Score   │ │ Tailor  │ │ Export  ││
 │  └─────────┘ └─────────┘ └─────────┘│
 └─────────────────────────────────────┘
 ```
 
-- Cards have hover lift effect
-- Icons have subtle floating animation
-- Gradient borders on active/hover
+- Floating card effect with star particles
+- Holographic/glassmorphism borders
+- Subtle hover glow effects
 
 ---
 
-### 5. TemplateGallery
+### 7. TemplateGallery Redesign
 
-Swipeable preview of 3 template styles:
+"Space Suit Collection" (template = suit for your resume):
 
 ```text
 ┌─────────────────────────────────────┐
-│     Choose Your Style               │
+│     Choose Your Flight Suit        │
 │                                     │
 │  ┌────┐    ┌────┐    ┌────┐        │
-│  │████│ ←  │████│  → │████│        │
-│  │    │    │    │    │    │        │
-│  │    │    │    │    │    │        │
+│  │    │ ←  │    │  → │    │        │
 │  └────┘    └────┘    └────┘        │
-│  Modern    Executive  Creative      │
-│                                     │
-│         ○ ● ○  (dots)               │
+│  Voyager  Commander  Explorer       │
 └─────────────────────────────────────┘
 ```
 
-- Uses existing template thumbnails
-- Snap-scroll behavior
-- Tap to see enlarged preview
+- Rename templates with space names
+- Add subtle glow to active template
+- Star rating below each
 
 ---
 
-### 6. BottomCTA
+### 8. BottomCTA Redesign
 
-Final conversion push before footer:
+"Ready for Takeoff" final push:
 
 ```text
 ┌─────────────────────────────────────┐
 │                                     │
-│   Ready to land more interviews?    │
+│   Ready for Takeoff? 🚀             │
+│                                     │
+│   Join thousands of astronauts      │
+│   navigating their career galaxy    │
 │                                     │
 │   ┌─────────────────────────────┐  │
-│   │   Get Started Free          │  │
+│   │  🚀 Begin Your Mission      │  │
 │   └─────────────────────────────┘  │
 │                                     │
-│   Already have an account? Sign in  │
+│    Already aboard? Sign in          │
 └─────────────────────────────────────┘
 ```
 
 ---
 
-## Animations to Add (tailwind.config.ts)
+## New Animations (tailwind.config.ts)
 
 ```typescript
 keyframes: {
-  "gradient-shift": {
-    "0%, 100%": { backgroundPosition: "0% 50%" },
-    "50%": { backgroundPosition: "100% 50%" }
+  "twinkle": {
+    "0%, 100%": { opacity: "0.3", transform: "scale(1)" },
+    "50%": { opacity: "1", transform: "scale(1.2)" }
   },
-  "float": {
-    "0%, 100%": { transform: "translateY(0)" },
-    "50%": { transform: "translateY(-8px)" }
+  "orbit": {
+    "0%": { transform: "rotate(0deg)" },
+    "100%": { transform: "rotate(360deg)" }
   },
-  "glow-pulse": {
-    "0%, 100%": { boxShadow: "0 0 20px hsl(var(--primary) / 0.3)" },
-    "50%": { boxShadow: "0 0 40px hsl(var(--primary) / 0.5)" }
+  "float-slow": {
+    "0%, 100%": { transform: "translateY(0) translateX(0)" },
+    "25%": { transform: "translateY(-10px) translateX(5px)" },
+    "75%": { transform: "translateY(5px) translateX(-5px)" }
+  },
+  "pulse-glow-cosmic": {
+    "0%, 100%": { 
+      boxShadow: "0 0 30px hsl(270 100% 65% / 0.4), 0 0 60px hsl(185 100% 50% / 0.2)" 
+    },
+    "50%": { 
+      boxShadow: "0 0 50px hsl(270 100% 65% / 0.6), 0 0 100px hsl(185 100% 50% / 0.3)" 
+    }
+  },
+  "shooting-star": {
+    "0%": { transform: "translateX(-100%) translateY(-100%)", opacity: "1" },
+    "70%": { opacity: "1" },
+    "100%": { transform: "translateX(200%) translateY(200%)", opacity: "0" }
   }
+}
+```
+
+---
+
+## New CSS Variables (index.css)
+
+```css
+:root {
+  /* Space theme additions */
+  --space-deep: 240 30% 3%;
+  --space-nebula: 270 60% 15%;
+  --space-star: 45 100% 75%;
+  --space-cyan: 185 100% 60%;
+  --space-glow: 270 100% 70%;
 }
 ```
 
@@ -223,48 +269,53 @@ keyframes: {
 
 | File | Action |
 |------|--------|
-| `src/pages/Index.tsx` | Restructure with new sections |
-| `src/components/landing/HeroSection.tsx` | Create |
-| `src/components/landing/SocialProofBar.tsx` | Create |
-| `src/components/landing/HowItWorks.tsx` | Create |
-| `src/components/landing/FeatureGrid.tsx` | Create (replace carousel) |
-| `src/components/landing/TemplateGallery.tsx` | Create |
-| `src/components/landing/BottomCTA.tsx` | Create |
-| `tailwind.config.ts` | Add new animations |
-| `src/components/landing/FeatureCarousel.tsx` | Remove (replaced) |
+| `src/components/landing/SpaceBackground.tsx` | Create - Star field + nebula |
+| `src/components/landing/PlanetLogo.tsx` | Create - Animated planet |
+| `src/components/landing/HeroSection.tsx` | Redesign with space theme |
+| `src/components/landing/SocialProofBar.tsx` | Update terminology + styling |
+| `src/components/landing/HowItWorks.tsx` | Redesign as Mission Control |
+| `src/components/landing/FeatureGrid.tsx` | Update with cosmic styling |
+| `src/components/landing/TemplateGallery.tsx` | Space naming + effects |
+| `src/components/landing/BottomCTA.tsx` | Takeoff theme |
+| `src/pages/Index.tsx` | Add SpaceBackground wrapper |
+| `tailwind.config.ts` | Add space animations |
+| `src/index.css` | Add space CSS variables + star styles |
 
 ---
 
-## Mobile Considerations
+## Mobile-App Enhancements
 
-- All sections stack vertically
-- Touch-friendly swipe gestures on gallery
-- 48px minimum touch targets
-- Smooth scroll-snap between sections
-- Reduced motion for accessibility (prefers-reduced-motion)
-- Safe area padding at bottom
-
----
-
-## Performance
-
-- Lazy load below-fold sections
-- Use CSS animations over JS where possible
-- Optimize template thumbnails (already exist)
-- Intersection Observer for scroll animations
+| Enhancement | Implementation |
+|-------------|----------------|
+| Scroll-snap sections | Each section snaps into view |
+| Bottom-anchored CTA | Sticky "Launch" button after scroll |
+| Swipe indicators | Dots for section navigation |
+| Immersive feel | Hide status bar area styling |
+| Haptic-ready buttons | Trigger haptics on CTA press |
+| Pull-down to refresh | Subtle star animation on pull |
 
 ---
 
 ## Implementation Order
 
-1. Add new keyframe animations to Tailwind config
-2. Create HeroSection with gradient and CTAs
-3. Create SocialProofBar with animated counters
-4. Create HowItWorks 3-step section
-5. Create FeatureGrid (replaces carousel)
-6. Create TemplateGallery with swipe
-7. Create BottomCTA section
-8. Update Index.tsx to compose all sections
-9. Remove old FeatureCarousel
-10. Test on mobile viewport
+1. Add space keyframes and CSS variables
+2. Create SpaceBackground with star field
+3. Create PlanetLogo component
+4. Redesign HeroSection with planet + space theme
+5. Update SocialProofBar with space terminology
+6. Redesign HowItWorks as Mission Control
+7. Update FeatureGrid with cosmic styling
+8. Update TemplateGallery with space names
+9. Redesign BottomCTA with takeoff theme
+10. Add scroll-snap and mobile enhancements to Index.tsx
+11. Test on mobile viewport
 
+---
+
+## Performance Considerations
+
+- Use CSS animations for stars (GPU-accelerated)
+- Limit animated stars to ~50 elements
+- Use `will-change` for animated elements
+- Lazy load below-fold sections
+- Respect `prefers-reduced-motion`
