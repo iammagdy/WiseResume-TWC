@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
+ import { cn } from '@/lib/utils';
 import { OfflineBanner } from './OfflineBanner';
 import { BottomTabBar } from './BottomTabBar';
 
@@ -10,6 +11,8 @@ interface MobileLayoutProps {
   onBack?: () => void;
   showBottomNav?: boolean;
   headerRight?: ReactNode;
+   /** Add extra bottom padding for floating action buttons */
+   hasFloatingAction?: boolean;
 }
 
 export function MobileLayout({ 
@@ -19,6 +22,7 @@ export function MobileLayout({
   onBack,
   showBottomNav = false,
   headerRight,
+   hasFloatingAction = false,
 }: MobileLayoutProps) {
   const mainRef = useRef<HTMLElement>(null);
 
@@ -101,9 +105,14 @@ export function MobileLayout({
         </motion.header>
       )}
       
-      <main 
+       <main
         ref={mainRef}
-        className={`flex-1 overflow-y-auto overflow-x-hidden ${showBottomNav ? 'pb-20' : 'pb-safe'}`}
+         className={cn(
+           "flex-1 overflow-y-auto overflow-x-hidden",
+           showBottomNav && "pb-20",
+           hasFloatingAction && "pb-24",
+           !showBottomNav && !hasFloatingAction && "pb-safe"
+         )}
       >
         {children}
       </main>

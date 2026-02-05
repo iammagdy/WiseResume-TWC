@@ -3,6 +3,9 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+ import { ErrorBoundary } from "@/components/ErrorBoundary";
+ import { useBackButton } from "@/hooks/useBackButton";
+ import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
 import Index from "./pages/Index";
 import UploadPage from "./pages/UploadPage";
 import EditorPage from "./pages/EditorPage";
@@ -14,23 +17,35 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+ // Inner component to use hooks that require Router context
+ function AppRoutes() {
+   useBackButton();
+   useStatusBarThemeSync();
+   
+   return (
+     <Routes>
+       <Route path="/" element={<Index />} />
+       <Route path="/upload" element={<UploadPage />} />
+       <Route path="/editor" element={<EditorPage />} />
+       <Route path="/preview" element={<PreviewPage />} />
+       <Route path="/auth" element={<AuthPage />} />
+       <Route path="/dashboard" element={<DashboardPage />} />
+       <Route path="/settings" element={<SettingsPage />} />
+       <Route path="*" element={<NotFound />} />
+     </Routes>
+   );
+ }
+ 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/editor" element={<EditorPage />} />
-          <Route path="/preview" element={<PreviewPage />} />
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+       <ErrorBoundary>
+         <Toaster />
+         <Sonner />
+         <BrowserRouter>
+           <AppRoutes />
+         </BrowserRouter>
+       </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );

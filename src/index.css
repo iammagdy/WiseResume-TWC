@@ -296,6 +296,12 @@
   }
 }
 
+ @keyframes shimmer {
+   100% {
+     transform: translateX(100%);
+   }
+ }
+ 
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
@@ -328,3 +334,30 @@
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary));
 }
+ 
+ /* Reduced motion preferences */
+ @media (prefers-reduced-motion: reduce) {
+   *,
+   *::before,
+   *::after {
+     animation-duration: 0.01ms !important;
+     animation-iteration-count: 1 !important;
+     transition-duration: 0.01ms !important;
+     scroll-behavior: auto !important;
+   }
+ }
+ 
+ /* Performance hints for animations */
+ .will-change-transform {
+   will-change: transform;
+ }
+ 
+ .will-change-opacity {
+   will-change: opacity;
+ }
+ 
+ /* GPU acceleration for smooth animations */
+ .gpu-accelerated {
+   transform: translateZ(0);
+   backface-visibility: hidden;
+ }
