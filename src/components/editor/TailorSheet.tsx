@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
-  History, FileText, Sparkles, ChevronRight, Brain, Target
+  History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ import { JobIntelligenceCard } from './tailor/JobIntelligenceCard';
 import { InterviewPrepCard } from './tailor/InterviewPrepCard';
 import { BulletComparison } from './tailor/BulletComparison';
 import { SmartSkillSuggestions } from './tailor/SmartSkillSuggestions';
+import { MultiJobCompareSheet } from './tailor/MultiJobCompareSheet';
 import { 
   EnhancedTailorResult, 
   TailorProgress, 
@@ -55,6 +56,9 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
     addTailorHistory,
     clearTailorHistory,
     restoreTailorVersion,
+    currentComparison,
+    startNewComparison,
+    addJobToComparison,
   } = useResumeStore();
 
   const [isTailoring, setIsTailoring] = useState(false);
@@ -66,6 +70,8 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   const [showCoverLetter, setShowCoverLetter] = useState(false);
   const [parsedJobInfo, setParsedJobInfo] = useState<{ title: string; company: string } | null>(null);
   const [activeTab, setActiveTab] = useState<string>('changes');
+  const [showMultiCompare, setShowMultiCompare] = useState(false);
+  const [isAddingToComparison, setIsAddingToComparison] = useState(false);
 
   // Section toggles
   const [enabledSections, setEnabledSections] = useState<TailorSectionId[]>([
@@ -162,6 +168,53 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
     toast.success('Changes applied to your resume!');
     setTailorResult(null);
     onOpenChange(false);
+  };
+
+  const handleStartComparison = () => {
+    if (!tailorResult || !currentResume?.id) return;
+    
+    startNewComparison(currentResume.id, {
+      jobTitle: parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position',
+      company: parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company',
+      jobDescription,
+      tailorResult,
+    });
+    
+    // Reset for adding another job
+    setTailorResult(null);
+    setJobDescription('');
+    setParsedJobInfo(null);
+    setIsAddingToComparison(true);
+    toast.success('Added to comparison. Now add another job!');
+  };
+
+  const handleAddToComparison = () => {
+    if (!tailorResult) return;
+    
+    addJobToComparison({
+      jobTitle: parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position',
+      company: parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company',
+      jobDescription,
+      tailorResult,
+    });
+    
+    setShowMultiCompare(true);
+    setIsAddingToComparison(false);
+    setTailorResult(null);
+    setJobDescription('');
+    setParsedJobInfo(null);
+  };
+
+  const handleOpenCompare = () => {
+    setShowMultiCompare(true);
+  };
+
+  const handleAddJobFromCompare = () => {
+    setShowMultiCompare(false);
+    setIsAddingToComparison(true);
+    setTailorResult(null);
+    setJobDescription('');
+    setParsedJobInfo(null);
   };
 
   const handleRevert = () => {
@@ -448,7 +501,43 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                     Compare Changes
                   </Button>
 
-                  {/* Cover Letter CTA */}
+                  {/* Multi-Job Comparison */}
+                  {!isAddingToComparison && !currentComparison && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleStartComparison}
+                    >
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Compare to Another Job
+                    </Button>
+                  )}
+
+                  {/* Add to existing comparison */}
+                  {(isAddingToComparison || currentComparison) && (
+                    <Button
+                      variant="outline"
+                      className="w-full bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border-blue-500/30 hover:border-blue-500/50"
+                      onClick={handleAddToComparison}
+                    >
+                      <BarChart3 className="w-4 h-4 mr-2 text-blue-500" />
+                      Add to Comparison ({currentComparison ? currentComparison.jobs.length + 1 : 1}/4)
+                    </Button>
+                  )}
+
+                  {/* View existing comparison */}
+                  {currentComparison && currentComparison.jobs.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      className="w-full text-sm"
+                      onClick={handleOpenCompare}
+                    >
+                      View Comparison ({currentComparison.jobs.length} jobs)
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  )}
+
+                   {/* Cover Letter CTA */}
                   <Button
                     variant="outline"
                     className="w-full bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30 hover:border-purple-500/50"
@@ -572,6 +661,17 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
         onOpenChange={setShowCoverLetter}
         resume={currentResume}
         jobDescription={jobDescription}
+      />
+
+      {/* Multi-Job Comparison Sheet */}
+      <MultiJobCompareSheet
+        open={showMultiCompare}
+        onOpenChange={setShowMultiCompare}
+        onAddJob={handleAddJobFromCompare}
+        onViewJobDetails={(jobId) => {
+          // Could expand to show full details in future
+          toast.info('Full details view coming soon');
+        }}
       />
     </Sheet>
   );
