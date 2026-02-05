@@ -55,28 +55,46 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          career_level: string | null
           created_at: string | null
           full_name: string | null
           id: string
+          industry: string | null
+          job_title: string | null
+          linkedin_url: string | null
+          location: string | null
           onboarding_completed: boolean | null
+          profile_completed: boolean | null
           updated_at: string | null
           user_id: string
         }
         Insert: {
           avatar_url?: string | null
+          career_level?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
+          industry?: string | null
+          job_title?: string | null
+          linkedin_url?: string | null
+          location?: string | null
           onboarding_completed?: boolean | null
+          profile_completed?: boolean | null
           updated_at?: string | null
           user_id: string
         }
         Update: {
           avatar_url?: string | null
+          career_level?: string | null
           created_at?: string | null
           full_name?: string | null
           id?: string
+          industry?: string | null
+          job_title?: string | null
+          linkedin_url?: string | null
+          location?: string | null
           onboarding_completed?: boolean | null
+          profile_completed?: boolean | null
           updated_at?: string | null
           user_id?: string
         }
