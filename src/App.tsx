@@ -16,6 +16,7 @@ import PreviewPage from "./pages/PreviewPage";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
+import InterviewPage from "./pages/InterviewPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,7 +48,8 @@ const queryClient = new QueryClient();
        <Route path="/preview" element={<PreviewPage />} />
        <Route path="/auth" element={<AuthPage />} />
        <Route path="/dashboard" element={<DashboardPage />} />
-       <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/interview" element={<InterviewPage />} />
        <Route path="*" element={<NotFound />} />
      </Routes>
    );
