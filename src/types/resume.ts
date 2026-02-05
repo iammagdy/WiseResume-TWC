@@ -181,3 +181,79 @@ export interface CoverLetterContext {
   title: string;
   company: string;
 }
+ 
+ // ===== ENHANCED TAILOR TYPES (Phase 1-4) =====
+ 
+ export interface JobIntelligence {
+   experienceLevel: 'entry' | 'mid' | 'senior' | 'executive';
+   salaryRange?: { min: number; max: number; currency: string };
+   workMode: 'remote' | 'hybrid' | 'onsite' | 'unknown';
+   mustHaveSkills: string[];
+   niceToHaveSkills: string[];
+   companyCultureSignals: string[];
+   applicationDeadline?: string;
+   redFlags: string[];
+   industryDetected: string;
+ }
+ 
+ export interface InterviewTalkingPoint {
+   question: string;
+   suggestedAnswer: string;
+   relatedExperience?: string;
+ }
+ 
+ export interface ATSAnalysis {
+   originalKeywordDensity: number;
+   optimizedKeywordDensity: number;
+   criticalKeywords: string[];
+   stuffingWarnings: string[];
+ }
+ 
+ export interface BulletTransformation {
+   experienceId: string;
+   bulletIndex: number;
+   originalBullet: string;
+   enhancedBullet: string;
+   improvement: string;
+   metricsAdded: boolean;
+ }
+ 
+ export interface StrengthAnalysis {
+   strength: string;
+   percentile: number;
+   recommendation?: string;
+ }
+ 
+ export interface EnhancedJobParsed extends JobParsed {
+   fullDescription?: string;
+   jobIntelligence?: JobIntelligence;
+ }
+ 
+ // Extended tailor result with all new fields
+ export interface SuperTailorResult extends EnhancedTailorResult {
+   jobIntelligence?: JobIntelligence;
+   interviewTalkingPoints?: InterviewTalkingPoint[];
+   atsAnalysis?: ATSAnalysis;
+   bulletTransformations?: BulletTransformation[];
+   strengthsAnalysis?: StrengthAnalysis[];
+ }
+ 
+ export type EnhancedTailorStep = 
+   | 'fetching_job'
+   | 'analyzing_requirements'
+   | 'detecting_industry'
+   | 'matching_experience'
+   | 'rewriting_summary'
+   | 'optimizing_skills'
+   | 'transforming_bullets'
+   | 'calculating_ats'
+   | 'generating_interview_prep'
+   | 'finalizing'
+   | 'complete';
+ 
+ export interface EnhancedTailorProgress {
+   step: EnhancedTailorStep;
+   progress: number;
+   message: string;
+   funFact?: string;
+ }

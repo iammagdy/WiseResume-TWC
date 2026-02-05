@@ -1,4 +1,4 @@
-import { ResumeData, EnhancedTailorResult, TailorProgress, TailorStep } from '@/types/resume';
+import { ResumeData, EnhancedTailorResult, TailorProgress, TailorStep, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 
 export interface TailorResult {
   summary: string;
@@ -25,36 +25,51 @@ export interface TailorResult {
   keyChanges: string[];
 }
 
-const TAILOR_STEPS: { step: TailorStep; message: string; duration: number }[] = [
-  { step: 'analyzing', message: 'Analyzing job requirements...', duration: 800 },
-  { step: 'matching', message: 'Matching your experience...', duration: 1000 },
-  { step: 'rewriting_summary', message: 'Rewriting summary...', duration: 1200 },
-  { step: 'optimizing_skills', message: 'Optimizing skills...', duration: 1000 },
-  { step: 'enhancing_experience', message: 'Enhancing achievements...', duration: 1500 },
-  { step: 'generating_recs', message: 'Generating recommendations...', duration: 800 },
+const FUN_FACTS = [
+  "💡 Tailored resumes are 3x more likely to get interviews",
+  "📊 75% of resumes never pass ATS screening",
+  "🎯 Hiring managers spend 7 seconds on initial resume review",
+  "✨ Action verbs increase resume effectiveness by 140%",
+  "🔑 Including metrics makes achievements 40% more compelling",
+  "🏆 Top resumes use 11-14 unique skills on average",
+  "📈 Quantified achievements get 40% more callbacks",
+  "🚀 Keywords from job descriptions boost ATS scores by 60%",
+];
+
+const ENHANCED_STEPS: { step: EnhancedTailorStep; message: string; funFact: string }[] = [
+  { step: 'analyzing_requirements', message: 'Deep-analyzing job requirements...', funFact: FUN_FACTS[0] },
+  { step: 'detecting_industry', message: 'Detecting industry patterns...', funFact: FUN_FACTS[1] },
+  { step: 'matching_experience', message: 'Matching your experience to requirements...', funFact: FUN_FACTS[2] },
+  { step: 'rewriting_summary', message: 'Crafting a powerful summary...', funFact: FUN_FACTS[3] },
+  { step: 'optimizing_skills', message: 'Optimizing skills for ATS...', funFact: FUN_FACTS[4] },
+  { step: 'transforming_bullets', message: 'Transforming achievements with metrics...', funFact: FUN_FACTS[5] },
+  { step: 'calculating_ats', message: 'Calculating ATS keyword match...', funFact: FUN_FACTS[6] },
+  { step: 'generating_interview_prep', message: 'Generating interview talking points...', funFact: FUN_FACTS[7] },
+  { step: 'finalizing', message: 'Finalizing your supercharged resume...', funFact: FUN_FACTS[0] },
 ];
 
 export async function tailorResumeWithProgress(
   resume: ResumeData,
   jobDescription: string,
-  onProgress: (progress: TailorProgress) => void
-): Promise<EnhancedTailorResult> {
+  onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void
+): Promise<SuperTailorResult> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
-  // Simulate progress steps while waiting for AI
+  // Enhanced progress simulation with fun facts
   let currentStepIndex = 0;
   const progressInterval = setInterval(() => {
-    if (currentStepIndex < TAILOR_STEPS.length - 1) {
-      const step = TAILOR_STEPS[currentStepIndex];
-      const progressPercent = Math.min(((currentStepIndex + 1) / TAILOR_STEPS.length) * 85, 85);
+    if (currentStepIndex < ENHANCED_STEPS.length - 1) {
+      const step = ENHANCED_STEPS[currentStepIndex];
+      const progressPercent = Math.min(((currentStepIndex + 1) / ENHANCED_STEPS.length) * 85, 85);
       onProgress({
         step: step.step,
         progress: progressPercent,
         message: step.message,
-      });
+        funFact: step.funFact,
+      } as EnhancedTailorProgress);
       currentStepIndex++;
     }
-  }, 1200);
+  }, 1500);
 
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
@@ -82,8 +97,8 @@ export async function tailorResumeWithProgress(
     onProgress({
       step: 'complete',
       progress: 100,
-      message: 'Tailoring complete!',
-    });
+      message: '🎉 Tailoring complete! Your resume is supercharged.',
+    } as TailorProgress);
 
     return response.json();
   } catch (error) {
