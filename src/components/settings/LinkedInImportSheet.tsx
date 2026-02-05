@@ -86,9 +86,9 @@
    });
    const [error, setError] = useState<string | null>(null);
  
-   const linkedinUrl = linkedinUsername 
-     ? `https://linkedin.com/in/${linkedinUsername}`
-     : 'https://linkedin.com/in/yourprofile';
+  const linkedinUrl = linkedinUsername 
+    ? `https://linkedin.com/in/${linkedinUsername}`
+    : null;
  
    const handleParse = async () => {
      if (!profileText.trim()) {
@@ -245,15 +245,27 @@
                      </li>
                    </ol>
                    
-                   <a 
-                     href={linkedinUrl}
-                     target="_blank"
-                     rel="noopener noreferrer"
-                     className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-                   >
-                     <ExternalLink className="w-3.5 h-3.5" />
-                     Open LinkedIn Profile
-                   </a>
+                  {linkedinUsername ? (
+                    <a 
+                      href={`https://linkedin.com/in/${linkedinUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Open Your LinkedIn Profile
+                    </a>
+                  ) : (
+                    <a 
+                      href="https://linkedin.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      Go to LinkedIn
+                    </a>
+                  )}
                  </div>
  
                  {/* Paste Area */}
