@@ -112,35 +112,35 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
   // Use sample data if no resume loaded
   const previewResume = currentResume || {
     contactInfo: {
-      fullName: 'John Doe',
-      email: 'john@example.com',
+      fullName: 'Wise Megz',
+      email: 'megz@wiseuniverse.ai',
       phone: '(555) 123-4567',
-      location: 'San Francisco, CA',
+      location: 'Wise Universe HQ',
     },
-    summary: 'Experienced professional with a passion for excellence.',
+    summary: 'AI Navigator with expertise in cosmic systems and starship interfaces.',
     experience: [
       {
         id: '1',
-        company: 'Tech Corp',
-        position: 'Senior Developer',
+        company: 'Wise Universe',
+        position: 'AI Navigator',
         startDate: 'Jan 2020',
         endDate: 'Present',
         current: true,
-        description: 'Leading development initiatives',
-        achievements: ['Led team of 5 engineers', 'Increased efficiency by 40%'],
+        description: 'Navigating interstellar AI missions',
+        achievements: ['Pioneered quantum navigation', 'Improved efficiency by 40%'],
       },
     ],
     education: [
       {
         id: '1',
-        institution: 'State University',
+        institution: 'Cosmic Academy',
         degree: 'Bachelor of Science',
-        field: 'Computer Science',
+        field: 'Space Engineering',
         startDate: '2012',
         endDate: '2016',
       },
     ],
-    skills: ['JavaScript', 'React', 'Node.js', 'Python'],
+    skills: ['AI Systems', 'Cosmic Navigation', 'Starship UI', 'Quantum Computing'],
     certifications: [],
     templateId: 'modern',
   };
