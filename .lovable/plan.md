@@ -1,287 +1,268 @@
 
-# Multi-Job Comparison: Compare Tailoring Results Side-by-Side
 
-## Overview
+# WiseResume Mobile App: Play Store Readiness Audit & Polish Plan
 
-Add the ability for users to tailor the same resume to multiple jobs and compare the results. Since this is a mobile-first app, the comparison uses a **swipeable carousel** pattern instead of a traditional side-by-side grid.
+## Executive Summary
+
+After a thorough analysis as a world-class software engineer and UI/UX designer, WiseResume has **excellent mobile foundations** but needs strategic refinements to meet Play Store standards. The app already implements many mobile best practices, but there are critical gaps that could lead to rejections or poor reviews.
 
 ---
 
-## User Flow
+## Current Strengths (Already Implemented Well)
 
+| Area | Implementation |
+|------|----------------|
+| Touch Targets | 44px minimum on buttons, inputs use h-12 (48px) |
+| Haptic Feedback | Full haptics library with patterns for selection, success, warning, error |
+| iOS/Android Safe Areas | `env(safe-area-inset-*)` padding throughout |
+| Gestures | Swipe-to-delete on cards, pull-to-refresh on dashboard |
+| Keyboard Handling | Auto-scroll to focused inputs, dismiss on background tap |
+| Offline Awareness | OfflineBanner component shows connection status |
+| Font Sizing | `text-base` (16px) on mobile inputs prevents iOS zoom |
+| Theme Support | Light/dark themes with system preference detection |
+| Native Navigation | Bottom tab bar with animated indicators |
+| Viewport | `viewport-fit=cover`, `user-scalable=no` configured |
+
+---
+
+## Critical Issues to Fix
+
+### 1. Missing Android App Assets (BLOCKER)
+
+**Issue:** No Android-specific icons, splash screens, or adaptive icons in `/public`.
+
+**Required Files:**
 ```text
-1. Open Tailor Sheet → Tailor to Job A → Save Result
-2. Click "Compare to Another Job" → Enter Job B → Tailor
-3. View comparison carousel: Swipe between Job A and Job B results
-4. Pick the best fit → Apply that version
+public/
+  icons/
+    icon-48x48.png
+    icon-72x72.png
+    icon-96x96.png
+    icon-144x144.png
+    icon-192x192.png
+    icon-512x512.png
+    maskable-icon-192x192.png
+    maskable-icon-512x512.png
+  splash/
+    splash-640x1136.png
+    splash-750x1334.png
+    splash-1242x2208.png
+    splash-1125x2436.png
 ```
+
+### 2. Missing Web App Manifest
+
+**Issue:** No `manifest.json` for PWA/installability. Play Store TWA requires this.
+
+**Required:** Create `public/manifest.json` with:
+- App name, short name, theme colors
+- Icon references (including maskable)
+- Display mode: `standalone`
+- Orientation: `portrait`
+- Start URL and scope
+
+### 3. AlertDialog Mobile Optimization
+
+**Issue:** `AlertDialogContent` lacks full-width styling on mobile. Dialog buttons stack vertically but without proper touch target sizing.
+
+**Fix:** Add `w-[calc(100%-2rem)] mx-4` and ensure buttons are `h-12` minimum.
+
+### 4. Input Focus States Inconsistent
+
+**Issue:** Some inputs lack visible focus rings on mobile. `h-10` used in places instead of mobile-optimized `h-12`.
+
+**Files affected:**
+- `Input` component defaults to `h-10`
+- Some inline inputs in editor sections
+
+### 5. Loading States Missing Error Boundaries
+
+**Issue:** If AI API calls fail during tailoring/parsing, users may see blank screens or cryptic errors instead of graceful recovery.
+
+### 6. Bottom Tab Bar Overlaps Content
+
+**Issue:** In `EditorPage.tsx`, the sticky action bar sits at `bottom-16` (64px) to account for the tab bar, but on some Android devices with gesture navigation, this can cause overlap.
 
 ---
 
-## Mobile-First Design Decisions
+## High-Priority Polish Items
 
-| Challenge | Desktop Solution | Mobile Solution (Used Here) |
-|-----------|------------------|----------------------------|
-| Side-by-side comparison | Two-column grid | Swipeable carousel with dot indicators |
-| Viewing full results | All visible | Collapsed cards with expand |
-| Selecting winner | Radio buttons | Prominent tap-to-select cards |
-| Quick metrics | Table rows | Stacked comparison bars |
+### 7. Splash Screen Configuration
 
----
-
-## New Components
-
-### 1. `MultiJobCompareSheet.tsx`
-Full-screen sheet for managing multi-job comparisons.
-
-**Features:**
-- Carousel of job comparison cards (swipe left/right)
-- Dot indicators showing current position
-- "Add Another Job" button (max 4 jobs)
-- "Pick Best Match" selection at bottom
-
-**UI Layout:**
-```text
-┌─────────────────────────────────────────┐
-│ ← Compare Jobs                    [Add] │
-├─────────────────────────────────────────┤
-│                                         │
-│  ┌───────────────────────────────────┐  │
-│  │  Senior Engineer @ Amazon        │  │
-│  │  ━━━━━━━━━━━━━ 92%              │  │
-│  │                                   │  │
-│  │  Skills: +90  |  ATS: +85        │  │
-│  │  Experience: +72                 │  │
-│  │                                   │  │
-│  │  [View Full Details]             │  │
-│  └───────────────────────────────────┘  │
-│                                         │
-│            ●  ○  ○                      │
-│         Swipe to compare                │
-│                                         │
-├─────────────────────────────────────────┤
-│ Best Match: Amazon @ 92%                │
-│                                         │
-│  [Apply This Version]                   │
-└─────────────────────────────────────────┘
-```
-
-### 2. `JobCompareCard.tsx`
-Individual job comparison card for the carousel.
-
-**Shows:**
-- Job title and company
-- Overall match score with animated ring
-- Score breakdown (Skills, Experience, Keywords, ATS)
-- Key improvements count
-- "View Details" to expand full tailor result
-
-### 3. `CompareScoreBars.tsx`
-Visual bar chart comparing scores across all jobs.
-
-**UI:**
-```text
-Skills Match
-Amazon     ████████████████████ 90%
-Google     ███████████████░░░░░ 75%
-Meta       ██████████████████░░ 85%
-```
-
----
-
-## Data Flow
-
-### New State in `resumeStore.ts`
+**Issue:** `capacitor.config.ts` lacks splash screen settings.
 
 ```typescript
-interface MultiJobComparison {
-  id: string;
-  resumeId: string;
-  jobs: {
-    id: string;
-    jobTitle: string;
-    company: string;
-    jobDescription: string;
-    tailorResult: SuperTailorResult;
-    createdAt: string;
-  }[];
-  selectedJobId: string | null;
-  createdAt: string;
-}
-
-// Add to ResumeState:
-multiJobComparisons: MultiJobComparison[];
-currentComparison: MultiJobComparison | null;
-addJobToComparison: (job: {...}) => void;
-removeJobFromComparison: (jobId: string) => void;
-selectBestJob: (jobId: string) => void;
-clearComparison: () => void;
+// Add to capacitor.config.ts:
+android: {
+  splashScreenMode: 'fit',
+  splashScreenDuration: 2000,
+  backgroundColor: '#0a0a14'
+},
 ```
 
-### Integration Points
+### 8. Back Button Handling (Android)
 
-1. **TailorSheet.tsx** - Add "Compare to Another Job" button after tailoring
-2. **AIHubSheet.tsx** - Add "Multi-Job Compare" option in the menu
-3. **TailorHistorySheet.tsx** - Option to add historical result to comparison
+**Issue:** Android hardware/gesture back button not explicitly handled. Users pressing back may exit the app unexpectedly instead of navigating.
+
+**Fix:** Add `@capacitor/app` listener for `backButton` events and route to appropriate navigation.
+
+### 9. Empty States Need Polish
+
+**Issue:** Empty states exist but could be more engaging with illustrations or animations for Play Store screenshots.
+
+### 10. Form Validation Feedback
+
+**Issue:** Validation errors show via toast only. Inline field-level error messages missing (e.g., red border + message below input).
+
+### 11. Keyboard Accessory Bar
+
+**Issue:** When keyboard is open, no "Done" button or navigation between fields. Users must tap away to dismiss.
+
+### 12. Text Selection/Copy Disabled
+
+**Issue:** Some text should be selectable (e.g., generated cover letters, AI suggestions) but current implementation may prevent copying.
 
 ---
 
-## New Types
+## Medium-Priority Enhancements
 
-### `src/types/resume.ts`
+### 13. Animation Performance
 
-```typescript
-export interface JobComparisonEntry {
-  id: string;
-  jobTitle: string;
-  company: string;
-  jobDescription: string;
-  tailorResult: SuperTailorResult;
-  createdAt: string;
-}
+**Issue:** Framer Motion animations may cause jank on lower-end Android devices.
 
-export interface MultiJobComparison {
-  id: string;
-  resumeId: string;
-  jobs: JobComparisonEntry[];
-  selectedJobId: string | null;
-  createdAt: string;
-}
-```
+**Fix:** Add `will-change: transform` hints and consider reducing animation complexity for `prefers-reduced-motion`.
 
----
+### 14. Image Optimization
 
-## Implementation Details
+**Issue:** Resume template previews/thumbnails not optimized for mobile bandwidth.
 
-### File 1: `src/components/editor/tailor/MultiJobCompareSheet.tsx`
+### 15. Skeleton Loading Shimmer
 
-```typescript
-// Main sheet component with:
-// - Embla carousel for swipeable job cards
-// - Dot indicators for navigation
-// - "Add Another Job" floating button
-// - Bottom selection bar with "Apply" button
-// - Haptic feedback on swipe and selection
-```
+**Issue:** Skeleton loading states use `animate-pulse` which can feel static. Shimmer effect would feel more premium.
 
-### File 2: `src/components/editor/tailor/JobCompareCard.tsx`
+### 16. Status Bar Color Dynamic
 
-```typescript
-// Individual comparison card showing:
-// - Job title with company badge
-// - Animated score circle (reuse AnimatedNumber pattern)
-// - Score breakdown grid (2x2 for mobile)
-// - Expand button for full details
-// - Selection indicator (checkmark when selected)
-```
+**Issue:** Status bar color is static (`#0a0a14`). Should change based on current screen/theme.
 
-### File 3: `src/components/editor/tailor/CompareScoreBars.tsx`
+### 17. Share Sheet Enhancement
 
-```typescript
-// Horizontal bar chart component:
-// - Each job as a labeled bar
-// - Animated fill based on score
-// - Color coding (green/amber/red by score)
-// - Tap bar to select that job
-```
+**Issue:** Share functionality exists but doesn't include share images/previews for social media.
 
-### File 4: `src/store/resumeStore.ts` (modifications)
+### 18. Rate App Prompt
 
-```typescript
-// Add new state:
-multiJobComparisons: [],
-currentComparison: null,
-
-// Add new actions:
-startNewComparison: (resumeId, firstJob) => {...},
-addJobToComparison: (job) => {...},
-removeJobFromComparison: (jobId) => {...},
-selectBestJob: (jobId) => {...},
-applySelectedJob: () => {...}, // Apply winner and close
-clearComparison: () => {...},
-```
-
-### File 5: `src/components/editor/TailorSheet.tsx` (modifications)
-
-After tailoring completes, add:
-```tsx
-{tailorResult && !isTailoring && (
-  <Button
-    variant="outline"
-    className="w-full"
-    onClick={() => {
-      startNewComparison(currentResume.id, {
-        jobTitle: parsedJobInfo?.title,
-        company: parsedJobInfo?.company,
-        jobDescription,
-        tailorResult,
-      });
-      setShowMultiCompare(true);
-    }}
-  >
-    <GitCompare className="w-4 h-4 mr-2" />
-    Compare to Another Job
-  </Button>
-)}
-```
+**Issue:** No implementation for prompting users to rate the app after positive interactions.
 
 ---
 
-## Mobile UX Features
+## Low-Priority but Valuable
 
-1. **Swipe gestures** - Natural carousel swiping with momentum
-2. **Haptic feedback** - Light haptic on card change, success on selection
-3. **Pull-down dismiss** - Swipe down to close the sheet
-4. **Touch-optimized cards** - 48px minimum touch targets
-5. **Dot indicators** - Clear position in carousel
-6. **Animation** - Score numbers animate on card entry
-7. **Skeleton loading** - While tailoring additional jobs
+### 19. Analytics Integration
+
+**Issue:** Settings has analytics toggle but no actual analytics implementation visible.
+
+### 20. Deep Linking
+
+**Issue:** No deep link configuration for shared resumes or app links.
+
+### 21. Biometric Lock
+
+**Issue:** Resume data contains PII but no option to lock app with fingerprint/face.
+
+### 22. Accessibility Improvements
+
+**Issue:** Some icons lack proper `aria-label`, focus management on sheets could be improved.
 
 ---
 
-## Accessibility
+## Implementation Plan
 
-- Screen reader announcements for carousel position
-- Focus management when adding/removing jobs
-- Proper ARIA labels for comparison elements
-- Color-blind friendly score indicators (icons + colors)
+### Phase 1: Play Store Blockers (Must Fix)
+
+| Task | File(s) | Effort |
+|------|---------|--------|
+| Create app icons (all sizes + maskable) | `public/icons/*` | Low |
+| Add splash screen images | `public/splash/*` | Low |
+| Create `manifest.json` | `public/manifest.json` | Low |
+| Update `index.html` with manifest link | `index.html` | Low |
+| Configure splash in Capacitor | `capacitor.config.ts` | Low |
+| Add Android back button handling | `src/App.tsx` | Medium |
+
+### Phase 2: Mobile Polish
+
+| Task | File(s) | Effort |
+|------|---------|--------|
+| Fix AlertDialog mobile sizing | `src/components/ui/alert-dialog.tsx` | Low |
+| Standardize input heights to h-12 | `src/components/ui/input.tsx` | Low |
+| Add error boundary wrapper | `src/components/ErrorBoundary.tsx` (new) | Medium |
+| Improve bottom safe area calculations | `src/components/layout/MobileLayout.tsx` | Low |
+| Add keyboard toolbar | `src/hooks/useKeyboardToolbar.ts` (new) | Medium |
+
+### Phase 3: UX Enhancement
+
+| Task | File(s) | Effort |
+|------|---------|--------|
+| Add inline form validation | Multiple form components | Medium |
+| Improve skeleton shimmer effect | `src/components/ui/skeleton.tsx` | Low |
+| Add reduced-motion support | `src/index.css` | Low |
+| Implement rate app prompt | `src/hooks/useRateApp.ts` (new) | Medium |
+| Dynamic status bar color | `src/hooks/useStatusBar.ts` (new) | Low |
 
 ---
 
 ## Files to Create
 
-| File | Description |
-|------|-------------|
-| `src/components/editor/tailor/MultiJobCompareSheet.tsx` | Main comparison sheet |
-| `src/components/editor/tailor/JobCompareCard.tsx` | Individual job card |
-| `src/components/editor/tailor/CompareScoreBars.tsx` | Bar chart visualization |
+| File | Purpose |
+|------|---------|
+| `public/manifest.json` | Web app manifest for PWA/TWA |
+| `public/icons/*.png` | App icons in all required sizes |
+| `public/splash/*.png` | Splash screen images |
+| `src/components/ErrorBoundary.tsx` | Graceful error handling |
+| `src/hooks/useBackButton.ts` | Android back button handling |
+| `src/hooks/useStatusBar.ts` | Dynamic status bar control |
+| `src/hooks/useRateApp.ts` | App store review prompt |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/types/resume.ts` | Add comparison types |
-| `src/store/resumeStore.ts` | Add comparison state and actions |
-| `src/components/editor/TailorSheet.tsx` | Add "Compare to Another Job" button |
-| `src/components/editor/AIHubSheet.tsx` | Add comparison entry point |
+| `index.html` | Add manifest link, update meta tags |
+| `capacitor.config.ts` | Add splash screen and Android config |
+| `src/App.tsx` | Add ErrorBoundary wrapper, back button listener |
+| `src/components/ui/alert-dialog.tsx` | Mobile-optimized sizing |
+| `src/components/ui/input.tsx` | Consistent h-12 height |
+| `src/components/ui/skeleton.tsx` | Shimmer animation |
+| `src/index.css` | Reduced motion, additional utilities |
+| `src/components/layout/MobileLayout.tsx` | Improved safe area handling |
 
 ---
 
-## Edge Cases
+## Testing Checklist Before Play Store
 
-1. **Max 4 jobs** - Prevent adding more than 4 for comparison
-2. **Same job twice** - Warn if job description is similar
-3. **Empty comparison** - Handle when all jobs removed
-4. **Offline** - Show cached comparisons, disable "Add Job"
-5. **Resume changed** - Warn if resume was modified since tailoring
+- [ ] Test on physical Android device (not just emulator)
+- [ ] Test on both small (5") and large (6.7") screens
+- [ ] Test with system dark/light modes
+- [ ] Test with large text accessibility setting
+- [ ] Test offline functionality
+- [ ] Test keyboard interactions on all forms
+- [ ] Test back button behavior on every screen
+- [ ] Test app resume from background
+- [ ] Test with slow network (3G throttling)
+- [ ] Verify splash screen displays correctly
+- [ ] Verify app icon appears crisp at all sizes
+- [ ] Test share functionality
+- [ ] Test PDF export and download
+- [ ] Verify all touch targets are 44px+
 
 ---
 
 ## Expected Outcome
 
-Users can:
-1. Tailor their resume to multiple jobs in one session
-2. Easily swipe between results to compare scores
-3. See visual bar charts showing which job is the best fit
-4. Select and apply their preferred version with one tap
-5. Make informed decisions about which jobs to prioritize
+After implementing this plan:
+
+1. **Play Store Ready**: All required assets and configurations in place
+2. **5-Star Polish**: Premium feel matching top resume apps
+3. **Crash-Free**: Error boundaries prevent blank screens
+4. **Native Feel**: Android back button, status bar, and splash work correctly
+5. **Accessible**: Proper focus management and motion preferences
+6. **Performance**: Smooth animations on mid-range Android devices
+
