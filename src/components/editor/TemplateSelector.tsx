@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
-import { Check, FileText, AlertTriangle, Sparkles } from 'lucide-react';
+import { Check, FileText, AlertTriangle, Sparkles, Star } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
 import { TemplateId, TemplateInfo } from '@/types/resume';
 import { TemplateThumbnail } from './TemplateThumbnail';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile, CareerLevel } from '@/hooks/useProfile';
 
 interface TemplateSelectorProps {
   open: boolean;
@@ -63,6 +65,13 @@ const templates: TemplateInfo[] = [
   },
 ];
 
+const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
+  entry: ['modern', 'minimal', 'classic'],
+  mid: ['modern', 'professional', 'developer'],
+  senior: ['executive', 'professional', 'classic'],
+  executive: ['executive', 'professional'],
+};
+
 const atsScoreColors = {
   high: 'bg-success/20 text-success border-success/30',
   medium: 'bg-warning/20 text-warning border-warning/30',
@@ -77,6 +86,22 @@ const atsScoreLabels = {
 
 export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) {
   const { selectedTemplate, setSelectedTemplate, updateResume, currentResume } = useResumeStore();
+  const { user } = useAuth();
+  const { profile } = useProfile(user?.id);
+
+  // Get recommended template IDs based on career level
+  const recommendedIds = profile?.careerLevel 
+    ? CAREER_LEVEL_RECOMMENDATIONS[profile.careerLevel] 
+    : [];
+
+  // Sort templates: recommended first, then others
+  const sortedTemplates = [...templates].sort((a, b) => {
+    const aRec = recommendedIds.includes(a.id);
+    const bRec = recommendedIds.includes(b.id);
+    if (aRec && !bRec) return -1;
+    if (!aRec && bRec) return 1;
+    return 0;
+  });
 
   const handleSelect = (id: TemplateId) => {
     setSelectedTemplate(id);
@@ -142,8 +167,18 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
           </div>
         </div>
 
+        {/* Recommendation hint when career level is set */}
+        {recommendedIds.length > 0 && (
+          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+            <Star className="w-4 h-4 text-primary" />
+            <span>Templates recommended for your experience level are shown first</span>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[calc(85vh-220px)] pb-4">
-          {templates.map((template, index) => (
+          {sortedTemplates.map((template, index) => {
+            const isRecommended = recommendedIds.includes(template.id);
+            return (
             <motion.button
               key={template.id}
               initial={{ opacity: 0, y: 20 }}
@@ -153,7 +188,9 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
               className={`relative p-3 rounded-2xl border-2 transition-all text-left touch-manipulation active:scale-[0.98] ${
                 selectedTemplate === template.id
                   ? 'border-primary bg-primary/10'
-                  : 'border-border hover:border-primary/50'
+                  : isRecommended
+                    ? 'border-primary/30 bg-primary/5 hover:border-primary/50'
+                    : 'border-border hover:border-primary/50'
               }`}
             >
               {/* Real template preview */}
@@ -174,6 +211,16 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
                   {atsScoreLabels[template.atsScore]}
                 </Badge>
 
+                {/* Recommended Badge */}
+                {isRecommended && selectedTemplate !== template.id && (
+                  <Badge
+                    className="absolute top-1.5 right-1.5 bg-primary text-primary-foreground text-xs px-2 py-0.5"
+                  >
+                    <Star className="w-3 h-3 mr-1" />
+                    Recommended
+                  </Badge>
+                )}
+
                 {/* Selected indicator */}
                 {selectedTemplate === template.id && (
                   <div className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
@@ -185,7 +232,8 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
               <h3 className="font-semibold text-base">{template.name}</h3>
               <p className="text-sm text-muted-foreground line-clamp-1">{template.description}</p>
             </motion.button>
-          ))}
+            );
+          })}
         </div>
       </SheetContent>
     </Sheet>
