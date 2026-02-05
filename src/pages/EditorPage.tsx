@@ -232,7 +232,7 @@ export default function EditorPage() {
 
         {/* Bottom Action Bar */}
         <motion.div
-          className="sticky bottom-16 p-4 glass border-t border-border"
+           className="sticky bottom-16 p-4 pb-safe glass border-t border-border mb-safe"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
