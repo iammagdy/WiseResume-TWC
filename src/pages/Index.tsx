@@ -10,6 +10,7 @@ import { ChoiceCard } from '@/components/home/ChoiceCard';
 import { ActionCard } from '@/components/home/ActionCard';
 import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
 import { TailorSheet } from '@/components/editor/TailorSheet';
+import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { HeroSection } from '@/components/landing/HeroSection';
 import { SocialProofBar } from '@/components/landing/SocialProofBar';
 import { HowItWorks } from '@/components/landing/HowItWorks';
@@ -193,16 +194,18 @@ const Index = () => {
     );
   }
 
-  // New user: show enhanced landing page
+  // New user: show space-themed landing page
   return (
-    <main className="min-h-screen bg-background">
-      <HeroSection />
-      <SocialProofBar />
-      <HowItWorks />
-      <FeatureGrid />
-      <TemplateGallery />
-      <BottomCTA />
-    </main>
+    <SpaceBackground>
+      <main className="min-h-screen">
+        <HeroSection />
+        <SocialProofBar />
+        <HowItWorks />
+        <FeatureGrid />
+        <TemplateGallery />
+        <BottomCTA />
+      </main>
+    </SpaceBackground>
   );
 };
 

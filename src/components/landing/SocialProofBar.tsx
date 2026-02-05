@@ -1,4 +1,4 @@
-import { Star, FileCheck, Zap } from 'lucide-react';
+import { Star, Rocket, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect, useState, useRef } from 'react';
 
@@ -44,20 +44,23 @@ export function SocialProofBar() {
     {
       icon: Star,
       value: '4.9',
-      label: 'Rating',
+      label: 'Stellar',
       isStatic: true,
+      color: 'text-[hsl(var(--space-star))]',
     },
     {
-      icon: FileCheck,
+      icon: Rocket,
       value: 12000,
-      label: 'Resumes',
+      label: 'Missions',
       suffix: '+',
+      color: 'text-primary',
     },
     {
       icon: Zap,
       value: 'Free',
-      label: 'to Start',
+      label: 'To Launch',
       isStatic: true,
+      color: 'text-secondary',
     },
   ];
 
@@ -67,27 +70,29 @@ export function SocialProofBar() {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
-      className="py-6 px-4"
+      className="py-8 px-4"
     >
-      <div className="flex items-center justify-center gap-6 sm:gap-10">
-        {stats.map((stat, index) => (
-          <div key={index} className="flex items-center gap-2">
-            <stat.icon className="w-5 h-5 text-primary" />
-            <div className="text-center">
-              <p className="font-display font-bold text-foreground">
-                {stat.isStatic ? (
-                  stat.value
-                ) : (
-                  <>
-                    <AnimatedCounter end={stat.value as number} />
-                    {stat.suffix}
-                  </>
-                )}
-              </p>
-              <p className="text-xs text-muted-foreground">{stat.label}</p>
+      <div className="flex items-center justify-center">
+        <div className="inline-flex items-center gap-6 sm:gap-10 px-6 py-4 rounded-2xl bg-card/50 backdrop-blur-sm border border-border/30">
+          {stats.map((stat, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+              <div className="text-center">
+                <p className="font-display font-bold text-foreground">
+                  {stat.isStatic ? (
+                    stat.value
+                  ) : (
+                    <>
+                      <AnimatedCounter end={stat.value as number} />
+                      {stat.suffix}
+                    </>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">{stat.label}</p>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </motion.section>
   );
