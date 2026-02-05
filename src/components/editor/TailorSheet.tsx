@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
-  History, FileText, Sparkles, ChevronRight
+  History, FileText, Sparkles, ChevronRight, Brain, Target
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
 import { tailorResumeWithProgress } from '@/lib/aiTailor';
 import { toast } from 'sonner';
@@ -18,11 +19,17 @@ import { ScoreComparison } from './tailor/ScoreComparison';
 import { TailorHistorySheet } from './tailor/TailorHistorySheet';
 import { CoverLetterGenerator } from './tailor/CoverLetterGenerator';
 import { JobUrlParser } from './tailor/JobUrlParser';
+import { JobIntelligenceCard } from './tailor/JobIntelligenceCard';
+import { InterviewPrepCard } from './tailor/InterviewPrepCard';
+import { BulletComparison } from './tailor/BulletComparison';
+import { SmartSkillSuggestions } from './tailor/SmartSkillSuggestions';
 import { 
   EnhancedTailorResult, 
   TailorProgress, 
   TailorSectionId,
-  ResumeData 
+  ResumeData,
+  SuperTailorResult,
+  EnhancedTailorProgress
 } from '@/types/resume';
 import { cn } from '@/lib/utils';
 
@@ -51,13 +58,14 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   } = useResumeStore();
 
   const [isTailoring, setIsTailoring] = useState(false);
-  const [tailorResult, setTailorResult] = useState<EnhancedTailorResult | null>(null);
+  const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
   const [originalResume, setOriginalResume] = useState<ResumeData | null>(null);
-  const [progress, setProgress] = useState<TailorProgress | null>(null);
+  const [progress, setProgress] = useState<TailorProgress | EnhancedTailorProgress | null>(null);
   const [showCompare, setShowCompare] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showCoverLetter, setShowCoverLetter] = useState(false);
   const [parsedJobInfo, setParsedJobInfo] = useState<{ title: string; company: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('changes');
 
   // Section toggles
   const [enabledSections, setEnabledSections] = useState<TailorSectionId[]>([
@@ -87,6 +95,7 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
     setEnabledSections(['summary', 'skills', 'experience', 'education']);
+    setActiveTab('changes');
 
     try {
       const result = await tailorResumeWithProgress(
@@ -94,7 +103,7 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
         jobDescription,
         (p) => setProgress(p)
       );
-      setTailorResult(result);
+      setTailorResult(result as SuperTailorResult);
       
       // Set parsed job info if available
       if (result.jobParsed) {
@@ -256,121 +265,177 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                   </p>
                 </div>
 
-                {/* Score Comparison */}
-                <ScoreComparison
-                  beforeScore={tailorResult.overallScore.before}
-                  afterScore={tailorResult.overallScore.after}
-                  sectionScores={tailorResult.sectionScores}
-                  selectedSections={enabledSections}
-                />
+                {/* Tabs for organized content */}
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="grid grid-cols-4 w-full">
+                    <TabsTrigger value="changes" className="text-xs">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Changes
+                    </TabsTrigger>
+                    <TabsTrigger value="intelligence" className="text-xs">
+                      <Brain className="w-3 h-3 mr-1" />
+                      Intel
+                    </TabsTrigger>
+                    <TabsTrigger value="skills" className="text-xs">
+                      <Target className="w-3 h-3 mr-1" />
+                      Skills
+                    </TabsTrigger>
+                    <TabsTrigger value="interview" className="text-xs">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Prep
+                    </TabsTrigger>
+                  </TabsList>
 
-                {/* Section Changes */}
-                <div className="space-y-3">
-                  <h4 className="font-semibold text-sm flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-primary" />
-                    Select Changes to Apply
-                  </h4>
+                  {/* Changes Tab */}
+                  <TabsContent value="changes" className="space-y-4 mt-4">
+                    {/* Score Comparison */}
+                    <ScoreComparison
+                      beforeScore={tailorResult.overallScore.before}
+                      afterScore={tailorResult.overallScore.after}
+                      sectionScores={tailorResult.sectionScores}
+                      selectedSections={enabledSections}
+                    />
 
-                  <SectionChangeCard
-                    sectionId="summary"
-                    title={SECTION_LABELS.summary}
-                    enabled={enabledSections.includes('summary')}
-                    onToggle={() => toggleSection('summary')}
-                    impactScore={tailorResult.sectionScores.summary.after - tailorResult.sectionScores.summary.before}
-                    changesSummary="Professional summary rewritten"
-                    preview={
-                      <p className="text-muted-foreground leading-relaxed">
-                        {tailorResult.summary}
-                      </p>
-                    }
-                  />
+                    {/* Section Changes */}
+                    <div className="space-y-3">
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4 text-primary" />
+                        Select Changes to Apply
+                      </h4>
 
-                  <SectionChangeCard
-                    sectionId="skills"
-                    title={SECTION_LABELS.skills}
-                    enabled={enabledSections.includes('skills')}
-                    onToggle={() => toggleSection('skills')}
-                    impactScore={tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before}
-                    changesSummary={`${tailorResult.skills.length} skills optimized`}
-                    preview={
-                      <div className="flex flex-wrap gap-2">
-                        {tailorResult.skills.slice(0, 10).map((skill, i) => (
-                          <Badge key={i} variant="secondary" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
-                        {tailorResult.skills.length > 10 && (
-                          <Badge variant="outline" className="text-xs">
-                            +{tailorResult.skills.length - 10} more
-                          </Badge>
-                        )}
+                      <SectionChangeCard
+                        sectionId="summary"
+                        title={SECTION_LABELS.summary}
+                        enabled={enabledSections.includes('summary')}
+                        onToggle={() => toggleSection('summary')}
+                        impactScore={tailorResult.sectionScores.summary.after - tailorResult.sectionScores.summary.before}
+                        changesSummary="Professional summary rewritten"
+                        preview={
+                          <p className="text-muted-foreground leading-relaxed">
+                            {tailorResult.summary}
+                          </p>
+                        }
+                      />
+
+                      <SectionChangeCard
+                        sectionId="skills"
+                        title={SECTION_LABELS.skills}
+                        enabled={enabledSections.includes('skills')}
+                        onToggle={() => toggleSection('skills')}
+                        impactScore={tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before}
+                        changesSummary={`${tailorResult.skills.length} skills optimized`}
+                        preview={
+                          <div className="flex flex-wrap gap-2">
+                            {tailorResult.skills.slice(0, 10).map((skill, i) => (
+                              <Badge key={i} variant="secondary" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                            {tailorResult.skills.length > 10 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{tailorResult.skills.length - 10} more
+                              </Badge>
+                            )}
+                          </div>
+                        }
+                      />
+
+                      <SectionChangeCard
+                        sectionId="experience"
+                        title={SECTION_LABELS.experience}
+                        enabled={enabledSections.includes('experience')}
+                        onToggle={() => toggleSection('experience')}
+                        impactScore={tailorResult.sectionScores.experience.after - tailorResult.sectionScores.experience.before}
+                        changesSummary={`${tailorResult.experience.length} positions enhanced`}
+                        preview={
+                          <ul className="space-y-2">
+                            {tailorResult.experience.slice(0, 2).map((exp, i) => (
+                              <li key={i} className="text-muted-foreground">
+                                <span className="font-medium text-foreground">{exp.position}</span>
+                                <span className="text-xs"> @ {exp.company}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        }
+                      />
+
+                      <SectionChangeCard
+                        sectionId="education"
+                        title={SECTION_LABELS.education}
+                        enabled={enabledSections.includes('education')}
+                        onToggle={() => toggleSection('education')}
+                        impactScore={tailorResult.sectionScores.education.after - tailorResult.sectionScores.education.before}
+                        changesSummary={`${tailorResult.education.length} entries refined`}
+                        preview={
+                          <ul className="space-y-1">
+                            {tailorResult.education.map((edu, i) => (
+                              <li key={i} className="text-muted-foreground text-sm">
+                                {edu.degree} in {edu.field} - {edu.institution}
+                              </li>
+                            ))}
+                          </ul>
+                        }
+                      />
+                    </div>
+
+                    {/* Bullet Transformations */}
+                    {tailorResult.bulletTransformations && tailorResult.bulletTransformations.length > 0 && (
+                      <BulletComparison transformations={tailorResult.bulletTransformations} />
+                    )}
+
+                    {/* Key Changes */}
+                    {tailorResult.keyChanges && tailorResult.keyChanges.length > 0 && (
+                      <div className="p-4 rounded-xl bg-card border border-border">
+                        <h4 className="font-semibold text-sm mb-3">Key Improvements</h4>
+                        <ul className="space-y-2">
+                          {tailorResult.keyChanges.slice(0, 5).map((change, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm">
+                              <ChevronRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                              <span className="text-muted-foreground">{change}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                    }
-                  />
+                    )}
+                  </TabsContent>
 
-                  <SectionChangeCard
-                    sectionId="experience"
-                    title={SECTION_LABELS.experience}
-                    enabled={enabledSections.includes('experience')}
-                    onToggle={() => toggleSection('experience')}
-                    impactScore={tailorResult.sectionScores.experience.after - tailorResult.sectionScores.experience.before}
-                    changesSummary={`${tailorResult.experience.length} positions enhanced`}
-                    preview={
-                      <ul className="space-y-2">
-                        {tailorResult.experience.slice(0, 2).map((exp, i) => (
-                          <li key={i} className="text-muted-foreground">
-                            <span className="font-medium text-foreground">{exp.position}</span>
-                            <span className="text-xs"> @ {exp.company}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    }
-                  />
+                  {/* Intelligence Tab */}
+                  <TabsContent value="intelligence" className="space-y-4 mt-4">
+                    {tailorResult.jobIntelligence && (
+                      <JobIntelligenceCard
+                        jobIntelligence={tailorResult.jobIntelligence}
+                        atsAnalysis={tailorResult.atsAnalysis}
+                        strengthsAnalysis={tailorResult.strengthsAnalysis}
+                        jobTitle={parsedJobInfo?.title || tailorResult.jobParsed?.title}
+                        company={parsedJobInfo?.company || tailorResult.jobParsed?.company}
+                      />
+                    )}
+                  </TabsContent>
 
-                  <SectionChangeCard
-                    sectionId="education"
-                    title={SECTION_LABELS.education}
-                    enabled={enabledSections.includes('education')}
-                    onToggle={() => toggleSection('education')}
-                    impactScore={tailorResult.sectionScores.education.after - tailorResult.sectionScores.education.before}
-                    changesSummary={`${tailorResult.education.length} entries refined`}
-                    preview={
-                      <ul className="space-y-1">
-                        {tailorResult.education.map((edu, i) => (
-                          <li key={i} className="text-muted-foreground text-sm">
-                            {edu.degree} in {edu.field} - {edu.institution}
-                          </li>
-                        ))}
-                      </ul>
-                    }
-                  />
-                </div>
+                  {/* Skills Tab */}
+                  <TabsContent value="skills" className="space-y-4 mt-4">
+                    <SmartSkillSuggestions
+                      missingSkills={tailorResult.missingSkills || []}
+                      boostableSkills={tailorResult.boostableSkills || []}
+                      onAddSkill={handleAddSkill}
+                      onBoostSkill={handleBoostSkill}
+                      onAddAllCritical={handleAddAllSkills}
+                    />
+                  </TabsContent>
 
-                {/* Skill Suggestions */}
-                {(tailorResult.missingSkills?.length > 0 || tailorResult.boostableSkills?.length > 0) && (
-                  <SkillSuggestionList
-                    missingSkills={tailorResult.missingSkills || []}
-                    boostableSkills={tailorResult.boostableSkills || []}
-                    onAddSkill={handleAddSkill}
-                    onBoostSkill={handleBoostSkill}
-                    onAddAll={handleAddAllSkills}
-                  />
-                )}
-
-                {/* Key Changes */}
-                {tailorResult.keyChanges && tailorResult.keyChanges.length > 0 && (
-                  <div className="p-4 rounded-xl bg-card border border-border">
-                    <h4 className="font-semibold text-sm mb-3">Key Improvements</h4>
-                    <ul className="space-y-2">
-                      {tailorResult.keyChanges.slice(0, 5).map((change, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <ChevronRight className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                          <span className="text-muted-foreground">{change}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                  {/* Interview Prep Tab */}
+                  <TabsContent value="interview" className="space-y-4 mt-4">
+                    {tailorResult.interviewTalkingPoints && tailorResult.interviewTalkingPoints.length > 0 ? (
+                      <InterviewPrepCard talkingPoints={tailorResult.interviewTalkingPoints} />
+                    ) : (
+                      <div className="p-8 text-center text-muted-foreground">
+                        <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                        <p className="font-medium">Interview prep coming soon</p>
+                        <p className="text-sm">Tailored interview questions will appear here</p>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
 
                 {/* Action Buttons */}
                 <div className="space-y-3 pt-2">
@@ -466,11 +531,15 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                   </li>
                   <li className="flex items-start gap-2">
                     <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Skills gap analysis</strong> - Add missing keywords with one click</span>
+                    <span><strong>Job intelligence</strong> - Deep analysis of requirements</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Cover letter generator</strong> - Create matching cover letters</span>
+                    <span><strong>Interview prep</strong> - Tailored talking points</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                    <span><strong>Bullet transformations</strong> - Metrics-driven achievements</span>
                   </li>
                 </ul>
               </div>

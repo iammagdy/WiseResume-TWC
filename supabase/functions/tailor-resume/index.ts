@@ -25,25 +25,45 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert resume writer and career consultant. Your job is to tailor resumes to specific job descriptions while maintaining authenticity and truthfulness.
+    // ============= SUPERCHARGED AI TAILORING ENGINE =============
+    
+    const systemPrompt = `You are a LEGENDARY resume writer, career strategist, and ATS optimization expert with 20+ years of experience helping candidates land jobs at top companies.
 
-IMPORTANT RULES:
-1. NEVER fabricate experience or skills the candidate doesn't have
-2. Rewrite existing content to better match job keywords and requirements
-3. Emphasize relevant experience and skills that align with the job
-4. Use industry-specific terminology from the job description
-5. Optimize bullet points with action verbs and quantifiable achievements
-6. Keep the resume ATS-friendly with proper formatting
-7. Maintain professional tone throughout
-8. Provide match scores for each section (0-100)
-9. Identify missing skills from the job that the candidate could add
-10. Identify existing skills that should be emphasized more
+## YOUR MISSION
+Transform this resume into a PERFECT match for the target job while maintaining complete authenticity.
 
-Respond ONLY with valid JSON, no markdown or code blocks.`;
+## CHAIN OF THOUGHT PROCESS
+1. ANALYZE: Deeply understand the job requirements, culture, and what the hiring manager truly wants
+2. DETECT: Identify the industry, experience level, and key terminology patterns
+3. STRATEGIZE: Plan how to position the candidate's experience for maximum impact
+4. TRANSFORM: Rewrite each section with powerful, metrics-driven language
+5. OPTIMIZE: Ensure ATS compatibility and keyword density without stuffing
+6. PREPARE: Generate interview talking points based on the tailored content
 
-    const userPrompt = `Tailor this resume for the following job:
+## CRITICAL RULES
+1. NEVER fabricate experience, skills, or metrics - only reframe existing content
+2. Transform weak bullet points into POWERFUL achievement statements with metrics
+3. If metrics aren't available, use strong qualitative indicators
+4. Match exact terminology from the job description
+5. Use industry-specific power verbs (led, architected, spearheaded, orchestrated)
+6. Every bullet should follow: ACTION VERB + WHAT + RESULT/IMPACT
+7. Weave critical keywords naturally - no stuffing
+8. Score honestly - don't inflate scores to please
 
-CURRENT RESUME:
+## BULLET TRANSFORMATION EXAMPLES
+WEAK: "Worked on frontend development"
+STRONG: "Architected and shipped 15+ React components serving 50K+ daily users, reducing page load time by 40%"
+
+WEAK: "Helped with team projects"
+STRONG: "Collaborated with cross-functional team of 8 engineers to deliver $2M product launch, completing 2 weeks ahead of schedule"
+
+WEAK: "Responsible for customer service"
+STRONG: "Resolved 200+ customer inquiries weekly with 98% satisfaction rating, reducing escalations by 35%"
+
+Return ONLY valid JSON with no markdown or code blocks.`;
+
+    const userPrompt = `## RESUME TO TAILOR
+
 Name: ${resume.contactInfo?.fullName || 'Not provided'}
 Email: ${resume.contactInfo?.email || ''}
 Phone: ${resume.contactInfo?.phone || ''}
@@ -51,79 +71,150 @@ Location: ${resume.contactInfo?.location || ''}
 LinkedIn: ${resume.contactInfo?.linkedin || ''}
 Portfolio: ${resume.contactInfo?.portfolio || ''}
 
-Summary: ${resume.summary || 'Not provided'}
+CURRENT SUMMARY:
+${resume.summary || 'Not provided'}
 
-Skills: ${resume.skills?.join(', ') || 'Not provided'}
+CURRENT SKILLS:
+${resume.skills?.join(', ') || 'Not provided'}
 
-Experience:
+EXPERIENCE:
 ${resume.experience?.map((e: any) => `
-- ${e.position} at ${e.company} (${e.startDate} - ${e.current ? 'Present' : e.endDate})
-  ${e.description}
-  Achievements: ${e.achievements?.join('; ') || 'None listed'}
+[ID: ${e.id}] ${e.position} at ${e.company}
+Duration: ${e.startDate} - ${e.current ? 'Present' : e.endDate}
+Description: ${e.description}
+Achievements:
+${e.achievements?.map((a: string, i: number) => `  ${i + 1}. ${a}`).join('\n') || '  None listed'}
 `).join('\n') || 'Not provided'}
 
-Education:
+EDUCATION:
 ${resume.education?.map((e: any) => `
-- ${e.degree} in ${e.field} from ${e.institution} (${e.startDate} - ${e.endDate})${e.gpa ? ` GPA: ${e.gpa}` : ''}
+- ${e.degree} in ${e.field} from ${e.institution} (${e.startDate} - ${e.endDate})${e.gpa ? `, GPA: ${e.gpa}` : ''}
 `).join('\n') || 'Not provided'}
 
-JOB DESCRIPTION:
+---
+
+## TARGET JOB DESCRIPTION
 ${jobDescription}
 
-Return the tailored resume in this exact JSON format:
+---
+
+## REQUIRED OUTPUT (JSON)
+
+Analyze deeply, then return this exact JSON structure:
+
 {
-  "summary": "<rewritten professional summary optimized for this role>",
-  "skills": ["<skill1>", "<skill2>", "..."],
+  "summary": "<POWERFUL 3-4 sentence summary that hooks the reader and positions candidate perfectly for this specific role>",
+  
+  "skills": ["<skill1 - prioritized by job relevance>", "<skill2>", "..."],
+  
   "experience": [
     {
       "id": "<keep original id>",
       "company": "<company name>",
-      "position": "<position title - can be slightly adjusted to match job terminology>",
+      "position": "<position - align terminology with job if appropriate>",
       "startDate": "<keep original>",
       "endDate": "<keep original>",
       "current": <keep original boolean>,
-      "description": "<rewritten description emphasizing relevant aspects>",
-      "achievements": ["<rewritten achievement 1>", "<rewritten achievement 2>"]
+      "description": "<ENHANCED description with relevant keywords>",
+      "achievements": ["<TRANSFORMED achievement with metrics/impact>", "..."]
     }
   ],
+  
   "education": [
     {
       "id": "<keep original id>",
       "institution": "<institution>",
       "degree": "<degree>",
-      "field": "<field - can highlight relevant specializations>",
+      "field": "<field - highlight relevant coursework/specializations>",
       "startDate": "<keep original>",
       "endDate": "<keep original>",
       "gpa": "<keep if exists>"
     }
   ],
-  "keyChanges": [
-    "<brief description of change 1>",
-    "<brief description of change 2>",
-    "<brief description of change 3>"
-  ],
+  
+  "keyChanges": ["<specific improvement made>", "..."],
+  
   "sectionScores": {
     "summary": { "before": <0-100>, "after": <0-100> },
     "skills": { "before": <0-100>, "after": <0-100> },
     "experience": { "before": <0-100>, "after": <0-100> },
     "education": { "before": <0-100>, "after": <0-100> }
   },
+  
   "overallScore": { "before": <0-100>, "after": <0-100> },
+  
   "missingSkills": [
-    { "skill": "<skill from job not on resume>", "reason": "<why it matters>", "frequency": <times mentioned in job>, "action": "add" }
+    { 
+      "skill": "<skill from job description NOT on resume>", 
+      "reason": "<why this skill matters for the role>", 
+      "frequency": <times mentioned in job>, 
+      "action": "add" 
+    }
   ],
+  
   "boostableSkills": [
-    { "skill": "<skill on resume but not emphasized>", "reason": "<how to emphasize>", "frequency": 1, "action": "boost" }
+    { 
+      "skill": "<skill already on resume but underemphasized>", 
+      "reason": "<how to better leverage this>", 
+      "frequency": 1, 
+      "action": "boost" 
+    }
   ],
+  
   "jobParsed": {
     "title": "<extracted job title>",
     "company": "<extracted company name>",
-    "keyRequirements": ["<requirement 1>", "<requirement 2>"],
-    "niceToHaves": ["<nice to have 1>", "<nice to have 2>"]
-  }
+    "keyRequirements": ["<must-have requirement>", "..."],
+    "niceToHaves": ["<nice-to-have>", "..."]
+  },
+  
+  "jobIntelligence": {
+    "experienceLevel": "<entry | mid | senior | executive>",
+    "salaryRange": { "min": <number or null>, "max": <number or null>, "currency": "USD" },
+    "workMode": "<remote | hybrid | onsite | unknown>",
+    "mustHaveSkills": ["<required skill>", "..."],
+    "niceToHaveSkills": ["<preferred skill>", "..."],
+    "companyCultureSignals": ["<culture indicator from job language>", "..."],
+    "redFlags": ["<any unrealistic requirements or concerns>"],
+    "industryDetected": "<detected industry: Tech, Finance, Healthcare, Marketing, etc.>"
+  },
+  
+  "atsAnalysis": {
+    "originalKeywordDensity": <percentage of job keywords found in original resume>,
+    "optimizedKeywordDensity": <percentage after optimization>,
+    "criticalKeywords": ["<must-have keywords from job>", "..."],
+    "stuffingWarnings": ["<any over-optimization warnings>"]
+  },
+  
+  "bulletTransformations": [
+    {
+      "experienceId": "<experience id>",
+      "bulletIndex": <0-based index>,
+      "originalBullet": "<original text>",
+      "enhancedBullet": "<transformed text with metrics>",
+      "improvement": "<what was improved>",
+      "metricsAdded": <true if metrics were added>
+    }
+  ],
+  
+  "interviewTalkingPoints": [
+    {
+      "question": "<likely interview question based on job requirements>",
+      "suggestedAnswer": "<how to answer using the tailored resume content>",
+      "relatedExperience": "<which experience to reference>"
+    }
+  ],
+  
+  "strengthsAnalysis": [
+    {
+      "strength": "<candidate's competitive advantage>",
+      "percentile": <estimated percentile vs typical applicants>,
+      "recommendation": "<how to leverage this>"
+    }
+  ]
 }`;
 
-    console.log("Calling AI gateway for resume tailoring...");
+    console.log("Calling SUPERCHARGED AI engine for resume tailoring...");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -132,12 +223,13 @@ Return the tailored resume in this exact JSON format:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.4,
+        temperature: 0.5,
+        max_tokens: 8000,
       }),
     });
 
@@ -169,7 +261,7 @@ Return the tailored resume in this exact JSON format:
       throw new Error("No content in AI response");
     }
 
-    console.log("AI response received, parsing...");
+    console.log("SUPERCHARGED AI response received, parsing...");
 
     // Parse the JSON from the AI response
     let tailoredResult;
@@ -188,7 +280,7 @@ Return the tailored resume in this exact JSON format:
       );
     }
 
-    // Ensure all required fields have defaults
+    // Ensure all required fields have defaults with enhanced structure
     tailoredResult = {
       ...tailoredResult,
       sectionScores: tailoredResult.sectionScores || {
@@ -206,9 +298,27 @@ Return the tailored resume in this exact JSON format:
         keyRequirements: [],
         niceToHaves: [],
       },
+      jobIntelligence: tailoredResult.jobIntelligence || {
+        experienceLevel: 'mid',
+        workMode: 'unknown',
+        mustHaveSkills: [],
+        niceToHaveSkills: [],
+        companyCultureSignals: [],
+        redFlags: [],
+        industryDetected: 'General',
+      },
+      atsAnalysis: tailoredResult.atsAnalysis || {
+        originalKeywordDensity: 0,
+        optimizedKeywordDensity: 0,
+        criticalKeywords: [],
+        stuffingWarnings: [],
+      },
+      bulletTransformations: tailoredResult.bulletTransformations || [],
+      interviewTalkingPoints: tailoredResult.interviewTalkingPoints || [],
+      strengthsAnalysis: tailoredResult.strengthsAnalysis || [],
     };
 
-    console.log("Successfully tailored resume with enhanced data");
+    console.log("Successfully tailored resume with SUPERCHARGED data");
 
     return new Response(
       JSON.stringify(tailoredResult),

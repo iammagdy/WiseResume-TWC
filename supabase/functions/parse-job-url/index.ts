@@ -44,14 +44,14 @@ serve(async (req) => {
       .replace(/<[^>]+>/g, ' ')
       .replace(/\s+/g, ' ')
       .trim()
-      .slice(0, 15000); // Limit content length
+      .slice(0, 20000); // Increased limit for better extraction
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    console.log("Using AI to extract job details...");
+    console.log("Using ENHANCED AI to extract comprehensive job intelligence...");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -64,7 +64,9 @@ serve(async (req) => {
         messages: [
           { 
             role: "system", 
-            content: "You extract job posting information from web page content. Return ONLY valid JSON with no markdown."
+            content: `You are an expert job market analyst. Extract COMPREHENSIVE job posting information including hidden signals about company culture, realistic salary expectations, and requirement priorities.
+
+Return ONLY valid JSON with no markdown or code blocks.`
           },
           { 
             role: "user", 
@@ -72,11 +74,25 @@ serve(async (req) => {
 
 ${textContent}
 
-Return JSON with this format:
+Return JSON with this comprehensive format:
 {
   "title": "<job title>",
   "company": "<company name>",
-  "description": "<full job description including requirements, responsibilities, qualifications - be comprehensive>"
+  "description": "<full job description including ALL requirements, responsibilities, qualifications - be very comprehensive>",
+  "experienceLevel": "<entry | mid | senior | executive - based on years required and responsibilities>",
+  "salaryRange": {
+    "min": <number or null if not found>,
+    "max": <number or null if not found>,
+    "currency": "<USD, EUR, etc.>"
+  },
+  "workMode": "<remote | hybrid | onsite | unknown>",
+  "mustHaveSkills": ["<required/must-have skills>"],
+  "niceToHaveSkills": ["<preferred/nice-to-have skills>"],
+  "yearsExperience": "<extracted years requirement like '3-5 years' or null>",
+  "companyCultureSignals": ["<culture indicators from language like 'fast-paced', 'collaborative', 'startup', 'enterprise'>"],
+  "benefits": ["<listed benefits if any>"],
+  "applicationDeadline": "<deadline if mentioned or null>",
+  "redFlags": ["<any concerning patterns like unrealistic requirements for level, many required skills, etc.>"]
 }
 
 If you can't find certain fields, make reasonable guesses based on context. The description should be detailed and include all requirements and qualifications mentioned.`
@@ -126,7 +142,25 @@ If you can't find certain fields, make reasonable guesses based on context. The 
       );
     }
 
-    console.log("Successfully parsed job posting:", result.title);
+    // Ensure all fields have defaults
+    result = {
+      ...result,
+      title: result.title || 'Position',
+      company: result.company || 'Company',
+      description: result.description || '',
+      experienceLevel: result.experienceLevel || 'mid',
+      salaryRange: result.salaryRange || null,
+      workMode: result.workMode || 'unknown',
+      mustHaveSkills: result.mustHaveSkills || [],
+      niceToHaveSkills: result.niceToHaveSkills || [],
+      yearsExperience: result.yearsExperience || null,
+      companyCultureSignals: result.companyCultureSignals || [],
+      benefits: result.benefits || [],
+      applicationDeadline: result.applicationDeadline || null,
+      redFlags: result.redFlags || [],
+    };
+
+    console.log("Successfully parsed job posting with enhanced intelligence:", result.title);
 
     return new Response(
       JSON.stringify(result),
