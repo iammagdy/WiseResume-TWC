@@ -1,135 +1,133 @@
 
-# Update Demo Data to "Wise Megz"
+
+# AI Mock Interview - Voice Chat Feature
 
 ## Overview
 
-Replace all demo/sample resume data with the name "Wise Megz" and update related placeholder information to be consistent.
+Add a new "Interview" page with an interactive AI voice interview experience. The AI acts as an interviewer, asking questions based on the user's resume and/or a target job description. The UI features a central animated toggle button, a live transcript area, and session controls.
 
 ---
 
-## Files to Update
+## Architecture
 
-| File | Current Name | New Name |
-|------|--------------|----------|
-| `src/components/landing/TemplateGallery.tsx` | Alex Johnson | Wise Megz |
-| `src/components/settings/DefaultTemplateSheet.tsx` | Alex Johnson | Wise Megz |
-| `src/components/editor/TemplateSelector.tsx` | John Doe | Wise Megz |
+The feature uses **Lovable AI** (already configured with `LOVABLE_API_KEY`) for generating interview questions and evaluating answers, plus the **Web Speech API** (built into browsers) for speech-to-text and text-to-speech -- no additional API keys needed.
 
----
-
-## Detailed Changes
-
-### 1. `src/components/landing/TemplateGallery.tsx`
-
-**Current:**
-```typescript
-const sampleResume: ResumeData = {
-  contactInfo: {
-    fullName: 'Alex Johnson',
-    email: 'alex@example.com',
-    ...
-  },
-  experience: [{ company: 'Tech Corp', ... }],
-  education: [{ institution: 'University of Technology', ... }],
-  ...
-};
-```
-
-**Updated:**
-```typescript
-const sampleResume: ResumeData = {
-  contactInfo: {
-    fullName: 'Wise Megz',
-    email: 'megz@wiseuniverse.ai',
-    ...
-  },
-  experience: [{ company: 'Wise Universe', position: 'AI Navigator', ... }],
-  education: [{ institution: 'Cosmic Academy', degree: 'B.S.', field: 'Space Engineering', ... }],
-  ...
-};
+```text
++------------------+       +---------------------+       +------------------+
+|   Browser STT    | ----> |  Edge Function      | ----> |  Lovable AI      |
+| (Web Speech API) |       | (interview-chat)    |       | (Gemini Flash)   |
++------------------+       +---------------------+       +------------------+
+        ^                          |
+        |                          v
++------------------+       +---------------------+
+|   Browser TTS    | <---- |  React Interview    |
+| (speechSynthesis)|       |  Page Component     |
++------------------+       +---------------------+
 ```
 
 ---
 
-### 2. `src/components/settings/DefaultTemplateSheet.tsx`
+## New Files
 
-**Current:**
-```typescript
-const sampleResume: ResumeData = {
-  contactInfo: {
-    fullName: 'Alex Johnson',
-    email: 'alex@email.com',
-    ...
-  },
-  experience: [{ company: 'Tech Corp', ... }],
-  education: [{ institution: 'State University', ... }],
-  ...
-};
-```
+### 1. Edge Function: `supabase/functions/interview-chat/index.ts`
 
-**Updated:**
-```typescript
-const sampleResume: ResumeData = {
-  contactInfo: {
-    fullName: 'Wise Megz',
-    email: 'megz@wiseuniverse.ai',
-    ...
-  },
-  experience: [{ company: 'Wise Universe', position: 'AI Navigator', ... }],
-  education: [{ institution: 'Cosmic Academy', ... }],
-  ...
-};
-```
+- Accepts: `messages` array, `resumeData` (user's CV), optional `jobDescription`
+- System prompt instructs AI to act as a professional interviewer
+- Uses Lovable AI gateway (non-streaming for simpler turn-based conversation)
+- Returns the interviewer's next question/response as JSON
 
----
+### 2. Page: `src/pages/InterviewPage.tsx`
 
-### 3. `src/components/editor/TemplateSelector.tsx`
+- Full-screen mobile layout with header "AI Interview"
+- Central animated microphone toggle (large, pulsing when active)
+- Transcript area showing conversation history (scrollable)
+- Mode selector: "General" (based on CV) or "Job-Targeted" (paste job description)
+- End interview button that shows a summary/feedback
 
-**Current:**
-```typescript
-const previewResume = currentResume || {
-  contactInfo: {
-    fullName: 'John Doe',
-    email: 'john@example.com',
-    ...
-  },
-  experience: [{ company: 'Tech Corp', ... }],
-  education: [{ institution: 'State University', ... }],
-  ...
-};
-```
+### 3. Hook: `src/hooks/useVoiceInterview.ts`
 
-**Updated:**
-```typescript
-const previewResume = currentResume || {
-  contactInfo: {
-    fullName: 'Wise Megz',
-    email: 'megz@wiseuniverse.ai',
-    ...
-  },
-  experience: [{ company: 'Wise Universe', position: 'AI Navigator', ... }],
-  education: [{ institution: 'Cosmic Academy', ... }],
-  ...
-};
-```
+- Manages Web Speech API (`SpeechRecognition` for STT, `speechSynthesis` for TTS)
+- Handles conversation state (messages array)
+- Calls the edge function for AI responses
+- Manages recording state, speaking state, errors
+
+### 4. Component: `src/components/interview/InterviewToggle.tsx`
+
+- Large circular button in center of screen
+- Animated states: idle, listening (pulsing rings), AI thinking (spinner), AI speaking (waveform)
+- Tap to start/stop listening
+
+### 5. Component: `src/components/interview/TranscriptBubble.tsx`
+
+- Chat-style bubbles for user (right) and interviewer (left)
+- Displays speaker label and text
+
+### 6. Component: `src/components/interview/InterviewSetup.tsx`
+
+- Pre-interview screen to choose mode
+- Option to paste a job description for targeted questions
+- Start button
 
 ---
 
-## Summary of Data Updates
+## Changes to Existing Files
 
-| Field | Old Value | New Value (Space Theme) |
-|-------|-----------|-------------------------|
-| Full Name | Alex Johnson / John Doe | Wise Megz |
-| Email | alex@example.com | megz@wiseuniverse.ai |
-| Location | San Francisco, CA | Wise Universe HQ |
-| Company | Tech Corp | Wise Universe |
-| Position | Senior Developer | AI Navigator |
-| Institution | State University | Cosmic Academy |
-| Field | Computer Science | Space Engineering |
-| Skills | JS, React, Node | AI Systems, Cosmic Navigation, Starship UI, Quantum Computing |
+### `src/App.tsx`
+- Add route: `/interview` pointing to `InterviewPage`
+
+### `src/components/layout/BottomTabBar.tsx`
+- Add "Interview" tab with `Mic` icon between Editor and New tabs
 
 ---
 
-## Implementation
+## UI Design (Mobile-First)
 
-3 files will be updated with consistent "Wise Megz" demo data that aligns with the space/Wise Universe theme.
+### Interview Setup Screen
+- Card with two options: "General Interview" / "Job-Targeted Interview"
+- If job-targeted: text area for job description
+- "Start Interview" button
+
+### Active Interview Screen
+- Top: Timer showing interview duration
+- Middle: Large pulsing microphone toggle button (the centerpiece)
+  - Gray ring = idle
+  - Blue pulsing rings = listening to user
+  - Spinning dots = AI thinking
+  - Green waves = AI speaking
+- Below toggle: Scrollable transcript with chat bubbles
+- Bottom: "End Interview" button
+
+### Post-Interview Summary
+- Overall performance score
+- Strengths identified
+- Areas to improve
+- Option to save or share
+
+---
+
+## Technical Details
+
+### Web Speech API (no extra dependencies)
+- `SpeechRecognition` / `webkitSpeechRecognition` for voice input
+- `window.speechSynthesis` for AI voice output
+- Fallback: text-only mode if speech APIs unavailable
+
+### Edge Function System Prompt
+The AI interviewer will:
+- Ask one question at a time
+- Start with an introduction
+- Cover behavioral, technical, and situational questions
+- Adapt questions based on the resume content
+- If job-targeted, focus on job-specific requirements
+- Provide brief feedback after each answer
+- End with a summary when requested
+
+### Conversation Flow
+1. User taps "Start Interview"
+2. AI introduces itself and asks first question (spoken via TTS)
+3. User taps microphone, speaks answer (captured via STT)
+4. User taps again to stop, answer sent to AI
+5. AI responds with feedback + next question
+6. Repeat until user taps "End Interview"
+7. AI provides final summary/score
+
