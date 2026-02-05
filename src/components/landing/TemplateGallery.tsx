@@ -4,10 +4,10 @@ import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { TemplateId, ResumeData } from '@/types/resume';
 import { cn } from '@/lib/utils';
 
-const templates: { id: TemplateId; name: string }[] = [
-  { id: 'modern', name: 'Modern' },
-  { id: 'executive', name: 'Executive' },
-  { id: 'creative', name: 'Creative' },
+const templates: { id: TemplateId; name: string; spaceAlias: string }[] = [
+  { id: 'modern', name: 'Modern', spaceAlias: 'Voyager' },
+  { id: 'executive', name: 'Executive', spaceAlias: 'Commander' },
+  { id: 'creative', name: 'Creative', spaceAlias: 'Explorer' },
 ];
 
 // Sample data for thumbnails matching the ResumeData type
@@ -65,21 +65,26 @@ export function TemplateGallery() {
   };
 
   return (
-    <section className="py-12">
-      <motion.h2
+    <section className="py-16">
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        className="font-display text-2xl font-bold text-center text-foreground mb-8 px-6"
+        className="text-center mb-10 px-6"
       >
-        Choose Your Style
-      </motion.h2>
+        <p className="text-secondary text-sm font-medium tracking-wider uppercase mb-2">
+          🚀 Templates
+        </p>
+        <h2 className="font-display text-2xl font-bold text-foreground">
+          Choose Your Flight Suit
+        </h2>
+      </motion.div>
 
       {/* Scrollable gallery */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-4 scrollbar-hide"
+        className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-6 scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {templates.map((template, index) => (
@@ -91,24 +96,38 @@ export function TemplateGallery() {
             transition={{ delay: index * 0.1 }}
             className={cn(
               'flex-shrink-0 w-[60%] sm:w-[40%] snap-center transition-all duration-300',
-              activeIndex === index ? 'scale-100' : 'scale-95 opacity-70'
+              activeIndex === index ? 'scale-100' : 'scale-95 opacity-60'
             )}
           >
-            <div className="rounded-xl overflow-hidden shadow-lg border border-border/50">
+            <motion.div 
+              className={cn(
+                'rounded-xl overflow-hidden border transition-all duration-300',
+                activeIndex === index 
+                  ? 'border-primary/50 shadow-lg shadow-primary/20' 
+                  : 'border-border/30'
+              )}
+              whileHover={{ 
+                borderColor: 'hsl(var(--primary) / 0.7)',
+                boxShadow: '0 0 30px hsl(var(--primary) / 0.3)',
+              }}
+            >
               <TemplateThumbnail
                 templateId={template.id}
                 resume={sampleResume}
               />
+            </motion.div>
+            <div className="text-center mt-4">
+              <p className="font-display font-semibold text-foreground">
+                {template.spaceAlias}
+              </p>
+              <p className="text-xs text-muted-foreground">{template.name}</p>
             </div>
-            <p className="text-center font-medium text-foreground mt-3">
-              {template.name}
-            </p>
           </motion.div>
         ))}
       </div>
 
       {/* Pagination dots */}
-      <div className="flex justify-center gap-2 mt-4">
+      <div className="flex justify-center gap-2 mt-2">
         {templates.map((_, index) => (
           <button
             key={index}
@@ -121,10 +140,10 @@ export function TemplateGallery() {
               });
             }}
             className={cn(
-              'w-2 h-2 rounded-full transition-all',
+              'h-2 rounded-full transition-all duration-300',
               activeIndex === index
                 ? 'bg-primary w-6'
-                : 'bg-muted-foreground/30 hover:bg-muted-foreground/50'
+                : 'bg-muted-foreground/30 w-2 hover:bg-muted-foreground/50'
             )}
             aria-label={`Go to template ${index + 1}`}
           />

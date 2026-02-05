@@ -1,74 +1,97 @@
-import { Upload, Sparkles, Download } from 'lucide-react';
+import { Rocket, Cpu, Radio } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const steps = [
   {
-    icon: Upload,
+    icon: Rocket,
     number: 1,
-    title: 'Upload',
-    description: 'or Create',
+    title: 'Docking',
+    description: 'Upload or Create',
   },
   {
-    icon: Sparkles,
+    icon: Cpu,
     number: 2,
-    title: 'AI Tailors',
-    description: 'for the Job',
+    title: 'AI Boost',
+    description: 'Enhance & Optimize',
   },
   {
-    icon: Download,
+    icon: Radio,
     number: 3,
-    title: 'Export',
-    description: 'as PDF',
+    title: 'Transmit',
+    description: 'Export as PDF',
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="py-12 px-6">
-      <motion.h2
+    <section className="py-16 px-6">
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        className="font-display text-2xl font-bold text-center text-foreground mb-10"
+        className="text-center mb-10"
       >
-        How It Works
-      </motion.h2>
+        <p className="text-secondary text-sm font-medium tracking-wider uppercase mb-2">
+          🛸 Your Journey
+        </p>
+        <h2 className="font-display text-2xl font-bold text-foreground">
+          Mission Control
+        </h2>
+      </motion.div>
 
       <div className="flex items-start justify-center gap-4 sm:gap-8 max-w-md mx-auto">
         {steps.map((step, index) => (
           <motion.div
             key={step.number}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            transition={{ delay: index * 0.15 }}
+            transition={{ delay: index * 0.2 }}
             className="flex flex-col items-center text-center flex-1"
           >
-            {/* Step circle */}
-            <div className="relative mb-3">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-                <step.icon className="w-6 h-6 text-primary-foreground" />
-              </div>
+            {/* Step circle with cosmic glow */}
+            <div className="relative mb-4">
+              <motion.div
+                className="w-16 h-16 rounded-full flex items-center justify-center relative"
+                style={{
+                  background: `linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%)`,
+                  boxShadow: `0 0 30px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.2)`,
+                }}
+                whileHover={{ scale: 1.1 }}
+                transition={{ type: 'spring', stiffness: 300 }}
+              >
+                <step.icon className="w-7 h-7 text-primary-foreground" />
+              </motion.div>
               
-              {/* Connecting line */}
+              {/* Connecting orbital path */}
               {index < steps.length - 1 && (
                 <motion.div
-                  initial={{ scaleX: 0 }}
-                  whileInView={{ scaleX: 1 }}
+                  initial={{ scaleX: 0, opacity: 0 }}
+                  whileInView={{ scaleX: 1, opacity: 1 }}
                   viewport={{ once: true }}
-                  transition={{ delay: index * 0.15 + 0.3, duration: 0.5 }}
-                  className="absolute top-1/2 left-full w-8 sm:w-12 h-0.5 bg-gradient-to-r from-primary/50 to-accent/50 origin-left -translate-y-1/2 ml-2"
-                />
+                  transition={{ delay: index * 0.2 + 0.3, duration: 0.6 }}
+                  className="absolute top-1/2 left-full w-8 sm:w-12 h-px origin-left -translate-y-1/2 ml-2"
+                  style={{
+                    background: 'linear-gradient(90deg, hsl(var(--primary) / 0.8), hsl(var(--secondary) / 0.4))',
+                  }}
+                >
+                  {/* Animated particle along the path */}
+                  <motion.div
+                    className="absolute w-1.5 h-1.5 rounded-full bg-secondary top-1/2 -translate-y-1/2"
+                    animate={{ left: ['0%', '100%', '0%'] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear', delay: index * 0.3 }}
+                  />
+                </motion.div>
               )}
             </div>
 
-            {/* Step number */}
-            <span className="text-xs font-medium text-muted-foreground mb-1">
+            {/* Step number badge */}
+            <span className="text-xs font-medium text-secondary mb-1 px-2 py-0.5 rounded-full bg-secondary/10">
               Step {step.number}
             </span>
 
             {/* Title */}
-            <h3 className="font-display font-semibold text-foreground text-sm">
+            <h3 className="font-display font-semibold text-foreground text-sm mb-1">
               {step.title}
             </h3>
 

@@ -55,6 +55,13 @@
     --gradient-mid: 300 100% 60%;
     --gradient-end: 330 100% 65%;
 
+    /* Space theme additions */
+    --space-deep: 240 30% 3%;
+    --space-nebula: 270 60% 15%;
+    --space-star: 45 100% 75%;
+    --space-cyan: 185 100% 60%;
+    --space-glow: 270 100% 70%;
+
     /* Sidebar (keeping for compatibility) */
     --sidebar-background: 240 15% 6%;
     --sidebar-foreground: 0 0% 98%;
