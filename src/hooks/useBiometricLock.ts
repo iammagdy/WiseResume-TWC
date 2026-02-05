@@ -14,12 +14,10 @@
    authenticate: () => Promise<boolean>;
    checkAvailability: () => Promise<void>;
    unlock: () => void;
-   lock: () => void;
- }
- 
- const BACKGROUND_LOCK_TIMEOUT = 30000; // 30 seconds
- 
- export function useBiometricLock(enabled: boolean): UseBiometricLockReturn {
+  lock: () => void;
+}
+
+export function useBiometricLock(enabled: boolean, lockTimeout: number = 30000): UseBiometricLockReturn {
    const [isAvailable, setIsAvailable] = useState(false);
    const [biometryType, setBiometryType] = useState<BiometryTypeString>('none');
    const [isLocked, setIsLocked] = useState(true);
@@ -107,25 +105,26 @@
          if (!isActive) {
            // App went to background - record the time
            setBackgroundTime(Date.now());
-         } else if (backgroundTime) {
-           // App returned to foreground - check if we need to lock
-           const timeInBackground = Date.now() - backgroundTime;
-           if (timeInBackground >= BACKGROUND_LOCK_TIMEOUT) {
-             setIsLocked(true);
-           }
-           setBackgroundTime(null);
-         }
-       });
-     };
- 
-     setupListener();
- 
-     return () => {
-       listenerHandle?.remove();
-     };
-   }, [enabled, backgroundTime]);
- 
-   // If not enabled, always unlock
+          } else if (backgroundTime) {
+            // App returned to foreground - check if we need to lock
+            const timeInBackground = Date.now() - backgroundTime;
+            // If timeout is 0 (immediately), always lock when returning
+            if (lockTimeout === 0 || timeInBackground >= lockTimeout) {
+              setIsLocked(true);
+            }
+            setBackgroundTime(null);
+          }
+        });
+      };
+
+      setupListener();
+
+      return () => {
+        listenerHandle?.remove();
+      };
+    }, [enabled, backgroundTime, lockTimeout]);
+
+    // If not enabled, always unlock
    useEffect(() => {
      if (!enabled) {
        setIsLocked(false);

@@ -25,8 +25,8 @@ const queryClient = new QueryClient();
    useBackButton();
    useStatusBarThemeSync();
    
-   const { biometricLockEnabled } = useSettingsStore();
-   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled);
+   const { biometricLockEnabled, biometricLockTimeout } = useSettingsStore();
+   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
    
    // Show lock screen if biometric lock is enabled and app is locked
    if (biometricLockEnabled && isLocked && isAvailable) {
