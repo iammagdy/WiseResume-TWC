@@ -21,6 +21,7 @@ interface SettingsRowToggleProps extends SettingsRowBaseProps {
   type: 'toggle';
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
+   disabled?: boolean;
 }
 
 interface SettingsRowButtonProps extends SettingsRowBaseProps {
@@ -41,6 +42,7 @@ export function SettingsRow(props: SettingsRowProps) {
     return (
       <div className={cn(
         'flex items-center justify-between py-3 px-4 min-h-[52px]',
+         props.disabled && 'opacity-50',
         className
       )}>
         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -60,6 +62,7 @@ export function SettingsRow(props: SettingsRowProps) {
         </div>
         <Switch
           checked={props.checked}
+           disabled={props.disabled}
           onCheckedChange={(checked) => {
             haptics.light();
             props.onCheckedChange(checked);

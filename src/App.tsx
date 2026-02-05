@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
  import { ErrorBoundary } from "@/components/ErrorBoundary";
  import { useBackButton } from "@/hooks/useBackButton";
  import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
+ import { BiometricLockScreen } from "@/components/BiometricLockScreen";
+ import { useBiometricLock } from "@/hooks/useBiometricLock";
+ import { useSettingsStore } from "@/store/settingsStore";
 import Index from "./pages/Index";
 import UploadPage from "./pages/UploadPage";
 import EditorPage from "./pages/EditorPage";
@@ -21,6 +24,20 @@ const queryClient = new QueryClient();
  function AppRoutes() {
    useBackButton();
    useStatusBarThemeSync();
+   
+   const { biometricLockEnabled } = useSettingsStore();
+   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled);
+   
+   // Show lock screen if biometric lock is enabled and app is locked
+   if (biometricLockEnabled && isLocked && isAvailable) {
+     return (
+       <BiometricLockScreen
+         biometryType={biometryType}
+         isAuthenticating={isAuthenticating}
+         onAuthenticate={authenticate}
+       />
+     );
+   }
    
    return (
      <Routes>

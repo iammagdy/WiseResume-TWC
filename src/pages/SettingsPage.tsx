@@ -16,7 +16,8 @@ import {
   Database,
   BarChart3,
   CloudOff,
-  CheckCircle2
+   CheckCircle2,
+   Fingerprint
 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -26,6 +27,7 @@ import { DefaultTemplateSheet } from '@/components/settings/DefaultTemplateSheet
 import { PDFDefaultsSheet } from '@/components/settings/PDFDefaultsSheet';
 import { DataExportSheet } from '@/components/settings/DataExportSheet';
 import { DeleteDataDialog } from '@/components/settings/DeleteDataDialog';
+ import { BiometricSetupSheet } from '@/components/settings/BiometricSetupSheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -36,6 +38,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
 import { TEMPLATE_CONFIGS } from '@/lib/templateConfig';
 import { haptics } from '@/lib/haptics';
+ import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -60,7 +63,12 @@ export default function SettingsPage() {
     setDefaultTemplate,
     pdfDefaults,
     setPdfDefaults,
+     biometricLockEnabled,
+     setBiometricLockEnabled,
   } = useSettingsStore();
+ 
+   // Biometric lock hook
+   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
 
   // Sheet states
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -68,6 +76,27 @@ export default function SettingsPage() {
   const [pdfDefaultsSheetOpen, setPdfDefaultsSheetOpen] = useState(false);
   const [dataExportSheetOpen, setDataExportSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
+   const handleBiometricToggle = async (enabled: boolean) => {
+     if (enabled) {
+       // Show setup sheet first
+       haptics.light();
+       setBiometricSetupOpen(true);
+     } else {
+       // Disable immediately
+       haptics.medium();
+       setBiometricLockEnabled(false);
+     }
+   };
+ 
+   const handleBiometricSetupConfirm = async (): Promise<boolean> => {
+     const success = await authenticate();
+     if (success) {
+       setBiometricLockEnabled(true);
+     }
+     return success;
+   };
+ 
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -281,6 +310,20 @@ export default function SettingsPage() {
               PRIVACY
             </h2>
             <div className="rounded-xl bg-card border border-border overflow-hidden">
+               <SettingsRow
+                 type="toggle"
+                 label="Biometric Lock"
+                 description={
+                   biometricAvailable 
+                     ? "Protect your resumes" 
+                     : "Available on mobile app"
+                 }
+                 icon={<Fingerprint className="w-4 h-4" />}
+                 checked={biometricLockEnabled}
+                 onCheckedChange={handleBiometricToggle}
+                 disabled={!biometricAvailable}
+               />
+               <Separator />
               <SettingsRow
                 type="toggle"
                 label="Local-Only Mode"
@@ -399,6 +442,13 @@ export default function SettingsPage() {
           onDeleted={handleDataDeleted}
         />
       )}
+ 
+       <BiometricSetupSheet
+         open={biometricSetupOpen}
+         onOpenChange={setBiometricSetupOpen}
+         biometryType={biometryType}
+         onEnable={handleBiometricSetupConfirm}
+       />
     </MobileLayout>
   );
 }
