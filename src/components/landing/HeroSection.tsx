@@ -4,12 +4,32 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { PlanetLogo } from './PlanetLogo';
 import triggerHaptic from '@/lib/haptics';
+import { useResumeStore } from '@/store/resumeStore';
 
 export function HeroSection() {
   const navigate = useNavigate();
+  const { setCurrentResume, setCurrentResumeId } = useResumeStore();
 
   const handleLaunch = () => {
     triggerHaptic.medium();
+    // Create a new blank resume before navigating
+    setCurrentResume({
+      contactInfo: {
+        fullName: '',
+        email: '',
+        phone: '',
+        location: '',
+        linkedin: '',
+        portfolio: '',
+      },
+      summary: '',
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      templateId: 'modern',
+    });
+    setCurrentResumeId(null);
     navigate('/editor');
   };
 
