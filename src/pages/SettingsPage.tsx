@@ -15,7 +15,8 @@ import {
   Shield,
   Database,
   BarChart3,
-  CloudOff
+  CloudOff,
+  CheckCircle2
 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -27,8 +28,9 @@ import { DataExportSheet } from '@/components/settings/DataExportSheet';
 import { DeleteDataDialog } from '@/components/settings/DeleteDataDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
+import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
@@ -119,6 +121,7 @@ export default function SettingsPage() {
 
   // Display name: prefer profile full_name, fallback to email
   const displayName = profile?.fullName || user?.email || 'User';
+  const profileCompletion = calculateProfileCompletion(profile);
 
   if (loading) {
     return (
@@ -154,9 +157,25 @@ export default function SettingsPage() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{displayName}</p>
-              <p className="text-sm text-muted-foreground truncate">
-                {profile?.fullName ? user?.email : 'Tap to edit profile'}
-              </p>
+              {profile?.jobTitle ? (
+                <p className="text-sm text-muted-foreground truncate">{profile.jobTitle}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground truncate">
+                  {profile?.fullName ? user?.email : 'Tap to complete your profile'}
+                </p>
+              )}
+              {profileCompletion < 100 && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Progress value={profileCompletion} className="h-1.5 flex-1" />
+                  <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
+                </div>
+              )}
+              {profileCompletion === 100 && (
+                <div className="mt-1 flex items-center gap-1 text-xs text-green-600">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Profile complete</span>
+                </div>
+              )}
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
           </motion.button>
@@ -343,6 +362,7 @@ export default function SettingsPage() {
         open={editProfileOpen}
         onOpenChange={setEditProfileOpen}
         profile={profile}
+        userId={user?.id}
         userEmail={user?.email}
         onSave={updateProfile}
       />
