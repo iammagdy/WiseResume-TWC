@@ -4,13 +4,18 @@ import { motion } from 'framer-motion';
 import { Upload, FileText, Target, Wand2, Plus, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { AppLogo } from '@/components/brand/AppLogo';
-import { FeatureCarousel } from '@/components/landing/FeatureCarousel';
 import { Button } from '@/components/ui/button';
 import { ResumeCard } from '@/components/home/ResumeCard';
 import { ChoiceCard } from '@/components/home/ChoiceCard';
 import { ActionCard } from '@/components/home/ActionCard';
 import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
 import { TailorSheet } from '@/components/editor/TailorSheet';
+import { HeroSection } from '@/components/landing/HeroSection';
+import { SocialProofBar } from '@/components/landing/SocialProofBar';
+import { HowItWorks } from '@/components/landing/HowItWorks';
+import { FeatureGrid } from '@/components/landing/FeatureGrid';
+import { TemplateGallery } from '@/components/landing/TemplateGallery';
+import { BottomCTA } from '@/components/landing/BottomCTA';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -83,16 +88,17 @@ const Index = () => {
     navigate('/auth');
   };
 
-  return (
-    <MobileLayout>
-      <div className="min-h-full flex flex-col">
-        {/* App Header */}
-        <header className="pt-safe pt-6 pb-4 px-4">
-          <AppLogo size="md" />
-        </header>
+  // Return existing user dashboard if they have a resume in progress
+  if (hasResume) {
+    return (
+      <MobileLayout>
+        <div className="min-h-full flex flex-col">
+          {/* App Header */}
+          <header className="pt-safe pt-6 pb-4 px-4">
+            <AppLogo size="md" />
+          </header>
 
-        {hasResume ? (
-          /* Returning User Dashboard */
+          {/* Returning User Dashboard */}
           <div className="flex-1 flex flex-col px-4 pb-safe">
             {/* Current Resume Card */}
             <section className="mb-6">
@@ -156,91 +162,47 @@ const Index = () => {
               </button>
             </motion.div>
           </div>
-        ) : (
-          /* New User Welcome */
-          <div className="flex-1 flex flex-col px-4 pb-safe">
-            {/* Welcome Message */}
-            <motion.div
-              className="text-center mb-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <h1 className="text-2xl font-display font-bold mb-2">
-                Create Your Resume
-              </h1>
-              <p className="text-muted-foreground">
-                Build a professional resume in minutes with AI assistance
-              </p>
-            </motion.div>
 
-            {/* Choice Cards */}
-            <section className="space-y-3 mb-6">
-              <ChoiceCard
-                icon={Upload}
-                title="Upload Existing PDF"
-                description="We'll extract and enhance it"
-                onClick={handleUpload}
-                delay={0.1}
-              />
-              <ChoiceCard
-                icon={FileText}
-                title="Start from Scratch"
-                description="Build step by step with AI"
-                onClick={handleStartBlank}
-                delay={0.2}
-              />
-            </section>
+          {/* Sheets */}
+          <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
+          <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
 
-            {/* Feature Carousel */}
-            <section className="flex-1 flex flex-col justify-center py-4">
-              <FeatureCarousel />
-            </section>
+          {/* Delete Confirmation Dialog */}
+          <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete your current resume and all its content.
+                  This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteResume}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </MobileLayout>
+    );
+  }
 
-            {/* Sign In Link */}
-            <motion.div
-              className="text-center pb-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              <button
-                onClick={handleSignIn}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
-              >
-                Already have an account?{' '}
-                <span className="text-primary font-medium">Sign In</span>
-              </button>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Sheets */}
-        <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
-        <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
-
-        {/* Delete Confirmation Dialog */}
-        <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete your current resume and all its content.
-                This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleDeleteResume}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-    </MobileLayout>
+  // New user: show enhanced landing page
+  return (
+    <main className="min-h-screen bg-background">
+      <HeroSection />
+      <SocialProofBar />
+      <HowItWorks />
+      <FeatureGrid />
+      <TemplateGallery />
+      <BottomCTA />
+    </main>
   );
 };
 
