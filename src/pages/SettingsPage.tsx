@@ -16,8 +16,9 @@ import {
   Database,
   BarChart3,
   CloudOff,
-   CheckCircle2,
-   Fingerprint
+  CheckCircle2,
+  Fingerprint,
+  Clock
 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -27,7 +28,8 @@ import { DefaultTemplateSheet } from '@/components/settings/DefaultTemplateSheet
 import { PDFDefaultsSheet } from '@/components/settings/PDFDefaultsSheet';
 import { DataExportSheet } from '@/components/settings/DataExportSheet';
 import { DeleteDataDialog } from '@/components/settings/DeleteDataDialog';
- import { BiometricSetupSheet } from '@/components/settings/BiometricSetupSheet';
+import { BiometricSetupSheet } from '@/components/settings/BiometricSetupSheet';
+import { BiometricTimeoutSheet } from '@/components/settings/BiometricTimeoutSheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -65,6 +67,8 @@ export default function SettingsPage() {
     setPdfDefaults,
      biometricLockEnabled,
      setBiometricLockEnabled,
+     biometricLockTimeout,
+     setBiometricLockTimeout,
   } = useSettingsStore();
  
    // Biometric lock hook
@@ -76,7 +80,8 @@ export default function SettingsPage() {
   const [pdfDefaultsSheetOpen, setPdfDefaultsSheetOpen] = useState(false);
   const [dataExportSheetOpen, setDataExportSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
+  const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
+  const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
    const handleBiometricToggle = async (enabled: boolean) => {
      if (enabled) {
        // Show setup sheet first
@@ -310,20 +315,36 @@ export default function SettingsPage() {
               PRIVACY
             </h2>
             <div className="rounded-xl bg-card border border-border overflow-hidden">
-               <SettingsRow
-                 type="toggle"
-                 label="Biometric Lock"
-                 description={
-                   biometricAvailable 
-                     ? "Protect your resumes" 
-                     : "Available on mobile app"
-                 }
-                 icon={<Fingerprint className="w-4 h-4" />}
-                 checked={biometricLockEnabled}
-                 onCheckedChange={handleBiometricToggle}
-                 disabled={!biometricAvailable}
-               />
-               <Separator />
+              <SettingsRow
+                type="toggle"
+                label="Biometric Lock"
+                description={
+                  biometricAvailable 
+                    ? "Protect your resumes" 
+                    : "Available on mobile app"
+                }
+                icon={<Fingerprint className="w-4 h-4" />}
+                checked={biometricLockEnabled}
+                onCheckedChange={handleBiometricToggle}
+                disabled={!biometricAvailable}
+              />
+              {biometricLockEnabled && biometricAvailable && (
+                <>
+                  <Separator />
+                  <SettingsRow
+                    type="navigation"
+                    label="Require Authentication After"
+                    value={
+                      biometricLockTimeout === 0 ? 'Immediately' :
+                      biometricLockTimeout === 30000 ? '30 seconds' :
+                      biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
+                    }
+                    icon={<Clock className="w-4 h-4" />}
+                    onClick={() => setBiometricTimeoutOpen(true)}
+                  />
+                </>
+              )}
+              <Separator />
               <SettingsRow
                 type="toggle"
                 label="Local-Only Mode"
@@ -443,12 +464,19 @@ export default function SettingsPage() {
         />
       )}
  
-       <BiometricSetupSheet
-         open={biometricSetupOpen}
-         onOpenChange={setBiometricSetupOpen}
-         biometryType={biometryType}
-         onEnable={handleBiometricSetupConfirm}
-       />
+      <BiometricSetupSheet
+        open={biometricSetupOpen}
+        onOpenChange={setBiometricSetupOpen}
+        biometryType={biometryType}
+        onEnable={handleBiometricSetupConfirm}
+      />
+
+      <BiometricTimeoutSheet
+        open={biometricTimeoutOpen}
+        onOpenChange={setBiometricTimeoutOpen}
+        selectedTimeout={biometricLockTimeout}
+        onSelect={setBiometricLockTimeout}
+      />
     </MobileLayout>
   );
 }
