@@ -1,340 +1,287 @@
 
-# Supercharge AI Resume Tailor: Legendary Enhancement Plan
+# Multi-Job Comparison: Compare Tailoring Results Side-by-Side
 
-## Current State Analysis
+## Overview
 
-Your AI tailor feature already has solid foundations:
-- Job URL parsing with AI extraction
-- Resume tailoring with skills optimization
-- Match scoring (before/after)
-- Skill gap analysis (missing/boostable)
-- Cover letter generation
-- Tailor history with version restore
-
-## Enhancement Strategy
-
-This plan transforms the tailor into a **truly powerful, industry-leading** feature with deep analysis, smarter AI, and premium UX.
+Add the ability for users to tailor the same resume to multiple jobs and compare the results. Since this is a mobile-first app, the comparison uses a **swipeable carousel** pattern instead of a traditional side-by-side grid.
 
 ---
 
-## Phase 1: Smarter AI Engine
+## User Flow
 
-### 1.1 Upgrade AI Model & Prompting
-**File:** `supabase/functions/tailor-resume/index.ts`
-
-**Improvements:**
-- Switch to `google/gemini-2.5-pro` for more sophisticated reasoning
-- Add **Chain-of-Thought** prompting for better analysis
-- Implement **multi-pass tailoring**: analyze → strategize → rewrite
-- Add **industry detection** to use domain-specific terminology
-- Generate **interview prep talking points** based on tailored content
-
-**New Response Fields:**
-```typescript
-{
-  // Existing fields...
-  industryDetected: "Software Engineering" | "Marketing" | "Finance" | etc,
-  
-  // NEW: Interview preparation
-  interviewTalkingPoints: [
-    { question: "Tell me about your experience with...", 
-      suggestedAnswer: "Based on your resume..." }
-  ],
-  
-  // NEW: ATS keyword optimization
-  atsAnalysis: {
-    originalKeywordDensity: 12,
-    optimizedKeywordDensity: 28,
-    criticalKeywords: ["leadership", "agile", "python"],
-    stuffingWarnings: []
-  },
-  
-  // NEW: Competitor analysis
-  strengthsVsTypicalApplicant: [
-    "Your cloud experience exceeds 80% of typical applicants",
-    "Consider adding certifications to stand out"
-  ]
-}
+```text
+1. Open Tailor Sheet → Tailor to Job A → Save Result
+2. Click "Compare to Another Job" → Enter Job B → Tailor
+3. View comparison carousel: Swipe between Job A and Job B results
+4. Pick the best fit → Apply that version
 ```
-
-### 1.2 Real-Time Streaming Tailoring
-**Files:** 
-- `supabase/functions/tailor-resume-stream/index.ts` (new)
-- `src/lib/aiTailor.ts`
-- `src/components/editor/TailorSheet.tsx`
-
-**Feature:** Stream results as they're generated - users see each section being rewritten live, creating an impressive "AI at work" experience.
 
 ---
 
-## Phase 2: Deep Job Analysis
+## Mobile-First Design Decisions
 
-### 2.1 Enhanced Job Parsing
-**File:** `supabase/functions/parse-job-url/index.ts`
+| Challenge | Desktop Solution | Mobile Solution (Used Here) |
+|-----------|------------------|----------------------------|
+| Side-by-side comparison | Two-column grid | Swipeable carousel with dot indicators |
+| Viewing full results | All visible | Collapsed cards with expand |
+| Selecting winner | Radio buttons | Prominent tap-to-select cards |
+| Quick metrics | Table rows | Stacked comparison bars |
 
-**Improvements:**
-- Extract **salary range** when available
-- Identify **company culture signals** from language
-- Detect **experience level** (entry/mid/senior/executive)
-- Parse **deal-breaker requirements** vs nice-to-haves
-- Identify **remote/hybrid/onsite** preferences
+---
 
-**New Response:**
-```typescript
-{
-  title: "Senior Software Engineer",
-  company: "TechCorp",
-  description: "...",
-  
-  // NEW enriched data
-  experienceLevel: "senior",
-  salaryRange: { min: 120000, max: 180000, currency: "USD" },
-  workMode: "hybrid",
-  mustHaveSkills: ["Python", "AWS", "5+ years experience"],
-  niceToHaveSkills: ["Kubernetes", "Go"],
-  companyCultureSignals: ["fast-paced", "collaborative", "startup mentality"],
-  applicationDeadline: "2026-02-28" | null,
-  redFlags: [] // e.g., "unrealistic requirements for level"
-}
-```
+## New Components
 
-### 2.2 Job Match Intelligence Dashboard
-**File:** `src/components/editor/tailor/JobIntelligenceCard.tsx` (new)
+### 1. `MultiJobCompareSheet.tsx`
+Full-screen sheet for managing multi-job comparisons.
 
 **Features:**
-- Visual breakdown of job requirements vs your qualifications
-- Requirement-by-requirement match indicators
-- "Your Competitive Edge" section
-- Estimated application success probability
-- Similar jobs recommendation (future enhancement)
+- Carousel of job comparison cards (swipe left/right)
+- Dot indicators showing current position
+- "Add Another Job" button (max 4 jobs)
+- "Pick Best Match" selection at bottom
 
----
-
-## Phase 3: Advanced Skill Gap Analysis
-
-### 3.1 Actionable Skills Engine
-**File:** `src/components/editor/tailor/SmartSkillSuggestions.tsx` (new)
-
-**Improvements:**
-- **Skill clustering**: Group related skills (e.g., "Frontend: React, TypeScript, CSS")
-- **Quick-add categories**: Add entire skill categories with one tap
-- **Skill importance ranking**: Show which skills have the most impact
-- **Learning resources**: Link to courses for missing critical skills
-- **Transferable skills**: Suggest how to reframe existing skills
-
-**UI Enhancement:**
+**UI Layout:**
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ 🎯 Skills Gap Analysis                                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│ CRITICAL (mentioned 5+ times in job)                        │
-│ ┌────────────────────────────────────────────────────────┐  │
-│ │ ⚠️ Python     [+Add]  Mentioned 8x • High Impact       │  │
-│ │ ⚠️ AWS        [+Add]  Mentioned 6x • Required          │  │
-│ └────────────────────────────────────────────────────────┘  │
-│                                                              │
-│ BOOST THESE (you have them, emphasize more)                 │
-│ ┌────────────────────────────────────────────────────────┐  │
-│ │ ✓ JavaScript  [↑Boost]  Move to position #1            │  │
-│ │ ✓ React       [↑Boost]  Add to summary                 │  │
-│ └────────────────────────────────────────────────────────┘  │
-│                                                              │
-│ NICE-TO-HAVE                                                │
-│ ┌────────────────────────────────────────────────────────┐  │
-│ │ ○ Kubernetes  [+Add]  Would strengthen cloud skills     │  │
-│ └────────────────────────────────────────────────────────┘  │
-│                                                              │
-│ [+ Add All Critical Skills]  [+ Add All Suggested]          │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────┐
+│ ← Compare Jobs                    [Add] │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌───────────────────────────────────┐  │
+│  │  Senior Engineer @ Amazon        │  │
+│  │  ━━━━━━━━━━━━━ 92%              │  │
+│  │                                   │  │
+│  │  Skills: +90  |  ATS: +85        │  │
+│  │  Experience: +72                 │  │
+│  │                                   │  │
+│  │  [View Full Details]             │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+│            ●  ○  ○                      │
+│         Swipe to compare                │
+│                                         │
+├─────────────────────────────────────────┤
+│ Best Match: Amazon @ 92%                │
+│                                         │
+│  [Apply This Version]                   │
+└─────────────────────────────────────────┘
+```
+
+### 2. `JobCompareCard.tsx`
+Individual job comparison card for the carousel.
+
+**Shows:**
+- Job title and company
+- Overall match score with animated ring
+- Score breakdown (Skills, Experience, Keywords, ATS)
+- Key improvements count
+- "View Details" to expand full tailor result
+
+### 3. `CompareScoreBars.tsx`
+Visual bar chart comparing scores across all jobs.
+
+**UI:**
+```text
+Skills Match
+Amazon     ████████████████████ 90%
+Google     ███████████████░░░░░ 75%
+Meta       ██████████████████░░ 85%
 ```
 
 ---
 
-## Phase 4: Bullet Point Transformation Engine
+## Data Flow
 
-### 4.1 Achievement Rewriter
-**File:** `supabase/functions/tailor-resume/index.ts`
-
-**Feature:** Transform weak bullet points into powerful, metrics-driven achievements.
-
-**Before → After Examples:**
-```text
-Before: "Worked on frontend development"
-After:  "Architected and shipped 12+ React components, reducing page load 
-        time by 40% and improving user engagement metrics by 25%"
-
-Before: "Helped with team projects"  
-After:  "Collaborated with cross-functional team of 8 to deliver $2M product
-        launch, completing 2 weeks ahead of schedule"
-```
-
-**Implementation:**
-- Analyze each bullet point individually
-- Inject metrics where missing (with disclaimer if estimated)
-- Use strong action verbs aligned with job level
-- Match terminology to job description
-
-### 4.2 Side-by-Side Comparison View
-**File:** `src/components/editor/tailor/BulletComparison.tsx` (new)
-
-**Feature:** Show original vs enhanced bullet points with diff highlighting - users can toggle individual changes on/off.
-
----
-
-## Phase 5: Premium UX Enhancements
-
-### 5.1 Animated Tailoring Experience
-**File:** `src/components/editor/tailor/TailorProgress.tsx`
-
-**Improvements:**
-- More granular progress steps (8-10 steps vs current 6)
-- "Fun facts" during wait time (e.g., "Did you know? Tailored resumes are 3x more likely to get interviews")
-- Sound effects (optional, toggleable)
-- Confetti animation on completion
-- Score improvement celebration
-
-### 5.2 One-Tap Quick Tailor
-**File:** `src/components/editor/QuickTailorButton.tsx` (new)
-
-**Feature:** Floating action button that appears when job description is pasted anywhere - one tap starts tailoring immediately.
-
-### 5.3 Comparison Mode Enhancement
-**File:** `src/components/editor/CompareSheet.tsx`
-
-**Improvements:**
-- Word-level diff highlighting (not just section-level)
-- Added/removed content color coding
-- Print comparison view
-- Export comparison as PDF
-
----
-
-## Phase 6: Smart Features
-
-### 6.1 Tailor Presets
-**Files:**
-- `src/types/resume.ts` (add types)
-- `src/store/resumeStore.ts` (add state)
-- `src/components/editor/tailor/TailorPresets.tsx` (new)
-
-**Feature:** Save and reuse tailoring configurations:
-- "Aggressive ATS Optimization"
-- "Conservative (Minimal Changes)"  
-- "Tech-Focused"
-- "Leadership Emphasis"
-- Custom user-created presets
-
-### 6.2 Multi-Job Comparison
-**File:** `src/components/editor/tailor/MultiJobCompare.tsx` (new)
-
-**Feature:** Tailor the same resume to multiple jobs and compare which version scores highest - helps users prioritize applications.
-
-### 6.3 Application Tracker Integration
-**File:** `src/components/editor/tailor/SaveToApplications.tsx` (new)
-
-**Feature:** After tailoring, prompt user to save this job to an application tracker with status tracking.
-
----
-
-## Types Updates
-
-**File:** `src/types/resume.ts`
+### New State in `resumeStore.ts`
 
 ```typescript
-// New types to add
-export interface JobIntelligence {
-  experienceLevel: 'entry' | 'mid' | 'senior' | 'executive';
-  salaryRange?: { min: number; max: number; currency: string };
-  workMode: 'remote' | 'hybrid' | 'onsite' | 'unknown';
-  mustHaveSkills: string[];
-  niceToHaveSkills: string[];
-  companyCultureSignals: string[];
-  applicationDeadline?: string;
-  redFlags: string[];
-}
-
-export interface InterviewTalkingPoint {
-  question: string;
-  suggestedAnswer: string;
-  relatedExperience?: string;
-}
-
-export interface ATSAnalysis {
-  originalKeywordDensity: number;
-  optimizedKeywordDensity: number;
-  criticalKeywords: string[];
-  stuffingWarnings: string[];
-}
-
-export interface EnhancedTailorResult {
-  // Existing fields...
-  
-  // New fields
-  jobIntelligence: JobIntelligence;
-  interviewTalkingPoints: InterviewTalkingPoint[];
-  atsAnalysis: ATSAnalysis;
-  strengthsVsTypicalApplicant: string[];
-  bulletTransformations: {
-    experienceId: string;
-    originalBullet: string;
-    enhancedBullet: string;
-    improvement: string;
-  }[];
-}
-
-export interface TailorPreset {
+interface MultiJobComparison {
   id: string;
-  name: string;
-  description: string;
-  settings: {
-    aggressiveness: 'minimal' | 'balanced' | 'aggressive';
-    focusAreas: ('skills' | 'achievements' | 'keywords' | 'formatting')[];
-    industryFocus?: string;
-  };
+  resumeId: string;
+  jobs: {
+    id: string;
+    jobTitle: string;
+    company: string;
+    jobDescription: string;
+    tailorResult: SuperTailorResult;
+    createdAt: string;
+  }[];
+  selectedJobId: string | null;
+  createdAt: string;
+}
+
+// Add to ResumeState:
+multiJobComparisons: MultiJobComparison[];
+currentComparison: MultiJobComparison | null;
+addJobToComparison: (job: {...}) => void;
+removeJobFromComparison: (jobId: string) => void;
+selectBestJob: (jobId: string) => void;
+clearComparison: () => void;
+```
+
+### Integration Points
+
+1. **TailorSheet.tsx** - Add "Compare to Another Job" button after tailoring
+2. **AIHubSheet.tsx** - Add "Multi-Job Compare" option in the menu
+3. **TailorHistorySheet.tsx** - Option to add historical result to comparison
+
+---
+
+## New Types
+
+### `src/types/resume.ts`
+
+```typescript
+export interface JobComparisonEntry {
+  id: string;
+  jobTitle: string;
+  company: string;
+  jobDescription: string;
+  tailorResult: SuperTailorResult;
+  createdAt: string;
+}
+
+export interface MultiJobComparison {
+  id: string;
+  resumeId: string;
+  jobs: JobComparisonEntry[];
+  selectedJobId: string | null;
+  createdAt: string;
 }
 ```
 
 ---
 
-## Implementation Priority
+## Implementation Details
 
-| Phase | Effort | Impact | Priority |
-|-------|--------|--------|----------|
-| Phase 1: Smarter AI | Medium | Very High | 1st |
-| Phase 4: Bullet Engine | Medium | Very High | 2nd |
-| Phase 2: Job Analysis | Medium | High | 3rd |
-| Phase 3: Skill Analysis | Low | High | 4th |
-| Phase 5: UX Polish | Low | Medium | 5th |
-| Phase 6: Smart Features | High | Medium | 6th |
+### File 1: `src/components/editor/tailor/MultiJobCompareSheet.tsx`
+
+```typescript
+// Main sheet component with:
+// - Embla carousel for swipeable job cards
+// - Dot indicators for navigation
+// - "Add Another Job" floating button
+// - Bottom selection bar with "Apply" button
+// - Haptic feedback on swipe and selection
+```
+
+### File 2: `src/components/editor/tailor/JobCompareCard.tsx`
+
+```typescript
+// Individual comparison card showing:
+// - Job title with company badge
+// - Animated score circle (reuse AnimatedNumber pattern)
+// - Score breakdown grid (2x2 for mobile)
+// - Expand button for full details
+// - Selection indicator (checkmark when selected)
+```
+
+### File 3: `src/components/editor/tailor/CompareScoreBars.tsx`
+
+```typescript
+// Horizontal bar chart component:
+// - Each job as a labeled bar
+// - Animated fill based on score
+// - Color coding (green/amber/red by score)
+// - Tap bar to select that job
+```
+
+### File 4: `src/store/resumeStore.ts` (modifications)
+
+```typescript
+// Add new state:
+multiJobComparisons: [],
+currentComparison: null,
+
+// Add new actions:
+startNewComparison: (resumeId, firstJob) => {...},
+addJobToComparison: (job) => {...},
+removeJobFromComparison: (jobId) => {...},
+selectBestJob: (jobId) => {...},
+applySelectedJob: () => {...}, // Apply winner and close
+clearComparison: () => {...},
+```
+
+### File 5: `src/components/editor/TailorSheet.tsx` (modifications)
+
+After tailoring completes, add:
+```tsx
+{tailorResult && !isTailoring && (
+  <Button
+    variant="outline"
+    className="w-full"
+    onClick={() => {
+      startNewComparison(currentResume.id, {
+        jobTitle: parsedJobInfo?.title,
+        company: parsedJobInfo?.company,
+        jobDescription,
+        tailorResult,
+      });
+      setShowMultiCompare(true);
+    }}
+  >
+    <GitCompare className="w-4 h-4 mr-2" />
+    Compare to Another Job
+  </Button>
+)}
+```
 
 ---
 
-## Files to Create/Modify
+## Mobile UX Features
 
-| File | Action | Description |
-|------|--------|-------------|
-| `supabase/functions/tailor-resume/index.ts` | Modify | Enhanced AI prompts, new response fields |
-| `supabase/functions/parse-job-url/index.ts` | Modify | Richer job data extraction |
-| `src/types/resume.ts` | Modify | New type definitions |
-| `src/components/editor/TailorSheet.tsx` | Modify | Display new analysis data |
-| `src/components/editor/tailor/JobIntelligenceCard.tsx` | Create | Job analysis dashboard |
-| `src/components/editor/tailor/SmartSkillSuggestions.tsx` | Create | Enhanced skill gap UI |
-| `src/components/editor/tailor/BulletComparison.tsx` | Create | Side-by-side bullet comparison |
-| `src/components/editor/tailor/TailorPresets.tsx` | Create | Preset management |
-| `src/components/editor/tailor/InterviewPrepCard.tsx` | Create | Interview talking points |
-| `src/lib/aiTailor.ts` | Modify | Handle new response structure |
-| `src/store/resumeStore.ts` | Modify | Store new tailor data |
+1. **Swipe gestures** - Natural carousel swiping with momentum
+2. **Haptic feedback** - Light haptic on card change, success on selection
+3. **Pull-down dismiss** - Swipe down to close the sheet
+4. **Touch-optimized cards** - 48px minimum touch targets
+5. **Dot indicators** - Clear position in carousel
+6. **Animation** - Score numbers animate on card entry
+7. **Skeleton loading** - While tailoring additional jobs
 
 ---
 
-## Expected Outcomes
+## Accessibility
 
-After implementation:
-- **3x more detailed** job analysis
-- **Smarter bullet point** transformations with metrics
-- **Interview preparation** built into the tailor flow
-- **Visual skill gap** analysis with actionable suggestions
-- **Premium UX** with smooth animations and celebrations
-- Users will feel the AI is **truly understanding** their resume and the job
+- Screen reader announcements for carousel position
+- Focus management when adding/removing jobs
+- Proper ARIA labels for comparison elements
+- Color-blind friendly score indicators (icons + colors)
 
+---
+
+## Files to Create
+
+| File | Description |
+|------|-------------|
+| `src/components/editor/tailor/MultiJobCompareSheet.tsx` | Main comparison sheet |
+| `src/components/editor/tailor/JobCompareCard.tsx` | Individual job card |
+| `src/components/editor/tailor/CompareScoreBars.tsx` | Bar chart visualization |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/types/resume.ts` | Add comparison types |
+| `src/store/resumeStore.ts` | Add comparison state and actions |
+| `src/components/editor/TailorSheet.tsx` | Add "Compare to Another Job" button |
+| `src/components/editor/AIHubSheet.tsx` | Add comparison entry point |
+
+---
+
+## Edge Cases
+
+1. **Max 4 jobs** - Prevent adding more than 4 for comparison
+2. **Same job twice** - Warn if job description is similar
+3. **Empty comparison** - Handle when all jobs removed
+4. **Offline** - Show cached comparisons, disable "Add Job"
+5. **Resume changed** - Warn if resume was modified since tailoring
+
+---
+
+## Expected Outcome
+
+Users can:
+1. Tailor their resume to multiple jobs in one session
+2. Easily swipe between results to compare scores
+3. See visual bar charts showing which job is the best fit
+4. Select and apply their preferred version with one tap
+5. Make informed decisions about which jobs to prioritize
