@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2 } from 'lucide-react';
+ import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -23,6 +23,10 @@ import {
   CAREER_LEVEL_OPTIONS,
   calculateProfileCompletion 
 } from '@/hooks/useProfile';
+ import { LinkedInImportSheet } from './LinkedInImportSheet';
+ import { useResumeStore } from '@/store/resumeStore';
+ import { Experience, Education } from '@/types/resume';
+ import { v4 as uuidv4 } from 'uuid';
 
 interface Profile {
   fullName: string | null;
@@ -62,6 +66,9 @@ export function EditProfileSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+   const [linkedInImportOpen, setLinkedInImportOpen] = useState(false);
+ 
+   const { currentResume, updateResume } = useResumeStore();
 
   // Sync form state when profile changes or sheet opens
   useEffect(() => {
@@ -168,7 +175,89 @@ export function EditProfileSheet({
     return 'U';
   };
 
+   // Extract LinkedIn username from URL
+   const getLinkedInUsername = () => {
+     if (!linkedinUrl) return undefined;
+     const match = linkedinUrl.match(/linkedin\.com\/in\/([^\/\?]+)/);
+     return match?.[1];
+   };
+ 
+   // Transform LinkedIn data to resume format
+   const handleLinkedInImport = (data: {
+     summary?: string | null;
+     experience?: Array<{
+       title: string;
+       company: string;
+       location?: string;
+       startDate: string;
+       endDate: string;
+       description: string;
+       current: boolean;
+     }>;
+     education?: Array<{
+       institution: string;
+       degree: string;
+       field?: string;
+       startYear?: string;
+       endYear?: string;
+       description?: string;
+     }>;
+     skills?: string[];
+   }) => {
+     const updates: Partial<typeof currentResume> = {};
+ 
+     // Transform and merge summary
+     if (data.summary) {
+       updates.summary = data.summary;
+     }
+ 
+     // Transform and merge experience
+     if (data.experience?.length) {
+       const transformedExp: Experience[] = data.experience.map((exp) => ({
+         id: uuidv4(),
+         company: exp.company,
+         position: exp.title,
+         startDate: exp.startDate,
+         endDate: exp.current ? 'Present' : exp.endDate,
+         current: exp.current,
+         description: exp.description,
+         achievements: [],
+       }));
+       updates.experience = [
+         ...transformedExp,
+         ...(currentResume?.experience || []),
+       ];
+     }
+ 
+     // Transform and merge education
+     if (data.education?.length) {
+       const transformedEdu: Education[] = data.education.map((edu) => ({
+         id: uuidv4(),
+         institution: edu.institution,
+         degree: edu.degree,
+         field: edu.field || '',
+         startDate: edu.startYear || '',
+         endDate: edu.endYear || '',
+       }));
+       updates.education = [
+         ...transformedEdu,
+         ...(currentResume?.education || []),
+       ];
+     }
+ 
+     // Merge skills (deduplicate)
+     if (data.skills?.length) {
+       const existingSkills = new Set((currentResume?.skills || []).map(s => s.toLowerCase()));
+       const newSkills = data.skills.filter(s => !existingSkills.has(s.toLowerCase()));
+       updates.skills = [...newSkills, ...(currentResume?.skills || [])];
+     }
+ 
+     // Update the resume store
+     updateResume(updates);
+   };
+ 
   return (
+     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
         <SheetHeader>
@@ -256,14 +345,43 @@ export function EditProfileSheet({
             <div className="space-y-2">
               <Label htmlFor="linkedin" className="flex items-center gap-2">
                 <Linkedin className="w-3.5 h-3.5" />
-                LinkedIn URL
+                 LinkedIn Username
               </Label>
-              <Input
-                id="linkedin"
-                placeholder="https://linkedin.com/in/yourprofile"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-              />
+               <div className="relative">
+                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                   linkedin.com/in/
+                 </span>
+                 <Input
+                   id="linkedin"
+                   placeholder="yourprofile"
+                   value={linkedinUrl?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '') || ''}
+                   onChange={(e) => setLinkedinUrl(`https://linkedin.com/in/${e.target.value.replace(/\s/g, '')}`)}
+                   className="pl-[115px]"
+                 />
+               </div>
+             </div>
+ 
+             {/* LinkedIn Import Button */}
+             <div className="pt-2">
+               <button
+                 type="button"
+                 onClick={() => {
+                   haptics.light();
+                   setLinkedInImportOpen(true);
+                 }}
+                 className="w-full flex items-center justify-between p-4 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 transition-colors group"
+               >
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+                     <Sparkles className="w-5 h-5 text-primary-foreground" />
+                   </div>
+                   <div className="text-left">
+                     <p className="font-medium text-sm">Import from LinkedIn</p>
+                     <p className="text-xs text-muted-foreground">AI extracts your profile data</p>
+                   </div>
+                 </div>
+                 <Download className="w-5 h-5 text-primary group-hover:translate-y-0.5 transition-transform" />
+               </button>
             </div>
           </div>
 
@@ -343,5 +461,14 @@ export function EditProfileSheet({
           </div>
       </SheetContent>
     </Sheet>
-  );
+     
+     {/* LinkedIn Import Sheet */}
+     <LinkedInImportSheet
+       open={linkedInImportOpen}
+       onOpenChange={setLinkedInImportOpen}
+       onImport={handleLinkedInImport}
+       linkedinUsername={getLinkedInUsername()}
+     />
+     </>
+   );
 }
