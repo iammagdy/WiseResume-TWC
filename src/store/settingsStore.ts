@@ -17,6 +17,7 @@ interface SettingsState {
   
   // Onboarding
   hasSeenAIIntro: boolean;
+   biometricLockEnabled: boolean;
   
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
@@ -26,6 +27,7 @@ interface SettingsState {
   setDefaultTemplate: (template: TemplateId) => void;
   setPdfDefaults: (defaults: Partial<PDFOptions>) => void;
   setHasSeenAIIntro: (value: boolean) => void;
+   setBiometricLockEnabled: (value: boolean) => void;
   resetSettings: () => void;
 }
 
@@ -41,6 +43,7 @@ const defaultSettings = {
     showBranding: true,
   },
   hasSeenAIIntro: false,
+   biometricLockEnabled: false,
 };
 
 export const useSettingsStore = create<SettingsState>()(
@@ -58,6 +61,7 @@ export const useSettingsStore = create<SettingsState>()(
           pdfDefaults: { ...state.pdfDefaults, ...defaults },
         })),
       setHasSeenAIIntro: (value) => set({ hasSeenAIIntro: value }),
+       setBiometricLockEnabled: (value) => set({ biometricLockEnabled: value }),
       resetSettings: () => set(defaultSettings),
     }),
     {
