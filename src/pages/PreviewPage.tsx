@@ -20,6 +20,7 @@ import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TemplateId, SectionId, ExportType } from '@/types/resume';
+ import { useRateApp } from '@/hooks/useRateApp';
 
 const templates: { id: TemplateId; name: string }[] = [
   { id: 'modern', name: 'Modern' },
@@ -51,6 +52,9 @@ export default function PreviewPage() {
   
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
+ 
+   // Rate app hook
+   const { incrementPositiveActions, shouldPromptForRating, openAppStore, dismissRating } = useRateApp();
 
   // Update section ordering based on actual DOM layout after render
   // This ensures sections are shown in their visual order (important for multi-column templates)
@@ -168,6 +172,30 @@ export default function PreviewPage() {
       };
       toast.success(successMessages[type]);
       setShowExportSheet(false);
+       
+       // Track positive action for rate app prompt
+       incrementPositiveActions();
+       
+       // Check if we should prompt for rating
+       setTimeout(() => {
+         if (shouldPromptForRating()) {
+           toast(
+             'Enjoying WiseResume?',
+             {
+               description: 'Rate us on the app store to help others find us!',
+               duration: 8000,
+               action: {
+                 label: 'Rate Now',
+                 onClick: openAppStore,
+               },
+               cancel: {
+                 label: 'Later',
+                 onClick: dismissRating,
+               },
+             }
+           );
+         }
+       }, 1500);
     } catch (error) {
       console.error('PDF generation error:', error);
       toast.error('Failed to generate PDF. Please try again.');
@@ -310,7 +338,7 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-          className="sticky bottom-16 p-4 glass border-t border-border space-y-3"
+           className="sticky bottom-16 p-4 pb-safe glass border-t border-border space-y-3 mb-safe"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
