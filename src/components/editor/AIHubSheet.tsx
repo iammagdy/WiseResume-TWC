@@ -1,13 +1,15 @@
 import { motion } from 'framer-motion';
-import { Wand2, Target, Sparkles, FileText, TrendingUp } from 'lucide-react';
+import { Wand2, Target, Sparkles, FileText, TrendingUp, BarChart3 } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
 import { JobMatchScore } from '@/types/resume';
 import { cn } from '@/lib/utils';
+import { useResumeStore } from '@/store/resumeStore';
 
 interface AIActionTileProps {
   icon: React.ReactNode;
@@ -44,6 +46,7 @@ interface AIHubSheetProps {
   onAnalyze: () => void;
   onImproveSection: () => void;
   onChangeTemplate: () => void;
+  onViewComparison?: () => void;
 }
 
 export function AIHubSheet({
@@ -56,7 +59,10 @@ export function AIHubSheet({
   onAnalyze,
   onImproveSection,
   onChangeTemplate,
+  onViewComparison,
 }: AIHubSheetProps) {
+  const { currentComparison } = useResumeStore();
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-auto max-h-[70vh]">
@@ -141,6 +147,32 @@ export function AIHubSheet({
             }}
           />
         </div>
+
+        {/* Active Comparison Banner */}
+        {currentComparison && currentComparison.jobs.length > 0 && onViewComparison && (
+          <motion.button
+            className="w-full mt-4 p-4 rounded-2xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/30 flex items-center justify-between"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            onClick={() => {
+              onOpenChange(false);
+              onViewComparison();
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-sm">Job Comparison Active</p>
+                <p className="text-xs text-muted-foreground">
+                  {currentComparison.jobs.length} jobs being compared
+                </p>
+              </div>
+            </div>
+            <Badge variant="secondary">View</Badge>
+          </motion.button>
+        )}
 
         {/* Recent Job Description */}
         {jobDescription && (

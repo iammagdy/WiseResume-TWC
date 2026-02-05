@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext } from '@/types/resume';
+import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ResumeState {
@@ -18,6 +18,9 @@ interface ResumeState {
   generatedCoverLetter: string | null;
   coverLetterJobContext: CoverLetterContext | null;
   
+  // Multi-job comparison
+  currentComparison: MultiJobComparison | null;
+  
   setCurrentResume: (resume: ResumeData | null) => void;
   setCurrentResumeId: (id: string | null) => void;
   setIsSaving: (saving: boolean) => void;
@@ -33,6 +36,15 @@ interface ResumeState {
   clearTailorHistory: () => void;
   restoreTailorVersion: (id: string) => void;
   setGeneratedCoverLetter: (letter: string | null, context?: CoverLetterContext) => void;
+  
+  // Multi-job comparison actions
+  startNewComparison: (resumeId: string, firstJob: Omit<JobComparisonEntry, 'id' | 'createdAt'>) => void;
+  addJobToComparison: (job: Omit<JobComparisonEntry, 'id' | 'createdAt'>) => void;
+  removeJobFromComparison: (jobId: string) => void;
+  selectBestJob: (jobId: string) => void;
+  applySelectedJob: () => void;
+  clearComparison: () => void;
+  
   clearAll: () => void;
 }
 
@@ -69,6 +81,7 @@ export const useResumeStore = create<ResumeState>()(
       tailorHistory: [],
       generatedCoverLetter: null,
       coverLetterJobContext: null,
+      currentComparison: null,
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
       setCurrentResumeId: (id) => set({ currentResumeId: id }),
@@ -124,6 +137,92 @@ export const useResumeStore = create<ResumeState>()(
         coverLetterJobContext: context || null,
       }),
       
+      startNewComparison: (resumeId, firstJob) => set({
+        currentComparison: {
+          id: uuidv4(),
+          resumeId,
+          jobs: [{
+            ...firstJob,
+            id: uuidv4(),
+            createdAt: new Date().toISOString(),
+          }],
+          selectedJobId: null,
+          createdAt: new Date().toISOString(),
+        },
+      }),
+      
+      addJobToComparison: (job) => set((state) => {
+        if (!state.currentComparison || state.currentComparison.jobs.length >= 4) {
+          return state;
+        }
+        return {
+          currentComparison: {
+            ...state.currentComparison,
+            jobs: [
+              ...state.currentComparison.jobs,
+              {
+                ...job,
+                id: uuidv4(),
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          },
+        };
+      }),
+      
+      removeJobFromComparison: (jobId) => set((state) => {
+        if (!state.currentComparison) return state;
+        const newJobs = state.currentComparison.jobs.filter(j => j.id !== jobId);
+        if (newJobs.length === 0) {
+          return { currentComparison: null };
+        }
+        return {
+          currentComparison: {
+            ...state.currentComparison,
+            jobs: newJobs,
+            selectedJobId: state.currentComparison.selectedJobId === jobId 
+              ? null 
+              : state.currentComparison.selectedJobId,
+          },
+        };
+      }),
+      
+      selectBestJob: (jobId) => set((state) => {
+        if (!state.currentComparison) return state;
+        return {
+          currentComparison: {
+            ...state.currentComparison,
+            selectedJobId: jobId,
+          },
+        };
+      }),
+      
+      applySelectedJob: () => {
+        const state = get();
+        if (!state.currentComparison || !state.currentComparison.selectedJobId) return;
+        
+        const selectedJob = state.currentComparison.jobs.find(
+          j => j.id === state.currentComparison?.selectedJobId
+        );
+        
+        if (!selectedJob || !state.currentResume) return;
+        
+        const result = selectedJob.tailorResult;
+        set({
+          currentResume: {
+            ...state.currentResume,
+            summary: result.summary,
+            skills: result.skills,
+            experience: result.experience,
+            education: result.education,
+          },
+          jobDescription: selectedJob.jobDescription,
+          currentComparison: null,
+        });
+      },
+      
+      clearComparison: () => set({ currentComparison: null }),
+      
       clearAll: () => set({
         currentResume: null,
         currentResumeId: null,
@@ -138,6 +237,7 @@ export const useResumeStore = create<ResumeState>()(
         tailorHistory: [],
         generatedCoverLetter: null,
         coverLetterJobContext: null,
+        currentComparison: null,
       }),
     }),
     {

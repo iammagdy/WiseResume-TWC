@@ -238,6 +238,25 @@ export interface CoverLetterContext {
    strengthsAnalysis?: StrengthAnalysis[];
  }
  
+ // ===== MULTI-JOB COMPARISON TYPES =====
+ 
+ export interface JobComparisonEntry {
+   id: string;
+   jobTitle: string;
+   company: string;
+   jobDescription: string;
+   tailorResult: SuperTailorResult;
+   createdAt: string;
+ }
+ 
+ export interface MultiJobComparison {
+   id: string;
+   resumeId: string;
+   jobs: JobComparisonEntry[];
+   selectedJobId: string | null;
+   createdAt: string;
+ }
+ 
  export type EnhancedTailorStep = 
    | 'fetching_job'
    | 'analyzing_requirements'
