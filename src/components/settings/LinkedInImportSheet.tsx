@@ -96,6 +96,18 @@
        return;
      }
  
+   // Detect if user pasted just a URL instead of profile content
+   const trimmedText = profileText.trim();
+   const isJustUrl = /^https?:\/\/(www\.)?linkedin\.com/i.test(trimmedText) && 
+                     trimmedText.split('\n').length <= 3 && 
+                     trimmedText.length < 500;
+   
+   if (isJustUrl) {
+     setError("It looks like you pasted a LinkedIn URL. Please go to your profile page, select all text (Ctrl/Cmd+A), copy it (Ctrl/Cmd+C), and paste the full content here.");
+     toast.error('Please paste your profile content, not the URL');
+     return;
+   }
+
      setParseState('parsing');
      setError(null);
      setCurrentStep(0);
@@ -237,11 +249,11 @@
                      </li>
                      <li className="flex items-start gap-2">
                        <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
-                       <span>Select all content (Ctrl/Cmd+A) and copy (Ctrl/Cmd+C)</span>
+                       <span><strong>Select ALL content</strong> on the page (Ctrl/Cmd+A) and copy (Ctrl/Cmd+C)</span>
                      </li>
                      <li className="flex items-start gap-2">
                        <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-xs flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
-                       <span>Paste it below and let AI extract your data</span>
+                       <span>Paste the <strong>full text</strong> below (not just the URL!)</span>
                      </li>
                    </ol>
                    
