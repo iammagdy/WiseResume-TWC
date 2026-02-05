@@ -15,6 +15,7 @@ import { useResumeMutations, DatabaseResume, dbToResumeData } from '@/hooks/useR
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import { Json } from '@/integrations/supabase/types';
 import {
   Select,
@@ -41,6 +42,7 @@ export function CreateResumeDialog({
 }: CreateResumeDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { profile } = useProfile(user?.id);
   const { createResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   
@@ -67,7 +69,13 @@ export function CreateResumeDialog({
     try {
       const newResume = await createResume.mutateAsync({
         resume: {
-          contactInfo: { fullName: '', email: '', phone: '', location: '' },
+          contactInfo: { 
+            fullName: profile?.fullName || '', 
+            email: '', 
+            phone: '', 
+            location: profile?.location || '',
+            linkedin: profile?.linkedinUrl || '',
+          },
           summary: '',
           experience: [],
           education: [],
