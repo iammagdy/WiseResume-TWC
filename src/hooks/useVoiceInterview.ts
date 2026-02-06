@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ResumeData } from '@/types/resume';
+import { useElevenLabsScribe } from './useElevenLabsScribe';
 
 export type InterviewStatus = 'idle' | 'listening' | 'thinking' | 'speaking' | 'ready';
 
@@ -27,34 +28,6 @@ export interface RoleAnalysis {
   industryInsights: string;
 }
 
-interface SpeechRecognitionEvent {
-  results: { [index: number]: { [index: number]: { transcript: string }; isFinal?: boolean }; length: number };
-  resultIndex: number;
-}
-
-interface SpeechRecognitionErrorEvent {
-  error: string;
-}
-
-interface SpeechRecognitionInstance extends EventTarget {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start(): void;
-  stop(): void;
-  abort(): void;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
-  onend: (() => void) | null;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognitionInstance;
-    webkitSpeechRecognition: new () => SpeechRecognitionInstance;
-  }
-}
-
 const SILENCE_TIMEOUT_MS = 3000;
 const MAX_TEXT_LENGTH = 2000;
 
@@ -69,7 +42,6 @@ function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
 
   const keywords = gender === 'female' ? FEMALE_VOICE_KEYWORDS : MALE_VOICE_KEYWORDS;
   
-  // First: try to find a premium/natural voice matching gender
   for (const voice of englishVoices) {
     const name = voice.name.toLowerCase();
     if (keywords.some(k => name.includes(k))) {
@@ -77,7 +49,6 @@ function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
     }
   }
   
-  // Fallback: any English voice (prefer Google/Microsoft voices as they sound better)
   const premiumVoice = englishVoices.find(v => {
     const n = v.name.toLowerCase();
     return n.includes('google') || n.includes('microsoft') || n.includes('natural');
@@ -120,7 +91,7 @@ function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore 
     return {
       cleanText,
       score: {
-        questionIndex: 0, // will be set by caller
+        questionIndex: 0,
         score: parsed.score || 0,
         tip: parsed.tip || '',
         improvedAnswer: parsed.improved_answer || '',
@@ -138,7 +109,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [summary, setSummary] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [interimText, setInterimText] = useState('');
-  const [speechSupported, setSpeechSupported] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [silenceDetected, setSilenceDetected] = useState(false);
   const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
@@ -148,7 +118,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [isAnalyzingRole, setIsAnalyzingRole] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const messagesRef = useRef<{ role: string; content: string }[]>([]);
   const jobDescriptionRef = useRef<string>('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -159,9 +128,44 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const stopListeningRef = useRef<() => Promise<void>>();
   const answerCountRef = useRef(0);
 
+  // ElevenLabs Scribe hook
+  const scribe = useElevenLabsScribe({
+    onPartialTranscript: (text) => {
+      setInterimText(text);
+      // Reset silence timer on partial transcripts
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+        setSilenceDetected(false);
+      }
+    },
+    onCommittedTranscript: (text) => {
+      setInterimText('');
+      finalTextRef.current += text + ' ';
+
+      // Check max length
+      if (finalTextRef.current.length > MAX_TEXT_LENGTH) {
+        stopListeningRef.current?.();
+        return;
+      }
+
+      // Start silence timer
+      setSilenceDetected(true);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = setTimeout(() => {
+        stopListeningRef.current?.();
+      }, SILENCE_TIMEOUT_MS);
+    },
+    onError: (msg) => {
+      console.error('Scribe error:', msg);
+      setError(msg);
+    },
+  });
+
+  // Speech is always supported with ElevenLabs Scribe (just needs mic)
+  const speechSupported = true;
+
   useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) setSpeechSupported(false);
     // Pre-load voices
     if (window.speechSynthesis) {
       window.speechSynthesis.getVoices();
@@ -196,7 +200,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       
-      // Pick best voice for selected gender
       const voice = pickBestVoice(voiceGender);
       if (voice) utterance.voice = voice;
       
@@ -206,7 +209,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       utteranceRef.current = utterance;
 
       utterance.onend = async () => {
-        // Countdown 3..2..1 then beep
         for (let i = 3; i >= 1; i--) {
           setCountdown(i);
           await new Promise(r => setTimeout(r, 1000));
@@ -243,8 +245,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         if (data?.error) throw new Error(data.error);
 
         const rawReply = data.reply as string;
-        
-        // Parse score block from reply
         const { cleanText: reply, score } = parseScoreBlock(rawReply);
         
         if (score) {
@@ -282,15 +282,9 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   }, []);
 
   const stopListening = useCallback(async () => {
-    if (!recognitionRef.current && !finalTextRef.current.trim()) return;
-
     clearSilenceTimer();
     isListeningRef.current = false;
-
-    if (recognitionRef.current) {
-      recognitionRef.current.abort();
-      recognitionRef.current = null;
-    }
+    scribe.disconnect();
 
     const userText = finalTextRef.current.trim();
     finalTextRef.current = '';
@@ -304,79 +298,23 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     addEntry('user', userText);
     messagesRef.current.push({ role: 'user', content: userText });
     await callAI();
-  }, [addEntry, callAI, clearSilenceTimer]);
+  }, [addEntry, callAI, clearSilenceTimer, scribe]);
 
   useEffect(() => {
     stopListeningRef.current = stopListening;
   }, [stopListening]);
 
-  const startListening = useCallback(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) {
-      setError('Speech recognition is not supported in this browser');
-      return;
-    }
-
+  const startListening = useCallback(async () => {
     window.speechSynthesis.cancel();
     finalTextRef.current = '';
     clearSilenceTimer();
-
-    const recognition = new SR();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    recognitionRef.current = recognition;
     isListeningRef.current = true;
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const text = event.results[i][0].transcript;
-        if ((event.results[i] as any).isFinal) {
-          finalTextRef.current += text + ' ';
-
-          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-          setSilenceDetected(false);
-
-          if (finalTextRef.current.length > MAX_TEXT_LENGTH) {
-            stopListeningRef.current?.();
-            return;
-          }
-
-          setSilenceDetected(true);
-          silenceTimerRef.current = setTimeout(() => {
-            stopListeningRef.current?.();
-          }, SILENCE_TIMEOUT_MS);
-        } else {
-          interim = text;
-          if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = null;
-            setSilenceDetected(false);
-          }
-        }
-      }
-      setInterimText(interim);
-    };
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        console.error('Speech recognition error:', event.error);
-      }
-    };
-
-    recognition.onend = () => {
-      if (isListeningRef.current && silenceTimerRef.current !== null) {
-        try { recognition.start(); } catch {}
-      } else if (isListeningRef.current && !finalTextRef.current.trim()) {
-        try { recognition.start(); } catch {}
-      }
-    };
-
-    recognition.start();
     setStatus('listening');
     setInterimText('');
-  }, [clearSilenceTimer]);
+
+    await scribe.connect();
+  }, [clearSilenceTimer, scribe]);
 
   const sendTextMessage = useCallback(
     async (text: string) => {
@@ -434,13 +372,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     [callAI]
   );
 
-  const endInterview = useCallback(async () => {
+  const endInterviewFn = useCallback(async () => {
     isListeningRef.current = false;
     clearSilenceTimer();
-    if (recognitionRef.current) {
-      recognitionRef.current.abort();
-      recognitionRef.current = null;
-    }
+    scribe.disconnect();
     window.speechSynthesis.cancel();
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -453,12 +388,12 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     });
     await callAI(true);
     setIsStarted(false);
-  }, [callAI, clearSilenceTimer]);
+  }, [callAI, clearSilenceTimer, scribe]);
 
   const resetInterview = useCallback(() => {
     isListeningRef.current = false;
     clearSilenceTimer();
-    if (recognitionRef.current) recognitionRef.current.abort();
+    scribe.disconnect();
     window.speechSynthesis.cancel();
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus('idle');
@@ -476,7 +411,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     messagesRef.current = [];
     jobDescriptionRef.current = '';
     finalTextRef.current = '';
-  }, [clearSilenceTimer]);
+  }, [clearSilenceTimer, scribe]);
 
   const dismissScore = useCallback(() => {
     setLatestScore(null);
@@ -505,7 +440,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     startListening,
     stopListening,
     sendTextMessage,
-    endInterview,
+    endInterview: endInterviewFn,
     resetInterview,
   };
 }

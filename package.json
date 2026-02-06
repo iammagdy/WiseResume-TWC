@@ -18,6 +18,7 @@
     "@capacitor/cli": "^8.0.2",
     "@capacitor/core": "^8.0.2",
     "@capgo/capacitor-native-biometric": "^8.3.6",
+    "@elevenlabs/react": "^0.14.0",
     "@hookform/resolvers": "^3.10.0",
     "@lovable.dev/cloud-auth-js": "^0.0.2",
     "@radix-ui/react-accordion": "^1.2.11",

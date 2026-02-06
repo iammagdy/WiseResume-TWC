@@ -18,7 +18,8 @@ import {
   CloudOff,
   CheckCircle2,
   Fingerprint,
-  Clock
+  Clock,
+  Key
 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -30,6 +31,7 @@ import { DataExportSheet } from '@/components/settings/DataExportSheet';
 import { DeleteDataDialog } from '@/components/settings/DeleteDataDialog';
 import { BiometricSetupSheet } from '@/components/settings/BiometricSetupSheet';
 import { BiometricTimeoutSheet } from '@/components/settings/BiometricTimeoutSheet';
+import { ElevenLabsKeySheet } from '@/components/settings/ElevenLabsKeySheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -69,6 +71,8 @@ export default function SettingsPage() {
      setBiometricLockEnabled,
      biometricLockTimeout,
      setBiometricLockTimeout,
+     elevenlabsApiKey,
+     setElevenlabsApiKey,
   } = useSettingsStore();
  
    // Biometric lock hook
@@ -82,6 +86,7 @@ export default function SettingsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
   const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
+  const [elevenLabsKeyOpen, setElevenLabsKeyOpen] = useState(false);
    const handleBiometricToggle = async (enabled: boolean) => {
      if (enabled) {
        // Show setup sheet first
@@ -365,6 +370,27 @@ export default function SettingsPage() {
             </div>
           </motion.div>
 
+          {/* Integrations Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
+              INTEGRATIONS
+            </h2>
+            <div className="rounded-xl bg-card border border-border overflow-hidden">
+              <SettingsRow
+                type="navigation"
+                label="ElevenLabs API Key"
+                description={elevenlabsApiKey ? 'Custom key configured' : 'Using default key'}
+                value={elevenlabsApiKey ? '••••••' : undefined}
+                icon={<Key className="w-4 h-4" />}
+                onClick={() => setElevenLabsKeyOpen(true)}
+              />
+            </div>
+          </motion.div>
+
           {/* Account Section */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -476,6 +502,13 @@ export default function SettingsPage() {
         onOpenChange={setBiometricTimeoutOpen}
         selectedTimeout={biometricLockTimeout}
         onSelect={setBiometricLockTimeout}
+      />
+
+      <ElevenLabsKeySheet
+        open={elevenLabsKeyOpen}
+        onOpenChange={setElevenLabsKeyOpen}
+        currentKey={elevenlabsApiKey}
+        onSave={setElevenlabsApiKey}
       />
     </MobileLayout>
   );
