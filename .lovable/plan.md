@@ -1,97 +1,64 @@
 
 
-# Fix Mobile Editor UI Issues
+# Fix Tab Navigation Clipping on Mobile
 
-## Problem Analysis
+## Problem
 
-Based on the screenshots, there are two main UI issues on the mobile editor:
+The first tab "Contact" is being clipped to show only "ontact" in the mobile view. This is happening because:
 
-1. **Tab navigation clipping**: The horizontal scrolling tab list clips the first tab "Contact" to show only "tact" because:
-   - The `mx-4` margin doesn't provide enough left padding for the scroll container
-   - The scroll container starts from the edge, cutting off content
+1. The `px-4` padding on a horizontally scrollable container doesn't prevent content from being clipped at the scroll boundary
+2. When `overflow-x-auto` is applied, the scroll container starts at the first element, ignoring the padding
+3. The base `TabsList` component uses `inline-flex` which conflicts with our `w-full` override
 
-2. **Overlapping bottom elements**: The "Preview & Export" button and "AI Assistant" bar create visual confusion:
-   - AI Assistant bar is `fixed` at `bottom-28` (112px from bottom)
-   - Preview button is `sticky` at `bottom-16` (64px from bottom)
-   - These stack awkwardly and the spacing isn't consistent
+## Root Cause
+
+CSS padding on a scrollable container affects the total scrollable width but doesn't prevent the first/last items from being flush with the viewport edge when scrolled to their position.
 
 ## Solution
 
-### 1. Fix Tab Navigation Clipping
+Wrap the `TabsList` in a container div that provides the outer padding, and let the `TabsList` scroll edge-to-edge within that container. Then use `scroll-padding` or pseudo-element spacers to ensure proper inset.
 
-**File: `src/pages/EditorPage.tsx`**
+### Approach: Use a wrapper with padding + internal spacers
 
-Change the TabsList padding structure:
-- Remove `mx-4` from TabsList (outer margin causes clip on scroll)
-- Add `px-4` inside the scroll container so first/last tabs have proper spacing
-- Use `w-full` to ensure full-width container
+1. Create a wrapper div with `overflow-x-auto` and the scroll styling
+2. Move the `TabsList` inside without horizontal padding
+3. Add spacer pseudo-elements or margin to the first/last tab triggers
 
-```text
-Before: <TabsList className="mx-4 mt-3 flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide">
-After:  <TabsList className="mt-3 flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide px-4">
+### File Changes
+
+**`src/pages/EditorPage.tsx`**
+
+Current structure:
+```tsx
+<TabsList className="mt-3 w-full flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide px-4">
+  <TabsTrigger>Contact</TabsTrigger>
+  ...
+</TabsList>
 ```
 
-### 2. Fix Bottom Element Stacking
-
-**File: `src/pages/EditorPage.tsx`**
-
-Restructure the bottom elements to use proper spacing:
-- Change the Preview button from `sticky bottom-16` to a container that sits above the AI bar
-- Ensure proper padding and margins so nothing overlaps
-
-**File: `src/components/editor/AIAssistantBar.tsx`**
-
-Adjust positioning to work with the bottom nav:
-- Change from `fixed bottom-28` to a relative/sticky position that respects the layout flow
-- Or adjust the bottom spacing to account for both the bottom nav (h-16 = 64px) and Preview button area
-
-### 3. Better Layout Architecture
-
-Restructure the EditorPage bottom section:
-- Make the content area scroll properly with enough bottom padding
-- Stack the AI Assistant bar and Preview button in a consistent order
-- Ensure the bottom tab bar (h-16 + safe area) doesn't overlap content
-
-## Technical Details
-
-### EditorPage.tsx Changes
-
-```text
-TabsList fix:
-- Line 181: Remove mx-4, add px-4 inside container
-
-Bottom layout fix:
-- Adjust main content padding to account for:
-  - Bottom nav: 64px (h-16)
-  - AI Assistant bar: ~56px collapsed
-  - Preview button: ~72px
-  - Total: ~192px bottom padding needed
-
-- Consider making AI Assistant bar part of the layout flow rather than fixed
+New structure:
+```tsx
+<div className="mt-3 overflow-x-auto scrollbar-hide" style={{ scrollPaddingLeft: '16px', scrollPaddingRight: '16px' }}>
+  <TabsList className="w-max inline-flex h-auto p-1 gap-1 mx-4">
+    <TabsTrigger>Contact</TabsTrigger>
+    ...
+  </TabsList>
+</div>
 ```
 
-### AIAssistantBar.tsx Changes
+Key changes:
+- Outer `div` handles the horizontal scroll with `overflow-x-auto` and `scrollbar-hide`
+- `TabsList` uses `w-max` to size to content width and `inline-flex` (base behavior)
+- `mx-4` on `TabsList` provides left/right margin within the scrollable area
+- This ensures the first tab starts 16px from the left edge and isn't clipped
 
-```text
-Position adjustment:
-- Change bottom-28 to bottom-36 or higher to clear Preview button
-- Or refactor to use sticky positioning within the editor container
-```
+### Why This Works
 
-### Files to Modify
-
-1. **`src/pages/EditorPage.tsx`**
-   - Fix TabsList padding to prevent first tab clipping
-   - Restructure bottom section for proper element stacking
-   - Adjust content area padding
-
-2. **`src/components/editor/AIAssistantBar.tsx`**
-   - Adjust positioning to prevent overlap with Preview button
+The `mx-4` (margin) on the `TabsList` creates space within the scrollable container that's part of the scrollable content width. Unlike padding on the scroll container itself, margin on the inner content ensures the first/last items have breathing room that's included in the scroll range.
 
 ## Expected Result
 
-- All tab names fully visible and scrollable on mobile
-- Preview & Export button clearly separated from AI Assistant bar
-- No overlapping or clipped UI elements
-- Proper touch targets maintained
+- "Contact" tab fully visible without clipping
+- All tabs scrollable with proper spacing on both edges
+- Tab triggers maintain their current styling and interaction
 
