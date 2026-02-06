@@ -178,28 +178,30 @@ export default function EditorPage() {
 
         {/* Editor Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="mt-3 w-full flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide px-4">
-            <TabsTrigger value="contact" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
-              Contact
-              {sectionStatus.contact && <Check className="w-3.5 h-3.5 text-success" />}
-            </TabsTrigger>
-            <TabsTrigger value="summary" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
-              Summary
-              {sectionStatus.summary && <Check className="w-3.5 h-3.5 text-success" />}
-            </TabsTrigger>
-            <TabsTrigger value="experience" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
-              Work
-              {sectionStatus.experience && <Check className="w-3.5 h-3.5 text-success" />}
-            </TabsTrigger>
-            <TabsTrigger value="education" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
-              Education
-              {sectionStatus.education && <Check className="w-3.5 h-3.5 text-success" />}
-            </TabsTrigger>
-            <TabsTrigger value="skills" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
-              Skills
-              {sectionStatus.skills && <Check className="w-3.5 h-3.5 text-success" />}
-            </TabsTrigger>
-          </TabsList>
+          <div className="mt-3 overflow-x-auto scrollbar-hide">
+            <TabsList className="w-max inline-flex h-auto p-1 gap-1 mx-4">
+              <TabsTrigger value="contact" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+                Contact
+                {sectionStatus.contact && <Check className="w-3.5 h-3.5 text-success" />}
+              </TabsTrigger>
+              <TabsTrigger value="summary" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+                Summary
+                {sectionStatus.summary && <Check className="w-3.5 h-3.5 text-success" />}
+              </TabsTrigger>
+              <TabsTrigger value="experience" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+                Work
+                {sectionStatus.experience && <Check className="w-3.5 h-3.5 text-success" />}
+              </TabsTrigger>
+              <TabsTrigger value="education" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+                Education
+                {sectionStatus.education && <Check className="w-3.5 h-3.5 text-success" />}
+              </TabsTrigger>
+              <TabsTrigger value="skills" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+                Skills
+                {sectionStatus.skills && <Check className="w-3.5 h-3.5 text-success" />}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <div className="flex-1 overflow-y-auto px-4 py-4 pb-48">
             <TabsContent value="contact" className="mt-0">
