@@ -3,20 +3,32 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
   ChevronUp, 
-  ChevronDown, 
   Wand2, 
   Target, 
-  FileText, 
   Lightbulb,
   TrendingUp,
+  Palette,
+  ChevronDown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
-import { JobMatchScore } from '@/types/resume';
+import { JobMatchScore, TemplateId } from '@/types/resume';
+
+const TEMPLATE_NAMES: Record<TemplateId, string> = {
+  modern: 'Modern',
+  classic: 'Classic',
+  minimal: 'Minimal',
+  professional: 'Professional',
+  developer: 'Developer',
+  creative: 'Creative',
+  executive: 'Executive',
+};
 
 interface AIAssistantBarProps {
   matchScore?: JobMatchScore | null;
   jobDescription?: string;
+  currentTemplate: TemplateId;
+  onChangeTemplate: () => void;
   onTailor: () => void;
   onAnalyze: () => void;
   onImprove: () => void;
@@ -26,6 +38,8 @@ interface AIAssistantBarProps {
 export function AIAssistantBar({
   matchScore,
   jobDescription,
+  currentTemplate,
+  onChangeTemplate,
   onTailor,
   onAnalyze,
   onImprove,
@@ -89,7 +103,21 @@ export function AIAssistantBar({
             <span className="font-medium text-sm">AI Studio</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {/* Template Chip */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                haptics.light();
+                onChangeTemplate();
+              }}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/50 border border-border hover:border-primary/30 text-xs text-muted-foreground transition-colors touch-manipulation"
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span className="max-w-[60px] truncate">{TEMPLATE_NAMES[currentTemplate]}</span>
+              <ChevronDown className="w-3 h-3" />
+            </button>
+
             {/* Match Score Badge */}
             {matchScore ? (
               <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm font-semibold', scoreBg, scoreColor)}>
