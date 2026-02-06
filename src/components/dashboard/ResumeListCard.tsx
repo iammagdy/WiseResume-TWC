@@ -131,12 +131,12 @@ export const ResumeListCard = memo(function ResumeListCard({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-xl">
+    <div className="relative overflow-hidden rounded-2xl">
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
         {/* Duplicate action (right swipe) */}
         <motion.div
-          className="flex-1 bg-success/20 flex items-center pl-4"
+          className="flex-1 bg-success/15 backdrop-blur-sm flex items-center pl-4"
           style={{ opacity: duplicateOpacity }}
         >
           <div className="flex items-center gap-2 text-success">
@@ -147,7 +147,7 @@ export const ResumeListCard = memo(function ResumeListCard({
         
         {/* Delete action (left swipe) */}
         <motion.div
-          className="flex-1 bg-destructive/20 flex items-center justify-end pr-4"
+          className="flex-1 bg-destructive/15 backdrop-blur-sm flex items-center justify-end pr-4"
           style={{ opacity: deleteOpacity }}
         >
           <div className="flex items-center gap-2 text-destructive">
@@ -160,8 +160,8 @@ export const ResumeListCard = memo(function ResumeListCard({
       {/* Card content */}
       <motion.div
         className={cn(
-          'relative glass border border-border p-4 touch-manipulation cursor-pointer',
-          'active:bg-muted/50 transition-colors'
+          'relative glass-elevated p-4 touch-manipulation cursor-pointer',
+          'active:bg-muted/30 transition-all'
         )}
         style={{ x }}
         drag="x"
@@ -178,7 +178,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           <div className="flex items-start gap-3 flex-1 min-w-0">
             {/* Resume Icon with match score ring */}
             <div className="relative">
-              <div className="w-12 h-12 rounded-lg gradient-primary flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.4)]">
                 <FileText className="w-6 h-6 text-primary-foreground" />
               </div>
               {matchScore !== null && (

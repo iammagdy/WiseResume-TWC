@@ -209,7 +209,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-full flex flex-col">
         {/* Header */}
-        <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between border-b border-border">
+        <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between glass-header">
           <AppLogo size="sm" />
           <ThemeDropdown />
         </header>

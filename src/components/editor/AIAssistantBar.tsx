@@ -90,10 +90,10 @@ export const AIAssistantBar = memo(function AIAssistantBar({
       )}
     >
       <motion.div
-        className="glass rounded-2xl border border-border overflow-hidden"
+        className="glass-elevated rounded-2xl overflow-hidden"
         layout
         style={{
-          boxShadow: '0 -4px 24px -4px hsl(var(--background) / 0.8)',
+          boxShadow: '0 -4px 32px -4px hsl(var(--primary) / 0.15), 0 0 0 1px hsl(var(--border) / 0.2)',
         }}
       >
         {/* Collapsed Bar */}
@@ -116,7 +116,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                 haptics.light();
                 onChangeTemplate();
               }}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/50 border border-border hover:border-primary/30 text-xs text-muted-foreground transition-colors touch-manipulation"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg glass-surface hover:border-primary/30 text-xs text-muted-foreground transition-all touch-manipulation"
             >
               <Palette className="w-3.5 h-3.5" />
               <span className="max-w-[60px] truncate">{TEMPLATE_NAMES[currentTemplate]}</span>
@@ -221,15 +221,15 @@ interface AIActionButtonProps {
 const AIActionButton = memo(function AIActionButton({ icon, label, onClick, badge }: AIActionButtonProps) {
   return (
     <button
-      className="relative flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border hover:border-primary/50 transition-colors touch-manipulation active:scale-[0.97]"
+      className="relative flex items-center gap-2 p-3 rounded-xl glass-elevated border-glow transition-all touch-manipulation active:scale-[0.97]"
       onClick={onClick}
     >
       {badge && (
-        <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
+        <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-medium shadow-[0_0_8px_hsl(var(--primary)/0.4)]">
           {badge}
         </span>
       )}
-      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+      <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
         {icon}
       </div>
       <span className="text-sm font-medium">{label}</span>

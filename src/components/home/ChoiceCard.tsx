@@ -22,9 +22,9 @@ export function ChoiceCard({
   return (
     <motion.button
       className={cn(
-        'w-full p-5 rounded-2xl bg-card border border-border text-left',
+        'w-full p-5 rounded-2xl glass-elevated text-left',
         'flex items-center gap-4 touch-manipulation transition-all',
-        'hover:border-primary/50 active:scale-[0.98]',
+        'border-glow hover:scale-[1.01] active:scale-[0.98]',
         className
       )}
       initial={{ opacity: 0, y: 20 }}
@@ -33,7 +33,7 @@ export function ChoiceCard({
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
     >
-      <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center shrink-0">
+      <div className="w-14 h-14 rounded-xl gradient-primary flex items-center justify-center shrink-0 shadow-[0_0_24px_-4px_hsl(var(--primary)/0.4)]">
         <Icon className="w-7 h-7 text-primary-foreground" />
       </div>
       <div className="flex-1 min-w-0">

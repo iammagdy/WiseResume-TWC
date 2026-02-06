@@ -33,7 +33,7 @@ interface AIActionTileProps {
 function AIActionTile({ icon, title, subtitle, onClick, badge, badgeVariant = 'secondary' }: AIActionTileProps) {
   return (
     <motion.button
-      className="flex flex-col items-center justify-center p-4 rounded-2xl bg-muted/50 border border-border hover:border-primary/50 transition-all touch-manipulation min-h-[100px] relative"
+      className="flex flex-col items-center justify-center p-4 rounded-2xl glass-elevated border-glow hover:scale-[1.02] transition-all touch-manipulation min-h-[100px] relative"
       whileTap={{ scale: 0.97 }}
       onClick={onClick}
     >
@@ -45,7 +45,7 @@ function AIActionTile({ icon, title, subtitle, onClick, badge, badgeVariant = 's
           {badge}
         </Badge>
       )}
-      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
+      <div className="w-10 h-10 rounded-xl icon-glow flex items-center justify-center mb-2">
         {icon}
       </div>
       <span className="font-medium text-sm text-center">{title}</span>
@@ -64,11 +64,12 @@ interface SectionHeaderProps {
 function SectionHeader({ title, subtitle }: SectionHeaderProps) {
   return (
     <div className="mb-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+        <span className="w-8 h-px bg-gradient-to-r from-primary/30 to-transparent" />
         {title}
       </h3>
       {subtitle && (
-        <p className="text-xs text-muted-foreground/70 mt-0.5">{subtitle}</p>
+        <p className="text-xs text-muted-foreground/70 mt-0.5 pl-10">{subtitle}</p>
       )}
     </div>
   );
@@ -267,7 +268,7 @@ export function AIHubSheet({
           {/* Recent Job Description */}
           {jobDescription && (
             <motion.div
-              className="mt-4 p-3 rounded-xl bg-muted/50 border border-border"
+              className="mt-4 p-3 rounded-xl glass-surface"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.1 }}
