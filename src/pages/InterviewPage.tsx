@@ -41,6 +41,7 @@ export default function InterviewPage() {
     scores,
     latestScore,
     dismissScore,
+    countdown,
     roleAnalysis,
     isAnalyzingRole,
     analyzeRole,
@@ -225,6 +226,18 @@ export default function InterviewPage() {
       <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe">
         <div className="flex flex-col items-center gap-1.5 py-1">
           <InterviewToggle status={status} onPress={handleToggle} />
+          {countdown !== null && status === 'speaking' && (
+            <motion.div
+              key={countdown}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 1.5, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="text-2xl font-bold text-primary tabular-nums"
+            >
+              {countdown}
+            </motion.div>
+          )}
           {status === 'ready' && (
             <motion.p
               initial={{ opacity: 0, y: 4 }}

@@ -146,6 +146,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [latestScore, setLatestScore] = useState<AnswerScore | null>(null);
   const [roleAnalysis, setRoleAnalysis] = useState<RoleAnalysis | null>(null);
   const [isAnalyzingRole, setIsAnalyzingRole] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const messagesRef = useRef<{ role: string; content: string }[]>([]);
@@ -205,7 +206,12 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       utteranceRef.current = utterance;
 
       utterance.onend = async () => {
-        // Play beep to signal user's turn
+        // Countdown 3..2..1 then beep
+        for (let i = 3; i >= 1; i--) {
+          setCountdown(i);
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        setCountdown(null);
         await playBeep();
         setStatus('ready');
         resolve();
@@ -465,6 +471,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setScores([]);
     setLatestScore(null);
     setRoleAnalysis(null);
+    setCountdown(null);
     answerCountRef.current = 0;
     messagesRef.current = [];
     jobDescriptionRef.current = '';
@@ -490,6 +497,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     scores,
     latestScore,
     dismissScore,
+    countdown,
     roleAnalysis,
     isAnalyzingRole,
     analyzeRole,
