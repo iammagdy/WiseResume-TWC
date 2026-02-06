@@ -1,33 +1,80 @@
 
+# Add Loading Skeleton Placeholders for Lazy-Loaded Sections
 
-# Fix Interview Page Back Button
-
-## Problem
-
-`window.history.length > 1` is unreliable across browsers and Capacitor webviews. The history length is often > 1 even when there's no meaningful page to go back to, so `navigate(-1)` fires but has no visible effect.
-
-## Solution
-
-Replace all `navigate(-1)` fallback logic on the Interview page with a direct `navigate('/dashboard')`. The interview page is always logically "one level below" the dashboard, so navigating there is always correct.
+## Overview
+This plan adds polished, structure-matching skeleton placeholders for all lazy-loaded components in the Index page. These skeletons will provide a better visual loading experience on slow connections by showing content placeholders that match the actual component structure.
 
 ## Changes
 
-**`src/pages/InterviewPage.tsx`** -- Two lines to update:
+### 1. Create Landing Page Skeleton Components
+Create a new file `src/components/landing/LandingSkeletons.tsx` with skeleton components for each landing section:
 
-- **Line 162** (setup phase back button):
-  ```typescript
-  // Before
-  onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')}
-  // After
-  onClick={() => navigate('/dashboard')}
-  ```
+**HeroSkeleton**
+- Circular placeholder for the planet logo
+- Text lines for welcome text, headline, and subheadline
+- Two button placeholders
+- Trust text placeholder
 
-- **Line 187** (active interview back button):
-  ```typescript
-  // Before
-  onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')}
-  // After
-  onClick={() => navigate('/dashboard')}
-  ```
+**SocialProofSkeleton**
+- Row of 3 stat items with icon and text placeholders
 
-This is a two-line change in one file. No other files are affected.
+**HowItWorksSkeleton**
+- Section header placeholder
+- 3 step cards with circular icons and connecting lines
+
+**FeatureGridSkeleton**
+- Section header placeholder
+- 3 feature cards with icon, title, and description
+
+**TemplateGallerySkeleton**
+- Section header placeholder
+- 3 template thumbnail placeholders
+- Pagination dots
+
+**BottomCTASkeleton**
+- Icon circle placeholder
+- Title and description text
+- CTA button placeholder
+
+### 2. Create Dashboard Skeleton Components
+Create a new file `src/components/home/HomeSkeletons.tsx` with:
+
+**ResumeCardSkeleton**
+- Matches ResumeCard structure: icon, title, subtitle, progress, arrow
+
+**ActionCardSkeleton**
+- Matches ActionCard structure: icon, title, description
+
+### 3. Create Full Landing Page Skeleton
+A combined `LandingPageSkeleton` component that shows the full page loading state with all section skeletons arranged properly.
+
+### 4. Update Index.tsx
+Replace the basic fallback divs with the new skeleton components:
+- Use `LandingPageSkeleton` as fallback for the landing page
+- Use `ResumeCardSkeleton` for ResumeCard suspense
+- Use `ActionCardSkeleton` for ActionCard suspense
+
+## Technical Details
+
+### File Structure
+```
+src/components/
+├── landing/
+│   └── LandingSkeletons.tsx  (NEW)
+├── home/
+│   └── HomeSkeletons.tsx     (NEW)
+└── pages/
+    └── Index.tsx             (MODIFY)
+```
+
+### Skeleton Design Principles
+- Use the existing `Skeleton` component for shimmer effects
+- Match exact dimensions and spacing of actual components
+- Use subtle animations that don't compete with page content
+- Staggered fade-in animations for visual polish
+
+### Expected Impact
+- Improved perceived performance on slow connections
+- Professional loading states that match the app's space theme
+- Better user experience during initial page load
+- Consistent visual feedback while components lazy-load
