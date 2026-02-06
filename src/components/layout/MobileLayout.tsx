@@ -1,6 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
- import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { OfflineBanner } from './OfflineBanner';
 import { BottomTabBar } from './BottomTabBar';
 
@@ -62,10 +61,8 @@ export function MobileLayout({
       <OfflineBanner />
       
       {showHeader && (
-        <motion.header 
+        <header 
           className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe"
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -102,7 +99,7 @@ export function MobileLayout({
               </div>
             )}
           </div>
-        </motion.header>
+        </header>
       )}
       
        <main

@@ -2,7 +2,6 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Square, Keyboard, Sparkles } from 'lucide-react';
-import { MobileLayout } from '@/components/layout/MobileLayout';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
 import { TranscriptBubble } from '@/components/interview/TranscriptBubble';
@@ -120,7 +119,7 @@ export default function InterviewPage() {
   // Summary screen
   if (phase === 'summary') {
     return (
-      <MobileLayout>
+      <div className="flex-1 flex flex-col">
         <InterviewSummary
           summary={summary!}
           duration={elapsedSeconds}
@@ -128,14 +127,14 @@ export default function InterviewPage() {
           onRestart={handleReset}
           onGoHome={() => navigate('/dashboard')}
         />
-      </MobileLayout>
+      </div>
     );
   }
 
   // Preview screen (job-targeted only)
   if (phase === 'preview') {
     return (
-      <MobileLayout>
+      <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button onClick={() => { setPendingJobDescription(undefined); }} className="touch-manipulation p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -150,14 +149,14 @@ export default function InterviewPage() {
           isLoading={isAnalyzingRole}
           onReady={handlePreviewReady}
         />
-      </MobileLayout>
+      </div>
     );
   }
 
   // Setup screen
   if (phase === 'setup') {
     return (
-      <MobileLayout>
+      <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button onClick={() => navigate('/dashboard')} className="touch-manipulation p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -174,13 +173,13 @@ export default function InterviewPage() {
           onVoiceGenderChange={setVoiceGender}
           onStart={handleSetupStart}
         />
-      </MobileLayout>
+      </div>
     );
   }
 
   // Active interview
   return (
-    <MobileLayout>
+    <div className="flex-1 flex flex-col">
       {/* Glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/30 bg-card/40 backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -319,6 +318,6 @@ export default function InterviewPage() {
 
       {/* Per-answer score sheet */}
       <AnswerScoreSheet score={latestScore} onDismiss={dismissScore} />
-    </MobileLayout>
+    </div>
   );
 }

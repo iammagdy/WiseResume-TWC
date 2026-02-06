@@ -10,8 +10,16 @@ import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
 import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
-import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { toast } from "sonner";
+import { AppShell } from "@/components/layout/AppShell";
+import {
+  DashboardSkeleton,
+  EditorSkeleton,
+  SettingsSkeleton,
+  PreviewSkeleton,
+  UploadSkeleton,
+  InterviewSkeleton,
+} from "@/components/layout/PageSkeletons";
 
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
@@ -26,7 +34,16 @@ const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const InterviewPage = lazy(() => import("./pages/InterviewPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,      // 5 minutes - data stays fresh
+      gcTime: 10 * 60 * 1000,        // 10 minutes - cache retention
+      refetchOnWindowFocus: false,   // Reduce background refetches
+      retry: 1,                      // Faster failure
+    },
+  },
+});
 
  // Inner component to use hooks that require Router context
  function AppRoutes() {
@@ -60,19 +77,47 @@ const queryClient = new QueryClient();
    }
    
     return (
-      <Suspense fallback={<PageLoadingSpinner />}>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/upload" element={<UploadPage />} />
-          <Route path="/editor" element={<EditorPage />} />
-          <Route path="/preview" element={<PreviewPage />} />
-          <Route path="/auth" element={<AuthPage />} />
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/interview" element={<InterviewPage />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </Suspense>
+      <Routes>
+        {/* Landing and auth - no shell */}
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Suspense fallback={null}><AuthPage /></Suspense>} />
+        
+        {/* All tabbed pages share the persistent shell */}
+        <Route element={<AppShell />}>
+          <Route path="/dashboard" element={
+            <Suspense fallback={<DashboardSkeleton />}>
+              <DashboardPage />
+            </Suspense>
+          } />
+          <Route path="/editor" element={
+            <Suspense fallback={<EditorSkeleton />}>
+              <EditorPage />
+            </Suspense>
+          } />
+          <Route path="/preview" element={
+            <Suspense fallback={<PreviewSkeleton />}>
+              <PreviewPage />
+            </Suspense>
+          } />
+          <Route path="/upload" element={
+            <Suspense fallback={<UploadSkeleton />}>
+              <UploadPage />
+            </Suspense>
+          } />
+          <Route path="/settings" element={
+            <Suspense fallback={<SettingsSkeleton />}>
+              <SettingsPage />
+            </Suspense>
+          } />
+          <Route path="/interview" element={
+            <Suspense fallback={<InterviewSkeleton />}>
+              <InterviewPage />
+            </Suspense>
+          } />
+        </Route>
+        
+        <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+      </Routes>
    );
  }
  

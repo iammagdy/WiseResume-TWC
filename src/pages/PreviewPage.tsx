@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText } from 'lucide-react';
-import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { ModernTemplate } from '@/components/templates/ModernTemplate';
@@ -331,7 +330,20 @@ export default function PreviewPage() {
   }[selectedTemplate];
 
   return (
-    <MobileLayout showHeader headerTitle="Preview" onBack={() => navigate('/editor')} showBottomNav>
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/editor')}
+            className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-lg font-display font-semibold truncate">Preview</h1>
+        </div>
+      </header>
       <div className="flex-1 flex flex-col">
         {/* Template Quick Switcher */}
         <motion.div
@@ -516,6 +528,6 @@ export default function PreviewPage() {
         onUploadPhoto={handleUploadPhoto}
         onKeepInitials={handleKeepInitials}
       />
-    </MobileLayout>
+    </div>
   );
 }
