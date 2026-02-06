@@ -1,27 +1,33 @@
 
 
-# Apply Back Button Fallback Fix
+# Fix Interview Page Back Button
 
-## Findings
+## Problem
 
-After searching the entire codebase, `navigate(-1)` is only used in two places:
+`window.history.length > 1` is unreliable across browsers and Capacitor webviews. The history length is often > 1 even when there's no meaningful page to go back to, so `navigate(-1)` fires but has no visible effect.
 
-1. **`src/pages/InterviewPage.tsx`** -- still didnt work
-2. **`src/hooks/useBackButton.ts`** -- The Android hardware back button handler (line 30)
+## Solution
 
-All other pages with back arrows already navigate to specific routes (e.g., `/editor`, `/`), so they don't need this fix.
+Replace all `navigate(-1)` fallback logic on the Interview page with a direct `navigate('/dashboard')`. The interview page is always logically "one level below" the dashboard, so navigating there is always correct.
 
-## Change
+## Changes
 
-**`src/hooks/useBackButton.ts`** (line 30): Apply the same `window.history.length` check so the hardware back button navigates to `/dashboard` instead of doing nothing when there's no history.
+**`src/pages/InterviewPage.tsx`** -- Two lines to update:
 
-```typescript
-// Before
-navigate(-1);
+- **Line 162** (setup phase back button):
+  ```typescript
+  // Before
+  onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')}
+  // After
+  onClick={() => navigate('/dashboard')}
+  ```
 
-// After
-window.history.length > 1 ? navigate(-1) : navigate('/dashboard');
-```
+- **Line 187** (active interview back button):
+  ```typescript
+  // Before
+  onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')}
+  // After
+  onClick={() => navigate('/dashboard')}
+  ```
 
-This is a single one-line change affecting only this file.
-
+This is a two-line change in one file. No other files are affected.
