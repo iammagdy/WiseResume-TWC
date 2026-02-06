@@ -1,232 +1,211 @@
 
-# Add Photo Support to Templates with Smart Prompts
+
+# Add More Templates with Clear ATS Indicators
 
 ## Overview
 
-When using templates that have a photo/avatar area (like Creative), the app will detect this and prompt the user to either:
-1. Use their profile photo from Settings
-2. Upload a new photo
-3. Keep the initials placeholder
-
-## Current State Analysis
-
-### Templates with Photo Placeholders
-- **Creative**: Has a circular area showing initials (line 21-23) - perfect for photo
-- **Professional**: Could support a photo in the header area
-
-### Templates without Photo Areas
-- Modern, Minimal, Classic, Developer, Executive - text-only layouts
-
-### Data Structure
-- `ContactInfo` type in `src/types/resume.ts` doesn't have a photo field
-- User's profile has `avatarUrl` in the profiles table
-- Need to add `photoUrl` to resume data
+We'll add **5 new templates** with distinctive designs for different industries and purposes, plus improve the ATS visibility throughout the template selector. Each template will clearly show its ATS compatibility status.
 
 ---
 
-## Implementation Plan
+## New Templates to Add
 
-### Step 1: Extend Resume Data Types
-**File:** `src/types/resume.ts`
+| Template | Style | Target Audience | ATS Score | Layout Type |
+|----------|-------|-----------------|-----------|-------------|
+| **Compact** | Dense single-column | Entry-level, internships | High | Linear |
+| **Academic** | Research/CV focused | Professors, researchers | High | Linear |
+| **Healthcare** | Clean medical style | Nurses, doctors, medical staff | High | Linear |
+| **Sales** | Bold metrics-focused | Sales, business development | High | Linear |
+| **Elegant** | Soft colors, refined | Marketing, design, HR | Medium | Linear with accent |
 
-Add `photoUrl` field to `ContactInfo`:
+---
+
+## Template Design Details
+
+### 1. Compact Template
+- **Description**: "Dense layout maximizing content space"
+- **ATS Score**: High
+- **Style**: Single column, minimal margins, condensed spacing
+- **Best for**: Entry-level candidates with limited experience
+- **Color**: Gray/neutral with minimal accents
+
+### 2. Academic Template  
+- **Description**: "Research-focused CV layout"
+- **ATS Score**: High
+- **Style**: Publications section, research focus, serif fonts
+- **Best for**: Academics, researchers, PhD candidates
+- **Color**: Navy blue accents
+
+### 3. Healthcare Template
+- **Description**: "Clean medical professional layout"
+- **ATS Score**: High
+- **Style**: Clear sections, certification emphasis, clean lines
+- **Best for**: Nurses, doctors, medical professionals
+- **Color**: Teal/medical blue accents
+
+### 4. Sales Template
+- **Description**: "Metrics-driven achievement showcase"
+- **ATS Score**: High
+- **Style**: Big numbers, achievement boxes, bold metrics
+- **Best for**: Sales reps, account managers, business development
+- **Color**: Green/money accents for metrics
+
+### 5. Elegant Template
+- **Description**: "Refined aesthetic with soft accents"
+- **ATS Score**: Medium (uses subtle design elements)
+- **Style**: Soft rounded elements, delicate borders
+- **Best for**: Marketing, HR, creative roles
+- **Color**: Rose/blush pink accents
+
+---
+
+## Enhanced ATS Display
+
+### Current ATS Labels
+- "ATS-Friendly" (high)
+- "Moderate ATS" (medium)  
+- "Low ATS" (low)
+
+### Enhanced Approach
+Add a small info tooltip or expanded description when users tap the ATS badge:
+
+**High ATS**: "Passes 95%+ of automated screening systems"
+**Medium ATS**: "May have parsing issues with some systems"
+**Low ATS**: "Not recommended for online applications"
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/templates/CompactTemplate.tsx` | Dense entry-level template |
+| `src/components/templates/AcademicTemplate.tsx` | Research/CV template |
+| `src/components/templates/HealthcareTemplate.tsx` | Medical professional template |
+| `src/components/templates/SalesTemplate.tsx` | Metrics-focused template |
+| `src/components/templates/ElegantTemplate.tsx` | Refined aesthetic template |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/types/resume.ts` | Add new template IDs to TemplateId type |
+| `src/lib/templateConfig.ts` | Add configs for 5 new templates |
+| `src/components/editor/TemplateSelector.tsx` | Add 5 new templates to list, add ATS tooltip |
+| `src/components/editor/TemplateThumbnail.tsx` | Import and register new templates |
+| `src/components/settings/DefaultTemplateSheet.tsx` | Templates auto-load from config |
+
+---
+
+## Technical Implementation
+
+### 1. Update TemplateId Type
 ```typescript
-export interface ContactInfo {
-  fullName: string;
-  email: string;
-  phone: string;
-  location: string;
-  linkedin?: string;
-  portfolio?: string;
-  photoUrl?: string;  // NEW: Optional photo for templates that support it
+export type TemplateId = 
+  | 'modern' | 'classic' | 'minimal' | 'professional' 
+  | 'developer' | 'creative' | 'executive'
+  | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant';
+```
+
+### 2. Template Config Additions
+Each new template gets a full config entry with:
+- Layout type (all linear for ATS)
+- Page break support
+- Photo support (none for new templates)
+- ATS-focused warnings where relevant
+
+### 3. Template Component Structure
+Each template follows the existing pattern:
+```typescript
+interface TemplateProps {
+  resume: ResumeData;
+}
+
+export function [Name]Template({ resume }: TemplateProps) {
+  return (
+    <div className="p-8 font-sans text-sm">
+      {/* Header */}
+      {/* Summary */}
+      {/* Experience with data-section="experience" */}
+      {/* Education with data-section="education" */}
+      {/* Skills with data-section="skills" */}
+    </div>
+  );
 }
 ```
 
-### Step 2: Define Template Photo Support
-**File:** `src/lib/templateConfig.ts`
-
-Add `supportsPhoto` property to template configs:
+### 4. Career Level Recommendations Update
 ```typescript
-export interface TemplateConfig {
-  // ... existing fields ...
-  supportsPhoto: boolean;
-}
-```
-
-Templates that support photos:
-- Creative: `supportsPhoto: true`
-- All others: `supportsPhoto: false`
-
-### Step 3: Create Photo Prompt Sheet Component
-**File:** `src/components/editor/ResumePhotoSheet.tsx`
-
-A bottom sheet that appears when:
-- User switches to a photo-supporting template
-- Resume has no photo set
-
-UI Design:
-```
-+------------------------------------------+
-|         Add Photo to Resume              |
-|------------------------------------------|
-|                                          |
-|  This template supports a profile photo  |
-|  to make your resume stand out!          |
-|                                          |
-|  +--------+  +--------+  +--------+      |
-|  |  Use   |  | Upload |  |  Keep  |      |
-|  |Profile |  |  New   |  |Initials|      |
-|  | Photo  |  | Photo  |  |        |      |
-|  +--------+  +--------+  +--------+      |
-|                                          |
-|  [ ] Don't ask again for this resume     |
-+------------------------------------------+
-```
-
-Features:
-- "Use Profile Photo" - Uses `profile.avatarUrl` from Settings
-- "Upload New Photo" - Opens file picker → AvatarCropSheet → AI headshot option
-- "Keep Initials" - Dismisses without adding photo
-- Checkbox to suppress future prompts for this resume
-
-### Step 4: Update Creative Template to Display Photo
-**File:** `src/components/templates/CreativeTemplate.tsx`
-
-Modify the avatar area to show photo when available:
-```typescript
-{resume.contactInfo.photoUrl ? (
-  <img 
-    src={resume.contactInfo.photoUrl} 
-    alt={resume.contactInfo.fullName}
-    className="w-16 h-16 rounded-full object-cover"
-  />
-) : (
-  <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center">
-    <span className="text-2xl font-bold">{initials}</span>
-  </div>
-)}
-```
-
-### Step 5: Integrate Photo Prompt in Preview Page
-**File:** `src/pages/PreviewPage.tsx`
-
-Add logic to show the photo prompt sheet:
-```typescript
-const [showPhotoSheet, setShowPhotoSheet] = useState(false);
-
-// Check if template supports photos and resume has no photo
-useEffect(() => {
-  const config = getTemplateConfig(selectedTemplate);
-  if (config.supportsPhoto && !currentResume?.contactInfo.photoUrl) {
-    // Check if user has dismissed this before
-    const dismissed = localStorage.getItem(`photo-prompt-${currentResume?.id}`);
-    if (!dismissed) {
-      setShowPhotoSheet(true);
-    }
-  }
-}, [selectedTemplate, currentResume]);
-```
-
-### Step 6: Add Photo Field to Contact Section (Optional Edit)
-**File:** `src/components/editor/ContactSection.tsx`
-
-Add an optional photo upload button at the top of the contact section for templates that support it:
-```
-+------------------------------------------+
-|  [Photo placeholder with upload button]  |
-|  "Add a photo for Creative template"     |
-|------------------------------------------|
-|  Full Name: [__________]                 |
-|  Email: [__________]                     |
-|  ...                                     |
-+------------------------------------------+
-```
-
----
-
-## Files to Create/Modify
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/types/resume.ts` | Modify | Add `photoUrl` to ContactInfo |
-| `src/lib/templateConfig.ts` | Modify | Add `supportsPhoto` to TemplateConfig |
-| `src/components/editor/ResumePhotoSheet.tsx` | Create | Photo prompt dialog |
-| `src/components/templates/CreativeTemplate.tsx` | Modify | Display photo when available |
-| `src/pages/PreviewPage.tsx` | Modify | Show photo prompt for photo templates |
-| `src/hooks/useProfile.ts` | Read only | Get profile photo URL |
-| `src/store/resumeStore.ts` | Already supports | Uses updateResume for contactInfo |
-
----
-
-## User Flow
-
-```
-User switches to Creative template
-              ↓
-App detects: Creative supports photos
-              ↓
-Resume has no photo? → Show ResumePhotoSheet
-              ↓
-     +--------+--------+--------+
-     ↓        ↓        ↓
-Use Profile  Upload   Keep
-   Photo      New    Initials
-     ↓        ↓        ↓
-Save to    Open Crop  Close
-resume     Sheet      Sheet
-     ↓        ↓        
-Photo shows on template
-```
-
----
-
-## Technical Details
-
-### Getting Profile Photo
-```typescript
-import { useProfile } from '@/hooks/useProfile';
-import { useAuth } from '@/hooks/useAuth';
-
-const { user } = useAuth();
-const { profile } = useProfile(user?.id, user);
-
-// Use profile.avatarUrl if available
-```
-
-### Saving Photo to Resume
-```typescript
-const { updateResume } = useResumeStore();
-
-const handleUseProfilePhoto = () => {
-  if (profile?.avatarUrl) {
-    updateResume({
-      contactInfo: {
-        ...currentResume.contactInfo,
-        photoUrl: profile.avatarUrl,
-      }
-    });
-    setShowPhotoSheet(false);
-  }
-};
-```
-
-### Dismissing for This Resume
-```typescript
-const handleKeepInitials = (dontAskAgain: boolean) => {
-  if (dontAskAgain && currentResume?.id) {
-    localStorage.setItem(`photo-prompt-${currentResume.id}`, 'true');
-  }
-  setShowPhotoSheet(false);
+const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
+  entry: ['compact', 'modern', 'minimal'],
+  mid: ['modern', 'professional', 'sales', 'healthcare'],
+  senior: ['executive', 'professional', 'elegant'],
+  executive: ['executive', 'elegant', 'academic'],
 };
 ```
 
 ---
 
-## Expected Results
+## ATS Information Enhancement
 
-1. When user selects Creative template, they're prompted to add a photo
-2. User can easily use their profile photo from Settings
-3. User can upload a new photo with cropping and AI enhancement
-4. User can dismiss the prompt and keep initials
-5. The photo displays correctly on the Creative template
-6. The photo is included in the exported PDF
+### Add Tooltip to ATS Badge
+When users tap/hover on the ATS badge, show explanation:
+
+```tsx
+<Tooltip>
+  <TooltipTrigger asChild>
+    <Badge className={atsScoreColors[template.atsScore]}>
+      {atsScoreLabels[template.atsScore]}
+    </Badge>
+  </TooltipTrigger>
+  <TooltipContent>
+    {template.atsScore === 'high' && "Optimized for automated screening - parses correctly in 95%+ of ATS systems"}
+    {template.atsScore === 'medium' && "Some design elements may affect parsing in certain ATS systems"}
+    {template.atsScore === 'low' && "Best for direct submissions - may have issues with automated screening"}
+  </TooltipContent>
+</Tooltip>
+```
+
+---
+
+## Visual Summary
+
+**Template Selector After Update:**
+```
++------------------+  +------------------+
+|   [Compact]      |  |   [Academic]     |
+|  ATS-Friendly ✓  |  |  ATS-Friendly ✓  |
+|  Dense layout    |  |  Research CV     |
++------------------+  +------------------+
+|  [Healthcare]    |  |    [Sales]       |
+|  ATS-Friendly ✓  |  |  ATS-Friendly ✓  |
+|  Medical style   |  |  Metrics focus   |
++------------------+  +------------------+
+|   [Elegant]      |  |   [Modern]       |
+|  Moderate ATS ⚠  |  |  ATS-Friendly ✓  |
+|  Soft aesthetic  |  |  Clean design    |
++------------------+  +------------------+
+... (existing templates)
+```
+
+---
+
+## Total Templates After Implementation
+
+| # | Template | ATS | Category |
+|---|----------|-----|----------|
+| 1 | Modern | High | Professional |
+| 2 | Classic | High | Professional |
+| 3 | Minimal | High | Professional |
+| 4 | Professional | High | Professional |
+| 5 | Developer | High | Tech |
+| 6 | Executive | High | Professional |
+| 7 | Creative | Medium | Creative |
+| 8 | **Compact** | High | Professional |
+| 9 | **Academic** | High | Professional |
+| 10 | **Healthcare** | High | Professional |
+| 11 | **Sales** | High | Professional |
+| 12 | **Elegant** | Medium | Creative |
+
+**Total: 12 templates** (10 ATS-Friendly, 2 Moderate ATS)
+
