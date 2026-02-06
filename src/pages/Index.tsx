@@ -1,34 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Upload, FileText, Target, Wand2, Plus, Loader2 } from 'lucide-react';
+import { Target, Wand2, Plus, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { AppLogo } from '@/components/brand/AppLogo';
 import { Button } from '@/components/ui/button';
-import { ResumeCard } from '@/components/home/ResumeCard';
-import { ChoiceCard } from '@/components/home/ChoiceCard';
-import { ActionCard } from '@/components/home/ActionCard';
-import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
-import { TailorSheet } from '@/components/editor/TailorSheet';
-import { SpaceBackground } from '@/components/landing/SpaceBackground';
-import { HeroSection } from '@/components/landing/HeroSection';
-import { SocialProofBar } from '@/components/landing/SocialProofBar';
-import { HowItWorks } from '@/components/landing/HowItWorks';
-import { FeatureGrid } from '@/components/landing/FeatureGrid';
-import { TemplateGallery } from '@/components/landing/TemplateGallery';
-import { BottomCTA } from '@/components/landing/BottomCTA';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+
+// Lazy load heavy components not needed for initial render
+const ResumeCard = lazy(() => import('@/components/home/ResumeCard').then(m => ({ default: m.ResumeCard })));
+const ActionCard = lazy(() => import('@/components/home/ActionCard').then(m => ({ default: m.ActionCard })));
+const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
+const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
+const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground').then(m => ({ default: m.SpaceBackground })));
+const HeroSection = lazy(() => import('@/components/landing/HeroSection').then(m => ({ default: m.HeroSection })));
+const SocialProofBar = lazy(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.SocialProofBar })));
+const HowItWorks = lazy(() => import('@/components/landing/HowItWorks').then(m => ({ default: m.HowItWorks })));
+const FeatureGrid = lazy(() => import('@/components/landing/FeatureGrid').then(m => ({ default: m.FeatureGrid })));
+const TemplateGallery = lazy(() => import('@/components/landing/TemplateGallery').then(m => ({ default: m.TemplateGallery })));
+const BottomCTA = lazy(() => import('@/components/landing/BottomCTA').then(m => ({ default: m.BottomCTA })));
+const AlertDialog = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialog })));
+const AlertDialogAction = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialogAction })));
+const AlertDialogCancel = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialogCancel })));
+const AlertDialogContent = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialogContent })));
+const AlertDialogDescription = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialogDescription })));
+const AlertDialogFooter = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialogFooter })));
+const AlertDialogHeader = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialogHeader })));
+const AlertDialogTitle = lazy(() => import('@/components/ui/alert-dialog').then(m => ({ default: m.AlertDialogTitle })));
 
 const Index = () => {
   const navigate = useNavigate();
@@ -106,12 +105,14 @@ const Index = () => {
               <h2 className="text-sm font-medium text-muted-foreground mb-3">
                 Continue where you left off
               </h2>
-              <ResumeCard
-                resume={currentResume}
-                matchScore={matchScore}
-                onContinue={handleContinueEditing}
-                onDelete={() => setShowDeleteConfirm(true)}
-              />
+              <Suspense fallback={<div className="h-32 bg-card rounded-lg animate-pulse" />}>
+                <ResumeCard
+                  resume={currentResume}
+                  matchScore={matchScore}
+                  onContinue={handleContinueEditing}
+                  onDelete={() => setShowDeleteConfirm(true)}
+                />
+              </Suspense>
             </section>
 
             {/* AI Actions */}
@@ -120,18 +121,20 @@ const Index = () => {
                 AI-Powered Actions
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                <ActionCard
-                  icon={Target}
-                  title="Score Match"
-                  description="Analyze job compatibility"
-                  onClick={() => setShowJobSheet(true)}
-                />
-                <ActionCard
-                  icon={Wand2}
-                  title="Tailor Resume"
-                  description="Customize for a job"
-                  onClick={() => setShowTailor(true)}
-                />
+                <Suspense fallback={<div className="h-24 bg-card rounded-lg animate-pulse" />}>
+                  <ActionCard
+                    icon={Target}
+                    title="Score Match"
+                    description="Analyze job compatibility"
+                    onClick={() => setShowJobSheet(true)}
+                  />
+                  <ActionCard
+                    icon={Wand2}
+                    title="Tailor Resume"
+                    description="Customize for a job"
+                    onClick={() => setShowTailor(true)}
+                  />
+                </Suspense>
               </div>
             </section>
 
@@ -164,31 +167,35 @@ const Index = () => {
             </motion.div>
           </div>
 
-          {/* Sheets */}
-          <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
-          <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
+          {/* Sheets - lazy loaded */}
+          <Suspense fallback={null}>
+            <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
+            <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
+          </Suspense>
 
           {/* Delete Confirmation Dialog */}
-          <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete your current resume and all its content.
-                  This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteResume}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Delete
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Suspense fallback={null}>
+            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete your current resume and all its content.
+                    This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteResume}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </Suspense>
         </div>
       </MobileLayout>
     );
@@ -196,16 +203,18 @@ const Index = () => {
 
   // New user: show space-themed landing page
   return (
-    <SpaceBackground>
-      <main className="min-h-screen">
-        <HeroSection />
-        <SocialProofBar />
-        <HowItWorks />
-        <FeatureGrid />
-        <TemplateGallery />
-        <BottomCTA />
-      </main>
-    </SpaceBackground>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <SpaceBackground>
+        <main className="min-h-screen">
+          <HeroSection />
+          <SocialProofBar />
+          <HowItWorks />
+          <FeatureGrid />
+          <TemplateGallery />
+          <BottomCTA />
+        </main>
+      </SpaceBackground>
+    </Suspense>
   );
 };
 
