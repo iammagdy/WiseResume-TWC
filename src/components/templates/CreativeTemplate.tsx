@@ -17,10 +17,18 @@ export function CreativeTemplate({ resume }: TemplateProps) {
     <div className="flex min-h-full text-xs font-sans">
       {/* Left Sidebar */}
       <aside className="w-1/3 bg-gradient-to-b from-violet-600 to-purple-700 text-white p-5">
-        {/* Large Initials */}
-        <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mb-4 mx-auto">
-          <span className="text-2xl font-bold">{initials}</span>
-        </div>
+        {/* Photo or Initials */}
+        {resume.contactInfo.photoUrl ? (
+          <img
+            src={resume.contactInfo.photoUrl}
+            alt={resume.contactInfo.fullName || 'Profile photo'}
+            className="w-16 h-16 rounded-full object-cover mb-4 mx-auto border-2 border-white/30"
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center mb-4 mx-auto">
+            <span className="text-2xl font-bold">{initials}</span>
+          </div>
+        )}
 
         {/* Contact */}
         <section className="mb-6">
