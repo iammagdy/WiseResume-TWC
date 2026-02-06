@@ -1,32 +1,84 @@
 
-# Add Browser Compatibility Check + Text Input Fallback for Transcription
 
-## Problem
+# Integrate ElevenLabs Real-Time Speech-to-Text (Scribe)
 
-The Web Speech API (`SpeechRecognition`) is not supported in all browsers (e.g., Firefox, Samsung Internet, some WebViews). When unsupported, users see no transcriptions and get no explanation why.
+## Overview
+Replace the browser's Web Speech API with ElevenLabs Scribe (`scribe_v2_realtime`) for reliable, cross-browser speech-to-text during interviews. Users will also be able to configure their own ElevenLabs API key in Settings.
 
-## Solution
+## Changes
 
-### 1. Show a clear warning banner when speech is not supported (`InterviewPage.tsx`)
+### 1. Install dependency
+- Add `@elevenlabs/react` package
 
-When `speechSupported` is `false` and the interview is active:
-- Display a warning banner at the top of the transcript area: "Voice transcription is not available in this browser. Use the text input below to type your answers."
-- Auto-enable the text input mode (`setShowTextInput(true)`) so users can still participate
+### 2. Store the default ElevenLabs API key as a backend secret
+- Use the secret management tool to store `ELEVENLABS_API_KEY` with the provided key `sk_580720e0ed82f3fc3e77f407a7aa8e8df856fd8b0158c674`
 
-### 2. Auto-enable text input fallback (`InterviewPage.tsx`)
+### 3. Create edge function: `supabase/functions/elevenlabs-scribe-token/index.ts`
+- Accepts optional `customApiKey` in the request body
+- If `customApiKey` is provided, uses that; otherwise falls back to the server-side `ELEVENLABS_API_KEY` secret
+- Calls `https://api.elevenlabs.io/v1/single-use-token/realtime_scribe` to generate a single-use token
+- Returns `{ token }` to the client
+- Update `supabase/config.toml` to register the function with `verify_jwt = false`
 
-- In the active phase, if `!speechSupported`, automatically show the text input bar instead of requiring the user to tap the keyboard icon
-- Hide the mic toggle entirely when speech is not supported (no point showing it)
-- The existing `sendTextMessage` flow already works -- just need to surface it automatically
+### 4. Add ElevenLabs API key to settings store (`src/store/settingsStore.ts`)
+- Add `elevenlabsApiKey: string` (default: `''`) and `setElevenlabsApiKey` action
+- Persisted in localStorage so users keep their key across sessions
 
-### 3. Improve the setup screen warning (`InterviewSetup.tsx`)
+### 5. Add API key input to Settings page (`src/pages/SettingsPage.tsx`)
+- Add an "INTEGRATIONS" section with a row for "ElevenLabs API Key"
+- Tapping opens a sheet/dialog with a password input field to enter/clear the key
+- Show a checkmark if a key is configured
 
-- The setup screen already has a `speechSupported` prop -- enhance the existing warning to be more prominent and suggest using a Chrome-based browser for the best experience
-- Add a note that text-based interview mode is available as fallback
+### 6. Create new component: `src/components/settings/ElevenLabsKeySheet.tsx`
+- Bottom sheet with a password input for the API key
+- Save/Clear buttons
 
-## Files Changed (2)
+### 7. Rewrite speech recognition in `src/hooks/useVoiceInterview.ts`
+- Import `useScribe` from `@elevenlabs/react` is not possible in a non-component hook, so instead use the ElevenLabs WebSocket API directly or create a custom hook
+- Actually, since `useScribe` is a React hook, we'll create a new custom hook `src/hooks/useElevenLabsScribe.ts` that:
+  - Fetches a scribe token from the edge function (passing custom API key if set)
+  - Opens a WebSocket to ElevenLabs realtime scribe endpoint
+  - Captures microphone audio via `MediaRecorder` / `AudioWorklet`
+  - Sends audio chunks over WebSocket
+  - Receives partial and committed transcripts
+  - Exposes: `connect()`, `disconnect()`, `isConnected`, `partialTranscript`, `committedText`
+- Update `useVoiceInterview.ts`:
+  - Remove all `SpeechRecognition` / `webkitSpeechRecognition` code
+  - Set `speechSupported` to `true` always (Scribe works everywhere with mic access)
+  - In `startListening`: call scribe `connect()`, stream mic audio
+  - On committed transcript: accumulate text in `finalTextRef`, apply silence timeout logic
+  - In `stopListening`: call scribe `disconnect()`, process accumulated text
+  - Remove the browser compatibility warning since Scribe is cross-browser
 
-| File | Change |
+### 8. Update `InterviewSetup.tsx`
+- Remove the "Voice transcription is not available" warning (no longer needed)
+- Keep the text input fallback for users who simply prefer typing
+
+### 9. Update `InterviewPage.tsx`
+- Remove the speech-unsupported alert banner
+- Keep text input toggle as an optional convenience
+
+## Technical Details
+
+### ElevenLabs Scribe WebSocket Protocol
+- Connect to: `wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&language_code=en`
+- Auth: Send token in initial message or via query param
+- Audio format: PCM 16-bit, 16kHz mono
+- Commit strategy: VAD (voice activity detection) for automatic segmentation
+- Events: `partial_transcript`, `committed_transcript`
+
+### File Summary
+
+| File | Action |
 |------|--------|
-| `src/pages/InterviewPage.tsx` | Add unsupported-browser banner in active phase, auto-show text input when speech unavailable, hide mic toggle when unsupported |
-| `src/components/interview/InterviewSetup.tsx` | Enhance the speech-not-supported warning with browser recommendation |
+| `package.json` | Add `@elevenlabs/react` |
+| `supabase/functions/elevenlabs-scribe-token/index.ts` | New edge function for token generation |
+| `supabase/config.toml` | Register new function |
+| `src/hooks/useElevenLabsScribe.ts` | New hook wrapping ElevenLabs Scribe WebSocket |
+| `src/hooks/useVoiceInterview.ts` | Replace Web Speech API with ElevenLabs Scribe |
+| `src/store/settingsStore.ts` | Add `elevenlabsApiKey` setting |
+| `src/components/settings/ElevenLabsKeySheet.tsx` | New settings sheet for API key |
+| `src/pages/SettingsPage.tsx` | Add Integrations section with ElevenLabs key row |
+| `src/components/interview/InterviewSetup.tsx` | Remove browser compatibility warning |
+| `src/pages/InterviewPage.tsx` | Remove speech-unsupported banner |
+
