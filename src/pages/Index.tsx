@@ -104,14 +104,14 @@ const Index = () => {
       <MobileLayout>
         <div className="min-h-full flex flex-col">
           {/* App Header */}
-          <header className="pt-safe pt-6 pb-4 px-4">
+          <header className="pt-safe pt-6 pb-6 px-4 flex flex-col items-center">
             <AppLogo size="md" />
           </header>
 
           {/* Returning User Dashboard */}
           <div className="flex-1 flex flex-col px-4 pb-safe">
             {/* Current Resume Card */}
-            <section className="mb-6">
+            <section className="mb-8">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">
                 Continue where you left off
               </h2>
@@ -126,11 +126,10 @@ const Index = () => {
             </section>
 
             {/* AI Actions */}
-            <section className="mb-6">
+            <section className="mb-8">
               <h2 className="text-sm font-medium text-muted-foreground mb-3">
                 AI-Powered Actions
               </h2>
-              <div className="grid grid-cols-2 gap-3">
               <Suspense fallback={<ActionCardsGridSkeleton />}>
                 <div className="grid grid-cols-2 gap-3">
                   <ActionCard
@@ -147,7 +146,6 @@ const Index = () => {
                   />
                 </div>
               </Suspense>
-              </div>
             </section>
 
             {/* Create New */}
