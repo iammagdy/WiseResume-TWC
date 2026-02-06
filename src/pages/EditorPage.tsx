@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, ChevronRight, Check, Cloud, CloudOff, Palette } from 'lucide-react';
+import { Download, ChevronRight, Check, Cloud, CloudOff } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,6 +30,7 @@ export default function EditorPage() {
     currentResumeId,
     matchScore, 
     jobDescription,
+    selectedTemplate,
     isSaving,
     setIsSaving,
     setLastSavedAt,
@@ -273,22 +274,12 @@ export default function EditorPage() {
         <AIAssistantBar
           matchScore={matchScore}
           jobDescription={jobDescription}
+          currentTemplate={selectedTemplate}
+          onChangeTemplate={() => setShowTemplates(true)}
           onTailor={() => setShowTailor(true)}
           onAnalyze={() => setShowJobSheet(true)}
           onImprove={handleImproveSection}
         />
-
-        {/* Template Button - Floating */}
-        <motion.button
-          onClick={() => setShowTemplates(true)}
-          className="fixed bottom-[88px] right-4 z-40 w-12 h-12 rounded-full bg-muted border border-border flex items-center justify-center shadow-lg"
-          whileTap={{ scale: 0.95 }}
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Palette className="w-5 h-5 text-muted-foreground" />
-        </motion.button>
 
         {/* Bottom Action Bar - positioned above AI Assistant */}
         <motion.div
