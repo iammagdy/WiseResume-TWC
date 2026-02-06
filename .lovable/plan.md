@@ -1,133 +1,84 @@
 
 
-# AI Mock Interview - Voice Chat Feature
+# Overhaul AI Interview: "Wise AI" Branding, Futuristic UI, and Speech Fix
 
 ## Overview
 
-Add a new "Interview" page with an interactive AI voice interview experience. The AI acts as an interviewer, asking questions based on the user's resume and/or a target job description. The UI features a central animated toggle button, a live transcript area, and session controls.
+Three major improvements to the interview feature:
+1. Rename the AI interviewer to **"Wise AI"** everywhere
+2. Redesign the entire interview UI with a **futuristic, space-themed glassmorphism** look
+3. Fix the **speech recognition bug** where user speech is lost on stop
 
 ---
 
-## Architecture
+## 1. Speech Recognition Bug Fix
 
-The feature uses **Lovable AI** (already configured with `LOVABLE_API_KEY`) for generating interview questions and evaluating answers, plus the **Web Speech API** (built into browsers) for speech-to-text and text-to-speech -- no additional API keys needed.
+### Root Cause
+In `useVoiceInterview.ts`, `stopListening` reads `interimText` from a stale closure. When the browser promotes interim text to a final result, `interimText` becomes empty, so `userText` is always empty and the AI is never called.
 
-```text
-+------------------+       +---------------------+       +------------------+
-|   Browser STT    | ----> |  Edge Function      | ----> |  Lovable AI      |
-| (Web Speech API) |       | (interview-chat)    |       | (Gemini Flash)   |
-+------------------+       +---------------------+       +------------------+
-        ^                          |
-        |                          v
-+------------------+       +---------------------+
-|   Browser TTS    | <---- |  React Interview    |
-| (speechSynthesis)|       |  Page Component     |
-+------------------+       +---------------------+
-```
+### Fix
+- Add `finalTextRef` (useRef) to accumulate all final transcript segments from `onresult`
+- Add `isListeningRef` to track listening intent and auto-restart recognition on browser silence timeout (`onend`)
+- In `stopListening`, use `finalTextRef.current` instead of stale `interimText`
+- Clear `finalTextRef` after collecting the text
 
 ---
 
-## New Files
+## 2. Branding: Rename to "Wise AI"
 
-### 1. Edge Function: `supabase/functions/interview-chat/index.ts`
-
-- Accepts: `messages` array, `resumeData` (user's CV), optional `jobDescription`
-- System prompt instructs AI to act as a professional interviewer
-- Uses Lovable AI gateway (non-streaming for simpler turn-based conversation)
-- Returns the interviewer's next question/response as JSON
-
-### 2. Page: `src/pages/InterviewPage.tsx`
-
-- Full-screen mobile layout with header "AI Interview"
-- Central animated microphone toggle (large, pulsing when active)
-- Transcript area showing conversation history (scrollable)
-- Mode selector: "General" (based on CV) or "Job-Targeted" (paste job description)
-- End interview button that shows a summary/feedback
-
-### 3. Hook: `src/hooks/useVoiceInterview.ts`
-
-- Manages Web Speech API (`SpeechRecognition` for STT, `speechSynthesis` for TTS)
-- Handles conversation state (messages array)
-- Calls the edge function for AI responses
-- Manages recording state, speaking state, errors
-
-### 4. Component: `src/components/interview/InterviewToggle.tsx`
-
-- Large circular button in center of screen
-- Animated states: idle, listening (pulsing rings), AI thinking (spinner), AI speaking (waveform)
-- Tap to start/stop listening
-
-### 5. Component: `src/components/interview/TranscriptBubble.tsx`
-
-- Chat-style bubbles for user (right) and interviewer (left)
-- Displays speaker label and text
-
-### 6. Component: `src/components/interview/InterviewSetup.tsx`
-
-- Pre-interview screen to choose mode
-- Option to paste a job description for targeted questions
-- Start button
+| File | Change |
+|------|--------|
+| `supabase/functions/interview-chat/index.ts` | System prompt: "You are **Wise AI**, the intelligent interview coach powered by WiseResume..." |
+| `src/components/interview/TranscriptBubble.tsx` | Label: "Interviewer" -> "Wise AI" |
+| `src/components/interview/InterviewSetup.tsx` | Title: "AI Mock Interview" -> "Wise AI Interview", description references Wise AI |
+| `src/pages/InterviewPage.tsx` | Headers: "AI Interview" / "Mock Interview" -> "Wise AI Interview" |
+| `src/components/interview/InterviewSummary.tsx` | Title: "Interview Complete" -> "Wise AI Summary", add "Powered by Wise AI" footer |
 
 ---
 
-## Changes to Existing Files
+## 3. Futuristic UI Redesign
 
-### `src/App.tsx`
-- Add route: `/interview` pointing to `InterviewPage`
+### InterviewSetup.tsx
+- Dark gradient background with subtle cosmic radial gradients
+- Glassmorphism cards (backdrop-blur, semi-transparent borders with glow)
+- Animated glowing orb icon instead of plain mic circle
+- "Powered by Wise AI" badge with cyan glow
+- Gradient "Launch Interview" button
 
-### `src/components/layout/BottomTabBar.tsx`
-- Add "Interview" tab with `Mic` icon between Editor and New tabs
+### InterviewToggle.tsx
+- Multi-layered glowing orb with rotating gradient ring
+- State-dependent effects:
+  - **Idle**: Subtle breathing glow (cyan/purple)
+  - **Listening**: Expanding pulsing cyan rings with inner glow
+  - **Thinking**: Rotating gradient ring with spinner
+  - **Speaking**: Green/teal wave rings
+- Larger size, glassmorphism inner circle
+
+### InterviewPage.tsx (Active Interview)
+- Dark space gradient background instead of plain white
+- Glassmorphism header bar with frosted effect
+- Glowing timer display
+- Frosted glass control bar at bottom
+- Subtle background gradient on transcript area
+
+### TranscriptBubble.tsx
+- Wise AI bubbles: dark glass with cyan border glow, "Wise AI" label with small icon indicator
+- User bubbles: gradient primary with subtle glow effect
+
+### InterviewSummary.tsx
+- Glowing score/award display with gradient text
+- Glassmorphism feedback card
+- "Powered by Wise AI" footer with glow
+- Space-themed gradient background
 
 ---
 
-## UI Design (Mobile-First)
+## Files Changed (7 total)
 
-### Interview Setup Screen
-- Card with two options: "General Interview" / "Job-Targeted Interview"
-- If job-targeted: text area for job description
-- "Start Interview" button
-
-### Active Interview Screen
-- Top: Timer showing interview duration
-- Middle: Large pulsing microphone toggle button (the centerpiece)
-  - Gray ring = idle
-  - Blue pulsing rings = listening to user
-  - Spinning dots = AI thinking
-  - Green waves = AI speaking
-- Below toggle: Scrollable transcript with chat bubbles
-- Bottom: "End Interview" button
-
-### Post-Interview Summary
-- Overall performance score
-- Strengths identified
-- Areas to improve
-- Option to save or share
-
----
-
-## Technical Details
-
-### Web Speech API (no extra dependencies)
-- `SpeechRecognition` / `webkitSpeechRecognition` for voice input
-- `window.speechSynthesis` for AI voice output
-- Fallback: text-only mode if speech APIs unavailable
-
-### Edge Function System Prompt
-The AI interviewer will:
-- Ask one question at a time
-- Start with an introduction
-- Cover behavioral, technical, and situational questions
-- Adapt questions based on the resume content
-- If job-targeted, focus on job-specific requirements
-- Provide brief feedback after each answer
-- End with a summary when requested
-
-### Conversation Flow
-1. User taps "Start Interview"
-2. AI introduces itself and asks first question (spoken via TTS)
-3. User taps microphone, speaks answer (captured via STT)
-4. User taps again to stop, answer sent to AI
-5. AI responds with feedback + next question
-6. Repeat until user taps "End Interview"
-7. AI provides final summary/score
-
+1. `src/hooks/useVoiceInterview.ts` -- Speech bug fix (finalTextRef, isListeningRef, auto-restart)
+2. `supabase/functions/interview-chat/index.ts` -- "Wise AI" system prompt
+3. `src/components/interview/InterviewSetup.tsx` -- Full redesign + branding
+4. `src/components/interview/InterviewToggle.tsx` -- Futuristic glowing orb
+5. `src/components/interview/TranscriptBubble.tsx` -- Glass bubbles + "Wise AI" label
+6. `src/components/interview/InterviewSummary.tsx` -- Redesign + branding
+7. `src/pages/InterviewPage.tsx` -- Space background, glass header/controls, branding
