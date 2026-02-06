@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -51,7 +52,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
   return Math.round((filled / fields.length) * 100);
 }
 
-export function useProfile(userId: string | undefined) {
+export function useProfile(userId: string | undefined, user?: User | null) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -62,56 +63,102 @@ export function useProfile(userId: string | undefined) {
     }
 
     const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed')
-        .eq('user_id', userId)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed')
+          .eq('user_id', userId)
+          .maybeSingle();
 
-      if (data) {
-        setProfile({
-          fullName: data.full_name,
-          avatarUrl: data.avatar_url,
-          jobTitle: data.job_title,
-          industry: data.industry,
-          careerLevel: data.career_level as CareerLevel | null,
-          location: data.location,
-          linkedinUrl: data.linkedin_url,
-          profileCompleted: data.profile_completed ?? false,
-        });
+        if (error) {
+          console.error('Error fetching profile:', error);
+          setLoading(false);
+          return;
+        }
+
+        if (data) {
+          // Profile exists, use it
+          setProfile({
+            fullName: data.full_name,
+            avatarUrl: data.avatar_url,
+            jobTitle: data.job_title,
+            industry: data.industry,
+            careerLevel: data.career_level as CareerLevel | null,
+            location: data.location,
+            linkedinUrl: data.linkedin_url,
+            profileCompleted: data.profile_completed ?? false,
+          });
+        } else {
+          // No profile exists - create one with OAuth metadata
+          const defaultFullName = user?.user_metadata?.full_name || user?.user_metadata?.name || null;
+          const defaultAvatarUrl = user?.user_metadata?.avatar_url || null;
+
+          const defaultProfile: Profile = {
+            fullName: defaultFullName,
+            avatarUrl: defaultAvatarUrl,
+            jobTitle: null,
+            industry: null,
+            careerLevel: null,
+            location: null,
+            linkedinUrl: null,
+            profileCompleted: false,
+          };
+
+          // Create the row via upsert
+          const { error: upsertError } = await supabase.from('profiles').upsert(
+            {
+              user_id: userId,
+              full_name: defaultFullName,
+              avatar_url: defaultAvatarUrl,
+            },
+            { onConflict: 'user_id' }
+          );
+
+          if (upsertError) {
+            console.error('Error creating profile:', upsertError);
+          }
+
+          setProfile(defaultProfile);
+        }
+      } catch (err) {
+        console.error('Unexpected error fetching profile:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchProfile();
-  }, [userId]);
+  }, [userId, user]);
 
   const updateProfile = useCallback(async (updates: Partial<Profile>) => {
     if (!userId) return;
 
-    const dbUpdates: Record<string, unknown> = {};
-    if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
-    if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
-    if (updates.jobTitle !== undefined) dbUpdates.job_title = updates.jobTitle;
-    if (updates.industry !== undefined) dbUpdates.industry = updates.industry;
-    if (updates.careerLevel !== undefined) dbUpdates.career_level = updates.careerLevel;
-    if (updates.location !== undefined) dbUpdates.location = updates.location;
-    if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
-    if (updates.profileCompleted !== undefined) dbUpdates.profile_completed = updates.profileCompleted;
+    // Build database updates object with user_id for upsert
+    const dbUpdates = {
+      user_id: userId,
+      full_name: updates.fullName !== undefined ? updates.fullName : profile?.fullName ?? null,
+      avatar_url: updates.avatarUrl !== undefined ? updates.avatarUrl : profile?.avatarUrl ?? null,
+      job_title: updates.jobTitle !== undefined ? updates.jobTitle : profile?.jobTitle ?? null,
+      industry: updates.industry !== undefined ? updates.industry : profile?.industry ?? null,
+      career_level: updates.careerLevel !== undefined ? updates.careerLevel : profile?.careerLevel ?? null,
+      location: updates.location !== undefined ? updates.location : profile?.location ?? null,
+      linkedin_url: updates.linkedinUrl !== undefined ? updates.linkedinUrl : profile?.linkedinUrl ?? null,
+      profile_completed: updates.profileCompleted !== undefined ? updates.profileCompleted : profile?.profileCompleted ?? false,
+    };
 
+    // Use UPSERT instead of UPDATE to ensure row exists
     const { error } = await supabase
       .from('profiles')
-      .update(dbUpdates)
-      .eq('user_id', userId);
+      .upsert(dbUpdates, { onConflict: 'user_id' });
 
     if (error) {
       toast.error('Failed to update profile');
       throw error;
     }
 
-    setProfile((prev) => prev ? { ...prev, ...updates } : null);
+    setProfile((prev) => prev ? { ...prev, ...updates } : (updates as Profile));
     toast.success('Profile updated successfully');
-  }, [userId]);
+  }, [userId, profile]);
 
   return { profile, loading, updateProfile };
 }

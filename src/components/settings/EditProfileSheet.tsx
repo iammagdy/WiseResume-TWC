@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download } from 'lucide-react';
+import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download, X } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -155,6 +155,33 @@ export function EditProfileSheet({
     } finally {
       setIsUploading(false);
       setSelectedImageFile(null);
+    }
+  };
+
+  // Handle removing avatar
+  const handleRemoveAvatar = async () => {
+    if (!userId || !avatarUrl) return;
+    
+    setIsUploading(true);
+    try {
+      // Try to delete from storage
+      const fileName = `${userId}/avatar.png`;
+      await supabase.storage.from('avatars').remove([fileName]);
+      
+      // Clear local state
+      setAvatarUrl('');
+      
+      // Save null to database
+      await onSave({ avatarUrl: null });
+      
+      haptics.success();
+      toast.success('Avatar removed');
+    } catch (error) {
+      console.error('Error removing avatar:', error);
+      haptics.error();
+      toast.error('Failed to remove avatar');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -318,6 +345,7 @@ export function EditProfileSheet({
                     {getInitials()}
                   </AvatarFallback>
                 </Avatar>
+                {/* Camera button to upload */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -330,6 +358,17 @@ export function EditProfileSheet({
                     <Camera className="w-4 h-4" />
                   )}
                 </button>
+                {/* Remove avatar button - only show when avatar exists */}
+                {avatarUrl && !isUploading && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveAvatar}
+                    className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center border-2 border-background hover:bg-destructive/90 transition-colors"
+                    title="Remove avatar"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -338,7 +377,9 @@ export function EditProfileSheet({
                   className="hidden"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">Tap the camera to upload</p>
+              <p className="text-xs text-muted-foreground">
+                {avatarUrl ? 'Tap camera to change, X to remove' : 'Tap the camera to upload'}
+              </p>
             </div>
 
             {/* Basic Info Section */}
