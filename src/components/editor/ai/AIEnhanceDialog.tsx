@@ -2,7 +2,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface AIEnhanceDialogProps {
   isOpen: boolean;
@@ -33,18 +32,18 @@ export function AIEnhanceDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4"
         onClick={onDiscard}
       >
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
-          className="w-full max-w-lg max-h-[85vh] bg-card rounded-2xl shadow-2xl border border-border overflow-hidden"
+          className="w-full max-w-lg max-h-[85vh] bg-card rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="shrink-0 flex items-center justify-between p-4 border-b border-border">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-lg bg-primary/10">
                 <Sparkles className="w-5 h-5 text-primary" />
@@ -57,7 +56,7 @@ export function AIEnhanceDialog({
           </div>
 
           {/* Content */}
-          <ScrollArea className="max-h-[50vh] p-4 space-y-4">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
             {/* Original vs Improved */}
             <div className="space-y-3">
               <div>
@@ -104,10 +103,10 @@ export function AIEnhanceDialog({
                 </ul>
               </div>
             )}
-          </ScrollArea>
+          </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 p-4 border-t border-border">
+          <div className="shrink-0 flex flex-col sm:flex-row gap-3 p-4 pb-safe border-t border-border">
             <Button
               variant="outline"
               size="lg"
