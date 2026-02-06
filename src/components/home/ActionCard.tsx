@@ -24,9 +24,9 @@ export function ActionCard({
       className={cn(
         'flex flex-col items-start p-4 rounded-2xl text-left transition-all duration-300 min-h-[120px]',
         'touch-manipulation active:scale-[0.98]',
-        variant === 'default' && 'glass-card hover:border-primary/40 glow-subtle-hover',
-        variant === 'primary' && 'gradient-primary text-primary-foreground glow-primary',
-        variant === 'secondary' && 'bg-secondary text-secondary-foreground',
+        variant === 'default' && 'glass-elevated border-glow hover:scale-[1.02]',
+        variant === 'primary' && 'gradient-primary text-primary-foreground shadow-[0_0_32px_-8px_hsl(var(--primary)/0.5)]',
+        variant === 'secondary' && 'glass-surface text-secondary-foreground',
         className
       )}
       whileTap={{ scale: 0.98 }}
@@ -35,9 +35,9 @@ export function ActionCard({
       <div
         className={cn(
           'w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-all duration-300',
-          variant === 'default' && 'bg-primary/10 group-hover:bg-primary/20',
+          variant === 'default' && 'icon-glow',
           variant === 'primary' && 'bg-white/20',
-          variant === 'secondary' && 'bg-primary/10'
+          variant === 'secondary' && 'icon-glow'
         )}
       >
         <Icon

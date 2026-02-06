@@ -218,17 +218,142 @@
                 0 0 80px hsl(var(--accent) / 0.2);
   }
 
+  /* Enhanced Glass System */
   .glass {
-    background: hsl(var(--card) / 0.8);
+    background: hsl(var(--card) / 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+    border: 1px solid hsl(var(--border) / 0.3);
   }
 
   .glass-card {
+    background: hsl(var(--card) / 0.5);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--border) / 0.4);
+    box-shadow: 
+      0 4px 24px -4px hsl(var(--primary) / 0.08),
+      inset 0 1px 0 hsl(var(--foreground) / 0.04);
+  }
+
+  .glass-surface {
     background: hsl(var(--card) / 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid hsl(var(--border) / 0.5);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid hsl(var(--border) / 0.3);
+  }
+
+  .glass-elevated {
+    background: hsl(var(--card) / 0.5);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid hsl(var(--border) / 0.25);
+    box-shadow: 
+      0 8px 32px -8px hsl(var(--primary) / 0.12),
+      0 0 0 1px hsl(var(--foreground) / 0.02),
+      inset 0 1px 0 hsl(var(--foreground) / 0.05);
+  }
+
+  .glass-input {
+    background: hsl(var(--input) / 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid hsl(var(--border) / 0.4);
+    transition: all 0.2s ease;
+  }
+
+  .glass-input:focus,
+  .glass-input:focus-within {
+    border-color: hsl(var(--primary) / 0.5);
+    box-shadow: 
+      0 0 0 3px hsl(var(--primary) / 0.15),
+      0 0 20px -4px hsl(var(--primary) / 0.2);
+  }
+
+  .glass-header {
+    background: hsl(var(--background) / 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid hsl(var(--border) / 0.5);
+    box-shadow: 
+      0 4px 24px -4px hsl(var(--background) / 0.5),
+      0 1px 0 hsl(var(--primary) / 0.05);
+  }
+
+  /* Border glow effect for interactive elements */
+  .border-glow {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .border-glow::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.4),
+      hsl(var(--secondary) / 0.3),
+      hsl(var(--accent) / 0.2),
+      transparent
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .border-glow:hover::before,
+  .border-glow:focus-visible::before {
+    opacity: 1;
+  }
+
+  /* Glow focus ring */
+  .glow-ring-focus:focus-visible {
+    outline: none;
+    box-shadow: 
+      0 0 0 2px hsl(var(--background)),
+      0 0 0 4px hsl(var(--primary) / 0.5),
+      0 0 24px -4px hsl(var(--primary) / 0.4);
+  }
+
+  /* Floating shadow effect */
+  .float-shadow {
+    box-shadow: 
+      0 12px 40px -12px hsl(var(--primary) / 0.25),
+      0 0 60px -30px hsl(var(--accent) / 0.15);
+  }
+
+  /* Inner glow for depth */
+  .inner-glow {
+    box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.08);
+  }
+
+  /* Icon glow container */
+  .icon-glow {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--primary) / 0.15),
+      hsl(var(--primary) / 0.05)
+    );
+    box-shadow: 
+      0 0 20px -4px hsl(var(--primary) / 0.2),
+      inset 0 1px 0 hsl(var(--foreground) / 0.05);
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 40px hsl(var(--primary) / 0.4),
+                0 0 80px hsl(var(--primary) / 0.2);
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 40px hsl(var(--accent) / 0.4),
+                0 0 80px hsl(var(--accent) / 0.2);
   }
 
   .glow-subtle {
@@ -236,8 +361,9 @@
   }
 
   .glow-subtle-hover:hover {
-    box-shadow: 0 0 30px hsl(var(--primary) / 0.15);
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.2);
   }
+
   .touch-manipulation {
     touch-action: manipulation;
   }

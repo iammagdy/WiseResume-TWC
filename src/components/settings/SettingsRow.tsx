@@ -41,13 +41,14 @@ export function SettingsRow(props: SettingsRowProps) {
   if (props.type === 'toggle') {
     return (
       <div className={cn(
-        'flex items-center justify-between py-3 px-4 min-h-[52px]',
+        'flex items-center justify-between py-3.5 px-4 min-h-[56px]',
+        'transition-colors',
          props.disabled && 'opacity-50',
         className
       )}>
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {icon && (
-            <div className="text-muted-foreground flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary flex-shrink-0">
               {icon}
             </div>
           )}
@@ -80,14 +81,14 @@ export function SettingsRow(props: SettingsRowProps) {
           props.onClick();
         }}
         className={cn(
-          'flex items-center justify-between py-3 px-4 w-full min-h-[52px]',
-          'text-left active:bg-muted/50 transition-colors touch-manipulation',
+          'flex items-center justify-between py-3.5 px-4 w-full min-h-[56px]',
+          'text-left hover:bg-muted/30 active:bg-muted/50 transition-colors touch-manipulation',
           className
         )}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {icon && (
-            <div className="text-muted-foreground flex-shrink-0">
+            <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary flex-shrink-0">
               {icon}
             </div>
           )}
@@ -120,14 +121,17 @@ export function SettingsRow(props: SettingsRowProps) {
         props.onClick();
       }}
       className={cn(
-        'flex items-center gap-3 py-3 px-4 w-full min-h-[52px]',
-        'text-left active:bg-muted/50 transition-colors touch-manipulation',
+        'flex items-center gap-3 py-3.5 px-4 w-full min-h-[56px]',
+        'text-left hover:bg-muted/30 active:bg-muted/50 transition-colors touch-manipulation',
         props.destructive && 'text-destructive',
         className
       )}
     >
       {icon && (
-        <div className={cn('flex-shrink-0', !props.destructive && 'text-muted-foreground')}>
+        <div className={cn(
+          'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
+          props.destructive ? 'bg-destructive/10 text-destructive' : 'icon-glow text-primary'
+        )}>
           {icon}
         </div>
       )}

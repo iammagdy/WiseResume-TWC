@@ -70,7 +70,8 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     <nav
       className={cn(
         'fixed bottom-0 left-0 right-0 z-50',
-        'glass border-t border-border pb-safe',
+        'glass-surface border-t border-border/30 pb-safe',
+        'shadow-[0_-4px_32px_-4px_hsl(var(--background)/0.8)]',
         className
       )}
     >
@@ -85,28 +86,33 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               onClick={() => handleTabPress(tab)}
               className={cn(
                 'flex flex-col items-center justify-center gap-1 flex-1 h-full',
-                'touch-manipulation active:scale-95 transition-transform',
+                'touch-manipulation active:scale-95 transition-all',
                 'min-w-[64px]'
               )}
             >
               <div className="relative">
-                <Icon
-                  className={cn(
-                    'w-6 h-6 transition-colors',
-                    active ? 'text-primary' : 'text-muted-foreground'
-                  )}
-                />
+                <div className={cn(
+                  'p-2 rounded-xl transition-all',
+                  active && 'bg-primary/15 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.4)]'
+                )}>
+                  <Icon
+                    className={cn(
+                      'w-5 h-5 transition-colors',
+                      active ? 'text-primary' : 'text-muted-foreground'
+                    )}
+                  />
+                </div>
                 {active && (
                   <motion.div
                     layoutId="tab-indicator"
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]"
                     transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                   />
                 )}
               </div>
               <span
                 className={cn(
-                  'text-xs font-medium transition-colors',
+                  'text-[10px] font-medium transition-colors',
                   active ? 'text-primary' : 'text-muted-foreground'
                 )}
               >

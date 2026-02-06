@@ -171,7 +171,7 @@ export default function SettingsPage() {
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="pt-safe pt-4 pb-3 px-4 border-b border-border">
+        <header className="pt-safe pt-4 pb-3 px-4 glass-header">
           <h1 className="text-xl font-bold">Settings</h1>
         </header>
 
@@ -179,7 +179,7 @@ export default function SettingsPage() {
           {/* Profile Section - Tappable */}
           <button
             onClick={handleOpenEditProfile}
-            className="w-full flex items-center gap-4 p-4 rounded-xl bg-card border border-border text-left active:scale-[0.98] transition-transform touch-manipulation"
+            className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
           >
             <Avatar className="h-14 w-14">
               <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
@@ -214,20 +214,22 @@ export default function SettingsPage() {
 
           {/* Appearance Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              APPEARANCE
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Appearance
             </h2>
-            <div className="p-4 rounded-xl bg-card border border-border">
+            <div className="p-4 rounded-2xl glass-elevated">
               <ThemeToggle className="w-full justify-center" />
             </div>
           </div>
 
           {/* Editor Preferences Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              EDITOR PREFERENCES
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Editor Preferences
             </h2>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="navigation"
                 label="Default Template"
@@ -235,7 +237,7 @@ export default function SettingsPage() {
                 icon={<FileSliders className="w-4 h-4" />}
                 onClick={() => setTemplateSheetOpen(true)}
               />
-              <Separator />
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="navigation"
                 label="PDF Export Settings"
@@ -247,10 +249,11 @@ export default function SettingsPage() {
 
           {/* Notifications Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              NOTIFICATIONS
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Notifications
             </h2>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="toggle"
                 label="Auto-save Toasts"
@@ -259,7 +262,7 @@ export default function SettingsPage() {
                 checked={showAutoSaveToasts}
                 onCheckedChange={setShowAutoSaveToasts}
               />
-              <Separator />
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="toggle"
                 label="AI Enhancement Tips"
@@ -273,10 +276,11 @@ export default function SettingsPage() {
 
           {/* Data & Export Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              DATA & EXPORT
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Data & Export
             </h2>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="navigation"
                 label="Export Resumes"
@@ -289,10 +293,11 @@ export default function SettingsPage() {
 
           {/* Privacy Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              PRIVACY
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Privacy
             </h2>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="toggle"
                 label="Biometric Lock"
@@ -308,7 +313,7 @@ export default function SettingsPage() {
               />
               {biometricLockEnabled && biometricAvailable && (
                 <>
-                  <Separator />
+                  <Separator className="bg-border/30" />
                   <SettingsRow
                     type="navigation"
                     label="Require Authentication After"
@@ -322,7 +327,7 @@ export default function SettingsPage() {
                   />
                 </>
               )}
-              <Separator />
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="toggle"
                 label="Local-Only Mode"
@@ -331,7 +336,7 @@ export default function SettingsPage() {
                 checked={localOnlyMode}
                 onCheckedChange={setLocalOnlyMode}
               />
-              <Separator />
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="toggle"
                 label="Analytics"
@@ -345,10 +350,11 @@ export default function SettingsPage() {
 
           {/* Integrations Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              INTEGRATIONS
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Integrations
             </h2>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="navigation"
                 label="ElevenLabs API Key"
@@ -362,17 +368,18 @@ export default function SettingsPage() {
 
           {/* Account Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              ACCOUNT
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Account
             </h2>
-            <div className="rounded-xl bg-card border border-border overflow-hidden">
+            <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="button"
                 label="Reset Onboarding"
                 icon={<RotateCcw className="w-4 h-4" />}
                 onClick={handleResetOnboarding}
               />
-              <Separator />
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="button"
                 label="Delete All Data"
@@ -380,7 +387,7 @@ export default function SettingsPage() {
                 onClick={() => setDeleteDialogOpen(true)}
                 destructive
               />
-              <Separator />
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="button"
                 label="Sign Out"
@@ -393,12 +400,15 @@ export default function SettingsPage() {
 
           {/* About Section */}
           <div>
-            <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
-              ABOUT
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              About
             </h2>
-            <div className="p-4 rounded-xl bg-card border border-border">
+            <div className="p-4 rounded-2xl glass-elevated">
               <div className="flex items-center gap-3">
-                <Info className="w-4 h-4 text-muted-foreground" />
+                <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
+                  <Info className="w-4 h-4" />
+                </div>
                 <span className="text-sm text-muted-foreground">
                   WiseResume v1.0.0
                 </span>
