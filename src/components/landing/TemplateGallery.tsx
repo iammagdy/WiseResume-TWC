@@ -63,7 +63,7 @@ export function TemplateGallery() {
   const handleScroll = () => {
     if (!scrollRef.current) return;
     const scrollLeft = scrollRef.current.scrollLeft;
-    const itemWidth = scrollRef.current.offsetWidth * 0.6;
+    const itemWidth = scrollRef.current.offsetWidth * 0.75;
     const newIndex = Math.round(scrollLeft / itemWidth);
     setActiveIndex(Math.min(newIndex, templates.length - 1));
   };
@@ -88,7 +88,7 @@ export function TemplateGallery() {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex gap-4 overflow-x-auto snap-x snap-mandatory px-6 pb-6 scrollbar-hide"
+        className="flex gap-6 overflow-x-auto snap-x snap-mandatory px-8 pb-6 scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {templates.map((template, index) => (
@@ -99,8 +99,8 @@ export function TemplateGallery() {
             viewport={{ once: true }}
             transition={{ delay: index * 0.1 }}
             className={cn(
-              'flex-shrink-0 w-[60%] sm:w-[40%] snap-center transition-all duration-300',
-              activeIndex === index ? 'scale-100' : 'scale-95 opacity-60'
+              'flex-shrink-0 w-[75%] min-w-[200px] sm:w-[40%] snap-center transition-all duration-300',
+              activeIndex === index ? 'scale-100' : 'scale-95 opacity-70'
             )}
           >
             <motion.div 
@@ -137,7 +137,7 @@ export function TemplateGallery() {
             key={index}
             onClick={() => {
               if (!scrollRef.current) return;
-              const itemWidth = scrollRef.current.offsetWidth * 0.6;
+              const itemWidth = scrollRef.current.offsetWidth * 0.75;
               scrollRef.current.scrollTo({
                 left: index * itemWidth,
                 behavior: 'smooth',
