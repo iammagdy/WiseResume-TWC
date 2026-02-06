@@ -1,211 +1,102 @@
 
+# Fix Infrastructure Issues for New Templates
 
-# Add More Templates with Clear ATS Indicators
+## Problems Identified
 
-## Overview
+After analyzing the codebase, I found that **PreviewPage.tsx** is missing support for the 5 new templates that were added. This causes:
 
-We'll add **5 new templates** with distinctive designs for different industries and purposes, plus improve the ATS visibility throughout the template selector. Each template will clearly show its ATS compatibility status.
+1. **Template Quick Switcher** (lines 29-37): Only shows 7 templates instead of 12
+2. **TemplateComponent mapping** (lines 308-316): Only maps 7 templates, meaning the new templates won't render in the preview
+3. **Missing template imports** (lines 8-14): New template components are not imported
 
----
+The affected templates are:
+- Compact
+- Academic
+- Healthcare
+- Sales
+- Elegant
 
-## New Templates to Add
-
-| Template | Style | Target Audience | ATS Score | Layout Type |
-|----------|-------|-----------------|-----------|-------------|
-| **Compact** | Dense single-column | Entry-level, internships | High | Linear |
-| **Academic** | Research/CV focused | Professors, researchers | High | Linear |
-| **Healthcare** | Clean medical style | Nurses, doctors, medical staff | High | Linear |
-| **Sales** | Bold metrics-focused | Sales, business development | High | Linear |
-| **Elegant** | Soft colors, refined | Marketing, design, HR | Medium | Linear with accent |
-
----
-
-## Template Design Details
-
-### 1. Compact Template
-- **Description**: "Dense layout maximizing content space"
-- **ATS Score**: High
-- **Style**: Single column, minimal margins, condensed spacing
-- **Best for**: Entry-level candidates with limited experience
-- **Color**: Gray/neutral with minimal accents
-
-### 2. Academic Template  
-- **Description**: "Research-focused CV layout"
-- **ATS Score**: High
-- **Style**: Publications section, research focus, serif fonts
-- **Best for**: Academics, researchers, PhD candidates
-- **Color**: Navy blue accents
-
-### 3. Healthcare Template
-- **Description**: "Clean medical professional layout"
-- **ATS Score**: High
-- **Style**: Clear sections, certification emphasis, clean lines
-- **Best for**: Nurses, doctors, medical professionals
-- **Color**: Teal/medical blue accents
-
-### 4. Sales Template
-- **Description**: "Metrics-driven achievement showcase"
-- **ATS Score**: High
-- **Style**: Big numbers, achievement boxes, bold metrics
-- **Best for**: Sales reps, account managers, business development
-- **Color**: Green/money accents for metrics
-
-### 5. Elegant Template
-- **Description**: "Refined aesthetic with soft accents"
-- **ATS Score**: Medium (uses subtle design elements)
-- **Style**: Soft rounded elements, delicate borders
-- **Best for**: Marketing, HR, creative roles
-- **Color**: Rose/blush pink accents
+When a user selects one of these new templates from the TemplateSelector sheet, the PreviewPage will fail to render it because:
+1. The template won't appear in the quick switcher chips
+2. The `TemplateComponent` lookup will return `undefined`
+3. The page will crash or show nothing
 
 ---
-
-## Enhanced ATS Display
-
-### Current ATS Labels
-- "ATS-Friendly" (high)
-- "Moderate ATS" (medium)  
-- "Low ATS" (low)
-
-### Enhanced Approach
-Add a small info tooltip or expanded description when users tap the ATS badge:
-
-**High ATS**: "Passes 95%+ of automated screening systems"
-**Medium ATS**: "May have parsing issues with some systems"
-**Low ATS**: "Not recommended for online applications"
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/templates/CompactTemplate.tsx` | Dense entry-level template |
-| `src/components/templates/AcademicTemplate.tsx` | Research/CV template |
-| `src/components/templates/HealthcareTemplate.tsx` | Medical professional template |
-| `src/components/templates/SalesTemplate.tsx` | Metrics-focused template |
-| `src/components/templates/ElegantTemplate.tsx` | Refined aesthetic template |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/types/resume.ts` | Add new template IDs to TemplateId type |
-| `src/lib/templateConfig.ts` | Add configs for 5 new templates |
-| `src/components/editor/TemplateSelector.tsx` | Add 5 new templates to list, add ATS tooltip |
-| `src/components/editor/TemplateThumbnail.tsx` | Import and register new templates |
-| `src/components/settings/DefaultTemplateSheet.tsx` | Templates auto-load from config |
+| `src/pages/PreviewPage.tsx` | Add missing imports, update templates array, update TemplateComponent mapping |
 
 ---
 
-## Technical Implementation
+## Technical Changes
 
-### 1. Update TemplateId Type
+### 1. Add Missing Template Imports
+Add imports for the 5 new template components at lines 8-14:
 ```typescript
-export type TemplateId = 
-  | 'modern' | 'classic' | 'minimal' | 'professional' 
-  | 'developer' | 'creative' | 'executive'
-  | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant';
+import { CompactTemplate } from '@/components/templates/CompactTemplate';
+import { AcademicTemplate } from '@/components/templates/AcademicTemplate';
+import { HealthcareTemplate } from '@/components/templates/HealthcareTemplate';
+import { SalesTemplate } from '@/components/templates/SalesTemplate';
+import { ElegantTemplate } from '@/components/templates/ElegantTemplate';
 ```
 
-### 2. Template Config Additions
-Each new template gets a full config entry with:
-- Layout type (all linear for ATS)
-- Page break support
-- Photo support (none for new templates)
-- ATS-focused warnings where relevant
-
-### 3. Template Component Structure
-Each template follows the existing pattern:
+### 2. Update Templates Array (Quick Switcher)
+Expand the templates array at lines 29-37 to include all 12 templates:
 ```typescript
-interface TemplateProps {
-  resume: ResumeData;
-}
-
-export function [Name]Template({ resume }: TemplateProps) {
-  return (
-    <div className="p-8 font-sans text-sm">
-      {/* Header */}
-      {/* Summary */}
-      {/* Experience with data-section="experience" */}
-      {/* Education with data-section="education" */}
-      {/* Skills with data-section="skills" */}
-    </div>
-  );
-}
+const templates: { id: TemplateId; name: string }[] = [
+  { id: 'modern', name: 'Modern' },
+  { id: 'classic', name: 'Classic' },
+  { id: 'minimal', name: 'Minimal' },
+  { id: 'professional', name: 'Professional' },
+  { id: 'developer', name: 'Developer' },
+  { id: 'creative', name: 'Creative' },
+  { id: 'executive', name: 'Executive' },
+  { id: 'compact', name: 'Compact' },
+  { id: 'academic', name: 'Academic' },
+  { id: 'healthcare', name: 'Healthcare' },
+  { id: 'sales', name: 'Sales' },
+  { id: 'elegant', name: 'Elegant' },
+];
 ```
 
-### 4. Career Level Recommendations Update
+### 3. Update TemplateComponent Mapping
+Expand the TemplateComponent record at lines 308-316 to include all 12 templates:
 ```typescript
-const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
-  entry: ['compact', 'modern', 'minimal'],
-  mid: ['modern', 'professional', 'sales', 'healthcare'],
-  senior: ['executive', 'professional', 'elegant'],
-  executive: ['executive', 'elegant', 'academic'],
-};
+const TemplateComponent = {
+  modern: ModernTemplate,
+  classic: ClassicTemplate,
+  minimal: MinimalTemplate,
+  professional: ProfessionalTemplate,
+  developer: DeveloperTemplate,
+  creative: CreativeTemplate,
+  executive: ExecutiveTemplate,
+  compact: CompactTemplate,
+  academic: AcademicTemplate,
+  healthcare: HealthcareTemplate,
+  sales: SalesTemplate,
+  elegant: ElegantTemplate,
+}[selectedTemplate];
 ```
 
 ---
 
-## ATS Information Enhancement
+## Summary of Changes
 
-### Add Tooltip to ATS Badge
-When users tap/hover on the ATS badge, show explanation:
-
-```tsx
-<Tooltip>
-  <TooltipTrigger asChild>
-    <Badge className={atsScoreColors[template.atsScore]}>
-      {atsScoreLabels[template.atsScore]}
-    </Badge>
-  </TooltipTrigger>
-  <TooltipContent>
-    {template.atsScore === 'high' && "Optimized for automated screening - parses correctly in 95%+ of ATS systems"}
-    {template.atsScore === 'medium' && "Some design elements may affect parsing in certain ATS systems"}
-    {template.atsScore === 'low' && "Best for direct submissions - may have issues with automated screening"}
-  </TooltipContent>
-</Tooltip>
-```
+| Location | Before | After |
+|----------|--------|-------|
+| Template imports | 7 templates | 12 templates |
+| Quick switcher array | 7 templates | 12 templates |
+| TemplateComponent mapping | 7 templates | 12 templates |
 
 ---
 
-## Visual Summary
+## Expected Results
 
-**Template Selector After Update:**
-```
-+------------------+  +------------------+
-|   [Compact]      |  |   [Academic]     |
-|  ATS-Friendly ✓  |  |  ATS-Friendly ✓  |
-|  Dense layout    |  |  Research CV     |
-+------------------+  +------------------+
-|  [Healthcare]    |  |    [Sales]       |
-|  ATS-Friendly ✓  |  |  ATS-Friendly ✓  |
-|  Medical style   |  |  Metrics focus   |
-+------------------+  +------------------+
-|   [Elegant]      |  |   [Modern]       |
-|  Moderate ATS ⚠  |  |  ATS-Friendly ✓  |
-|  Soft aesthetic  |  |  Clean design    |
-+------------------+  +------------------+
-... (existing templates)
-```
-
----
-
-## Total Templates After Implementation
-
-| # | Template | ATS | Category |
-|---|----------|-----|----------|
-| 1 | Modern | High | Professional |
-| 2 | Classic | High | Professional |
-| 3 | Minimal | High | Professional |
-| 4 | Professional | High | Professional |
-| 5 | Developer | High | Tech |
-| 6 | Executive | High | Professional |
-| 7 | Creative | Medium | Creative |
-| 8 | **Compact** | High | Professional |
-| 9 | **Academic** | High | Professional |
-| 10 | **Healthcare** | High | Professional |
-| 11 | **Sales** | High | Professional |
-| 12 | **Elegant** | Medium | Creative |
-
-**Total: 12 templates** (10 ATS-Friendly, 2 Moderate ATS)
-
+After these changes:
+1. All 12 templates appear in the quick switcher on the Preview page
+2. Selecting any template renders correctly in the preview area
+3. PDF export works for all 12 templates
+4. No crashes when switching between new and old templates
