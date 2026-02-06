@@ -67,14 +67,14 @@ export function DefaultTemplateSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="pb-4 shrink-0">
           <SheetTitle>Default Template</SheetTitle>
           <p className="text-sm text-muted-foreground">
             New resumes will use this template
           </p>
         </SheetHeader>
 
-        <div className="overflow-y-auto flex-1 pb-6">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-6">
           <div className="grid grid-cols-2 gap-3">
             {Object.values(TEMPLATE_CONFIGS).map((template) => (
               <button

@@ -80,17 +80,17 @@
      }
    };
  
-   return (
-     <Sheet open={open} onOpenChange={handleClose}>
-       <SheetContent side="bottom" className="rounded-t-2xl pb-safe">
-         <SheetHeader className="text-center pb-4">
-           <SheetTitle>Enable {getBiometryName()}</SheetTitle>
-           <SheetDescription>
-             Protect your sensitive resume data
-           </SheetDescription>
-         </SheetHeader>
- 
-         <div className="flex flex-col items-center py-6">
+    return (
+      <Sheet open={open} onOpenChange={handleClose}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-safe">
+          <SheetHeader className="text-center pb-4 shrink-0">
+            <SheetTitle>Enable {getBiometryName()}</SheetTitle>
+            <SheetDescription>
+              Protect your sensitive resume data
+            </SheetDescription>
+          </SheetHeader>
+  
+          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center py-6">
            {/* Icon */}
            <motion.div
              initial={{ scale: 0.8, opacity: 0 }}

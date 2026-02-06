@@ -55,7 +55,15 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
   ({ side = "right", className, children, ...props }, ref) => (
     <SheetPortal>
       <SheetOverlay />
-      <SheetPrimitive.Content ref={ref} className={cn(sheetVariants({ side }), className)} {...props}>
+      <SheetPrimitive.Content 
+        ref={ref} 
+        className={cn(
+          sheetVariants({ side }), 
+          side === "bottom" && "flex flex-col overflow-hidden",
+          className
+        )} 
+        {...props}
+      >
         {/* Drag indicator for bottom sheets */}
         {side === "bottom" && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />

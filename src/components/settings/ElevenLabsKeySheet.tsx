@@ -35,13 +35,13 @@ export function ElevenLabsKeySheet({ open, onOpenChange, currentKey, onSave }: E
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-2xl">
-        <SheetHeader>
+        <SheetHeader className="shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Key className="w-5 h-5 text-primary" />
             ElevenLabs API Key
           </SheetTitle>
         </SheetHeader>
-        <div className="space-y-4 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4">
           <p className="text-sm text-muted-foreground">
             Enter your own ElevenLabs API key for speech-to-text during interviews. Leave empty to use the default key.
           </p>

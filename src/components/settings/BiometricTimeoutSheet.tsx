@@ -38,14 +38,14 @@ export function BiometricTimeoutSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="rounded-t-2xl pb-safe">
-        <SheetHeader className="mb-4">
+        <SheetHeader className="mb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Clock className="w-5 h-5" />
             Require Authentication After
           </SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-2">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
           {TIMEOUT_OPTIONS.map((option) => (
             <button
               key={option.value}

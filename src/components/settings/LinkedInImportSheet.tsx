@@ -209,26 +209,26 @@
      return count;
    };
  
-   return (
-     <Sheet open={open} onOpenChange={onOpenChange}>
-       <SheetContent side="bottom" className="h-[90vh] flex flex-col p-0">
-         <SheetHeader>
-           <div className="px-6 pt-6 pb-4 border-b border-border">
-             <div className="flex items-center gap-3">
-               <div className="w-10 h-10 rounded-full bg-[#0A66C2] flex items-center justify-center">
-                 <Linkedin className="w-5 h-5 text-white" />
-               </div>
-               <div>
-                 <SheetTitle>Import from LinkedIn</SheetTitle>
-                 <SheetDescription>
-                   AI-powered profile extraction
-                 </SheetDescription>
-               </div>
-             </div>
-           </div>
-         </SheetHeader>
- 
-         <ScrollArea className="flex-1 px-6">
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="h-[90vh] p-0">
+          <SheetHeader className="shrink-0">
+            <div className="px-6 pt-6 pb-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0A66C2] flex items-center justify-center">
+                  <Linkedin className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <SheetTitle>Import from LinkedIn</SheetTitle>
+                  <SheetDescription>
+                    AI-powered profile extraction
+                  </SheetDescription>
+                </div>
+              </div>
+            </div>
+          </SheetHeader>
+  
+          <ScrollArea className="flex-1 min-h-0 px-6">
            <AnimatePresence mode="wait">
              {/* Idle State - Instructions & Paste */}
              {parseState === 'idle' && (

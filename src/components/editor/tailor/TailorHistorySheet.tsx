@@ -46,14 +46,14 @@ export function TailorHistorySheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <History className="w-5 h-5 text-primary" />
             Tailor History
           </SheetTitle>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(85vh-140px)] space-y-6 pb-20">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-20">
           {history.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <History className="w-12 h-12 mx-auto mb-4 opacity-30" />
