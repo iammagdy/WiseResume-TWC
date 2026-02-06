@@ -37,7 +37,8 @@ export function ResumeCard({
   return (
     <motion.div
       className={cn(
-        'relative rounded-2xl bg-card border border-border overflow-hidden',
+        'relative rounded-2xl glass-card overflow-hidden glow-subtle-hover transition-all duration-300',
+        'hover:border-primary/30',
         className
       )}
       initial={{ opacity: 0, y: 10 }}
@@ -49,8 +50,8 @@ export function ResumeCard({
         onClick={onContinue}
       >
         {/* Resume icon/preview */}
-        <div className="w-14 h-16 rounded-lg bg-muted flex items-center justify-center shrink-0 border border-border">
-          <FileText className="w-7 h-7 text-muted-foreground" />
+        <div className="w-14 h-16 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20">
+          <FileText className="w-7 h-7 text-primary" />
         </div>
 
         {/* Info */}
