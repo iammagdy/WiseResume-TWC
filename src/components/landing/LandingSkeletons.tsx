@@ -182,14 +182,14 @@ export function TemplateGallerySkeleton() {
       </div>
 
       {/* Template cards */}
-      <div className="flex gap-4 px-6 pb-6 overflow-hidden">
+      <div className="flex gap-6 px-8 pb-6 overflow-hidden">
         {[0, 1, 2].map((index) => (
           <motion.div
             key={index}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: index * 0.1 }}
-            className="flex-shrink-0 w-[60%] sm:w-[40%]"
+            className="flex-shrink-0 w-[75%] min-w-[200px] sm:w-[40%]"
           >
             <Skeleton className="aspect-[3/4] rounded-xl" />
             <div className="text-center mt-4 space-y-2">

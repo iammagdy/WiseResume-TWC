@@ -28,11 +28,24 @@ export function TemplateThumbnail({ templateId, resume }: TemplateThumbnailProps
   const [scale, setScale] = useState(0.15);
 
   useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        // Scale to fit the container (612px is the full-size template width)
+        // Apply a minimum scale to keep text somewhat readable
+        const calculatedScale = containerWidth / 612;
+        setScale(Math.max(calculatedScale, 0.35));
+      }
+    };
+
+    updateScale();
+
+    const resizeObserver = new ResizeObserver(updateScale);
     if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
-      // Scale to fit the container (612px is the full-size template width)
-      setScale(containerWidth / 612);
+      resizeObserver.observe(containerRef.current);
     }
+
+    return () => resizeObserver.disconnect();
   }, []);
 
   const TemplateComponent = templateComponents[templateId];
