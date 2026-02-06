@@ -1,207 +1,284 @@
 
-# AI Studio Enhancement: Personal Career Coach Suite
+# Mobile Flow & Logic Analysis - Issues & Fixes
 
-## Vision
+## Executive Summary
 
-Transform AI Studio from a "tools panel" into a **conversational career advisor** that proactively guides users through their job search journey. Think of it as having a senior career coach who:
-- Does the heavy lifting automatically (Autopilot)
-- Explains insights in encouraging, human language (Personal Coach)
-- Unlocks hidden opportunities no other app shows (Reverse Engineering, Salary Negotiator, Recruiter Simulation)
+After analyzing the entire app architecture for mobile flow and logic, I've identified **8 issues** ranging from critical navigation bugs to UX inconsistencies. The app has a solid foundation with proper safe-area handling, haptic feedback, and native Capacitor integration, but there are several areas that need attention.
 
 ---
 
-## New Features Overview
+## Issues Found
 
-### Feature 1: Recruiter Simulation ("Tough Love Mode")
-**What it does:** AI role-plays as a skeptical recruiter with 15 years of experience, giving brutally honest feedback on your resume - exactly what a real recruiter would think but never say.
+### Issue 1: Hardware Back Button Logic Has Edge Case Bug
+**File:** `src/hooks/useBackButton.ts` (Line 30)  
+**Severity:** Medium
 
-**User Experience:**
-1. User opens AI Studio → taps "Recruiter Simulation"
-2. AI "recruiter" reviews the resume in real-time with personality
-3. Delivers feedback in three categories:
-   - "Red Flags I'd Notice" (dealbreakers)
-   - "Questions I'd Ask" (gaps/concerns)
-   - "What Makes Me Want to Call You" (strengths)
-4. Provides a "Hireability Score" with explanation
-5. One-tap fixes: "Fix This" buttons auto-apply suggested improvements
+The current logic uses `window.history.length > 1` to decide whether to use history navigation. This is unreliable because:
+- History length accumulates across browser sessions
+- In Capacitor WebViews, history can be unpredictable
+- Direct URL access (deep links) will have history length of 1 even on nested pages
 
-**Unique Twist:** Different recruiter personas - "Fortune 500 HR", "Startup Founder", "Tech Recruiter", "Agency Headhunter" - each with different priorities and feedback styles.
+```typescript
+// Current (unreliable)
+window.history.length > 1 ? navigate(-1) : navigate('/dashboard');
 
----
+// Problem: A user deep-linked to /editor will have history.length = 1
+// and will be sent to /dashboard even if they expect to go back to /preview
+```
 
-### Feature 2: Salary Negotiator ("Money Coach")
-**What it does:** AI analyzes your resume strength vs. market data and coaches you on exactly how to negotiate, including scripts and counter-offer strategies.
-
-**User Experience:**
-1. After tailoring for a job, "Salary Intelligence" appears
-2. Shows:
-   - Market salary range for the role (AI-estimated)
-   - Your leverage points based on resume (ranked by impact)
-   - Red flags that weaken your position
-3. "Negotiation Prep" tab with:
-   - Opening ask suggestion (with reasoning)
-   - Counter-offer scripts for common pushbacks
-   - Walk-away number recommendation
-   - Benefits to negotiate if salary is capped
-
-**Unique Twist:** "Confidence Meter" that shows how strong your negotiating position is based on your resume vs. job requirements. If low, AI suggests what to add to your resume to strengthen it.
+**Fix:** Use explicit route-based back navigation instead of history.
 
 ---
 
-### Feature 3: Reverse Engineer Success ("Learn from Winners")
-**What it does:** Paste a LinkedIn profile URL of someone who GOT the job you want, and AI reverse-engineers what made them successful and shows you exactly how to bridge the gap.
+### Issue 2: PreviewPage Bottom Actions Overlap with Bottom Tab Bar
+**File:** `src/pages/PreviewPage.tsx` (Line 439-440)  
+**Severity:** High
 
-**User Experience:**
-1. User pastes LinkedIn URL of successful person in target role
-2. AI extracts their career trajectory, skills, experience patterns
-3. Side-by-side comparison: "Their Resume vs. Yours"
-4. Gap analysis:
-   - "They have X, you have Y - here's how to bridge it"
-   - "Transferable skills you can reframe"
-   - "Hidden advantages you have that they don't"
-5. Auto-generate a "Career Bridge Plan" with actionable steps
+The bottom action bar has:
+```tsx
+className="sticky bottom-16 p-4 pb-safe glass border-t border-border space-y-3 mb-safe"
+```
 
-**Unique Twist:** For career switchers - highlights "pivot patterns" showing how the successful person transitioned, with specific wording they likely used.
+Issues:
+- `bottom-16` + `mb-safe` creates inconsistent spacing on different devices
+- Double safe-area padding (`pb-safe` + `mb-safe`) causes excessive spacing
+- `sticky` behavior can fail when combined with flex layouts
 
----
-
-### Feature 4: Rejection Pattern Analyzer ("Learn from Losses")
-**What it does:** Paste rejection emails (or describe what happened), and AI finds patterns across multiple rejections to identify your actual weaknesses.
-
-**User Experience:**
-1. User adds 3+ rejection emails or describes interview outcomes
-2. AI analyzes for patterns:
-   - Common stage of failure (resume screen, phone screen, final round?)
-   - Recurring feedback themes
-   - Industry/role correlations
-3. Diagnosis with fixes:
-   - "You're losing at X stage because of Y"
-   - "Your resume is strong but your story isn't - here's how to fix it"
-   - "Companies in [industry] are rejecting you for [specific reason]"
-
-**Unique Twist:** "Rejection Recovery Plan" - one-tap action items that directly modify your resume/approach based on patterns found.
+**Fix:** Use single consistent spacing that accounts for the tab bar height.
 
 ---
 
-### Feature 5: AI Career Coach Chat ("Pocket Advisor")
-**What it does:** A conversational AI coach that lives inside AI Studio, proactively offers advice, and can answer any career question based on your resume context.
+### Issue 3: EditorPage Bottom Action Bar Positioning
+**File:** `src/pages/EditorPage.tsx` (Line ~252)  
+**Severity:** High
 
-**User Experience:**
-- Floating chat bubble in AI Studio
-- Proactive messages: "I noticed you applied to 5 tech companies but your resume doesn't mention X technology. Should I add it?"
-- Can ask: "Am I ready for senior roles?", "What companies would hire me?", "How do I explain my gap year?"
-- References your resume context in every answer
+Similar to PreviewPage, the "Preview & Export" button bar has:
+```tsx
+className="sticky bottom-32 p-4 glass border-t border-border z-30"
+```
 
-**Unique Twist:** Remembers your job search history and learns your preferences over time.
+The `bottom-32` (128px) hardcoded value doesn't account for:
+- Different device safe areas
+- The AI Assistant bar height variations
+- Potential keyboard showing
 
----
-
-## Technical Architecture
-
-### New Edge Functions
-| Function | Purpose |
-|----------|---------|
-| `recruiter-simulation` | Role-play as different recruiter personas, analyze resume |
-| `salary-intelligence` | Estimate salary ranges, generate negotiation scripts |
-| `reverse-engineer-profile` | Parse LinkedIn profiles, generate comparison analysis |
-| `analyze-rejections` | Pattern recognition across rejection emails |
-| `career-coach-chat` | Conversational AI with resume context |
-
-### New Components
-| Component | Location |
-|-----------|----------|
-| `RecruiterSimSheet.tsx` | `src/components/editor/ai/` |
-| `SalaryNegotiatorSheet.tsx` | `src/components/editor/ai/` |
-| `ReverseEngineerSheet.tsx` | `src/components/editor/ai/` |
-| `RejectionAnalyzerSheet.tsx` | `src/components/editor/ai/` |
-| `CareerCoachChat.tsx` | `src/components/editor/ai/` |
-| `AIStudioHome.tsx` | Updated main hub with new tiles |
-
-### Database Schema (Optional - for persistence)
-| Table | Purpose |
-|-------|---------|
-| `rejection_logs` | Store rejection emails for pattern analysis |
-| `salary_negotiations` | Track negotiation outcomes for learning |
-| `career_coaching_sessions` | Chat history with coach |
+**Fix:** Use flexbox-based layout instead of absolute positioning.
 
 ---
 
-## Updated AI Hub Layout
+### Issue 4: Missing Keyboard-Aware Scroll in Sheets
+**Files:** Multiple sheet components  
+**Severity:** Medium
 
-The AI Studio sheet will be reorganized into categories:
+When the keyboard opens inside bottom sheets (like TailorSheet with job description input), the content may get hidden behind the keyboard. The `MobileLayout` has keyboard handling, but sheets don't use `MobileLayout`.
 
-```text
-+------------------------------------------+
-| AI Studio                 [Current Score] |
-+------------------------------------------+
-|                                          |
-| [ESSENTIAL] ----------------------------- |
-| [Smart Tailor]  [Job Match]  [AI Enhance] |
-|                                          |
-| [COMPETITIVE EDGE] ---------------------- |
-| [Recruiter Sim]  [Salary Negotiator]     |
-|                                          |
-| [LEARNING] ------------------------------ |
-| [Reverse Engineer]  [Rejection Analyzer] |
-|                                          |
-| [Your AI Coach is here] 💬               |
-|                                          |
-+------------------------------------------+
+**Fix:** Add viewport meta adjustments and scroll-into-view for focused inputs in sheets.
+
+---
+
+### Issue 5: OnboardingCarousel Missing Snap-Start CSS
+**File:** `src/components/onboarding/OnboardingCarousel.tsx` (Line 97)  
+**Severity:** Low
+
+The carousel uses `snap-x-mandatory` class but the children `OnboardingStep` components don't have `snap-start` class, causing imprecise snap behavior.
+
+**Fix:** Add snap alignment to carousel items.
+
+---
+
+### Issue 6: Interview Page Missing Bottom Safe Area
+**File:** `src/pages/InterviewPage.tsx` (Line 225)  
+**Severity:** Medium
+
+The interview controls container has `pb-safe` but the page itself doesn't account for the bottom tab bar. When the tab bar is visible, controls may be partially hidden.
+
+```tsx
+<div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe">
+```
+
+**Fix:** Add proper bottom padding to account for AppShell's tab bar.
+
+---
+
+### Issue 7: PullToRefresh Scroll Detection Flaky
+**File:** `src/components/ui/pull-to-refresh.tsx` (Lines 30-33)  
+**Severity:** Low
+
+The scroll detection checks `containerRef.current.scrollTop === 0`, which can be imprecise due to:
+- Scroll bounce on iOS
+- Sub-pixel rendering differences
+- Fast scroll momentum
+
+**Fix:** Use a threshold (e.g., `scrollTop <= 1`) instead of exact equality.
+
+---
+
+### Issue 8: Inconsistent Back Navigation Across Pages
+**Files:** Multiple pages  
+**Severity:** Medium
+
+Different pages have inconsistent back navigation targets:
+- `EditorPage` → `Dashboard` (authenticated) or `/` (guest)
+- `PreviewPage` → `/editor`
+- `UploadPage` → `/dashboard`
+- `InterviewPage` → `/dashboard`
+- `AuthPage` → `/`
+
+Some use direct navigation, some check auth state. This can lead to confusing navigation flows.
+
+**Fix:** Standardize back navigation logic based on user context.
+
+---
+
+## Implementation Plan
+
+### Phase 1: Critical Navigation & Layout Fixes
+
+#### Fix 1: Hardware Back Button - Use Explicit Routes
+Replace history-based navigation with explicit parent route logic.
+
+```typescript
+// New logic in useBackButton.ts
+const BACK_ROUTES: Record<string, string> = {
+  '/editor': '/dashboard',
+  '/preview': '/editor',
+  '/upload': '/dashboard',
+  '/interview': '/dashboard',
+  '/settings': '/dashboard',
+  '/auth': '/',
+};
+
+const getBackRoute = (pathname: string): string => {
+  return BACK_ROUTES[pathname] || '/dashboard';
+};
+```
+
+#### Fix 2: PreviewPage Bottom Bar Positioning
+Replace sticky + absolute positioning with proper flex layout.
+
+```typescript
+// PreviewPage.tsx - Bottom actions
+<motion.div
+  className="p-4 glass border-t border-border space-y-3"
+  // Remove: sticky bottom-16 mb-safe
+>
+```
+
+The AppShell already adds `pb-20` for bottom nav, so sticky isn't needed.
+
+#### Fix 3: EditorPage Layout Restructure
+Restructure to use proper flex layout with fixed AI bar.
+
+```typescript
+// Current structure has overlapping sticky elements
+// Fix: Use flex column with fixed-height sections
+
+<div className="flex-1 flex flex-col overflow-hidden">
+  {/* Header - shrink-0 */}
+  {/* Progress - shrink-0 */}
+  {/* Tabs content - flex-1 overflow-y-auto */}
+  {/* Bottom action bar - shrink-0 */}
+  {/* AI Assistant bar - shrink-0 */}
+</div>
+```
+
+### Phase 2: Sheet & Input Improvements
+
+#### Fix 4: Add Keyboard Handling to Sheets
+Create a wrapper hook for sheets with inputs.
+
+```typescript
+// New hook: useSheetKeyboard.ts
+export function useSheetKeyboard() {
+  useEffect(() => {
+    const handleFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        setTimeout(() => {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 300);
+      }
+    };
+    
+    document.addEventListener('focusin', handleFocus);
+    return () => document.removeEventListener('focusin', handleFocus);
+  }, []);
+}
+```
+
+### Phase 3: Minor UX Fixes
+
+#### Fix 5: OnboardingCarousel Snap
+Add snap alignment to carousel children.
+
+```tsx
+// OnboardingStep.tsx
+<div className="flex-shrink-0 w-full snap-start snap-always">
+```
+
+#### Fix 6: Interview Page Bottom Spacing
+Account for tab bar in interview page.
+
+```tsx
+// The controls container needs mb-20 when tab bar visible
+<div className="... pb-safe mb-20">
+```
+
+#### Fix 7: PullToRefresh Scroll Threshold
+Use threshold instead of exact equality.
+
+```typescript
+// pull-to-refresh.tsx
+if (containerRef.current && containerRef.current.scrollTop <= 1) {
+  setIsPulling(true);
+}
+```
+
+#### Fix 8: Standardize Back Navigation
+Create a unified back navigation helper.
+
+```typescript
+// New utility: getBackRoute.ts
+export function getBackRoute(pathname: string, isAuthenticated: boolean): string {
+  const routes: Record<string, string> = {
+    '/editor': '/dashboard',
+    '/preview': '/editor', 
+    '/upload': '/dashboard',
+    '/interview': '/dashboard',
+    '/settings': '/dashboard',
+    '/auth': '/',
+  };
+  
+  // Guest users on editor go to landing
+  if (pathname === '/editor' && !isAuthenticated) {
+    return '/';
+  }
+  
+  return routes[pathname] || '/dashboard';
+}
 ```
 
 ---
 
-## Implementation Status
+## Files to Modify
 
-### Phase 1: Recruiter Simulation ✅ COMPLETE
-- ✅ Created edge function `recruiter-simulation` with 4 personas
-- ✅ Built RecruiterSimSheet UI with persona selector
-- ✅ Implemented hireability score, red flags, interview questions, strengths
-- ✅ Added "Fix This" buttons for one-tap improvements
-- ✅ Integrated into AIAssistantBar and EditorPage
-
-### Phase 2: Salary Negotiator (Planned)
-- Create edge function for salary intelligence
-- Build negotiation prep UI
-- Add confidence meter
-
-### Phase 3: Reverse Engineer + Rejection Analyzer (Planned)
-- LinkedIn profile parsing
-- Pattern recognition engine
-- Side-by-side comparison UI
-
-### Phase 4: Career Coach Chat (Planned)
-- Conversational interface
-- Context-aware responses
-- Proactive nudges
+| File | Priority | Changes |
+|------|----------|---------|
+| `src/hooks/useBackButton.ts` | High | Use explicit route mapping |
+| `src/pages/PreviewPage.tsx` | High | Fix bottom action positioning |
+| `src/pages/EditorPage.tsx` | High | Restructure layout for proper stacking |
+| `src/pages/InterviewPage.tsx` | Medium | Add bottom tab bar spacing |
+| `src/components/ui/pull-to-refresh.tsx` | Low | Use scroll threshold |
+| `src/components/onboarding/OnboardingCarousel.tsx` | Low | Add snap-start to children |
+| `src/components/onboarding/OnboardingStep.tsx` | Low | Add snap-start class |
+| `src/lib/navigation.ts` | New | Create navigation helper utility |
 
 ---
 
-## Files to Create/Modify
+## Summary
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `supabase/functions/recruiter-simulation/index.ts` | Create | Persona-based resume review |
-| `supabase/functions/salary-intelligence/index.ts` | Create | Salary analysis & negotiation scripts |
-| `supabase/functions/reverse-engineer-profile/index.ts` | Create | LinkedIn profile analysis |
-| `supabase/functions/analyze-rejections/index.ts` | Create | Rejection pattern recognition |
-| `supabase/functions/career-coach-chat/index.ts` | Create | Conversational career advisor |
-| `src/components/editor/ai/RecruiterSimSheet.tsx` | Create | Recruiter simulation UI |
-| `src/components/editor/ai/SalaryNegotiatorSheet.tsx` | Create | Salary negotiation UI |
-| `src/components/editor/ai/ReverseEngineerSheet.tsx` | Create | Profile comparison UI |
-| `src/components/editor/ai/RejectionAnalyzerSheet.tsx` | Create | Rejection analysis UI |
-| `src/components/editor/ai/CareerCoachChat.tsx` | Create | Floating chat coach |
-| `src/components/editor/AIHubSheet.tsx` | Modify | Add new feature tiles |
-| `src/types/resume.ts` | Modify | Add new types for features |
+The app has a solid mobile foundation with:
+- **Good:** Safe area handling, haptic feedback, offline detection, biometric lock, proper touch targets
+- **Needs Fix:** Sticky positioning conflicts, inconsistent back navigation, keyboard handling in sheets
 
----
-
-## What Makes This Unique
-
-1. **Recruiter Simulation** - No other app lets you hear the harsh truth recruiters think but never say
-2. **Salary Negotiator** - Goes beyond salary data to give you actual scripts and strategies
-3. **Reverse Engineering** - Learn from real people who got the job, not generic advice
-4. **Rejection Analyzer** - Turn failures into actionable insights
-5. **Personal Coach** - Always-on advisor that knows your full context
-
-This positions the app as a complete "Career Intelligence Platform" rather than just a resume builder.
+These fixes will ensure reliable navigation and prevent layout issues across different devices and orientations.
