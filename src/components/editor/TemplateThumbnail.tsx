@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, memo } from 'react';
 import { ResumeData, TemplateId } from '@/types/resume';
 import { ModernTemplate } from '@/components/templates/ModernTemplate';
 import { ClassicTemplate } from '@/components/templates/ClassicTemplate';
@@ -33,7 +33,7 @@ const templateComponents = {
   elegant: ElegantTemplate,
 };
 
-export function TemplateThumbnail({ templateId, resume }: TemplateThumbnailProps) {
+export const TemplateThumbnail = memo(function TemplateThumbnail({ templateId, resume }: TemplateThumbnailProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0.15);
 
@@ -77,4 +77,4 @@ export function TemplateThumbnail({ templateId, resume }: TemplateThumbnailProps
       </div>
     </div>
   );
-}
+});

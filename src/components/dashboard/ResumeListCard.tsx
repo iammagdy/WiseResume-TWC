@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { 
   MoreVertical, 
@@ -66,24 +66,17 @@ function calculateResumeCompletion(resume: DatabaseResume): number {
   return Math.round((filled / total) * 100);
 }
 
-function getCompletionColor(percentage: number): string {
-  if (percentage >= 80) return 'bg-success';
-  if (percentage >= 50) return 'bg-warning';
-  return 'bg-destructive';
-}
-
 function getCompletionTextColor(percentage: number): string {
   if (percentage >= 80) return 'text-success';
   if (percentage >= 50) return 'text-warning';
   return 'text-destructive';
 }
 
-export function ResumeListCard({
+export const ResumeListCard = memo(function ResumeListCard({
   resume,
   onEdit,
   onDuplicate,
   onDelete,
-  delay = 0,
   showMasterBadge = false,
   showTailoredBadge = false,
 }: ResumeListCardProps) {
@@ -93,8 +86,6 @@ export function ResumeListCard({
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
   const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
-  const deleteScale = useTransform(x, [-SWIPE_THRESHOLD * 1.5, -SWIPE_THRESHOLD], [1.1, 1]);
-  const duplicateScale = useTransform(x, [SWIPE_THRESHOLD, SWIPE_THRESHOLD * 1.5], [1, 1.1]);
 
   const hasTargetJob = resume.target_job_title || resume.target_company;
   const matchScore = resume.job_match_score;
@@ -107,7 +98,6 @@ export function ResumeListCard({
   };
 
   const handleDrag = (_: unknown, info: PanInfo) => {
-    // Haptic feedback when crossing thresholds
     const currentX = x.get();
     const newX = info.offset.x;
     
@@ -123,16 +113,13 @@ export function ResumeListCard({
     setIsDragging(false);
     
     if (info.offset.x <= -SWIPE_THRESHOLD) {
-      // Swiped left - delete
       haptics.warning();
       onDelete(resume.id);
     } else if (info.offset.x >= SWIPE_THRESHOLD) {
-      // Swiped right - duplicate
       haptics.success();
       onDuplicate(resume.id);
     }
     
-    // Reset position
     x.set(0);
   };
 
@@ -144,18 +131,13 @@ export function ResumeListCard({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3 }}
-      className="relative overflow-hidden rounded-xl"
-    >
+    <div className="relative overflow-hidden rounded-xl">
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
         {/* Duplicate action (right swipe) */}
         <motion.div
           className="flex-1 bg-success/20 flex items-center pl-4"
-          style={{ opacity: duplicateOpacity, scale: duplicateScale }}
+          style={{ opacity: duplicateOpacity }}
         >
           <div className="flex items-center gap-2 text-success">
             <Copy className="w-5 h-5" />
@@ -166,7 +148,7 @@ export function ResumeListCard({
         {/* Delete action (left swipe) */}
         <motion.div
           className="flex-1 bg-destructive/20 flex items-center justify-end pr-4"
-          style={{ opacity: deleteOpacity, scale: deleteScale }}
+          style={{ opacity: deleteOpacity }}
         >
           <div className="flex items-center gap-2 text-destructive">
             <span className="font-medium text-sm">Delete</span>
@@ -328,18 +310,6 @@ export function ResumeListCard({
           </DropdownMenu>
         </div>
       </motion.div>
-      
-      {/* Swipe hint on first card */}
-      {delay === 0 && (
-        <motion.div
-          initial={{ opacity: 0.5, x: 0 }}
-          animate={{ opacity: 0, x: -10 }}
-          transition={{ delay: 2, duration: 1 }}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none"
-        >
-          ← Swipe
-        </motion.div>
-      )}
-    </motion.div>
+    </div>
   );
-}
+});

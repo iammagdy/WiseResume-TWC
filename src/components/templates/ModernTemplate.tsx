@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface TemplateProps {
   resume: ResumeData;
 }
 
-export function ModernTemplate({ resume }: TemplateProps) {
+export const ModernTemplate = memo(function ModernTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-8 font-sans text-sm leading-relaxed">
       {/* Header */}
@@ -99,4 +100,4 @@ export function ModernTemplate({ resume }: TemplateProps) {
       )}
     </div>
   );
-}
+});

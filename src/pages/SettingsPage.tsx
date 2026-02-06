@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { 
   LogOut, 
   RotateCcw, 
@@ -41,7 +40,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
 import { TEMPLATE_CONFIGS } from '@/lib/templateConfig';
 import { haptics } from '@/lib/haptics';
- import { useBiometricLock } from '@/hooks/useBiometricLock';
+import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -66,16 +65,16 @@ export default function SettingsPage() {
     setDefaultTemplate,
     pdfDefaults,
     setPdfDefaults,
-     biometricLockEnabled,
-     setBiometricLockEnabled,
-     biometricLockTimeout,
-     setBiometricLockTimeout,
-     elevenlabsApiKey,
-     setElevenlabsApiKey,
+    biometricLockEnabled,
+    setBiometricLockEnabled,
+    biometricLockTimeout,
+    setBiometricLockTimeout,
+    elevenlabsApiKey,
+    setElevenlabsApiKey,
   } = useSettingsStore();
  
-   // Biometric lock hook
-   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
+  // Biometric lock hook
+  const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
 
   // Sheet states
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -86,25 +85,24 @@ export default function SettingsPage() {
   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
   const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
   const [elevenLabsKeyOpen, setElevenLabsKeyOpen] = useState(false);
-   const handleBiometricToggle = async (enabled: boolean) => {
-     if (enabled) {
-       // Show setup sheet first
-       haptics.light();
-       setBiometricSetupOpen(true);
-     } else {
-       // Disable immediately
-       haptics.medium();
-       setBiometricLockEnabled(false);
-     }
-   };
+
+  const handleBiometricToggle = async (enabled: boolean) => {
+    if (enabled) {
+      haptics.light();
+      setBiometricSetupOpen(true);
+    } else {
+      haptics.medium();
+      setBiometricLockEnabled(false);
+    }
+  };
  
-   const handleBiometricSetupConfirm = async (): Promise<boolean> => {
-     const success = await authenticate();
-     if (success) {
-       setBiometricLockEnabled(true);
-     }
-     return success;
-   };
+  const handleBiometricSetupConfirm = async (): Promise<boolean> => {
+    const success = await authenticate();
+    if (success) {
+      setBiometricLockEnabled(true);
+    }
+    return success;
+  };
  
 
   // Redirect if not authenticated
@@ -179,9 +177,7 @@ export default function SettingsPage() {
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
           {/* Profile Section - Tappable */}
-          <motion.button
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+          <button
             onClick={handleOpenEditProfile}
             className="w-full flex items-center gap-4 p-4 rounded-xl bg-card border border-border text-left active:scale-[0.98] transition-transform touch-manipulation"
           >
@@ -214,28 +210,20 @@ export default function SettingsPage() {
               )}
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-          </motion.button>
+          </button>
 
           {/* Appearance Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.05 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               APPEARANCE
             </h2>
             <div className="p-4 rounded-xl bg-card border border-border">
               <ThemeToggle className="w-full justify-center" />
             </div>
-          </motion.div>
+          </div>
 
           {/* Editor Preferences Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               EDITOR PREFERENCES
             </h2>
@@ -255,14 +243,10 @@ export default function SettingsPage() {
                 onClick={() => setPdfDefaultsSheetOpen(true)}
               />
             </div>
-          </motion.div>
+          </div>
 
           {/* Notifications Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               NOTIFICATIONS
             </h2>
@@ -285,14 +269,10 @@ export default function SettingsPage() {
                 onCheckedChange={setShowAIEnhancementTips}
               />
             </div>
-          </motion.div>
+          </div>
 
           {/* Data & Export Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.12 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               DATA & EXPORT
             </h2>
@@ -305,14 +285,10 @@ export default function SettingsPage() {
                 onClick={() => setDataExportSheetOpen(true)}
               />
             </div>
-          </motion.div>
+          </div>
 
           {/* Privacy Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.14 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               PRIVACY
             </h2>
@@ -365,14 +341,10 @@ export default function SettingsPage() {
                 onCheckedChange={setAnalyticsEnabled}
               />
             </div>
-          </motion.div>
+          </div>
 
           {/* Integrations Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               INTEGRATIONS
             </h2>
@@ -386,14 +358,10 @@ export default function SettingsPage() {
                 onClick={() => setElevenLabsKeyOpen(true)}
               />
             </div>
-          </motion.div>
+          </div>
 
           {/* Account Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.16 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               ACCOUNT
             </h2>
@@ -421,14 +389,10 @@ export default function SettingsPage() {
                 destructive
               />
             </div>
-          </motion.div>
+          </div>
 
           {/* About Section */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-          >
+          <div>
             <h2 className="text-sm font-medium text-muted-foreground mb-3 px-1">
               ABOUT
             </h2>
@@ -440,7 +404,7 @@ export default function SettingsPage() {
                 </span>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { Mail, Phone, MapPin, Linkedin, Globe } from 'lucide-react';
 
@@ -5,7 +6,7 @@ interface TemplateProps {
   resume: ResumeData;
 }
 
-export function CreativeTemplate({ resume }: TemplateProps) {
+export const CreativeTemplate = memo(function CreativeTemplate({ resume }: TemplateProps) {
   const initials = resume.contactInfo.fullName
     ?.split(' ')
     .map(n => n[0])
@@ -182,4 +183,4 @@ export function CreativeTemplate({ resume }: TemplateProps) {
       </main>
     </div>
   );
-}
+});

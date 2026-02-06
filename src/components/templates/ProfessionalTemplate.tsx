@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface TemplateProps {
   resume: ResumeData;
 }
 
-export function ProfessionalTemplate({ resume }: TemplateProps) {
+export const ProfessionalTemplate = memo(function ProfessionalTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-8 font-sans text-sm">
       {/* Header */}
@@ -99,4 +100,4 @@ export function ProfessionalTemplate({ resume }: TemplateProps) {
       </div>
     </div>
   );
-}
+});

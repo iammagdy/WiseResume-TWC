@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,8 @@ interface ElevenLabsKeySheetProps {
   onSave: (key: string) => void;
 }
 
-export function ElevenLabsKeySheet({ open, onOpenChange, currentKey, onSave }: ElevenLabsKeySheetProps) {
+export const ElevenLabsKeySheet = forwardRef<HTMLDivElement, ElevenLabsKeySheetProps>(
+  function ElevenLabsKeySheet({ open, onOpenChange, currentKey, onSave }, ref) {
   const [key, setKey] = useState(currentKey);
 
   useEffect(() => {
@@ -32,38 +33,39 @@ export function ElevenLabsKeySheet({ open, onOpenChange, currentKey, onSave }: E
     onOpenChange(false);
   };
 
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="rounded-t-2xl">
-        <SheetHeader className="shrink-0">
-          <SheetTitle className="flex items-center gap-2">
-            <Key className="w-5 h-5 text-primary" />
-            ElevenLabs API Key
-          </SheetTitle>
-        </SheetHeader>
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4">
-          <p className="text-sm text-muted-foreground">
-            Enter your own ElevenLabs API key for speech-to-text during interviews. Leave empty to use the default key.
-          </p>
-          <Input
-            type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder="sk_..."
-            className="font-mono text-sm"
-          />
-          <div className="flex gap-2">
-            <Button onClick={handleSave} className="flex-1">
-              Save
-            </Button>
-            {currentKey && (
-              <Button variant="outline" onClick={handleClear}>
-                <Trash2 className="w-4 h-4" />
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="rounded-t-2xl" ref={ref}>
+          <SheetHeader className="shrink-0">
+            <SheetTitle className="flex items-center gap-2">
+              <Key className="w-5 h-5 text-primary" />
+              ElevenLabs API Key
+            </SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Enter your own ElevenLabs API key for speech-to-text during interviews. Leave empty to use the default key.
+            </p>
+            <Input
+              type="password"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder="sk_..."
+              className="font-mono text-sm"
+            />
+            <div className="flex gap-2">
+              <Button onClick={handleSave} className="flex-1">
+                Save
               </Button>
-            )}
+              {currentKey && (
+                <Button variant="outline" onClick={handleClear}>
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </SheetContent>
-    </Sheet>
-  );
-}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+);
