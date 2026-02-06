@@ -1,177 +1,126 @@
 
 
-# Smart Template Button Integration
+# Fix Google OAuth Infinite Loading Issue
 
 ## Problem Analysis
 
-The current template button is a floating circular icon (`Palette`) positioned at `bottom-[88px]` with no label or context. Based on the screenshot, it appears as a small, inconspicuous grey circle next to the AI Studio bar's "No job set" indicator. This creates several UX issues:
+When clicking "Continue with Google" and completing the OAuth flow, the button shows loading indefinitely. This happens because:
 
-1. **Discoverability**: Users don't know what this button does
-2. **No feedback**: No indication of which template is currently selected
-3. **Awkward positioning**: Floats in dead space between elements
-4. **Inconsistent design**: Doesn't match the polished AI Studio aesthetic
+1. **No session check on page load**: After OAuth redirects back to the app, the AuthPage doesn't detect the existing session
+2. **No redirect after successful auth**: The page doesn't navigate to dashboard when a session is detected
+3. **Loading state not cleared**: The `socialLoading` state is only reset on error, not on successful redirect
+4. **The lovable OAuth flow works correctly** - Based on the network logs, the user IS successfully authenticated (GET /auth/v1/user returns the user data), but the UI doesn't react to it
 
-## Proposed Solutions
+## Solution
 
-I'll implement **Option 3: Integrated Template Chip in AI Studio Bar** as it's the smartest approach for this app:
-
-### Solution: Template Chip Inside AI Studio Bar
-
-Add a small, tappable template indicator chip next to the "No job set" / match score area. This:
-- Shows the current template name (e.g., "Modern", "Classic")
-- Uses a small icon for visual recognition
-- Opens the template selector when tapped
-- Feels native to the AI Studio experience
-
-```text
-+--------------------------------------------------+
-| [✨] AI Studio     [Modern ▾]  [Score] [▲]      |
-+--------------------------------------------------+
-                         ↑
-                  Template chip (tappable)
-```
+Add a `useEffect` hook to detect authentication state and automatically redirect authenticated users to the dashboard.
 
 ## Implementation Details
 
-### Visual Design
+### File: `src/pages/AuthPage.tsx`
 
-The template chip will:
-- Display the current template name in a compact badge
-- Use a `Palette` icon (small, 14px)
-- Have a subtle dropdown indicator (ChevronDown)
-- Use muted styling to not compete with AI features
-- Animate when tapped (scale feedback)
-
-```text
-┌─────────────────┐
-│ 🎨 Modern  ▼   │  ← Tappable chip
-└─────────────────┘
-```
-
-### Responsive Behavior
-
-- **Default**: Show template name + icon
-- **Small screens**: Just show icon + chevron if space is tight
-- **Tapped state**: Opens existing `TemplateSelector` sheet
-
-## File Changes
-
-### 1. `src/components/editor/AIAssistantBar.tsx`
-
-Add new props and template chip:
+Add session detection and redirect logic:
 
 ```typescript
-interface AIAssistantBarProps {
-  // ... existing props
-  currentTemplate: TemplateId;  // NEW
-  onChangeTemplate: () => void; // NEW
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+
+export default function AuthPage() {
+  const navigate = useNavigate();
+  // ... existing state ...
+  
+  // NEW: Check auth state on mount and redirect if authenticated
+  useEffect(() => {
+    // Set up auth state listener to handle OAuth redirects
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session) {
+          // User is authenticated, redirect to dashboard
+          toast.success('Welcome!');
+          navigate('/dashboard', { replace: true });
+        }
+      }
+    );
+
+    // Check for existing session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/dashboard', { replace: true });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+  
+  // ... rest of component ...
 }
 ```
 
-Add a template chip between the title and the score badge:
+### Flow After Fix
 
-```tsx
-<div className="flex items-center gap-3">
-  {/* AI Studio title */}
-  <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-    <Sparkles className="w-4 h-4 text-primary-foreground" />
-  </div>
-  <span className="font-medium text-sm">AI Studio</span>
-</div>
-
-<div className="flex items-center gap-2">
-  {/* Template Chip - NEW */}
-  <button
-    onClick={(e) => {
-      e.stopPropagation();
-      onChangeTemplate();
-    }}
-    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/50 border border-border 
-               hover:border-primary/30 text-xs text-muted-foreground transition-colors"
-  >
-    <Palette className="w-3.5 h-3.5" />
-    <span className="max-w-[60px] truncate">{TEMPLATE_NAMES[currentTemplate]}</span>
-    <ChevronDown className="w-3 h-3" />
-  </button>
-
-  {/* Match Score Badge */}
-  {matchScore ? (...) : (...)}
-
-  {/* Expand/Collapse chevron */}
-  <motion.div>...</motion.div>
-</div>
+```text
+User clicks "Continue with Google"
+        ↓
+socialLoading = 'google' (button shows loading)
+        ↓
+OAuth popup/redirect to Google
+        ↓
+User authorizes
+        ↓
+Redirect back to /auth with tokens
+        ↓
+lovable.auth sets session via supabase.auth.setSession()
+        ↓
+onAuthStateChange fires with new session  ← NEW
+        ↓
+Navigate to /dashboard, show success toast  ← NEW
 ```
 
-Add template name mapping:
+## Changes Summary
+
+| Line | Change |
+|------|--------|
+| 1 | Add `useEffect` to imports |
+| ~27 | Add useEffect hook to detect auth state and redirect |
+
+## Why This Works
+
+1. **onAuthStateChange listener** catches when the session is set after OAuth completes
+2. **getSession check on mount** handles the case where the page is loaded with an existing session
+3. **replace: true** prevents the user from navigating back to the auth page via browser back button
+4. **Success toast** provides positive feedback that authentication worked
+
+## Additional Improvement
+
+Clear the loading state in a finally block if the user stays on the page (edge case):
+
 ```typescript
-const TEMPLATE_NAMES: Record<TemplateId, string> = {
-  modern: 'Modern',
-  classic: 'Classic',
-  minimal: 'Minimal',
-  professional: 'Professional',
-  developer: 'Developer',
-  creative: 'Creative',
-  executive: 'Executive',
+const handleGoogleSignIn = async () => {
+  setSocialLoading('google');
+  try {
+    const { error, redirected } = await lovable.auth.signInWithOAuth('google', {
+      redirect_uri: window.location.origin,
+    });
+
+    if (error) {
+      toast.error('Failed to sign in with Google');
+    }
+    // If redirected, the page will unmount so we don't need to reset state
+    // If not redirected but successful, the onAuthStateChange will handle navigation
+  } catch (e) {
+    toast.error('Failed to sign in with Google');
+  } finally {
+    // Only reset if we didn't redirect (popup flow or error)
+    // Give a short delay to allow onAuthStateChange to fire first
+    setTimeout(() => {
+      setSocialLoading(null);
+    }, 2000);
+  }
 };
 ```
 
-### 2. `src/pages/EditorPage.tsx`
-
-- Remove the standalone floating template button (lines 281-291)
-- Pass template props to AIAssistantBar
-
-```tsx
-<AIAssistantBar
-  matchScore={matchScore}
-  jobDescription={jobDescription}
-  currentTemplate={selectedTemplate}           // NEW
-  onChangeTemplate={() => setShowTemplates(true)}  // NEW
-  onTailor={() => setShowTailor(true)}
-  onAnalyze={() => setShowJobSheet(true)}
-  onImprove={handleImproveSection}
-/>
-
-{/* Remove this: */}
-{/* <motion.button onClick={() => setShowTemplates(true)} ... /> */}
-```
-
-Also import `selectedTemplate` from the store:
-```tsx
-const { currentResume, matchScore, jobDescription, selectedTemplate } = useResumeStore();
-```
-
-## Visual Outcome
-
-### Before (Current)
-```text
-+----------------------------------------------+
-| [✨] AI Studio     No job set          [▲]  |
-+----------------------------------------------+
-                                     [🎨] ← Mysterious floating button
-```
-
-### After (Proposed)
-```text
-+--------------------------------------------------+
-| [✨] AI Studio   [🎨 Modern ▾]  No job set  [▲]  |
-+--------------------------------------------------+
-                        ↑
-              Integrated, labeled, clear!
-```
-
-## Benefits
-
-1. **Clear purpose**: Users see "Modern" and understand it's a template
-2. **Current state visible**: Always shows which template is active
-3. **Discoverable**: The chevron suggests it's actionable
-4. **Consistent**: Matches the polished AI Studio design language
-5. **Space efficient**: No floating button taking up screen real estate
-6. **Smart**: Feels like an intelligent feature, not a hidden button
-
-## Alternative Considered
-
-**Header Button**: Using the `headerRight` prop in `MobileLayout` to add a template button in the header. This was rejected because:
-- The header already has back button and title
-- Template selection feels more related to the "design tools" than navigation
-- Putting it near AI features creates a cohesive "resume enhancement" zone
+This timeout acts as a safety net - if something goes wrong and the auth listener doesn't fire within 2 seconds, the button becomes clickable again.
 
