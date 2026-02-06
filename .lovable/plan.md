@@ -1,200 +1,177 @@
 
 
-# Smart Tab Scrolling & AI Feature Menu Redesign
+# Smart Template Button Integration
 
-## Overview
+## Problem Analysis
 
-This plan addresses two improvements to the Editor page:
+The current template button is a floating circular icon (`Palette`) positioned at `bottom-[88px]` with no label or context. Based on the screenshot, it appears as a small, inconspicuous grey circle next to the AI Studio bar's "No job set" indicator. This creates several UX issues:
 
-1. **Smart Tab Auto-Scrolling** - Automatically scroll the tab bar to reveal adjacent tabs when switching, helping users discover all sections (especially Skills)
-2. **AI Menu Redesign** - Rename "AI Assistant" to something more fitting and reorganize the menu to focus on AI-powered features
+1. **Discoverability**: Users don't know what this button does
+2. **No feedback**: No indication of which template is currently selected
+3. **Awkward positioning**: Floats in dead space between elements
+4. **Inconsistent design**: Doesn't match the polished AI Studio aesthetic
 
----
+## Proposed Solutions
 
-## Part 1: Smart Tab Auto-Scrolling
+I'll implement **Option 3: Integrated Template Chip in AI Studio Bar** as it's the smartest approach for this app:
 
-### Current Problem
-- The tabs bar scrolls horizontally on mobile
-- Users may not notice the "Skills" tab is hidden off-screen
-- No visual cue or smart behavior to help users discover all tabs
+### Solution: Template Chip Inside AI Studio Bar
 
-### Solution
-
-Implement bidirectional smart scrolling:
-- When switching **right** (e.g., Contact → Summary), scroll left to reveal next tabs
-- When switching **left** (e.g., Education → Work), scroll right to show previous tabs
-- Use smooth scroll animation for a polished feel
-
-### Technical Approach
+Add a small, tappable template indicator chip next to the "No job set" / match score area. This:
+- Shows the current template name (e.g., "Modern", "Classic")
+- Uses a small icon for visual recognition
+- Opens the template selector when tapped
+- Feels native to the AI Studio experience
 
 ```text
-Tabs: [Contact] [Summary] [Work] [Education] [Skills]
-         ^                                      ^
-     index 0                               index 4
-
-When user clicks Summary (index 1):
-→ Scroll to show Work (index 2) on the right
-
-When user clicks Education (index 3):
-→ Also ensure Skills (index 4) is visible
-
-When user clicks Work from Education:
-→ Scroll right to show Contact/Summary area
++--------------------------------------------------+
+| [✨] AI Studio     [Modern ▾]  [Score] [▲]      |
++--------------------------------------------------+
+                         ↑
+                  Template chip (tappable)
 ```
 
-### Implementation Details
+## Implementation Details
 
-**File: `src/pages/EditorPage.tsx`**
+### Visual Design
 
-1. Add a `ref` to the scrollable tabs container
-2. Add refs to each `TabsTrigger` button
-3. Create a tab order array: `['contact', 'summary', 'experience', 'education', 'skills']`
-4. On tab change:
-   - Determine if user is moving left or right
-   - Calculate which tab to scroll into view (the next one in that direction)
-   - Use `scrollIntoView({ behavior: 'smooth', inline: 'center' })` or calculate scroll position
+The template chip will:
+- Display the current template name in a compact badge
+- Use a `Palette` icon (small, 14px)
+- Have a subtle dropdown indicator (ChevronDown)
+- Use muted styling to not compete with AI features
+- Animate when tapped (scale feedback)
 
-**Logic:**
+```text
+┌─────────────────┐
+│ 🎨 Modern  ▼   │  ← Tappable chip
+└─────────────────┘
+```
+
+### Responsive Behavior
+
+- **Default**: Show template name + icon
+- **Small screens**: Just show icon + chevron if space is tight
+- **Tapped state**: Opens existing `TemplateSelector` sheet
+
+## File Changes
+
+### 1. `src/components/editor/AIAssistantBar.tsx`
+
+Add new props and template chip:
+
 ```typescript
-const TAB_ORDER = ['contact', 'summary', 'experience', 'education', 'skills'];
+interface AIAssistantBarProps {
+  // ... existing props
+  currentTemplate: TemplateId;  // NEW
+  onChangeTemplate: () => void; // NEW
+}
+```
 
-const handleTabChange = (newTab: string) => {
-  const prevIndex = TAB_ORDER.indexOf(activeTab);
-  const newIndex = TAB_ORDER.indexOf(newTab);
-  const isMovingRight = newIndex > prevIndex;
-  
-  // Scroll to show the NEXT tab in direction of movement
-  const targetIndex = isMovingRight 
-    ? Math.min(newIndex + 1, TAB_ORDER.length - 1)  // Show next tab
-    : Math.max(newIndex - 1, 0);                     // Show previous tab
-  
-  // Scroll that tab into view
-  tabRefs[targetIndex]?.scrollIntoView({ 
-    behavior: 'smooth', 
-    inline: 'center' 
-  });
-  
-  setActiveTab(newTab);
+Add a template chip between the title and the score badge:
+
+```tsx
+<div className="flex items-center gap-3">
+  {/* AI Studio title */}
+  <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
+    <Sparkles className="w-4 h-4 text-primary-foreground" />
+  </div>
+  <span className="font-medium text-sm">AI Studio</span>
+</div>
+
+<div className="flex items-center gap-2">
+  {/* Template Chip - NEW */}
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      onChangeTemplate();
+    }}
+    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/50 border border-border 
+               hover:border-primary/30 text-xs text-muted-foreground transition-colors"
+  >
+    <Palette className="w-3.5 h-3.5" />
+    <span className="max-w-[60px] truncate">{TEMPLATE_NAMES[currentTemplate]}</span>
+    <ChevronDown className="w-3 h-3" />
+  </button>
+
+  {/* Match Score Badge */}
+  {matchScore ? (...) : (...)}
+
+  {/* Expand/Collapse chevron */}
+  <motion.div>...</motion.div>
+</div>
+```
+
+Add template name mapping:
+```typescript
+const TEMPLATE_NAMES: Record<TemplateId, string> = {
+  modern: 'Modern',
+  classic: 'Classic',
+  minimal: 'Minimal',
+  professional: 'Professional',
+  developer: 'Developer',
+  creative: 'Creative',
+  executive: 'Executive',
 };
 ```
 
----
+### 2. `src/pages/EditorPage.tsx`
 
-## Part 2: AI Feature Menu Redesign
+- Remove the standalone floating template button (lines 281-291)
+- Pass template props to AIAssistantBar
 
-### Current Problem
-- "AI Assistant" name is generic and doesn't convey the specific AI capabilities
-- "Change Template" is not an AI feature - it's just template selection
-- The menu doesn't feel distinctly "AI-powered"
+```tsx
+<AIAssistantBar
+  matchScore={matchScore}
+  jobDescription={jobDescription}
+  currentTemplate={selectedTemplate}           // NEW
+  onChangeTemplate={() => setShowTemplates(true)}  // NEW
+  onTailor={() => setShowTailor(true)}
+  onAnalyze={() => setShowJobSheet(true)}
+  onImprove={handleImproveSection}
+/>
 
-### Analysis of Current Features
-
-| Feature | AI-Powered? | Purpose |
-|---------|-------------|---------|
-| Tailor for Job | Yes | Uses AI to match resume to job description |
-| Analyze Match | Yes | AI scores resume against job requirements |
-| Improve Section | Yes | AI enhances resume sections |
-| Change Template | No | Simple UI template picker |
-
-### Proposed Redesign
-
-**New Name Options:**
-- **"AI Studio"** - Conveys a creative workspace powered by AI
-- **"Smart Tools"** - Emphasizes intelligence without being too technical
-- **"AI Power"** - Direct and impactful
-- **"Resume AI"** - Clear connection to the app's purpose
-
-**Recommended: "AI Studio"** - It sounds premium, creative, and clearly AI-focused.
-
-**Reorganization:**
-1. Remove "Change Template" from the AI menu
-2. Add a separate template icon in the header or toolbar
-3. Keep only true AI features:
-   - **Tailor for Job** → Rename to **"Smart Tailor"**
-   - **Analyze Match** → Keep or rename to **"Job Match"**
-   - **Improve Section** → Rename to **"AI Enhance"**
-
-### Visual Changes
-
-**Before:**
-```text
-+----------------------------------+
-| [✨] AI Assistant    [Score] [▲] |
-+----------------------------------+
-| ┌─────────┐  ┌─────────┐        |
-| │ Tailor  │  │ Analyze │        |
-| │ for Job │  │ Match   │        |
-| └─────────┘  └─────────┘        |
-| ┌─────────┐  ┌─────────┐        |
-| │ Improve │  │ Change  │  ← NOT AI
-| │ Section │  │Template │        |
-| └─────────┘  └─────────┘        |
-+----------------------------------+
+{/* Remove this: */}
+{/* <motion.button onClick={() => setShowTemplates(true)} ... /> */}
 ```
 
-**After:**
-```text
-+----------------------------------+
-| [✨] AI Studio       [Score] [▲] |
-+----------------------------------+
-| ┌─────────┐  ┌─────────┐        |
-| │  Smart  │  │   Job   │        |
-| │ Tailor  │  │  Match  │        |
-| └─────────┘  └─────────┘        |
-| ┌─────────────────────┐         |
-| │    AI Enhance       │         |
-| │  Current: Summary   │         |
-| └─────────────────────┘         |
-+----------------------------------+
+Also import `selectedTemplate` from the store:
+```tsx
+const { currentResume, matchScore, jobDescription, selectedTemplate } = useResumeStore();
 ```
 
-### Implementation Details
+## Visual Outcome
 
-**File: `src/components/editor/AIAssistantBar.tsx`**
+### Before (Current)
+```text
++----------------------------------------------+
+| [✨] AI Studio     No job set          [▲]  |
++----------------------------------------------+
+                                     [🎨] ← Mysterious floating button
+```
 
-1. Rename component to `AIStudioBar` (optional, can keep file name)
-2. Change title from "AI Assistant" to "AI Studio"
-3. Remove the "Change Template" action button
-4. Rename action labels:
-   - "Tailor for Job" → "Smart Tailor"
-   - "Analyze Match" → "Job Match" 
-   - "Improve Section" → "AI Enhance"
-5. Make "AI Enhance" span full width (since we removed one item)
+### After (Proposed)
+```text
++--------------------------------------------------+
+| [✨] AI Studio   [🎨 Modern ▾]  No job set  [▲]  |
++--------------------------------------------------+
+                        ↑
+              Integrated, labeled, clear!
+```
 
-**File: `src/pages/EditorPage.tsx`**
+## Benefits
 
-1. Move template selection to the header or a separate toolbar button
-2. Remove `onChangeTemplate` prop from AIStudioBar
-3. Add a template button in the header area (next to save status)
+1. **Clear purpose**: Users see "Modern" and understand it's a template
+2. **Current state visible**: Always shows which template is active
+3. **Discoverable**: The chevron suggests it's actionable
+4. **Consistent**: Matches the polished AI Studio design language
+5. **Space efficient**: No floating button taking up screen real estate
+6. **Smart**: Feels like an intelligent feature, not a hidden button
 
-**File: `src/components/editor/AIHubSheet.tsx`** (if still used)
+## Alternative Considered
 
-Apply same naming changes for consistency.
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/pages/EditorPage.tsx` | Add tab refs, implement smart scroll logic, relocate template button |
-| `src/components/editor/AIAssistantBar.tsx` | Rename to "AI Studio", update action labels, remove template option, adjust grid layout |
-| `src/components/editor/AIHubSheet.tsx` | Apply same naming changes for consistency |
-
----
-
-## Summary of Changes
-
-### Smart Tab Scrolling
-- Tabs automatically scroll to reveal adjacent sections when switching
-- Moving right reveals tabs on the right (so users see Skills)
-- Moving left reveals tabs on the left
-- Smooth scroll animation for polished UX
-
-### AI Studio Redesign
-- "AI Assistant" → **"AI Studio"** (premium, creative feel)
-- Remove "Change Template" (not AI-related)
-- Cleaner 3-action layout focused purely on AI features
-- Action labels updated to feel more intelligent and cohesive
-- Template selection moved to a dedicated button elsewhere
+**Header Button**: Using the `headerRight` prop in `MobileLayout` to add a template button in the header. This was rejected because:
+- The header already has back button and title
+- Template selection feels more related to the "design tools" than navigation
+- Putting it near AI features creates a cohesive "resume enhancement" zone
 
