@@ -11,6 +11,7 @@ export interface TemplateConfig {
   maxRecommendedPages: number;
   singlePageOptimized: boolean;
   breakableSections: SectionId[];
+  supportsPhoto: boolean;
   warningMessage?: string;
   suggestedAlternatives?: TemplateId[];
 }
@@ -33,6 +34,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
     maxRecommendedPages: 3,
     singlePageOptimized: false,
     breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications'],
+    supportsPhoto: false,
   },
   classic: {
     id: 'classic',
@@ -43,6 +45,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
     maxRecommendedPages: 3,
     singlePageOptimized: false,
     breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications'],
+    supportsPhoto: false,
   },
   modern: {
     id: 'modern',
@@ -53,6 +56,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
     maxRecommendedPages: 3,
     singlePageOptimized: false,
     breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications'],
+    supportsPhoto: false,
   },
   developer: {
     id: 'developer',
@@ -63,6 +67,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
     maxRecommendedPages: 2,
     singlePageOptimized: false,
     breakableSections: ['summary', 'experience', 'education', 'skills', 'certifications'],
+    supportsPhoto: false,
   },
   executive: {
     id: 'executive',
@@ -72,7 +77,8 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
     supportsManualBreaks: true,
     maxRecommendedPages: 2,
     singlePageOptimized: false,
-    breakableSections: ['summary', 'experience'], // Cannot break in/after the bottom grid
+    breakableSections: ['summary', 'experience'],
+    supportsPhoto: false,
     warningMessage: "The bottom grid (Education/Skills) cannot be split across pages.",
   },
   professional: {
@@ -84,6 +90,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
     maxRecommendedPages: 1,
     singlePageOptimized: true,
     breakableSections: [],
+    supportsPhoto: false,
     warningMessage: "This template uses a sidebar layout optimized for single-page resumes. For longer resumes, try Modern or Classic.",
     suggestedAlternatives: ['modern', 'classic'],
   },
@@ -96,6 +103,7 @@ export const TEMPLATE_CONFIGS: Record<TemplateId, TemplateConfig> = {
     maxRecommendedPages: 1,
     singlePageOptimized: true,
     breakableSections: [],
+    supportsPhoto: true,
     warningMessage: "This creative layout is designed for impactful single-page resumes. Switch to Developer or Modern for multi-page support.",
     suggestedAlternatives: ['developer', 'modern'],
   },

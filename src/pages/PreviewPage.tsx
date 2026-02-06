@@ -15,12 +15,16 @@ import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
 import { ExportOptionsSheet } from '@/components/editor/ExportOptionsSheet';
+import { ResumePhotoSheet } from '@/components/editor/ResumePhotoSheet';
 import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { TemplateId, SectionId, ExportType } from '@/types/resume';
- import { useRateApp } from '@/hooks/useRateApp';
+import { useRateApp } from '@/hooks/useRateApp';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+import { supabase } from '@/integrations/supabase/client';
 
 const templates: { id: TemplateId; name: string }[] = [
   { id: 'modern', name: 'Modern' },
@@ -34,6 +38,8 @@ const templates: { id: TemplateId; name: string }[] = [
 
 export default function PreviewPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { profile } = useProfile(user?.id, user);
   const { 
     currentResume, 
     selectedTemplate, 
@@ -42,11 +48,13 @@ export default function PreviewPage() {
     setPageBreakSettings,
     generatedCoverLetter,
     coverLetterJobContext,
+    updateResume,
   } = useResumeStore();
   const [isGenerating, setIsGenerating] = useState(false);
   const [showPageBreaks, setShowPageBreaks] = useState(true);
   const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
+  const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
   
@@ -55,6 +63,20 @@ export default function PreviewPage() {
  
    // Rate app hook
    const { incrementPositiveActions, shouldPromptForRating, openAppStore, dismissRating } = useRateApp();
+
+  // Check if we should show photo prompt when switching to a photo-supporting template
+  useEffect(() => {
+    if (!currentResume) return;
+    
+    const config = getTemplateConfig(selectedTemplate);
+    if (config.supportsPhoto && !currentResume.contactInfo.photoUrl) {
+      // Check if user has dismissed this before
+      const dismissed = localStorage.getItem(`photo-prompt-${currentResume.id}`);
+      if (!dismissed) {
+        setShowPhotoSheet(true);
+      }
+    }
+  }, [selectedTemplate, currentResume?.id]);
 
   // Update section ordering based on actual DOM layout after render
   // This ensures sections are shown in their visual order (important for multi-column templates)
@@ -105,6 +127,63 @@ export default function PreviewPage() {
     return null;
   }
 
+  // Photo sheet handlers
+  const handleUseProfilePhoto = () => {
+    if (profile?.avatarUrl) {
+      updateResume({
+        contactInfo: {
+          ...currentResume.contactInfo,
+          photoUrl: profile.avatarUrl,
+        },
+      });
+      toast.success('Profile photo added to resume');
+    }
+  };
+
+  const handleUploadPhoto = async (blob: Blob) => {
+    try {
+      // Upload to storage if user is authenticated
+      if (user) {
+        const fileName = `${user.id}/resume-photo-${Date.now()}.png`;
+        const { data, error } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, blob, { upsert: true });
+        
+        if (error) throw error;
+        
+        const { data: urlData } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(fileName);
+        
+        updateResume({
+          contactInfo: {
+            ...currentResume.contactInfo,
+            photoUrl: urlData.publicUrl,
+          },
+        });
+      } else {
+        // For non-authenticated users, use blob URL (temporary)
+        const url = URL.createObjectURL(blob);
+        updateResume({
+          contactInfo: {
+            ...currentResume.contactInfo,
+            photoUrl: url,
+          },
+        });
+      }
+      toast.success('Photo added to resume');
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      toast.error('Failed to upload photo');
+    }
+  };
+
+  const handleKeepInitials = (dontAskAgain: boolean) => {
+    if (dontAskAgain && currentResume?.id) {
+      localStorage.setItem(`photo-prompt-${currentResume.id}`, 'true');
+    }
+  };
+
   const handleExport = async (type: ExportType, showPageNumbers: boolean, showBranding: boolean = true) => {
     setIsGenerating(true);
     try {
@@ -119,13 +198,6 @@ export default function PreviewPage() {
             toast.error('Generate a cover letter first');
             return;
           }
-          pdfBlob = await generateCoverLetterPDF(
-            generatedCoverLetter,
-            currentResume.contactInfo,
-            pdfOptions
-          );
-          fileName = `${baseName}_Cover_Letter.pdf`;
-          break;
 
         case 'combined':
           if (!generatedCoverLetter) {
@@ -417,6 +489,17 @@ export default function PreviewPage() {
         coverLetterContext={coverLetterJobContext}
         onExport={handleExport}
         isExporting={isGenerating}
+      />
+
+      {/* Photo Prompt Sheet */}
+      <ResumePhotoSheet
+        open={showPhotoSheet}
+        onOpenChange={setShowPhotoSheet}
+        profilePhotoUrl={profile?.avatarUrl || null}
+        resumeId={currentResume?.id}
+        onUseProfilePhoto={handleUseProfilePhoto}
+        onUploadPhoto={handleUploadPhoto}
+        onKeepInitials={handleKeepInitials}
       />
     </MobileLayout>
   );

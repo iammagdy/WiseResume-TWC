@@ -5,6 +5,7 @@ export interface ContactInfo {
   location: string;
   linkedin?: string;
   portfolio?: string;
+  photoUrl?: string;
 }
 
 export interface Experience {
