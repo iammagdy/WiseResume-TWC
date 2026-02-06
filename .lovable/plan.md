@@ -1,147 +1,103 @@
 
 
-# Fix Tab Switching Blank Screen Issue
+# Fix Mobile Home Page UI Issues
 
 ## Problem Analysis
 
-When switching between tabs in the Editor page, users experience a ~2 second blank screen before content loads, especially on mobile. This is caused by:
+Based on the screenshot, the home page has several layout issues on mobile:
 
-1. **Radix UI Tabs unmount behavior**: By default, `TabsContent` unmounts when the tab becomes inactive and remounts when active again
-2. **Heavy component re-initialization**: Each tab section (Contact, Summary, Experience, etc.) uses hooks like `useAIEnhance` and `useResumeNudges` that re-initialize on every mount
-3. **State reset on mount**: Each section component has local `useState` (like `touched` states) that resets, causing re-renders
-4. **Animation overhead**: Framer Motion animations in sections like `ExperienceSection` add additional mounting cost
+1. **Double Nested Grid Bug**: The AI Actions section has a redundant nested grid structure causing cards to display incorrectly
+2. **Logo Not Centered**: The AppLogo component centers itself, but the header container doesn't center it in the viewport
+3. **Poor Spacing**: Sections feel cramped with inconsistent vertical rhythm
+4. **Card Layout Issues**: Action cards appear squeezed with truncated text
+
+## Root Cause
+
+In `src/pages/Index.tsx` lines 133-150:
+```tsx
+<div className="grid grid-cols-2 gap-3">  {/* Outer grid */}
+  <Suspense fallback={<ActionCardsGridSkeleton />}>
+    <div className="grid grid-cols-2 gap-3">  {/* DUPLICATE inner grid! */}
+      <ActionCard ... />
+      <ActionCard ... />
+    </div>
+  </Suspense>
+</div>
+```
+
+This creates a 2-column grid where the first column contains another 2-column grid, resulting in cards being squashed into 25% of the available width instead of 50%.
 
 ## Solution
 
-Use the `forceMount` prop on `TabsContent` combined with `hidden` attribute to keep all tab content in the DOM but visually hide inactive tabs. This prevents the unmount/remount cycle that causes the delay.
+### 1. Fix Double Nested Grid
 
-## Technical Implementation
+Remove the outer `grid grid-cols-2 gap-3` wrapper since the inner div already handles the grid layout.
 
-### Approach: Force Mount with Hidden Attribute
-
-Instead of unmounting inactive tabs, keep them mounted but hidden:
-- Add `forceMount` prop to each `TabsContent`
-- Use the HTML `hidden` attribute for inactive tabs (removes from layout flow)
-- Conditionally apply the `hidden` attribute based on `activeTab` state
-
-### Changes Required
-
----
-
-### File 1: `src/components/ui/tabs.tsx`
-
-Update `TabsContent` to support `forceMount` and `hidden` props properly:
-
-**Current:**
+**Before:**
 ```tsx
-const TabsContent = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.Content
-    ref={ref}
-    className={cn(
-      "mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-      className,
-    )}
-    {...props}
-  />
-));
+<div className="grid grid-cols-2 gap-3">
+  <Suspense fallback={<ActionCardsGridSkeleton />}>
+    <div className="grid grid-cols-2 gap-3">
+      <ActionCard ... />
+      <ActionCard ... />
+    </div>
+  </Suspense>
+</div>
 ```
 
-The Radix UI `TabsContent` already accepts `forceMount` as a prop. The hidden attribute needs to be handled at the usage level, not in the component definition. The component is already correct.
-
----
-
-### File 2: `src/pages/EditorPage.tsx`
-
-Update the `TabsContent` usage to use `forceMount` and `hidden`:
-
-**Current structure:**
+**After:**
 ```tsx
-<TabsContent value="contact" className="mt-0">
-  <ContactSection />
-</TabsContent>
-<TabsContent value="summary" className="mt-0">
-  <SummarySection />
-</TabsContent>
-// ... etc
+<Suspense fallback={<ActionCardsGridSkeleton />}>
+  <div className="grid grid-cols-2 gap-3">
+    <ActionCard ... />
+    <ActionCard ... />
+  </div>
+</Suspense>
 ```
 
-**New structure:**
+### 2. Center the Logo
+
+Update the header to center the AppLogo properly:
+
+**Before:**
 ```tsx
-<TabsContent 
-  value="contact" 
-  className="mt-0" 
-  forceMount 
-  hidden={activeTab !== 'contact'}
->
-  <ContactSection />
-</TabsContent>
-<TabsContent 
-  value="summary" 
-  className="mt-0" 
-  forceMount 
-  hidden={activeTab !== 'summary'}
->
-  <SummarySection />
-</TabsContent>
-// ... etc for all 5 tabs
+<header className="pt-safe pt-6 pb-4 px-4">
+  <AppLogo size="md" />
+</header>
 ```
 
----
-
-### File 3: `src/index.css` (optional enhancement)
-
-Add CSS to ensure `hidden` attribute works correctly with the tabs:
-
-```css
-/* Ensure hidden tabs are properly hidden but still in DOM */
-[hidden] {
-  display: none !important;
-}
+**After:**
+```tsx
+<header className="pt-safe pt-6 pb-6 px-4 flex flex-col items-center">
+  <AppLogo size="md" />
+</header>
 ```
 
-This may already be default browser behavior, but explicitly defining it ensures consistency.
+### 3. Improve Section Spacing
 
----
+Add better vertical rhythm with increased margins and padding:
+- Increase header bottom padding from `pb-4` to `pb-6`
+- Use consistent `mb-8` for section spacing
+- Add subtle visual separation between sections
 
-## Why This Works
+### 4. Improve Action Card Layout
 
-| Aspect | Before | After |
-|--------|--------|-------|
-| Tab switch behavior | Unmount old, mount new | Show/hide (no remount) |
-| Component state | Reset on each tab switch | Preserved |
-| Hook initialization | Re-runs on mount | Runs once on page load |
-| Animation cost | Paid on every tab switch | Paid once on initial load |
-| DOM presence | Only active tab | All tabs always present |
-| Initial load time | Fast (1 tab) | Slightly slower (all tabs) |
-| Tab switch time | Slow (2 sec blank) | Instant |
-
-## Trade-offs
-
-**Pros:**
-- Instant tab switching with no blank screen
-- Form state is preserved when switching tabs
-- No flicker or re-render delay
-
-**Cons:**
-- All 5 tab sections render on initial page load (slightly higher initial cost)
-- More DOM nodes present at all times
-- Hooks in all sections initialize on page load
-
-The trade-off is acceptable because:
-1. The sections are not extremely heavy (mostly forms)
-2. User experience during editing is significantly improved
-3. Initial load is a one-time cost vs. repeated tab switching
+Update the ActionCard title to use "Tailor Resume" instead of just "Tailor" for clarity (already correct in the code, issue was the grid)
 
 ## Files to Modify
 
-1. `src/pages/EditorPage.tsx` - Add `forceMount` and `hidden` to all `TabsContent` components
+### `src/pages/Index.tsx`
+
+1. Remove duplicate grid wrapper around ActionCards (lines 133 and 150)
+2. Center the logo in the header
+3. Improve section spacing
+4. Simplify the Suspense structure for action cards
 
 ## Expected Result
 
-- Tab switching becomes instant with no blank screen
-- Form state (like validation touched states) persists when switching tabs
-- User can freely navigate between sections without waiting
+- Action cards display side-by-side at proper 50% width each
+- Description text fully visible without truncation
+- Logo centered at top of page
+- Consistent spacing throughout the dashboard
+- Clean, professional mobile layout
 
