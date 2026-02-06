@@ -1,109 +1,75 @@
 
-# Add Intersection Observer for Landing Section Lazy Loading
+# Fix Template Gallery Mobile Clarity
 
-## Overview
-This plan implements a view-based lazy loading system for landing page sections. Instead of loading all sections immediately when the landing page mounts, each section will only load when it comes into view (or is about to). This further improves initial load performance by deferring JavaScript execution for below-the-fold content.
+## Problem Analysis
+The template gallery thumbnails appear unclear and overlapping on mobile because:
+1. The 60% container width on small screens (~225px on a 375px screen) scales the 612px template to ~0.37, making text illegible
+2. The horizontal scroll carousel causes visual overlap between adjacent cards
+3. There's no minimum size constraint for readability
 
-## Technical Approach
+## Solution
 
-### 1. Create a Reusable `useInView` Hook
-Create a new hook `src/hooks/useInView.ts` that wraps the Intersection Observer API:
+### Approach: Show one template at a time on mobile with larger thumbnails
 
-- **Parameters:**
-  - `rootMargin`: How far from the viewport to trigger loading (default: `"200px"` to preload slightly before visible)
-  - `threshold`: Visibility threshold to trigger (default: `0`)
-  - `triggerOnce`: Whether to stop observing after first intersection (default: `true`)
+Rather than showing multiple small, hard-to-read thumbnails, we'll:
+1. Show a single centered card on mobile (wider width per card)
+2. Add minimum width constraint for readability
+3. Improve snap behavior so only one template shows at a time
+4. Increase gap between cards to prevent visual overlap
 
-- **Returns:**
-  - `ref`: A ref to attach to the container element
-  - `inView`: Boolean indicating if element is/was in view
+### Changes
 
-### 2. Create a `LazySection` Wrapper Component
-Create `src/components/landing/LazySection.tsx`:
+#### 1. Update TemplateGallery.tsx
 
-- Wraps any lazy-loaded section with intersection observer logic
-- Shows the appropriate skeleton placeholder while not yet in view
-- Only renders the actual component via `Suspense` when in view or after first visibility
-- Uses the reusable `useInView` hook internally
+**Card width adjustments:**
+- Mobile: Change from `w-[60%]` to `w-[75%]` for larger, clearer thumbnails
+- Ensure minimum width of 200px using `min-w-[200px]`
+- Center the active card more prominently
 
-### 3. Update Index.tsx Landing Page
-Modify the landing page to use `LazySection` for below-the-fold content:
+**Scroll calculation fix:**
+- Update `handleScroll` to use the new 75% width
+- Update pagination dot click handler to match
 
-- **Always load immediately:** `HeroSection` (above the fold, critical for FCP)
-- **Load when in view:** `SocialProofBar`, `HowItWorks`, `FeatureGrid`, `TemplateGallery`, `BottomCTA`
+**Visual improvements:**
+- Add more horizontal padding to prevent edge clipping
+- Increase gap between cards from `gap-4` to `gap-6`
+- Reduce opacity difference for non-active cards to make the layout cleaner
 
-The structure will change from:
-```tsx
-<Suspense fallback={<LandingPageSkeleton />}>
-  <SpaceBackground>
-    <HeroSection />
-    <SocialProofBar />
-    ...
-  </SpaceBackground>
-</Suspense>
+#### 2. Update TemplateThumbnail.tsx
+
+**Add resize observer:**
+- Currently only calculates scale on mount
+- Add a resize observer to recalculate scale when container size changes
+
+**Set minimum scale:**
+- Ensure text remains somewhat readable even at small sizes
+- Add `min-scale` logic to prevent extreme shrinking
+
+### Technical Implementation
+
+```text
+TemplateGallery.tsx changes:
++-------------------------------------+
+| Before        | After               |
+|---------------|---------------------|
+| w-[60%]       | w-[75%] sm:w-[40%]  |
+| gap-4         | gap-6               |
+| px-6          | px-8                |
+| opacity-60    | opacity-70          |
++-------------------------------------+
 ```
 
-To:
-```tsx
-<SpaceBackground>
-  <Suspense fallback={<HeroSkeleton />}>
-    <HeroSection />
-  </Suspense>
-  <LazySection skeleton={<SocialProofSkeleton />}>
-    <SocialProofBar />
-  </LazySection>
-  <LazySection skeleton={<HowItWorksSkeleton />}>
-    <HowItWorks />
-  </LazySection>
-  ...
-</SpaceBackground>
-```
+**TemplateThumbnail.tsx changes:**
+- Add `ResizeObserver` to handle dynamic container width changes
+- This ensures scale is correct when viewport changes
 
-## File Changes
+### Files to Modify
+- `src/components/landing/TemplateGallery.tsx`
+- `src/components/editor/TemplateThumbnail.tsx`
+- `src/components/landing/LandingSkeletons.tsx` (update skeleton to match new widths)
 
-### New Files:
-- `src/hooks/useInView.ts` - Reusable Intersection Observer hook
-- `src/components/landing/LazySection.tsx` - View-based lazy loading wrapper
-
-### Modified Files:
-- `src/pages/Index.tsx` - Update landing page to use `LazySection` for below-fold content
-- `src/components/landing/LandingSkeletons.tsx` - Export individual skeleton components (already done)
-
-## Technical Details
-
-### useInView Hook Implementation
-```typescript
-export function useInView(options?: {
-  rootMargin?: string;
-  threshold?: number;
-  triggerOnce?: boolean;
-}): { ref: RefCallback<Element>; inView: boolean }
-```
-
-- Uses native IntersectionObserver API for optimal performance
-- Cleans up observer on unmount
-- Supports `triggerOnce` to stop observing after first visibility (prevents re-renders)
-
-### LazySection Component
-```typescript
-interface LazySectionProps {
-  children: React.ReactNode;
-  skeleton: React.ReactNode;
-  rootMargin?: string;
-}
-```
-
-- When `inView` is false: renders the skeleton placeholder
-- When `inView` is true: renders children wrapped in Suspense with the skeleton as fallback
-- Uses `rootMargin: "200px"` by default to start loading before sections enter viewport
-
-### Performance Benefits
-1. **Reduced initial JavaScript execution:** Below-fold sections don't execute until needed
-2. **Smaller initial bundle parse time:** Lazy-loaded chunks are deferred
-3. **Improved Time to Interactive (TTI):** Main thread is less blocked on initial load
-4. **Better FCP:** Hero section loads independently without waiting for other sections
-
-### Edge Cases Handled
-- Fast scrolling: `rootMargin` ensures content starts loading before visible
-- Already in view on mount: IntersectionObserver fires immediately for visible elements
-- Component unmount during load: Observer cleanup prevents memory leaks
+### Expected Result
+- Larger, more readable template previews on mobile
+- Single focused card with clear visual hierarchy
+- Smooth snap scrolling between templates
+- Consistent appearance between skeleton and actual component
