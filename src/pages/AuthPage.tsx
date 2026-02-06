@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
  import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, AlertCircle } from 'lucide-react';
@@ -56,8 +56,29 @@ export default function AuthPage() {
      }
    };
  
-   const emailError = getEmailError();
-   const passwordError = getPasswordError();
+    const emailError = getEmailError();
+    const passwordError = getPasswordError();
+
+  // Check auth state on mount and redirect if authenticated
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session) {
+          navigate('/dashboard', { replace: true });
+        }
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        navigate('/dashboard', { replace: true });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
 
    const validateInputs = (): boolean => {
      setTouched({ email: true, password: true });
@@ -158,25 +179,39 @@ export default function AuthPage() {
 
   const handleGoogleSignIn = async () => {
     setSocialLoading('google');
-    const { error } = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin,
-    });
+    try {
+      const { error } = await lovable.auth.signInWithOAuth('google', {
+        redirect_uri: window.location.origin,
+      });
 
-    if (error) {
+      if (error) {
+        toast.error('Failed to sign in with Google');
+      }
+    } catch (e) {
       toast.error('Failed to sign in with Google');
-      setSocialLoading(null);
+    } finally {
+      setTimeout(() => {
+        setSocialLoading(null);
+      }, 2000);
     }
   };
 
   const handleAppleSignIn = async () => {
     setSocialLoading('apple');
-    const { error } = await lovable.auth.signInWithOAuth('apple', {
-      redirect_uri: window.location.origin,
-    });
+    try {
+      const { error } = await lovable.auth.signInWithOAuth('apple', {
+        redirect_uri: window.location.origin,
+      });
 
-    if (error) {
+      if (error) {
+        toast.error('Failed to sign in with Apple');
+      }
+    } catch (e) {
       toast.error('Failed to sign in with Apple');
-      setSocialLoading(null);
+    } finally {
+      setTimeout(() => {
+        setSocialLoading(null);
+      }, 2000);
     }
   };
 
