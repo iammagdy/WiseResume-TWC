@@ -1,293 +1,205 @@
 
+# AI Studio Enhancement: Personal Career Coach Suite
 
-# Performance Optimization Analysis & Fixes
+## Vision
 
-## Executive Summary
-
-After a comprehensive analysis of the codebase, I've identified **7 major performance bottlenecks** causing slow navigation, janky animations, and unnecessary re-renders. This plan addresses each with targeted fixes.
-
----
-
-## Problems Identified
-
-### 1. Console Warning: forwardRef Missing on ElevenLabsKeySheet
-**File:** `src/components/settings/ElevenLabsKeySheet.tsx`
-
-The console shows:
-```
-Warning: Function components cannot be given refs. Attempts to access this ref will fail. 
-Check the render method of `SettingsPage`.
-```
-
-The `ElevenLabsKeySheet` is a function component that doesn't forward refs, but Radix Dialog (used by Sheet internally) attempts to pass refs to child components.
-
-**Fix:** Wrap component with `React.forwardRef`
+Transform AI Studio from a "tools panel" into a **conversational career advisor** that proactively guides users through their job search journey. Think of it as having a senior career coach who:
+- Does the heavy lifting automatically (Autopilot)
+- Explains insights in encouraging, human language (Personal Coach)
+- Unlocks hidden opportunities no other app shows (Reverse Engineering, Salary Negotiator, Recruiter Simulation)
 
 ---
 
-### 2. Excessive Framer Motion Staggered Animations
-**Files:** `SettingsPage.tsx`, `DashboardPage.tsx`, `TemplateSelector.tsx`, many others
+## New Features Overview
 
-Every section in Settings page has individual `motion.div` wrappers with staggered delays:
-```tsx
-<motion.div
-  initial={{ opacity: 0, y: 10 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ delay: 0.05 }}
->
-```
+### Feature 1: Recruiter Simulation ("Tough Love Mode")
+**What it does:** AI role-plays as a skeptical recruiter with 15 years of experience, giving brutally honest feedback on your resume - exactly what a real recruiter would think but never say.
 
-This creates **60+ animation instances** that all run on mount, causing:
-- GPU memory pressure on mobile
-- Layout thrashing during initial render
-- Delayed Time to Interactive (TTI)
+**User Experience:**
+1. User opens AI Studio → taps "Recruiter Simulation"
+2. AI "recruiter" reviews the resume in real-time with personality
+3. Delivers feedback in three categories:
+   - "Red Flags I'd Notice" (dealbreakers)
+   - "Questions I'd Ask" (gaps/concerns)
+   - "What Makes Me Want to Call You" (strengths)
+4. Provides a "Hireability Score" with explanation
+5. One-tap fixes: "Fix This" buttons auto-apply suggested improvements
 
-**Fix:** 
-- Remove individual item animations from settings sections
-- Use CSS `animate-fadeIn` for lightweight fade-in
-- Keep motion only for interactive elements (expand/collapse)
+**Unique Twist:** Different recruiter personas - "Fortune 500 HR", "Startup Founder", "Tech Recruiter", "Agency Headhunter" - each with different priorities and feedback styles.
 
 ---
 
-### 3. TemplateSelector Renders 12 Full Templates
-**File:** `src/components/editor/TemplateSelector.tsx` and `TemplateThumbnail.tsx`
+### Feature 2: Salary Negotiator ("Money Coach")
+**What it does:** AI analyzes your resume strength vs. market data and coaches you on exactly how to negotiate, including scripts and counter-offer strategies.
 
-When the template sheet opens, it renders **12 complete template components** (each with scaling transforms via ResizeObserver):
+**User Experience:**
+1. After tailoring for a job, "Salary Intelligence" appears
+2. Shows:
+   - Market salary range for the role (AI-estimated)
+   - Your leverage points based on resume (ranked by impact)
+   - Red flags that weaken your position
+3. "Negotiation Prep" tab with:
+   - Opening ask suggestion (with reasoning)
+   - Counter-offer scripts for common pushbacks
+   - Walk-away number recommendation
+   - Benefits to negotiate if salary is capped
 
-```tsx
-{sortedTemplates.map((template, index) => (
-  <TemplateThumbnail templateId={template.id} resume={previewResume} />
-))}
-```
-
-Each `TemplateThumbnail`:
-- Uses ResizeObserver
-- Renders full template HTML
-- Applies CSS transform scaling
-
-**Fix:**
-- Add `loading="lazy"` pattern - only render visible templates
-- Use virtualization or lazy loading for off-screen templates
-- Memoize template components with `React.memo`
+**Unique Twist:** "Confidence Meter" that shows how strong your negotiating position is based on your resume vs. job requirements. If low, AI suggests what to add to your resume to strengthen it.
 
 ---
 
-### 4. useProfile Hook Fetches on Every Component Mount
-**File:** `src/hooks/useProfile.ts`
+### Feature 3: Reverse Engineer Success ("Learn from Winners")
+**What it does:** Paste a LinkedIn profile URL of someone who GOT the job you want, and AI reverse-engineers what made them successful and shows you exactly how to bridge the gap.
 
-The `useProfile` hook uses raw `useState` + `useEffect` instead of React Query:
-```tsx
-useEffect(() => {
-  const fetchProfile = async () => {
-    // Fetches every time component mounts
-  };
-  fetchProfile();
-}, [userId, user]);
-```
+**User Experience:**
+1. User pastes LinkedIn URL of successful person in target role
+2. AI extracts their career trajectory, skills, experience patterns
+3. Side-by-side comparison: "Their Resume vs. Yours"
+4. Gap analysis:
+   - "They have X, you have Y - here's how to bridge it"
+   - "Transferable skills you can reframe"
+   - "Hidden advantages you have that they don't"
+5. Auto-generate a "Career Bridge Plan" with actionable steps
 
-This means profile data is re-fetched whenever:
-- SettingsPage mounts
-- DashboardPage mounts
-- Any component using the hook mounts
-
-**Fix:** Convert to React Query with same staleTime as resumes (5 minutes)
+**Unique Twist:** For career switchers - highlights "pivot patterns" showing how the successful person transitioned, with specific wording they likely used.
 
 ---
 
-### 5. Heavy Swipe Gesture Calculations on ResumeListCard
-**File:** `src/components/dashboard/ResumeListCard.tsx`
+### Feature 4: Rejection Pattern Analyzer ("Learn from Losses")
+**What it does:** Paste rejection emails (or describe what happened), and AI finds patterns across multiple rejections to identify your actual weaknesses.
 
-Each card creates **6 motion values and transforms**:
-```tsx
-const x = useMotionValue(0);
-const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
-const duplicateOpacity = useTransform(x, [20, SWIPE_THRESHOLD], [0, 1]);
-const deleteScale = useTransform(x, [-SWIPE_THRESHOLD * 1.5, -SWIPE_THRESHOLD], [1.1, 1]);
-const duplicateScale = useTransform(x, [SWIPE_THRESHOLD, SWIPE_THRESHOLD * 1.5], [1, 1.1]);
-```
+**User Experience:**
+1. User adds 3+ rejection emails or describes interview outcomes
+2. AI analyzes for patterns:
+   - Common stage of failure (resume screen, phone screen, final round?)
+   - Recurring feedback themes
+   - Industry/role correlations
+3. Diagnosis with fixes:
+   - "You're losing at X stage because of Y"
+   - "Your resume is strong but your story isn't - here's how to fix it"
+   - "Companies in [industry] are rejecting you for [specific reason]"
 
-With 10+ resumes, this creates 60+ motion value subscriptions running continuously.
-
-**Fix:** 
-- Lazy initialize swipe values only when gesture starts
-- Use simpler swipe detection without continuous transforms
-- Consider replacing with CSS-only swipe alternative
+**Unique Twist:** "Rejection Recovery Plan" - one-tap action items that directly modify your resume/approach based on patterns found.
 
 ---
 
-### 6. AIAssistantBar Has Heavy Initial Animation
-**File:** `src/components/editor/AIAssistantBar.tsx`
+### Feature 5: AI Career Coach Chat ("Pocket Advisor")
+**What it does:** A conversational AI coach that lives inside AI Studio, proactively offers advice, and can answer any career question based on your resume context.
 
-The AI bar animates on every Editor page mount:
-```tsx
-<motion.div
-  initial={{ opacity: 0, y: 20 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ delay: 0.2 }}
->
-```
+**User Experience:**
+- Floating chat bubble in AI Studio
+- Proactive messages: "I noticed you applied to 5 tech companies but your resume doesn't mention X technology. Should I add it?"
+- Can ask: "Am I ready for senior roles?", "What companies would hire me?", "How do I explain my gap year?"
+- References your resume context in every answer
 
-Combined with the Editor's tab switching and auto-save debouncing, this creates animation competition.
-
-**Fix:** Remove entry animation - component should be immediately visible
+**Unique Twist:** Remembers your job search history and learns your preferences over time.
 
 ---
 
-### 7. Missing React.memo on Template Components
-**Files:** All templates in `src/components/templates/`
+## Technical Architecture
 
-Template components receive `resume` as a prop but aren't memoized:
-```tsx
-export function ModernTemplate({ resume }: TemplateProps) {
-  return <div>...</div>
-}
-```
+### New Edge Functions
+| Function | Purpose |
+|----------|---------|
+| `recruiter-simulation` | Role-play as different recruiter personas, analyze resume |
+| `salary-intelligence` | Estimate salary ranges, generate negotiation scripts |
+| `reverse-engineer-profile` | Parse LinkedIn profiles, generate comparison analysis |
+| `analyze-rejections` | Pattern recognition across rejection emails |
+| `career-coach-chat` | Conversational AI with resume context |
 
-When parent re-renders (e.g., store updates), all 12 template thumbnails re-render.
+### New Components
+| Component | Location |
+|-----------|----------|
+| `RecruiterSimSheet.tsx` | `src/components/editor/ai/` |
+| `SalaryNegotiatorSheet.tsx` | `src/components/editor/ai/` |
+| `ReverseEngineerSheet.tsx` | `src/components/editor/ai/` |
+| `RejectionAnalyzerSheet.tsx` | `src/components/editor/ai/` |
+| `CareerCoachChat.tsx` | `src/components/editor/ai/` |
+| `AIStudioHome.tsx` | Updated main hub with new tiles |
 
-**Fix:** Wrap all templates with `React.memo`
-
----
-
-## Implementation Plan
-
-### Phase 1: Critical Console Errors
-
-| File | Change |
-|------|--------|
-| `src/components/settings/ElevenLabsKeySheet.tsx` | Add `React.forwardRef` wrapper |
-
-### Phase 2: Remove Heavy Entry Animations
-
-| File | Change |
-|------|--------|
-| `src/pages/SettingsPage.tsx` | Replace motion.div sections with plain divs + CSS fade |
-| `src/components/editor/AIAssistantBar.tsx` | Remove initial/animate props |
-| `src/components/dashboard/ResumeListCard.tsx` | Remove stagger animation, use CSS |
-
-### Phase 3: Optimize Data Fetching
-
-| File | Change |
-|------|--------|
-| `src/hooks/useProfile.ts` | Convert to React Query with proper staleTime |
-
-### Phase 4: Template Optimization
-
-| File | Change |
-|------|--------|
-| `src/components/editor/TemplateThumbnail.tsx` | Add React.memo, lazy load off-screen |
-| `src/components/templates/*.tsx` | Add React.memo to all 12 templates |
-
-### Phase 5: Simplify Swipe Gestures
-
-| File | Change |
-|------|--------|
-| `src/components/dashboard/ResumeListCard.tsx` | Simplify gesture detection, lazy init values |
+### Database Schema (Optional - for persistence)
+| Table | Purpose |
+|-------|---------|
+| `rejection_logs` | Store rejection emails for pattern analysis |
+| `salary_negotiations` | Track negotiation outcomes for learning |
+| `career_coaching_sessions` | Chat history with coach |
 
 ---
 
-## Technical Details
+## Updated AI Hub Layout
 
-### ElevenLabsKeySheet forwardRef Fix
-```typescript
-export const ElevenLabsKeySheet = React.forwardRef<
-  HTMLDivElement,
-  ElevenLabsKeySheetProps
->(function ElevenLabsKeySheet({ open, onOpenChange, currentKey, onSave }, ref) {
-  // ... existing code
-});
-```
+The AI Studio sheet will be reorganized into categories:
 
-### useProfile with React Query
-```typescript
-export function useProfile(userId: string | undefined, user?: User | null) {
-  const queryClient = useQueryClient();
-
-  const { data: profile, isLoading: loading } = useQuery({
-    queryKey: ['profile', userId],
-    queryFn: async () => {
-      // Fetch logic
-    },
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - matches resume query
-  });
-
-  const updateProfile = useMutation({
-    mutationFn: async (updates: Partial<Profile>) => {
-      // Update logic
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile', userId] });
-    },
-  });
-
-  return { profile, loading, updateProfile: updateProfile.mutate };
-}
-```
-
-### SettingsPage Without Motion Animations
-```tsx
-// Before: 8 motion.div wrappers with staggered animations
-<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-
-// After: Simple div with CSS class
-<div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
-```
-
-### Template Memoization Pattern
-```typescript
-export const ModernTemplate = React.memo(function ModernTemplate({ resume }: TemplateProps) {
-  return <div>...</div>;
-});
+```text
++------------------------------------------+
+| AI Studio                 [Current Score] |
++------------------------------------------+
+|                                          |
+| [ESSENTIAL] ----------------------------- |
+| [Smart Tailor]  [Job Match]  [AI Enhance] |
+|                                          |
+| [COMPETITIVE EDGE] ---------------------- |
+| [Recruiter Sim]  [Salary Negotiator]     |
+|                                          |
+| [LEARNING] ------------------------------ |
+| [Reverse Engineer]  [Rejection Analyzer] |
+|                                          |
+| [Your AI Coach is here] 💬               |
+|                                          |
++------------------------------------------+
 ```
 
 ---
 
-## Files to Modify
+## Implementation Phases
 
-| File | Priority | Type |
-|------|----------|------|
-| `src/components/settings/ElevenLabsKeySheet.tsx` | High | Fix console error |
-| `src/hooks/useProfile.ts` | High | Convert to React Query |
-| `src/pages/SettingsPage.tsx` | High | Remove motion animations |
-| `src/components/editor/AIAssistantBar.tsx` | Medium | Remove entry animation |
-| `src/components/dashboard/ResumeListCard.tsx` | Medium | Simplify animations |
-| `src/components/editor/TemplateThumbnail.tsx` | Medium | Add React.memo + lazy |
-| `src/components/templates/ModernTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/ClassicTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/MinimalTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/ProfessionalTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/DeveloperTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/CreativeTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/ExecutiveTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/CompactTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/AcademicTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/HealthcareTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/SalesTemplate.tsx` | Low | Add React.memo |
-| `src/components/templates/ElegantTemplate.tsx` | Low | Add React.memo |
+### Phase 1: Recruiter Simulation (Highest Impact)
+- Create edge function for persona-based analysis
+- Build UI sheet with persona selector
+- Implement one-tap fixes
 
----
+### Phase 2: Salary Negotiator
+- Create edge function for salary intelligence
+- Build negotiation prep UI
+- Add confidence meter
 
-## Expected Performance Improvements
+### Phase 3: Reverse Engineer + Rejection Analyzer
+- LinkedIn profile parsing
+- Pattern recognition engine
+- Side-by-side comparison UI
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Settings page render | ~150ms | ~30ms |
-| Template selector open | ~300ms | ~100ms |
-| Profile data refetch | Every mount | Once per 5 min |
-| Console errors | 2 warnings | 0 |
-| Animation instances on Settings | 60+ | ~5 |
-| Resume card gesture overhead | 60 motion values | 10 motion values |
+### Phase 4: Career Coach Chat
+- Conversational interface
+- Context-aware responses
+- Proactive nudges
 
 ---
 
-## Summary
+## Files to Create/Modify
 
-The main performance issues stem from:
-1. **Over-animation** - Too many Framer Motion instances running simultaneously
-2. **Missing caching** - Profile data re-fetching on every navigation
-3. **Unmemoized components** - Template components re-rendering unnecessarily
-4. **Missing forwardRef** - Console warnings from Radix components
+| File | Action | Purpose |
+|------|--------|---------|
+| `supabase/functions/recruiter-simulation/index.ts` | Create | Persona-based resume review |
+| `supabase/functions/salary-intelligence/index.ts` | Create | Salary analysis & negotiation scripts |
+| `supabase/functions/reverse-engineer-profile/index.ts` | Create | LinkedIn profile analysis |
+| `supabase/functions/analyze-rejections/index.ts` | Create | Rejection pattern recognition |
+| `supabase/functions/career-coach-chat/index.ts` | Create | Conversational career advisor |
+| `src/components/editor/ai/RecruiterSimSheet.tsx` | Create | Recruiter simulation UI |
+| `src/components/editor/ai/SalaryNegotiatorSheet.tsx` | Create | Salary negotiation UI |
+| `src/components/editor/ai/ReverseEngineerSheet.tsx` | Create | Profile comparison UI |
+| `src/components/editor/ai/RejectionAnalyzerSheet.tsx` | Create | Rejection analysis UI |
+| `src/components/editor/ai/CareerCoachChat.tsx` | Create | Floating chat coach |
+| `src/components/editor/AIHubSheet.tsx` | Modify | Add new feature tiles |
+| `src/types/resume.ts` | Modify | Add new types for features |
 
-After these fixes, the app will feel significantly snappier, especially on mobile devices where animation performance is critical.
+---
 
+## What Makes This Unique
+
+1. **Recruiter Simulation** - No other app lets you hear the harsh truth recruiters think but never say
+2. **Salary Negotiator** - Goes beyond salary data to give you actual scripts and strategies
+3. **Reverse Engineering** - Learn from real people who got the job, not generic advice
+4. **Rejection Analyzer** - Turn failures into actionable insights
+5. **Personal Coach** - Always-on advisor that knows your full context
+
+This positions the app as a complete "Career Intelligence Platform" rather than just a resume builder.
