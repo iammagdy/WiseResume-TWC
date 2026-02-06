@@ -159,7 +159,7 @@ export default function InterviewPage() {
     return (
       <MobileLayout>
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <button onClick={() => navigate(-1)} className="touch-manipulation p-1">
+          <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')} className="touch-manipulation p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export default function InterviewPage() {
       {/* Glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/30 bg-card/40 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="touch-manipulation p-1">
+          <button onClick={() => window.history.length > 1 ? navigate(-1) : navigate('/dashboard')} className="touch-manipulation p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
