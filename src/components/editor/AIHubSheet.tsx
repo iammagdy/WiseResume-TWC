@@ -69,7 +69,7 @@ export function AIHubSheet({
         <SheetHeader className="pb-4">
           <SheetTitle className="flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-primary" />
-            AI Assistant
+            AI Studio
           </SheetTitle>
         </SheetHeader>
 
@@ -113,7 +113,7 @@ export function AIHubSheet({
         <div className="grid grid-cols-2 gap-3">
           <AIActionTile
             icon={<Wand2 className="w-5 h-5 text-primary" />}
-            title="Tailor Resume"
+            title="Smart Tailor"
             subtitle="For a specific job"
             onClick={() => {
               onOpenChange(false);
@@ -122,28 +122,23 @@ export function AIHubSheet({
           />
           <AIActionTile
             icon={<Target className="w-5 h-5 text-primary" />}
-            title="Analyze Match"
+            title="Job Match"
             subtitle="Score your fit"
             onClick={() => {
               onOpenChange(false);
               onAnalyze();
             }}
           />
+        </div>
+        {/* Full-width AI Enhance */}
+        <div className="mt-3">
           <AIActionTile
             icon={<Sparkles className="w-5 h-5 text-primary" />}
-            title="Improve Section"
-            subtitle={activeTab ? `Current: ${activeTab}` : undefined}
+            title="AI Enhance"
+            subtitle={activeTab ? `Current: ${activeTab}` : 'Improve any section'}
             onClick={() => {
               onOpenChange(false);
               onImproveSection();
-            }}
-          />
-          <AIActionTile
-            icon={<FileText className="w-5 h-5 text-primary" />}
-            title="Change Template"
-            onClick={() => {
-              onOpenChange(false);
-              onChangeTemplate();
             }}
           />
         </div>
