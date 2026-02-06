@@ -1,196 +1,102 @@
 
-# Edit Profile Sheet Enhancement
+## What’s causing the “Edit Profile” sheet not to scroll
 
-## Issues Identified
+Your `EditProfileSheet` is correctly set up as a flex column with a scrollable middle section:
 
-### 1. Progress Calculation Bug
-The `calculateProfileCompletion` function only counts 6 fields but ignores `linkedinUrl`. When user fills in LinkedIn, the percentage doesn't reflect it.
+- `SheetContent`: `h-[85vh] flex flex-col`
+- Middle content: `flex-1 overflow-y-auto`
 
-**Current fields counted:**
-- fullName
-- avatarUrl
-- jobTitle
-- industry
-- careerLevel
-- location
-
-**Missing:** linkedinUrl
-
-### 2. Save Button Not Visible
-The footer with Cancel/Save buttons exists (lines 446-461), but the sheet's internal layout may be causing it to render outside the visible area. The `h-[85vh]` height combined with `flex flex-col` and `flex-1` on ScrollArea should work, but the nested `pt-4` wrapper in the Sheet component adds extra padding.
-
-### 3. Basic Visual Design
-The form fields use plain inputs without visual grouping or modern card-based design. The sections lack polish compared to the rest of the app.
-
----
-
-## Solution
-
-### Part 1: Fix Progress Calculation
-
-**File: `src/hooks/useProfile.ts`**
-
-Update `calculateProfileCompletion` to include `linkedinUrl`:
-
-```typescript
-export function calculateProfileCompletion(profile: Profile | null): number {
-  if (!profile) return 0;
-  const fields = [
-    profile.fullName,
-    profile.avatarUrl,
-    profile.jobTitle,
-    profile.industry,
-    profile.careerLevel,
-    profile.location,
-    profile.linkedinUrl,  // ADD THIS
-  ];
-  const filled = fields.filter(Boolean).length;
-  return Math.round((filled / fields.length) * 100);
-}
-```
-
-This changes from 6 fields to 7 fields:
-- 2 filled / 7 total = 29% (previously 33%)
-- 3 filled / 7 total = 43% (with LinkedIn filled)
-
-### Part 2: Fix Save Button Visibility
-
-**File: `src/components/settings/EditProfileSheet.tsx`**
-
-The issue is the SheetContent has `p-0` but the internal structure needs to ensure the footer stays visible. We need to:
-
-1. Add `overflow-hidden` to the SheetContent to prevent scroll issues
-2. Ensure the footer has proper safe area padding for mobile
-3. Make the ScrollArea properly constrained
+However, the shared `SheetContent` component (`src/components/ui/sheet.tsx`) wraps *all* children in an extra `<div>`:
 
 ```tsx
-<SheetContent side="bottom" className="h-[85vh] flex flex-col p-0 overflow-hidden">
-  {/* Header stays fixed */}
-  <SheetHeader>...</SheetHeader>
-  
-  {/* ScrollArea takes remaining space with explicit overflow */}
-  <ScrollArea className="flex-1 min-h-0 px-6">
-    {/* Form content */}
-  </ScrollArea>
-  
-  {/* Footer stays fixed at bottom with safe area */}
-  <div className="flex gap-3 p-6 pb-safe border-t border-border bg-background shrink-0">
-    ...
-  </div>
-</SheetContent>
-```
-
-Key fixes:
-- Add `min-h-0` to ScrollArea (flex items need this to shrink below content size)
-- Add `shrink-0` to footer to prevent compression
-- Add `pb-safe` for device safe area on mobile
-- Add `overflow-hidden` to SheetContent
-
-### Part 3: Enhanced Visual Design
-
-Transform the basic form into a more polished, card-based layout:
-
-**Input Field Cards**
-Wrap each input in a subtle card-like container:
-
-```tsx
-<div className="space-y-4">
-  <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-    Basic Info
-  </h3>
-  
-  {/* Card wrapper for field group */}
-  <div className="rounded-xl bg-card/50 border border-border overflow-hidden">
-    <div className="p-4 space-y-4">
-      {/* Display Name */}
-      <div className="space-y-2">
-        <Label htmlFor="fullName" className="text-xs text-muted-foreground">
-          Display Name
-        </Label>
-        <Input
-          id="fullName"
-          placeholder="Enter your name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          className="bg-background"
-        />
-      </div>
-      
-      {/* Location - with icon inline */}
-      <div className="space-y-2">
-        <Label htmlFor="location" className="text-xs text-muted-foreground flex items-center gap-1.5">
-          <MapPin className="w-3 h-3" />
-          Location
-        </Label>
-        <Input
-          id="location"
-          placeholder="City, Country"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="bg-background"
-        />
-      </div>
-    </div>
-  </div>
+<div className={side === "bottom" ? "pt-4" : ""}>
+  {children}
 </div>
 ```
 
-**Visual Improvements:**
-- Group related fields in subtle card containers (`bg-card/50`)
-- Use smaller, uppercase section headers with tracking
-- Add consistent vertical rhythm with `space-y-4`
-- Use `bg-background` on inputs to create layered depth
-- Add visual icons inline with labels
-- Add subtle dividers between groups
+That wrapper is **not** a flex container and has no defined height. So your `flex-1` scroll area inside `EditProfileSheet` never gets a real constrained height to scroll within. On mobile, this commonly results in “looks like it should scroll, but doesn’t”.
 
-**Progress Bar Enhancement**
-Add color gradient and animation:
-
-```tsx
-<div className="mt-4 space-y-2">
-  <div className="flex items-center justify-between text-sm">
-    <span className="text-muted-foreground">Profile completion</span>
-    <span className="font-semibold text-primary flex items-center gap-1">
-      {completionPercentage}%
-      {completionPercentage === 100 && (
-        <CheckCircle2 className="w-4 h-4 text-green-500" />
-      )}
-    </span>
-  </div>
-  <div className="relative">
-    <Progress value={completionPercentage} className="h-2" />
-    {/* Optional: Add milestone markers */}
-  </div>
-  {completionPercentage < 100 && (
-    <p className="text-xs text-muted-foreground">
-      Complete your profile to get personalized AI suggestions
-    </p>
-  )}
-</div>
-```
+This is consistent with your screenshot: the bottom-sheet opens, content gets clipped, and swipe doesn’t scroll.
 
 ---
 
-## Summary of Changes
+## Implementation plan (safe + reusable fix)
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useProfile.ts` | Add `linkedinUrl` to completion calculation |
-| `src/components/settings/EditProfileSheet.tsx` | Fix layout to ensure footer visibility, enhance visual design with card groups, improve spacing and typography |
+### 1) Fix the bottom-sheet internal layout in the shared Sheet component
+**File:** `src/components/ui/sheet.tsx`
+
+Goal: when `side === "bottom"`, make the internal wrapper participate in layout so children can use flex sizing and scrolling.
+
+Changes:
+- Add `flex flex-col` to the `SheetPrimitive.Content` when `side === "bottom"` (or always, but scoped to bottom is safest).
+- Change the children wrapper div to:
+  - remain `pt-4` (to keep spacing under the drag indicator)
+  - and also become a **flex column with height**
+  - and allow its children to shrink (`min-h-0`) so inner scroll containers can work
+
+Concrete approach:
+- Update line ~58 to conditionally add: `flex flex-col`
+- Update the wrapper at line ~63 to something like:
+  - `pt-4 flex flex-col h-full min-h-0`
+- Optionally set wrapper `flex-1` instead of `h-full` depending on which behaves best with Radix’s content sizing; we’ll choose the one that matches your `h-[85vh]` usage in `EditProfileSheet`.
+
+Why this is the correct fix:
+- It fixes scrolling for this sheet and any other bottom sheets that use the same “header + scroll content + footer” pattern.
+- It avoids adding hacky heights in every sheet consumer.
+
+### 2) Ensure the scroll container in EditProfileSheet can actually shrink
+**File:** `src/components/settings/EditProfileSheet.tsx`
+
+Even after the shared sheet fix, flex scrolling is most reliable when the scrollable container includes `min-h-0`.
+
+Change:
+- Update the scroll area container from:
+  - `className="flex-1 overflow-y-auto px-6"`
+- to:
+  - `className="flex-1 min-h-0 overflow-y-auto px-6"`
+
+Why:
+- In a flex column, `min-h-0` is often required so the flex item is allowed to be smaller than its content and thus becomes scrollable.
+
+### 3) Verify footer stays fixed and scroll doesn’t “steal” it
+**File:** `src/components/settings/EditProfileSheet.tsx`
+
+You already have:
+- Footer: `shrink-0` and `pb-safe`
+This is good. After steps (1) and (2), the middle section should scroll and the footer should stay visible.
+
+### 4) Quick QA checklist (mobile-focused)
+After implementation, we’ll test:
+- Open Settings → Edit Profile
+- Scroll down past “Import from LinkedIn” to Professional Details
+- Confirm:
+  - content scrolls smoothly
+  - the Save/Cancel footer stays fixed
+  - drag indicator remains visible
+  - close (X) still works
+- Test on at least:
+  - mobile viewport (iPhone-like)
+  - desktop viewport (just to ensure no regressions)
 
 ---
 
-## Visual Outcome
+## Files that will be changed
+1. `src/components/ui/sheet.tsx`
+   - Fix bottom-sheet wrapper so flex layout + scrolling works inside bottom sheets.
+2. `src/components/settings/EditProfileSheet.tsx`
+   - Add `min-h-0` to the scroll container to ensure it can scroll within a flex column.
 
-### Before
-- Plain inputs with basic styling
-- Progress shows 33% even with 3 fields filled
-- Save button may be cut off
-- Generic appearance
+---
 
-### After
-- Polished card-based field groups
-- Progress correctly shows filled fields including LinkedIn
-- Save button always visible with safe area padding
-- Premium, consistent design matching the rest of the app
-- Helpful prompt encouraging profile completion
+## Risks / edge cases and how we’ll handle them
+- **Other sheets**: We’ll scope changes to `side === "bottom"` so right/left sheets keep existing behavior.
+- **Padding/spacing changes**: We’ll preserve the existing `pt-4` behavior so the drag indicator doesn’t overlap the header.
+- **iOS scrolling quirks**: If needed after this, we can add `overscroll-contain` (Tailwind) to the scroll container, but we’ll only do that if there’s still bounce/scroll lock issues.
+
+---
+
+## Expected result
+The Edit Profile bottom sheet becomes properly scrollable, with:
+- header fixed
+- content scrollable
+- footer fixed with Save button always accessible
