@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface AcademicTemplateProps {
   resume: ResumeData;
 }
 
-export function AcademicTemplate({ resume }: AcademicTemplateProps) {
+export const AcademicTemplate = memo(function AcademicTemplate({ resume }: AcademicTemplateProps) {
   const { contactInfo, summary, experience, education, skills, certifications } = resume;
 
   return (
@@ -128,4 +129,4 @@ export function AcademicTemplate({ resume }: AcademicTemplateProps) {
       )}
     </div>
   );
-}
+});

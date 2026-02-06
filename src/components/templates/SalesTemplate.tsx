@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface SalesTemplateProps {
   resume: ResumeData;
 }
 
-export function SalesTemplate({ resume }: SalesTemplateProps) {
+export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTemplateProps) {
   const { contactInfo, summary, experience, education, skills, certifications } = resume;
 
   const greenColor = '#16a34a';
@@ -151,4 +152,4 @@ export function SalesTemplate({ resume }: SalesTemplateProps) {
       </div>
     </div>
   );
-}
+});

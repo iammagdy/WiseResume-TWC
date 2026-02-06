@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface ElegantTemplateProps {
   resume: ResumeData;
 }
 
-export function ElegantTemplate({ resume }: ElegantTemplateProps) {
+export const ElegantTemplate = memo(function ElegantTemplate({ resume }: ElegantTemplateProps) {
   const { contactInfo, summary, experience, education, skills, certifications } = resume;
 
   const roseColor = '#be185d';
@@ -151,4 +152,4 @@ export function ElegantTemplate({ resume }: ElegantTemplateProps) {
       </div>
     </div>
   );
-}
+});

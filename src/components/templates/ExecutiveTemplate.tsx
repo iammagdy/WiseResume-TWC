@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface TemplateProps {
   resume: ResumeData;
 }
 
-export function ExecutiveTemplate({ resume }: TemplateProps) {
+export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-10 font-serif text-sm leading-relaxed bg-white">
       {/* Elegant Header */}
@@ -128,4 +129,4 @@ export function ExecutiveTemplate({ resume }: TemplateProps) {
       </div>
     </div>
   );
-}
+});

@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface CompactTemplateProps {
   resume: ResumeData;
 }
 
-export function CompactTemplate({ resume }: CompactTemplateProps) {
+export const CompactTemplate = memo(function CompactTemplate({ resume }: CompactTemplateProps) {
   const { contactInfo, summary, experience, education, skills, certifications } = resume;
 
   return (
@@ -110,4 +111,4 @@ export function CompactTemplate({ resume }: CompactTemplateProps) {
       )}
     </div>
   );
-}
+});

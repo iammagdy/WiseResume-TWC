@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { Github, Mail, Phone, MapPin, Globe } from 'lucide-react';
 
@@ -5,7 +6,7 @@ interface TemplateProps {
   resume: ResumeData;
 }
 
-export function DeveloperTemplate({ resume }: TemplateProps) {
+export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: TemplateProps) {
   // Group skills by category (simple heuristic)
   const categorizeSkills = (skills: string[]) => {
     const languages = ['JavaScript', 'TypeScript', 'Python', 'Java', 'Go', 'Rust', 'C++', 'C#', 'Ruby', 'PHP', 'Swift', 'Kotlin'];
@@ -203,4 +204,4 @@ export function DeveloperTemplate({ resume }: TemplateProps) {
       </div>
     </div>
   );
-}
+});

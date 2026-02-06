@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -40,7 +40,7 @@ interface AIAssistantBarProps {
   className?: string;
 }
 
-export function AIAssistantBar({
+export const AIAssistantBar = memo(function AIAssistantBar({
   matchScore,
   jobDescription,
   currentTemplate,
@@ -80,14 +80,11 @@ export function AIAssistantBar({
     : 'bg-muted/50';
 
   return (
-    <motion.div
+    <div
       className={cn(
         'fixed bottom-20 left-4 right-4 z-40',
         className
       )}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
     >
       <motion.div
         className="glass rounded-2xl border border-border overflow-hidden"
@@ -180,38 +177,29 @@ export function AIAssistantBar({
 
                 {/* Tip */}
                 {!jobDescription && (
-                  <motion.div
-                    className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10"
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                  >
+                  <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
                     <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <p className="text-xs text-muted-foreground">
                       <span className="text-foreground font-medium">Pro tip:</span> Paste a job URL or description to get a personalized match score and tailoring suggestions.
                     </p>
-                  </motion.div>
+                  </div>
                 )}
 
                 {/* Current Job Summary */}
                 {jobDescription && (
-                  <motion.div
-                    className="p-3 rounded-xl bg-muted/30 border border-border"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
+                  <div className="p-3 rounded-xl bg-muted/30 border border-border">
                     <p className="text-xs text-muted-foreground mb-1">Target Job</p>
                     <p className="text-sm line-clamp-2">{jobDescription}</p>
-                  </motion.div>
+                  </div>
                 )}
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </motion.div>
-    </motion.div>
+    </div>
   );
-}
+});
 
 interface AIActionButtonProps {
   icon: React.ReactNode;
@@ -219,17 +207,16 @@ interface AIActionButtonProps {
   onClick: () => void;
 }
 
-function AIActionButton({ icon, label, onClick }: AIActionButtonProps) {
+const AIActionButton = memo(function AIActionButton({ icon, label, onClick }: AIActionButtonProps) {
   return (
-    <motion.button
-      className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border hover:border-primary/50 transition-colors touch-manipulation"
-      whileTap={{ scale: 0.97 }}
+    <button
+      className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border hover:border-primary/50 transition-colors touch-manipulation active:scale-[0.97]"
       onClick={onClick}
     >
       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
         {icon}
       </div>
       <span className="text-sm font-medium">{label}</span>
-    </motion.button>
+    </button>
   );
-}
+});

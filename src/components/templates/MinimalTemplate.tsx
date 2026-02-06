@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface TemplateProps {
   resume: ResumeData;
 }
 
-export function MinimalTemplate({ resume }: TemplateProps) {
+export const MinimalTemplate = memo(function MinimalTemplate({ resume }: TemplateProps) {
   return (
     <div className="p-10 font-sans text-sm leading-loose">
       {/* Header */}
@@ -81,4 +82,4 @@ export function MinimalTemplate({ resume }: TemplateProps) {
       )}
     </div>
   );
-}
+});

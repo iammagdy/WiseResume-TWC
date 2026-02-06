@@ -1,10 +1,11 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 
 interface HealthcareTemplateProps {
   resume: ResumeData;
 }
 
-export function HealthcareTemplate({ resume }: HealthcareTemplateProps) {
+export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: HealthcareTemplateProps) {
   const { contactInfo, summary, experience, education, skills, certifications } = resume;
 
   const tealColor = '#0d9488';
@@ -146,4 +147,4 @@ export function HealthcareTemplate({ resume }: HealthcareTemplateProps) {
       </div>
     </div>
   );
-}
+});
