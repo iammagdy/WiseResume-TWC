@@ -1,126 +1,234 @@
 
-## Goal
-Fix the “unscrollable” behavior across the app (especially bottom sheets), including:
-- Edit Profile sheet
-- Default Template / Templates sheet (screenshot)
-- Any other sheets using the same shared `SheetContent` component
 
-## What’s actually causing the issue (root cause)
-Your bottom sheets are rendered via the shared component `src/components/ui/sheet.tsx`.
+# Fix Avatar Not Reflecting + Add Crop & AI Professional Headshot
 
-Right now:
-- The **Radix Dialog Content element** (`SheetPrimitive.Content`) is **not a flex column**, so children that rely on `flex-1` + `overflow-y-auto` don’t get a constrained height context.
-- We added flex styling to an **inner wrapper** (`<div className="pt-4 flex ... flex-1">`), but since the parent isn’t a flex container, `flex-1` there doesn’t reliably establish the expected scrollable region.
+## Issues Identified
 
-This is why multiple “pages” that are actually *bottom sheets* (Templates, Edit Profile, etc.) become unscrollable on mobile.
+### Issue 1: Avatar Not Reflecting on Settings Page
+The avatar upload in `EditProfileSheet` works correctly - it uploads the file to Supabase Storage and updates the local `avatarUrl` state. However, **the avatar URL is only saved to the database when the user clicks "Save Changes"**.
 
-## Scope: “whole app” audit approach
-We’ll fix the shared sheet layout first (global fix), then normalize the most visible sheets (Templates + Edit Profile) to use the same reliable pattern, and finally audit remaining bottom sheets for anti-patterns that can still break scrolling.
+The flow currently is:
+1. User uploads photo → File goes to storage → Local state updated
+2. User closes sheet without saving → Avatar URL is lost
+3. Settings page reads from `profile?.avatarUrl` (database) → Shows nothing
 
----
+**Root cause**: The avatar URL isn't auto-saved after upload. If the user doesn't click "Save Changes", the URL never persists to the database.
 
-## Implementation plan
+### Issue 2: No Crop/Reposition Feature
+Currently, the uploaded image is used as-is without any cropping or positioning capabilities.
 
-### 1) Make bottom sheets flex-based at the shared component level (global fix)
-**File:** `src/components/ui/sheet.tsx`
-
-**Changes:**
-1. When `side === "bottom"`, apply these layout guarantees to `SheetPrimitive.Content`:
-   - `flex flex-col`
-   - `min-h-0` (critical for nested scrolling in flex layouts)
-   - `overflow-hidden` (prevents the content region from expanding beyond the set height and keeps scroll inside the intended child)
-
-2. Update the “children wrapper” `<div>` so it:
-   - Remains `pt-4` (drag indicator spacing)
-   - Becomes `flex flex-col flex-1 min-h-0` so sheet bodies can use `flex-1 overflow-y-auto`
-
-**Result:**
-Any bottom sheet that uses:
-- Header (shrink-0)
-- Body (flex-1 overflow-y-auto min-h-0)
-- Footer (shrink-0)
-…will scroll correctly without per-sheet hacks.
+### Issue 3: No AI Professional Headshot Option
+The user wants an AI feature to transform a casual photo into a professional headshot (person in a suit, professional background, etc.).
 
 ---
 
-### 2) Fix Templates sheet specifically (DefaultTemplateSheet)
-This is the UI in your screenshot.
+## Solution Overview
 
-**File:** `src/components/settings/DefaultTemplateSheet.tsx`
+### Part 1: Auto-Save Avatar URL After Upload
+When the avatar is successfully uploaded, immediately save the URL to the database so it persists even if the user doesn't click "Save Changes".
 
-**Current pattern:**
-- Uses `overflow-y-auto flex-1`, but the shared sheet wasn’t a flex column, so it doesn’t scroll.
+### Part 2: Add Image Cropper Component
+Create a new `AvatarCropSheet` component using the `react-image-crop` library that:
+- Opens after the user selects an image
+- Provides circular crop area for avatar
+- Allows repositioning and resizing
+- Generates the cropped image before upload
 
-**Update to a consistent layout:**
-- Ensure:
-  - Header has `shrink-0`
-  - Body uses `className="flex-1 min-h-0 overflow-y-auto pb-safe"` (or `pb-6 pb-safe` depending on spacing needs)
-
-This ensures the grid scrolls, not the whole sheet, and the close button remains accessible.
-
----
-
-### 3) Fix Template selector sheet used in Editor flows (if applicable)
-Even if your “Templates page” is the Settings one, the editor also has a template picker sheet.
-
-**File:** `src/components/editor/TemplateSelector.tsx`
-
-**Current risk factors:**
-- Uses a grid with `overflow-y-auto max-h-[calc(...)]` which can be brittle on mobile (especially with safe areas, dynamic viewport, and varying header heights).
-
-**Update:**
-- Convert to the same reliable pattern:
-  - Make the sheet body a `flex-1 min-h-0 overflow-y-auto`
-  - Keep the grid inside that body without `max-h-[calc(...)]`
-
-This prevents future scroll regressions and makes the sheet responsive to content changes (ATS banner, recommendations text, etc.).
+### Part 3: Add AI Professional Headshot Feature
+Create an edge function and UI option to:
+- Send the user's photo to Lovable AI (google/gemini-2.5-flash-image)
+- Use a prompt to generate a professional headshot version
+- Allow the user to preview and accept/reject the result
 
 ---
 
-### 4) Audit and harden other bottom sheets across the app
-**Files (from search):**
-- `src/components/editor/CompareSheet.tsx`
-- `src/components/editor/JobAnalysisSheet.tsx`
-- `src/components/editor/tailor/MultiJobCompareSheet.tsx`
-- `src/components/editor/tailor/TailorHistorySheet.tsx`
-- `src/components/settings/PDFDefaultsSheet.tsx`
-- `src/components/settings/DataExportSheet.tsx`
-- `src/components/settings/LinkedInImportSheet.tsx`
-- `src/components/settings/BiometricSetupSheet.tsx`
-- `src/components/settings/BiometricTimeoutSheet.tsx`
-- `src/components/settings/ElevenLabsKeySheet.tsx`
-- and any other `SheetContent side="bottom"` matches
+## Implementation Details
 
-**What we’ll check/fix:**
-- If a sheet expects internal scrolling:
-  - Ensure it has a “body” region with `flex-1 min-h-0 overflow-y-auto`
-- Remove/avoid “brittle” height math (`max-h-[calc(...)]`) when a flex body is enough
-- Ensure headers/footers use `shrink-0`
-- Ensure no parent wrapper uses `overflow-hidden` in a way that blocks scrolling (we’ll keep `overflow-hidden` on the sheet container but only when internal scroll is correctly set up)
+### Step 1: Install react-image-crop
+Add the library for image cropping functionality.
 
-This makes the fix consistent “app-wide” instead of one-off.
+### Step 2: Create AvatarCropSheet Component
+**File:** `src/components/settings/AvatarCropSheet.tsx`
+
+```text
++------------------------------------------+
+|           Crop Your Photo                |
+|------------------------------------------|
+|                                          |
+|     +----------------------------+       |
+|     |                            |       |
+|     |      [Circular Crop        |       |
+|     |       Area with            |       |
+|     |       Drag/Resize]         |       |
+|     |                            |       |
+|     +----------------------------+       |
+|                                          |
+|  [AI Headshot ✨]                        |
+|                                          |
+|  [Cancel]              [Use This Photo]  |
++------------------------------------------+
+```
+
+Key features:
+- Accepts the raw image file after selection
+- Shows circular crop overlay (circularCrop: true)
+- Locked 1:1 aspect ratio for avatar
+- "AI Headshot" button to trigger AI transformation
+- Generates cropped blob on confirm
+
+### Step 3: Create AI Headshot Edge Function
+**File:** `supabase/functions/generate-headshot/index.ts`
+
+Uses the Lovable AI image generation endpoint:
+- Model: `google/gemini-2.5-flash-image`
+- Input: Base64 encoded user photo
+- Prompt: "Transform this photo into a professional corporate headshot. The person should appear in professional business attire (suit/blazer), with a clean neutral background suitable for a resume or LinkedIn profile. Maintain the person's facial features and identity. Professional studio lighting."
+- Output: Base64 encoded transformed image
+
+### Step 4: Update EditProfileSheet Flow
+**File:** `src/components/settings/EditProfileSheet.tsx`
+
+New flow:
+1. User taps camera button → Opens file picker
+2. File selected → Opens `AvatarCropSheet` with the image
+3. User can:
+   a. Crop/reposition the image manually
+   b. Tap "AI Headshot" to generate a professional version
+4. User confirms → Cropped/AI image uploaded to storage
+5. **Auto-save**: Avatar URL immediately saved to database (not waiting for "Save Changes")
+6. Local state updated with new URL
+7. Settings page reflects the change immediately
+
+### Step 5: Auto-Save Avatar on Upload
+In `handleAvatarUpload`, after successful upload:
+```typescript
+// After getting publicUrl, immediately save to database
+await onSave({ avatarUrl: publicUrlWithCacheBust });
+```
+
+This ensures the avatar persists even if the user closes the sheet.
 
 ---
 
-## QA checklist (must-do)
-1. Settings → **Edit Profile**:
-   - Can scroll through all fields
-   - Footer Save/Cancel stays visible
-2. Settings → **Default Template**:
-   - Can scroll through templates grid (as in screenshot)
-3. Editor → **Template picker** (if used):
-   - Can scroll template list
-4. Spot-check at least one other bottom sheet (e.g., Data Export) to ensure no regression.
+## Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/settings/AvatarCropSheet.tsx` | Create | Image cropper with AI headshot option |
+| `supabase/functions/generate-headshot/index.ts` | Create | AI image transformation endpoint |
+| `src/components/settings/EditProfileSheet.tsx` | Modify | Integrate crop sheet, auto-save avatar |
+| `package.json` | Modify | Add react-image-crop dependency |
 
 ---
 
-## Expected outcome
-- Bottom sheets (Edit Profile, Templates, and others) become reliably scrollable on mobile.
-- No more “looks like it should scroll but doesn’t” behavior caused by flex context not being established.
-- Reduced need for per-sheet height hacks, making future UI work safer.
+## Technical Details
 
-## Files to change
-- `src/components/ui/sheet.tsx` (core fix)
-- `src/components/settings/DefaultTemplateSheet.tsx` (templates sheet)
-- `src/components/editor/TemplateSelector.tsx` (editor template sheet)
-- Potential small fixes across other bottom-sheet components to standardize the “header/body/footer” flex + `min-h-0` pattern.
+### react-image-crop Integration
+```typescript
+import ReactCrop, { type Crop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+
+<ReactCrop
+  crop={crop}
+  onChange={setCrop}
+  circularCrop
+  aspect={1}
+>
+  <img src={imageSrc} ref={imgRef} />
+</ReactCrop>
+```
+
+### Generating Cropped Image
+Use canvas to extract the cropped region:
+```typescript
+function getCroppedImg(image: HTMLImageElement, crop: Crop): Promise<Blob> {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  
+  canvas.width = crop.width;
+  canvas.height = crop.height;
+  
+  ctx.drawImage(
+    image,
+    crop.x, crop.y, crop.width, crop.height,
+    0, 0, crop.width, crop.height
+  );
+  
+  return new Promise((resolve) => {
+    canvas.toBlob(resolve, 'image/png', 1);
+  });
+}
+```
+
+### AI Headshot API Call
+```typescript
+// In edge function
+const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'google/gemini-2.5-flash-image',
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Transform this photo into a professional corporate headshot...' },
+        { type: 'image_url', image_url: { url: `data:image/png;base64,${base64Image}` } }
+      ]
+    }],
+    modalities: ['image', 'text']
+  })
+});
+
+// Extract generated image
+const data = await response.json();
+const generatedImageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+```
+
+---
+
+## User Experience Flow
+
+```text
+User taps camera on avatar
+         ↓
+  File picker opens
+         ↓
+  User selects photo
+         ↓
++------------------------+
+| AvatarCropSheet opens  |
+|                        |
+| - Drag to reposition   |
+| - Pinch to zoom        |
+| - Circular preview     |
+|                        |
+| [AI Headshot ✨]       |
+|   ↓ (optional)         |
+| +--------------------+ |
+| | Generating...      | |
+| +--------------------+ |
+|   ↓                    |
+| [Preview AI result]    |
+| [Use This] [Retry]     |
+|                        |
+| [Cancel] [Use Photo]   |
++------------------------+
+         ↓
+  Upload to storage
+         ↓
+  Auto-save URL to DB
+         ↓
+  Settings page updated
+```
+
+---
+
+## Expected Outcome
+
+1. **Avatar reflects immediately**: After upload, the avatar appears on the Settings page right away (no need to click Save)
+2. **Crop/reposition**: Users can adjust their photo before uploading
+3. **AI Professional Headshot**: One-tap option to transform a casual photo into a professional headshot suitable for resumes and LinkedIn
+
