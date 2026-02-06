@@ -1,23 +1,28 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
- import { ErrorBoundary } from "@/components/ErrorBoundary";
- import { useBackButton } from "@/hooks/useBackButton";
- import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
- import { BiometricLockScreen } from "@/components/BiometricLockScreen";
- import { useBiometricLock } from "@/hooks/useBiometricLock";
- import { useSettingsStore } from "@/store/settingsStore";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { useBackButton } from "@/hooks/useBackButton";
+import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
+import { BiometricLockScreen } from "@/components/BiometricLockScreen";
+import { useBiometricLock } from "@/hooks/useBiometricLock";
+import { useSettingsStore } from "@/store/settingsStore";
+
+// Eagerly load Index for LCP
 import Index from "./pages/Index";
-import UploadPage from "./pages/UploadPage";
-import EditorPage from "./pages/EditorPage";
-import PreviewPage from "./pages/PreviewPage";
-import AuthPage from "./pages/AuthPage";
-import DashboardPage from "./pages/DashboardPage";
-import SettingsPage from "./pages/SettingsPage";
-import InterviewPage from "./pages/InterviewPage";
-import NotFound from "./pages/NotFound";
+
+// Lazy load other pages to reduce initial bundle size
+const UploadPage = lazy(() => import("./pages/UploadPage"));
+const EditorPage = lazy(() => import("./pages/EditorPage"));
+const PreviewPage = lazy(() => import("./pages/PreviewPage"));
+const AuthPage = lazy(() => import("./pages/AuthPage"));
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const InterviewPage = lazy(() => import("./pages/InterviewPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -40,18 +45,20 @@ const queryClient = new QueryClient();
      );
    }
    
-   return (
-     <Routes>
-       <Route path="/" element={<Index />} />
-       <Route path="/upload" element={<UploadPage />} />
-       <Route path="/editor" element={<EditorPage />} />
-       <Route path="/preview" element={<PreviewPage />} />
-       <Route path="/auth" element={<AuthPage />} />
-       <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
-        <Route path="/interview" element={<InterviewPage />} />
-       <Route path="*" element={<NotFound />} />
-     </Routes>
+    return (
+      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/upload" element={<UploadPage />} />
+          <Route path="/editor" element={<EditorPage />} />
+          <Route path="/preview" element={<PreviewPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/interview" element={<InterviewPage />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
    );
  }
  
