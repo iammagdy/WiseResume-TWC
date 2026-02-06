@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard } from 'lucide-react';
+import { ArrowLeft, Square, Keyboard, Sparkles } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
@@ -58,7 +58,6 @@ export default function InterviewPage() {
     } else if (status === 'idle') {
       startListening();
     } else if (status === 'speaking') {
-      // Stop TTS and let user speak
       window.speechSynthesis.cancel();
       startListening();
     }
@@ -95,7 +94,10 @@ export default function InterviewPage() {
           <button onClick={() => navigate(-1)} className="touch-manipulation p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
-          <h1 className="text-lg font-bold text-foreground">AI Interview</h1>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h1 className="text-lg font-bold text-foreground">Wise AI Interview</h1>
+          </div>
         </div>
         <InterviewSetup
           hasResume={!!currentResume && !!currentResume.contactInfo.fullName}
@@ -109,24 +111,30 @@ export default function InterviewPage() {
   // Active interview
   return (
     <MobileLayout>
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border">
+      {/* Glassmorphism header */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/30 bg-card/40 backdrop-blur-md">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="touch-manipulation p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
-          <h1 className="text-lg font-bold text-foreground">Mock Interview</h1>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h1 className="text-lg font-bold text-foreground">Wise AI</h1>
+          </div>
         </div>
-        <span className="text-sm font-mono text-muted-foreground tabular-nums">
-          {mins}:{secs.toString().padStart(2, '0')}
-        </span>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-xs font-mono text-primary tabular-nums">
+            {mins}:{secs.toString().padStart(2, '0')}
+          </span>
+        </div>
       </div>
 
       {/* Transcript area */}
       <div
         ref={scrollRef}
         className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
-        style={{ maxHeight: 'calc(100vh - 280px)' }}
+        style={{ maxHeight: 'calc(100vh - 320px)' }}
       >
         {transcript.map((entry) => (
           <TranscriptBubble key={entry.id} entry={entry} />
@@ -137,17 +145,17 @@ export default function InterviewPage() {
             animate={{ opacity: 0.6 }}
             className="flex justify-end"
           >
-            <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-primary/20 text-foreground text-sm italic">
+            <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-primary/15 backdrop-blur-sm border border-primary/20 text-foreground text-sm italic">
               {interimText}
             </div>
           </motion.div>
         )}
       </div>
 
-      {/* Controls */}
-      <div className="border-t border-border bg-background px-4 py-4 space-y-3 pb-safe">
+      {/* Controls — glassmorphism bar */}
+      <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe">
         {/* Toggle */}
-        <div className="flex justify-center py-2">
+        <div className="flex justify-center py-1">
           <InterviewToggle status={status} onPress={handleToggle} />
         </div>
 
@@ -156,7 +164,7 @@ export default function InterviewPage() {
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="flex gap-2"
+            className="flex gap-2 pt-2"
           >
             <Input
               value={textInput}
@@ -164,11 +172,13 @@ export default function InterviewPage() {
               placeholder="Type your answer..."
               onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
               disabled={status === 'thinking'}
+              className="bg-card/50 backdrop-blur-sm border-border/50"
             />
             <Button
               size="sm"
               onClick={handleSendText}
               disabled={!textInput.trim() || status === 'thinking'}
+              className="bg-primary/90"
             >
               Send
             </Button>
@@ -190,6 +200,7 @@ export default function InterviewPage() {
             size="sm"
             onClick={endInterview}
             disabled={status === 'thinking'}
+            className="shadow-[0_0_10px_hsl(var(--destructive)/0.3)]"
           >
             <Square className="w-4 h-4 mr-1" />
             End Interview

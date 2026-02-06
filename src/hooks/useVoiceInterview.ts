@@ -12,7 +12,7 @@ export interface TranscriptEntry {
 }
 
 interface SpeechRecognitionEvent {
-  results: { [index: number]: { [index: number]: { transcript: string } }; length: number };
+  results: { [index: number]: { [index: number]: { transcript: string }; isFinal?: boolean }; length: number };
   resultIndex: number;
 }
 
@@ -54,6 +54,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const jobDescriptionRef = useRef<string>('');
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const finalTextRef = useRef('');
+  const isListeningRef = useRef(false);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -152,7 +154,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         setElapsedSeconds((s) => s + 1);
       }, 1000);
 
-      // Get first question from AI
       messagesRef.current.push({ role: 'user', content: 'Start the interview. Introduce yourself and ask your first question.' });
       await callAI();
     },
@@ -167,39 +168,43 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     }
 
     window.speechSynthesis.cancel();
+    finalTextRef.current = '';
 
     const recognition = new SR();
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognitionRef.current = recognition;
+    isListeningRef.current = true;
 
     recognition.onresult = (event: SpeechRecognitionEvent) => {
       let interim = '';
-      let final = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
+        const text = event.results[i][0].transcript;
         if ((event.results[i] as any).isFinal) {
-          final += transcript;
+          finalTextRef.current += text + ' ';
         } else {
-          interim += transcript;
+          interim = text;
         }
       }
-      if (final) {
-        setInterimText('');
-      } else {
-        setInterimText(interim);
-      }
+      setInterimText(interim);
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error !== 'aborted') {
+      if (event.error !== 'aborted' && event.error !== 'no-speech') {
         console.error('Speech recognition error:', event.error);
       }
     };
 
     recognition.onend = () => {
-      // Will be handled by stopListening
+      // Auto-restart if we're still supposed to be listening (browser silences after ~5s)
+      if (isListeningRef.current) {
+        try {
+          recognition.start();
+        } catch {
+          // already started or disposed
+        }
+      }
     };
 
     recognition.start();
@@ -210,17 +215,16 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const stopListening = useCallback(async () => {
     if (!recognitionRef.current) return;
 
+    isListeningRef.current = false;
     recognitionRef.current.stop();
+    recognitionRef.current = null;
 
-    // Collect final transcript
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    // Small delay to let final results flush
+    await new Promise((resolve) => setTimeout(resolve, 400));
 
-    const currentInterim = interimText;
+    const userText = finalTextRef.current.trim();
+    finalTextRef.current = '';
     setInterimText('');
-
-    // Get all text from the recognition session
-    // We'll use what we have from interim if no final result came
-    const userText = currentInterim.trim();
 
     if (!userText) {
       setStatus('idle');
@@ -230,7 +234,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     addEntry('user', userText);
     messagesRef.current.push({ role: 'user', content: userText });
     await callAI();
-  }, [interimText, addEntry, callAI]);
+  }, [addEntry, callAI]);
 
   const sendTextMessage = useCallback(
     async (text: string) => {
@@ -243,8 +247,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   );
 
   const endInterview = useCallback(async () => {
+    isListeningRef.current = false;
     if (recognitionRef.current) {
       recognitionRef.current.abort();
+      recognitionRef.current = null;
     }
     window.speechSynthesis.cancel();
     if (timerRef.current) {
@@ -261,6 +267,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   }, [callAI]);
 
   const resetInterview = useCallback(() => {
+    isListeningRef.current = false;
     if (recognitionRef.current) recognitionRef.current.abort();
     window.speechSynthesis.cancel();
     if (timerRef.current) clearInterval(timerRef.current);
@@ -273,6 +280,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setElapsedSeconds(0);
     messagesRef.current = [];
     jobDescriptionRef.current = '';
+    finalTextRef.current = '';
   }, []);
 
   return {
