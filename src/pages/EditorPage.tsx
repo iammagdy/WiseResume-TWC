@@ -19,6 +19,7 @@ import { TailorSheet } from '@/components/editor/TailorSheet';
 import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
+import { RecruiterSimSheet } from '@/components/editor/ai/RecruiterSimSheet';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -39,6 +40,7 @@ export default function EditorPage() {
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
+  const [showRecruiterSim, setShowRecruiterSim] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
   
@@ -292,6 +294,7 @@ export default function EditorPage() {
           onTailor={() => setShowTailor(true)}
           onAnalyze={() => setShowJobSheet(true)}
           onImprove={handleImproveSection}
+          onRecruiterSim={() => setShowRecruiterSim(true)}
         />
 
         {/* Bottom Action Bar - positioned above AI Assistant */}
@@ -324,6 +327,7 @@ export default function EditorPage() {
       <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
       <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
       <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
+      <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />
     </div>
   );
 }
