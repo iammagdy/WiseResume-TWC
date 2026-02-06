@@ -22,6 +22,11 @@ const TEMPLATE_NAMES: Record<TemplateId, string> = {
   developer: 'Developer',
   creative: 'Creative',
   executive: 'Executive',
+  compact: 'Compact',
+  academic: 'Academic',
+  healthcare: 'Healthcare',
+  sales: 'Sales',
+  elegant: 'Elegant',
 };
 
 interface AIAssistantBarProps {

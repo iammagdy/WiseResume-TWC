@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
-import { Check, FileText, AlertTriangle, Sparkles, Star } from 'lucide-react';
+import { Check, FileText, AlertTriangle, Sparkles, Star, Info } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useResumeStore } from '@/store/resumeStore';
 import { TemplateId, TemplateInfo } from '@/types/resume';
 import { TemplateThumbnail } from './TemplateThumbnail';
@@ -63,13 +64,54 @@ const templates: TemplateInfo[] = [
     atsScore: 'high',
     category: 'professional',
   },
+  {
+    id: 'compact',
+    name: 'Compact',
+    description: 'Dense layout for entry-level',
+    atsScore: 'high',
+    category: 'professional',
+  },
+  {
+    id: 'academic',
+    name: 'Academic',
+    description: 'Research-focused CV layout',
+    atsScore: 'high',
+    category: 'professional',
+  },
+  {
+    id: 'healthcare',
+    name: 'Healthcare',
+    description: 'Clean medical professional',
+    atsScore: 'high',
+    category: 'professional',
+  },
+  {
+    id: 'sales',
+    name: 'Sales',
+    description: 'Metrics-driven achievements',
+    atsScore: 'high',
+    category: 'professional',
+  },
+  {
+    id: 'elegant',
+    name: 'Elegant',
+    description: 'Refined aesthetic design',
+    atsScore: 'medium',
+    category: 'creative',
+  },
 ];
 
 const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
-  entry: ['modern', 'minimal', 'classic'],
-  mid: ['modern', 'professional', 'developer'],
-  senior: ['executive', 'professional', 'classic'],
-  executive: ['executive', 'professional'],
+  entry: ['compact', 'modern', 'minimal'],
+  mid: ['modern', 'professional', 'sales', 'healthcare'],
+  senior: ['executive', 'professional', 'elegant'],
+  executive: ['executive', 'elegant', 'academic'],
+};
+
+const atsScoreDescriptions = {
+  high: 'Optimized for automated screening – parses correctly in 95%+ of ATS systems',
+  medium: 'Some design elements may affect parsing in certain ATS systems',
+  low: 'Best for direct submissions – may have issues with automated screening',
 };
 
 const atsScoreColors = {
@@ -201,16 +243,26 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
                   resume={previewResume} 
                 />
                 
-                {/* ATS Badge */}
-                <Badge
-                  variant="outline"
-                  className={`absolute top-1.5 left-1.5 text-xs px-2 py-0.5 ${atsScoreColors[template.atsScore]}`}
-                >
-                  {template.atsScore === 'medium' && (
-                    <AlertTriangle className="w-3 h-3 mr-1" />
-                  )}
-                  {atsScoreLabels[template.atsScore]}
-                </Badge>
+                {/* ATS Badge with Tooltip */}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge
+                        variant="outline"
+                        className={`absolute top-1.5 left-1.5 text-xs px-2 py-0.5 cursor-help ${atsScoreColors[template.atsScore]}`}
+                      >
+                        {template.atsScore === 'medium' && (
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                        )}
+                        {atsScoreLabels[template.atsScore]}
+                        <Info className="w-3 h-3 ml-1 opacity-60" />
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                      <p className="text-xs">{atsScoreDescriptions[template.atsScore]}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
 
                 {/* Recommended Badge */}
                 {isRecommended && selectedTemplate !== template.id && (
