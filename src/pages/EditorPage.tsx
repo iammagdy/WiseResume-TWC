@@ -178,7 +178,7 @@ export default function EditorPage() {
 
         {/* Editor Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-          <TabsList className="mx-4 mt-3 flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide">
+          <TabsList className="mt-3 w-full flex overflow-x-auto h-auto p-1 gap-1 scrollbar-hide px-4">
             <TabsTrigger value="contact" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
               Contact
               {sectionStatus.contact && <Check className="w-3.5 h-3.5 text-success" />}
@@ -201,7 +201,7 @@ export default function EditorPage() {
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="flex-1 overflow-y-auto px-4 py-4 pb-48">
             <TabsContent value="contact" className="mt-0">
               <ContactSection />
             </TabsContent>
@@ -230,9 +230,9 @@ export default function EditorPage() {
           onChangeTemplate={() => setShowTemplates(true)}
         />
 
-        {/* Bottom Action Bar */}
+        {/* Bottom Action Bar - positioned above AI Assistant */}
         <motion.div
-           className="sticky bottom-16 p-4 pb-safe glass border-t border-border mb-safe"
+           className="sticky bottom-32 p-4 glass border-t border-border z-30"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
