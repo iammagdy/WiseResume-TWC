@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
- import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download } from 'lucide-react';
+import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -23,10 +23,11 @@ import {
   CAREER_LEVEL_OPTIONS,
   calculateProfileCompletion 
 } from '@/hooks/useProfile';
- import { LinkedInImportSheet } from './LinkedInImportSheet';
- import { useResumeStore } from '@/store/resumeStore';
- import { Experience, Education } from '@/types/resume';
- import { v4 as uuidv4 } from 'uuid';
+import { LinkedInImportSheet } from './LinkedInImportSheet';
+import { AvatarCropSheet } from './AvatarCropSheet';
+import { useResumeStore } from '@/store/resumeStore';
+import { Experience, Education } from '@/types/resume';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Profile {
   fullName: string | null;
@@ -66,9 +67,11 @@ export function EditProfileSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-   const [linkedInImportOpen, setLinkedInImportOpen] = useState(false);
- 
-   const { currentResume, updateResume } = useResumeStore();
+  const [linkedInImportOpen, setLinkedInImportOpen] = useState(false);
+  const [cropSheetOpen, setCropSheetOpen] = useState(false);
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+
+  const { currentResume, updateResume } = useResumeStore();
 
   // Sync form state when profile changes or sheet opens
   useEffect(() => {
@@ -95,7 +98,8 @@ export function EditProfileSheet({
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file selection - open crop sheet instead of direct upload
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
@@ -109,14 +113,25 @@ export function EditProfileSheet({
       return;
     }
 
+    // Open crop sheet with the selected file
+    setSelectedImageFile(file);
+    setCropSheetOpen(true);
+    
+    // Reset file input so same file can be selected again
+    e.target.value = '';
+  };
+
+  // Handle cropped image upload and auto-save to database
+  const handleCroppedImage = async (blob: Blob) => {
+    if (!userId) return;
+
     setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${userId}/avatar.${fileExt}`;
+      const fileName = `${userId}/avatar.png`;
 
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, file, { upsert: true });
+        .upload(fileName, blob, { upsert: true, contentType: 'image/png' });
 
       if (uploadError) throw uploadError;
 
@@ -125,15 +140,21 @@ export function EditProfileSheet({
         .getPublicUrl(fileName);
 
       // Add cache-busting query param
-      setAvatarUrl(`${publicUrl}?t=${Date.now()}`);
+      const newAvatarUrl = `${publicUrl}?t=${Date.now()}`;
+      setAvatarUrl(newAvatarUrl);
+      
+      // AUTO-SAVE: Immediately persist avatar URL to database
+      await onSave({ avatarUrl: newAvatarUrl });
+      
       haptics.success();
-      toast.success('Avatar uploaded');
+      toast.success('Avatar updated');
     } catch (error) {
       console.error('Avatar upload error:', error);
       haptics.error();
       toast.error('Failed to upload avatar');
     } finally {
       setIsUploading(false);
+      setSelectedImageFile(null);
     }
   };
 
@@ -313,7 +334,7 @@ export function EditProfileSheet({
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  onChange={handleAvatarUpload}
+                  onChange={handleFileSelect}
                   className="hidden"
                 />
               </div>
@@ -490,6 +511,14 @@ export function EditProfileSheet({
        onOpenChange={setLinkedInImportOpen}
        onImport={handleLinkedInImport}
        linkedinUsername={getLinkedInUsername()}
+     />
+     
+     {/* Avatar Crop Sheet */}
+     <AvatarCropSheet
+       open={cropSheetOpen}
+       onOpenChange={setCropSheetOpen}
+       imageFile={selectedImageFile}
+       onComplete={handleCroppedImage}
      />
      </>
    );
