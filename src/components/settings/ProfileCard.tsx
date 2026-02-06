@@ -361,10 +361,7 @@ const ProfileCardComponent: React.FC<ProfileCardProps> = ({
                       }}
                     />
                   </div>
-                  <div className="pc-user-text">
-                    <div className="pc-handle">@{handle}</div>
-                    <div className="pc-status">{status}</div>
-                  </div>
+                  <div className="pc-website-text">{status}</div>
                 </div>
                 <button className="pc-contact-btn" onClick={handleContactClick}>
                   {contactText}

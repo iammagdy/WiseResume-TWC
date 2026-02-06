@@ -427,24 +427,26 @@ export default function SettingsPage() {
               />
             </div>
 
+            {/* Website Link */}
+            <a 
+              href="https://magdysaber.com" 
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 text-sm text-primary hover:underline mt-2"
+            >
+              <ExternalLink className="w-4 h-4" />
+              magdysaber.com
+            </a>
+
             {/* Version Info */}
             <div className="p-4 rounded-2xl glass-elevated">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
-                    <Info className="w-4 h-4" />
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    WiseResume v1.0.0
-                  </span>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
+                  <Info className="w-4 h-4" />
                 </div>
-                <button 
-                  onClick={() => window.open('https://magdysaber.com', '_blank')}
-                  className="flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <ExternalLink className="w-3 h-3" />
-                  Website
-                </button>
+                <span className="text-sm text-muted-foreground">
+                  WiseResume v1.0.0
+                </span>
               </div>
             </div>
           </div>
