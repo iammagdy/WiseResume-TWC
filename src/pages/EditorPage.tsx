@@ -175,9 +175,9 @@ export default function EditorPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+      <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
@@ -192,7 +192,7 @@ export default function EditorPage() {
         </div>
       </header>
         {/* Progress Bar with Save Status */}
-        <div className="px-4 py-3 border-b border-border">
+        <div className="shrink-0 px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
             <ProgressBar resume={currentResume} />
             {user && currentResumeId && (
@@ -220,10 +220,10 @@ export default function EditorPage() {
         </div>
 
         {/* Editor Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
-          <div className="mt-3 overflow-x-auto scrollbar-hide">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="shrink-0 mt-3 overflow-x-auto scrollbar-hide">
             <TabsList className="w-max inline-flex h-auto p-1 gap-1 mx-4">
-              <TabsTrigger 
+              <TabsTrigger
                 ref={(el) => (tabRefs.current[0] = el)} 
                 value="contact" 
                 className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
@@ -266,7 +266,7 @@ export default function EditorPage() {
             </TabsList>
           </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-48">
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-4">
             <TabsContent value="contact" className="mt-0" forceMount hidden={activeTab !== 'contact'}>
               <ContactSection />
             </TabsContent>
@@ -285,21 +285,9 @@ export default function EditorPage() {
           </div>
         </Tabs>
 
-        {/* AI Studio Bar - Replaces FAB */}
-        <AIAssistantBar
-          matchScore={matchScore}
-          jobDescription={jobDescription}
-          currentTemplate={selectedTemplate}
-          onChangeTemplate={() => setShowTemplates(true)}
-          onTailor={() => setShowTailor(true)}
-          onAnalyze={() => setShowJobSheet(true)}
-          onImprove={handleImproveSection}
-          onRecruiterSim={() => setShowRecruiterSim(true)}
-        />
-
-        {/* Bottom Action Bar - positioned above AI Assistant */}
+        {/* Bottom Action Bar - proper flex layout */}
         <motion.div
-           className="sticky bottom-32 p-4 glass border-t border-border z-30"
+          className="shrink-0 p-4 glass border-t border-border z-30"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
@@ -316,6 +304,18 @@ export default function EditorPage() {
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
         </motion.div>
+
+        {/* AI Studio Bar */}
+        <AIAssistantBar
+          matchScore={matchScore}
+          jobDescription={jobDescription}
+          currentTemplate={selectedTemplate}
+          onChangeTemplate={() => setShowTemplates(true)}
+          onTailor={() => setShowTailor(true)}
+          onAnalyze={() => setShowJobSheet(true)}
+          onImprove={handleImproveSection}
+          onRecruiterSim={() => setShowRecruiterSim(true)}
+        />
 
       {/* AI Intro Tooltip for First-Time Users */}
       <AIIntroTooltip

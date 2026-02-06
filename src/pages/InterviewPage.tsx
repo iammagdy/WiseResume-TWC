@@ -221,8 +221,8 @@ export default function InterviewPage() {
         )}
       </div>
 
-      {/* Controls */}
-      <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe">
+      {/* Controls - added mb-20 for bottom tab bar spacing */}
+      <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe mb-20">
         <div className="flex flex-col items-center gap-1.5 py-1">
           <InterviewToggle status={status} onPress={handleToggle} />
           {countdown !== null && status === 'speaking' && (

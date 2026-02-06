@@ -94,7 +94,7 @@ export function OnboardingCarousel({ onComplete, onSkip }: OnboardingCarouselPro
       {/* Carousel */}
       <div
         ref={scrollRef}
-        className="flex-1 flex overflow-x-auto snap-x-mandatory scrollbar-hide"
+        className="flex-1 flex overflow-x-auto snap-x snap-mandatory scrollbar-hide"
       >
         {steps.map((step, index) => (
           <OnboardingStep

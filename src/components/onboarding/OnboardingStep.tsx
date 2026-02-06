@@ -27,7 +27,7 @@ export function OnboardingStep({
     <motion.div
       className={cn(
         'flex flex-col items-center text-center px-8 py-12',
-        'snap-start flex-shrink-0 w-full'
+        'snap-start snap-always flex-shrink-0 w-full'
       )}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: isActive ? 1 : 0.5, scale: isActive ? 1 : 0.9 }}
