@@ -330,9 +330,9 @@ export default function PreviewPage() {
   }[selectedTemplate];
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+      <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => navigate('/editor')}
@@ -344,7 +344,7 @@ export default function PreviewPage() {
           <h1 className="text-lg font-display font-semibold truncate">Preview</h1>
         </div>
       </header>
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Template Quick Switcher */}
         <motion.div
           className="border-b border-border"
@@ -435,9 +435,9 @@ export default function PreviewPage() {
           </motion.div>
         </div>
 
-        {/* Bottom actions */}
+        {/* Bottom actions - flex layout avoids sticky overlap issues */}
         <motion.div
-           className="sticky bottom-16 p-4 pb-safe glass border-t border-border space-y-3 mb-safe"
+          className="shrink-0 p-4 glass border-t border-border space-y-3"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >

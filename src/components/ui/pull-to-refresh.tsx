@@ -27,8 +27,8 @@ export function PullToRefresh({
   const rotation = useTransform(y, [0, threshold], [0, 180]);
 
   const handleDragStart = () => {
-    // Only allow pull if at top of scroll
-    if (containerRef.current && containerRef.current.scrollTop === 0) {
+    // Only allow pull if at top of scroll (use threshold for iOS bounce & sub-pixel precision)
+    if (containerRef.current && containerRef.current.scrollTop <= 1) {
       setIsPulling(true);
     }
   };
