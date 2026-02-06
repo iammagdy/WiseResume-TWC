@@ -30,6 +30,7 @@ export default function InterviewPage() {
     interimText,
     speechSupported,
     elapsedSeconds,
+    silenceDetected,
     startInterview,
     startListening,
     stopListening,
@@ -155,8 +156,18 @@ export default function InterviewPage() {
       {/* Controls — glassmorphism bar */}
       <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe">
         {/* Toggle */}
-        <div className="flex justify-center py-1">
+        <div className="flex flex-col items-center gap-1.5 py-1">
           <InterviewToggle status={status} onPress={handleToggle} />
+          {silenceDetected && status === 'listening' && (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="text-xs text-muted-foreground animate-pulse"
+            >
+              Sending soon…
+            </motion.p>
+          )}
         </div>
 
         {/* Text input fallback */}
