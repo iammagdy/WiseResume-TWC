@@ -12,6 +12,11 @@ import { ProfessionalTemplate } from '@/components/templates/ProfessionalTemplat
 import { DeveloperTemplate } from '@/components/templates/DeveloperTemplate';
 import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
 import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
+import { CompactTemplate } from '@/components/templates/CompactTemplate';
+import { AcademicTemplate } from '@/components/templates/AcademicTemplate';
+import { HealthcareTemplate } from '@/components/templates/HealthcareTemplate';
+import { SalesTemplate } from '@/components/templates/SalesTemplate';
+import { ElegantTemplate } from '@/components/templates/ElegantTemplate';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
 import { ExportOptionsSheet } from '@/components/editor/ExportOptionsSheet';
@@ -34,6 +39,11 @@ const templates: { id: TemplateId; name: string }[] = [
   { id: 'developer', name: 'Developer' },
   { id: 'creative', name: 'Creative' },
   { id: 'executive', name: 'Executive' },
+  { id: 'compact', name: 'Compact' },
+  { id: 'academic', name: 'Academic' },
+  { id: 'healthcare', name: 'Healthcare' },
+  { id: 'sales', name: 'Sales' },
+  { id: 'elegant', name: 'Elegant' },
 ];
 
 export default function PreviewPage() {
@@ -313,6 +323,11 @@ export default function PreviewPage() {
     developer: DeveloperTemplate,
     creative: CreativeTemplate,
     executive: ExecutiveTemplate,
+    compact: CompactTemplate,
+    academic: AcademicTemplate,
+    healthcare: HealthcareTemplate,
+    sales: SalesTemplate,
+    elegant: ElegantTemplate,
   }[selectedTemplate];
 
   return (
