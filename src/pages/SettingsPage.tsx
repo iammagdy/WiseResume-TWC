@@ -18,8 +18,11 @@ import {
   CheckCircle2,
   Fingerprint,
   Clock,
-  Key
+  Key,
+  ExternalLink
 } from 'lucide-react';
+import ProfileCard from '@/components/settings/ProfileCard';
+import developerPhoto from '@/assets/developer-photo.png';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
@@ -404,14 +407,44 @@ export default function SettingsPage() {
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               About
             </h2>
+            
+            {/* Developer Credit Card */}
+            <div className="mb-4">
+              <ProfileCard
+                name="Magdy Saber"
+                title="Creator & Developer"
+                handle="magdysaber"
+                status="magdysaber.com"
+                contactText="Contact Me"
+                avatarUrl={developerPhoto}
+                showUserInfo={true}
+                enableTilt={true}
+                enableMobileTilt={false}
+                onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+                behindGlowEnabled={true}
+                behindGlowColor="rgba(125, 190, 255, 0.67)"
+                innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
+              />
+            </div>
+
+            {/* Version Info */}
             <div className="p-4 rounded-2xl glass-elevated">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
-                  <Info className="w-4 h-4" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
+                    <Info className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    WiseResume v1.0.0
+                  </span>
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  WiseResume v1.0.0
-                </span>
+                <button 
+                  onClick={() => window.open('https://magdysaber.com', '_blank')}
+                  className="flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  Website
+                </button>
               </div>
             </div>
           </div>
