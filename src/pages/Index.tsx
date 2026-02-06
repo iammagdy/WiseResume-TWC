@@ -17,6 +17,7 @@ import {
 } from '@/components/landing/LandingSkeletons';
 import { LazySection } from '@/components/landing/LazySection';
 import { ResumeCardSkeleton, ActionCardsGridSkeleton } from '@/components/home/HomeSkeletons';
+import { HomeBackground } from '@/components/home/HomeBackground';
 
 // Lazy load heavy components not needed for initial render
 const ResumeCard = lazy(() => import('@/components/home/ResumeCard').then(m => ({ default: m.ResumeCard })));
@@ -102,111 +103,128 @@ const Index = () => {
   if (hasResume) {
     return (
       <MobileLayout>
-        <div className="min-h-full flex flex-col">
-          {/* App Header */}
-          <header className="pt-safe pt-6 pb-6 px-4 flex flex-col items-center">
-            <AppLogo size="md" />
-          </header>
+        <HomeBackground>
+          <div className="min-h-full flex flex-col">
+            {/* App Header */}
+            <header className="pt-safe pt-6 pb-6 px-4 flex flex-col items-center">
+              <AppLogo size="md" />
+            </header>
 
-          {/* Returning User Dashboard */}
-          <div className="flex-1 flex flex-col px-4 pb-safe">
-            {/* Current Resume Card */}
-            <section className="mb-8">
-              <h2 className="text-sm font-medium text-muted-foreground mb-3">
-                Continue where you left off
-              </h2>
-              <Suspense fallback={<ResumeCardSkeleton />}>
-                <ResumeCard
-                  resume={currentResume}
-                  matchScore={matchScore}
-                  onContinue={handleContinueEditing}
-                  onDelete={() => setShowDeleteConfirm(true)}
-                />
-              </Suspense>
-            </section>
-
-            {/* AI Actions */}
-            <section className="mb-8">
-              <h2 className="text-sm font-medium text-muted-foreground mb-3">
-                AI-Powered Actions
-              </h2>
-              <Suspense fallback={<ActionCardsGridSkeleton />}>
-                <div className="grid grid-cols-2 gap-3">
-                  <ActionCard
-                    icon={Target}
-                    title="Score Match"
-                    description="Analyze job compatibility"
-                    onClick={() => setShowJobSheet(true)}
-                  />
-                  <ActionCard
-                    icon={Wand2}
-                    title="Tailor Resume"
-                    description="Customize for a job"
-                    onClick={() => setShowTailor(true)}
-                  />
-                </div>
-              </Suspense>
-            </section>
-
-            {/* Create New */}
-            <section className="mt-auto pb-6">
-              <Button
-                variant="outline"
-                className="w-full h-12 gap-2"
-                onClick={handleUpload}
+            {/* Returning User Dashboard */}
+            <div className="flex-1 flex flex-col px-4 pb-safe">
+              {/* Current Resume Card */}
+              <motion.section 
+                className="mb-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
               >
-                <Plus className="w-5 h-5" />
-                Create New Resume
-              </Button>
-            </section>
+                <h2 className="text-sm font-medium text-muted-foreground mb-3">
+                  Continue where you left off
+                </h2>
+                <Suspense fallback={<ResumeCardSkeleton />}>
+                  <ResumeCard
+                    resume={currentResume}
+                    matchScore={matchScore}
+                    onContinue={handleContinueEditing}
+                    onDelete={() => setShowDeleteConfirm(true)}
+                  />
+                </Suspense>
+              </motion.section>
 
-            {/* Sign In Link */}
-            <motion.div
-              className="text-center pb-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              <button
-                onClick={handleSignIn}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+              {/* AI Actions */}
+              <motion.section 
+                className="mb-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
               >
-                Already have an account?{' '}
-                <span className="text-primary font-medium">Sign In</span>
-              </button>
-            </motion.div>
+                <h2 className="text-sm font-medium text-muted-foreground mb-3">
+                  AI-Powered Actions
+                </h2>
+                <Suspense fallback={<ActionCardsGridSkeleton />}>
+                  <div className="grid grid-cols-2 gap-3">
+                    <ActionCard
+                      icon={Target}
+                      title="Score Match"
+                      description="Analyze job compatibility"
+                      onClick={() => setShowJobSheet(true)}
+                    />
+                    <ActionCard
+                      icon={Wand2}
+                      title="Tailor Resume"
+                      description="Customize for a job"
+                      onClick={() => setShowTailor(true)}
+                    />
+                  </div>
+                </Suspense>
+              </motion.section>
+
+              {/* Create New */}
+              <motion.section 
+                className="mt-auto pb-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <Button
+                  variant="outline"
+                  className="w-full h-12 gap-2 glass-card hover:border-primary/40"
+                  onClick={handleUpload}
+                >
+                  <Plus className="w-5 h-5" />
+                  Create New Resume
+                </Button>
+              </motion.section>
+
+              {/* Sign In Link */}
+              <motion.div
+                className="text-center pb-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+              >
+                <button
+                  onClick={handleSignIn}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                >
+                  Already have an account?{' '}
+                  <span className="text-primary font-medium">Sign In</span>
+                </button>
+              </motion.div>
+            </div>
+
+            {/* Sheets - lazy loaded */}
+            <Suspense fallback={null}>
+              <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
+              <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
+            </Suspense>
+
+            {/* Delete Confirmation Dialog */}
+            <Suspense fallback={null}>
+              <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete your current resume and all its content.
+                      This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteResume}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Delete
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </Suspense>
           </div>
-
-          {/* Sheets - lazy loaded */}
-          <Suspense fallback={null}>
-            <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
-            <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
-          </Suspense>
-
-          {/* Delete Confirmation Dialog */}
-          <Suspense fallback={null}>
-            <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Resume?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will permanently delete your current resume and all its content.
-                    This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteResume}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </Suspense>
-        </div>
+        </HomeBackground>
       </MobileLayout>
     );
   }

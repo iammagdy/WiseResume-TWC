@@ -22,10 +22,10 @@ export function ActionCard({
   return (
     <motion.button
       className={cn(
-        'flex flex-col items-start p-4 rounded-2xl text-left transition-all min-h-[120px]',
+        'flex flex-col items-start p-4 rounded-2xl text-left transition-all duration-300 min-h-[120px]',
         'touch-manipulation active:scale-[0.98]',
-        variant === 'default' && 'bg-card border border-border hover:border-primary/50',
-        variant === 'primary' && 'gradient-primary text-primary-foreground',
+        variant === 'default' && 'glass-card hover:border-primary/40 glow-subtle-hover',
+        variant === 'primary' && 'gradient-primary text-primary-foreground glow-primary',
         variant === 'secondary' && 'bg-secondary text-secondary-foreground',
         className
       )}
@@ -34,8 +34,8 @@ export function ActionCard({
     >
       <div
         className={cn(
-          'w-12 h-12 rounded-xl flex items-center justify-center mb-3',
-          variant === 'default' && 'bg-primary/10',
+          'w-12 h-12 rounded-xl flex items-center justify-center mb-3 transition-all duration-300',
+          variant === 'default' && 'bg-primary/10 group-hover:bg-primary/20',
           variant === 'primary' && 'bg-white/20',
           variant === 'secondary' && 'bg-primary/10'
         )}
