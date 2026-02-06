@@ -13,7 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { haptics } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -259,8 +259,8 @@ export function EditProfileSheet({
   return (
      <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0 overflow-hidden">
-        <SheetHeader>
+      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
+        <SheetHeader className="shrink-0">
           <div className="px-6 pt-6 pb-4 border-b border-border">
             <SheetTitle>Edit Profile</SheetTitle>
             <SheetDescription>Personalize your resume-building experience</SheetDescription>
@@ -286,7 +286,7 @@ export function EditProfileSheet({
           </div>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 min-h-0 px-6">
+        <div className="flex-1 overflow-y-auto px-6">
           <div className="space-y-6 py-6">
             {/* Avatar Preview */}
             <div className="flex flex-col items-center gap-2">
@@ -462,7 +462,7 @@ export function EditProfileSheet({
               </div>
             </div>
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Actions - Fixed footer */}
         <div className="flex gap-3 p-6 pb-safe border-t border-border bg-background shrink-0">
