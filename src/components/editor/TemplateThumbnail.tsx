@@ -7,6 +7,11 @@ import { ProfessionalTemplate } from '@/components/templates/ProfessionalTemplat
 import { DeveloperTemplate } from '@/components/templates/DeveloperTemplate';
 import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
 import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
+import { CompactTemplate } from '@/components/templates/CompactTemplate';
+import { AcademicTemplate } from '@/components/templates/AcademicTemplate';
+import { HealthcareTemplate } from '@/components/templates/HealthcareTemplate';
+import { SalesTemplate } from '@/components/templates/SalesTemplate';
+import { ElegantTemplate } from '@/components/templates/ElegantTemplate';
 
 interface TemplateThumbnailProps {
   templateId: TemplateId;
@@ -21,6 +26,11 @@ const templateComponents = {
   developer: DeveloperTemplate,
   creative: CreativeTemplate,
   executive: ExecutiveTemplate,
+  compact: CompactTemplate,
+  academic: AcademicTemplate,
+  healthcare: HealthcareTemplate,
+  sales: SalesTemplate,
+  elegant: ElegantTemplate,
 };
 
 export function TemplateThumbnail({ templateId, resume }: TemplateThumbnailProps) {

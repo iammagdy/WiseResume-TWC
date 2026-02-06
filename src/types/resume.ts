@@ -73,7 +73,7 @@ export interface GapAnalysis {
   }[];
 }
 
-export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive';
+export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive' | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant';
 
 export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications';
 
