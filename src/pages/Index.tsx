@@ -7,6 +7,8 @@ import { AppLogo } from '@/components/brand/AppLogo';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
+import { LandingPageSkeleton } from '@/components/landing/LandingSkeletons';
+import { ResumeCardSkeleton, ActionCardsGridSkeleton } from '@/components/home/HomeSkeletons';
 
 // Lazy load heavy components not needed for initial render
 const ResumeCard = lazy(() => import('@/components/home/ResumeCard').then(m => ({ default: m.ResumeCard })));
@@ -105,7 +107,7 @@ const Index = () => {
               <h2 className="text-sm font-medium text-muted-foreground mb-3">
                 Continue where you left off
               </h2>
-              <Suspense fallback={<div className="h-32 bg-card rounded-lg animate-pulse" />}>
+              <Suspense fallback={<ResumeCardSkeleton />}>
                 <ResumeCard
                   resume={currentResume}
                   matchScore={matchScore}
@@ -121,7 +123,8 @@ const Index = () => {
                 AI-Powered Actions
               </h2>
               <div className="grid grid-cols-2 gap-3">
-                <Suspense fallback={<div className="h-24 bg-card rounded-lg animate-pulse" />}>
+              <Suspense fallback={<ActionCardsGridSkeleton />}>
+                <div className="grid grid-cols-2 gap-3">
                   <ActionCard
                     icon={Target}
                     title="Score Match"
@@ -134,7 +137,8 @@ const Index = () => {
                     description="Customize for a job"
                     onClick={() => setShowTailor(true)}
                   />
-                </Suspense>
+                </div>
+              </Suspense>
               </div>
             </section>
 
@@ -203,7 +207,7 @@ const Index = () => {
 
   // New user: show space-themed landing page
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+    <Suspense fallback={<LandingPageSkeleton />}>
       <SpaceBackground>
         <main className="min-h-screen">
           <HeroSection />
