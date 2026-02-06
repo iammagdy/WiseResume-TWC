@@ -42,8 +42,15 @@
     transparent var(--pc-behind-glow-size)
   );
   filter: blur(50px) saturate(1.1);
-  opacity: calc(0.5 * var(--pc-card-opacity));
+  opacity: 0.35;
+  animation: pc-ambient-glow 3s ease-in-out infinite;
   transition: opacity 200ms ease;
+}
+
+.pc-card-wrapper:hover .pc-behind,
+.pc-card-wrapper.active .pc-behind {
+  opacity: 0.55;
+  animation-play-state: paused;
 }
 
 .pc-card-wrapper:hover,
@@ -82,6 +89,27 @@
 .pc-card-shell {
   position: relative;
   z-index: 1;
+  animation: pc-float 4s ease-in-out infinite;
+}
+
+/* Shimmer overlay for ambient effect */
+.pc-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.02) 55%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: pc-shimmer 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
 }
 
 .pc-card * {
@@ -324,23 +352,29 @@
 }
 
 .pc-contact-btn {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50px;
+  padding: 8px 16px;
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   cursor: pointer;
   transition: all 0.2s ease;
   backdrop-filter: blur(10px);
-  background: transparent;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
+  box-shadow: 
+    0 0 12px rgba(125, 190, 255, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
   pointer-events: auto !important;
 }
 
 .pc-contact-btn:hover {
   border-color: rgba(255, 255, 255, 0.4);
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.08) 100%);
+  box-shadow: 
+    0 0 18px rgba(125, 190, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .pc-website-text {
@@ -420,6 +454,28 @@
       90% 90%,
       center;
   }
+}
+
+/* Ambient animations */
+@keyframes pc-ambient-glow {
+  0%, 100% { 
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.5;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes pc-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes pc-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* Responsive adjustments */

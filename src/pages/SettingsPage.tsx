@@ -432,7 +432,7 @@ export default function SettingsPage() {
               href="https://magdysaber.com" 
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 text-sm text-primary hover:underline mt-2"
+              className="flex items-center justify-center gap-2 text-sm text-primary hover:underline mt-4 mb-6"
             >
               <ExternalLink className="w-4 h-4" />
               magdysaber.com
