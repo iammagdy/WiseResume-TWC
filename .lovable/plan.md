@@ -1,169 +1,172 @@
 
+# ProfileCard Improvement Plan
 
-# Developer Credit Card Implementation Plan
+## Issues Identified from Your Feedback
 
-## Overview
-
-Add a professional developer credit section to the Settings page featuring an interactive 3D holographic ProfileCard component with your photo, name, title, website, and contact information.
-
----
-
-## Your Developer Details
-
-| Field | Value |
-|-------|-------|
-| Name | Magdy Saber |
-| Title | Creator & Developer |
-| Website | magdysaber.com |
-| Email | contact@magdysaber.com |
-| Photo | Your uploaded professional photo |
+1. **Hover effect too bright** - The holographic shine is overpowering
+2. **Bottom banner shows @magdysaber** - Should only show "magdysaber.com"
+3. **Contact Me button not clickable** - Currently blocked by pointer-events
+4. **Website link missing below card** - Need a clickable link under the card
+5. **Website link in WiseResume banner** - Should be removed from version info section
 
 ---
 
-## Implementation Steps
+## Changes Summary
 
-### Step 1: Copy Your Photo to Project Assets
+### 1. ProfileCard.css - Reduce Hover Effect Brightness
 
-Copy the uploaded photo to the src/assets directory for proper bundling:
-- Source: `user-uploads://1759191579954.png`
-- Destination: `src/assets/developer-photo.png`
+| Property | Current | New |
+|----------|---------|-----|
+| `.pc-shine` base filter | `brightness(0.66)` | `brightness(0.4)` |
+| `.pc-shine` hover filter | `brightness(0.85)` | `brightness(0.5)` |
+| `.pc-shine::before` filter brightness | `calc(2 - var)` | `calc(1.2 - var)` |
+| `.pc-glare` filter | `brightness(0.8)` | `brightness(0.5)` |
+| Behind glow opacity | `0.8` | `0.5` |
 
-### Step 2: Create ProfileCard Component
+### 2. ProfileCard.tsx - Simplify User Info Banner
 
-Create a new component at `src/components/settings/ProfileCard.tsx` that implements the holographic 3D card effect with:
-- Interactive tilt on hover/touch
-- Holographic shine animation
-- Gradient text effects
-- Glare and reflection layers
-- Mobile-responsive design
+**Current banner shows:**
+- Mini avatar
+- @magdysaber (handle)
+- magdysaber.com (status)
+- Contact Me button
 
-### Step 3: Create ProfileCard Styles
+**New banner shows:**
+- Mini avatar
+- magdysaber.com (as main text, not status)
+- Contact Me button (clickable, opens email)
 
-Create `src/components/settings/ProfileCard.css` with all the CSS animations and effects for:
-- Pointer-tracking variables
-- Behind glow effect
-- Holographic shine layers
-- 3D perspective transforms
-- Responsive breakpoints
+Remove the `handle` prop usage and rename `status` to `website` for clarity.
 
-### Step 4: Update Settings Page
+### 3. ProfileCard.tsx - Fix Contact Button Clickability
 
-Modify the "About" section in `src/pages/SettingsPage.tsx` to include:
-- The new ProfileCard component
-- App version info alongside the card
-- Proper section styling to accommodate the card
+The CSS line `.pc-card * { pointer-events: none; }` blocks all clicks. Need to explicitly set `pointer-events: auto` on the contact button element.
+
+### 4. SettingsPage.tsx - Add Website Link Below Card
+
+Add a clickable "magdysaber.com" link with external link icon below the ProfileCard, styled to match the glass theme.
+
+### 5. SettingsPage.tsx - Remove Website from Version Banner
+
+Remove the "Website" button from the WiseResume v1.0.0 info row.
 
 ---
 
-## Component Architecture
+## File Changes
 
-```text
-src/
-  components/
-    settings/
-      ProfileCard.tsx      (New - 3D card component)
-      ProfileCard.css      (New - Card animations/styles)
-  assets/
-    developer-photo.png    (New - Your photo)
-  pages/
-    SettingsPage.tsx       (Modified - Add credit section)
+### src/components/settings/ProfileCard.css
+
+- Line 44-45: Reduce behind glow opacity from `0.8` to `0.5`
+- Line 109: Change base shine brightness from `0.66` to `0.4`
+- Line 174-175: Change hover shine brightness from `0.85` to `0.5`
+- Line 205: Reduce shine::before brightness calculation
+- Line 232: Reduce glare brightness from `0.8` to `0.5`
+
+### src/components/settings/ProfileCard.tsx
+
+- Simplify the user info section to show only:
+  - Mini avatar
+  - Website text (magdysaber.com)
+  - Contact Me button (with pointer-events: auto)
+- Remove `handle` from display (keep prop for flexibility)
+- Ensure button has proper click handling
+
+### src/pages/SettingsPage.tsx
+
+- Add website link below ProfileCard:
+```tsx
+<a 
+  href="https://magdysaber.com" 
+  target="_blank"
+  className="flex items-center justify-center gap-2 text-sm text-primary hover:underline"
+>
+  <ExternalLink className="w-4 h-4" />
+  magdysaber.com
+</a>
+```
+- Remove the website button from the version info section (lines 441-447)
+
+---
+
+## Visual Result
+
+**Before:**
+```
+┌────────────────────┐
+│   Magdy Saber      │
+│ Creator & Developer│
+│                    │
+│    [Photo]         │
+│                    │
+│ @magdysaber        │
+│ magdysaber.com     │
+│         Contact Me │
+└────────────────────┘
+┌────────────────────┐
+│ WiseResume v1.0.0  │
+│            Website │
+└────────────────────┘
+```
+
+**After:**
+```
+┌────────────────────┐
+│   Magdy Saber      │
+│ Creator & Developer│
+│                    │
+│    [Photo]         │
+│ (lighter effects)  │
+│                    │
+│ magdysaber.com     │
+│         Contact Me │  ← clickable
+└────────────────────┘
+     magdysaber.com      ← clickable link
+┌────────────────────┐
+│ WiseResume v1.0.0  │
+└────────────────────┘
 ```
 
 ---
 
-## About Section Layout (After Implementation)
+## Technical Details
 
-```text
-+--------------------------------------------------+
-| About                                            |
-+--------------------------------------------------+
-|                                                  |
-|  +--------------------------------------------+  |
-|  |           [3D HOLOGRAPHIC CARD]            |  |
-|  |                                            |  |
-|  |           Magdy Saber                      |  |
-|  |         Creator & Developer                |  |
-|  |                                            |  |
-|  |    [Photo with holographic effects]        |  |
-|  |                                            |  |
-|  |  [magdysaber.com]  [Contact Me]            |  |
-|  +--------------------------------------------+  |
-|                                                  |
-|  +--------------------------------------------+  |
-|  |  [i] WiseResume v1.0.0                     |  |
-|  +--------------------------------------------+  |
-|                                                  |
-+--------------------------------------------------+
+### CSS Brightness Adjustments
+
+```css
+/* Before - too bright */
+.pc-shine {
+  filter: brightness(0.66) contrast(1.33) saturate(0.33) opacity(0.5);
+}
+
+/* After - subtler effect */
+.pc-shine {
+  filter: brightness(0.4) contrast(1.2) saturate(0.25) opacity(0.4);
+}
 ```
 
----
+### Contact Button Fix
 
-## ProfileCard Props Configuration
-
-```typescript
-<ProfileCard
-  name="Magdy Saber"
-  title="Creator & Developer"
-  handle="magdysaber"
-  status="magdysaber.com"
-  contactText="Contact Me"
-  avatarUrl={developerPhoto}
-  showUserInfo={true}
-  enableTilt={true}
-  enableMobileTilt={false}
-  onContactClick={() => window.open('mailto:contact@magdysaber.com')}
-  showBehindGlow={true}
-  behindGlowColor="rgba(125, 190, 255, 0.67)"
-  customInnerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
-/>
+```css
+.pc-contact-btn {
+  pointer-events: auto !important;  /* Override the global none */
+  cursor: pointer;
+}
 ```
 
----
+### Simplified User Info JSX
 
-## Key Features
-
-### Interactive 3D Tilt Effect
-- Card tilts based on pointer position
-- Smooth spring animation on enter/leave
-- Optional device orientation support for mobile
-
-### Holographic Shine
-- Animated rainbow gradient shine layer
-- Responds to pointer position
-- Color-dodge blend for premium look
-
-### Behind Glow
-- Radial gradient glow behind the card
-- Follows pointer position
-- Creates depth and floating effect
-
-### Contact Actions
-- Website link (magdysaber.com) - opens in new tab
-- Contact button - opens email client
-
-### Responsive Design
-- Adapts card size for different screen widths
-- Smaller touch targets on mobile
-- Reduced animations on low-power devices
-
----
-
-## Files to Create/Modify
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/assets/developer-photo.png` | Create | Your professional photo |
-| `src/components/settings/ProfileCard.tsx` | Create | 3D holographic card component |
-| `src/components/settings/ProfileCard.css` | Create | Card animations and styles |
-| `src/pages/SettingsPage.tsx` | Modify | Add developer credit section |
-
----
-
-## Technical Considerations
-
-1. **Performance**: Use `will-change` sparingly, animations paused when not visible
-2. **Accessibility**: Card is decorative, contact button has proper focus states
-3. **Mobile**: Tilt disabled on mobile by default for performance
-4. **Theme**: Card uses dark theme internally (as per design reference)
-5. **Import**: Photo imported as ES6 module for bundler optimization
-
+```tsx
+<div className="pc-user-info">
+  <div className="pc-user-details">
+    <div className="pc-mini-avatar">
+      <img src={miniAvatarUrl || avatarUrl} alt={name} />
+    </div>
+    <div className="pc-website-text">
+      {status}
+    </div>
+  </div>
+  <button className="pc-contact-btn" onClick={handleContactClick}>
+    {contactText}
+  </button>
+</div>
+```
