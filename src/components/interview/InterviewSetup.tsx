@@ -58,12 +58,9 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
       </div>
 
       {!speechSupported && (
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm backdrop-blur-sm">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-muted/50 border border-border/50 text-muted-foreground text-sm backdrop-blur-sm">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <div className="space-y-1">
-            <p className="font-medium">Voice transcription is not available in this browser.</p>
-            <p className="text-destructive/80">For the full voice experience, use a Chrome-based browser (Chrome, Edge, Brave). You can still participate using the text input fallback below.</p>
-          </div>
+          <p>Microphone access is required for voice interviews. You can also use the text input fallback.</p>
         </div>
       )}
 
