@@ -60,7 +60,7 @@ const SheetContent = React.forwardRef<React.ElementRef<typeof SheetPrimitive.Con
         {side === "bottom" && (
           <div className="absolute top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
         )}
-        <div className={side === "bottom" ? "pt-4" : ""}>
+        <div className={side === "bottom" ? "pt-4 flex flex-col flex-1 min-h-0" : ""}>
           {children}
         </div>
         <SheetPrimitive.Close className="absolute right-4 top-4 rounded-full p-2 opacity-70 ring-offset-background transition-all hover:opacity-100 hover:bg-muted focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95">
