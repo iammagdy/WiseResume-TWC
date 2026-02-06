@@ -1,145 +1,200 @@
 
 
-# Add Subtle Gradient Background and Card Styling to Home Page
+# Smart Tab Scrolling & AI Feature Menu Redesign
 
 ## Overview
 
-The home page for returning users (those with a resume in progress) currently uses a plain background, making it feel less polished compared to the cosmic-themed landing page. This plan adds a subtle gradient background and enhanced card styling to create visual consistency with the app's "Wise Universe" aesthetic.
+This plan addresses two improvements to the Editor page:
 
-## Current State Analysis
+1. **Smart Tab Auto-Scrolling** - Automatically scroll the tab bar to reveal adjacent tabs when switching, helping users discover all sections (especially Skills)
+2. **AI Menu Redesign** - Rename "AI Assistant" to something more fitting and reorganize the menu to focus on AI-powered features
 
-The returning user dashboard (lines 102-211 in Index.tsx) uses:
-- Plain `bg-background` from MobileLayout
-- Basic `bg-card border border-border` on ResumeCard
-- Simple `bg-card border border-border` on ActionCards
+---
 
-Meanwhile, the landing page uses:
-- SpaceBackground with deep gradients and nebula overlays
-- Glassmorphism effects
-- Glowing accents
+## Part 1: Smart Tab Auto-Scrolling
 
-## Design Approach
+### Current Problem
+- The tabs bar scrolls horizontally on mobile
+- Users may not notice the "Skills" tab is hidden off-screen
+- No visual cue or smart behavior to help users discover all tabs
 
-Create a lighter version of the cosmic theme that:
-1. Doesn't distract from the functional dashboard content
-2. Uses subtle gradients that match the existing color palette
-3. Enhances cards with glassmorphism and subtle glow effects
-4. Maintains readability and accessibility
+### Solution
 
-## Implementation Details
+Implement bidirectional smart scrolling:
+- When switching **right** (e.g., Contact → Summary), scroll left to reveal next tabs
+- When switching **left** (e.g., Education → Work), scroll right to show previous tabs
+- Use smooth scroll animation for a polished feel
 
-### 1. Create a Gradient Background Wrapper Component
-
-Add a new lightweight component `HomeBackground.tsx` that provides a subtle cosmic gradient without the animated stars (for performance).
+### Technical Approach
 
 ```text
-+---------------------------------------------+
-|  Subtle radial gradient (top-left corner)   |
-|    (purple/primary hue, very low opacity)   |
-|                                             |
-|  Subtle radial gradient (bottom-right)      |
-|    (cyan/secondary hue, very low opacity)   |
-|                                             |
-|  Content layer (z-10)                       |
-+---------------------------------------------+
+Tabs: [Contact] [Summary] [Work] [Education] [Skills]
+         ^                                      ^
+     index 0                               index 4
+
+When user clicks Summary (index 1):
+→ Scroll to show Work (index 2) on the right
+
+When user clicks Education (index 3):
+→ Also ensure Skills (index 4) is visible
+
+When user clicks Work from Education:
+→ Scroll right to show Contact/Summary area
 ```
 
-### 2. Enhance ResumeCard Styling
+### Implementation Details
 
-Update ResumeCard to use glassmorphism:
-- Add `glass` class for backdrop blur
-- Add subtle border glow on hover using `hover:border-primary/30`
-- Add a faint gradient border effect
+**File: `src/pages/EditorPage.tsx`**
 
-### 3. Enhance ActionCard Styling
+1. Add a `ref` to the scrollable tabs container
+2. Add refs to each `TabsTrigger` button
+3. Create a tab order array: `['contact', 'summary', 'experience', 'education', 'skills']`
+4. On tab change:
+   - Determine if user is moving left or right
+   - Calculate which tab to scroll into view (the next one in that direction)
+   - Use `scrollIntoView({ behavior: 'smooth', inline: 'center' })` or calculate scroll position
 
-Update ActionCards with:
-- Glassmorphism background
-- Subtle glow effect on the icon container
-- Enhanced hover states with primary color glow
+**Logic:**
+```typescript
+const TAB_ORDER = ['contact', 'summary', 'experience', 'education', 'skills'];
 
-### 4. Add CSS Utility Classes
-
-Add new utility classes to index.css for consistent reuse:
-- `.glass-card` - Combined glass effect with border styling
-- `.glow-subtle` - Very subtle glow for cards
-
-## File Changes
-
-### File 1: `src/components/home/HomeBackground.tsx` (new file)
-
-Create a lightweight gradient background component:
-- Subtle radial gradient overlays matching space theme colors
-- No animations for performance
-- Similar structure to SpaceBackground but simplified
-
-### File 2: `src/pages/Index.tsx`
-
-Update the returning user dashboard section:
-- Wrap content in the new HomeBackground component
-- Add entrance animations to sections using Framer Motion
-
-### File 3: `src/components/home/ResumeCard.tsx`
-
-Enhance card styling:
-- Replace `bg-card` with `glass` class
-- Add `hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5` for glow effect
-- Add subtle gradient overlay on the resume icon area
-
-### File 4: `src/components/home/ActionCard.tsx`
-
-Enhance card styling:
-- Add glassmorphism effect to default variant
-- Add subtle glow to the icon container
-- Enhance hover state with primary color glow
-
-### File 5: `src/index.css`
-
-Add new utility classes:
-```css
-.glass-card {
-  background: hsl(var(--card) / 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid hsl(var(--border) / 0.5);
-}
-
-.glow-subtle {
-  box-shadow: 0 0 20px hsl(var(--primary) / 0.1);
-}
+const handleTabChange = (newTab: string) => {
+  const prevIndex = TAB_ORDER.indexOf(activeTab);
+  const newIndex = TAB_ORDER.indexOf(newTab);
+  const isMovingRight = newIndex > prevIndex;
+  
+  // Scroll to show the NEXT tab in direction of movement
+  const targetIndex = isMovingRight 
+    ? Math.min(newIndex + 1, TAB_ORDER.length - 1)  // Show next tab
+    : Math.max(newIndex - 1, 0);                     // Show previous tab
+  
+  // Scroll that tab into view
+  tabRefs[targetIndex]?.scrollIntoView({ 
+    behavior: 'smooth', 
+    inline: 'center' 
+  });
+  
+  setActiveTab(newTab);
+};
 ```
 
-## Visual Outcome
+---
 
+## Part 2: AI Feature Menu Redesign
+
+### Current Problem
+- "AI Assistant" name is generic and doesn't convey the specific AI capabilities
+- "Change Template" is not an AI feature - it's just template selection
+- The menu doesn't feel distinctly "AI-powered"
+
+### Analysis of Current Features
+
+| Feature | AI-Powered? | Purpose |
+|---------|-------------|---------|
+| Tailor for Job | Yes | Uses AI to match resume to job description |
+| Analyze Match | Yes | AI scores resume against job requirements |
+| Improve Section | Yes | AI enhances resume sections |
+| Change Template | No | Simple UI template picker |
+
+### Proposed Redesign
+
+**New Name Options:**
+- **"AI Studio"** - Conveys a creative workspace powered by AI
+- **"Smart Tools"** - Emphasizes intelligence without being too technical
+- **"AI Power"** - Direct and impactful
+- **"Resume AI"** - Clear connection to the app's purpose
+
+**Recommended: "AI Studio"** - It sounds premium, creative, and clearly AI-focused.
+
+**Reorganization:**
+1. Remove "Change Template" from the AI menu
+2. Add a separate template icon in the header or toolbar
+3. Keep only true AI features:
+   - **Tailor for Job** → Rename to **"Smart Tailor"**
+   - **Analyze Match** → Keep or rename to **"Job Match"**
+   - **Improve Section** → Rename to **"AI Enhance"**
+
+### Visual Changes
+
+**Before:**
 ```text
-+------------------------------------------+
-|           [Logo - Centered]              |
-|                                          |
-|  ~~~~ Subtle purple gradient (top) ~~~~  |
-|                                          |
-|  [Resume Card with glass effect]         |
-|  +------------------------------------+  |
-|  |  Glassmorphism + subtle glow      |  |
-|  |  Blurred backdrop visible         |  |
-|  +------------------------------------+  |
-|                                          |
-|  [Action Cards - 2 columns]              |
-|  +----------------+ +----------------+   |
-|  | Glass effect   | | Glass effect   |   |
-|  | Glowing icon   | | Glowing icon   |   |
-|  +----------------+ +----------------+   |
-|                                          |
-|  ~~~~ Subtle cyan gradient (bottom) ~~~~ |
-|                                          |
-|  [Create New Resume Button]              |
-|  [Sign In Link]                          |
-+------------------------------------------+
++----------------------------------+
+| [✨] AI Assistant    [Score] [▲] |
++----------------------------------+
+| ┌─────────┐  ┌─────────┐        |
+| │ Tailor  │  │ Analyze │        |
+| │ for Job │  │ Match   │        |
+| └─────────┘  └─────────┘        |
+| ┌─────────┐  ┌─────────┐        |
+| │ Improve │  │ Change  │  ← NOT AI
+| │ Section │  │Template │        |
+| └─────────┘  └─────────┘        |
++----------------------------------+
 ```
 
-## Technical Notes
+**After:**
+```text
++----------------------------------+
+| [✨] AI Studio       [Score] [▲] |
++----------------------------------+
+| ┌─────────┐  ┌─────────┐        |
+| │  Smart  │  │   Job   │        |
+| │ Tailor  │  │  Match  │        |
+| └─────────┘  └─────────┘        |
+| ┌─────────────────────┐         |
+| │    AI Enhance       │         |
+| │  Current: Summary   │         |
+| └─────────────────────┘         |
++----------------------------------+
+```
 
-- Use CSS variables for colors to maintain theme consistency
-- Keep blur values moderate (12-16px) for mobile performance
-- Use opacity values of 0.1-0.2 for gradients to keep them subtle
-- Ensure all color contrasts remain accessible
+### Implementation Details
+
+**File: `src/components/editor/AIAssistantBar.tsx`**
+
+1. Rename component to `AIStudioBar` (optional, can keep file name)
+2. Change title from "AI Assistant" to "AI Studio"
+3. Remove the "Change Template" action button
+4. Rename action labels:
+   - "Tailor for Job" → "Smart Tailor"
+   - "Analyze Match" → "Job Match" 
+   - "Improve Section" → "AI Enhance"
+5. Make "AI Enhance" span full width (since we removed one item)
+
+**File: `src/pages/EditorPage.tsx`**
+
+1. Move template selection to the header or a separate toolbar button
+2. Remove `onChangeTemplate` prop from AIStudioBar
+3. Add a template button in the header area (next to save status)
+
+**File: `src/components/editor/AIHubSheet.tsx`** (if still used)
+
+Apply same naming changes for consistency.
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/pages/EditorPage.tsx` | Add tab refs, implement smart scroll logic, relocate template button |
+| `src/components/editor/AIAssistantBar.tsx` | Rename to "AI Studio", update action labels, remove template option, adjust grid layout |
+| `src/components/editor/AIHubSheet.tsx` | Apply same naming changes for consistency |
+
+---
+
+## Summary of Changes
+
+### Smart Tab Scrolling
+- Tabs automatically scroll to reveal adjacent sections when switching
+- Moving right reveals tabs on the right (so users see Skills)
+- Moving left reveals tabs on the left
+- Smooth scroll animation for polished UX
+
+### AI Studio Redesign
+- "AI Assistant" → **"AI Studio"** (premium, creative feel)
+- Remove "Change Template" (not AI-related)
+- Cleaner 3-action layout focused purely on AI features
+- Action labels updated to feel more intelligent and cohesive
+- Template selection moved to a dedicated button elsewhere
 
