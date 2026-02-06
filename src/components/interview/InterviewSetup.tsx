@@ -60,7 +60,10 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
       {!speechSupported && (
         <div className="flex items-start gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm backdrop-blur-sm">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <p>Voice is not supported in this browser. You can still type your answers.</p>
+          <div className="space-y-1">
+            <p className="font-medium">Voice transcription is not available in this browser.</p>
+            <p className="text-destructive/80">For the full voice experience, use a Chrome-based browser (Chrome, Edge, Brave). You can still participate using the text input fallback below.</p>
+          </div>
         </div>
       )}
 
