@@ -7,7 +7,15 @@ import { AppLogo } from '@/components/brand/AppLogo';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
-import { LandingPageSkeleton } from '@/components/landing/LandingSkeletons';
+import { 
+  HeroSkeleton,
+  SocialProofSkeleton,
+  HowItWorksSkeleton,
+  FeatureGridSkeleton,
+  TemplateGallerySkeleton,
+  BottomCTASkeleton
+} from '@/components/landing/LandingSkeletons';
+import { LazySection } from '@/components/landing/LazySection';
 import { ResumeCardSkeleton, ActionCardsGridSkeleton } from '@/components/home/HomeSkeletons';
 
 // Lazy load heavy components not needed for initial render
@@ -207,15 +215,27 @@ const Index = () => {
 
   // New user: show space-themed landing page
   return (
-    <Suspense fallback={<LandingPageSkeleton />}>
+    <Suspense fallback={<HeroSkeleton />}>
       <SpaceBackground>
         <main className="min-h-screen">
-          <HeroSection />
-          <SocialProofBar />
-          <HowItWorks />
-          <FeatureGrid />
-          <TemplateGallery />
-          <BottomCTA />
+          <Suspense fallback={<HeroSkeleton />}>
+            <HeroSection />
+          </Suspense>
+          <LazySection skeleton={<SocialProofSkeleton />}>
+            <SocialProofBar />
+          </LazySection>
+          <LazySection skeleton={<HowItWorksSkeleton />}>
+            <HowItWorks />
+          </LazySection>
+          <LazySection skeleton={<FeatureGridSkeleton />}>
+            <FeatureGrid />
+          </LazySection>
+          <LazySection skeleton={<TemplateGallerySkeleton />}>
+            <TemplateGallery />
+          </LazySection>
+          <LazySection skeleton={<BottomCTASkeleton />}>
+            <BottomCTA />
+          </LazySection>
         </main>
       </SpaceBackground>
     </Suspense>
