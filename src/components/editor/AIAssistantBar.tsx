@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Palette,
   ChevronDown,
+  UserCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -37,6 +38,7 @@ interface AIAssistantBarProps {
   onTailor: () => void;
   onAnalyze: () => void;
   onImprove: () => void;
+  onRecruiterSim?: () => void;
   className?: string;
 }
 
@@ -48,6 +50,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   onTailor,
   onAnalyze,
   onImprove,
+  onRecruiterSim,
   className,
 }: AIAssistantBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -167,13 +170,20 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                     label="Job Match"
                     onClick={() => handleAction(onAnalyze)}
                   />
+                  <AIActionButton
+                    icon={<Sparkles className="w-4 h-4" />}
+                    label="AI Enhance"
+                    onClick={() => handleAction(onImprove)}
+                  />
+                  {onRecruiterSim && (
+                    <AIActionButton
+                      icon={<UserCheck className="w-4 h-4" />}
+                      label="Recruiter Sim"
+                      onClick={() => handleAction(onRecruiterSim)}
+                      badge="New"
+                    />
+                  )}
                 </div>
-                {/* Full-width AI Enhance button */}
-                <AIActionButton
-                  icon={<Sparkles className="w-4 h-4" />}
-                  label="AI Enhance"
-                  onClick={() => handleAction(onImprove)}
-                />
 
                 {/* Tip */}
                 {!jobDescription && (
@@ -205,14 +215,20 @@ interface AIActionButtonProps {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  badge?: string;
 }
 
-const AIActionButton = memo(function AIActionButton({ icon, label, onClick }: AIActionButtonProps) {
+const AIActionButton = memo(function AIActionButton({ icon, label, onClick, badge }: AIActionButtonProps) {
   return (
     <button
-      className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border hover:border-primary/50 transition-colors touch-manipulation active:scale-[0.97]"
+      className="relative flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border hover:border-primary/50 transition-colors touch-manipulation active:scale-[0.97]"
       onClick={onClick}
     >
+      {badge && (
+        <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-medium">
+          {badge}
+        </span>
+      )}
       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
         {icon}
       </div>
