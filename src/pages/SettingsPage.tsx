@@ -49,7 +49,7 @@ import { toast } from 'sonner';
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user, loading, signOut } = useAuth();
-  const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id);
+  const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
   const { currentResumeId } = useResumeStore();
   
