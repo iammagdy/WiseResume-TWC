@@ -18,19 +18,54 @@ export function InterviewToggle({ status, onPress, disabled }: InterviewTogglePr
   const Icon = isListening ? Mic : isThinking ? Loader2 : isSpeaking ? Volume2 : MicOff;
 
   return (
-    <div className="relative flex items-center justify-center">
-      {/* Outer pulse rings when listening */}
+    <div className="relative flex items-center justify-center" style={{ width: 180, height: 180 }}>
+      {/* Breathing ambient glow (always visible) */}
+      <motion.div
+        className="absolute inset-0 rounded-full"
+        style={{
+          background: isListening
+            ? 'radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, transparent 70%)'
+            : isSpeaking
+            ? 'radial-gradient(circle, hsl(142 70% 50% / 0.25) 0%, transparent 70%)'
+            : isThinking
+            ? 'radial-gradient(circle, hsl(var(--primary) / 0.2) 0%, transparent 70%)'
+            : 'radial-gradient(circle, hsl(var(--primary) / 0.1) 0%, transparent 70%)',
+        }}
+        animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* Outer rotating ring */}
+      <motion.div
+        className="absolute rounded-full"
+        style={{
+          width: 160,
+          height: 160,
+          background: `conic-gradient(from 0deg, hsl(var(--primary) / 0.4), hsl(var(--primary) / 0.05), hsl(var(--primary) / 0.4))`,
+          WebkitMask: 'radial-gradient(farthest-side, transparent calc(100% - 2px), #fff calc(100% - 2px))',
+          mask: 'radial-gradient(farthest-side, transparent calc(100% - 2px), #fff calc(100% - 2px))',
+        }}
+        animate={{ rotate: 360 }}
+        transition={{ duration: isThinking ? 2 : 8, repeat: Infinity, ease: 'linear' }}
+      />
+
+      {/* Listening pulse rings */}
       {isListening && (
         <>
           <motion.div
-            className="absolute w-40 h-40 rounded-full border-2 border-primary/30"
-            animate={{ scale: [1, 1.4], opacity: [0.6, 0] }}
+            className="absolute w-[140px] h-[140px] rounded-full border border-primary/40"
+            animate={{ scale: [1, 1.5], opacity: [0.6, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut' }}
           />
           <motion.div
-            className="absolute w-40 h-40 rounded-full border-2 border-primary/20"
-            animate={{ scale: [1, 1.6], opacity: [0.4, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.3 }}
+            className="absolute w-[140px] h-[140px] rounded-full border border-primary/30"
+            animate={{ scale: [1, 1.7], opacity: [0.4, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.4 }}
+          />
+          <motion.div
+            className="absolute w-[140px] h-[140px] rounded-full border border-primary/20"
+            animate={{ scale: [1, 1.9], opacity: [0.3, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeOut', delay: 0.8 }}
           />
         </>
       )}
@@ -39,37 +74,42 @@ export function InterviewToggle({ status, onPress, disabled }: InterviewTogglePr
       {isSpeaking && (
         <>
           <motion.div
-            className="absolute w-36 h-36 rounded-full border-2 border-accent/40"
+            className="absolute w-[130px] h-[130px] rounded-full"
+            style={{ border: '1.5px solid hsl(142 70% 50% / 0.4)' }}
             animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.2, 0.5] }}
             transition={{ duration: 0.8, repeat: Infinity }}
           />
           <motion.div
-            className="absolute w-40 h-40 rounded-full border border-accent/20"
-            animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0.1, 0.3] }}
+            className="absolute w-[140px] h-[140px] rounded-full"
+            style={{ border: '1px solid hsl(142 70% 50% / 0.25)' }}
+            animate={{ scale: [1, 1.35, 1], opacity: [0.3, 0.1, 0.3] }}
             transition={{ duration: 1.2, repeat: Infinity }}
           />
         </>
       )}
 
-      {/* Main button */}
+      {/* Main button — glassmorphism orb */}
       <motion.button
         whileTap={{ scale: 0.92 }}
         onClick={onPress}
         disabled={disabled || isThinking}
         className={cn(
-          'relative z-10 w-28 h-28 rounded-full flex items-center justify-center',
-          'transition-colors shadow-lg touch-manipulation',
-          isListening && 'bg-primary text-primary-foreground shadow-primary/40',
-          isThinking && 'bg-muted text-muted-foreground cursor-wait',
-          isSpeaking && 'bg-accent text-accent-foreground',
-          isIdle && 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+          'relative z-10 w-[120px] h-[120px] rounded-full flex items-center justify-center',
+          'backdrop-blur-md border transition-all touch-manipulation',
+          isListening && 'bg-primary/20 border-primary/40 shadow-[0_0_30px_hsl(var(--primary)/0.4)]',
+          isThinking && 'bg-muted/30 border-muted-foreground/20 cursor-wait',
+          isSpeaking && 'bg-[hsl(142_70%_50%/0.15)] border-[hsl(142_70%_50%/0.35)] shadow-[0_0_30px_hsl(142_70%_50%/0.3)]',
+          isIdle && 'bg-card/40 border-border/50 hover:border-primary/40 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)]',
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
         <Icon
           className={cn(
             'w-10 h-10',
-            isThinking && 'animate-spin'
+            isListening && 'text-primary',
+            isThinking && 'text-muted-foreground animate-spin',
+            isSpeaking && 'text-[hsl(142_70%_50%)]',
+            isIdle && 'text-muted-foreground'
           )}
         />
       </motion.button>
@@ -79,9 +119,9 @@ export function InterviewToggle({ status, onPress, disabled }: InterviewTogglePr
         key={status}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute -bottom-8 text-xs font-medium text-muted-foreground capitalize"
+        className="absolute -bottom-6 text-xs font-medium text-muted-foreground"
       >
-        {isListening ? 'Listening...' : isThinking ? 'Thinking...' : isSpeaking ? 'Speaking...' : 'Tap to speak'}
+        {isListening ? 'Listening...' : isThinking ? 'Wise AI is thinking...' : isSpeaking ? 'Wise AI speaking...' : 'Tap to speak'}
       </motion.span>
     </div>
   );

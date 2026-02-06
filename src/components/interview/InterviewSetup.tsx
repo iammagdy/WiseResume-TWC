@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mic, Briefcase, FileText, AlertCircle } from 'lucide-react';
+import { Briefcase, FileText, AlertCircle, Sparkles, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -27,27 +27,46 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-col gap-6 px-4 py-6 max-w-lg mx-auto"
     >
-      <div className="text-center space-y-2">
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-          <Mic className="w-8 h-8 text-primary" />
+      {/* Glowing orb header */}
+      <div className="text-center space-y-3">
+        <div className="relative w-24 h-24 mx-auto">
+          {/* Outer glow */}
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)',
+            }}
+            animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          {/* Inner orb */}
+          <div className="absolute inset-3 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
+            <Sparkles className="w-8 h-8 text-primary" />
+          </div>
         </div>
-        <h2 className="text-xl font-bold text-foreground">AI Mock Interview</h2>
+        <h2 className="text-xl font-bold text-foreground">Wise AI Interview</h2>
         <p className="text-sm text-muted-foreground">
-          Practice with an AI interviewer that adapts to your resume
+          Practice with Wise AI — your intelligent interview coach
         </p>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
+            Powered by Wise AI
+          </span>
+        </div>
       </div>
 
       {!speechSupported && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm backdrop-blur-sm">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
           <p>Voice is not supported in this browser. You can still type your answers.</p>
         </div>
       )}
 
       {!hasResume && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
+        <div className="flex items-start gap-2 p-3 rounded-xl bg-muted/50 border border-border/50 text-muted-foreground text-sm backdrop-blur-sm">
           <FileText className="w-4 h-4 mt-0.5 shrink-0" />
-          <p>No resume loaded. The interviewer will ask general questions. Load a resume for personalized questions.</p>
+          <p>No resume loaded. Wise AI will ask general questions. Load a resume for personalized questions.</p>
         </div>
       )}
 
@@ -57,10 +76,10 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
           <button
             onClick={() => setMode('general')}
             className={cn(
-              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all touch-manipulation',
+              'flex flex-col items-center gap-2 p-4 rounded-xl border transition-all touch-manipulation backdrop-blur-sm',
               mode === 'general'
-                ? 'border-primary bg-primary/5'
-                : 'border-border bg-card hover:border-primary/40'
+                ? 'border-primary/50 bg-primary/10 shadow-[0_0_15px_hsl(var(--primary)/0.15)]'
+                : 'border-border/50 bg-card/50 hover:border-primary/30'
             )}
           >
             <FileText className={cn('w-6 h-6', mode === 'general' ? 'text-primary' : 'text-muted-foreground')} />
@@ -72,10 +91,10 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
           <button
             onClick={() => setMode('job-targeted')}
             className={cn(
-              'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all touch-manipulation',
+              'flex flex-col items-center gap-2 p-4 rounded-xl border transition-all touch-manipulation backdrop-blur-sm',
               mode === 'job-targeted'
-                ? 'border-primary bg-primary/5'
-                : 'border-border bg-card hover:border-primary/40'
+                ? 'border-primary/50 bg-primary/10 shadow-[0_0_15px_hsl(var(--primary)/0.15)]'
+                : 'border-border/50 bg-card/50 hover:border-primary/30'
             )}
           >
             <Briefcase className={cn('w-6 h-6', mode === 'job-targeted' ? 'text-primary' : 'text-muted-foreground')} />
@@ -98,7 +117,7 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
             placeholder="Paste the job description here..."
-            className="min-h-[120px] resize-none"
+            className="min-h-[120px] resize-none bg-card/50 backdrop-blur-sm border-border/50"
           />
         </motion.div>
       )}
@@ -106,11 +125,11 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
       <Button
         onClick={handleStart}
         size="lg"
-        className="w-full text-base"
+        className="w-full text-base bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
         disabled={mode === 'job-targeted' && !jobDescription.trim()}
       >
-        <Mic className="w-5 h-5 mr-2" />
-        Start Interview
+        <Rocket className="w-5 h-5 mr-2" />
+        Launch Interview
       </Button>
     </motion.div>
   );
