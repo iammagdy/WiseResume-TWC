@@ -27,7 +27,7 @@
          await App.exitApp();
        } else {
          // On other screens, navigate back
-         navigate(-1);
+         window.history.length > 1 ? navigate(-1) : navigate('/dashboard');
        }
      };
  
