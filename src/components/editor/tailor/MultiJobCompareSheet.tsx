@@ -111,42 +111,42 @@
      onOpenChange(false);
    };
  
-   return (
-     <Sheet open={open} onOpenChange={onOpenChange}>
-       <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl">
-         <SheetHeader className="pb-3">
-           <div className="flex items-center justify-between">
-             <SheetTitle className="flex items-center gap-2">
-               <BarChart3 className="w-5 h-5 text-primary" />
-               Compare Jobs
-               <Badge variant="secondary" className="ml-1">
-                 {jobs.length}/4
-               </Badge>
-             </SheetTitle>
-             <div className="flex items-center gap-2">
-               {canAddMore && (
-                 <Button
-                   size="sm"
-                   variant="outline"
-                   onClick={onAddJob}
-                 >
-                   <Plus className="w-4 h-4 mr-1" />
-                   Add Job
-                 </Button>
-               )}
-               <Button
-                 size="icon"
-                 variant="ghost"
-                 className="h-8 w-8"
-                 onClick={handleClose}
-               >
-                 <X className="w-4 h-4" />
-               </Button>
-             </div>
-           </div>
-         </SheetHeader>
- 
-         <div className="flex flex-col h-[calc(92vh-180px)]">
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl">
+          <SheetHeader className="pb-3 shrink-0">
+            <div className="flex items-center justify-between">
+              <SheetTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-primary" />
+                Compare Jobs
+                <Badge variant="secondary" className="ml-1">
+                  {jobs.length}/4
+                </Badge>
+              </SheetTitle>
+              <div className="flex items-center gap-2">
+                {canAddMore && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={onAddJob}
+                  >
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add Job
+                  </Button>
+                )}
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="h-8 w-8"
+                  onClick={handleClose}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </SheetHeader>
+  
+          <div className="flex-1 min-h-0 flex flex-col">
            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
              <TabsList className="grid grid-cols-2 w-full mb-4">
                <TabsTrigger value="cards" className="text-sm">

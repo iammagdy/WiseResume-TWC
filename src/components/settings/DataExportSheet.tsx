@@ -75,7 +75,7 @@ export function DataExportSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Download className="w-5 h-5 text-primary" />
             Export Data
@@ -85,7 +85,7 @@ export function DataExportSheet({
           </p>
         </SheetHeader>
 
-        <div className="space-y-3 pb-6">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-6">
           {/* Export all resumes */}
           <Button
             variant="outline"

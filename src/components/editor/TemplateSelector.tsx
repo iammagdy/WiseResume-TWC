@@ -148,34 +148,35 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh]">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
             Choose Template
           </SheetTitle>
         </SheetHeader>
 
-        {/* ATS Info Banner */}
-        <div className="mb-4 p-4 rounded-xl bg-muted/50 border border-border flex items-start gap-4">
-          <Sparkles className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-          <div className="text-sm">
-            <p className="font-medium text-foreground mb-1">About ATS Compatibility</p>
-            <p className="text-muted-foreground">
-              ATS (Applicant Tracking Systems) scan resumes before recruiters see them. 
-              Templates marked "ATS-Friendly" use simple layouts that parse correctly.
-            </p>
+        <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+          {/* ATS Info Banner */}
+          <div className="mb-4 p-4 rounded-xl bg-muted/50 border border-border flex items-start gap-4">
+            <Sparkles className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium text-foreground mb-1">About ATS Compatibility</p>
+              <p className="text-muted-foreground">
+                ATS (Applicant Tracking Systems) scan resumes before recruiters see them. 
+                Templates marked "ATS-Friendly" use simple layouts that parse correctly.
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Recommendation hint when career level is set */}
-        {recommendedIds.length > 0 && (
-          <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
-            <Star className="w-4 h-4 text-primary" />
-            <span>Templates recommended for your experience level are shown first</span>
-          </div>
-        )}
+          {/* Recommendation hint when career level is set */}
+          {recommendedIds.length > 0 && (
+            <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+              <Star className="w-4 h-4 text-primary" />
+              <span>Templates recommended for your experience level are shown first</span>
+            </div>
+          )}
 
-        <div className="grid grid-cols-2 gap-4 overflow-y-auto max-h-[calc(85vh-220px)] pb-4">
+          <div className="grid grid-cols-2 gap-4 pb-4">
           {sortedTemplates.map((template, index) => {
             const isRecommended = recommendedIds.includes(template.id);
             return (
@@ -234,6 +235,7 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
             </motion.button>
             );
           })}
+          </div>
         </div>
       </SheetContent>
     </Sheet>

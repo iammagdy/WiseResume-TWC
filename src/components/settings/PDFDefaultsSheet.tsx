@@ -27,14 +27,14 @@ export function PDFDefaultsSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="pb-4 shrink-0">
           <SheetTitle>PDF Export Defaults</SheetTitle>
           <p className="text-sm text-muted-foreground">
             These settings apply to all new PDF exports
           </p>
         </SheetHeader>
 
-        <div className="space-y-4 pb-6">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
           {/* Page numbers toggle */}
           <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
             <div className="space-y-0.5">

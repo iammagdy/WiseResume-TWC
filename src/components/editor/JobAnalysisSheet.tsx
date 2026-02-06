@@ -62,14 +62,14 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh]">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Target className="w-5 h-5 text-primary" />
             Job Match Analysis
           </SheetTitle>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(90vh-140px)] space-y-4 pb-20">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-20">
           {/* Job Description Input */}
           <div>
             <label className="text-sm font-medium mb-2 block">
