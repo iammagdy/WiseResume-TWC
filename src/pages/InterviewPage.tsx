@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard, Sparkles } from 'lucide-react';
+import { ArrowLeft, Square, Keyboard, Sparkles, AlertCircle } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
 
@@ -61,6 +62,13 @@ export default function InterviewPage() {
     : pendingJobDescription !== undefined
     ? 'preview'
     : 'setup';
+
+  // Auto-enable text input when speech is not supported
+  useEffect(() => {
+    if (isStarted && !speechSupported) {
+      setShowTextInput(true);
+    }
+  }, [isStarted, speechSupported]);
 
   // Auto-scroll transcript
   useEffect(() => {
@@ -206,6 +214,14 @@ export default function InterviewPage() {
         className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
         style={{ maxHeight: 'calc(100vh - 320px)' }}
       >
+        {!speechSupported && (
+          <Alert className="bg-[hsl(45_90%_55%/0.1)] border-[hsl(45_90%_55%/0.3)] text-[hsl(45_90%_55%)]">
+            <AlertCircle className="w-4 h-4" />
+            <AlertDescription className="text-xs">
+              Voice transcription is not available in this browser. Use the text input below to type your answers.
+            </AlertDescription>
+          </Alert>
+        )}
         {transcript.map((entry) => (
           <TranscriptBubble key={entry.id} entry={entry} />
         ))}
@@ -224,49 +240,51 @@ export default function InterviewPage() {
 
       {/* Controls */}
       <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe">
-        <div className="flex flex-col items-center gap-1.5 py-1">
-          <InterviewToggle status={status} onPress={handleToggle} />
-          {countdown !== null && status === 'speaking' && (
-            <motion.div
-              key={countdown}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="text-2xl font-bold text-primary tabular-nums"
-            >
-              {countdown}
-            </motion.div>
-          )}
-          {status === 'ready' && (
-            <motion.p
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-xs text-[hsl(45_90%_55%)] font-medium"
-            >
-              Your turn — tap the mic to answer
-            </motion.p>
-          )}
-          {silenceDetected && status === 'listening' && (
-            <motion.p
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs text-muted-foreground animate-pulse"
-            >
-              Sending soon…
-            </motion.p>
-          )}
-          {status === 'listening' && !silenceDetected && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              className="text-[10px] text-muted-foreground"
-            >
-              Tap the mic when you're done
-            </motion.p>
-          )}
-        </div>
+        {speechSupported && (
+          <div className="flex flex-col items-center gap-1.5 py-1">
+            <InterviewToggle status={status} onPress={handleToggle} />
+            {countdown !== null && status === 'speaking' && (
+              <motion.div
+                key={countdown}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 1.5, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="text-2xl font-bold text-primary tabular-nums"
+              >
+                {countdown}
+              </motion.div>
+            )}
+            {status === 'ready' && (
+              <motion.p
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-xs text-[hsl(45_90%_55%)] font-medium"
+              >
+                Your turn — tap the mic to answer
+              </motion.p>
+            )}
+            {silenceDetected && status === 'listening' && (
+              <motion.p
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="text-xs text-muted-foreground animate-pulse"
+              >
+                Sending soon…
+              </motion.p>
+            )}
+            {status === 'listening' && !silenceDetected && (
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.6 }}
+                className="text-[10px] text-muted-foreground"
+              >
+                Tap the mic when you're done
+              </motion.p>
+            )}
+          </div>
+        )}
 
         {/* Text input fallback */}
         {showTextInput && (
@@ -295,15 +313,19 @@ export default function InterviewPage() {
         )}
 
         <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowTextInput(!showTextInput)}
-            className="text-muted-foreground"
-          >
-            <Keyboard className="w-4 h-4 mr-1" />
-            {showTextInput ? 'Hide' : 'Type'}
-          </Button>
+          {speechSupported ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowTextInput(!showTextInput)}
+              className="text-muted-foreground"
+            >
+              <Keyboard className="w-4 h-4 mr-1" />
+              {showTextInput ? 'Hide' : 'Type'}
+            </Button>
+          ) : (
+            <span className="text-xs text-muted-foreground">Text mode (voice unavailable)</span>
+          )}
           <Button
             variant="destructive"
             size="sm"
