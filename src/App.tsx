@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +10,8 @@ import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
 import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
+import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
+import { toast } from "sonner";
 
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
@@ -33,6 +35,18 @@ const queryClient = new QueryClient();
    
    const { biometricLockEnabled, biometricLockTimeout } = useSettingsStore();
    const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
+
+   // Global unhandled rejection handler to prevent black screens from async errors
+   useEffect(() => {
+     const handleRejection = (event: PromiseRejectionEvent) => {
+       console.error("Unhandled rejection:", event.reason);
+       toast.error("Something went wrong. Please try again.");
+       event.preventDefault();
+     };
+
+     window.addEventListener("unhandledrejection", handleRejection);
+     return () => window.removeEventListener("unhandledrejection", handleRejection);
+   }, []);
    
    // Show lock screen if biometric lock is enabled and app is locked
    if (biometricLockEnabled && isLocked && isAvailable) {
@@ -46,7 +60,7 @@ const queryClient = new QueryClient();
    }
    
     return (
-      <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <Suspense fallback={<PageLoadingSpinner />}>
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/upload" element={<UploadPage />} />
