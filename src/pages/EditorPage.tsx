@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, ChevronRight, Check, Cloud, CloudOff } from 'lucide-react';
+import { Download, ChevronRight, Check, Cloud, CloudOff, Palette } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,6 +45,33 @@ export default function EditorPage() {
   // Track last saved version to detect changes
   const lastSavedResumeRef = useRef<string>('');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Smart tab scrolling refs
+  const TAB_ORDER = useMemo(() => ['contact', 'summary', 'experience', 'education', 'skills'], []);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  
+  // Smart tab change handler with auto-scroll
+  const handleTabChange = useCallback((newTab: string) => {
+    const prevIndex = TAB_ORDER.indexOf(activeTab);
+    const newIndex = TAB_ORDER.indexOf(newTab);
+    const isMovingRight = newIndex > prevIndex;
+    
+    // Scroll to show the NEXT tab in direction of movement
+    const targetIndex = isMovingRight 
+      ? Math.min(newIndex + 1, TAB_ORDER.length - 1)
+      : Math.max(newIndex - 1, 0);
+    
+    // Scroll that tab into view with smooth animation
+    setTimeout(() => {
+      tabRefs.current[targetIndex]?.scrollIntoView({ 
+        behavior: 'smooth', 
+        inline: 'center',
+        block: 'nearest'
+      });
+    }, 50);
+    
+    setActiveTab(newTab);
+  }, [activeTab, TAB_ORDER]);
 
   // Show AI intro for first-time users after resume loads
   useEffect(() => {
@@ -177,26 +204,46 @@ export default function EditorPage() {
         </div>
 
         {/* Editor Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col">
           <div className="mt-3 overflow-x-auto scrollbar-hide">
             <TabsList className="w-max inline-flex h-auto p-1 gap-1 mx-4">
-              <TabsTrigger value="contact" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              <TabsTrigger 
+                ref={(el) => (tabRefs.current[0] = el)} 
+                value="contact" 
+                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
+              >
                 Contact
                 {sectionStatus.contact && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
-              <TabsTrigger value="summary" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              <TabsTrigger 
+                ref={(el) => (tabRefs.current[1] = el)} 
+                value="summary" 
+                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
+              >
                 Summary
                 {sectionStatus.summary && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
-              <TabsTrigger value="experience" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              <TabsTrigger 
+                ref={(el) => (tabRefs.current[2] = el)} 
+                value="experience" 
+                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
+              >
                 Work
                 {sectionStatus.experience && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
-              <TabsTrigger value="education" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              <TabsTrigger 
+                ref={(el) => (tabRefs.current[3] = el)} 
+                value="education" 
+                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
+              >
                 Education
                 {sectionStatus.education && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
-              <TabsTrigger value="skills" className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5">
+              <TabsTrigger 
+                ref={(el) => (tabRefs.current[4] = el)} 
+                value="skills" 
+                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
+              >
                 Skills
                 {sectionStatus.skills && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
@@ -222,15 +269,26 @@ export default function EditorPage() {
           </div>
         </Tabs>
 
-        {/* AI Assistant Bar - Replaces FAB */}
+        {/* AI Studio Bar - Replaces FAB */}
         <AIAssistantBar
           matchScore={matchScore}
           jobDescription={jobDescription}
           onTailor={() => setShowTailor(true)}
           onAnalyze={() => setShowJobSheet(true)}
           onImprove={handleImproveSection}
-          onChangeTemplate={() => setShowTemplates(true)}
         />
+
+        {/* Template Button - Floating */}
+        <motion.button
+          onClick={() => setShowTemplates(true)}
+          className="fixed bottom-[88px] right-4 z-40 w-12 h-12 rounded-full bg-muted border border-border flex items-center justify-center shadow-lg"
+          whileTap={{ scale: 0.95 }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Palette className="w-5 h-5 text-muted-foreground" />
+        </motion.button>
 
         {/* Bottom Action Bar - positioned above AI Assistant */}
         <motion.div

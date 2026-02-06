@@ -20,7 +20,6 @@ interface AIAssistantBarProps {
   onTailor: () => void;
   onAnalyze: () => void;
   onImprove: () => void;
-  onChangeTemplate: () => void;
   className?: string;
 }
 
@@ -30,7 +29,6 @@ export function AIAssistantBar({
   onTailor,
   onAnalyze,
   onImprove,
-  onChangeTemplate,
   className,
 }: AIAssistantBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -88,7 +86,7 @@ export function AIAssistantBar({
             <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
               <Sparkles className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-medium text-sm">AI Assistant</span>
+            <span className="font-medium text-sm">AI Studio</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -131,25 +129,21 @@ export function AIAssistantBar({
                 <div className="grid grid-cols-2 gap-2">
                   <AIActionButton
                     icon={<Wand2 className="w-4 h-4" />}
-                    label="Tailor for Job"
+                    label="Smart Tailor"
                     onClick={() => handleAction(onTailor)}
                   />
                   <AIActionButton
                     icon={<Target className="w-4 h-4" />}
-                    label="Analyze Match"
+                    label="Job Match"
                     onClick={() => handleAction(onAnalyze)}
                   />
-                  <AIActionButton
-                    icon={<Sparkles className="w-4 h-4" />}
-                    label="Improve Section"
-                    onClick={() => handleAction(onImprove)}
-                  />
-                  <AIActionButton
-                    icon={<FileText className="w-4 h-4" />}
-                    label="Change Template"
-                    onClick={() => handleAction(onChangeTemplate)}
-                  />
                 </div>
+                {/* Full-width AI Enhance button */}
+                <AIActionButton
+                  icon={<Sparkles className="w-4 h-4" />}
+                  label="AI Enhance"
+                  onClick={() => handleAction(onImprove)}
+                />
 
                 {/* Tip */}
                 {!jobDescription && (
