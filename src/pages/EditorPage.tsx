@@ -203,20 +203,20 @@ export default function EditorPage() {
             </TabsList>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4 pb-48">
-            <TabsContent value="contact" className="mt-0">
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-48">
+            <TabsContent value="contact" className="mt-0" forceMount hidden={activeTab !== 'contact'}>
               <ContactSection />
             </TabsContent>
-            <TabsContent value="summary" className="mt-0">
+            <TabsContent value="summary" className="mt-0" forceMount hidden={activeTab !== 'summary'}>
               <SummarySection />
             </TabsContent>
-            <TabsContent value="experience" className="mt-0">
+            <TabsContent value="experience" className="mt-0" forceMount hidden={activeTab !== 'experience'}>
               <ExperienceSection />
             </TabsContent>
-            <TabsContent value="education" className="mt-0">
+            <TabsContent value="education" className="mt-0" forceMount hidden={activeTab !== 'education'}>
               <EducationSection />
             </TabsContent>
-            <TabsContent value="skills" className="mt-0">
+            <TabsContent value="skills" className="mt-0" forceMount hidden={activeTab !== 'skills'}>
               <SkillsSection />
             </TabsContent>
           </div>
