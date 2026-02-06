@@ -2,13 +2,29 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ResumeData } from '@/types/resume';
 
-export type InterviewStatus = 'idle' | 'listening' | 'thinking' | 'speaking';
+export type InterviewStatus = 'idle' | 'listening' | 'thinking' | 'speaking' | 'ready';
+
+export type VoiceGender = 'male' | 'female';
 
 export interface TranscriptEntry {
   id: string;
   role: 'user' | 'interviewer';
   text: string;
   timestamp: Date;
+}
+
+export interface AnswerScore {
+  questionIndex: number;
+  score: number;
+  tip: string;
+  improvedAnswer: string;
+}
+
+export interface RoleAnalysis {
+  title: string;
+  keySkills: string[];
+  questionCategories: string[];
+  industryInsights: string;
 }
 
 interface SpeechRecognitionEvent {
@@ -42,6 +58,79 @@ declare global {
 const SILENCE_TIMEOUT_MS = 3000;
 const MAX_TEXT_LENGTH = 2000;
 
+// Keywords for voice gender selection
+const FEMALE_VOICE_KEYWORDS = ['female', 'samantha', 'zira', 'karen', 'fiona', 'moira', 'tessa', 'victoria', 'google uk english female', 'google us english female', 'microsoft zira'];
+const MALE_VOICE_KEYWORDS = ['male', 'daniel', 'david', 'james', 'alex', 'fred', 'google uk english male', 'google us english male', 'microsoft david'];
+
+function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  const englishVoices = voices.filter(v => v.lang.startsWith('en'));
+  if (englishVoices.length === 0) return null;
+
+  const keywords = gender === 'female' ? FEMALE_VOICE_KEYWORDS : MALE_VOICE_KEYWORDS;
+  
+  // First: try to find a premium/natural voice matching gender
+  for (const voice of englishVoices) {
+    const name = voice.name.toLowerCase();
+    if (keywords.some(k => name.includes(k))) {
+      return voice;
+    }
+  }
+  
+  // Fallback: any English voice (prefer Google/Microsoft voices as they sound better)
+  const premiumVoice = englishVoices.find(v => {
+    const n = v.name.toLowerCase();
+    return n.includes('google') || n.includes('microsoft') || n.includes('natural');
+  });
+  return premiumVoice || englishVoices[0];
+}
+
+function playBeep(): Promise<void> {
+  return new Promise((resolve) => {
+    try {
+      const ctx = new AudioContext();
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.connect(gain);
+      gain.connect(ctx.destination);
+      oscillator.frequency.value = 660;
+      oscillator.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.2);
+      setTimeout(() => {
+        ctx.close();
+        resolve();
+      }, 250);
+    } catch {
+      resolve();
+    }
+  });
+}
+
+function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore | null } {
+  const scoreRegex = /---SCORE---\s*(\{[\s\S]*?\})\s*---END_SCORE---/;
+  const match = text.match(scoreRegex);
+  if (!match) return { cleanText: text, score: null };
+
+  const cleanText = text.replace(scoreRegex, '').trim();
+  try {
+    const parsed = JSON.parse(match[1]);
+    return {
+      cleanText,
+      score: {
+        questionIndex: 0, // will be set by caller
+        score: parsed.score || 0,
+        tip: parsed.tip || '',
+        improvedAnswer: parsed.improved_answer || '',
+      },
+    };
+  } catch {
+    return { cleanText, score: null };
+  }
+}
+
 export function useVoiceInterview(resumeData: ResumeData | null) {
   const [status, setStatus] = useState<InterviewStatus>('idle');
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
@@ -52,6 +141,11 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [speechSupported, setSpeechSupported] = useState(true);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [silenceDetected, setSilenceDetected] = useState(false);
+  const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
+  const [scores, setScores] = useState<AnswerScore[]>([]);
+  const [latestScore, setLatestScore] = useState<AnswerScore | null>(null);
+  const [roleAnalysis, setRoleAnalysis] = useState<RoleAnalysis | null>(null);
+  const [isAnalyzingRole, setIsAnalyzingRole] = useState(false);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const messagesRef = useRef<{ role: string; content: string }[]>([]);
@@ -62,10 +156,18 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const isListeningRef = useRef(false);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopListeningRef = useRef<() => Promise<void>>();
+  const answerCountRef = useRef(0);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) setSpeechSupported(false);
+    // Pre-load voices
+    if (window.speechSynthesis) {
+      window.speechSynthesis.getVoices();
+      window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+    }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
@@ -92,13 +194,20 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       }
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
+      
+      // Pick best voice for selected gender
+      const voice = pickBestVoice(voiceGender);
+      if (voice) utterance.voice = voice;
+      
+      utterance.rate = 0.95;
+      utterance.pitch = voiceGender === 'female' ? 1.05 : 0.9;
       utterance.lang = 'en-US';
       utteranceRef.current = utterance;
 
-      utterance.onend = () => {
-        setStatus('idle');
+      utterance.onend = async () => {
+        // Play beep to signal user's turn
+        await playBeep();
+        setStatus('ready');
         resolve();
       };
       utterance.onerror = () => {
@@ -109,7 +218,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       setStatus('speaking');
       window.speechSynthesis.speak(utterance);
     });
-  }, []);
+  }, [voiceGender]);
 
   const callAI = useCallback(
     async (endInterview = false) => {
@@ -127,8 +236,19 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
 
-        const reply = data.reply as string;
-        messagesRef.current.push({ role: 'assistant', content: reply });
+        const rawReply = data.reply as string;
+        
+        // Parse score block from reply
+        const { cleanText: reply, score } = parseScoreBlock(rawReply);
+        
+        if (score) {
+          answerCountRef.current++;
+          const fullScore = { ...score, questionIndex: answerCountRef.current };
+          setScores(prev => [...prev, fullScore]);
+          setLatestScore(fullScore);
+        }
+        
+        messagesRef.current.push({ role: 'assistant', content: rawReply });
 
         if (endInterview) {
           setSummary(reply);
@@ -158,11 +278,9 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const stopListening = useCallback(async () => {
     if (!recognitionRef.current && !finalTextRef.current.trim()) return;
 
-    // Clear silence timer
     clearSilenceTimer();
     isListeningRef.current = false;
 
-    // Use abort() for instant stop — don't wait for more results
     if (recognitionRef.current) {
       recognitionRef.current.abort();
       recognitionRef.current = null;
@@ -182,7 +300,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     await callAI();
   }, [addEntry, callAI, clearSilenceTimer]);
 
-  // Keep ref in sync so silence timer can call it
   useEffect(() => {
     stopListeningRef.current = stopListening;
   }, [stopListening]);
@@ -212,25 +329,20 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         if ((event.results[i] as any).isFinal) {
           finalTextRef.current += text + ' ';
 
-          // Reset silence timer on every final result
           if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
           setSilenceDetected(false);
 
-          // Max-length guard
           if (finalTextRef.current.length > MAX_TEXT_LENGTH) {
             stopListeningRef.current?.();
             return;
           }
 
-          // Start silence countdown
           setSilenceDetected(true);
           silenceTimerRef.current = setTimeout(() => {
-            // Auto-submit after silence
             stopListeningRef.current?.();
           }, SILENCE_TIMEOUT_MS);
         } else {
           interim = text;
-          // Any interim result means user is still speaking — reset silence
           if (silenceTimerRef.current) {
             clearTimeout(silenceTimerRef.current);
             silenceTimerRef.current = null;
@@ -248,20 +360,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     };
 
     recognition.onend = () => {
-      // Only restart if still actively listening AND silence timer hasn't auto-stopped
       if (isListeningRef.current && silenceTimerRef.current !== null) {
-        try {
-          recognition.start();
-        } catch {
-          // already started or disposed
-        }
+        try { recognition.start(); } catch {}
       } else if (isListeningRef.current && !finalTextRef.current.trim()) {
-        // No speech captured yet and browser timed out — restart to keep listening
-        try {
-          recognition.start();
-        } catch {
-          // already started or disposed
-        }
+        try { recognition.start(); } catch {}
       }
     };
 
@@ -280,12 +382,38 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     [addEntry, callAI]
   );
 
+  const analyzeRole = useCallback(async (jobDescription: string) => {
+    setIsAnalyzingRole(true);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('interview-chat', {
+        body: {
+          analyzeRole: true,
+          resumeData,
+          jobDescription,
+        },
+      });
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
+      if (data?.roleAnalysis) {
+        setRoleAnalysis(data.roleAnalysis);
+      }
+    } catch (err: any) {
+      console.error('Role analysis error:', err);
+      setError(err.message || 'Failed to analyze role');
+    } finally {
+      setIsAnalyzingRole(false);
+    }
+  }, [resumeData]);
+
   const startInterview = useCallback(
     async (jobDescription?: string) => {
       setError(null);
       setSummary(null);
       setTranscript([]);
       setElapsedSeconds(0);
+      setScores([]);
+      setLatestScore(null);
+      answerCountRef.current = 0;
       messagesRef.current = [];
       jobDescriptionRef.current = jobDescription || '';
       setIsStarted(true);
@@ -334,10 +462,18 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setError(null);
     setInterimText('');
     setElapsedSeconds(0);
+    setScores([]);
+    setLatestScore(null);
+    setRoleAnalysis(null);
+    answerCountRef.current = 0;
     messagesRef.current = [];
     jobDescriptionRef.current = '';
     finalTextRef.current = '';
   }, [clearSilenceTimer]);
+
+  const dismissScore = useCallback(() => {
+    setLatestScore(null);
+  }, []);
 
   return {
     status,
@@ -349,6 +485,14 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     speechSupported,
     elapsedSeconds,
     silenceDetected,
+    voiceGender,
+    setVoiceGender,
+    scores,
+    latestScore,
+    dismissScore,
+    roleAnalysis,
+    isAnalyzingRole,
+    analyzeRole,
     startInterview,
     startListening,
     stopListening,

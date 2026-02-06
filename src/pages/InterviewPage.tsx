@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Square, Keyboard, Sparkles } from 'lucide-react';
@@ -7,6 +7,8 @@ import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
 import { TranscriptBubble } from '@/components/interview/TranscriptBubble';
 import { InterviewSummary } from '@/components/interview/InterviewSummary';
+import { InterviewPreview } from '@/components/interview/InterviewPreview';
+import { AnswerScoreSheet } from '@/components/interview/AnswerScoreSheet';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
 import { useResumeStore } from '@/store/resumeStore';
 import { Button } from '@/components/ui/button';
@@ -14,12 +16,15 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 
+type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
+
 export default function InterviewPage() {
   const navigate = useNavigate();
   const { currentResume } = useResumeStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
+  const [pendingJobDescription, setPendingJobDescription] = useState<string | undefined>();
 
   const {
     status,
@@ -31,6 +36,14 @@ export default function InterviewPage() {
     speechSupported,
     elapsedSeconds,
     silenceDetected,
+    voiceGender,
+    setVoiceGender,
+    scores,
+    latestScore,
+    dismissScore,
+    roleAnalysis,
+    isAnalyzingRole,
+    analyzeRole,
     startInterview,
     startListening,
     stopListening,
@@ -38,6 +51,15 @@ export default function InterviewPage() {
     endInterview,
     resetInterview,
   } = useVoiceInterview(currentResume);
+
+  // Derive phase
+  const phase: InterviewPhase = summary
+    ? 'summary'
+    : isStarted
+    ? 'active'
+    : pendingJobDescription !== undefined
+    ? 'preview'
+    : 'setup';
 
   // Auto-scroll transcript
   useEffect(() => {
@@ -53,10 +75,26 @@ export default function InterviewPage() {
     }
   }, [error]);
 
+  const handleSetupStart = useCallback((jobDescription?: string) => {
+    if (jobDescription) {
+      // Go to preview phase for job-targeted interviews
+      setPendingJobDescription(jobDescription);
+      analyzeRole(jobDescription);
+    } else {
+      // General interview — skip preview, start directly
+      startInterview();
+    }
+  }, [analyzeRole, startInterview]);
+
+  const handlePreviewReady = useCallback(() => {
+    startInterview(pendingJobDescription);
+    setPendingJobDescription(undefined);
+  }, [startInterview, pendingJobDescription]);
+
   const handleToggle = () => {
     if (status === 'listening') {
       stopListening();
-    } else if (status === 'idle') {
+    } else if (status === 'idle' || status === 'ready') {
       startListening();
     } else if (status === 'speaking') {
       window.speechSynthesis.cancel();
@@ -70,25 +108,53 @@ export default function InterviewPage() {
     setTextInput('');
   };
 
+  const handleReset = useCallback(() => {
+    resetInterview();
+    setPendingJobDescription(undefined);
+  }, [resetInterview]);
+
   const mins = Math.floor(elapsedSeconds / 60);
   const secs = elapsedSeconds % 60;
 
   // Summary screen
-  if (summary) {
+  if (phase === 'summary') {
     return (
       <MobileLayout>
         <InterviewSummary
-          summary={summary}
+          summary={summary!}
           duration={elapsedSeconds}
-          onRestart={resetInterview}
+          scores={scores}
+          onRestart={handleReset}
           onGoHome={() => navigate('/dashboard')}
         />
       </MobileLayout>
     );
   }
 
+  // Preview screen (job-targeted only)
+  if (phase === 'preview') {
+    return (
+      <MobileLayout>
+        <div className="flex items-center gap-3 px-4 pt-3 pb-2">
+          <button onClick={() => { setPendingJobDescription(undefined); }} className="touch-manipulation p-1">
+            <ArrowLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-primary" />
+            <h1 className="text-lg font-bold text-foreground">Interview Preview</h1>
+          </div>
+        </div>
+        <InterviewPreview
+          roleAnalysis={roleAnalysis}
+          isLoading={isAnalyzingRole}
+          onReady={handlePreviewReady}
+        />
+      </MobileLayout>
+    );
+  }
+
   // Setup screen
-  if (!isStarted) {
+  if (phase === 'setup') {
     return (
       <MobileLayout>
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
@@ -103,7 +169,9 @@ export default function InterviewPage() {
         <InterviewSetup
           hasResume={!!currentResume && !!currentResume.contactInfo.fullName}
           speechSupported={speechSupported}
-          onStart={startInterview}
+          voiceGender={voiceGender}
+          onVoiceGenderChange={setVoiceGender}
+          onStart={handleSetupStart}
         />
       </MobileLayout>
     );
@@ -153,11 +221,19 @@ export default function InterviewPage() {
         )}
       </div>
 
-      {/* Controls — glassmorphism bar */}
+      {/* Controls */}
       <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe">
-        {/* Toggle */}
         <div className="flex flex-col items-center gap-1.5 py-1">
           <InterviewToggle status={status} onPress={handleToggle} />
+          {status === 'ready' && (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-xs text-[hsl(45_90%_55%)] font-medium"
+            >
+              Your turn — tap the mic to answer
+            </motion.p>
+          )}
           {silenceDetected && status === 'listening' && (
             <motion.p
               initial={{ opacity: 0, y: 4 }}
@@ -166,6 +242,15 @@ export default function InterviewPage() {
               className="text-xs text-muted-foreground animate-pulse"
             >
               Sending soon…
+            </motion.p>
+          )}
+          {status === 'listening' && !silenceDetected && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.6 }}
+              className="text-[10px] text-muted-foreground"
+            >
+              Tap the mic when you're done
             </motion.p>
           )}
         </div>
@@ -218,6 +303,9 @@ export default function InterviewPage() {
           </Button>
         </div>
       </div>
+
+      {/* Per-answer score sheet */}
+      <AnswerScoreSheet score={latestScore} onDismiss={dismissScore} />
     </MobileLayout>
   );
 }
