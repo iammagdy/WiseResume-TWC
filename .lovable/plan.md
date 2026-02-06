@@ -1,102 +1,126 @@
 
-## What’s causing the “Edit Profile” sheet not to scroll
+## Goal
+Fix the “unscrollable” behavior across the app (especially bottom sheets), including:
+- Edit Profile sheet
+- Default Template / Templates sheet (screenshot)
+- Any other sheets using the same shared `SheetContent` component
 
-Your `EditProfileSheet` is correctly set up as a flex column with a scrollable middle section:
+## What’s actually causing the issue (root cause)
+Your bottom sheets are rendered via the shared component `src/components/ui/sheet.tsx`.
 
-- `SheetContent`: `h-[85vh] flex flex-col`
-- Middle content: `flex-1 overflow-y-auto`
+Right now:
+- The **Radix Dialog Content element** (`SheetPrimitive.Content`) is **not a flex column**, so children that rely on `flex-1` + `overflow-y-auto` don’t get a constrained height context.
+- We added flex styling to an **inner wrapper** (`<div className="pt-4 flex ... flex-1">`), but since the parent isn’t a flex container, `flex-1` there doesn’t reliably establish the expected scrollable region.
 
-However, the shared `SheetContent` component (`src/components/ui/sheet.tsx`) wraps *all* children in an extra `<div>`:
+This is why multiple “pages” that are actually *bottom sheets* (Templates, Edit Profile, etc.) become unscrollable on mobile.
 
-```tsx
-<div className={side === "bottom" ? "pt-4" : ""}>
-  {children}
-</div>
-```
-
-That wrapper is **not** a flex container and has no defined height. So your `flex-1` scroll area inside `EditProfileSheet` never gets a real constrained height to scroll within. On mobile, this commonly results in “looks like it should scroll, but doesn’t”.
-
-This is consistent with your screenshot: the bottom-sheet opens, content gets clipped, and swipe doesn’t scroll.
+## Scope: “whole app” audit approach
+We’ll fix the shared sheet layout first (global fix), then normalize the most visible sheets (Templates + Edit Profile) to use the same reliable pattern, and finally audit remaining bottom sheets for anti-patterns that can still break scrolling.
 
 ---
 
-## Implementation plan (safe + reusable fix)
+## Implementation plan
 
-### 1) Fix the bottom-sheet internal layout in the shared Sheet component
+### 1) Make bottom sheets flex-based at the shared component level (global fix)
 **File:** `src/components/ui/sheet.tsx`
 
-Goal: when `side === "bottom"`, make the internal wrapper participate in layout so children can use flex sizing and scrolling.
+**Changes:**
+1. When `side === "bottom"`, apply these layout guarantees to `SheetPrimitive.Content`:
+   - `flex flex-col`
+   - `min-h-0` (critical for nested scrolling in flex layouts)
+   - `overflow-hidden` (prevents the content region from expanding beyond the set height and keeps scroll inside the intended child)
 
-Changes:
-- Add `flex flex-col` to the `SheetPrimitive.Content` when `side === "bottom"` (or always, but scoped to bottom is safest).
-- Change the children wrapper div to:
-  - remain `pt-4` (to keep spacing under the drag indicator)
-  - and also become a **flex column with height**
-  - and allow its children to shrink (`min-h-0`) so inner scroll containers can work
+2. Update the “children wrapper” `<div>` so it:
+   - Remains `pt-4` (drag indicator spacing)
+   - Becomes `flex flex-col flex-1 min-h-0` so sheet bodies can use `flex-1 overflow-y-auto`
 
-Concrete approach:
-- Update line ~58 to conditionally add: `flex flex-col`
-- Update the wrapper at line ~63 to something like:
-  - `pt-4 flex flex-col h-full min-h-0`
-- Optionally set wrapper `flex-1` instead of `h-full` depending on which behaves best with Radix’s content sizing; we’ll choose the one that matches your `h-[85vh]` usage in `EditProfileSheet`.
-
-Why this is the correct fix:
-- It fixes scrolling for this sheet and any other bottom sheets that use the same “header + scroll content + footer” pattern.
-- It avoids adding hacky heights in every sheet consumer.
-
-### 2) Ensure the scroll container in EditProfileSheet can actually shrink
-**File:** `src/components/settings/EditProfileSheet.tsx`
-
-Even after the shared sheet fix, flex scrolling is most reliable when the scrollable container includes `min-h-0`.
-
-Change:
-- Update the scroll area container from:
-  - `className="flex-1 overflow-y-auto px-6"`
-- to:
-  - `className="flex-1 min-h-0 overflow-y-auto px-6"`
-
-Why:
-- In a flex column, `min-h-0` is often required so the flex item is allowed to be smaller than its content and thus becomes scrollable.
-
-### 3) Verify footer stays fixed and scroll doesn’t “steal” it
-**File:** `src/components/settings/EditProfileSheet.tsx`
-
-You already have:
-- Footer: `shrink-0` and `pb-safe`
-This is good. After steps (1) and (2), the middle section should scroll and the footer should stay visible.
-
-### 4) Quick QA checklist (mobile-focused)
-After implementation, we’ll test:
-- Open Settings → Edit Profile
-- Scroll down past “Import from LinkedIn” to Professional Details
-- Confirm:
-  - content scrolls smoothly
-  - the Save/Cancel footer stays fixed
-  - drag indicator remains visible
-  - close (X) still works
-- Test on at least:
-  - mobile viewport (iPhone-like)
-  - desktop viewport (just to ensure no regressions)
+**Result:**
+Any bottom sheet that uses:
+- Header (shrink-0)
+- Body (flex-1 overflow-y-auto min-h-0)
+- Footer (shrink-0)
+…will scroll correctly without per-sheet hacks.
 
 ---
 
-## Files that will be changed
-1. `src/components/ui/sheet.tsx`
-   - Fix bottom-sheet wrapper so flex layout + scrolling works inside bottom sheets.
-2. `src/components/settings/EditProfileSheet.tsx`
-   - Add `min-h-0` to the scroll container to ensure it can scroll within a flex column.
+### 2) Fix Templates sheet specifically (DefaultTemplateSheet)
+This is the UI in your screenshot.
+
+**File:** `src/components/settings/DefaultTemplateSheet.tsx`
+
+**Current pattern:**
+- Uses `overflow-y-auto flex-1`, but the shared sheet wasn’t a flex column, so it doesn’t scroll.
+
+**Update to a consistent layout:**
+- Ensure:
+  - Header has `shrink-0`
+  - Body uses `className="flex-1 min-h-0 overflow-y-auto pb-safe"` (or `pb-6 pb-safe` depending on spacing needs)
+
+This ensures the grid scrolls, not the whole sheet, and the close button remains accessible.
 
 ---
 
-## Risks / edge cases and how we’ll handle them
-- **Other sheets**: We’ll scope changes to `side === "bottom"` so right/left sheets keep existing behavior.
-- **Padding/spacing changes**: We’ll preserve the existing `pt-4` behavior so the drag indicator doesn’t overlap the header.
-- **iOS scrolling quirks**: If needed after this, we can add `overscroll-contain` (Tailwind) to the scroll container, but we’ll only do that if there’s still bounce/scroll lock issues.
+### 3) Fix Template selector sheet used in Editor flows (if applicable)
+Even if your “Templates page” is the Settings one, the editor also has a template picker sheet.
+
+**File:** `src/components/editor/TemplateSelector.tsx`
+
+**Current risk factors:**
+- Uses a grid with `overflow-y-auto max-h-[calc(...)]` which can be brittle on mobile (especially with safe areas, dynamic viewport, and varying header heights).
+
+**Update:**
+- Convert to the same reliable pattern:
+  - Make the sheet body a `flex-1 min-h-0 overflow-y-auto`
+  - Keep the grid inside that body without `max-h-[calc(...)]`
+
+This prevents future scroll regressions and makes the sheet responsive to content changes (ATS banner, recommendations text, etc.).
 
 ---
 
-## Expected result
-The Edit Profile bottom sheet becomes properly scrollable, with:
-- header fixed
-- content scrollable
-- footer fixed with Save button always accessible
+### 4) Audit and harden other bottom sheets across the app
+**Files (from search):**
+- `src/components/editor/CompareSheet.tsx`
+- `src/components/editor/JobAnalysisSheet.tsx`
+- `src/components/editor/tailor/MultiJobCompareSheet.tsx`
+- `src/components/editor/tailor/TailorHistorySheet.tsx`
+- `src/components/settings/PDFDefaultsSheet.tsx`
+- `src/components/settings/DataExportSheet.tsx`
+- `src/components/settings/LinkedInImportSheet.tsx`
+- `src/components/settings/BiometricSetupSheet.tsx`
+- `src/components/settings/BiometricTimeoutSheet.tsx`
+- `src/components/settings/ElevenLabsKeySheet.tsx`
+- and any other `SheetContent side="bottom"` matches
+
+**What we’ll check/fix:**
+- If a sheet expects internal scrolling:
+  - Ensure it has a “body” region with `flex-1 min-h-0 overflow-y-auto`
+- Remove/avoid “brittle” height math (`max-h-[calc(...)]`) when a flex body is enough
+- Ensure headers/footers use `shrink-0`
+- Ensure no parent wrapper uses `overflow-hidden` in a way that blocks scrolling (we’ll keep `overflow-hidden` on the sheet container but only when internal scroll is correctly set up)
+
+This makes the fix consistent “app-wide” instead of one-off.
+
+---
+
+## QA checklist (must-do)
+1. Settings → **Edit Profile**:
+   - Can scroll through all fields
+   - Footer Save/Cancel stays visible
+2. Settings → **Default Template**:
+   - Can scroll through templates grid (as in screenshot)
+3. Editor → **Template picker** (if used):
+   - Can scroll template list
+4. Spot-check at least one other bottom sheet (e.g., Data Export) to ensure no regression.
+
+---
+
+## Expected outcome
+- Bottom sheets (Edit Profile, Templates, and others) become reliably scrollable on mobile.
+- No more “looks like it should scroll but doesn’t” behavior caused by flex context not being established.
+- Reduced need for per-sheet height hacks, making future UI work safer.
+
+## Files to change
+- `src/components/ui/sheet.tsx` (core fix)
+- `src/components/settings/DefaultTemplateSheet.tsx` (templates sheet)
+- `src/components/editor/TemplateSelector.tsx` (editor template sheet)
+- Potential small fixes across other bottom-sheet components to standardize the “header/body/footer” flex + `min-h-0` pattern.
