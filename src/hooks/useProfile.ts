@@ -45,6 +45,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
     profile.industry,
     profile.careerLevel,
     profile.location,
+    profile.linkedinUrl,
   ];
   const filled = fields.filter(Boolean).length;
   return Math.round((filled / fields.length) * 100);

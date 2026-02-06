@@ -259,7 +259,7 @@ export function EditProfileSheet({
   return (
      <>
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
+      <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0 overflow-hidden">
         <SheetHeader>
           <div className="px-6 pt-6 pb-4 border-b border-border">
             <SheetTitle>Edit Profile</SheetTitle>
@@ -269,196 +269,218 @@ export function EditProfileSheet({
             <div className="mt-4 space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Profile completion</span>
-                <span className="font-medium flex items-center gap-1">
+                <span className="font-semibold text-primary flex items-center gap-1.5">
                   {completionPercentage}%
                   {completionPercentage === 100 && (
-                    <CheckCircle2 className="w-4 h-4 text-success" />
+                    <CheckCircle2 className="w-4 h-4 text-green-500" />
                   )}
                 </span>
               </div>
               <Progress value={completionPercentage} className="h-2" />
+              {completionPercentage < 100 && (
+                <p className="text-xs text-muted-foreground">
+                  Complete your profile to get personalized AI suggestions
+                </p>
+              )}
             </div>
           </div>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 px-6">
+        <ScrollArea className="flex-1 min-h-0 px-6">
           <div className="space-y-6 py-6">
-          {/* Avatar Preview */}
-          <div className="flex justify-center">
-            <div className="relative group">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={avatarUrl || undefined} />
-                <AvatarFallback className="bg-primary text-primary-foreground text-xl">
-                  {getInitials()}
-                </AvatarFallback>
-              </Avatar>
+            {/* Avatar Preview */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative group">
+                <Avatar className="h-24 w-24 border-2 border-border">
+                  <AvatarImage src={avatarUrl || undefined} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
+                    {getInitials()}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background hover:bg-primary/90 transition-colors disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Tap the camera to upload</p>
+            </div>
+
+            {/* Basic Info Section */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Basic Info
+              </h3>
+              
+              <div className="rounded-xl bg-card/50 border border-border overflow-hidden">
+                <div className="p-4 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fullName" className="text-xs text-muted-foreground">
+                      Display Name
+                    </Label>
+                    <Input
+                      id="fullName"
+                      placeholder="Enter your name"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="location" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <MapPin className="w-3 h-3" />
+                      Location
+                    </Label>
+                    <Input
+                      id="location"
+                      placeholder="City, Country"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label htmlFor="linkedin" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Linkedin className="w-3 h-3" />
+                      LinkedIn Username
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        linkedin.com/in/
+                      </span>
+                      <Input
+                        id="linkedin"
+                        placeholder="yourprofile"
+                        value={linkedinUrl?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '') || ''}
+                        onChange={(e) => setLinkedinUrl(`https://linkedin.com/in/${e.target.value.replace(/\s/g, '')}`)}
+                        className="pl-[115px] bg-background"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* LinkedIn Import Button */}
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background hover:bg-primary/90 transition-colors disabled:opacity-50"
+                onClick={() => {
+                  haptics.light();
+                  setLinkedInImportOpen(true);
+                }}
+                className="w-full flex items-center justify-between p-4 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 transition-colors group"
               >
-                {isUploading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Camera className="w-4 h-4" />
-                )}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-sm">Import from LinkedIn</p>
+                    <p className="text-xs text-muted-foreground">AI extracts your profile data</p>
+                  </div>
+                </div>
+                <Download className="w-5 h-5 text-primary group-hover:translate-y-0.5 transition-transform" />
               </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleAvatarUpload}
-                className="hidden"
-              />
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground text-center">Tap the camera to upload</p>
-
-          {/* Basic Info Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">BASIC INFO</h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Display Name</Label>
-              <Input
-                id="fullName"
-                placeholder="Enter your name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="location" className="flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5" />
-                Location
-              </Label>
-              <Input
-                id="location"
-                placeholder="City, Country"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-              />
-            </div>
+            {/* Professional Details Section */}
+            <div className="space-y-3">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Professional Details
+              </h3>
+              
+              <div className="rounded-xl bg-card/50 border border-border overflow-hidden">
+                <div className="p-4 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="jobTitle" className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Briefcase className="w-3 h-3" />
+                      Current Role / Job Title
+                    </Label>
+                    <Input
+                      id="jobTitle"
+                      placeholder="e.g. Software Engineer"
+                      value={jobTitle}
+                      onChange={(e) => setJobTitle(e.target.value)}
+                      className="bg-background"
+                    />
+                  </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="linkedin" className="flex items-center gap-2">
-                <Linkedin className="w-3.5 h-3.5" />
-                 LinkedIn Username
-              </Label>
-               <div className="relative">
-                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                   linkedin.com/in/
-                 </span>
-                 <Input
-                   id="linkedin"
-                   placeholder="yourprofile"
-                   value={linkedinUrl?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '') || ''}
-                   onChange={(e) => setLinkedinUrl(`https://linkedin.com/in/${e.target.value.replace(/\s/g, '')}`)}
-                   className="pl-[115px]"
-                 />
-               </div>
-             </div>
- 
-             {/* LinkedIn Import Button */}
-             <div className="pt-2">
-               <button
-                 type="button"
-                 onClick={() => {
-                   haptics.light();
-                   setLinkedInImportOpen(true);
-                 }}
-                 className="w-full flex items-center justify-between p-4 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 transition-colors group"
-               >
-                 <div className="flex items-center gap-3">
-                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                     <Sparkles className="w-5 h-5 text-primary-foreground" />
-                   </div>
-                   <div className="text-left">
-                     <p className="font-medium text-sm">Import from LinkedIn</p>
-                     <p className="text-xs text-muted-foreground">AI extracts your profile data</p>
-                   </div>
-                 </div>
-                 <Download className="w-5 h-5 text-primary group-hover:translate-y-0.5 transition-transform" />
-               </button>
-            </div>
-          </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="industry" className="text-xs text-muted-foreground">
+                      Industry
+                    </Label>
+                    <Select value={industry} onValueChange={setIndustry}>
+                      <SelectTrigger id="industry" className="bg-background">
+                        <SelectValue placeholder="Select your industry" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INDUSTRY_OPTIONS.map((ind) => (
+                          <SelectItem key={ind} value={ind}>
+                            {ind}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-          {/* Professional Details Section */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-muted-foreground">PROFESSIONAL DETAILS</h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="jobTitle" className="flex items-center gap-2">
-                <Briefcase className="w-3.5 h-3.5" />
-                Current Role / Job Title
-              </Label>
-              <Input
-                id="jobTitle"
-                placeholder="e.g. Software Engineer"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="industry">Industry</Label>
-              <Select value={industry} onValueChange={setIndustry}>
-                <SelectTrigger id="industry">
-                  <SelectValue placeholder="Select your industry" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INDUSTRY_OPTIONS.map((ind) => (
-                    <SelectItem key={ind} value={ind}>
-                      {ind}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Career Level</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {CAREER_LEVEL_OPTIONS.map((level) => (
-                  <button
-                    key={level.value}
-                    type="button"
-                    onClick={() => setCareerLevel(level.value)}
-                    className={`p-3 rounded-lg border text-left transition-colors ${
-                      careerLevel === level.value
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-border hover:border-muted-foreground/50'
-                    }`}
-                  >
-                    <div className="font-medium text-sm">{level.label}</div>
-                    <div className="text-xs text-muted-foreground">{level.description}</div>
-                  </button>
-                ))}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Career Level</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {CAREER_LEVEL_OPTIONS.map((level) => (
+                        <button
+                          key={level.value}
+                          type="button"
+                          onClick={() => setCareerLevel(level.value)}
+                          className={`p-3 rounded-lg border text-left transition-all ${
+                            careerLevel === level.value
+                              ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
+                              : 'border-border bg-background hover:border-muted-foreground/50'
+                          }`}
+                        >
+                          <div className="font-medium text-sm">{level.label}</div>
+                          <div className="text-xs text-muted-foreground">{level.description}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
         </ScrollArea>
 
-          {/* Actions */}
-          <div className="flex gap-3 p-6 border-t border-border bg-background">
-            <Button
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={isSaving}
-              className="flex-1"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
+        {/* Actions - Fixed footer */}
+        <div className="flex gap-3 p-6 pb-safe border-t border-border bg-background shrink-0">
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            className="flex-1"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={isSaving}
+            className="flex-1"
+          >
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
+        </div>
       </SheetContent>
     </Sheet>
      
