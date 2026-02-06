@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, ChevronRight, Check, Cloud, CloudOff } from 'lucide-react';
-import { MobileLayout } from '@/components/layout/MobileLayout';
+import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
@@ -174,8 +173,22 @@ export default function EditorPage() {
   };
 
   return (
-    <MobileLayout showHeader headerTitle="Edit Resume" onBack={handleBack} showBottomNav>
-      <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={handleBack}
+              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-lg font-display font-semibold truncate">Edit Resume</h1>
+          </div>
+        </div>
+      </header>
         {/* Progress Bar with Save Status */}
         <div className="px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
@@ -300,7 +313,6 @@ export default function EditorPage() {
             <ChevronRight className="w-5 h-5 ml-2" />
           </Button>
         </motion.div>
-      </div>
 
       {/* AI Intro Tooltip for First-Time Users */}
       <AIIntroTooltip
@@ -312,6 +324,6 @@ export default function EditorPage() {
       <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
       <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
       <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
-    </MobileLayout>
+    </div>
   );
 }

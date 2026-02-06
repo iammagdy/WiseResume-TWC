@@ -1,8 +1,8 @@
-import { motion } from 'framer-motion';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Sparkles, Settings, Home, Mic } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { motion } from 'framer-motion';
 
 interface TabItem {
   path: string;
@@ -67,9 +67,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   };
 
   return (
-    <motion.nav
-      initial={{ y: 100 }}
-      animate={{ y: 0 }}
+    <nav
       className={cn(
         'fixed bottom-0 left-0 right-0 z-50',
         'glass border-t border-border pb-safe',
@@ -118,6 +116,6 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
           );
         })}
       </div>
-    </motion.nav>
+    </nav>
   );
 }

@@ -21,9 +21,8 @@ import {
   Clock,
   Key
 } from 'lucide-react';
-import { MobileLayout } from '@/components/layout/MobileLayout';
-import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
+import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { DefaultTemplateSheet } from '@/components/settings/DefaultTemplateSheet';
 import { PDFDefaultsSheet } from '@/components/settings/PDFDefaultsSheet';
@@ -164,16 +163,14 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <MobileLayout showBottomNav>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading...</div>
-        </div>
-      </MobileLayout>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
     );
   }
 
   return (
-    <MobileLayout showBottomNav>
+    <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 border-b border-border">
@@ -510,6 +507,6 @@ export default function SettingsPage() {
         currentKey={elevenlabsApiKey}
         onSave={setElevenlabsApiKey}
       />
-    </MobileLayout>
+    </div>
   );
 }

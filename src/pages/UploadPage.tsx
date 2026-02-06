@@ -1,8 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText } from 'lucide-react';
-import { MobileLayout } from '@/components/layout/MobileLayout';
+import { Upload, FileText, ArrowLeft } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations } from '@/hooks/useResumes';
@@ -277,7 +276,20 @@ export default function UploadPage() {
   }, [handleFile]);
 
   return (
-    <MobileLayout showHeader headerTitle="Upload Resume" onBack={() => navigate('/dashboard')} showBottomNav>
+    <div className="flex-1 flex flex-col">
+      {/* Header */}
+      <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
+          <h1 className="text-lg font-display font-semibold truncate">Upload Resume</h1>
+        </div>
+      </header>
       <div className="flex-1 flex flex-col px-4 py-6">
         <AnimatePresence mode="wait">
           {showErrorRecovery ? (
@@ -390,6 +402,6 @@ export default function UploadPage() {
         progress={ocrProgress ?? undefined}
         estimatedTime={estimatedTime}
       />
-    </MobileLayout>
+    </div>
   );
 }
