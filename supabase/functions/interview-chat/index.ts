@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, resumeData, jobDescription, endInterview } = await req.json();
+    const { messages, resumeData, jobDescription, endInterview, analyzeRole } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -38,6 +38,75 @@ Education: ${(resumeData.education || [])
       ? `\nTARGET JOB DESCRIPTION:\n${jobDescription}\n`
       : "";
 
+    // Role analysis mode — return structured analysis before interview starts
+    if (analyzeRole && jobDescription) {
+      const analyzePrompt = `You are Wise AI, the intelligent interview coach. Analyze the following job description and candidate resume to prepare for a mock interview.
+
+${resumeContext}${jobContext}
+
+Return your analysis as a JSON object with this exact structure (no markdown, just valid JSON):
+{
+  "title": "the job title from the description",
+  "keySkills": ["skill1", "skill2", "skill3", "skill4", "skill5"],
+  "questionCategories": ["category1", "category2", "category3", "category4"],
+  "industryInsights": "A 2-3 sentence insight about what companies hiring for this role typically look for, current market trends, and what will make a candidate stand out."
+}
+
+Focus on:
+- The most critical skills being tested
+- Categories should be like: Technical, Behavioral, Situational, Culture Fit, System Design, Leadership, etc. — pick 3-4 most relevant
+- Industry insights should reference real trends and expectations for this role`;
+
+      const response = await fetch(
+        "https://ai.gateway.lovable.dev/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [{ role: "user", content: analyzePrompt }],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("AI gateway error:", response.status, errorText);
+        return new Response(
+          JSON.stringify({ error: "AI service error" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const data = await response.json();
+      const reply = data.choices?.[0]?.message?.content || "";
+      
+      // Parse the JSON from the reply
+      try {
+        // Strip any markdown code fences if present
+        const jsonStr = reply.replace(/```json?\s*/g, '').replace(/```\s*/g, '').trim();
+        const roleAnalysis = JSON.parse(jsonStr);
+        return new Response(JSON.stringify({ reply: "Role analyzed", roleAnalysis }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch {
+        return new Response(JSON.stringify({ 
+          reply: "Role analyzed",
+          roleAnalysis: {
+            title: "Position",
+            keySkills: ["Communication", "Problem Solving", "Teamwork"],
+            questionCategories: ["Behavioral", "Technical", "Situational"],
+            industryInsights: "Interviewers will focus on your practical experience and problem-solving approach."
+          }
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const systemPrompt = endInterview
       ? `You are Wise AI, the intelligent interview coach powered by WiseResume. The mock interview has just ended. Based on the conversation, provide a brief performance summary in this exact format:
 
@@ -57,22 +126,30 @@ Education: ${(resumeData.education || [])
 **Tip:** [One actionable tip for their next interview]
 
 Be encouraging but honest.`
-      : `You are Wise AI, the intelligent interview coach powered by WiseResume — part of the WiseUniverse. Your role:
+      : `You are Wise AI, the intelligent interview coach powered by WiseResume — part of the WiseUniverse. You speak naturally and warmly, like a real human interviewer having a conversation. Your role:
 
 1. Ask ONE question at a time and wait for the answer
-2. After each answer, give brief feedback (1 sentence max), then ask the next question
+2. After each answer, give brief, constructive feedback (1-2 sentences), then ask the next question
 3. Mix behavioral ("Tell me about a time..."), technical, and situational questions
 4. Adapt difficulty based on the candidate's responses
-5. Keep your responses concise (under 80 words)
-6. Be warm and professional, like a real interviewer
-7. NEVER break character — you ARE the interviewer
-8. Always refer to yourself as "Wise AI" when introducing yourself
+5. Keep your spoken responses concise (under 80 words for the conversational part)
+6. Be warm, encouraging, and professional — like a supportive interviewer who genuinely wants the candidate to succeed
+7. Use natural language — say things like "Great point!", "I appreciate that perspective", "That's an interesting approach"
+8. NEVER break character — you ARE the interviewer
+9. Always refer to yourself as "Wise AI" when introducing yourself
+10. After the candidate answers (not the first message), ALWAYS include a scoring block at the very end of your response in this exact format:
+
+---SCORE---
+{"score": [1-10], "tip": "[specific actionable tip to improve this answer]", "improved_answer": "[a stronger version of their answer using STAR method or better structure, max 2-3 sentences]"}
+---END_SCORE---
+
+The score block must be valid JSON. Score fairly: 1-3 = weak, 4-5 = needs work, 6-7 = good, 8-9 = excellent, 10 = outstanding.
 
 ${resumeContext}${jobContext}
 
-${jobDescription ? "Focus questions on the job requirements and how the candidate's experience aligns." : "Focus questions on the candidate's resume experience and skills."}
+${jobDescription ? `IMPORTANT: You have analyzed the job description thoroughly. Ask questions that real interviewers for this specific role would ask. Reference industry-specific scenarios, technical challenges, and evaluate answers against what hiring managers in this field actually look for. Focus on the key requirements mentioned in the job description.` : "Focus questions on the candidate's resume experience and skills."}
 
-Start with a brief introduction as Wise AI and your first question. Do NOT list multiple questions at once.`;
+Start with a warm introduction as Wise AI and your first question. Do NOT list multiple questions at once. Do NOT include a score block in your very first message (since the candidate hasn't answered yet).`;
 
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",

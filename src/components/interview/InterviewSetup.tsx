@@ -1,19 +1,22 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Briefcase, FileText, AlertCircle, Sparkles, Rocket } from 'lucide-react';
+import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import type { VoiceGender } from '@/hooks/useVoiceInterview';
 
 type InterviewMode = 'general' | 'job-targeted';
 
 interface InterviewSetupProps {
   hasResume: boolean;
   speechSupported: boolean;
+  voiceGender: VoiceGender;
+  onVoiceGenderChange: (gender: VoiceGender) => void;
   onStart: (jobDescription?: string) => void;
 }
 
-export function InterviewSetup({ hasResume, speechSupported, onStart }: InterviewSetupProps) {
+export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoiceGenderChange, onStart }: InterviewSetupProps) {
   const [mode, setMode] = useState<InterviewMode>('general');
   const [jobDescription, setJobDescription] = useState('');
 
@@ -30,7 +33,6 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
       {/* Glowing orb header */}
       <div className="text-center space-y-3">
         <div className="relative w-24 h-24 mx-auto">
-          {/* Outer glow */}
           <motion.div
             className="absolute inset-0 rounded-full"
             style={{
@@ -39,7 +41,6 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
             animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0.8, 0.5] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
           />
-          {/* Inner orb */}
           <div className="absolute inset-3 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-primary" />
           </div>
@@ -69,6 +70,37 @@ export function InterviewSetup({ hasResume, speechSupported, onStart }: Intervie
           <p>No resume loaded. Wise AI will ask general questions. Load a resume for personalized questions.</p>
         </div>
       )}
+
+      {/* Voice Gender Toggle */}
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-foreground">AI Voice</p>
+        <div className="flex rounded-xl border border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
+          <button
+            onClick={() => onVoiceGenderChange('female')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-all touch-manipulation',
+              voiceGender === 'female'
+                ? 'bg-primary/15 text-primary border-r border-primary/20'
+                : 'text-muted-foreground hover:text-foreground border-r border-border/30'
+            )}
+          >
+            <UserRound className="w-4 h-4" />
+            Female
+          </button>
+          <button
+            onClick={() => onVoiceGenderChange('male')}
+            className={cn(
+              'flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-medium transition-all touch-manipulation',
+              voiceGender === 'male'
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <User className="w-4 h-4" />
+            Male
+          </button>
+        </div>
+      </div>
 
       <div className="space-y-3">
         <p className="text-sm font-medium text-foreground">Interview Mode</p>
