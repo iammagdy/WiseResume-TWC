@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard, Sparkles } from 'lucide-react';
+import { ArrowLeft, Square, Keyboard, Sparkles, FileWarning } from 'lucide-react';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
 import { TranscriptBubble } from '@/components/interview/TranscriptBubble';
@@ -10,6 +10,7 @@ import { InterviewPreview } from '@/components/interview/InterviewPreview';
 import { AnswerScoreSheet } from '@/components/interview/AnswerScoreSheet';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -19,11 +20,26 @@ type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
 
 export default function InterviewPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { currentResume } = useResumeStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
   const [pendingJobDescription, setPendingJobDescription] = useState<string | undefined>();
+
+  // Resume guard - require a resume for interview practice
+  const hasValidResume = currentResume && currentResume.contactInfo?.fullName;
+  
+  useEffect(() => {
+    if (!hasValidResume) {
+      toast({
+        title: 'Resume Required',
+        description: 'Create or upload a resume first to start interview practice.',
+        variant: 'default',
+      });
+      navigate(user ? '/upload' : '/auth');
+    }
+  }, [hasValidResume, navigate, user]);
 
   const {
     status,
@@ -199,11 +215,10 @@ export default function InterviewPage() {
         </div>
       </div>
 
-      {/* Transcript area */}
+      {/* Transcript area - uses flex-1 for flexible height */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
-        style={{ maxHeight: 'calc(100vh - 320px)' }}
+        className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3"
       >
         {transcript.map((entry) => (
           <TranscriptBubble key={entry.id} entry={entry} />
@@ -221,8 +236,8 @@ export default function InterviewPage() {
         )}
       </div>
 
-      {/* Controls - added mb-20 for bottom tab bar spacing */}
-      <div className="border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-safe mb-20">
+      {/* Controls - shrink-0 prevents compression, pb-24 provides bottom nav spacing */}
+      <div className="shrink-0 border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-24">
         <div className="flex flex-col items-center gap-1.5 py-1">
           <InterviewToggle status={status} onPress={handleToggle} />
           {countdown !== null && status === 'speaking' && (
