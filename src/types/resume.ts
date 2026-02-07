@@ -17,6 +17,7 @@ export interface Experience {
   current: boolean;
   description: string;
   achievements: string[];
+  isProject?: boolean; // Flag for project entries (vs work experience)
 }
 
 export interface Education {

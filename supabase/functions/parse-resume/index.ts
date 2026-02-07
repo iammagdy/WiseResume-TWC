@@ -26,6 +26,7 @@ interface ParsedResume {
     current: boolean;
     description: string;
     achievements: string[];
+    isProject?: boolean;
   }>;
   education: Array<{
     id: string;
@@ -74,21 +75,22 @@ const parseResumeTool = {
         },
         experience: {
           type: "array",
-          description: "Work experience entries, ordered from most recent to oldest",
+          description: "Work experience AND project entries, ordered from most recent to oldest. Include projects with isProject=true",
           items: {
             type: "object",
             properties: {
-              company: { type: "string", description: "Company/organization name" },
-              position: { type: "string", description: "Job title/position" },
-              startDate: { type: "string", description: "Start date (format: MMM YYYY or YYYY)" },
-              endDate: { type: "string", description: "End date (format: MMM YYYY or YYYY, or 'Present' if current)" },
-              current: { type: "boolean", description: "True if this is the current job" },
-              description: { type: "string", description: "Job description and responsibilities" },
+              company: { type: "string", description: "Company/organization name. For projects, use project name or 'Personal Project'" },
+              position: { type: "string", description: "Job title/position. For projects, use role like 'Developer' or 'Creator'" },
+              startDate: { type: "string", description: "Start date - accept any format: MMM YYYY, YYYY, Summer 2024, etc." },
+              endDate: { type: "string", description: "End date - accept any format, or 'Present' if current/ongoing" },
+              current: { type: "boolean", description: "True if this is the current job or ongoing project" },
+              description: { type: "string", description: "Job/project description and responsibilities" },
               achievements: {
                 type: "array",
                 items: { type: "string" },
-                description: "Key achievements or bullet points",
+                description: "Key achievements, features built, or bullet points",
               },
+              isProject: { type: "boolean", description: "True if this is a personal/academic project, false for work experience" },
             },
             required: ["company", "position", "startDate", "endDate", "current", "description", "achievements"],
           },
@@ -135,19 +137,28 @@ const parseResumeTool = {
   },
 };
 
-const systemPrompt = `You are an expert resume parser. Your task is to extract structured information from resume text.
+const systemPrompt = `You are an expert resume parser. Extract ALL structured information from resume text.
 
-IMPORTANT GUIDELINES:
-1. Extract ALL information present in the resume - don't skip any jobs, education, or skills
-2. If a field is not found, use empty string "" for required string fields and empty array [] for array fields
-3. Parse dates in a consistent format (MMM YYYY preferred, e.g., "Jan 2020")
-4. For current jobs, set endDate to "Present" and current to true
-5. Extract skills as individual items, not comma-separated strings
-6. Achievements should be separate bullet points, not combined
-7. Handle various resume formats: chronological, functional, combination
-8. Be thorough - extract every piece of relevant information
+CRITICAL RULES:
+1. Extract EVERYTHING - all jobs, education, projects, skills, certifications. Never skip sections!
+2. Empty fields: use "" for strings, [] for arrays - never omit required fields
+3. Dates: Accept ANY format ("2024", "Summer 2024", "Jan 2020 - Present", "2020-2023")
+4. Current roles/projects: endDate="Present", current=true
+5. Skills: Parse as individual items. Include languages with proficiency (e.g., "Arabic (Native)", "English (Fluent)")
+6. Projects: Add to experience array with isProject=true, company=project name or "Personal Project"
+7. Languages: Add to skills array with level, e.g., "French (Beginner)", "Spanish (Intermediate)"
+8. Certifications: Include issuer from context when available. Match "Certificates", "Training", "Courses" sections
+9. Phone numbers: Extract exactly as written (supports international formats like +20, 011xxx, etc.)
+10. Handle sidebar layouts, two-column designs, and creative CV formats
 
-The resume text may have OCR artifacts or unusual formatting - do your best to interpret it correctly.`;
+SECTION NAME VARIANTS TO RECOGNIZE:
+- Experience → Work Experience, Employment, Professional Experience, Career History
+- Education → Academic Background, Qualifications, Schooling
+- Skills → Technical Skills, Core Competencies, Languages, Soft Skills, Hard Skills
+- Certifications → Certificates, Credentials, Licenses, Training, Courses
+- Projects → Portfolio, Personal Projects, Academic Projects, Work Samples
+
+The resume may have OCR artifacts or unusual formatting - interpret it correctly and extract ALL content!`;
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -291,6 +302,7 @@ serve(async (req) => {
         current: exp.current || false,
         description: exp.description || '',
         achievements: exp.achievements || [],
+        isProject: exp.isProject || false,
       })),
       education: (parsedData.education || []).map(edu => ({
         id: generateId(),
