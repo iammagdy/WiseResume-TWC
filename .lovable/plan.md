@@ -1,308 +1,157 @@
 
+# Fix File Type Filtering + App Crash on Upload
 
-# Add File Type Selection Before Upload
+## Problem Analysis
 
-## Overview
+I identified **two distinct issues**:
 
-Create a mobile-friendly bottom sheet that appears when the user wants to upload a resume, letting them choose between three file types: PDF, Word Document, or Photo/Image. After selection, the native file picker will only show files of that specific type.
+### Issue 1: File Type Filter Not Working Properly
+When user selects "PDF", the file picker still allows selecting photos or other files. This happens because:
 
----
+1. **Mobile browsers ignore `accept` attribute** - On iOS and Android, the `accept` attribute on file inputs is often just a "hint" - browsers may still show all files or allow selecting files outside the filter
+2. **Timing issue** - The `accept` attribute is set dynamically after the sheet closes, but some browsers cache the previous accept value when the input was initially rendered
 
-## User Flow
+### Issue 2: App Crashes/Restarts During Upload
+The app restarts without completing the upload due to:
 
-```text
-User taps Upload Zone
-        ↓
-  File Type Sheet appears
-  ┌────────────────────────┐
-  │  Choose file type      │
-  │                        │
-  │  [PDF icon]  PDF       │
-  │  Best for text-based   │
-  │                        │
-  │  [Word icon] Word Doc  │
-  │  .doc, .docx files     │
-  │                        │
-  │  [Image icon] Photo    │
-  │  JPG, PNG images       │
-  └────────────────────────┘
-        ↓
-  User taps an option
-        ↓
-  Native file picker opens
-  (filtered to selected type)
-        ↓
-  File selected → Processing begins
-```
+1. **Unhandled async errors** - The `handleInputChange` function calls `handleFile` without a try-catch, so any unhandled promise rejection crashes the app
+2. **React ref warning** - Console shows "Function components cannot be given refs" for `FileTypeSelector`, indicating the Sheet's Dialog is trying to pass a ref to a non-forwardRef component
 
 ---
 
-## Implementation Details
+## Solution
 
-### New Component: `FileTypeSelector.tsx`
+### Fix 1: Validate File Type After Selection (Client-Side Enforcement)
 
-Create a new bottom sheet component in `src/components/upload/FileTypeSelector.tsx`
-
-**Props:**
-```typescript
-interface FileTypeSelectorProps {
-  open: boolean;
-  onClose: () => void;
-  onSelectType: (type: 'pdf' | 'word' | 'image') => void;
-}
-```
-
-**Features:**
-- Bottom sheet using existing `Sheet` component
-- Three large, touch-friendly option cards (min 72px height)
-- Each card shows:
-  - Icon (FileText for PDF, File for Word, Image for Photo)
-  - Title (PDF Document, Word Document, Photo/Image)
-  - Subtitle explaining accepted formats
-- Cards have `active:scale-[0.98]` for touch feedback
-- Selecting an option calls `onSelectType` and closes the sheet
-
-**Visual Design:**
-```text
-┌─────────────────────────────────────┐
-│            [drag handle]            │
-│                                     │
-│   📤 What type of file?             │
-│   Select your resume format         │
-│                                     │
-│   ┌─────────────────────────────┐   │
-│   │  📄  PDF Document           │   │
-│   │      Best for text-based    │   │
-│   │      resumes (.pdf)         │   │
-│   └─────────────────────────────┘   │
-│                                     │
-│   ┌─────────────────────────────┐   │
-│   │  📝  Word Document          │   │
-│   │      Microsoft Word files   │   │
-│   │      (.doc, .docx)          │   │
-│   └─────────────────────────────┘   │
-│                                     │
-│   ┌─────────────────────────────┐   │
-│   │  🖼️  Photo / Image          │   │
-│   │      Scanned or photo       │   │
-│   │      resumes (.jpg, .png)   │   │
-│   └─────────────────────────────┘   │
-│                                     │
-└─────────────────────────────────────┘
-```
-
----
-
-### Update UploadPage.tsx
-
-**Changes:**
-
-1. **Add state for file type selector:**
-   ```typescript
-   const [showFileTypeSelector, setShowFileTypeSelector] = useState(false);
-   const [selectedFileType, setSelectedFileType] = useState<'pdf' | 'word' | 'image' | null>(null);
-   const fileInputRef = useRef<HTMLInputElement>(null);
-   ```
-
-2. **Update upload zone click handler:**
-   - Instead of opening file picker directly, show the FileTypeSelector sheet
-   - Remove the invisible file input from the upload zone
-   - Add a hidden file input with a ref
-
-3. **Handle file type selection:**
-   ```typescript
-   const handleFileTypeSelect = (type: 'pdf' | 'word' | 'image') => {
-     setSelectedFileType(type);
-     setShowFileTypeSelector(false);
-     
-     // Update file input accept attribute and trigger click
-     if (fileInputRef.current) {
-       fileInputRef.current.accept = getAcceptString(type);
-       fileInputRef.current.click();
-     }
-   };
-   
-   function getAcceptString(type: 'pdf' | 'word' | 'image'): string {
-     switch (type) {
-       case 'pdf': return '.pdf,application/pdf';
-       case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-       case 'image': return '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
-     }
-   }
-   ```
-
-4. **Update handleFile to process different file types:**
-   ```typescript
-   const handleFile = async (file: File) => {
-     const fileType = getFileType(file);
-     
-     if (fileType === 'pdf') {
-       // Existing PDF parsing logic
-     } else if (fileType === 'word') {
-       // Convert Word to text using mammoth.js or send to AI
-       await handleWordFile(file);
-     } else if (fileType === 'image') {
-       // Use OCR directly on the image
-       await handleImageFile(file);
-     }
-   };
-   ```
-
-5. **Make upload zone clickable:**
-   ```typescript
-   <motion.div
-     className="... cursor-pointer"
-     onClick={() => !isProcessing && setShowFileTypeSelector(true)}
-     // Remove file input from inside
-   >
-   ```
-
----
-
-### Word Document Parsing
-
-**Option A: Client-side with mammoth.js**
-- Add `mammoth` package to dependencies
-- Extract text from Word documents locally
-- Send extracted text to AI for parsing
-
-**Option B: Server-side in Edge Function**
-- Send the file to a new edge function
-- Use Gemini's document understanding capabilities
-- More reliable but requires file upload
-
-**Recommended: Option A** (simpler, no file upload needed)
+Since mobile browsers don't reliably enforce the `accept` attribute, we need to validate the file type **after** the user selects a file:
 
 ```typescript
-import mammoth from 'mammoth';
+// Store the expected file type
+const [expectedFileType, setExpectedFileType] = useState<FileType | null>(null);
 
-async function handleWordFile(file: File): Promise<void> {
-  setIsProcessing(true);
-  setParseStep('reading');
+const handleFileTypeSelect = (type: FileType) => {
+  setExpectedFileType(type); // Remember what type user selected
+  setShowFileTypeSelector(false);
+  
+  if (fileInputRef.current) {
+    fileInputRef.current.accept = getAcceptString(type);
+    setTimeout(() => fileInputRef.current?.click(), 50);
+  }
+};
+
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  
+  // Reset input for next selection
+  e.target.value = '';
+  
+  // Validate file matches expected type
+  const actualType = getFileType(file);
+  
+  if (expectedFileType && actualType !== expectedFileType) {
+    toast.error(`Please select a ${expectedFileType.toUpperCase()} file. You selected a ${actualType} file.`);
+    return;
+  }
+  
+  handleFile(file);
+};
+```
+
+### Fix 2: Wrap All Handlers in Try-Catch
+
+Prevent app crashes by adding comprehensive error handling:
+
+```typescript
+const handleInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  
+  // Reset input value for re-selection
+  e.target.value = '';
   
   try {
-    const arrayBuffer = await file.arrayBuffer();
-    const result = await mammoth.extractRawText({ arrayBuffer });
-    const text = result.value;
-    
-    if (!text.trim()) {
-      setErrorType('NO_TEXT');
-      setShowErrorRecovery(true);
+    // Validate file type
+    const actualType = getFileType(file);
+    if (expectedFileType && actualType !== expectedFileType && actualType !== 'unknown') {
+      toast.error(`Please select a ${expectedFileType.toUpperCase()} file.`);
       return;
     }
     
-    setParseStep('analyzing');
-    // Use existing AI parsing
-    const resumeData = await parseTextWithAI(text);
-    
-    setPendingResumeData(resumeData);
-    setShowImportReview(true);
+    await handleFile(file);
   } catch (error) {
-    setErrorType('CORRUPTED');
-    setShowErrorRecovery(true);
-  } finally {
+    console.error('Upload error:', error);
+    toast.error('Something went wrong. Please try again.');
     setIsProcessing(false);
   }
-}
+}, [handleFile, expectedFileType]);
 ```
 
----
+### Fix 3: Add forwardRef to FileTypeSelector
 
-### Image/Photo Parsing
-
-For images, use the existing OCR infrastructure:
+Fix the React warning by wrapping the component with forwardRef (even though we don't use the ref):
 
 ```typescript
-async function handleImageFile(file: File): Promise<void> {
-  setIsProcessing(true);
-  setParseStep('reading');
-  
-  try {
-    // Convert image to canvas and run OCR
-    const text = await extractTextFromImage(file, (progress) => {
-      setOcrProgress({ page: 1, total: 1, status: progress.status });
-    });
-    
-    if (!text.trim()) {
-      setErrorType('NO_TEXT');
-      setShowErrorRecovery(true);
-      return;
-    }
-    
-    setParseStep('analyzing');
-    const resumeData = await parseTextWithAI(text);
-    
-    setPendingResumeData(resumeData);
-    setShowImportReview(true);
-  } catch (error) {
-    setErrorType('UNKNOWN');
-    setShowErrorRecovery(true);
-  } finally {
-    setIsProcessing(false);
+import { forwardRef } from 'react';
+
+export const FileTypeSelector = forwardRef<HTMLDivElement, FileTypeSelectorProps>(
+  function FileTypeSelector({ open, onClose, onSelectType }, ref) {
+    // ... existing implementation
   }
-}
+);
 ```
 
-**New function in `src/lib/pdf/ocrExtractor.ts`:**
+### Fix 4: Global Unhandled Rejection Handler
+
+Add a safety net in App.tsx to catch any remaining unhandled promise rejections:
+
 ```typescript
-export async function extractTextFromImage(
-  file: File,
-  onProgress?: OCRProgressCallback
-): Promise<string> {
-  // Load image into canvas
-  const img = await loadImage(file);
-  const canvas = document.createElement('canvas');
-  canvas.width = img.width;
-  canvas.height = img.height;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0);
+useEffect(() => {
+  const handleRejection = (event: PromiseRejectionEvent) => {
+    console.error('Unhandled rejection:', event.reason);
+    event.preventDefault();
+  };
   
-  // Run Tesseract OCR
-  const imageData = canvas.toDataURL('image/png');
-  // ... existing OCR logic
-}
+  window.addEventListener('unhandledrejection', handleRejection);
+  return () => window.removeEventListener('unhandledrejection', handleRejection);
+}, []);
 ```
 
 ---
 
-## Files to Create/Modify
+## Files to Modify
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/upload/FileTypeSelector.tsx` | Create | New bottom sheet for file type selection |
-| `src/pages/UploadPage.tsx` | Modify | Add file type selector, update file handling |
-| `src/lib/pdf/ocrExtractor.ts` | Modify | Add image OCR extraction function |
-| `package.json` | Modify | Add mammoth dependency for Word parsing |
-
----
-
-## Dependency Addition
-
-```json
-{
-  "mammoth": "^1.6.0"
-}
-```
+| File | Changes |
+|------|---------|
+| `src/pages/UploadPage.tsx` | Add `expectedFileType` state, validate file type in `handleInputChange`, wrap handlers in try-catch |
+| `src/components/upload/FileTypeSelector.tsx` | Add `forwardRef` wrapper to fix React warning |
+| `src/App.tsx` | Add global unhandled rejection handler as safety net |
 
 ---
 
-## Mobile UX Considerations
+## User Experience After Fix
 
-1. **Touch-friendly cards**: Minimum 72px height with 16px padding
-2. **Visual feedback**: `active:scale-[0.98]` on tap
-3. **Clear icons**: Large 40x40px icons for each option
-4. **Descriptive text**: Shows exact file extensions accepted
-5. **Safe area padding**: Uses `pb-safe` for notch/home indicator
-6. **Smooth animations**: Sheet slides up with spring animation
+1. User taps Upload Zone
+2. File Type Selector sheet appears
+3. User selects "PDF"
+4. Native file picker opens (may still show all files on some devices)
+5. **If user selects a photo instead of PDF**: Toast error "Please select a PDF file. You selected an image file."
+6. **If user selects correct PDF**: Processing begins normally
+7. **If any error occurs during processing**: Toast error instead of app crash
 
 ---
 
-## Summary
+## Technical Summary
 
-This implementation:
-1. Creates a file type selection sheet shown before upload
-2. Filters native file picker to only show selected file types
-3. Adds Word document parsing with mammoth.js
-4. Extends OCR to work directly on images
-5. Provides a clean, mobile-first user experience
+### Changes to `UploadPage.tsx`
+- Add `expectedFileType` state to track user's selection
+- Validate actual file type matches expected in `handleInputChange`
+- Reset input value after each selection to allow re-selecting same file
+- Wrap `handleFile` call in try-catch to prevent crashes
 
+### Changes to `FileTypeSelector.tsx`
+- Wrap component with `forwardRef` to eliminate React warning
+- No functional changes needed
+
+### Changes to `App.tsx`
+- Add `unhandledrejection` event listener as global safety net
