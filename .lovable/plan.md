@@ -1,286 +1,313 @@
 
 
-# Fix CV/Resume PDF Parsing Issues
+# Fix CV Name Detection + Add Import Selection Screen
 
 ## Problem Analysis
 
-After analyzing the uploaded CV (Mohamed Raafat's resume), I can see the content is clearly structured with:
-- Contact information
-- 2 work experiences
-- 1 education entry
-- 5 certificates
-- 1 project
-- Skills and languages sections
+After examining the uploaded CV and the parsing system, I identified two issues:
 
-However, the parsing may fail because of several issues in the current implementation.
+### Issue 1: Name Detection Incorrectly Identifies "Contact Me" as Name
+The CV structure shows:
+```
+MOHAMED RAAFAT      <-- This is the actual name
+Contact me          <-- This is a section header being misidentified
+PHONE: 01120905546
+```
 
----
+The AI is confusing "Contact me" (a section header) with the person's actual name because both appear in the header area before the main content.
 
-## Root Causes Identified
-
-### 1. Text Extraction Coordinate Issues
-The current `textExtractor.ts` uses a Y-tolerance of only `3` pixels and column gap threshold of `150` pixels. Many modern CV templates have:
-- Varying line heights
-- Sidebar layouts with smaller gaps
-- Multi-column designs
-
-### 2. Section Detection Patterns Too Narrow
-The local fallback parser (`sectionParsers.ts`) doesn't recognize:
-- `PROJECTS` section (common in tech resumes)
-- `LANGUAGES` section
-- `CERTIFICATES` (plural variations)
-
-### 3. Contact Info Extraction Limited
-The phone regex doesn't handle Egyptian phone formats like `01120905546` (11 digits without country code).
-
-### 4. AI Model Parsing
-The edge function uses Gemini but the prompt may need enhancement for:
-- Handling "Projects" section
-- Extracting languages as skills
-- Better date parsing
+### Issue 2: No User Control Over Import
+Currently, the app auto-imports everything without giving users a chance to review and select which sections they want to keep.
 
 ---
 
-## Solution: Multi-Layer Improvements
+## Solution Overview
 
-### Phase 1: Improve Text Extraction (`textExtractor.ts`)
+### Part 1: Fix AI Name Detection
+
+**File: `supabase/functions/parse-resume/index.ts`**
+
+Add explicit rules to the system prompt:
+
+```typescript
+const systemPrompt = `You are an expert resume parser...
+
+CRITICAL RULES FOR NAME DETECTION:
+11. The person's NAME is typically the FIRST prominent text, often in larger font or at the very top
+12. IGNORE section headers like "Contact Me", "Contact", "Contact Info", "Personal Info" - these are NOT names
+13. The name is usually 2-4 words (first + last, or first + middle + last)
+14. If text appears to be a navigation/section label (Contact, About, Experience), it's NOT the name
+15. Look for the actual person's full name, not UI elements or section titles
+
+SECTION HEADERS TO IGNORE (not names):
+- "Contact Me", "Contact", "Contact Info"
+- "Personal Information", "Personal Details"
+- "About", "About Me", "Profile"
+- Any single word that's a common section title
+`;
+```
+
+### Part 2: Create Import Selection Sheet
+
+Create a new bottom sheet that appears after AI parsing, showing all detected sections with checkboxes for user selection.
+
+**New Component: `src/components/upload/ImportReviewSheet.tsx`**
+
+Features:
+- Bottom sheet with AI sparkle branding
+- Displays each parsed section with preview
+- Checkboxes to include/exclude sections
+- Shows confidence indicators (AI detected X items)
+- Edit button for each section (future enhancement)
+- "Import Selected" button to confirm
+
+```
++------------------------------------------+
+|      AI Resume Analysis Complete         |
+|                                          |
+|  We detected the following information:  |
+|                                          |
+|  [x] Contact Info                        |
+|      Mohamed Raafat, mohammedraafat...   |
+|                                          |
+|  [x] Summary                             |
+|      Cloud Engineer with experience...   |
+|                                          |
+|  [x] Experience (2 entries)              |
+|      - Real estate broker at Address...  |
+|      - Marketing team at CIC            |
+|                                          |
+|  [x] Education (1 entry)                 |
+|      - Saint Mary School                 |
+|                                          |
+|  [x] Skills (12 items)                   |
+|      Communication, Negotiation...       |
+|                                          |
+|  [x] Certifications (5 entries)          |
+|      - Marketing - CIC                   |
+|                                          |
+|  +------------------------------------+  |
+|  |        Import Selected             |  |
+|  +------------------------------------+  |
++------------------------------------------+
+```
+
+---
+
+## Detailed Implementation
+
+### File 1: `supabase/functions/parse-resume/index.ts`
 
 **Changes:**
-1. Increase Y-tolerance from `3` to `5` pixels to better group text on same line
-2. Reduce column gap threshold from `150` to `100` pixels for sidebar layouts
-3. Add smarter column detection based on page width percentage
+- Lines 140-161: Enhance systemPrompt with explicit name detection rules and section header ignore list
 
-```typescript
-// Line 165 - Increase tolerance
-const Y_TOLERANCE = 5;  // Was 3
-
-// Line 212 - Smarter column detection
-const COLUMN_GAP_THRESHOLD = 100;  // Was 150
-```
-
-### Phase 2: Expand Section Patterns (`sectionParsers.ts`)
-
-**Add new section patterns:**
-
-```typescript
-const SECTION_PATTERNS = {
-  summary: /^(summary|objective|profile|about\s*me|professional\s*summary)$/i,
-  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience)$/i,
-  education: /^(education|academic|qualifications|academic\s*background)$/i,
-  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies|languages?)$/i,
-  certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?)$/i,
-  projects: /^(projects?|portfolio|work\s*samples?)$/i,  // NEW
-};
-```
-
-**Improve phone regex for international formats:**
-
-```typescript
-// Handle Egyptian and international formats
-const phoneMatch = text.match(
-  /(\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/
-);
-```
-
-### Phase 3: Enhance AI Edge Function (`parse-resume/index.ts`)
-
-**Update the tool schema to include:**
-1. Projects array (same structure as experience)
-2. Languages array
-3. Better date handling instructions
-
-**Enhanced system prompt:**
-
-```typescript
-const systemPrompt = `You are an expert resume parser. Your task is to extract structured information from resume text.
-
-IMPORTANT GUIDELINES:
-1. Extract ALL information present - don't skip jobs, education, projects, or skills
-2. If a field is not found, use empty string "" for required fields and empty array [] for arrays
-3. Parse dates flexibly - accept "2024", "Summer 2024", "Jan 2020", etc.
-4. For current jobs, set endDate to "Present" and current to true
-5. Extract skills as individual items, including languages with proficiency levels
-6. PROJECTS should be parsed into the experience array with company set to "Personal Project" or the project name
-7. LANGUAGES should be added to skills array with proficiency (e.g., "Arabic (Native)", "English (Upper-intermediate)")
-8. CERTIFICATES should include the issuing organization when mentioned
-9. Handle various resume formats: chronological, functional, combination, sidebar layouts
-10. Be thorough - extract every piece of relevant information
-
-Common section variations to recognize:
-- Experience: Work Experience, Employment History, Professional Experience
-- Education: Academic Background, Qualifications
-- Skills: Technical Skills, Core Competencies, Languages
-- Certifications: Certificates, Credentials, Licenses
-- Projects: Portfolio, Work Samples`;
-```
-
-### Phase 4: Add Projects Support to Types
-
-**Update `types/resume.ts`:**
-
-Add projects as part of experience with a flag, or add a new `projects` array:
-
-```typescript
-export interface Experience {
-  id: string;
-  company: string;
-  position: string;
-  startDate: string;
-  endDate: string;
-  current: boolean;
-  description: string;
-  achievements: string[];
-  isProject?: boolean;  // NEW - flag for project entries
-}
-```
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/lib/pdf/textExtractor.ts` | Increase Y_TOLERANCE to 5, reduce COLUMN_GAP_THRESHOLD to 100 |
-| `src/lib/pdf/sectionParsers.ts` | Add projects pattern, improve phone regex, add languages handling |
-| `supabase/functions/parse-resume/index.ts` | Enhanced system prompt, add projects support, better date handling |
-| `src/types/resume.ts` | Add `isProject` flag to Experience interface |
-
----
-
-## Detailed Code Changes
-
-### 1. textExtractor.ts (lines 165, 212)
-
-```typescript
-// Line 165: Increase Y tolerance for better line grouping
-const Y_TOLERANCE = 5;
-
-// Line 212: Reduce column gap for sidebar layouts
-const COLUMN_GAP_THRESHOLD = 100;
-```
-
-### 2. sectionParsers.ts (lines 5-11, 109-113)
-
-**Section patterns:**
-```typescript
-const SECTION_PATTERNS = {
-  summary: /^(summary|objective|profile|about\s*me|professional\s*summary)$/i,
-  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience|projects?)$/i,
-  education: /^(education|academic|qualifications|academic\s*background)$/i,
-  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies|languages?)$/i,
-  certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?)$/i,
-};
-```
-
-**Phone regex (line 112):**
-```typescript
-const phoneMatch = text.match(
-  /(\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/
-);
-```
-
-### 3. parse-resume/index.ts (lines 138-150)
-
-**Enhanced system prompt:**
 ```typescript
 const systemPrompt = `You are an expert resume parser. Extract ALL structured information from resume text.
 
 CRITICAL RULES:
-1. Extract EVERYTHING - all jobs, education, projects, skills, certifications
-2. Empty fields: use "" for strings, [] for arrays - never skip sections
-3. Dates: Accept any format ("2024", "Summer 2024", "Jan 2020 - Present")
-4. Current roles: endDate="Present", current=true
-5. Skills: Parse as individual items. Include languages with proficiency levels
-6. Projects: Add to experience array with company="Project" or project name
-7. Languages: Add to skills as "Language (Level)" e.g., "Arabic (Native)"
-8. Certifications: Include issuer from context when available
+1. Extract EVERYTHING - all jobs, education, projects, skills, certifications. Never skip sections!
+2. Empty fields: use "" for strings, [] for arrays - never omit required fields
+3. Dates: Accept ANY format ("2024", "Summer 2024", "Jan 2020 - Present", "2020-2023")
+4. Current roles/projects: endDate="Present", current=true
+5. Skills: Parse as individual items. Include languages with proficiency (e.g., "Arabic (Native)", "English (Fluent)")
+6. Projects: Add to experience array with isProject=true, company=project name or "Personal Project"
+7. Languages: Add to skills array with level, e.g., "French (Beginner)", "Spanish (Intermediate)"
+8. Certifications: Include issuer from context when available. Match "Certificates", "Training", "Courses" sections
+9. Phone numbers: Extract exactly as written (supports international formats like +20, 011xxx, etc.)
+10. Handle sidebar layouts, two-column designs, and creative CV formats
 
-SECTION NAME VARIANTS:
-- Experience → Work Experience, Employment, Professional Experience
-- Education → Academic Background, Qualifications  
-- Skills → Technical Skills, Core Competencies, Languages
-- Certifications → Certificates, Credentials, Licenses
-- Projects → Portfolio, Personal Projects
+CRITICAL NAME DETECTION RULES:
+11. The person's FULL NAME is typically the largest/most prominent text at the very top of the resume
+12. NEVER use these as names - they are section headers/labels:
+    - "Contact Me", "Contact", "Contact Info", "Contact Details"
+    - "Personal Information", "Personal Info", "Personal Details"
+    - "About Me", "About", "Profile", "Bio"
+    - Any single generic word (Contact, Summary, Skills, Experience)
+13. A valid name is usually 2-5 words containing a first name and last name
+14. If the first line looks like a section header, look for the actual name nearby
+15. Names often appear in ALL CAPS or Title Case at the document start
 
-Parse ALL content - don't skip any sections!`;
+SECTION NAME VARIANTS TO RECOGNIZE:
+- Experience: Work Experience, Employment, Professional Experience, Career History
+- Education: Academic Background, Qualifications, Schooling
+- Skills: Technical Skills, Core Competencies, Languages, Soft Skills, Hard Skills
+- Certifications: Certificates, Credentials, Licenses, Training, Courses
+- Projects: Portfolio, Personal Projects, Academic Projects, Work Samples
+
+The resume may have OCR artifacts or unusual formatting - interpret it correctly and extract ALL content!`;
 ```
 
----
+### File 2: `src/components/upload/ImportReviewSheet.tsx` (NEW)
 
-## Expected Results After Fix
+Create a new component for the import review UI:
 
-For the Mohamed Raafat CV:
+```typescript
+// Props:
+interface ImportReviewSheetProps {
+  open: boolean;
+  onClose: () => void;
+  onImport: (data: ResumeData, selectedSections: SelectedSections) => void;
+  parsedData: ResumeData;
+  isLoading?: boolean;
+}
 
-```json
-{
-  "contactInfo": {
-    "fullName": "Mohamed Raafat",
-    "email": "mohammedraafatmr1@gmail.com",
-    "phone": "01120905546",
-    "location": "61 hamdy street eldaher",
-    "linkedin": "https://linkedin.com/in/mohammed-raafat-3094b9263"
-  },
-  "summary": "Cloud Engineer with experience in real estate, marketing...",
-  "experience": [
-    {
-      "company": "Address Investment",
-      "position": "Real estate broker",
-      "startDate": "Summer 2024",
-      "endDate": "",
-      "current": false,
-      "description": "Worked as property advisor for 3 months..."
-    },
-    {
-      "company": "CIC",
-      "position": "Marketing team member",
-      "startDate": "Summer 2023",
-      "endDate": "",
-      "description": "Worked on marketing team for three months..."
-    },
-    {
-      "company": "Agarly (Project)",
-      "position": "Developer",
-      "description": "Car rental platform development...",
-      "isProject": true
-    }
-  ],
-  "education": [
-    {
-      "institution": "Saint Mary School",
-      "degree": "High School",
-      "endDate": "2021"
-    }
-  ],
-  "skills": [
-    "Cloud Engineering",
-    "Communication",
-    "Negotiation",
-    "Teamwork",
-    "Problem-solving",
-    "Arabic (Native)",
-    "English (Upper-intermediate)",
-    "French (Beginner)"
-  ],
-  "certifications": [
-    { "name": "Marketing", "issuer": "CIC Marketing Team" },
-    { "name": "Problem Solving", "issuer": "Coach Academy" },
-    { "name": "JavaScript", "issuer": "Coach Academy" },
-    { "name": "Negotiation and Communication Skills", "issuer": "CIC" },
-    { "name": "Cloud Technologies", "issuer": "AWS" }
-  ]
+interface SelectedSections {
+  contactInfo: boolean;
+  summary: boolean;
+  experience: boolean;
+  education: boolean;
+  skills: boolean;
+  certifications: boolean;
 }
 ```
 
+Features:
+- Uses `Sheet` component with `side="bottom"`
+- Header with AI sparkle icon + "AI Resume Analysis Complete"
+- Scrollable content area with section cards
+- Each card has:
+  - Checkbox to toggle inclusion
+  - Section name with item count
+  - Preview of content (truncated)
+  - Subtle highlight if data detected
+- Footer with "Import Selected" primary button
+
+### File 3: `src/pages/UploadPage.tsx`
+
+**Changes:**
+- Add state for showing review sheet: `showImportReview`
+- Add state for parsed data awaiting review: `pendingResumeData`
+- After successful AI parse, instead of immediately navigating:
+  1. Store the parsed data in `pendingResumeData`
+  2. Show the `ImportReviewSheet`
+  3. On user confirmation, apply selected sections and navigate
+
+```typescript
+// New state
+const [showImportReview, setShowImportReview] = useState(false);
+const [pendingResumeData, setPendingResumeData] = useState<ResumeData | null>(null);
+
+// In handleFile, after successful parse (around line 150):
+// Instead of immediately navigating...
+setPendingResumeData(resumeData);
+setShowImportReview(true);
+setIsProcessing(false);
+// Don't navigate yet
+
+// New handler for import confirmation
+const handleImportConfirm = (data: ResumeData, sections: SelectedSections) => {
+  // Apply section filtering
+  const filteredData = filterBySelectedSections(data, sections);
+  
+  // Save and navigate
+  if (user) {
+    createResume.mutateAsync({...});
+  }
+  setCurrentResume(filteredData);
+  navigate('/editor');
+};
+```
+
 ---
 
-## Summary
+## Visual Design
 
-This plan addresses:
-1. ✅ Better text extraction from complex PDF layouts
-2. ✅ Recognition of more section types (Projects, Languages)
-3. ✅ International phone number formats
-4. ✅ Enhanced AI parsing with comprehensive prompt
-5. ✅ Projects integrated into experience array
+### Import Review Sheet Layout
 
-After these changes, the parser will handle diverse CV formats from users worldwide.
+```
++------------------------------------------+
+| [drag handle]                      [X]   |
+|                                          |
+|  [Sparkle Icon] AI Analysis Complete     |
+|  Select sections to import               |
+|                                          |
+| +----- Scrollable Content Area --------+ |
+| |                                      | |
+| | +----------------------------------+ | |
+| | | [x] Contact Information          | | |
+| | |     Mohamed Raafat               | | |
+| | |     mohammedraafatmr1@gmail.com  | | |
+| | +----------------------------------+ | |
+| |                                      | |
+| | +----------------------------------+ | |
+| | | [x] Professional Summary         | | |
+| | |     Cloud Engineer with experien | | |
+| | |     ce in real estate...         | | |
+| | +----------------------------------+ | |
+| |                                      | |
+| | +----------------------------------+ | |
+| | | [x] Work Experience (2)          | | |
+| | |     • Real estate broker         | | |
+| | |     • Marketing team             | | |
+| | +----------------------------------+ | |
+| |                                      | |
+| | +----------------------------------+ | |
+| | | [x] Education (1)                | | |
+| | |     • Saint Mary School          | | |
+| | +----------------------------------+ | |
+| |                                      | |
+| | +----------------------------------+ | |
+| | | [x] Skills (12)                  | | |
+| | |     Communication, Negotiation   | | |
+| | +----------------------------------+ | |
+| |                                      | |
+| | +----------------------------------+ | |
+| | | [x] Certifications (5)           | | |
+| | |     • Marketing - CIC            | | |
+| | |     • Problem Solving            | | |
+| | +----------------------------------+ | |
+| +--------------------------------------+ |
+|                                          |
+| +--------------------------------------+ |
+| |       Import Selected (6/6)          | |
+| +--------------------------------------+ |
++------------------------------------------+
+```
+
+### Section Card Design
+
+Each card shows:
+- **Left**: Checkbox (styled, touch-friendly 44px target)
+- **Center**: 
+  - Section name + count badge
+  - Preview text (2 lines max, truncated)
+- **Right**: Edit pencil icon (future feature, initially hidden)
+
+Colors:
+- Selected card: subtle primary border + faint bg tint
+- Unselected card: muted border
+- Empty section: show "Not detected" in gray, checkbox disabled
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `supabase/functions/parse-resume/index.ts` | Modify | Add name detection rules to system prompt |
+| `src/components/upload/ImportReviewSheet.tsx` | Create | New bottom sheet for section selection |
+| `src/pages/UploadPage.tsx` | Modify | Integrate ImportReviewSheet into upload flow |
+
+---
+
+## User Flow After Implementation
+
+1. User uploads PDF
+2. Progress steps show: Reading -> Detecting -> Extracting -> Analyzing
+3. AI parses the resume
+4. **NEW**: ImportReviewSheet appears showing all detected sections
+5. User reviews and toggles sections they want to import
+6. User taps "Import Selected"
+7. App creates resume with selected sections only
+8. Navigation to Editor
+
+---
+
+## Benefits
+
+1. **Fixes Name Detection**: Explicit AI rules prevent section headers from being misidentified as names
+2. **User Control**: Users can deselect incorrectly parsed sections before import
+3. **Transparency**: Users see exactly what the AI detected, building trust
+4. **Powerful Feel**: The selection UI makes the AI feel more capable and professional
+5. **Error Prevention**: If the AI gets something wrong, users can exclude it immediately
 
