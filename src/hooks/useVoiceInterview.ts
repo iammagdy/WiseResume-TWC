@@ -28,8 +28,9 @@ export interface RoleAnalysis {
   industryInsights: string;
 }
 
-const SILENCE_TIMEOUT_MS = 3000;
+const SILENCE_TIMEOUT_MS = 1500; // Reduced from 3000 for faster response
 const MAX_TEXT_LENGTH = 2000;
+const COUNTDOWN_SECONDS = 1; // Reduced from 3 for snappier flow
 
 // Keywords for voice gender selection
 const FEMALE_VOICE_KEYWORDS = ['female', 'samantha', 'zira', 'karen', 'fiona', 'moira', 'tessa', 'victoria', 'google uk english female', 'google us english female', 'microsoft zira'];
@@ -117,6 +118,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [roleAnalysis, setRoleAnalysis] = useState<RoleAnalysis | null>(null);
   const [isAnalyzingRole, setIsAnalyzingRole] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [audioLevel, setAudioLevel] = useState(0);
 
   const messagesRef = useRef<{ role: string; content: string }[]>([]);
   const jobDescriptionRef = useRef<string>('');
@@ -160,6 +162,9 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     onError: (msg) => {
       console.error('Scribe error:', msg);
       setError(msg);
+    },
+    onAudioLevel: (level) => {
+      setAudioLevel(level);
     },
   });
 
@@ -210,7 +215,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       utteranceRef.current = utterance;
 
       utterance.onend = async () => {
-        for (let i = 3; i >= 1; i--) {
+        // Reduced countdown for snappier experience
+        for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
           setCountdown(i);
           await new Promise(r => setTimeout(r, 1000));
         }
@@ -363,10 +369,14 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       setElapsedSeconds(0);
       setScores([]);
       setLatestScore(null);
+      setAudioLevel(0);
       answerCountRef.current = 0;
       messagesRef.current = [];
       jobDescriptionRef.current = jobDescription || '';
       setIsStarted(true);
+
+      // Pre-fetch token while AI is generating first question
+      scribe.prefetchToken();
 
       timerRef.current = setInterval(() => {
         setElapsedSeconds((s) => s + 1);
@@ -375,7 +385,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       messagesRef.current.push({ role: 'user', content: 'Start the interview. Introduce yourself and ask your first question.' });
       await callAI();
     },
-    [callAI]
+    [callAI, scribe]
   );
 
   const endInterviewFn = useCallback(async () => {
@@ -413,6 +423,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setLatestScore(null);
     setRoleAnalysis(null);
     setCountdown(null);
+    setAudioLevel(0);
     answerCountRef.current = 0;
     messagesRef.current = [];
     jobDescriptionRef.current = '';
@@ -439,6 +450,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     latestScore,
     dismissScore,
     countdown,
+    audioLevel,
     roleAnalysis,
     isAnalyzingRole,
     analyzeRole,
