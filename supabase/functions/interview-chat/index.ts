@@ -28,17 +28,18 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    // IMPORTANT: Must pass token explicitly for Lovable Cloud
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
-    if (authError || !claimsData?.claims) {
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError || !user) {
+      console.error('Auth error:', authError?.message);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub;
-    console.log('Authenticated user:', userId);
+    console.log('Authenticated user:', user.id);
 
     const { messages, resumeData, jobDescription, endInterview, analyzeRole } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
