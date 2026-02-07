@@ -11,6 +11,7 @@ import { ResumeData } from '@/types/resume';
 import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textExtractor';
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
+import { supabase } from '@/integrations/supabase/client';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -32,16 +33,23 @@ export interface ParseResult {
  */
 async function parseTextWithAI(text: string): Promise<ResumeData> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-  const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   try {
     console.log('Calling AI to parse resume text...');
+    
+    // Get the user's access token from the session
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.access_token) {
+      console.warn('No auth session, falling back to local parser');
+      return parseResumeText(text);
+    }
     
     const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-resume`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${SUPABASE_KEY}`,
+        'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({ text }),
     });
