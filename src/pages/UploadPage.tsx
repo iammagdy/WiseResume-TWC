@@ -36,6 +36,7 @@ export default function UploadPage() {
   
   // File type selector state
   const [showFileTypeSelector, setShowFileTypeSelector] = useState(false);
+  const [expectedFileType, setExpectedFileType] = useState<FileType | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Error recovery state
@@ -71,6 +72,7 @@ export default function UploadPage() {
 
   // Handle file type selection from sheet
   const handleFileTypeSelect = useCallback((type: FileType) => {
+    setExpectedFileType(type); // Remember expected type for validation
     setShowFileTypeSelector(false);
     
     if (fileInputRef.current) {
@@ -456,12 +458,33 @@ export default function UploadPage() {
     setIsDragging(false);
   }, []);
 
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      handleFile(file);
+    if (!file) return;
+    
+    // Reset input value to allow re-selecting same file
+    e.target.value = '';
+    
+    try {
+      // Validate file type matches expected selection
+      const actualType = getFileType(file);
+      if (expectedFileType && actualType !== expectedFileType && actualType !== 'unknown') {
+        const typeLabels: Record<FileType, string> = {
+          pdf: 'PDF',
+          word: 'Word document',
+          image: 'image',
+        };
+        toast.error(`Please select a ${typeLabels[expectedFileType]}. You selected a ${actualType === 'pdf' ? 'PDF' : actualType === 'word' ? 'Word document' : 'image'}.`);
+        return;
+      }
+      
+      await handleFile(file);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error('Something went wrong. Please try again.');
+      setIsProcessing(false);
     }
-  }, [handleFile]);
+  }, [handleFile, expectedFileType]);
 
   return (
     <div className="flex-1 flex flex-col">
