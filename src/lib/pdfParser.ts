@@ -30,8 +30,9 @@ export interface ParseResult {
 /**
  * Call the AI edge function to parse resume text into structured data.
  * Falls back to local regex parsing if AI fails.
+ * Exported for use with Word and Image parsing.
  */
-async function parseTextWithAI(text: string): Promise<ResumeData> {
+export async function parseTextWithAI(text: string): Promise<ResumeData> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 
   try {

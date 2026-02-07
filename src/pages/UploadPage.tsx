@@ -1,22 +1,26 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileText, ArrowLeft } from 'lucide-react';
+import mammoth from 'mammoth';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations } from '@/hooks/useResumes';
 import { 
   parseResumePDF, 
   parseResumePDFWithOCR,
+  parseTextWithAI,
   getExtractionSummary, 
   PDFParseError,
   estimateOCRTime,
   OCRProgressCallback,
 } from '@/lib/pdfParser';
+import { extractTextFromImage } from '@/lib/pdf/ocrExtractor';
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/UploadErrorRecovery';
 import { UploadProgressSteps, ParseStep } from '@/components/upload/UploadProgressSteps';
 import { ImportReviewSheet, SelectedSections } from '@/components/upload/ImportReviewSheet';
+import { FileTypeSelector, FileType } from '@/components/upload/FileTypeSelector';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
 
@@ -29,6 +33,10 @@ export default function UploadPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [parseStep, setParseStep] = useState<ParseStep>('reading');
+  
+  // File type selector state
+  const [showFileTypeSelector, setShowFileTypeSelector] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Error recovery state
   const [showErrorRecovery, setShowErrorRecovery] = useState(false);
@@ -51,6 +59,26 @@ export default function UploadPage() {
   // Import review state
   const [showImportReview, setShowImportReview] = useState(false);
   const [pendingResumeData, setPendingResumeData] = useState<ResumeData | null>(null);
+
+  // Get accept string based on file type
+  function getAcceptString(type: FileType): string {
+    switch (type) {
+      case 'pdf': return '.pdf,application/pdf';
+      case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'image': return '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
+    }
+  }
+
+  // Handle file type selection from sheet
+  const handleFileTypeSelect = useCallback((type: FileType) => {
+    setShowFileTypeSelector(false);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.accept = getAcceptString(type);
+      // Small delay to ensure accept is set before click
+      setTimeout(() => fileInputRef.current?.click(), 50);
+    }
+  }, []);
 
   const handleOCRConfirm = useCallback(async () => {
     if (!pendingFile) return;
@@ -169,17 +197,155 @@ export default function UploadPage() {
     setPendingResumeData(null);
   }, []);
 
-  const handleFile = useCallback(async (file: File) => {
-    if (file.type !== 'application/pdf') {
-      toast.error('Please upload a PDF file');
-      return;
-    }
+  // Detect file type from MIME type
+  function getFileType(file: File): 'pdf' | 'word' | 'image' | 'unknown' {
+    const mime = file.type.toLowerCase();
+    if (mime === 'application/pdf') return 'pdf';
+    if (mime.startsWith('image/')) return 'image';
+    if (
+      mime === 'application/msword' ||
+      mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) return 'word';
+    // Check extension as fallback
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (ext === 'pdf') return 'pdf';
+    if (ext === 'doc' || ext === 'docx') return 'word';
+    if (['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) return 'image';
+    return 'unknown';
+  }
 
+  // Handle Word document
+  const handleWordFile = useCallback(async (file: File) => {
+    setFileName(file.name);
+    setIsProcessing(true);
+    setShowErrorRecovery(false);
+    setParseStep('reading');
+
+    try {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setParseStep('extracting');
+      
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      const text = result.value;
+
+      if (!text.trim()) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('analyzing');
+      const resumeData = await parseTextWithAI(text);
+      const extraction = getExtractionSummary(resumeData);
+
+      if (extraction.isEmpty) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('complete');
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      setPendingResumeData(resumeData);
+      setShowImportReview(true);
+    } catch (error) {
+      console.error('Error parsing Word document:', error);
+      setErrorType('CORRUPTED');
+      setShowErrorRecovery(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  // Handle image file (OCR)
+  const handleImageFile = useCallback(async (file: File) => {
+    setFileName(file.name);
+    setIsProcessing(true);
+    setShowErrorRecovery(false);
+    setParseStep('reading');
+
+    try {
+      const progressCallback: OCRProgressCallback = (progress) => {
+        setOcrProgress({ page: progress.page, total: progress.total, status: progress.status });
+      };
+
+      setParseStep('extracting');
+      const text = await extractTextFromImage(file, progressCallback);
+
+      if (!text.trim()) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('analyzing');
+      const resumeData = await parseTextWithAI(text);
+      const extraction = getExtractionSummary(resumeData);
+
+      if (extraction.isEmpty) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('complete');
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      toast.warning(
+        'Resume extracted via OCR. Please review all sections for accuracy.',
+        { duration: 6000 }
+      );
+
+      setPendingResumeData(resumeData);
+      setShowImportReview(true);
+    } catch (error) {
+      console.error('Error processing image:', error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Failed to extract text from image.',
+        { duration: 5000 }
+      );
+      setErrorType('UNKNOWN');
+      setShowErrorRecovery(true);
+    } finally {
+      setIsProcessing(false);
+      setOcrProgress(null);
+    }
+  }, []);
+
+  const handleFile = useCallback(async (file: File) => {
+    const fileType = getFileType(file);
+    
+    // Size check
     if (file.size > 10 * 1024 * 1024) {
       toast.error('File size must be under 10MB');
       return;
     }
 
+    // Route to appropriate handler
+    if (fileType === 'word') {
+      await handleWordFile(file);
+      return;
+    }
+
+    if (fileType === 'image') {
+      await handleImageFile(file);
+      return;
+    }
+
+    if (fileType !== 'pdf') {
+      toast.error('Unsupported file type. Please use PDF, Word, or image files.');
+      return;
+    }
+
+    // Existing PDF handling
     setFileName(file.name);
     setIsProcessing(true);
     setShowErrorRecovery(false);
@@ -252,7 +418,7 @@ export default function UploadPage() {
     } finally {
       setIsProcessing(false);
     }
-  }, [user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
+  }, [handleWordFile, handleImageFile]);
 
   const handleStartFresh = useCallback(() => {
     setShowErrorRecovery(false);
@@ -341,22 +507,24 @@ export default function UploadPage() {
             >
               {/* Upload Zone */}
               <motion.div
-                className={`flex-1 min-h-[280px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 relative ${
+                className={`flex-1 min-h-[280px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 cursor-pointer ${
                   isDragging 
                     ? 'border-primary bg-primary/10' 
                     : 'border-border hover:border-primary/50'
                 } ${isProcessing ? 'pointer-events-none' : ''}`}
+                onClick={() => !isProcessing && setShowFileTypeSelector(true)}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
               >
+                {/* Hidden file input controlled by ref */}
                 <input
+                  ref={fileInputRef}
                   type="file"
-                  accept=".pdf"
                   onChange={handleInputChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  className="hidden"
                   disabled={isProcessing}
                 />
                 
@@ -379,16 +547,16 @@ export default function UploadPage() {
                     </motion.div>
                     
                     <h2 className="text-xl font-display font-semibold mb-2 text-center">
-                      {isDragging ? 'Drop to Upload' : 'Upload Your PDF'}
+                      {isDragging ? 'Drop to Upload' : 'Upload Your Resume'}
                     </h2>
                     
                     <p className="text-muted-foreground text-center text-sm mb-4 max-w-[260px]">
-                      Drag and drop or tap to browse
+                      Tap to choose file type, or drag and drop
                     </p>
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <FileText className="w-4 h-4" />
-                      <span>PDF only, max 10MB</span>
+                      <span>PDF, Word, or Image • max 10MB</span>
                     </div>
                   </>
                 )}
@@ -404,9 +572,9 @@ export default function UploadPage() {
                 >
                   <h3 className="font-medium text-sm mb-2">💡 For best results</h3>
                   <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>✓ Text-based PDFs work best</li>
+                    <li>✓ Text-based PDFs & Word docs work best</li>
                     <li>✓ Keep formatting simple</li>
-                    <li>✓ Scanned PDFs? We'll try OCR</li>
+                    <li>✓ Photos & scans? We'll use OCR</li>
                   </ul>
                 </motion.div>
               )}
@@ -431,6 +599,13 @@ export default function UploadPage() {
         onClose={handleImportReviewClose}
         onImport={handleImportConfirm}
         parsedData={pendingResumeData}
+      />
+      
+      {/* File Type Selector Sheet */}
+      <FileTypeSelector
+        open={showFileTypeSelector}
+        onClose={() => setShowFileTypeSelector(false)}
+        onSelectType={handleFileTypeSelect}
       />
     </div>
   );
