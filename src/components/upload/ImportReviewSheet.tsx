@@ -47,7 +47,7 @@ function SectionCard({ id, title, icon, count, preview, isSelected, isEmpty, onT
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative rounded-xl border p-4 transition-all ${
+      className={`relative rounded-2xl border transition-all active:scale-[0.98] ${
         isEmpty 
           ? 'border-border/50 bg-muted/30 opacity-60' 
           : isSelected 
@@ -55,31 +55,32 @@ function SectionCard({ id, title, icon, count, preview, isSelected, isEmpty, onT
             : 'border-border bg-card/50'
       }`}
     >
-      <label className="flex items-start gap-3 cursor-pointer touch-manipulation">
-        <div className="pt-0.5">
+      <label className="flex items-start gap-3 p-4 cursor-pointer touch-manipulation min-h-[72px]">
+        {/* Larger checkbox touch target for mobile */}
+        <div className="flex items-center justify-center w-10 h-10 -m-2 shrink-0">
           <Checkbox
             checked={isSelected}
             disabled={isEmpty}
             onCheckedChange={() => onToggle(id)}
-            className="h-5 w-5"
+            className="h-6 w-6 rounded-md"
           />
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-muted-foreground">{icon}</span>
+        <div className="flex-1 min-w-0 pt-0.5">
+          <div className="flex flex-wrap items-center gap-1.5 mb-1">
+            <span className="text-muted-foreground shrink-0">{icon}</span>
             <span className="font-medium text-sm">{title}</span>
             {count !== undefined && count > 0 && (
-              <Badge variant="secondary" className="text-xs px-1.5 py-0">
+              <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">
                 {count}
               </Badge>
             )}
             {isEmpty && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
+              <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground shrink-0">
                 Not detected
               </Badge>
             )}
           </div>
-          <p className="text-xs text-muted-foreground line-clamp-2">
+          <p className="text-xs text-muted-foreground line-clamp-2 break-words">
             {isEmpty ? 'No data found in this section' : preview}
           </p>
         </div>
@@ -183,26 +184,28 @@ export function ImportReviewSheet({
 
   return (
     <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <SheetContent side="bottom" className="h-[85vh] flex flex-col">
-        <SheetHeader className="text-left pb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-primary-foreground" />
+      <SheetContent side="bottom" className="h-[90vh] max-h-[90vh] flex flex-col">
+        {/* Header */}
+        <SheetHeader className="text-left pb-3 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center shrink-0">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
             </div>
-            <div>
-              <SheetTitle className="text-lg">AI Analysis Complete</SheetTitle>
-              <SheetDescription className="text-xs">
-                Select which sections to import
+            <div className="min-w-0">
+              <SheetTitle className="text-lg leading-tight">AI Analysis Complete</SheetTitle>
+              <SheetDescription className="text-sm text-muted-foreground">
+                Select sections to import
               </SheetDescription>
             </div>
           </div>
         </SheetHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          <div className="space-y-3 pb-4">
+        {/* Scrollable content */}
+        <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
+          <div className="space-y-3 pb-6">
             <SectionCard
               id="contactInfo"
-              title="Contact Information"
+              title="Contact Info"
               icon={<User className="w-4 h-4" />}
               preview={sectionInfo.contactInfo.preview}
               isSelected={selectedSections.contactInfo}
@@ -212,7 +215,7 @@ export function ImportReviewSheet({
             
             <SectionCard
               id="summary"
-              title="Professional Summary"
+              title="Summary"
               icon={<FileText className="w-4 h-4" />}
               preview={sectionInfo.summary.preview}
               isSelected={selectedSections.summary}
@@ -222,7 +225,7 @@ export function ImportReviewSheet({
             
             <SectionCard
               id="experience"
-              title="Work Experience"
+              title="Experience"
               icon={<Briefcase className="w-4 h-4" />}
               count={sectionInfo.experience.count}
               preview={sectionInfo.experience.preview}
@@ -266,11 +269,12 @@ export function ImportReviewSheet({
           </div>
         </ScrollArea>
 
-        <div className="pt-4 border-t border-border">
+        {/* Fixed footer with safe area */}
+        <div className="pt-4 pb-safe border-t border-border shrink-0">
           <Button 
             onClick={handleImport} 
             disabled={isLoading || selectedCount === 0}
-            className="w-full h-12 text-base font-medium"
+            className="w-full h-14 text-base font-semibold rounded-xl active:scale-[0.98] transition-transform"
             size="lg"
           >
             <Check className="w-5 h-5 mr-2" />
