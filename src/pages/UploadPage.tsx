@@ -16,7 +16,9 @@ import {
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/UploadErrorRecovery';
 import { UploadProgressSteps, ParseStep } from '@/components/upload/UploadProgressSteps';
+import { ImportReviewSheet, SelectedSections } from '@/components/upload/ImportReviewSheet';
 import { toast } from 'sonner';
+import type { ResumeData } from '@/types/resume';
 
 export default function UploadPage() {
   const navigate = useNavigate();
@@ -45,6 +47,10 @@ export default function UploadPage() {
   const [isOCRProcessing, setIsOCRProcessing] = useState(false);
   const [ocrProgress, setOcrProgress] = useState<{ page: number; total: number; status?: string } | null>(null);
   const [estimatedTime, setEstimatedTime] = useState<string>('');
+  
+  // Import review state
+  const [showImportReview, setShowImportReview] = useState(false);
+  const [pendingResumeData, setPendingResumeData] = useState<ResumeData | null>(null);
 
   const handleOCRConfirm = useCallback(async () => {
     if (!pendingFile) return;
@@ -112,6 +118,57 @@ export default function UploadPage() {
     setIsProcessing(false);
   }, []);
 
+  // Handle import confirmation from review sheet
+  const handleImportConfirm = useCallback(async (data: ResumeData, sections: SelectedSections) => {
+    // Filter data based on selected sections
+    const filteredData: ResumeData = {
+      ...data,
+      contactInfo: sections.contactInfo ? data.contactInfo : {
+        fullName: '',
+        email: '',
+        phone: '',
+        location: '',
+      },
+      summary: sections.summary ? data.summary : '',
+      experience: sections.experience ? data.experience : [],
+      education: sections.education ? data.education : [],
+      skills: sections.skills ? data.skills : [],
+      certifications: sections.certifications ? data.certifications : [],
+    };
+
+    // Save and navigate
+    if (user) {
+      try {
+        const newResume = await createResume.mutateAsync({
+          resume: filteredData,
+          title: filteredData.contactInfo.fullName || 'Uploaded Resume',
+        });
+        setCurrentResumeId(newResume.id);
+        setCurrentResume({
+          ...filteredData,
+          id: newResume.id,
+        });
+      } catch (error) {
+        console.error('Failed to save to cloud:', error);
+        setCurrentResume(filteredData);
+      }
+    } else {
+      setCurrentResume(filteredData);
+    }
+
+    setShowImportReview(false);
+    setPendingResumeData(null);
+    
+    const selectedCount = Object.values(sections).filter(Boolean).length;
+    toast.success(`Imported ${selectedCount} sections successfully!`, { duration: 3000 });
+    navigate('/editor');
+  }, [user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
+
+  const handleImportReviewClose = useCallback(() => {
+    setShowImportReview(false);
+    setPendingResumeData(null);
+  }, []);
+
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== 'application/pdf') {
       toast.error('Please upload a PDF file');
@@ -161,47 +218,12 @@ export default function UploadPage() {
       setParseStep('analyzing');
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      // If user is authenticated, save to cloud
-      if (user) {
-        try {
-          const newResume = await createResume.mutateAsync({
-            resume: resumeData,
-            title: resumeData.contactInfo.fullName || 'Uploaded Resume',
-          });
-          setCurrentResumeId(newResume.id);
-          setCurrentResume({
-            ...resumeData,
-            id: newResume.id,
-          });
-        } catch (error) {
-          console.error('Failed to save to cloud:', error);
-          setCurrentResume(resumeData);
-        }
-      } else {
-        setCurrentResume(resumeData);
-      }
-
       setParseStep('complete');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 400));
 
-      if (extraction.isPartial) {
-        // Show partial extraction recovery UI
-        setExtractedSections({
-          contact: Boolean(resumeData.contactInfo.fullName || resumeData.contactInfo.email),
-          summary: resumeData.summary.length > 20,
-          experience: resumeData.experience.length,
-          education: resumeData.education.length,
-          skills: resumeData.skills.length,
-        });
-        toast.warning(
-          `${extraction.summary}. Some sections may need manual entry.`,
-          { duration: 5000 }
-        );
-      } else {
-        toast.success(extraction.summary, { duration: 4000 });
-      }
-
-      navigate('/editor');
+      // Show import review sheet instead of navigating directly
+      setPendingResumeData(resumeData);
+      setShowImportReview(true);
     } catch (error) {
       console.error('Error parsing PDF:', error);
       
@@ -401,6 +423,14 @@ export default function UploadPage() {
         isProcessing={isOCRProcessing}
         progress={ocrProgress ?? undefined}
         estimatedTime={estimatedTime}
+      />
+      
+      {/* Import Review Sheet */}
+      <ImportReviewSheet
+        open={showImportReview}
+        onClose={handleImportReviewClose}
+        onImport={handleImportConfirm}
+        parsedData={pendingResumeData}
       />
     </div>
   );

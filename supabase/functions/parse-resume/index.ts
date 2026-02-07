@@ -151,6 +151,19 @@ CRITICAL RULES:
 9. Phone numbers: Extract exactly as written (supports international formats like +20, 011xxx, etc.)
 10. Handle sidebar layouts, two-column designs, and creative CV formats
 
+CRITICAL NAME DETECTION RULES:
+11. The person's FULL NAME is typically the LARGEST/most prominent text at the very TOP of the resume
+12. NEVER use these as names - they are section headers/labels:
+    - "Contact Me", "Contact", "Contact Info", "Contact Details", "Get In Touch"
+    - "Personal Information", "Personal Info", "Personal Details", "Personal Data"
+    - "About Me", "About", "Profile", "Bio", "Summary", "Objective"
+    - "Resume", "CV", "Curriculum Vitae"
+    - Any single generic word that describes a section (Contact, Summary, Skills, Experience, Education)
+13. A valid name is usually 2-5 words containing a first name and last name (e.g., "John Smith", "Mohamed Ahmed Ali")
+14. Names are NEVER verbs or action phrases like "Contact Me" or "Hire Me"
+15. Names often appear in ALL CAPS or Title Case at the document start, BEFORE any section headers
+16. If the first line looks like a section header, look for the actual person name nearby (usually largest text)
+
 SECTION NAME VARIANTS TO RECOGNIZE:
 - Experience → Work Experience, Employment, Professional Experience, Career History
 - Education → Academic Background, Qualifications, Schooling
