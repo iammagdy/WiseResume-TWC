@@ -1,157 +1,239 @@
 
-# Fix File Type Filtering + App Crash on Upload
 
-## Problem Analysis
+# Fix Page Break Feature: Smart Detection + Section-Based Manual Selection
 
-I identified **two distinct issues**:
+## Problem Summary
 
-### Issue 1: File Type Filter Not Working Properly
-When user selects "PDF", the file picker still allows selecting photos or other files. This happens because:
+The current page break feature has several issues:
 
-1. **Mobile browsers ignore `accept` attribute** - On iOS and Android, the `accept` attribute on file inputs is often just a "hint" - browsers may still show all files or allow selecting files outside the filter
-2. **Timing issue** - The `accept` attribute is set dynamically after the sheet closes, but some browsers cache the previous accept value when the input was initially rendered
-
-### Issue 2: App Crashes/Restarts During Upload
-The app restarts without completing the upload due to:
-
-1. **Unhandled async errors** - The `handleInputChange` function calls `handleFile` without a try-catch, so any unhandled promise rejection crashes the app
-2. **React ref warning** - Console shows "Function components cannot be given refs" for `FileTypeSelector`, indicating the Sheet's Dialog is trying to pass a ref to a non-forwardRef component
+1. **Shows on Single-Page CVs**: The indicator displays even when the CV content fits on one page
+2. **Poor Multi-Page Detection**: The automatic break detection doesn't work reliably
+3. **Truncated Content in Manual Mode**: When using manual selection, content appears cut off
+4. **Confusing Manual UI**: The PageBreakSheet shows checkboxes for sections but doesn't clearly visualize where breaks will occur
 
 ---
 
-## Solution
+## Root Cause Analysis
 
-### Fix 1: Validate File Type After Selection (Client-Side Enforcement)
+After reviewing the code, I identified these specific problems:
 
-Since mobile browsers don't reliably enforce the `accept` attribute, we need to validate the file type **after** the user selects a file:
+### Issue 1: Single-Page CVs Still Show Breaks
+The `PageBreakIndicator` component calculates breaks based on `sourceHeightPerPage` but doesn't check if the **total content height is less than one page**. If `breaks.length === 0`, it correctly hides, but the calculation can produce false positives due to margin/padding measurements.
+
+### Issue 2: Detection Accuracy
+The `findSmartBreakPositions` function in `pdfGenerator.ts` uses DOM measurements that can be affected by:
+- CSS transforms/animations during preview
+- Margin collapsing differences between browser and calculation
+- The `ResizeObserver` in `PageBreakIndicator` may fire before layout is stable
+
+### Issue 3: Manual Mode UX
+The `PageBreakSheet` component shows a simple checkbox list of sections. Users don't see:
+- A visual preview of where breaks will actually occur
+- Which page number each section will appear on
+- Clear feedback about their selections
+
+---
+
+## Solution Design
+
+### Fix 1: Add Single-Page Detection Guard
+
+Add explicit check to hide page break indicators when content fits on one page:
 
 ```typescript
-// Store the expected file type
-const [expectedFileType, setExpectedFileType] = useState<FileType | null>(null);
-
-const handleFileTypeSelect = (type: FileType) => {
-  setExpectedFileType(type); // Remember what type user selected
-  setShowFileTypeSelector(false);
+// In PageBreakIndicator.tsx
+const calculateBreaks = () => {
+  const containerHeight = element.scrollHeight || element.offsetHeight;
+  const scaleFactor = PAGE_WIDTH / containerWidth;
+  const sourceHeightPerPage = PRINTABLE_HEIGHT / scaleFactor;
   
-  if (fileInputRef.current) {
-    fileInputRef.current.accept = getAcceptString(type);
-    setTimeout(() => fileInputRef.current?.click(), 50);
-  }
-};
-
-const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  
-  // Reset input for next selection
-  e.target.value = '';
-  
-  // Validate file matches expected type
-  const actualType = getFileType(file);
-  
-  if (expectedFileType && actualType !== expectedFileType) {
-    toast.error(`Please select a ${expectedFileType.toUpperCase()} file. You selected a ${actualType} file.`);
+  // NEW: Don't show any breaks if content fits on one page
+  if (containerHeight <= sourceHeightPerPage) {
+    setBreaks([]);
     return;
   }
   
-  handleFile(file);
+  // Continue with existing break calculation...
 };
 ```
 
-### Fix 2: Wrap All Handlers in Try-Catch
+### Fix 2: Improve Break Calculation Accuracy
 
-Prevent app crashes by adding comprehensive error handling:
+Stabilize measurements by:
+1. Adding debounce to ResizeObserver callback
+2. Using `requestAnimationFrame` to ensure layout is complete
+3. Adding small buffer (5%) to single-page threshold
 
-```typescript
-const handleInputChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  
-  // Reset input value for re-selection
-  e.target.value = '';
-  
-  try {
-    // Validate file type
-    const actualType = getFileType(file);
-    if (expectedFileType && actualType !== expectedFileType && actualType !== 'unknown') {
-      toast.error(`Please select a ${expectedFileType.toUpperCase()} file.`);
-      return;
-    }
-    
-    await handleFile(file);
-  } catch (error) {
-    console.error('Upload error:', error);
-    toast.error('Something went wrong. Please try again.');
-    setIsProcessing(false);
-  }
-}, [handleFile, expectedFileType]);
-```
+### Fix 3: Enhanced Manual Selection UI
 
-### Fix 3: Add forwardRef to FileTypeSelector
+Redesign `PageBreakSheet` to show:
+1. **Visual Section List**: Each section shown as a card with its name and estimated page position
+2. **Clear Break Visualization**: When a section is checked, show "Page 1 ends here" indicator between cards
+3. **Live Page Count**: Display "Your resume will be X pages" based on selections
 
-Fix the React warning by wrapping the component with forwardRef (even though we don't use the ref):
-
-```typescript
-import { forwardRef } from 'react';
-
-export const FileTypeSelector = forwardRef<HTMLDivElement, FileTypeSelectorProps>(
-  function FileTypeSelector({ open, onClose, onSelectType }, ref) {
-    // ... existing implementation
-  }
-);
-```
-
-### Fix 4: Global Unhandled Rejection Handler
-
-Add a safety net in App.tsx to catch any remaining unhandled promise rejections:
-
-```typescript
-useEffect(() => {
-  const handleRejection = (event: PromiseRejectionEvent) => {
-    console.error('Unhandled rejection:', event.reason);
-    event.preventDefault();
-  };
-  
-  window.addEventListener('unhandledrejection', handleRejection);
-  return () => window.removeEventListener('unhandledrejection', handleRejection);
-}, []);
+```text
+┌────────────────────────────────────┐
+│  Page Break Settings               │
+│                                    │
+│  Your resume will be: 2 pages      │
+│                                    │
+│  ┌──────────────────────────────┐  │
+│  │ 📝 Summary          [Page 1] │  │
+│  │    "Software engineer with..." │  │
+│  └──────────────────────────────┘  │
+│                                    │
+│  ┌──────────────────────────────┐  │
+│  │ 💼 Experience    ☑️ Break    │  │
+│  │    3 positions               │  │
+│  └──────────────────────────────┘  │
+│  ⬇️ Page 1 ends here               │
+│                                    │
+│  ┌──────────────────────────────┐  │
+│  │ 🎓 Education       [Page 2] │  │
+│  │    2 degrees                 │  │
+│  └──────────────────────────────┘  │
+│                                    │
+│  ┌──────────────────────────────┐  │
+│  │ 🛠️ Skills          [Page 2] │  │
+│  │    12 skills                 │  │
+│  └──────────────────────────────┘  │
+│                                    │
+│  [Apply]                           │
+└────────────────────────────────────┘
 ```
 
 ---
 
-## Files to Modify
+## Implementation Plan
 
-| File | Changes |
-|------|---------|
-| `src/pages/UploadPage.tsx` | Add `expectedFileType` state, validate file type in `handleInputChange`, wrap handlers in try-catch |
-| `src/components/upload/FileTypeSelector.tsx` | Add `forwardRef` wrapper to fix React warning |
-| `src/App.tsx` | Add global unhandled rejection handler as safety net |
+### Step 1: Fix Single-Page Guard in PageBreakIndicator
+
+**File: `src/components/editor/PageBreakIndicator.tsx`**
+
+- Add explicit single-page height check before calculating breaks
+- Add debounce to prevent excessive recalculations
+- Use `requestAnimationFrame` for stable measurements
+- Export `PRINTABLE_HEIGHT` and `PAGE_WIDTH` constants for reuse
+
+### Step 2: Add Page Count Estimation Helper
+
+**File: `src/lib/pdfGenerator.ts`**
+
+Add new exported function:
+```typescript
+export function estimatePageCount(
+  sourceElement: HTMLElement,
+  manualBreakSections?: string[],
+  templateConfig?: TemplateConfig
+): number {
+  // Returns estimated number of pages
+  // For single-page templates, always returns 1
+  // For others, calculates based on content height + manual breaks
+}
+```
+
+### Step 3: Redesign PageBreakSheet with Visual Sections
+
+**File: `src/components/editor/PageBreakSheet.tsx`**
+
+Completely redesign the manual selection interface:
+
+1. **Section Cards**: Show each CV section as a visual card with:
+   - Icon based on section type
+   - Section name
+   - Brief content preview (e.g., "3 jobs listed")
+   - Current page number indicator
+   - Checkbox to add break after this section
+
+2. **Live Preview**: When user toggles a break:
+   - Show visual divider between cards
+   - Update page numbers in real-time
+   - Display total page count at top
+
+3. **Smart Recommendations**: 
+   - If resume is already 1 page, show message "Your resume fits on one page!"
+   - If selecting too many breaks would create mostly empty pages, show warning
+
+### Step 4: Add Section Content Preview Helper
+
+**File: `src/lib/sectionHelpers.ts`** (new file)
+
+Create helper functions:
+```typescript
+export function getSectionPreview(resume: ResumeData, sectionId: SectionId): string {
+  // Returns brief description like "3 positions" or "12 skills"
+}
+
+export function getSectionIcon(sectionId: SectionId): string {
+  // Returns emoji or icon name
+}
+```
 
 ---
 
-## User Experience After Fix
+## Files to Create/Modify
 
-1. User taps Upload Zone
-2. File Type Selector sheet appears
-3. User selects "PDF"
-4. Native file picker opens (may still show all files on some devices)
-5. **If user selects a photo instead of PDF**: Toast error "Please select a PDF file. You selected an image file."
-6. **If user selects correct PDF**: Processing begins normally
-7. **If any error occurs during processing**: Toast error instead of app crash
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/editor/PageBreakIndicator.tsx` | Modify | Add single-page guard, debounce, stable measurements |
+| `src/components/editor/PageBreakSheet.tsx` | Rewrite | New visual section-based UI with live page count |
+| `src/lib/pdfGenerator.ts` | Modify | Add `estimatePageCount` export function |
+| `src/lib/sectionHelpers.ts` | Create | Section preview and icon helpers |
 
 ---
 
-## Technical Summary
+## Technical Details
 
-### Changes to `UploadPage.tsx`
-- Add `expectedFileType` state to track user's selection
-- Validate actual file type matches expected in `handleInputChange`
-- Reset input value after each selection to allow re-selecting same file
-- Wrap `handleFile` call in try-catch to prevent crashes
+### Constants Alignment
+Both `PageBreakIndicator` and `pdfGenerator` will use shared constants:
+```typescript
+const PAGE_WIDTH = 612;
+const PAGE_HEIGHT = 792;
+const FOOTER_RESERVED_PT = 44;
+const PRINTABLE_HEIGHT = PAGE_HEIGHT - FOOTER_RESERVED_PT;
+```
 
-### Changes to `FileTypeSelector.tsx`
-- Wrap component with `forwardRef` to eliminate React warning
-- No functional changes needed
+### Single-Page Detection Logic
+```typescript
+const isSinglePage = containerHeight <= sourceHeightPerPage * 1.05; // 5% buffer
+if (isSinglePage && !manualBreakSections?.length) {
+  setBreaks([]);
+  return;
+}
+```
 
-### Changes to `App.tsx`
-- Add `unhandledrejection` event listener as global safety net
+### Section Preview Data Structure
+```typescript
+interface SectionPreviewData {
+  id: SectionId;
+  name: string;
+  icon: string;
+  preview: string; // "3 positions", "12 skills", etc.
+  hasBreakAfter: boolean;
+  pageNumber: number;
+}
+```
+
+---
+
+## Expected User Experience After Fix
+
+1. **Single-page CV**: No page break indicators shown at all
+2. **Multi-page CV (Auto mode)**: Orange dashed lines show where automatic breaks occur
+3. **Multi-page CV (Manual mode)**: 
+   - User taps "Page breaks" button
+   - Sheet shows visual list of all CV sections
+   - Each section shows its name, content preview, and current page
+   - User can toggle "break after" for any section
+   - Page numbers update live as user makes selections
+   - Blue break indicators shown between selected sections in preview
+
+---
+
+## Mobile UX Considerations
+
+- Section cards will have 72px minimum height for touch targets
+- `active:scale-[0.98]` feedback on toggle
+- Smooth animation when break indicators appear/disappear
+- `pb-safe` padding in sheet footer
+
