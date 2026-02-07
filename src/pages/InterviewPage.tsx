@@ -239,7 +239,7 @@ export default function InterviewPage() {
       {/* Controls - shrink-0 prevents compression, pb-24 provides bottom nav spacing */}
       <div className="shrink-0 border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-24">
         <div className="flex flex-col items-center gap-1.5 py-1">
-          <InterviewToggle status={status} onPress={handleToggle} />
+          <InterviewToggle status={status} onPress={handleToggle} silenceDetected={silenceDetected} />
           {countdown !== null && status === 'speaking' && (
             <motion.div
               key={countdown}
@@ -251,34 +251,6 @@ export default function InterviewPage() {
             >
               {countdown}
             </motion.div>
-          )}
-          {status === 'ready' && (
-            <motion.p
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-xs text-[hsl(45_90%_55%)] font-medium"
-            >
-              Your turn — tap the mic to answer
-            </motion.p>
-          )}
-          {silenceDetected && status === 'listening' && (
-            <motion.p
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="text-xs text-muted-foreground animate-pulse"
-            >
-              Sending soon…
-            </motion.p>
-          )}
-          {status === 'listening' && !silenceDetected && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 0.6 }}
-              className="text-[10px] text-muted-foreground"
-            >
-              Tap the mic when you're done
-            </motion.p>
           )}
         </div>
 

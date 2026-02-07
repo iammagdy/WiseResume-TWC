@@ -126,6 +126,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const isListeningRef = useRef(false);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stopListeningRef = useRef<() => Promise<void>>();
+  const startListeningAfterSpeakRef = useRef<() => Promise<void>>();
   const answerCountRef = useRef(0);
 
   // ElevenLabs Scribe hook
@@ -215,7 +216,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         }
         setCountdown(null);
         await playBeep();
-        setStatus('ready');
+        // Auto-start listening after beep (user's turn)
+        startListeningAfterSpeakRef.current?.();
         resolve();
       };
       utterance.onerror = () => {
@@ -315,6 +317,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
     await scribe.connect();
   }, [clearSilenceTimer, scribe]);
+
+  useEffect(() => {
+    startListeningAfterSpeakRef.current = startListening;
+  }, [startListening]);
 
   const sendTextMessage = useCallback(
     async (text: string) => {

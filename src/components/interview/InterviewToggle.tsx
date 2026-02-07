@@ -7,9 +7,10 @@ interface InterviewToggleProps {
   status: InterviewStatus;
   onPress: () => void;
   disabled?: boolean;
+  silenceDetected?: boolean;
 }
 
-export function InterviewToggle({ status, onPress, disabled }: InterviewToggleProps) {
+export function InterviewToggle({ status, onPress, disabled, silenceDetected }: InterviewToggleProps) {
   const isListening = status === 'listening';
   const isThinking = status === 'thinking';
   const isSpeaking = status === 'speaking';
@@ -141,12 +142,30 @@ export function InterviewToggle({ status, onPress, disabled }: InterviewTogglePr
 
       {/* Status label */}
       <motion.span
-        key={status}
+        key={`${status}-${silenceDetected}`}
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute -bottom-6 text-xs font-medium text-muted-foreground"
+        className={cn(
+          "absolute -bottom-8 text-xs font-medium whitespace-nowrap",
+          isListening && silenceDetected && "text-muted-foreground animate-pulse",
+          isListening && !silenceDetected && "text-primary",
+          isThinking && "text-muted-foreground",
+          isSpeaking && "text-[hsl(142_70%_50%)]",
+          isReady && "text-[hsl(45_90%_55%)]",
+          isIdle && "text-muted-foreground"
+        )}
       >
-        {isListening ? 'Listening...' : isThinking ? 'Wise AI is thinking...' : isSpeaking ? 'Wise AI speaking...' : isReady ? 'Tap to answer' : 'Tap to speak'}
+        {isListening && silenceDetected
+          ? 'Sending soon…'
+          : isListening
+          ? 'Listening... tap when done'
+          : isThinking
+          ? 'Wise AI is thinking...'
+          : isSpeaking
+          ? 'Wise AI speaking...'
+          : isReady
+          ? 'Starting mic...'
+          : 'Tap to speak'}
       </motion.span>
     </div>
   );
