@@ -1,10 +1,10 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard, Sparkles, FileWarning } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Square, Keyboard, Sparkles } from 'lucide-react';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
-import { TranscriptBubble } from '@/components/interview/TranscriptBubble';
+import { TranscriptBubble, TypingBubble } from '@/components/interview/TranscriptBubble';
 import { InterviewSummary } from '@/components/interview/InterviewSummary';
 import { InterviewPreview } from '@/components/interview/InterviewPreview';
 import { AnswerScoreSheet } from '@/components/interview/AnswerScoreSheet';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { haptics } from '@/lib/haptics';
 
 type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
 
@@ -57,6 +58,7 @@ export default function InterviewPage() {
     latestScore,
     dismissScore,
     countdown,
+    audioLevel,
     roleAnalysis,
     isAnalyzingRole,
     analyzeRole,
@@ -82,7 +84,7 @@ export default function InterviewPage() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [transcript, interimText]);
+  }, [transcript, interimText, status]);
 
   // Show errors as toast
   useEffect(() => {
@@ -90,6 +92,13 @@ export default function InterviewPage() {
       toast({ title: 'Error', description: error, variant: 'destructive' });
     }
   }, [error]);
+
+  // Haptic feedback for countdown
+  useEffect(() => {
+    if (countdown !== null) {
+      haptics.light();
+    }
+  }, [countdown]);
 
   const handleSetupStart = useCallback((jobDescription?: string) => {
     if (jobDescription) {
@@ -113,6 +122,7 @@ export default function InterviewPage() {
     } else if (status === 'idle' || status === 'ready') {
       startListening();
     } else if (status === 'speaking') {
+      // Allow interrupting AI
       window.speechSynthesis.cancel();
       startListening();
     }
@@ -196,62 +206,91 @@ export default function InterviewPage() {
   // Active interview
   return (
     <div className="flex-1 flex flex-col">
-      {/* Glassmorphism header */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/30 bg-card/40 backdrop-blur-md">
+      {/* Premium glassmorphism header */}
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate('/dashboard')} className="touch-manipulation p-1">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 3, repeat: Infinity }}
+            >
+              <Sparkles className="w-4 h-4 text-primary" />
+            </motion.div>
             <h1 className="text-lg font-bold text-foreground">Wise AI</h1>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          <span className="text-xs font-mono text-primary tabular-nums">
+        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/25 shadow-[0_0_10px_hsl(var(--primary)/0.1)]">
+          <motion.span 
+            className="w-2 h-2 rounded-full bg-primary" 
+            animate={{ scale: [1, 1.2, 1], opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          />
+          <span className="text-xs font-mono font-semibold text-primary tabular-nums">
             {mins}:{secs.toString().padStart(2, '0')}
           </span>
         </div>
       </div>
 
-      {/* Transcript area - uses flex-1 for flexible height */}
+      {/* Transcript area */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3"
+        className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-3"
       >
         {transcript.map((entry) => (
           <TranscriptBubble key={entry.id} entry={entry} />
         ))}
+        
+        {/* Show typing indicator when AI is thinking */}
+        <AnimatePresence>
+          {status === 'thinking' && <TypingBubble />}
+        </AnimatePresence>
+        
         {interimText && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.6 }}
+            animate={{ opacity: 0.7 }}
             className="flex justify-end"
           >
-            <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-primary/15 backdrop-blur-sm border border-primary/20 text-foreground text-sm italic">
+            <div className="max-w-[85%] rounded-2xl rounded-br-md px-4 py-3 bg-primary/20 backdrop-blur-sm border border-primary/30 text-foreground text-sm italic shadow-[0_4px_15px_hsl(var(--primary)/0.15)]">
               {interimText}
             </div>
           </motion.div>
         )}
       </div>
 
-      {/* Controls - shrink-0 prevents compression, pb-24 provides bottom nav spacing */}
-      <div className="shrink-0 border-t border-border/30 bg-card/40 backdrop-blur-md px-4 py-4 space-y-3 pb-24">
-        <div className="flex flex-col items-center gap-1.5 py-1">
-          <InterviewToggle status={status} onPress={handleToggle} silenceDetected={silenceDetected} />
-          {countdown !== null && status === 'speaking' && (
-            <motion.div
-              key={countdown}
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 1.5, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="text-2xl font-bold text-primary tabular-nums"
-            >
-              {countdown}
-            </motion.div>
-          )}
+      {/* Controls */}
+      <div className="shrink-0 border-t border-border/20 bg-card/50 backdrop-blur-xl px-4 py-4 space-y-3 pb-24">
+        <div className="flex flex-col items-center gap-2">
+          <InterviewToggle 
+            status={status} 
+            onPress={handleToggle} 
+            silenceDetected={silenceDetected}
+            audioLevel={audioLevel}
+          />
+          
+          {/* Premium countdown overlay */}
+          <AnimatePresence>
+            {countdown !== null && status === 'speaking' && (
+              <motion.div
+                key={countdown}
+                initial={{ scale: 0.3, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 1.3, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                className="flex flex-col items-center gap-1"
+              >
+                <span className="text-3xl font-black text-primary tabular-nums drop-shadow-[0_0_15px_hsl(var(--primary)/0.5)]">
+                  {countdown}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-medium">
+                  Get ready to speak
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Text input fallback */}
@@ -267,13 +306,13 @@ export default function InterviewPage() {
               placeholder="Type your answer..."
               onKeyDown={(e) => e.key === 'Enter' && handleSendText()}
               disabled={status === 'thinking'}
-              className="bg-card/50 backdrop-blur-sm border-border/50"
+              className="bg-card/60 backdrop-blur-sm border-border/40"
             />
             <Button
               size="sm"
               onClick={handleSendText}
               disabled={!textInput.trim() || status === 'thinking'}
-              className="bg-primary/90"
+              className="bg-primary/90 shadow-[0_0_15px_hsl(var(--primary)/0.2)]"
             >
               Send
             </Button>
@@ -285,7 +324,7 @@ export default function InterviewPage() {
             variant="ghost"
             size="sm"
             onClick={() => setShowTextInput(!showTextInput)}
-            className="text-muted-foreground"
+            className="text-muted-foreground hover:text-foreground"
           >
             <Keyboard className="w-4 h-4 mr-1" />
             {showTextInput ? 'Hide' : 'Type'}
@@ -295,7 +334,7 @@ export default function InterviewPage() {
             size="sm"
             onClick={endInterview}
             disabled={status === 'thinking'}
-            className="shadow-[0_0_10px_hsl(var(--destructive)/0.3)]"
+            className="shadow-[0_0_15px_hsl(var(--destructive)/0.3)]"
           >
             <Square className="w-4 h-4 mr-1" />
             End Interview
