@@ -147,8 +147,9 @@ export default function EditorPage() {
     };
   }, []);
 
+  // Resume guard - redirect to appropriate page based on auth state
   if (!currentResume) {
-    navigate('/');
+    navigate(user ? '/dashboard' : '/');
     return null;
   }
 
