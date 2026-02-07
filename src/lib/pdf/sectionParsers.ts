@@ -1,13 +1,13 @@
 import { ResumeData, Experience, Education, Certification } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 
-// Section heading patterns
+// Section heading patterns - expanded for international CVs
 const SECTION_PATTERNS = {
-  summary: /^(summary|objective|profile|about\s*me|professional\s*summary)$/i,
-  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience)$/i,
-  education: /^(education|academic|qualifications|academic\s*background)$/i,
-  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies)$/i,
-  certifications: /^(certifications?|licenses?|credentials?|professional\s*certifications?)$/i,
+  summary: /^(summary|objective|profile|about\s*me|professional\s*summary|career\s*objective)$/i,
+  experience: /^(experience|work\s*experience|employment|work\s*history|professional\s*experience|projects?)$/i,
+  education: /^(education|academic|qualifications|academic\s*background|schooling)$/i,
+  skills: /^(skills|technical\s*skills|core\s*competencies|technologies|expertise|proficiencies|languages?|soft\s*skills|hard\s*skills)$/i,
+  certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?|training|courses?)$/i,
 };
 
 interface SectionBlocks {
@@ -108,8 +108,8 @@ function extractContactInfo(text: string): ResumeData['contactInfo'] {
   // Email
   const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
   
-  // Phone (various formats)
-  const phoneMatch = text.match(/(\+?1?[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/);
+  // Phone (international formats - supports Egyptian, US, European, etc.)
+  const phoneMatch = text.match(/(\+?\d{1,4}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/);
   
   // LinkedIn URL
   const linkedinMatch = text.match(/(?:linkedin\.com\/in\/|linkedin:\s*)([a-zA-Z0-9-]+)/i);

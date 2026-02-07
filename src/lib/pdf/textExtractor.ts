@@ -162,7 +162,7 @@ function reconstructPageText(items: any[]): string {
   }
 
   // Group items by Y coordinate (with tolerance for slight variations)
-  const Y_TOLERANCE = 3;
+  const Y_TOLERANCE = 5;
   const lineGroups: LineGroup[] = [];
 
   for (const item of textItems) {
@@ -209,7 +209,7 @@ function reconstructPageText(items: any[]): string {
 function splitByColumnGap(items: { x: number; str: string }[]): { x: number; str: string }[][] {
   if (items.length < 2) return [items];
 
-  const COLUMN_GAP_THRESHOLD = 150; // pixels
+  const COLUMN_GAP_THRESHOLD = 100; // pixels - reduced for sidebar layouts
   const result: { x: number; str: string }[][] = [];
   let currentGroup: { x: number; str: string }[] = [items[0]];
 
