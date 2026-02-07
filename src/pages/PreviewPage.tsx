@@ -505,6 +505,7 @@ export default function PreviewPage() {
         onSettingsChange={setPageBreakSettings}
         availableSections={availableSections}
         templateConfig={templateConfig}
+        resume={currentResume ?? undefined}
         onSwitchTemplate={setSelectedTemplate}
       />
 

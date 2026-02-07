@@ -362,6 +362,43 @@ export function findSmartBreakPositions(
 }
 
 /**
+ * Estimates the number of pages for a resume based on content and break settings.
+ * Useful for UI display and single-page detection.
+ */
+export function estimatePageCount(
+  sourceElement: HTMLElement,
+  manualBreakSections?: string[],
+  templateConfig?: TemplateConfig
+): number {
+  // For fixed-sidebar templates, always return 1
+  if (templateConfig?.layout === 'fixed-sidebar') {
+    return 1;
+  }
+  
+  const containerWidth = sourceElement.offsetWidth || PAGE_WIDTH;
+  const containerHeight = sourceElement.scrollHeight || sourceElement.offsetHeight || PAGE_HEIGHT;
+  
+  const scaleFactor = PAGE_WIDTH / containerWidth;
+  const sourceHeightPerPage = PRINTABLE_HEIGHT / scaleFactor;
+  
+  // Single-page check with 5% buffer
+  if (containerHeight <= sourceHeightPerPage * 1.05 && !manualBreakSections?.length) {
+    return 1;
+  }
+  
+  // Calculate breaks to determine page count
+  const breaks = findSmartBreakPositions(
+    sourceElement,
+    sourceHeightPerPage,
+    containerHeight,
+    manualBreakSections,
+    templateConfig
+  );
+  
+  return breaks.length + 1;
+}
+
+/**
  * Gets sections in their actual DOM order (for UI ordering).
  * Returns section IDs based on visual layout position.
  */
