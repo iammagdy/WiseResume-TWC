@@ -1,282 +1,267 @@
 
 
-# Fix CV Name Detection + Add Import Selection Screen
+# Add File Type Selection Before Upload
 
-## Problem Analysis
+## Overview
 
-After examining the uploaded CV and the parsing system, I identified two issues:
-
-### Issue 1: Name Detection Incorrectly Identifies "Contact Me" as Name
-The CV structure shows:
-```
-MOHAMED RAAFAT      <-- This is the actual name
-Contact me          <-- This is a section header being misidentified
-PHONE: 01120905546
-```
-
-The AI is confusing "Contact me" (a section header) with the person's actual name because both appear in the header area before the main content.
-
-### Issue 2: No User Control Over Import
-Currently, the app auto-imports everything without giving users a chance to review and select which sections they want to keep.
+Create a mobile-friendly bottom sheet that appears when the user wants to upload a resume, letting them choose between three file types: PDF, Word Document, or Photo/Image. After selection, the native file picker will only show files of that specific type.
 
 ---
 
-## Solution Overview
+## User Flow
 
-### Part 1: Fix AI Name Detection
-
-**File: `supabase/functions/parse-resume/index.ts`**
-
-Add explicit rules to the system prompt:
-
-```typescript
-const systemPrompt = `You are an expert resume parser...
-
-CRITICAL RULES FOR NAME DETECTION:
-11. The person's NAME is typically the FIRST prominent text, often in larger font or at the very top
-12. IGNORE section headers like "Contact Me", "Contact", "Contact Info", "Personal Info" - these are NOT names
-13. The name is usually 2-4 words (first + last, or first + middle + last)
-14. If text appears to be a navigation/section label (Contact, About, Experience), it's NOT the name
-15. Look for the actual person's full name, not UI elements or section titles
-
-SECTION HEADERS TO IGNORE (not names):
-- "Contact Me", "Contact", "Contact Info"
-- "Personal Information", "Personal Details"
-- "About", "About Me", "Profile"
-- Any single word that's a common section title
-`;
-```
-
-### Part 2: Create Import Selection Sheet
-
-Create a new bottom sheet that appears after AI parsing, showing all detected sections with checkboxes for user selection.
-
-**New Component: `src/components/upload/ImportReviewSheet.tsx`**
-
-Features:
-- Bottom sheet with AI sparkle branding
-- Displays each parsed section with preview
-- Checkboxes to include/exclude sections
-- Shows confidence indicators (AI detected X items)
-- Edit button for each section (future enhancement)
-- "Import Selected" button to confirm
-
-```
-+------------------------------------------+
-|      AI Resume Analysis Complete         |
-|                                          |
-|  We detected the following information:  |
-|                                          |
-|  [x] Contact Info                        |
-|      Mohamed Raafat, mohammedraafat...   |
-|                                          |
-|  [x] Summary                             |
-|      Cloud Engineer with experience...   |
-|                                          |
-|  [x] Experience (2 entries)              |
-|      - Real estate broker at Address...  |
-|      - Marketing team at CIC            |
-|                                          |
-|  [x] Education (1 entry)                 |
-|      - Saint Mary School                 |
-|                                          |
-|  [x] Skills (12 items)                   |
-|      Communication, Negotiation...       |
-|                                          |
-|  [x] Certifications (5 entries)          |
-|      - Marketing - CIC                   |
-|                                          |
-|  +------------------------------------+  |
-|  |        Import Selected             |  |
-|  +------------------------------------+  |
-+------------------------------------------+
+```text
+User taps Upload Zone
+        ↓
+  File Type Sheet appears
+  ┌────────────────────────┐
+  │  Choose file type      │
+  │                        │
+  │  [PDF icon]  PDF       │
+  │  Best for text-based   │
+  │                        │
+  │  [Word icon] Word Doc  │
+  │  .doc, .docx files     │
+  │                        │
+  │  [Image icon] Photo    │
+  │  JPG, PNG images       │
+  └────────────────────────┘
+        ↓
+  User taps an option
+        ↓
+  Native file picker opens
+  (filtered to selected type)
+        ↓
+  File selected → Processing begins
 ```
 
 ---
 
-## Detailed Implementation
+## Implementation Details
 
-### File 1: `supabase/functions/parse-resume/index.ts`
+### New Component: `FileTypeSelector.tsx`
 
-**Changes:**
-- Lines 140-161: Enhance systemPrompt with explicit name detection rules and section header ignore list
+Create a new bottom sheet component in `src/components/upload/FileTypeSelector.tsx`
 
+**Props:**
 ```typescript
-const systemPrompt = `You are an expert resume parser. Extract ALL structured information from resume text.
-
-CRITICAL RULES:
-1. Extract EVERYTHING - all jobs, education, projects, skills, certifications. Never skip sections!
-2. Empty fields: use "" for strings, [] for arrays - never omit required fields
-3. Dates: Accept ANY format ("2024", "Summer 2024", "Jan 2020 - Present", "2020-2023")
-4. Current roles/projects: endDate="Present", current=true
-5. Skills: Parse as individual items. Include languages with proficiency (e.g., "Arabic (Native)", "English (Fluent)")
-6. Projects: Add to experience array with isProject=true, company=project name or "Personal Project"
-7. Languages: Add to skills array with level, e.g., "French (Beginner)", "Spanish (Intermediate)"
-8. Certifications: Include issuer from context when available. Match "Certificates", "Training", "Courses" sections
-9. Phone numbers: Extract exactly as written (supports international formats like +20, 011xxx, etc.)
-10. Handle sidebar layouts, two-column designs, and creative CV formats
-
-CRITICAL NAME DETECTION RULES:
-11. The person's FULL NAME is typically the largest/most prominent text at the very top of the resume
-12. NEVER use these as names - they are section headers/labels:
-    - "Contact Me", "Contact", "Contact Info", "Contact Details"
-    - "Personal Information", "Personal Info", "Personal Details"
-    - "About Me", "About", "Profile", "Bio"
-    - Any single generic word (Contact, Summary, Skills, Experience)
-13. A valid name is usually 2-5 words containing a first name and last name
-14. If the first line looks like a section header, look for the actual name nearby
-15. Names often appear in ALL CAPS or Title Case at the document start
-
-SECTION NAME VARIANTS TO RECOGNIZE:
-- Experience: Work Experience, Employment, Professional Experience, Career History
-- Education: Academic Background, Qualifications, Schooling
-- Skills: Technical Skills, Core Competencies, Languages, Soft Skills, Hard Skills
-- Certifications: Certificates, Credentials, Licenses, Training, Courses
-- Projects: Portfolio, Personal Projects, Academic Projects, Work Samples
-
-The resume may have OCR artifacts or unusual formatting - interpret it correctly and extract ALL content!`;
-```
-
-### File 2: `src/components/upload/ImportReviewSheet.tsx` (NEW)
-
-Create a new component for the import review UI:
-
-```typescript
-// Props:
-interface ImportReviewSheetProps {
+interface FileTypeSelectorProps {
   open: boolean;
   onClose: () => void;
-  onImport: (data: ResumeData, selectedSections: SelectedSections) => void;
-  parsedData: ResumeData;
-  isLoading?: boolean;
-}
-
-interface SelectedSections {
-  contactInfo: boolean;
-  summary: boolean;
-  experience: boolean;
-  education: boolean;
-  skills: boolean;
-  certifications: boolean;
+  onSelectType: (type: 'pdf' | 'word' | 'image') => void;
 }
 ```
 
-Features:
-- Uses `Sheet` component with `side="bottom"`
-- Header with AI sparkle icon + "AI Resume Analysis Complete"
-- Scrollable content area with section cards
-- Each card has:
-  - Checkbox to toggle inclusion
-  - Section name with item count
-  - Preview of content (truncated)
-  - Subtle highlight if data detected
-- Footer with "Import Selected" primary button
+**Features:**
+- Bottom sheet using existing `Sheet` component
+- Three large, touch-friendly option cards (min 72px height)
+- Each card shows:
+  - Icon (FileText for PDF, File for Word, Image for Photo)
+  - Title (PDF Document, Word Document, Photo/Image)
+  - Subtitle explaining accepted formats
+- Cards have `active:scale-[0.98]` for touch feedback
+- Selecting an option calls `onSelectType` and closes the sheet
 
-### File 3: `src/pages/UploadPage.tsx`
-
-**Changes:**
-- Add state for showing review sheet: `showImportReview`
-- Add state for parsed data awaiting review: `pendingResumeData`
-- After successful AI parse, instead of immediately navigating:
-  1. Store the parsed data in `pendingResumeData`
-  2. Show the `ImportReviewSheet`
-  3. On user confirmation, apply selected sections and navigate
-
-```typescript
-// New state
-const [showImportReview, setShowImportReview] = useState(false);
-const [pendingResumeData, setPendingResumeData] = useState<ResumeData | null>(null);
-
-// In handleFile, after successful parse (around line 150):
-// Instead of immediately navigating...
-setPendingResumeData(resumeData);
-setShowImportReview(true);
-setIsProcessing(false);
-// Don't navigate yet
-
-// New handler for import confirmation
-const handleImportConfirm = (data: ResumeData, sections: SelectedSections) => {
-  // Apply section filtering
-  const filteredData = filterBySelectedSections(data, sections);
-  
-  // Save and navigate
-  if (user) {
-    createResume.mutateAsync({...});
-  }
-  setCurrentResume(filteredData);
-  navigate('/editor');
-};
+**Visual Design:**
+```text
+┌─────────────────────────────────────┐
+│            [drag handle]            │
+│                                     │
+│   📤 What type of file?             │
+│   Select your resume format         │
+│                                     │
+│   ┌─────────────────────────────┐   │
+│   │  📄  PDF Document           │   │
+│   │      Best for text-based    │   │
+│   │      resumes (.pdf)         │   │
+│   └─────────────────────────────┘   │
+│                                     │
+│   ┌─────────────────────────────┐   │
+│   │  📝  Word Document          │   │
+│   │      Microsoft Word files   │   │
+│   │      (.doc, .docx)          │   │
+│   └─────────────────────────────┘   │
+│                                     │
+│   ┌─────────────────────────────┐   │
+│   │  🖼️  Photo / Image          │   │
+│   │      Scanned or photo       │   │
+│   │      resumes (.jpg, .png)   │   │
+│   └─────────────────────────────┘   │
+│                                     │
+└─────────────────────────────────────┘
 ```
 
 ---
 
-## Visual Design
+### Update UploadPage.tsx
 
-### Import Review Sheet Layout
+**Changes:**
 
+1. **Add state for file type selector:**
+   ```typescript
+   const [showFileTypeSelector, setShowFileTypeSelector] = useState(false);
+   const [selectedFileType, setSelectedFileType] = useState<'pdf' | 'word' | 'image' | null>(null);
+   const fileInputRef = useRef<HTMLInputElement>(null);
+   ```
+
+2. **Update upload zone click handler:**
+   - Instead of opening file picker directly, show the FileTypeSelector sheet
+   - Remove the invisible file input from the upload zone
+   - Add a hidden file input with a ref
+
+3. **Handle file type selection:**
+   ```typescript
+   const handleFileTypeSelect = (type: 'pdf' | 'word' | 'image') => {
+     setSelectedFileType(type);
+     setShowFileTypeSelector(false);
+     
+     // Update file input accept attribute and trigger click
+     if (fileInputRef.current) {
+       fileInputRef.current.accept = getAcceptString(type);
+       fileInputRef.current.click();
+     }
+   };
+   
+   function getAcceptString(type: 'pdf' | 'word' | 'image'): string {
+     switch (type) {
+       case 'pdf': return '.pdf,application/pdf';
+       case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+       case 'image': return '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
+     }
+   }
+   ```
+
+4. **Update handleFile to process different file types:**
+   ```typescript
+   const handleFile = async (file: File) => {
+     const fileType = getFileType(file);
+     
+     if (fileType === 'pdf') {
+       // Existing PDF parsing logic
+     } else if (fileType === 'word') {
+       // Convert Word to text using mammoth.js or send to AI
+       await handleWordFile(file);
+     } else if (fileType === 'image') {
+       // Use OCR directly on the image
+       await handleImageFile(file);
+     }
+   };
+   ```
+
+5. **Make upload zone clickable:**
+   ```typescript
+   <motion.div
+     className="... cursor-pointer"
+     onClick={() => !isProcessing && setShowFileTypeSelector(true)}
+     // Remove file input from inside
+   >
+   ```
+
+---
+
+### Word Document Parsing
+
+**Option A: Client-side with mammoth.js**
+- Add `mammoth` package to dependencies
+- Extract text from Word documents locally
+- Send extracted text to AI for parsing
+
+**Option B: Server-side in Edge Function**
+- Send the file to a new edge function
+- Use Gemini's document understanding capabilities
+- More reliable but requires file upload
+
+**Recommended: Option A** (simpler, no file upload needed)
+
+```typescript
+import mammoth from 'mammoth';
+
+async function handleWordFile(file: File): Promise<void> {
+  setIsProcessing(true);
+  setParseStep('reading');
+  
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    const text = result.value;
+    
+    if (!text.trim()) {
+      setErrorType('NO_TEXT');
+      setShowErrorRecovery(true);
+      return;
+    }
+    
+    setParseStep('analyzing');
+    // Use existing AI parsing
+    const resumeData = await parseTextWithAI(text);
+    
+    setPendingResumeData(resumeData);
+    setShowImportReview(true);
+  } catch (error) {
+    setErrorType('CORRUPTED');
+    setShowErrorRecovery(true);
+  } finally {
+    setIsProcessing(false);
+  }
+}
 ```
-+------------------------------------------+
-| [drag handle]                      [X]   |
-|                                          |
-|  [Sparkle Icon] AI Analysis Complete     |
-|  Select sections to import               |
-|                                          |
-| +----- Scrollable Content Area --------+ |
-| |                                      | |
-| | +----------------------------------+ | |
-| | | [x] Contact Information          | | |
-| | |     Mohamed Raafat               | | |
-| | |     mohammedraafatmr1@gmail.com  | | |
-| | +----------------------------------+ | |
-| |                                      | |
-| | +----------------------------------+ | |
-| | | [x] Professional Summary         | | |
-| | |     Cloud Engineer with experien | | |
-| | |     ce in real estate...         | | |
-| | +----------------------------------+ | |
-| |                                      | |
-| | +----------------------------------+ | |
-| | | [x] Work Experience (2)          | | |
-| | |     • Real estate broker         | | |
-| | |     • Marketing team             | | |
-| | +----------------------------------+ | |
-| |                                      | |
-| | +----------------------------------+ | |
-| | | [x] Education (1)                | | |
-| | |     • Saint Mary School          | | |
-| | +----------------------------------+ | |
-| |                                      | |
-| | +----------------------------------+ | |
-| | | [x] Skills (12)                  | | |
-| | |     Communication, Negotiation   | | |
-| | +----------------------------------+ | |
-| |                                      | |
-| | +----------------------------------+ | |
-| | | [x] Certifications (5)           | | |
-| | |     • Marketing - CIC            | | |
-| | |     • Problem Solving            | | |
-| | +----------------------------------+ | |
-| +--------------------------------------+ |
-|                                          |
-| +--------------------------------------+ |
-| |       Import Selected (6/6)          | |
-| +--------------------------------------+ |
-+------------------------------------------+
+
+---
+
+### Image/Photo Parsing
+
+For images, use the existing OCR infrastructure:
+
+```typescript
+async function handleImageFile(file: File): Promise<void> {
+  setIsProcessing(true);
+  setParseStep('reading');
+  
+  try {
+    // Convert image to canvas and run OCR
+    const text = await extractTextFromImage(file, (progress) => {
+      setOcrProgress({ page: 1, total: 1, status: progress.status });
+    });
+    
+    if (!text.trim()) {
+      setErrorType('NO_TEXT');
+      setShowErrorRecovery(true);
+      return;
+    }
+    
+    setParseStep('analyzing');
+    const resumeData = await parseTextWithAI(text);
+    
+    setPendingResumeData(resumeData);
+    setShowImportReview(true);
+  } catch (error) {
+    setErrorType('UNKNOWN');
+    setShowErrorRecovery(true);
+  } finally {
+    setIsProcessing(false);
+  }
+}
 ```
 
-### Section Card Design
-
-Each card shows:
-- **Left**: Checkbox (styled, touch-friendly 44px target)
-- **Center**: 
-  - Section name + count badge
-  - Preview text (2 lines max, truncated)
-- **Right**: Edit pencil icon (future feature, initially hidden)
-
-Colors:
-- Selected card: subtle primary border + faint bg tint
-- Unselected card: muted border
-- Empty section: show "Not detected" in gray, checkbox disabled
+**New function in `src/lib/pdf/ocrExtractor.ts`:**
+```typescript
+export async function extractTextFromImage(
+  file: File,
+  onProgress?: OCRProgressCallback
+): Promise<string> {
+  // Load image into canvas
+  const img = await loadImage(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(img, 0, 0);
+  
+  // Run Tesseract OCR
+  const imageData = canvas.toDataURL('image/png');
+  // ... existing OCR logic
+}
+```
 
 ---
 
@@ -284,30 +269,40 @@ Colors:
 
 | File | Action | Description |
 |------|--------|-------------|
-| `supabase/functions/parse-resume/index.ts` | Modify | Add name detection rules to system prompt |
-| `src/components/upload/ImportReviewSheet.tsx` | Create | New bottom sheet for section selection |
-| `src/pages/UploadPage.tsx` | Modify | Integrate ImportReviewSheet into upload flow |
+| `src/components/upload/FileTypeSelector.tsx` | Create | New bottom sheet for file type selection |
+| `src/pages/UploadPage.tsx` | Modify | Add file type selector, update file handling |
+| `src/lib/pdf/ocrExtractor.ts` | Modify | Add image OCR extraction function |
+| `package.json` | Modify | Add mammoth dependency for Word parsing |
 
 ---
 
-## User Flow After Implementation
+## Dependency Addition
 
-1. User uploads PDF
-2. Progress steps show: Reading -> Detecting -> Extracting -> Analyzing
-3. AI parses the resume
-4. **NEW**: ImportReviewSheet appears showing all detected sections
-5. User reviews and toggles sections they want to import
-6. User taps "Import Selected"
-7. App creates resume with selected sections only
-8. Navigation to Editor
+```json
+{
+  "mammoth": "^1.6.0"
+}
+```
 
 ---
 
-## Benefits
+## Mobile UX Considerations
 
-1. **Fixes Name Detection**: Explicit AI rules prevent section headers from being misidentified as names
-2. **User Control**: Users can deselect incorrectly parsed sections before import
-3. **Transparency**: Users see exactly what the AI detected, building trust
-4. **Powerful Feel**: The selection UI makes the AI feel more capable and professional
-5. **Error Prevention**: If the AI gets something wrong, users can exclude it immediately
+1. **Touch-friendly cards**: Minimum 72px height with 16px padding
+2. **Visual feedback**: `active:scale-[0.98]` on tap
+3. **Clear icons**: Large 40x40px icons for each option
+4. **Descriptive text**: Shows exact file extensions accepted
+5. **Safe area padding**: Uses `pb-safe` for notch/home indicator
+6. **Smooth animations**: Sheet slides up with spring animation
+
+---
+
+## Summary
+
+This implementation:
+1. Creates a file type selection sheet shown before upload
+2. Filters native file picker to only show selected file types
+3. Adds Word document parsing with mammoth.js
+4. Extends OCR to work directly on images
+5. Provides a clean, mobile-first user experience
 
