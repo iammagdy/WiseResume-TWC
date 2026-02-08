@@ -85,7 +85,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   return (
     <div
       className={cn(
-        'fixed bottom-20 left-4 right-4 z-40',
+        'mx-4 mb-2',
         className
       )}
     >
