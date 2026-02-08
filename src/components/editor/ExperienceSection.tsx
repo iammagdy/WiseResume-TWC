@@ -15,7 +15,8 @@ import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { ExperienceTimeline } from './ExperienceTimeline';
-import { formatDateRange, calculateDuration } from '@/lib/dateUtils';
+import { GapExplainerSheet } from './GapExplainerSheet';
+import { formatDateRange, calculateDuration, GapInfo } from '@/lib/dateUtils';
 
 export function ExperienceSection() {
   const { currentResume, updateResume } = useResumeStore();
@@ -51,6 +52,8 @@ export function ExperienceSection() {
   });
 
   const [showTimeline, setShowTimeline] = useState(true);
+  const [showGapSheet, setShowGapSheet] = useState(false);
+  const [selectedGap, setSelectedGap] = useState<GapInfo | null>(null);
 
   if (!currentResume) return null;
 
@@ -147,6 +150,10 @@ export function ExperienceSection() {
         <ExperienceTimeline
           experiences={currentResume.experience}
           onDismiss={() => setShowTimeline(false)}
+          onExplainGap={(gap) => {
+            setSelectedGap(gap);
+            setShowGapSheet(true);
+          }}
         />
       )}
 
@@ -330,6 +337,7 @@ export function ExperienceSection() {
       </AnimatePresence>
 
       {/* AI Enhancement Dialog */}
+      {/* AI Enhancement Dialog */}
       <AIEnhanceDialog
         isOpen={showDialog}
         original={originalDescription}
@@ -345,6 +353,24 @@ export function ExperienceSection() {
           setShowDialog(false);
         }}
         title="Enhanced Experience"
+      />
+
+      {/* Gap Explainer Sheet */}
+      <GapExplainerSheet
+        isOpen={showGapSheet}
+        onClose={() => {
+          setShowGapSheet(false);
+          setSelectedGap(null);
+        }}
+        gap={selectedGap}
+        experiences={currentResume.experience}
+        onAddToSummary={(explanation) => {
+          const currentSummary = currentResume.summary || '';
+          const newSummary = currentSummary 
+            ? `${currentSummary}\n\nCareer Note: ${explanation}`
+            : `Career Note: ${explanation}`;
+          updateResume({ summary: newSummary });
+        }}
       />
     </div>
   );
