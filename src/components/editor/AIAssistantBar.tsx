@@ -10,6 +10,9 @@ import {
   Palette,
   ChevronDown,
   UserCheck,
+  Shield,
+  Linkedin,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -39,6 +42,9 @@ interface AIAssistantBarProps {
   onAnalyze: () => void;
   onImprove: () => void;
   onRecruiterSim?: () => void;
+  onAIDetector?: () => void;
+  onLinkedIn?: () => void;
+  onOnePage?: () => void;
   className?: string;
 }
 
@@ -51,6 +57,9 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   onAnalyze,
   onImprove,
   onRecruiterSim,
+  onAIDetector,
+  onLinkedIn,
+  onOnePage,
   className,
 }: AIAssistantBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -158,7 +167,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                 {/* Divider */}
                 <div className="h-px bg-border" />
 
-                {/* Action Grid */}
+                {/* Action Grid - Primary Row */}
                 <div className="grid grid-cols-2 gap-2">
                   <AIActionButton
                     icon={<Wand2 className="w-4 h-4" />}
@@ -180,7 +189,37 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                       icon={<UserCheck className="w-4 h-4" />}
                       label="Recruiter Sim"
                       onClick={() => handleAction(onRecruiterSim)}
+                    />
+                  )}
+                </div>
+
+                {/* New AI Features Row */}
+                <div className="grid grid-cols-3 gap-2">
+                  {onAIDetector && (
+                    <AIActionButton
+                      icon={<Shield className="w-4 h-4" />}
+                      label="Humanizer"
+                      onClick={() => handleAction(onAIDetector)}
                       badge="New"
+                      compact
+                    />
+                  )}
+                  {onLinkedIn && (
+                    <AIActionButton
+                      icon={<Linkedin className="w-4 h-4" />}
+                      label="LinkedIn"
+                      onClick={() => handleAction(onLinkedIn)}
+                      badge="New"
+                      compact
+                    />
+                  )}
+                  {onOnePage && (
+                    <AIActionButton
+                      icon={<FileText className="w-4 h-4" />}
+                      label="1-Page"
+                      onClick={() => handleAction(onOnePage)}
+                      badge="New"
+                      compact
                     />
                   )}
                 </div>
@@ -216,12 +255,16 @@ interface AIActionButtonProps {
   label: string;
   onClick: () => void;
   badge?: string;
+  compact?: boolean;
 }
 
-const AIActionButton = memo(function AIActionButton({ icon, label, onClick, badge }: AIActionButtonProps) {
+const AIActionButton = memo(function AIActionButton({ icon, label, onClick, badge, compact }: AIActionButtonProps) {
   return (
     <button
-      className="relative flex items-center gap-2 p-3 rounded-xl glass-elevated border-glow transition-all touch-manipulation active:scale-[0.97]"
+      className={cn(
+        "relative flex items-center gap-2 rounded-xl glass-elevated border-glow transition-all touch-manipulation active:scale-[0.97]",
+        compact ? "p-2 flex-col justify-center" : "p-3"
+      )}
       onClick={onClick}
     >
       {badge && (
@@ -229,10 +272,13 @@ const AIActionButton = memo(function AIActionButton({ icon, label, onClick, badg
           {badge}
         </span>
       )}
-      <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
+      <div className={cn(
+        "rounded-lg icon-glow flex items-center justify-center text-primary",
+        compact ? "w-6 h-6" : "w-8 h-8"
+      )}>
         {icon}
       </div>
-      <span className="text-sm font-medium">{label}</span>
+      <span className={cn("font-medium", compact ? "text-xs" : "text-sm")}>{label}</span>
     </button>
   );
 });

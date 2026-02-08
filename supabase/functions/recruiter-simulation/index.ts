@@ -311,7 +311,7 @@ ${i + 1}. ${edu.degree} in ${edu.field} - ${edu.institution}
   }
 
   // Certifications
-  if (resume.certifications?.length > 0) {
+  if (resume.certifications && resume.certifications.length > 0) {
     sections.push('\nCERTIFICATIONS:');
     resume.certifications.forEach((cert, i) => {
       sections.push(`${i + 1}. ${cert.name} - ${cert.issuer} (${cert.date})`);

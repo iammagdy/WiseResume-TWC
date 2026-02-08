@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.recruiter-simulation]
 verify_jwt = false
+
+[functions.detect-and-humanize]
+verify_jwt = false
+
+[functions.optimize-for-linkedin]
+verify_jwt = false
+
+[functions.one-page-optimizer]
+verify_jwt = false
