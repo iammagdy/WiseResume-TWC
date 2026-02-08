@@ -28,7 +28,7 @@ import { TemplateId, SectionId, ExportType } from '@/types/resume';
 import { useRateApp } from '@/hooks/useRateApp';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 const templates: { id: TemplateId; name: string }[] = [
   { id: 'modern', name: 'Modern' },

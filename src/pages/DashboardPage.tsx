@@ -18,7 +18,7 @@ import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResum
 import { useResumeStore } from '@/store/resumeStore';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 
 export type CareerLevel = 'entry' | 'mid' | 'senior' | 'executive';
