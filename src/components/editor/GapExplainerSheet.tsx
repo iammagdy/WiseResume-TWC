@@ -44,6 +44,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
   const [tips, setTips] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
   const [showReasonDropdown, setShowReasonDropdown] = useState(false);
+  const [isEdited, setIsEdited] = useState(false);
 
   // Find surrounding jobs for context
   const getSurroundingJobs = () => {
@@ -113,6 +114,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
       setExplanation(data.explanation);
       setTips(data.tips || []);
+      setIsEdited(false);
     } catch (err) {
       console.error('Error generating explanation:', err);
       toast({
@@ -149,6 +151,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
     setAdditionalContext('');
     setExplanation('');
     setTips([]);
+    setIsEdited(false);
     onClose();
   };
 
@@ -260,8 +263,21 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
               >
                 {/* Explanation */}
                 <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 space-y-3">
-                  <Label className="text-primary">Your Explanation</Label>
-                  <p className="text-sm leading-relaxed">{explanation}</p>
+                  <Label className="text-primary flex items-center gap-2">
+                    Your Explanation
+                    {isEdited && (
+                      <span className="text-xs font-normal text-muted-foreground">(Edited)</span>
+                    )}
+                  </Label>
+                  <Textarea
+                    value={explanation}
+                    onChange={(e) => {
+                      setExplanation(e.target.value);
+                      setIsEdited(true);
+                    }}
+                    className="min-h-[120px] text-sm resize-none"
+                    placeholder="Edit your explanation..."
+                  />
                   
                   <div className="flex gap-2 pt-2">
                     <Button
