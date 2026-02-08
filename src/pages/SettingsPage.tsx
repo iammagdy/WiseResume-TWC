@@ -44,7 +44,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { TEMPLATE_CONFIGS } from '@/lib/templateConfig';
 import { haptics } from '@/lib/haptics';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 
 export default function SettingsPage() {

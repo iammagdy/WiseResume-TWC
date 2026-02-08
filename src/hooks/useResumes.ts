@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { ResumeData, Experience, Education, Certification, ContactInfo } from '@/types/resume';
 import { toast } from 'sonner';

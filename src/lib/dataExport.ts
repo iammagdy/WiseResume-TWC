@@ -1,5 +1,5 @@
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { useSettingsStore } from '@/store/settingsStore';
 
 interface ExportData {
