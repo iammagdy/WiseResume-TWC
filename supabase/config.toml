@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.enhance-section]
 verify_jwt = false
 
+[functions.explain-gap]
+verify_jwt = false
+
 [functions.interview-chat]
 verify_jwt = false
 

@@ -1,13 +1,14 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X, Sparkles } from 'lucide-react';
 import { Experience } from '@/types/resume';
-import { parseResumeDate, getMonthsDifference, formatDuration, detectGaps, getTotalGapMonths, ParsedDate } from '@/lib/dateUtils';
+import { parseResumeDate, getMonthsDifference, formatDuration, detectGaps, getTotalGapMonths, ParsedDate, GapInfo } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
 
 interface ExperienceTimelineProps {
   experiences: Experience[];
   onDismiss?: () => void;
+  onExplainGap?: (gap: GapInfo) => void;
 }
 
 interface TimelineSegment {
@@ -20,7 +21,7 @@ interface TimelineSegment {
   company?: string;
 }
 
-export function ExperienceTimeline({ experiences, onDismiss }: ExperienceTimelineProps) {
+export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: ExperienceTimelineProps) {
   const { segments, gaps, timelineStart, timelineEnd } = useMemo(() => {
     // Parse all experiences with valid dates
     const parsed = experiences
@@ -100,6 +101,14 @@ export function ExperienceTimeline({ experiences, onDismiss }: ExperienceTimelin
   const totalGapMonths = getTotalGapMonths(gaps);
   const hasGaps = gaps.length > 0;
 
+  const handleExplainClick = () => {
+    if (gaps.length > 0 && onExplainGap) {
+      // Use the longest gap
+      const longestGap = gaps.reduce((max, gap) => gap.months > max.months ? gap : max, gaps[0]);
+      onExplainGap(longestGap);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, height: 0 }}
@@ -143,22 +152,37 @@ export function ExperienceTimeline({ experiences, onDismiss }: ExperienceTimelin
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20"
+          className="p-2.5 rounded-lg bg-warning/10 border border-warning/20"
         >
-          <div className="flex items-center gap-2 text-sm">
-            <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-            <span className="text-amber-700 dark:text-amber-400">
-              {gaps.length} gap{gaps.length > 1 ? 's' : ''} detected: {formatDuration(totalGapMonths)} between jobs
-            </span>
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm">
+              <AlertCircle className="w-4 h-4 text-warning shrink-0" />
+              <span className="text-warning-foreground">
+                {gaps.length} gap{gaps.length > 1 ? 's' : ''} detected: {formatDuration(totalGapMonths)} between jobs
+              </span>
+            </div>
+            {onDismiss && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDismiss}
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground shrink-0"
+              >
+                <X className="w-3.5 h-3.5" />
+              </Button>
+            )}
           </div>
-          {onDismiss && (
+          
+          {/* Explain with AI button */}
+          {onExplainGap && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              onClick={onDismiss}
-              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              onClick={handleExplainClick}
+              className="mt-2 gap-2 w-full sm:w-auto border-warning/30 text-warning-foreground hover:bg-warning/10"
             >
-              <X className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5" />
+              Explain with AI
             </Button>
           )}
         </motion.div>
