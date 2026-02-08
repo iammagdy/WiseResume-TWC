@@ -28,22 +28,22 @@ const features = [
 
 export function FeatureGrid() {
   return (
-    <section className="py-16 px-6">
+    <section className="py-12 sm:py-16 px-4 sm:px-6">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        className="text-center mb-10"
+        className="text-center mb-8 sm:mb-10"
       >
-        <p className="text-secondary text-sm font-medium tracking-wider uppercase mb-2">
+        <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
           ⚡ Powered by AI
         </p>
-        <h2 className="font-display text-2xl font-bold text-foreground">
+        <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
           Cosmic Capabilities
         </h2>
       </motion.div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
         {features.map((feature, index) => (
           <motion.div
             key={feature.title}

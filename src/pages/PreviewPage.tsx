@@ -410,13 +410,13 @@ export default function PreviewPage() {
         </div>
 
         {/* Preview area */}
-        <div className="flex-1 overflow-auto p-4 bg-muted/30">
+        <div className="flex-1 overflow-auto p-2 sm:p-4 bg-muted/30">
           <motion.div
             ref={resumeRef}
             data-resume-template
             data-capturing={isGenerating ? "true" : undefined}
             className="bg-white text-black mx-auto shadow-2xl relative"
-            style={{ 
+            style={{
               width: '100%',
               maxWidth: '612px',
               minHeight: '792px',
@@ -438,14 +438,14 @@ export default function PreviewPage() {
 
         {/* Bottom actions - flex layout avoids sticky overlap issues */}
         <motion.div
-          className="shrink-0 p-4 glass border-t border-border space-y-3"
+          className="shrink-0 p-3 sm:p-4 glass border-t border-border space-y-2 sm:space-y-3 pb-safe"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
           <div className="flex gap-2">
             <Button
               size="lg"
-              className="flex-1 h-14 text-lg font-semibold gradient-primary"
+              className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-semibold gradient-primary touch-manipulation"
               onClick={handleQuickDownload}
               disabled={isGenerating}
               style={{
@@ -455,7 +455,8 @@ export default function PreviewPage() {
               {isGenerating ? (
                 <>
                   <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Generating...
+                  <span className="hidden xs:inline">Generating...</span>
+                  <span className="xs:hidden">...</span>
                 </>
               ) : (
                 <>
@@ -467,7 +468,7 @@ export default function PreviewPage() {
             <Button
               size="lg"
               variant="outline"
-              className="h-14 px-4"
+              className="h-12 sm:h-14 px-3 sm:px-4 touch-manipulation"
               onClick={() => setShowExportSheet(true)}
               disabled={isGenerating}
             >
@@ -475,24 +476,24 @@ export default function PreviewPage() {
             </Button>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2 sm:gap-3">
             <Button
               variant="outline"
               size="lg"
-              className="flex-1 h-12"
+              className="flex-1 h-11 sm:h-12 touch-manipulation"
               onClick={() => navigate('/editor')}
             >
-              <ArrowLeft className="w-5 h-5 mr-2" />
-              Edit
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <span className="text-sm sm:text-base">Edit</span>
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="flex-1 h-12"
+              className="flex-1 h-11 sm:h-12 touch-manipulation"
               onClick={handleShare}
             >
-              <Share2 className="w-5 h-5 mr-2" />
-              Share
+              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <span className="text-sm sm:text-base">Share</span>
             </Button>
           </div>
         </motion.div>
