@@ -29,16 +29,16 @@ const SheetOverlay = React.forwardRef<
 SheetOverlay.displayName = SheetPrimitive.Overlay.displayName;
 
 const sheetVariants = cva(
-  "fixed z-50 gap-4 glass-surface p-4 sm:p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
+  "fixed z-50 gap-4 glass-surface p-6 shadow-lg transition ease-in-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:duration-300 data-[state=open]:duration-500",
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 border-b border-border/30 data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top rounded-b-2xl sm:rounded-b-3xl shadow-[0_4px_40px_-4px_hsl(var(--primary)/0.1)] max-h-[85vh]",
+        top: "inset-x-0 top-0 border-b border-border/30 data-[state=closed]:slide-out-to-top data-[state=open]:slide-in-from-top rounded-b-3xl shadow-[0_4px_40px_-4px_hsl(var(--primary)/0.1)]",
         bottom:
-          "inset-x-0 bottom-0 border-t border-border/30 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom rounded-t-2xl sm:rounded-t-3xl shadow-[0_-4px_40px_-4px_hsl(var(--primary)/0.1)] max-h-[85vh]",
-        left: "inset-y-0 left-0 h-full w-full xs:w-[85%] sm:w-3/4 border-r border-border/30 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm rounded-r-2xl xs:rounded-r-3xl",
+          "inset-x-0 bottom-0 border-t border-border/30 data-[state=closed]:slide-out-to-bottom data-[state=open]:slide-in-from-bottom rounded-t-3xl shadow-[0_-4px_40px_-4px_hsl(var(--primary)/0.1)]",
+        left: "inset-y-0 left-0 h-full w-3/4 border-r border-border/30 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left sm:max-w-sm",
         right:
-          "inset-y-0 right-0 h-full w-full xs:w-[85%] sm:w-3/4 border-l border-border/30 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm rounded-l-2xl xs:rounded-l-3xl",
+          "inset-y-0 right-0 h-full w-3/4 border-l border-border/30 data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right sm:max-w-sm",
       },
     },
     defaultVariants: {

@@ -69,17 +69,17 @@ export function TemplateGallery() {
   };
 
   return (
-    <section className="py-12 sm:py-16">
+    <section className="py-16">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
-        className="text-center mb-8 sm:mb-10 px-4 sm:px-6"
+        className="text-center mb-10 px-6"
       >
-        <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
+        <p className="text-secondary text-sm font-medium tracking-wider uppercase mb-2">
           🚀 Templates
         </p>
-        <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
+        <h2 className="font-display text-2xl font-bold text-foreground">
           Choose Your Flight Suit
         </h2>
       </motion.div>
@@ -88,7 +88,7 @@ export function TemplateGallery() {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex gap-4 sm:gap-6 overflow-x-auto snap-x snap-mandatory px-4 sm:px-8 pb-6 scrollbar-hide"
+        className="flex gap-6 overflow-x-auto snap-x snap-mandatory px-8 pb-6 scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {templates.map((template, index) => (
