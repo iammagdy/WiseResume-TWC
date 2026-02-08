@@ -39,9 +39,9 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center px-6 py-12">
+    <section className="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-12">
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto">
+      <div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto w-full">
         {/* Planet Logo with glow */}
         <motion.div
           initial={{ opacity: 0, scale: 0.8, y: 20 }}
