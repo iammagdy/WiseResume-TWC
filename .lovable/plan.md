@@ -1,111 +1,188 @@
 
 
-# Add Timeline View to Work Experience Section
+# Add AI Suggestion for Employment Gap Explanation
 
 ## Overview
 
-Add a visual timeline feature to the Work Experience tab that helps users see their career history at a glance, including employment dates and gaps between jobs.
+When gaps are detected between jobs, the app will offer an AI-powered feature that helps users generate professional explanations for their employment gaps. This helps users address a common resume concern proactively.
 
-## What You'll See
+## User Experience
 
-When viewing the Work tab:
-1. **Each job card will show the date range** (e.g., "Jan 2020 - Present") directly in the collapsed header
-2. **A visual timeline bar** will appear at the top showing your career span with colored segments for each job
-3. **Gap indicators** will highlight periods without employment so you can address them
+When you have employment gaps detected:
 
-## Visual Design
+1. The existing amber gap alert will gain a new "Get AI Help" button
+2. Tapping it opens a bottom sheet with gap-specific suggestions
+3. The AI analyzes the gap duration and surrounding job context
+4. Users receive professional wording they can add to their resume or prepare for interviews
 
-```
+### Visual Flow
+
+```text
 +------------------------------------------+
-|  Work Experience     [AI] [+ Add]        |
-+------------------------------------------+
-|                                          |
-|  TIMELINE BAR                            |
-|  [====2018====][gap][===2020-2023===]    |
-|   TE Data           Teleperformance      |
-|                                          |
+|  Gap Alert Banner                        |
 |  "1 gap detected: 6 months"              |
-|                                          |
+|  [Explain with AI]  [X Dismiss]          |
 +------------------------------------------+
-|                                          |
-|  Guest Transport Supervisor      v       |
-|  Etihad Airways                          |
-|  Jan 2023 - Present  (2 yrs 1 mo)        |
-|                                          |
+                   |
+                   v (tap "Explain with AI")
 +------------------------------------------+
+|  AI Gap Assistant Sheet                  |
 |                                          |
-|  Airline Services Coordinator    v       |
-|  Teleperformance                         |
-|  Mar 2020 - Dec 2022  (2 yrs 10 mo)      |
+|  Gap: Jan 2022 - Jun 2022 (6 months)     |
 |                                          |
+|  [Select a reason v]                     |
+|  - Career transition                     |
+|  - Personal development                  |
+|  - Family/caregiving                     |
+|  - Health-related                        |
+|  - Relocation                            |
+|  - Education/training                    |
+|                                          |
+|  [Generate Explanation]                  |
++------------------------------------------+
+                   |
+                   v (AI generates)
++------------------------------------------+
+|  Your explanation:                       |
+|  "During this period, I focused on       |
+|  upskilling in data analytics through    |
+|  online certifications, preparing for    |
+|  my transition into tech."               |
+|                                          |
+|  [Copy]  [Add to Summary]  [Close]       |
 +------------------------------------------+
 ```
 
-## Technical Details
+## Technical Implementation
 
-### File Changes
+### New Files
+
+| File | Purpose |
+|------|---------|
+| `src/components/editor/GapExplainerSheet.tsx` | Bottom sheet UI for gap explanation |
+| `supabase/functions/explain-gap/index.ts` | Edge function to generate gap explanations |
+
+### Modified Files
 
 | File | Change |
 |------|--------|
-| `src/components/editor/ExperienceSection.tsx` | Add timeline component and date display to card headers |
-| `src/components/editor/ExperienceTimeline.tsx` | **NEW** - Visual timeline bar component |
-| `src/lib/dateUtils.ts` | **NEW** - Date parsing and gap calculation utilities |
+| `src/components/editor/ExperienceTimeline.tsx` | Add "Explain with AI" button to gap alert |
+| `src/components/editor/ExperienceSection.tsx` | Manage sheet open/close state |
 
-### Key Features
+### Edge Function: `explain-gap`
 
-**1. Date Display in Card Header**
-- Show date range (e.g., "Jan 2020 - Present") below the company name
-- Calculate and show duration (e.g., "2 yrs 3 mo")
-- Use a subtle calendar icon for visual clarity
+The edge function will:
+1. Accept gap details (duration, surrounding jobs)
+2. Accept a selected reason category
+3. Use Lovable AI (google/gemini-3-flash-preview) to generate a professional explanation
+4. Return the explanation with optional variations
 
-**2. Visual Timeline Bar (Optional Enhancement)**
-- Horizontal bar showing career span
-- Each job appears as a colored segment
-- Gaps shown as dashed/striped sections
-- Hover/tap shows job details
-
-**3. Gap Detection**
-- Calculate gaps between consecutive jobs
-- Show a summary like "1 gap detected: 6 months between jobs"
-- Optional: AI suggestion to help explain gaps
-
-### Date Parsing Logic
-
-The dates are stored as strings (e.g., "Jan 2020"). The utilities will:
-- Parse various formats: "Jan 2020", "January 2020", "2020-01", etc.
-- Handle "Present" for current jobs
-- Calculate duration between dates
-- Detect gaps of 1+ month between jobs
-
-### UI Component Changes
-
-**ExperienceSection.tsx - Card Header Update:**
+**Request payload:**
+```json
+{
+  "gap": {
+    "startDate": "Jan 2022",
+    "endDate": "Jun 2022",
+    "months": 6
+  },
+  "reason": "career_transition",
+  "previousJob": {
+    "position": "Marketing Coordinator",
+    "company": "ABC Corp"
+  },
+  "nextJob": {
+    "position": "Data Analyst",
+    "company": "XYZ Inc"
+  }
+}
 ```
-Current:
-  Position Title
-  Company Name
+
+**Response:**
+```json
+{
+  "explanation": "During this 6-month period, I strategically transitioned from marketing to data analytics by completing Google's Data Analytics Professional Certificate and building a portfolio of projects. This prepared me for my role at XYZ Inc.",
+  "tips": [
+    "Be honest but positive about the gap",
+    "Focus on what you learned or accomplished",
+    "Connect the gap to your career progression"
+  ]
+}
+```
+
+### Component: `GapExplainerSheet`
+
+Features:
+- Displays gap details (dates, duration)
+- Shows context from surrounding jobs
+- Dropdown to select reason category
+- Optional text input for additional context
+- Loading state during AI generation
+- Copy-to-clipboard for the explanation
+- Option to add explanation to resume summary
+
+### Reason Categories
+
+- Career transition / exploring new paths
+- Personal development / skill building
+- Family or caregiving responsibilities
+- Health-related leave
+- Relocation
+- Education or training
+- Entrepreneurial venture
+- Volunteer work / sabbatical
+- Other (custom input)
+
+### UI Integration in ExperienceTimeline
+
+The existing gap alert banner at lines 141-165 will be enhanced:
+
+```text
+Before:
+[AlertCircle] 1 gap detected: 6 months between jobs [X]
 
 After:
-  Position Title
-  Company Name
-  Jan 2020 - Present • 2 yrs 1 mo
+[AlertCircle] 1 gap detected: 6 months between jobs
+              [Explain with AI]                      [X]
 ```
 
-The date line will use muted text styling to not overwhelm the primary info while still being clearly visible.
+## Implementation Details
 
-### Gap Detection Alert
+### State Management
 
-When gaps are found, a subtle info banner appears:
-- Shows count and total duration of gaps
-- Non-intrusive design (dismissible)
-- Optional: "AI can help explain gaps" action button
+The `ExperienceSection` will manage:
+- `showGapSheet: boolean` - controls sheet visibility
+- `selectedGap: GapInfo | null` - the gap being explained
+- Pass down `onExplainGap` callback to `ExperienceTimeline`
 
-## Implementation Priority
+### Copy to Clipboard
 
-1. **First**: Add dates to card headers (quick win, immediately useful)
-2. **Second**: Create date utility functions for parsing and duration calculation
-3. **Third**: Add visual timeline bar (visual polish)
-4. **Fourth**: Add gap detection and alerts (advanced feature)
+Use the Clipboard API:
+```typescript
+await navigator.clipboard.writeText(explanation);
+toast.success('Copied to clipboard!');
+```
 
-This feature helps users quickly scan their work history and identify any gaps that recruiters might question, making it easier to build a complete and polished resume.
+### Add to Summary Option
+
+When user chooses "Add to Summary", the explanation will be appended to the resume summary section with a transition note like:
+
+```text
+[Existing summary...]
+
+Career Note: During my transition from [Previous Role] to [Next Role], I [explanation].
+```
+
+## Security & Rate Limiting
+
+- The edge function will require authentication (same pattern as `enhance-section`)
+- Standard rate limit handling for 429/402 errors
+- Show user-friendly messages when limits are reached
+
+## Summary
+
+This feature helps users address employment gaps professionally by:
+1. Detecting gaps automatically (already implemented)
+2. Offering AI-powered explanation generation (new)
+3. Providing ready-to-use professional wording
+4. Giving options to copy or add to resume
 
