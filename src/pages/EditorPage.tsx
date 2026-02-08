@@ -20,6 +20,9 @@ import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { RecruiterSimSheet } from '@/components/editor/ai/RecruiterSimSheet';
+import { AIDetectorSheet } from '@/components/editor/ai/AIDetectorSheet';
+import { LinkedInOptimizerSheet } from '@/components/editor/ai/LinkedInOptimizerSheet';
+import { OnePageWizardSheet } from '@/components/editor/ai/OnePageWizardSheet';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -41,6 +44,9 @@ export default function EditorPage() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
   const [showRecruiterSim, setShowRecruiterSim] = useState(false);
+  const [showAIDetector, setShowAIDetector] = useState(false);
+  const [showLinkedIn, setShowLinkedIn] = useState(false);
+  const [showOnePage, setShowOnePage] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
   
@@ -298,6 +304,9 @@ export default function EditorPage() {
             onAnalyze={() => setShowJobSheet(true)}
             onImprove={handleImproveSection}
             onRecruiterSim={() => setShowRecruiterSim(true)}
+            onAIDetector={() => setShowAIDetector(true)}
+            onLinkedIn={() => setShowLinkedIn(true)}
+            onOnePage={() => setShowOnePage(true)}
             className="pt-3"
           />
 
@@ -333,6 +342,9 @@ export default function EditorPage() {
       <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
       <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
       <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />
+      <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />
+      <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />
+      <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />
     </div>
   );
 }
