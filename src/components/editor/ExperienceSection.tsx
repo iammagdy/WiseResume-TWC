@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Wand2, Target, BarChart3 } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -14,6 +14,8 @@ import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
+import { ExperienceTimeline } from './ExperienceTimeline';
+import { formatDateRange, calculateDuration } from '@/lib/dateUtils';
 
 export function ExperienceSection() {
   const { currentResume, updateResume } = useResumeStore();
@@ -47,6 +49,8 @@ export function ExperienceSection() {
   const { getNudgeForSection, dismissNudge } = useResumeNudges({
     resume: currentResume,
   });
+
+  const [showTimeline, setShowTimeline] = useState(true);
 
   if (!currentResume) return null;
 
@@ -138,6 +142,14 @@ export function ExperienceSection() {
         </Button>
       </div>
 
+      {/* Visual Timeline */}
+      {showTimeline && currentResume.experience.length >= 2 && (
+        <ExperienceTimeline
+          experiences={currentResume.experience}
+          onDismiss={() => setShowTimeline(false)}
+        />
+      )}
+
       {/* Contextual Nudge */}
       <AIContextualNudge
         show={!!nudge}
@@ -174,7 +186,7 @@ export function ExperienceSection() {
                 {/* Header - Always visible */}
                 <button
                   onClick={() => setExpandedId(expandedId === exp.id ? null : exp.id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[56px]"
+                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[72px]"
                 >
                   <div className="text-left flex-1 min-w-0 pr-3">
                     <p className="font-semibold text-sm truncate">
@@ -183,6 +195,20 @@ export function ExperienceSection() {
                     <p className="text-sm text-muted-foreground truncate">
                       {exp.company || 'Company name'}
                     </p>
+                    {/* Date range and duration */}
+                    {(exp.startDate || exp.endDate || exp.current) && (
+                      <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>
+                          {formatDateRange(exp.startDate, exp.endDate, exp.current)}
+                          {exp.startDate && (
+                            <span className="ml-1 text-muted-foreground/50">
+                              • {calculateDuration(exp.startDate, exp.endDate, exp.current)}
+                            </span>
+                          )}
+                        </span>
+                      </p>
+                    )}
                   </div>
                   <div className="shrink-0 w-10 h-10 flex items-center justify-center rounded-full hover:bg-muted">
                     {expandedId === exp.id ? (
