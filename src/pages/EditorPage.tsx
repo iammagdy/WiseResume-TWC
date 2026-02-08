@@ -286,37 +286,41 @@ export default function EditorPage() {
           </div>
         </Tabs>
 
-        {/* Bottom Action Bar - proper flex layout */}
-        <motion.div
-          className="shrink-0 p-4 glass border-t border-border z-30"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Button
-            size="lg"
-            className="w-full h-14 text-lg font-semibold gradient-primary"
-            onClick={() => navigate('/preview')}
-            style={{
-              boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-            }}
-          >
-            <Download className="w-5 h-5 mr-2" />
-            Preview & Export
-            <ChevronRight className="w-5 h-5 ml-2" />
-          </Button>
-        </motion.div>
+        {/* Bottom Fixed Section - AI Studio Bar + Action Button */}
+        <div className="shrink-0 glass border-t border-border z-30">
+          {/* AI Studio Bar - now relative positioned */}
+          <AIAssistantBar
+            matchScore={matchScore}
+            jobDescription={jobDescription}
+            currentTemplate={selectedTemplate}
+            onChangeTemplate={() => setShowTemplates(true)}
+            onTailor={() => setShowTailor(true)}
+            onAnalyze={() => setShowJobSheet(true)}
+            onImprove={handleImproveSection}
+            onRecruiterSim={() => setShowRecruiterSim(true)}
+            className="pt-3"
+          />
 
-        {/* AI Studio Bar */}
-        <AIAssistantBar
-          matchScore={matchScore}
-          jobDescription={jobDescription}
-          currentTemplate={selectedTemplate}
-          onChangeTemplate={() => setShowTemplates(true)}
-          onTailor={() => setShowTailor(true)}
-          onAnalyze={() => setShowJobSheet(true)}
-          onImprove={handleImproveSection}
-          onRecruiterSim={() => setShowRecruiterSim(true)}
-        />
+          {/* Preview & Export Button */}
+          <motion.div
+            className="px-4 pb-4"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Button
+              size="lg"
+              className="w-full h-14 text-lg font-semibold gradient-primary"
+              onClick={() => navigate('/preview')}
+              style={{
+                boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
+              }}
+            >
+              <Download className="w-5 h-5 mr-2" />
+              Preview & Export
+              <ChevronRight className="w-5 h-5 ml-2" />
+            </Button>
+          </motion.div>
+        </div>
 
       {/* AI Intro Tooltip for First-Time Users */}
       <AIIntroTooltip
