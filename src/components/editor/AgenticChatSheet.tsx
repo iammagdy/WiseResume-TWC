@@ -204,42 +204,44 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
-        <SheetHeader className="px-4 pt-4 pb-2 shrink-0 border-b border-border">
-          <div className="flex items-center justify-between">
+        <SheetHeader className="px-4 pt-4 pb-3 shrink-0 border-b border-border space-y-2">
+          {/* Row 1: Title and Clear action */}
+          <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
-              Wise AI
-              <AIProviderBadge size="xs" showSettingsLink />
+              <span className="font-semibold">Wise AI</span>
             </SheetTitle>
-            <div className="flex items-center gap-2">
-              {/* Thinking Mode Toggle */}
-              <div className="flex items-center gap-1.5">
-                <Brain
-                  className={cn(
-                    'w-4 h-4 transition-colors',
-                    thinkingMode ? 'text-primary' : 'text-muted-foreground'
-                  )}
-                />
-                <Switch
-                  checked={thinkingMode}
-                  onCheckedChange={toggleThinkingMode}
-                  className="scale-90"
-                />
-                <span className="text-xs text-muted-foreground hidden sm:inline">Pro</span>
-              </div>
-              {messages.length > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={clearChat}
-                  className="text-muted-foreground h-9"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Clear
-                </Button>
-              )}
+            
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={clearChat}
+                className="text-muted-foreground h-8 w-8"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+          
+          {/* Row 2: Badge and Thinking Mode */}
+          <div className="flex items-center justify-between">
+            <AIProviderBadge size="xs" showSettingsLink />
+            <div className="flex items-center gap-1.5">
+              <Brain
+                className={cn(
+                  'w-4 h-4 transition-colors',
+                  thinkingMode ? 'text-primary' : 'text-muted-foreground'
+                )}
+              />
+              <Switch
+                checked={thinkingMode}
+                onCheckedChange={toggleThinkingMode}
+                className="scale-90"
+              />
+              <span className="text-xs text-muted-foreground">Pro</span>
             </div>
           </div>
         </SheetHeader>

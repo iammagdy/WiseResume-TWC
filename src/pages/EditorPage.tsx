@@ -7,7 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { useResumeMutations } from '@/hooks/useResumes';
+import { useResumeMutations, useResume } from '@/hooks/useResumes';
+import { toast } from 'sonner';
 import { ContactSection } from '@/components/editor/ContactSection';
 import { SummarySection } from '@/components/editor/SummarySection';
 import { ExperienceSection } from '@/components/editor/ExperienceSection';
@@ -39,7 +40,11 @@ export default function EditorPage() {
     isSaving,
     setIsSaving,
     setLastSavedAt,
+    setCurrentResumeId,
   } = useResumeStore();
+  
+  // Validate that the resume ID exists in the database
+  const { data: resumeFromDb, isLoading: isValidating, error: resumeError } = useResume(currentResumeId);
   const { updateResume } = useResumeMutations();
   
   const [showJobSheet, setShowJobSheet] = useState(false);
@@ -84,6 +89,16 @@ export default function EditorPage() {
     
     setActiveTab(newTab);
   }, [activeTab, TAB_ORDER]);
+
+  // Detect and handle stale resume IDs
+  useEffect(() => {
+    if (currentResumeId && !isValidating && !resumeFromDb && resumeError) {
+      console.warn('Stale resume ID detected, clearing...', currentResumeId);
+      setCurrentResumeId(null);
+      toast.error('Resume not found. Please select a resume from the dashboard.');
+      navigate('/dashboard');
+    }
+  }, [currentResumeId, isValidating, resumeFromDb, resumeError, setCurrentResumeId, navigate]);
 
   // Show AI intro for first-time users after resume loads
   useEffect(() => {

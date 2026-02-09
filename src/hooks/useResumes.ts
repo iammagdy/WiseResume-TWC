@@ -4,6 +4,7 @@ import { useAuth } from './useAuth';
 import { ResumeData, Experience, Education, Certification, ContactInfo } from '@/types/resume';
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
+import { useResumeStore } from '@/store/resumeStore';
 
 export interface DatabaseResume {
   id: string;
@@ -201,8 +202,15 @@ export function useResumeMutations() {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       queryClient.invalidateQueries({ queryKey: ['resume', data.id] });
     },
-    onError: (error) => {
-      toast.error('Failed to save resume');
+    onError: (error: Error & { code?: string }) => {
+      // Check for PGRST116 error (no rows found - stale resume ID)
+      if (error?.message?.includes('PGRST116') || error?.code === 'PGRST116') {
+        toast.error('Resume not found. It may have been deleted.');
+        // Clear the stale ID to stop the error loop
+        useResumeStore.getState().setCurrentResumeId(null);
+      } else {
+        toast.error('Failed to save resume');
+      }
       console.error(error);
     },
   });
