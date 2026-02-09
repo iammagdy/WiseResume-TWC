@@ -1,5 +1,5 @@
 import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
-import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 interface AnalysisResult {

@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 export interface NextRole {
