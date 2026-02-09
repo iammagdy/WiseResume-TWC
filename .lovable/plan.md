@@ -1,205 +1,159 @@
 
-# Add Gemini API Key Support to Remaining Edge Functions
 
-## Overview
+# Landing Page as Default + New Logo + Enhanced Space Theme
 
-This plan updates the 12 remaining edge functions to support user-provided Gemini API keys, allowing users to bypass the Lovable AI gateway and call Google's Gemini API directly. This follows the pattern already established in `tailor-resume` and `enhance-section`.
+## Summary
 
-## Functions to Update
+Transform the app to always show the space-themed landing page as the default entry point, with a new logo matching the reference screenshot (document icon with gradient and cyan sparkle), and enhanced space animations.
 
-| Function | Current State | Priority |
-|----------|--------------|----------|
-| agentic-chat | Lovable gateway only | High |
-| analyze-resume | Lovable gateway only | High |
-| career-path-advisor | Lovable gateway only | High |
-| detect-and-humanize | Lovable gateway only | High |
-| explain-gap | Lovable gateway only | High |
-| generate-cover-letter | Lovable gateway only | High |
-| interview-chat | Lovable gateway only | High |
-| one-page-optimizer | Lovable gateway only | High |
-| optimize-for-linkedin | Lovable gateway only | High |
-| parse-linkedin | Lovable gateway only | High |
-| parse-resume | Lovable gateway only | High |
-| recruiter-simulation | Uses OLD API endpoint | Critical (bug fix) |
+---
 
-## Special Cases
+## Current State vs. Desired State
 
-| Function | Decision |
-|----------|----------|
-| generate-headshot | Keep Lovable gateway only (image generation model not available via direct Gemini API) |
-| parse-job-url | Keep Lovable gateway only (SSRF protection complexity, low priority) |
+| Aspect | Current | Desired |
+|--------|---------|---------|
+| **Default Page** | Shows home dashboard if user has resume, landing page only for new users | Always show landing page as default for ALL users |
+| **Logo** | Simple "W" lettermark in gradient square | Document icon inside gradient planet with orbital ring (like reference) |
+| **Space Background** | 80 stars with basic animations | More stars, enhanced nebula effects, improved shooting star |
 
-## Implementation Pattern
+---
 
-Each function will be updated following the established pattern from `enhance-section`:
+## Changes Overview
 
-### 1. Extract userGeminiKey from Request Body
+### 1. Update Index.tsx - Always Show Landing Page First
 
-```typescript
-const { existingParams, userGeminiKey } = await req.json();
+Remove the conditional logic that shows the home dashboard for users with existing resumes. Instead, always render the landing page as the default view.
+
+```text
+Current Logic:
+if (hasResume) → Show HomeBackground + ResumeCard
+else → Show SpaceBackground + HeroSection
+
+New Logic:
+Always → Show SpaceBackground + HeroSection (landing page)
 ```
 
-### 2. Add AI Routing Logic
+The user can still access their resume by clicking "Launch Your Resume" or navigating to `/dashboard`.
 
-```typescript
-// Determine which AI gateway to use
-const useGeminiDirect = !!userGeminiKey;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+### 2. Update App Logo (AppIcon.tsx)
 
-if (!useGeminiDirect && !LOVABLE_API_KEY) {
-  throw new Error("LOVABLE_API_KEY is not configured");
+Replace the current "W" lettermark design with a document-style icon matching the reference:
+
+**New Logo Design:**
+- Gradient background (purple to pink, rounded square)
+- White document shape with folded corner
+- "W" lettermark inside document
+- Lines representing resume text
+- Cyan sparkle in corner for AI indicator
+
+```text
+┌─────────────────────────┐
+│   ╭─────────────────╮   │
+│   │ ╲               │✦  │ ← Cyan AI sparkle
+│   │  W              │   │ ← W lettermark
+│   │ ════════════    │   │ ← Resume lines
+│   │ ═════════       │   │
+│   ╰─────────────────╯   │
+└─────────────────────────┘
+     Purple→Pink Gradient
+```
+
+### 3. Update PlanetLogo.tsx - Match Reference Style
+
+Enhance the planet logo to match the reference screenshot:
+- Document icon inside the planet
+- Orbital ring with small particles
+- Glowing purple atmosphere
+- Small orbiting dots/moons
+
+### 4. Enhance SpaceBackground.tsx
+
+Add more visual interest:
+- Increase star count from 80 to 120
+- Add 2-3 shooting stars at different intervals
+- More prominent nebula colors
+- Subtle floating particles near the planet
+
+### 5. Update Favicon
+
+Update the favicon to match the new logo design.
+
+---
+
+## File Changes
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/pages/Index.tsx` | **Modify** | Remove conditional, always show landing page |
+| `src/components/brand/AppIcon.tsx` | **Modify** | New document-style logo matching reference |
+| `src/components/landing/PlanetLogo.tsx` | **Modify** | Enhanced with document icon and better effects |
+| `src/components/landing/SpaceBackground.tsx` | **Modify** | More stars, multiple shooting stars, enhanced nebula |
+| `public/favicon.svg` | **Modify** | Update to match new logo design |
+
+---
+
+## Technical Details
+
+### Index.tsx Changes
+
+The current file has a conditional at line 86:
+```tsx
+if (hasResume) {
+  return (
+    <MobileLayout>
+      <HomeBackground>
+        // ... home dashboard
+      </HomeBackground>
+    </MobileLayout>
+  );
 }
-
-// Choose API endpoint and auth based on provider
-const apiUrl = useGeminiDirect
-  ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-  : "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-const modelName = useGeminiDirect 
-  ? "gemini-2.5-flash-preview-05-20"  // Direct Gemini model name
-  : "google/gemini-2.5-flash";         // Lovable gateway model name
 ```
 
-### 3. Enhanced Error Handling for Gemini Direct
+This will be removed so the landing page with `SpaceBackground` and `HeroSection` always renders.
 
-```typescript
-if (!response.ok) {
-  if (response.status === 401 || response.status === 403) {
-    return new Response(
-      JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-  if (response.status === 429) {
-    const errorMsg = useGeminiDirect 
-      ? "Rate limit exceeded. Your Gemini key may have hit its quota."
-      : "Rate limits exceeded, please try again later.";
-    return new Response(
-      JSON.stringify({ error: errorMsg }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-  // ... existing error handling
-}
+### New AppIcon.tsx Design
+
+```tsx
+// Key SVG elements:
+- Gradient background rect with rounded corners
+- White document shape with folded corner path
+- "W" lettermark stroke path
+- Resume text lines as rects
+- Cyan 4-point star sparkle in corner
 ```
 
-## Model Mapping
+### Enhanced SpaceBackground
 
-| Lovable Gateway Model | Direct Gemini Model |
-|----------------------|---------------------|
-| google/gemini-2.5-flash | gemini-2.5-flash-preview-05-20 |
-| google/gemini-2.5-pro | gemini-2.5-pro-preview-05-06 |
-| google/gemini-3-flash-preview | gemini-2.0-flash |
-| openai/gpt-5-mini | gemini-2.5-flash-preview-05-20 (fallback) |
+```tsx
+// Additional features:
+- Star count: 80 → 120
+- Multiple shooting stars with staggered delays
+- Enhanced nebula gradients with more color variation
+- Parallax depth effect on star layers
+```
 
-## Detailed Changes Per Function
+### PlanetLogo Updates
 
-### 1. agentic-chat/index.ts
-- Extract `userGeminiKey` from request body
-- Add routing logic for AI gateway selection
-- Update model name based on provider
-- Add Gemini-specific error handling
+Maintain the planet aesthetic but ensure it prominently features:
+- Central document/resume icon
+- Visible orbital elements
+- Glowing atmosphere matching the reference screenshot
 
-### 2. analyze-resume/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing with model mapping
-- Enhance error messages for direct Gemini calls
+---
 
-### 3. career-path-advisor/index.ts
-- Extract `userGeminiKey` from request body
-- Add dual-provider support
-- Update logging to indicate provider used
+## User Flow After Changes
 
-### 4. detect-and-humanize/index.ts
-- Extract `userGeminiKey` from request body
-- Update both detection and humanization API calls
-- Handle provider-specific errors for both calls
+1. User opens app → Sees landing page with space background
+2. Clicks "Launch Your Resume" → Creates new resume → Goes to editor
+3. OR clicks "Upload existing resume" → Goes to upload page
+4. Can access dashboard via navigation or the "Explore" button
 
-### 5. explain-gap/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing logic
-- Model uses tool calling - ensure compatibility with Gemini direct
+---
 
-### 6. generate-cover-letter/index.ts
-- Already validates auth, just needs routing logic
-- Add provider selection and model mapping
-- Update error messages
+## Performance Considerations
 
-### 7. interview-chat/index.ts
-- Extract `userGeminiKey` from request body
-- Update both role analysis and main chat AI calls
-- Add provider-specific error handling
+- Stars use CSS animations where possible (GPU-accelerated)
+- Shooting stars use `transform` and `opacity` only
+- Planet logo animations use Framer Motion with hardware acceleration
+- Lazy loading maintained for non-critical components
 
-### 8. one-page-optimizer/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing logic
-- Update logging
-
-### 9. optimize-for-linkedin/index.ts
-- Extract `userGeminiKey` from request body
-- Add dual-provider support
-- Maintain JSON parsing logic
-
-### 10. parse-linkedin/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing with tool calling support
-- Gemini supports tool calling via OpenAI-compatible endpoint
-
-### 11. parse-resume/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing with tool calling support
-- Ensure tool_choice works with Gemini direct
-
-### 12. recruiter-simulation/index.ts (Critical Bug Fix)
-- Currently uses WRONG API endpoint: `lovable.dev/api/llm/openai/v1/chat/completions`
-- Should use: `ai.gateway.lovable.dev/v1/chat/completions`
-- Add `userGeminiKey` support
-- Fix model name (currently uses `openai/gpt-5-mini`, should map correctly)
-
-## Frontend Service Layer Updates
-
-The following frontend modules also need updates to pass `userGeminiKey`:
-
-### Already Updated:
-- `src/lib/aiTailor.ts` ✅
-- `src/lib/aiAnalysis.ts` ✅ (partially - only analyzeResume)
-- `src/hooks/useAIEnhance.ts` ✅
-- `src/lib/careerPath.ts` ✅
-- `src/lib/agenticChat.ts` ✅
-
-### Need Updates:
-- Components that directly call edge functions (need to check hooks and sheets)
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| supabase/functions/agentic-chat/index.ts | Add userGeminiKey routing |
-| supabase/functions/analyze-resume/index.ts | Add userGeminiKey routing |
-| supabase/functions/career-path-advisor/index.ts | Add userGeminiKey routing |
-| supabase/functions/detect-and-humanize/index.ts | Add userGeminiKey routing |
-| supabase/functions/explain-gap/index.ts | Add userGeminiKey routing |
-| supabase/functions/generate-cover-letter/index.ts | Add userGeminiKey routing |
-| supabase/functions/interview-chat/index.ts | Add userGeminiKey routing |
-| supabase/functions/one-page-optimizer/index.ts | Add userGeminiKey routing |
-| supabase/functions/optimize-for-linkedin/index.ts | Add userGeminiKey routing |
-| supabase/functions/parse-linkedin/index.ts | Add userGeminiKey routing |
-| supabase/functions/parse-resume/index.ts | Add userGeminiKey routing |
-| supabase/functions/recruiter-simulation/index.ts | Fix API endpoint + add userGeminiKey |
-
-## Testing Strategy
-
-After implementation:
-1. Test each function with default Lovable gateway (no userGeminiKey)
-2. Test each function with a valid Gemini API key
-3. Test error handling with an invalid Gemini key
-4. Verify tool calling works correctly for parse-resume and parse-linkedin
-
-## Benefits
-
-1. Consistent behavior across all AI functions
-2. Users can use their own Gemini API keys everywhere
-3. Fixed critical bug in recruiter-simulation endpoint
-4. Better error messages for provider-specific issues
-5. Centralized routing pattern for future maintenance

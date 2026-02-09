@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAgenticChat } from '@/hooks/useAgenticChat';
 import { haptics } from '@/lib/haptics';
+import { AIProviderBadge } from '@/components/editor/ai/AIProviderBadge';
 
 interface AgenticChatSheetProps {
   open: boolean;
@@ -97,7 +98,8 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
               <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center">
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
-              AI Copilot
+              Wise AI
+              <AIProviderBadge size="xs" showSettingsLink />
             </SheetTitle>
             {messages.length > 0 && (
               <Button
@@ -120,7 +122,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                 <Sparkles className="w-8 h-8 text-primary-foreground" />
               </div>
               <h3 className="text-lg font-semibold mb-1">
-                AI Resume Copilot
+                Wise AI
               </h3>
               <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
                 I can edit your resume directly. Just tell me what to change.
@@ -214,7 +216,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask me to edit your resume..."
+              placeholder="Ask Wise AI to edit your resume..."
               className="flex-1 h-11 px-4 rounded-full glass-input text-sm placeholder:text-muted-foreground/60 focus:outline-none"
               disabled={isThinking}
             />

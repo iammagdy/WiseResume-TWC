@@ -10,6 +10,9 @@ const SECTION_PATTERNS = {
   certifications: /^(certifications?|certificates?|licenses?|credentials?|professional\s*certifications?|training|courses?)$/i,
 };
 
+// Pre-calculate entries to avoid repeated allocation in loop
+const SECTION_ENTRIES = Object.entries(SECTION_PATTERNS);
+
 interface SectionBlocks {
   summary: string[];
   experience: string[];
@@ -83,7 +86,7 @@ function extractSections(lines: string[]): SectionBlocks {
     const cleanLine = line.replace(/[:\-–—|•]/g, '').trim();
     
     let foundSection: keyof SectionBlocks | null = null;
-    for (const [sectionName, pattern] of Object.entries(SECTION_PATTERNS)) {
+    for (const [sectionName, pattern] of SECTION_ENTRIES) {
       if (pattern.test(cleanLine)) {
         foundSection = sectionName as keyof SectionBlocks;
         break;

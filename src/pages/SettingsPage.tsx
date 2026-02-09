@@ -19,9 +19,12 @@ import {
   Fingerprint,
   Clock,
   Key,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft,
+  Brain,
+  Mic
 } from 'lucide-react';
-import ProfileCard from '@/components/settings/ProfileCard';
+import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -33,6 +36,7 @@ import { DeleteDataDialog } from '@/components/settings/DeleteDataDialog';
 import { BiometricSetupSheet } from '@/components/settings/BiometricSetupSheet';
 import { BiometricTimeoutSheet } from '@/components/settings/BiometricTimeoutSheet';
 import { ElevenLabsKeySheet } from '@/components/settings/ElevenLabsKeySheet';
+import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -74,6 +78,7 @@ export default function SettingsPage() {
     setBiometricLockTimeout,
     elevenlabsApiKey,
     setElevenlabsApiKey,
+    aiProvider,
   } = useSettingsStore();
  
   // Biometric lock hook
@@ -88,6 +93,7 @@ export default function SettingsPage() {
   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
   const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
   const [elevenLabsKeyOpen, setElevenLabsKeyOpen] = useState(false);
+  const [aiSettingsOpen, setAISettingsOpen] = useState(false);
 
   const handleBiometricToggle = async (enabled: boolean) => {
     if (enabled) {
@@ -175,7 +181,16 @@ export default function SettingsPage() {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 glass-header">
-          <h1 className="text-xl font-bold">Settings</h1>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl font-bold">Settings</h1>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
@@ -250,7 +265,31 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Notifications Section */}
+          {/* AI & Voice Section */}
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              AI & Voice
+            </h2>
+            <div className="rounded-2xl glass-elevated overflow-hidden">
+              <SettingsRow
+                type="navigation"
+                label="AI Provider"
+                value={aiProvider === 'lovable' ? 'WiseResume AI' : 'Gemini'}
+                icon={<Brain className="w-4 h-4" />}
+                onClick={() => setAISettingsOpen(true)}
+              />
+              <Separator className="bg-border/30" />
+              <SettingsRow
+                type="navigation"
+                label="ElevenLabs API Key"
+                description="For voice interviews"
+                value={elevenlabsApiKey ? '••••••' : 'Not set'}
+                icon={<Mic className="w-4 h-4" />}
+                onClick={() => setElevenLabsKeyOpen(true)}
+              />
+            </div>
+          </div>
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
@@ -351,23 +390,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Integrations Section */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-              Integrations
-            </h2>
-            <div className="rounded-2xl glass-elevated overflow-hidden">
-              <SettingsRow
-                type="navigation"
-                label="ElevenLabs API Key"
-                description={elevenlabsApiKey ? 'Custom key configured' : 'Using default key'}
-                value={elevenlabsApiKey ? '••••••' : undefined}
-                icon={<Key className="w-4 h-4" />}
-                onClick={() => setElevenLabsKeyOpen(true)}
-              />
-            </div>
-          </div>
 
           {/* Account Section */}
           <div>
@@ -409,34 +431,13 @@ export default function SettingsPage() {
             </h2>
             
             {/* Developer Credit Card */}
-            <div className="mb-4">
-              <ProfileCard
-                name="Magdy Saber"
-                title="Creator & Developer"
-                handle="magdysaber"
-                status="magdysaber.com"
-                contactText="Contact Me"
-                avatarUrl={developerPhoto}
-                showUserInfo={true}
-                enableTilt={true}
-                enableMobileTilt={false}
-                onContactClick={() => window.open('mailto:contact@magdysaber.com')}
-                behindGlowEnabled={true}
-                behindGlowColor="rgba(125, 190, 255, 0.67)"
-                innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
-              />
-            </div>
-
-            {/* Website Link */}
-            <a 
-              href="https://magdysaber.com" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 text-sm text-primary hover:underline mt-4 mb-6"
-            >
-              <ExternalLink className="w-4 h-4" />
-              magdysaber.com
-            </a>
+            <DeveloperCreditCard
+              name="Magdy Saber"
+              title="Creator & Developer"
+              avatarUrl={developerPhoto}
+              websiteUrl="https://magdysaber.com"
+              onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+            />
 
             {/* Version Info */}
             <div className="p-4 rounded-2xl glass-elevated">
@@ -515,6 +516,11 @@ export default function SettingsPage() {
         onOpenChange={setElevenLabsKeyOpen}
         currentKey={elevenlabsApiKey}
         onSave={setElevenlabsApiKey}
+      />
+
+      <AISettingsSheet
+        open={aiSettingsOpen}
+        onOpenChange={setAISettingsOpen}
       />
     </div>
   );
