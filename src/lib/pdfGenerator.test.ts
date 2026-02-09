@@ -49,8 +49,14 @@ vi.mock("pdf-lib", async () => {
 vi.mock("@/lib/templateConfig", () => ({
   getTemplateConfig: vi.fn().mockReturnValue({
     id: "modern",
-    layout: "single-column",
-    breakableSections: ["summary", "experience", "education"],
+    name: "Modern",
+    layout: "linear",
+    supportsPageBreaks: true,
+    supportsManualBreaks: true,
+    maxRecommendedPages: 3,
+    singlePageOptimized: false,
+    breakableSections: ["summary", "experience", "education", "skills", "certifications"],
+    supportsPhoto: false,
   } as TemplateConfig),
 }));
 

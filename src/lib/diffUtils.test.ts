@@ -202,6 +202,7 @@ describe('diffUtils', () => {
       company: 'Tech Corp',
       startDate: '2020-01',
       endDate: '2021-01',
+      current: false,
       description: 'Wrote code',
       achievements: ['Built app', 'Fixed bugs']
     };
