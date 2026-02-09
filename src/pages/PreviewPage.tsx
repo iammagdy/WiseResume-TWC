@@ -248,10 +248,28 @@ export default function PreviewPage() {
       }
 
       const url = URL.createObjectURL(pdfBlob);
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isMobile = isIOS || /Android/i.test(navigator.userAgent);
       
-      if (isMobile) {
-        // Mobile browsers block programmatic link clicks; open in new tab instead
+      if (isIOS && navigator.share && navigator.canShare) {
+        // iOS: Use share API for reliable file handling
+        try {
+          const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({ files: [file], title: fileName });
+          } else {
+            window.open(url, '_blank');
+          }
+        } catch (shareErr) {
+          // User cancelled or share failed - fallback to data URL
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUrl = reader.result as string;
+            window.open(dataUrl, '_blank');
+          };
+          reader.readAsDataURL(pdfBlob);
+        }
+      } else if (isMobile) {
         window.open(url, '_blank');
       } else {
         const link = document.createElement('a');
