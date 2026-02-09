@@ -12,6 +12,7 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import {
   DashboardSkeleton,
@@ -131,16 +132,18 @@ const queryClient = new QueryClient({
  
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-       <ErrorBoundary>
-         <Toaster />
-         <Sonner />
-         <BrowserRouter>
-           <AppRoutes />
-           <InstallPrompt />
-         </BrowserRouter>
-       </ErrorBoundary>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <ErrorBoundary>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+            <InstallPrompt />
+          </BrowserRouter>
+        </ErrorBoundary>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
