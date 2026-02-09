@@ -1,296 +1,146 @@
 
+# Fix Duplicate WiseResume Text & Improve Logo Design
 
-# Landing Page & Home View Premium Redesign
+## Problem Analysis
 
-## Current Problem
+Based on the screenshot, there are two issues:
 
-Based on the screenshot, the home view (shown when user has a resume) looks **basic and boring** compared to modern app standards:
+### Issue 1: Duplicate "WiseResume" Text
+The `HomeHeroSection` component is rendering:
+1. `<AppLogo size="lg" />` - which already shows "WiseResume" + "Your AI Career Partner"
+2. A separate `<h1>WiseResume</h1>` below it (lines 91-98)
 
-| Issue | Current State | Problem |
-|-------|---------------|---------|
-| **Flat Logo** | Small icon with basic tagline | No visual impact or premium feel |
-| **Plain Header** | Static, no depth or motion | Feels like a placeholder |
-| **Basic Resume Card** | Simple glass card with icon | No personality, generic look |
-| **Boring Action Cards** | Gradient boxes with icons | All look the same, monotonous |
-| **No Visual Interest** | Static layout, no animations | Lacks energy and delight |
-| **Missing Background** | Subtle gradients only | Empty, feels unfinished |
+This creates the duplicate text you're seeing.
 
-## Design Solution: "Cosmic Home Experience"
+### Issue 2: Logo Design Problems
+The current logo looks cluttered with:
+- Purple gradient background square
+- White document shape inside
+- "W" lettermark that's hard to see
+- Cyan sparkle that looks out of place
+- Overall too many elements competing for attention
 
-Transform the home view into a premium, animated experience that matches the full landing page quality.
+---
 
-### Visual Preview
+## Solution
+
+### Fix 1: Remove Duplicate Text from HomeHeroSection
+
+Update `HomeHeroSection.tsx` to:
+- Pass `showTagline={false}` to AppLogo (we want to show custom greeting instead)
+- Remove the duplicate `<h1>WiseResume</h1>` block entirely
+- Keep only the personalized greeting
 
 ```text
-Current (Basic):                    New (Premium):
-┌─────────────────────────┐         ┌─────────────────────────┐
-│       [W] icon          │         │   ✨ Floating stars ✨   │
-│      WiseResume         │         │                         │
-│  Your AI Career Partner │         │    🌟 [Animated Logo]   │
-├─────────────────────────┤         │      with orbit ring    │
-│ Continue where you left │         │       WiseResume        │
-│ ┌─────────────────────┐ │         │  ← shimmer text effect  │
-│ │ 📄 Untitled Resume  │ │         ├─────────────────────────┤
-│ │    0% complete      │ │         │  👋 Welcome back!       │
-│ └─────────────────────┘ │         │ ┌─────────────────────┐ │
-├─────────────────────────┤         │ │ 📄 ████░░░░░░░ 30%  │ │← Progress ring
-│ AI-Powered Actions      │         │ │ "Alex's Resume"     │ │← Glass morphism
-│ ┌─────┐  ┌─────┐        │         │ │ Continue editing →  │ │← Micro-animation
-│ │Score│  │Tailor│       │         │ └─────────────────────┘ │
-│ └─────┘  └─────┘        │         ├─────────────────────────┤
-├─────────────────────────┤         │ Quick Actions           │
-│ [+ Create New Resume]   │         │ ┌─────┐ ┌─────┐ ┌─────┐ │
-└─────────────────────────┘         │ │🎯   │ │✨   │ │🎤   │ │← Icon-only pills
-                                    │ │Match│ │Tailor│ │Mock │ │← Subtle colors
-                                    │ └─────┘ └─────┘ └─────┘ │
-                                    ├─────────────────────────┤
-                                    │ ┌─────────────────────┐ │
-                                    │ │ + New Resume   →    │ │← Animated border
-                                    │ └─────────────────────┘ │
-                                    └─────────────────────────┘
+Before:                              After:
+┌─────────────────────┐              ┌─────────────────────┐
+│      [Logo]         │              │      [Logo]         │
+│    WiseResume       │ ← From       │    WiseResume       │
+│ Your AI Career...   │   AppLogo    ├─────────────────────┤
+├─────────────────────┤              │   Good morning!     │ ← Greeting only
+│    WiseResume       │ ← Duplicate  └─────────────────────┘
+│   Good morning!     │
+└─────────────────────┘
 ```
 
----
+### Fix 2: Redesign App Logo Icon
 
-## Implementation Phases
+Create a cleaner, more modern logo design:
 
-### Phase 1: Create HomeHeroSection Component
+**Current Problems:**
+- Document shape inside gradient square is busy
+- "W" lettermark competes with other elements
+- Cyan sparkle looks tacked on
 
-**New File: `src/components/home/HomeHeroSection.tsx`**
+**New Design - Clean "W" with Gradient:**
+- Simple rounded square with gradient
+- Clean, bold "W" lettermark as the main focus
+- Subtle AI sparkle that complements rather than competes
+- Removed the document shape for a cleaner look
 
-A premium header with:
-- Animated logo with subtle float and glow pulse
-- Personalized greeting ("Welcome back!" or "Good morning, Alex!")
-- Orbiting particles around the logo
-- Gradient text with shimmer effect
-
-Key features:
-- Uses Framer Motion for smooth 60fps animations
-- Hardware-accelerated transforms only (translate, scale, opacity)
-- Minimal re-renders with `useRef` for static values
-
-### Phase 2: Redesign ResumeCard with Progress Ring
-
-**File: `src/components/home/ResumeCard.tsx`**
-
-Upgrade from basic card to premium "Mission Card":
-- Add circular SVG progress indicator (like fitness apps)
-- Glass morphism with animated border glow
-- Pulsing "Continue" indicator
-- Completion percentage as ring, not text
-- Subtle entrance animation
-
-Visual elements:
 ```text
-┌──────────────────────────────────────┐
-│  ╭──────╮                            │
-│  │ 30%  │  Alex's Resume             │ ← Circular progress ring
-│  │ ○○○  │  Last edited 2h ago        │
-│  ╰──────╯                            │
-│                                      │
-│  📍 Next: Add your work experience   │ ← AI suggestion
-│                        Continue →    │ ← Animated arrow
-└──────────────────────────────────────┘
-```
-
-### Phase 3: Redesign Action Cards as Icon Pills
-
-**File: `src/components/home/ActionCard.tsx`**
-
-Transform from large gradient boxes to compact, elegant pills:
-- Smaller, icon-focused design (40x40 icon + label below)
-- Category-based colors (not all purple)
-- Horizontal scrollable row for 3+ actions
-- Subtle hover/tap feedback
-
-New layout:
-```tsx
-<div className="flex gap-3 overflow-x-auto">
-  <ActionPill icon={Target} label="Match" color="emerald" />
-  <ActionPill icon={Wand2} label="Tailor" color="purple" />  
-  <ActionPill icon={Mic} label="Interview" color="orange" />
-</div>
-```
-
-### Phase 4: Add Floating Star Background
-
-**File: `src/components/home/HomeBackground.tsx`**
-
-Add subtle animated elements:
-- 8-12 floating micro-stars (CSS only, not Framer Motion)
-- Gentle parallax on scroll
-- Nebula glow spots matching landing page
-- Performance: Use CSS animations, not JS
-
-### Phase 5: Animated "Create New" Button
-
-**Update in `src/pages/Index.tsx`**
-
-Add premium CTA button:
-- Rotating gradient border (like AI Engine Badge)
-- Shimmer effect on idle
-- Haptic feedback on tap
-- Micro-animation on hover
-
-### Phase 6: Update Landing Page Hero with More Visual Interest
-
-**File: `src/components/landing/HeroSection.tsx`**
-
-Enhance the full landing for new users:
-- Add floating badges with testimonial snippets
-- Animated keyword typing effect for the subtitle
-- More prominent feature badges with icons
-- Glassmorphism CTA button container
-
----
-
-## Technical Details
-
-### Animation Performance Guidelines
-
-All animations will use:
-1. **GPU-accelerated properties only**: `transform`, `opacity`
-2. **will-change hints**: For elements that animate frequently
-3. **CSS animations for repeating effects**: Stars, shimmer, borders
-4. **Framer Motion for entrance animations**: One-time effects
-
-### File Changes Summary
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/home/HomeHeroSection.tsx` | **Create** | Premium animated header with logo and greeting |
-| `src/components/home/ResumeCard.tsx` | **Modify** | Add progress ring, glassmorphism, AI suggestion |
-| `src/components/home/ActionCard.tsx` | **Modify** | Convert to compact icon pills with category colors |
-| `src/components/home/HomeBackground.tsx` | **Modify** | Add floating stars and nebula glows |
-| `src/pages/Index.tsx` | **Modify** | Use new components, add animated Create button |
-| `src/components/landing/HeroSection.tsx` | **Modify** | Add testimonial badges, typing effect |
-| `src/components/landing/SpaceBackground.tsx` | **Modify** | Increase star density, add more nebula variety |
-
----
-
-## New Component: HomeHeroSection
-
-```typescript
-// Key structure for the new hero
-export function HomeHeroSection({ userName }: { userName?: string }) {
-  const greeting = getTimeBasedGreeting(); // "Good morning" / "Good evening"
-  
-  return (
-    <header className="relative pt-safe pt-8 pb-6 px-4 text-center">
-      {/* Floating particles around logo */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* 4 orbiting dots */}
-      </div>
-      
-      {/* Animated logo with glow */}
-      <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 3, repeat: Infinity }}>
-        <AppIcon size={72} />
-      </motion.div>
-      
-      {/* Shimmer gradient text */}
-      <h1 className="gradient-text text-shimmer">WiseResume</h1>
-      
-      {/* Personalized greeting */}
-      <p className="text-muted-foreground">
-        {userName ? `${greeting}, ${userName}!` : greeting + '!'}
-      </p>
-    </header>
-  );
-}
+Current:                    New:
+┌──────────────┐           ┌──────────────┐
+│ ╭──────────╮ │           │              │
+│ │ [doc] W  │ │           │    ╲ ╲╱ ╱   │
+│ │ ═══════  │ │           │     ╲╱ ╱    │  ← Bold gradient "W"
+│ │ ═════    │ │           │      ╳      │
+│ ╰──────────╯ │           │              │
+│           ✦  │           │           ✨  │ ← Refined sparkle
+└──────────────┘           └──────────────┘
 ```
 
 ---
 
-## New CSS: Shimmer Text Effect
+## Technical Changes
 
-Add to `index.css`:
-```css
-.text-shimmer {
-  background: linear-gradient(
-    90deg,
-    hsl(var(--primary)) 0%,
-    hsl(var(--accent)) 25%,
-    hsl(var(--primary)) 50%,
-    hsl(var(--accent)) 75%,
-    hsl(var(--primary)) 100%
-  );
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: shimmer 4s linear infinite;
-}
+### File 1: `src/components/home/HomeHeroSection.tsx`
+- Change `<AppLogo size="lg" />` to `<AppLogo size="lg" showTagline={false} />`
+- Remove duplicate h1 "WiseResume" text block (lines 90-98)
 
-@keyframes shimmer {
-  to { background-position: 200% center; }
-}
+### File 2: `src/components/brand/AppIcon.tsx`
+Redesign to a cleaner icon:
+- Remove the document shape
+- Make the "W" lettermark bolder and centered
+- Keep the gradient background
+- Refine the sparkle to be smaller and more subtle
+- Better proportions for the rounded square
+
+### File 3: `src/components/brand/AppLogo.tsx`
+- Keep existing logic but ensure proper spacing when tagline is hidden
+
+---
+
+## Visual Comparison
+
+**Before (Cluttered):**
+```text
+╔═══════════════════════════════╗
+║   ┌─────────────────────┐     ║
+║   │ ╭─────────────────╮ │     ║
+║   │ │ [Document icon] │ │ ✦   ║
+║   │ │     W           │ │     ║
+║   │ │ ───────────     │ │     ║
+║   │ │ ────────        │ │     ║
+║   │ ╰─────────────────╯ │     ║
+║   └─────────────────────┘     ║
+╚═══════════════════════════════╝
+       WiseResume
+  Your AI Career Partner
+       WiseResume         ← DUPLICATE
+     Good morning!
+```
+
+**After (Clean):**
+```text
+╔═══════════════════════════════╗
+║                               ║
+║        ╲     ╲ ╱     ╱        ║
+║         ╲   ╲╱ ╱    ╱         ║
+║          ╲  ╱ ╲    ╱          ║  ✨
+║           ╱   ╲  ╱            ║
+║                               ║
+╚═══════════════════════════════╝
+       WiseResume
+     Good morning!        ← Single greeting
 ```
 
 ---
 
-## Progress Ring Component
+## Files to Modify
 
-SVG-based circular progress for the resume card:
-```tsx
-function ProgressRing({ percent }: { percent: number }) {
-  const circumference = 2 * Math.PI * 40; // radius = 40
-  const offset = circumference - (percent / 100) * circumference;
-  
-  return (
-    <svg className="w-16 h-16 -rotate-90">
-      <circle cx="32" cy="32" r="28" stroke="hsl(var(--muted))" strokeWidth="4" fill="none" />
-      <circle 
-        cx="32" cy="32" r="28" 
-        stroke="url(#progressGradient)" 
-        strokeWidth="4" 
-        fill="none"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
-        className="transition-all duration-700"
-      />
-      <defs>
-        <linearGradient id="progressGradient">
-          <stop offset="0%" stopColor="hsl(var(--primary))" />
-          <stop offset="100%" stopColor="hsl(var(--accent))" />
-        </linearGradient>
-      </defs>
-    </svg>
-  );
-}
-```
-
----
-
-## Landing Page Enhancements
-
-### Testimonial Floating Badges
-
-Add subtle floating testimonial snippets:
-```tsx
-<motion.div 
-  className="absolute top-20 -left-4 glass-card px-3 py-2 rounded-lg text-xs"
-  animate={{ y: [0, -10, 0], rotate: [-2, 2, -2] }}
-  transition={{ duration: 5, repeat: Infinity }}
->
-  "Got 3 interviews in a week!" ⭐
-</motion.div>
-```
-
-### Typing Effect for Subtitle
-
-Dynamic text showing different job types:
-```tsx
-const jobs = ['Software Engineer', 'Product Manager', 'UX Designer', 'Data Scientist'];
-// Animate through these in the subtitle: "Tailor for [job] in seconds"
-```
+| File | Change |
+|------|--------|
+| `src/components/home/HomeHeroSection.tsx` | Remove duplicate h1, add showTagline={false} |
+| `src/components/brand/AppIcon.tsx` | Redesign to cleaner bold "W" focused icon |
+| `src/components/brand/AppLogo.tsx` | Adjust spacing when tagline hidden |
 
 ---
 
 ## Benefits
 
-1. **Premium Feel**: Matches quality of top mobile apps (Notion, Linear, Raycast)
-2. **Delightful Micro-interactions**: Every tap has feedback
-3. **Personalized Experience**: Greeting uses time of day and name
-4. **Progress Visibility**: Ring shows completion at a glance
-5. **Performance Optimized**: 60fps animations, CSS where possible
-6. **Cohesive Theme**: Home matches landing page's cosmic aesthetic
-
+1. **No more duplicate text** - Clean single "WiseResume" heading
+2. **Cleaner logo** - Bold, recognizable "W" mark without visual clutter
+3. **Better hierarchy** - Logo → Name → Greeting flows naturally
+4. **Modern aesthetic** - Matches premium apps like Linear, Notion, Raycast
+5. **Better scalability** - Simpler icon works at all sizes (favicons, app icons)
