@@ -48,13 +48,23 @@ export function parseResumeDate(dateStr: string): ParsedDate | null {
     return { month: now.getMonth(), year: now.getFullYear(), isPresent: true };
   }
   
-  // Try "Month Year" format (e.g., "Jan 2020", "January 2020")
-  const monthYearMatch = trimmed.match(/^([a-z]+)\s*(\d{4})$/);
+  // Try "Month Year" format (e.g., "Jan 2020", "Jan, 2020", "Jan. 2020")
+  const monthYearMatch = trimmed.match(/^([a-z]+)[.,]?\s*(\d{4})$/);
   if (monthYearMatch) {
     const monthStr = monthYearMatch[1];
     const year = parseInt(monthYearMatch[2], 10);
     const month = MONTH_MAP[monthStr];
     if (month !== undefined && !isNaN(year)) {
+      return { month, year };
+    }
+  }
+
+  // Try "MM/YYYY" format (e.g., "05/2020", "5/2020")
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const month = parseInt(slashMatch[1], 10) - 1; // Convert 1-12 to 0-11
+    const year = parseInt(slashMatch[2], 10);
+    if (!isNaN(year) && month >= 0 && month <= 11) {
       return { month, year };
     }
   }
