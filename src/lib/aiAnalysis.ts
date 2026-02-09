@@ -1,5 +1,6 @@
 import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
-import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 interface AnalysisResult {
   score: JobMatchScore;
@@ -10,14 +11,13 @@ export async function analyzeResume(
   resume: ResumeData,
   jobDescription: string
 ): Promise<AnalysisResult> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-resume`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
   });

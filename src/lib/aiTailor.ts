@@ -1,5 +1,6 @@
 import { ResumeData, EnhancedTailorResult, TailorProgress, TailorStep, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
-import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 export interface TailorResult {
   summary: string;
@@ -54,7 +55,6 @@ export async function tailorResumeWithProgress(
   jobDescription: string,
   onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void
 ): Promise<SuperTailorResult> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   // Enhanced progress simulation with fun facts
@@ -78,7 +78,7 @@ export async function tailorResumeWithProgress(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
       },
       body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
     });
@@ -109,14 +109,13 @@ export async function tailorResume(
   resume: ResumeData,
   jobDescription: string
 ): Promise<TailorResult> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
   });
@@ -130,14 +129,13 @@ export async function tailorResume(
 }
 
 export async function parseJobUrl(url: string): Promise<{ title: string; company: string; description: string }> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ url, userGeminiKey }),
   });
@@ -155,14 +153,13 @@ export async function generateCoverLetter(
   jobDescription: string,
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional'
 ): Promise<string> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-cover-letter`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ resume, jobDescription, tone, userGeminiKey }),
   });
