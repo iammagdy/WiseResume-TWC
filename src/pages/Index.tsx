@@ -18,15 +18,15 @@ import {
 import { LazySection } from '@/components/landing/LazySection';
 import { ResumeCardSkeleton, ActionCardsGridSkeleton } from '@/components/home/HomeSkeletons';
 import { HomeBackground } from '@/components/home/HomeBackground';
+import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
+import { TailorSheet } from '@/components/editor/TailorSheet';
+import { SpaceBackground } from '@/components/landing/SpaceBackground';
+import { HeroSection } from '@/components/landing/HeroSection';
+import { SocialProofBar } from '@/components/landing/SocialProofBar';
 
 // Lazy load heavy components not needed for initial render
 const ResumeCard = lazy(() => import('@/components/home/ResumeCard').then(m => ({ default: m.ResumeCard })));
 const ActionCard = lazy(() => import('@/components/home/ActionCard').then(m => ({ default: m.ActionCard })));
-const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
-const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
-const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground').then(m => ({ default: m.SpaceBackground })));
-const HeroSection = lazy(() => import('@/components/landing/HeroSection').then(m => ({ default: m.HeroSection })));
-const SocialProofBar = lazy(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.SocialProofBar })));
 const HowItWorks = lazy(() => import('@/components/landing/HowItWorks').then(m => ({ default: m.HowItWorks })));
 const FeatureGrid = lazy(() => import('@/components/landing/FeatureGrid').then(m => ({ default: m.FeatureGrid })));
 const TemplateGallery = lazy(() => import('@/components/landing/TemplateGallery').then(m => ({ default: m.TemplateGallery })));
@@ -194,11 +194,9 @@ const Index = () => {
               </motion.div>
             </div>
 
-            {/* Sheets - lazy loaded */}
-            <Suspense fallback={null}>
-              <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
-              <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
-            </Suspense>
+            {/* Sheets */}
+            <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
+            <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
 
             {/* Delete Confirmation Dialog */}
             <Suspense fallback={null}>
@@ -231,30 +229,26 @@ const Index = () => {
 
   // New user: show space-themed landing page
   return (
-    <Suspense fallback={<HeroSkeleton />}>
-      <SpaceBackground>
-        <main className="min-h-screen">
-          <Suspense fallback={<HeroSkeleton />}>
-            <HeroSection />
-          </Suspense>
-          <LazySection skeleton={<SocialProofSkeleton />}>
-            <SocialProofBar />
-          </LazySection>
-          <LazySection skeleton={<HowItWorksSkeleton />}>
-            <HowItWorks />
-          </LazySection>
-          <LazySection skeleton={<FeatureGridSkeleton />}>
-            <FeatureGrid />
-          </LazySection>
-          <LazySection skeleton={<TemplateGallerySkeleton />}>
-            <TemplateGallery />
-          </LazySection>
-          <LazySection skeleton={<BottomCTASkeleton />}>
-            <BottomCTA />
-          </LazySection>
+    <SpaceBackground>
+      <main className="min-h-screen">
+        <HeroSection />
+        <LazySection skeleton={<SocialProofSkeleton />}>
+          <SocialProofBar />
+        </LazySection>
+        <LazySection skeleton={<HowItWorksSkeleton />}>
+          <HowItWorks />
+        </LazySection>
+        <LazySection skeleton={<FeatureGridSkeleton />}>
+          <FeatureGrid />
+        </LazySection>
+        <LazySection skeleton={<TemplateGallerySkeleton />}>
+          <TemplateGallery />
+        </LazySection>
+        <LazySection skeleton={<BottomCTASkeleton />}>
+          <BottomCTA />
+        </LazySection>
         </main>
       </SpaceBackground>
-    </Suspense>
   );
 };
 
