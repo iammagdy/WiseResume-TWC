@@ -1,266 +1,296 @@
 
 
-# Comprehensive UI Refresh: AI Studio & Landing Page
+# Landing Page & Home View Premium Redesign
 
-## Problem Analysis
+## Current Problem
 
-### Issue 1: AI Studio Icons Looking Bad
-The current AI Studio panel has several UX problems:
-- **Visual clutter**: 9+ action cards all using the same gradient-primary icon style
-- **Overwhelming**: Too many options visible at once, causes decision paralysis
-- **Poor hierarchy**: All tools look equally important despite different use frequencies
-- **Icon monotony**: Every icon has the same purple gradient background
+Based on the screenshot, the home view (shown when user has a resume) looks **basic and boring** compared to modern app standards:
 
-### Issue 2: Landing Page Missing Unique Value Props
-The current landing uses generic space-themed phrases but doesn't highlight:
-- **AI-powered tailoring** with before/after bullet transformation
-- **4 recruiter persona simulation**
-- **Voice mock interviews** with real-time scoring
-- **ATS optimization** with keyword analysis
-- **12 professional templates**
+| Issue | Current State | Problem |
+|-------|---------------|---------|
+| **Flat Logo** | Small icon with basic tagline | No visual impact or premium feel |
+| **Plain Header** | Static, no depth or motion | Feels like a placeholder |
+| **Basic Resume Card** | Simple glass card with icon | No personality, generic look |
+| **Boring Action Cards** | Gradient boxes with icons | All look the same, monotonous |
+| **No Visual Interest** | Static layout, no animations | Lacks energy and delight |
+| **Missing Background** | Subtle gradients only | Empty, feels unfinished |
 
----
+## Design Solution: "Cosmic Home Experience"
 
-## Solution Overview
+Transform the home view into a premium, animated experience that matches the full landing page quality.
 
-### Part A: AI Studio → Clean Action Hub
-
-**Replace the cluttered action grid with a focused 3-tier system:**
+### Visual Preview
 
 ```text
-Before (Cluttered):
-┌──────────────┬──────────────┐
-│ Smart Tailor │ Job Match    │
-├──────────────┼──────────────┤
-│ AI Enhance   │ Recruiter Sim│
-├──────────────┼──────────────┤
-│ Voice Interv │ Career Path  │
-├──────────┬───┴──┬───────────┤
-│Humanizer│ Link │   1-Page   │
-└─────────┴──────┴────────────┘
-
-After (Clean 3-Tier):
-╭─────────────────────────────╮
-│   🎯 Quick Actions (2)      │ ← Most used, always visible
-│   ┌─────────┐ ┌─────────┐   │
-│   │ Tailor  │ │ Analyze │   │
-│   └─────────┘ └─────────┘   │
-├─────────────────────────────┤
-│   ✨ More AI Tools (7) ▼    │ ← Collapsible submenu
-│   ┌─────┐┌─────┐┌─────┐     │
-│   │ 🎤  ││ 🔍  ││ 📄  │ ... │
-│   └─────┘└─────┘└─────┘     │
-╰─────────────────────────────╯
+Current (Basic):                    New (Premium):
+┌─────────────────────────┐         ┌─────────────────────────┐
+│       [W] icon          │         │   ✨ Floating stars ✨   │
+│      WiseResume         │         │                         │
+│  Your AI Career Partner │         │    🌟 [Animated Logo]   │
+├─────────────────────────┤         │      with orbit ring    │
+│ Continue where you left │         │       WiseResume        │
+│ ┌─────────────────────┐ │         │  ← shimmer text effect  │
+│ │ 📄 Untitled Resume  │ │         ├─────────────────────────┤
+│ │    0% complete      │ │         │  👋 Welcome back!       │
+│ └─────────────────────┘ │         │ ┌─────────────────────┐ │
+├─────────────────────────┤         │ │ 📄 ████░░░░░░░ 30%  │ │← Progress ring
+│ AI-Powered Actions      │         │ │ "Alex's Resume"     │ │← Glass morphism
+│ ┌─────┐  ┌─────┐        │         │ │ Continue editing →  │ │← Micro-animation
+│ │Score│  │Tailor│       │         │ └─────────────────────┘ │
+│ └─────┘  └─────┘        │         ├─────────────────────────┤
+├─────────────────────────┤         │ Quick Actions           │
+│ [+ Create New Resume]   │         │ ┌─────┐ ┌─────┐ ┌─────┐ │
+└─────────────────────────┘         │ │🎯   │ │✨   │ │🎤   │ │← Icon-only pills
+                                    │ │Match│ │Tailor│ │Mock │ │← Subtle colors
+                                    │ └─────┘ └─────┘ └─────┘ │
+                                    ├─────────────────────────┤
+                                    │ ┌─────────────────────┐ │
+                                    │ │ + New Resume   →    │ │← Animated border
+                                    │ └─────────────────────┘ │
+                                    └─────────────────────────┘
 ```
-
-**Icon Design Refresh:**
-- Remove heavy gradient backgrounds
-- Use outline/line icons with subtle color tints
-- Add micro-animations on tap instead of static gradients
-- Group tools visually by category with subtle separators
 
 ---
 
-### Part B: Landing Page → Feature Showcase
+## Implementation Phases
 
-**Add a new "Why WiseResume?" section highlighting unique features:**
+### Phase 1: Create HomeHeroSection Component
 
+**New File: `src/components/home/HomeHeroSection.tsx`**
+
+A premium header with:
+- Animated logo with subtle float and glow pulse
+- Personalized greeting ("Welcome back!" or "Good morning, Alex!")
+- Orbiting particles around the logo
+- Gradient text with shimmer effect
+
+Key features:
+- Uses Framer Motion for smooth 60fps animations
+- Hardware-accelerated transforms only (translate, scale, opacity)
+- Minimal re-renders with `useRef` for static values
+
+### Phase 2: Redesign ResumeCard with Progress Ring
+
+**File: `src/components/home/ResumeCard.tsx`**
+
+Upgrade from basic card to premium "Mission Card":
+- Add circular SVG progress indicator (like fitness apps)
+- Glass morphism with animated border glow
+- Pulsing "Continue" indicator
+- Completion percentage as ring, not text
+- Subtle entrance animation
+
+Visual elements:
 ```text
-╭─────────────────────────────────────────╮
-│         ✦ Why WiseResume? ✦            │
-│                                         │
-│  ┌───────────────────────────────────┐  │
-│  │ 🔄 Before & After Magic           │  │
-│  │ "Worked on frontend" →            │  │
-│  │ "Built 15+ React components       │  │
-│  │  serving 50K+ users"              │  │
-│  └───────────────────────────────────┘  │
-│                                         │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
-│  │ 4 AI    │ │ Voice   │ │ 12 Pro  │   │
-│  │Recruiter│ │Interview│ │Templates│   │
-│  │Personas │ │ Coach   │ │         │   │
-│  └─────────┘ └─────────┘ └─────────┘   │
-│                                         │
-│  ┌───────────────────────────────────┐  │
-│  │ 🎯 ATS Score: 92%                 │  │
-│  │ ████████████░░░░ Keywords matched │  │
-│  └───────────────────────────────────┘  │
-╰─────────────────────────────────────────╯
+┌──────────────────────────────────────┐
+│  ╭──────╮                            │
+│  │ 30%  │  Alex's Resume             │ ← Circular progress ring
+│  │ ○○○  │  Last edited 2h ago        │
+│  ╰──────╯                            │
+│                                      │
+│  📍 Next: Add your work experience   │ ← AI suggestion
+│                        Continue →    │ ← Animated arrow
+└──────────────────────────────────────┘
 ```
 
----
+### Phase 3: Redesign Action Cards as Icon Pills
 
-## Technical Implementation
+**File: `src/components/home/ActionCard.tsx`**
 
-### Phase 1: Redesign AI Studio Action Cards
+Transform from large gradient boxes to compact, elegant pills:
+- Smaller, icon-focused design (40x40 icon + label below)
+- Category-based colors (not all purple)
+- Horizontal scrollable row for 3+ actions
+- Subtle hover/tap feedback
 
-**File: `src/components/editor/AIAssistantBar.tsx`**
-
-1. **Create tier system:**
-   - Primary actions (Tailor + Analyze) - always visible as large buttons
-   - Secondary actions - collapsible "More AI Tools" section with icon-only grid
-   
-2. **New icon styling:**
-   - Replace `gradient-primary` background with transparent backgrounds
-   - Use colored icon strokes/fills matching their category
-   - Add subtle hover/tap animations
-
-3. **Action categories:**
-   | Category | Actions | Icon Color |
-   |----------|---------|------------|
-   | Optimize | Tailor, Analyze | Primary (purple) |
-   | Enhance | AI Enhance, Career Path | Secondary (cyan) |
-   | Practice | Recruiter Sim, Voice Interview | Accent (orange) |
-   | Polish | Humanizer, LinkedIn, 1-Page | Muted |
-
-**New AIActionButton styles:**
+New layout:
 ```tsx
-// Replace heavy gradient boxes with clean icon buttons
-<button className="flex flex-col items-center gap-1 p-3 rounded-xl 
-                   bg-transparent hover:bg-primary/5 active:scale-95">
-  <div className="w-10 h-10 rounded-full bg-primary/10 
-                  flex items-center justify-center">
-    <Wand2 className="w-5 h-5 text-primary" />
-  </div>
-  <span className="text-xs text-muted-foreground">Tailor</span>
-</button>
-```
-
-### Phase 2: Create "Why WiseResume" Landing Section
-
-**New File: `src/components/landing/WhyWiseResume.tsx`**
-
-**Features to highlight:**
-
-| Feature | Visual | Description |
-|---------|--------|-------------|
-| **Bullet Transformation** | Before/after card with animation | Shows "Worked on X" → "Achieved Y with Z impact" |
-| **4 Recruiter Personas** | 4 avatar icons with names | Sarah (Fortune 500), Marcus (Startup), Priya (Tech), James (Executive) |
-| **Voice Interview** | Waveform animation | Real-time mock interviews with AI scoring |
-| **ATS Optimization** | Animated progress bar | Shows keyword matching score |
-| **12 Templates** | Mini template thumbnails | Professional, ATS-friendly designs |
-
-**Layout:**
-```tsx
-<section className="py-16 px-4">
-  {/* Section header */}
-  <h2>What Makes Us Different?</h2>
-  
-  {/* Before/After Transformation Card */}
-  <BulletTransformCard />
-  
-  {/* Feature grid */}
-  <div className="grid grid-cols-2 gap-4">
-    <RecruiterPersonasCard />
-    <VoiceInterviewCard />
-    <ATSScoreCard />
-    <TemplatesCard />
-  </div>
-</section>
-```
-
-### Phase 3: Update FeatureGrid with Better Icons
-
-**File: `src/components/landing/FeatureGrid.tsx`**
-
-Update features to be more specific:
-- "Orbit Score" → "ATS Match Score" with visual score indicator
-- "Warp Tailor" → "Smart Tailor" with before/after preview
-- "Beam Export" → "Pro Templates" with template preview
-
-### Phase 4: Enhance HeroSection Subtitle
-
-**File: `src/components/landing/HeroSection.tsx`**
-
-Update the subtitle to be more specific:
-```tsx
-// Before
-<p>Your AI Career Companion in the Wise Universe</p>
-
-// After  
-<p>Tailor your resume for any job in seconds with AI</p>
-```
-
-Add feature badges below CTA:
-```tsx
-<div className="flex gap-3 text-xs text-muted-foreground">
-  <span>✓ 4 AI Recruiters</span>
-  <span>✓ Voice Interviews</span>
-  <span>✓ ATS Optimized</span>
+<div className="flex gap-3 overflow-x-auto">
+  <ActionPill icon={Target} label="Match" color="emerald" />
+  <ActionPill icon={Wand2} label="Tailor" color="purple" />  
+  <ActionPill icon={Mic} label="Interview" color="orange" />
 </div>
 ```
 
+### Phase 4: Add Floating Star Background
+
+**File: `src/components/home/HomeBackground.tsx`**
+
+Add subtle animated elements:
+- 8-12 floating micro-stars (CSS only, not Framer Motion)
+- Gentle parallax on scroll
+- Nebula glow spots matching landing page
+- Performance: Use CSS animations, not JS
+
+### Phase 5: Animated "Create New" Button
+
+**Update in `src/pages/Index.tsx`**
+
+Add premium CTA button:
+- Rotating gradient border (like AI Engine Badge)
+- Shimmer effect on idle
+- Haptic feedback on tap
+- Micro-animation on hover
+
+### Phase 6: Update Landing Page Hero with More Visual Interest
+
+**File: `src/components/landing/HeroSection.tsx`**
+
+Enhance the full landing for new users:
+- Add floating badges with testimonial snippets
+- Animated keyword typing effect for the subtitle
+- More prominent feature badges with icons
+- Glassmorphism CTA button container
+
 ---
 
-## Files Summary
+## Technical Details
+
+### Animation Performance Guidelines
+
+All animations will use:
+1. **GPU-accelerated properties only**: `transform`, `opacity`
+2. **will-change hints**: For elements that animate frequently
+3. **CSS animations for repeating effects**: Stars, shimmer, borders
+4. **Framer Motion for entrance animations**: One-time effects
+
+### File Changes Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/editor/AIAssistantBar.tsx` | Major refactor | Tier-based action system, new icon styles |
-| `src/components/landing/WhyWiseResume.tsx` | Create | New unique features showcase section |
-| `src/components/landing/FeatureGrid.tsx` | Modify | More specific feature descriptions |
-| `src/components/landing/HeroSection.tsx` | Modify | Clearer value prop, feature badges |
-| `src/pages/Index.tsx` | Modify | Add WhyWiseResume section |
+| `src/components/home/HomeHeroSection.tsx` | **Create** | Premium animated header with logo and greeting |
+| `src/components/home/ResumeCard.tsx` | **Modify** | Add progress ring, glassmorphism, AI suggestion |
+| `src/components/home/ActionCard.tsx` | **Modify** | Convert to compact icon pills with category colors |
+| `src/components/home/HomeBackground.tsx` | **Modify** | Add floating stars and nebula glows |
+| `src/pages/Index.tsx` | **Modify** | Use new components, add animated Create button |
+| `src/components/landing/HeroSection.tsx` | **Modify** | Add testimonial badges, typing effect |
+| `src/components/landing/SpaceBackground.tsx` | **Modify** | Increase star density, add more nebula variety |
 
 ---
 
-## Visual Comparison
+## New Component: HomeHeroSection
 
-**AI Studio Before:**
-```text
-┌─────────────────────────────────────────┐
-│ ◆ Powered by WiseResume AI  ⚙          │
-├─────────────────────────────────────────┤
-│ OPTIMIZE FOR JOB                        │
-│ ┌─[gradient]──┐ ┌─[gradient]──┐         │
-│ │ ✦ Tailor   │ │ ◉ Match    │         │
-│ │ Auto-adapt │ │ Check ATS  │         │
-│ └─────────────┘ └─────────────┘         │
-├─────────────────────────────────────────┤
-│ ENHANCE & PRACTICE                      │
-│ ┌─[gradient]──┐ ┌─[gradient]──┐         │
-│ │ ✦ Enhance  │ │ 👤 Recruiter│         │
-│ └─────────────┘ └─────────────┘         │
-│ ... 4 more rows ...                     │
-└─────────────────────────────────────────┘
+```typescript
+// Key structure for the new hero
+export function HomeHeroSection({ userName }: { userName?: string }) {
+  const greeting = getTimeBasedGreeting(); // "Good morning" / "Good evening"
+  
+  return (
+    <header className="relative pt-safe pt-8 pb-6 px-4 text-center">
+      {/* Floating particles around logo */}
+      <div className="absolute inset-0 pointer-events-none">
+        {/* 4 orbiting dots */}
+      </div>
+      
+      {/* Animated logo with glow */}
+      <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 3, repeat: Infinity }}>
+        <AppIcon size={72} />
+      </motion.div>
+      
+      {/* Shimmer gradient text */}
+      <h1 className="gradient-text text-shimmer">WiseResume</h1>
+      
+      {/* Personalized greeting */}
+      <p className="text-muted-foreground">
+        {userName ? `${greeting}, ${userName}!` : greeting + '!'}
+      </p>
+    </header>
+  );
+}
 ```
 
-**AI Studio After:**
-```text
-┌─────────────────────────────────────────┐
-│ ◆ WiseResume AI  ⚙                      │
-├─────────────────────────────────────────┤
-│ ┌───────────────┐ ┌───────────────┐     │
-│ │ ✦ Tailor     │ │ ◉ Analyze    │     │← Primary (large)
-│ │ for this job │ │ job match    │     │
-│ └───────────────┘ └───────────────┘     │
-├─────────────────────────────────────────┤
-│ More Tools                          [▼] │← Collapsible
-│ ╭──────────────────────────────────────╮│
-│ │ 💬  🎤  📊  🛡️  💼  📄  📈         ││← Icon grid
-│ │Chat Int Path Hum Link 1Pg Career   ││
-│ ╰──────────────────────────────────────╯│
-└─────────────────────────────────────────┘
+---
+
+## New CSS: Shimmer Text Effect
+
+Add to `index.css`:
+```css
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--primary)) 0%,
+    hsl(var(--accent)) 25%,
+    hsl(var(--primary)) 50%,
+    hsl(var(--accent)) 75%,
+    hsl(var(--primary)) 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 4s linear infinite;
+}
+
+@keyframes shimmer {
+  to { background-position: 200% center; }
+}
 ```
 
-**Landing Page Feature Order:**
-1. HeroSection (updated subtitle + badges)
-2. SocialProofBar (unchanged)
-3. **WhyWiseResume** (NEW - unique features)
-4. HowItWorks (unchanged)
-5. FeatureGrid (updated descriptions)
-6. TemplateGallery (unchanged)
-7. BottomCTA (unchanged)
+---
+
+## Progress Ring Component
+
+SVG-based circular progress for the resume card:
+```tsx
+function ProgressRing({ percent }: { percent: number }) {
+  const circumference = 2 * Math.PI * 40; // radius = 40
+  const offset = circumference - (percent / 100) * circumference;
+  
+  return (
+    <svg className="w-16 h-16 -rotate-90">
+      <circle cx="32" cy="32" r="28" stroke="hsl(var(--muted))" strokeWidth="4" fill="none" />
+      <circle 
+        cx="32" cy="32" r="28" 
+        stroke="url(#progressGradient)" 
+        strokeWidth="4" 
+        fill="none"
+        strokeDasharray={circumference}
+        strokeDashoffset={offset}
+        className="transition-all duration-700"
+      />
+      <defs>
+        <linearGradient id="progressGradient">
+          <stop offset="0%" stopColor="hsl(var(--primary))" />
+          <stop offset="100%" stopColor="hsl(var(--accent))" />
+        </linearGradient>
+      </defs>
+    </svg>
+  );
+}
+```
+
+---
+
+## Landing Page Enhancements
+
+### Testimonial Floating Badges
+
+Add subtle floating testimonial snippets:
+```tsx
+<motion.div 
+  className="absolute top-20 -left-4 glass-card px-3 py-2 rounded-lg text-xs"
+  animate={{ y: [0, -10, 0], rotate: [-2, 2, -2] }}
+  transition={{ duration: 5, repeat: Infinity }}
+>
+  "Got 3 interviews in a week!" ⭐
+</motion.div>
+```
+
+### Typing Effect for Subtitle
+
+Dynamic text showing different job types:
+```tsx
+const jobs = ['Software Engineer', 'Product Manager', 'UX Designer', 'Data Scientist'];
+// Animate through these in the subtitle: "Tailor for [job] in seconds"
+```
 
 ---
 
 ## Benefits
 
-1. **Reduced cognitive load** - AI Studio shows only 2 primary actions by default
-2. **Better discoverability** - Secondary tools still accessible, just grouped
-3. **Cleaner aesthetic** - Lighter icon style matches cosmic glass theme
-4. **Clear value prop** - Landing page now explains why WiseResume is unique
-5. **Mobile-optimized** - Less scrolling in AI Studio panel
-6. **Faster decision-making** - Users immediately see the 2 most useful actions
+1. **Premium Feel**: Matches quality of top mobile apps (Notion, Linear, Raycast)
+2. **Delightful Micro-interactions**: Every tap has feedback
+3. **Personalized Experience**: Greeting uses time of day and name
+4. **Progress Visibility**: Ring shows completion at a glance
+5. **Performance Optimized**: 60fps animations, CSS where possible
+6. **Cohesive Theme**: Home matches landing page's cosmic aesthetic
 
