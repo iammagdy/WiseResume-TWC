@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -144,7 +145,7 @@ const TOOLS = [
   },
 ];
 
-const SYSTEM_PROMPT = `You are MegZone AI, an expert resume copilot integrated into the WiseResume editor. You help users improve their resumes through natural conversation.
+const SYSTEM_PROMPT = `You are Wise AI, an expert resume assistant integrated into the WiseResume editor. You help users improve their resumes through natural conversation.
 
 You have access to tools that can DIRECTLY modify the user's resume. When the user asks you to make changes, USE the tools - don't just describe what to do.
 
@@ -173,6 +174,31 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Authentication check
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { message, conversationHistory, currentResume, userGeminiKey } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {

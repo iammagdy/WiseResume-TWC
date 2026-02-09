@@ -10,12 +10,13 @@ const corsHeaders = {
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
 const MAX_CONTEXT_SIZE = 100 * 1024; // 100KB for context (resume data)
 const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact'];
-const VALID_ACTIONS = ['generate', 'improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets'];
+const VALID_ACTIONS = ['generate', 'improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error'];
 
 interface EnhanceRequest {
   section: 'summary' | 'experience' | 'education' | 'skills' | 'contact';
-  action: 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
+  action: 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets' | 'fix_error';
   currentContent: unknown;
+  fixInstruction?: string;
   context: {
     resume: unknown;
     jobDescription?: string;
@@ -88,7 +89,7 @@ async function callAI({ messages, tools, userGeminiKey }: AICallOptions) {
   return response.json();
 }
 
-function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown): string {
+function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown, fixInstruction?: string): string {
   const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
 
 Current resume context:
@@ -113,6 +114,8 @@ ${JSON.stringify(currentContent, null, 2)}
     add_metrics: `Add quantifiable metrics and numbers to this content. Suggest specific percentages, dollar amounts, time saved, team sizes, or other measurable outcomes based on the role and industry.`,
     
     generate_bullets: `Convert this description into powerful bullet points. Each bullet should start with a strong action verb and include a specific achievement or responsibility.`,
+
+    fix_error: `Apply the following fix to the content: "${fixInstruction}". Keep the rest of the content consistent, but ensure the specific issue is resolved. Do not invent false information, but you may rephrase or restructure as needed to apply the fix effectively.`
   };
 
   return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
@@ -158,7 +161,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log('Authenticated user:', userId);
 
-    const { section, action, currentContent, context, userGeminiKey } = await req.json() as EnhanceRequest;
+    const { section, action, currentContent, context, userGeminiKey, fixInstruction } = await req.json() as EnhanceRequest;
 
     // ============= SECURITY: Input validation =============
     if (!section || !VALID_SECTIONS.includes(section)) {
@@ -193,7 +196,7 @@ serve(async (req) => {
 
     console.log(`Enhancing ${section} with action: ${action}`);
 
-    const prompt = buildPrompt(section, action, currentContent, context);
+    const prompt = buildPrompt(section, action, currentContent, context, fixInstruction);
 
     // Call AI without tools - simpler and more reliable
     const result = await callAI({

@@ -20,7 +20,6 @@ import {
   PreviewSkeleton,
   UploadSkeleton,
   InterviewSkeleton,
-  AISkeleton,
 } from "@/components/layout/PageSkeletons";
 
 // Eagerly load Index for LCP
@@ -34,7 +33,6 @@ const AuthPage = lazy(() => import("./pages/AuthPage"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const InterviewPage = lazy(() => import("./pages/InterviewPage"));
-const AIPage = lazy(() => import("./pages/AIPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -115,11 +113,6 @@ const queryClient = new QueryClient({
           <Route path="/interview" element={
             <Suspense fallback={<InterviewSkeleton />}>
               <InterviewPage />
-            </Suspense>
-          } />
-          <Route path="/ai" element={
-            <Suspense fallback={<AISkeleton />}>
-              <AIPage />
             </Suspense>
           } />
         </Route>

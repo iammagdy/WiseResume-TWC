@@ -48,6 +48,14 @@ export function diffText(original: string, tailored: string): TextDiff[] {
   if (original === tailored) {
     return [{ type: 'unchanged', text: tailored }];
   }
+
+  // Handle empty strings gracefully to avoid artifacts
+  if (!original && tailored) {
+    return [{ type: 'added', text: tailored }];
+  }
+  if (original && !tailored) {
+    return [{ type: 'removed', text: original }];
+  }
   
   const originalWords = original.split(/\s+/);
   const tailoredWords = tailored.split(/\s+/);
