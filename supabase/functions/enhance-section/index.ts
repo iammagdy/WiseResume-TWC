@@ -20,19 +20,34 @@ interface EnhanceRequest {
     resume: unknown;
     jobDescription?: string;
   };
+  userGeminiKey?: string;
 }
 
-async function callLovableAI(messages: { role: string; content: string }[], tools?: unknown[]) {
+interface AICallOptions {
+  messages: { role: string; content: string }[];
+  tools?: unknown[];
+  userGeminiKey?: string;
+}
+
+async function callAI({ messages, tools, userGeminiKey }: AICallOptions) {
+  const useGeminiDirect = !!userGeminiKey;
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   
-  if (!LOVABLE_API_KEY) {
+  if (!useGeminiDirect && !LOVABLE_API_KEY) {
     throw new Error('LOVABLE_API_KEY is not configured');
   }
 
-  console.log('Calling Lovable AI gateway...');
+  console.log('Calling AI...', useGeminiDirect ? '(Gemini Direct)' : '(Lovable Gateway)');
+
+  const apiUrl = useGeminiDirect
+    ? 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions'
+    : 'https://ai.gateway.lovable.dev/v1/chat/completions';
+  
+  const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+  const modelName = useGeminiDirect ? 'gemini-2.5-flash-preview-05-20' : 'google/gemini-2.5-flash';
 
   const body: Record<string, unknown> = {
-    model: 'google/gemini-2.5-flash',
+    model: modelName,
     messages,
     temperature: 0.7,
   };
@@ -43,14 +58,18 @@ async function callLovableAI(messages: { role: string; content: string }[], tool
     body.tool_choice = { type: 'function', function: { name: 'enhance_content' } };
   }
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Authorization': `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
   });
+
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('INVALID_KEY');
+  }
 
   if (response.status === 429) {
     throw new Error('RATE_LIMIT');
@@ -62,7 +81,7 @@ async function callLovableAI(messages: { role: string; content: string }[], tool
 
   if (!response.ok) {
     const text = await response.text();
-    console.error('Lovable AI error:', response.status, text);
+    console.error('AI error:', response.status, text);
     throw new Error(`AI request failed: ${response.status}`);
   }
 
@@ -139,7 +158,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log('Authenticated user:', userId);
 
-    const { section, action, currentContent, context } = await req.json() as EnhanceRequest;
+    const { section, action, currentContent, context, userGeminiKey } = await req.json() as EnhanceRequest;
 
     // ============= SECURITY: Input validation =============
     if (!section || !VALID_SECTIONS.includes(section)) {
@@ -177,9 +196,10 @@ serve(async (req) => {
     const prompt = buildPrompt(section, action, currentContent, context);
 
     // Call AI without tools - simpler and more reliable
-    const result = await callLovableAI([
-      { role: 'user', content: prompt },
-    ]);
+    const result = await callAI({
+      messages: [{ role: 'user', content: prompt }],
+      userGeminiKey,
+    });
 
     const content = result.choices?.[0]?.message?.content;
     
@@ -216,6 +236,16 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Enhancement error:', error);
+
+    if (error instanceof Error && error.message === 'INVALID_KEY') {
+      return new Response(JSON.stringify({
+        error: 'invalid_key',
+        message: 'Invalid Gemini API key. Please check your AI settings.',
+      }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     if (error instanceof Error && error.message === 'RATE_LIMIT') {
       return new Response(JSON.stringify({

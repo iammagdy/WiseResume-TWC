@@ -1,5 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
 export interface NextRole {
   title: string;
@@ -51,6 +52,7 @@ export async function analyzeCareerPath(
   }
 
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/career-path-advisor`, {
     method: 'POST',
@@ -58,7 +60,7 @@ export async function analyzeCareerPath(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ resume }),
+    body: JSON.stringify({ resume, userGeminiKey }),
   });
 
   if (!response.ok) {
@@ -69,8 +71,12 @@ export async function analyzeCareerPath(
       throw new Error('AI credits exhausted.');
     }
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
+    if (response.status === 401 && error.error?.includes('Invalid')) {
+      throw new Error('Invalid Gemini API key. Please check your AI settings.');
+    }
     throw new Error(error.error || 'Failed to analyze career path');
   }
 
+  trackGeminiUsage();
   return response.json();
 }

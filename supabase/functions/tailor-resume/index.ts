@@ -43,7 +43,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log('Authenticated user:', userId);
 
-    const { resume, jobDescription } = await req.json();
+    const { resume, jobDescription, userGeminiKey } = await req.json();
     
     // ============= SECURITY: Input validation =============
     if (!resume || typeof resume !== 'object') {
@@ -75,8 +75,11 @@ serve(async (req) => {
       );
     }
 
+    // Determine which AI gateway to use
+    const useGeminiDirect = !!userGeminiKey;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+    
+    if (!useGeminiDirect && !LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
@@ -269,16 +272,24 @@ Analyze deeply, then return this exact JSON structure:
   ]
 }`;
 
-    console.log("Calling SUPERCHARGED AI engine for resume tailoring...");
+    console.log("Calling SUPERCHARGED AI engine for resume tailoring...", useGeminiDirect ? "(Gemini Direct)" : "(Lovable Gateway)");
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Choose API endpoint and auth based on provider
+    const apiUrl = useGeminiDirect
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+    
+    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+    const modelName = useGeminiDirect ? "gemini-2.5-pro-preview-05-06" : "google/gemini-2.5-pro";
+
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
+        model: modelName,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -289,9 +300,18 @@ Analyze deeply, then return this exact JSON structure:
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
+      if (response.status === 401 || response.status === 403) {
         return new Response(
-          JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
+          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        const errorMsg = useGeminiDirect 
+          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
+          : "Rate limits exceeded, please try again later.";
+        return new Response(
+          JSON.stringify({ error: errorMsg }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
