@@ -60,17 +60,7 @@ export async function sendChatMessage(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    if (response.status === 429) {
-      throw new Error('Too many requests. Please wait a moment.');
-    }
-    if (response.status === 402) {
-      throw new Error('AI credits exhausted.');
-    }
-    if (response.status === 401 && error.error?.includes('Invalid')) {
-      throw new Error('Invalid Gemini API key. Please check your AI settings.');
-    }
-    throw new Error(error.error || 'Chat request failed');
+    await handleAIError(response, 'Chat request failed');
   }
 
   trackGeminiUsage();

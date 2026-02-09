@@ -1,129 +1,72 @@
 
-# Fix Duplicate WiseResume Text & Improve Logo Design
+# Fix Build Errors - Syntax Issues in Two Files
 
-## Problem Analysis
+## Problem Summary
 
-Based on the screenshot, there are two issues:
+Two files have syntax errors preventing the build:
 
-### Issue 1: Duplicate "WiseResume" Text
-The `HomeHeroSection` component is rendering:
-1. `<AppLogo size="lg" />` - which already shows "WiseResume" + "Your AI Career Partner"
-2. A separate `<h1>WiseResume</h1>` below it (lines 91-98)
-
-This creates the duplicate text you're seeing.
-
-### Issue 2: Logo Design Problems
-The current logo looks cluttered with:
-- Purple gradient background square
-- White document shape inside
-- "W" lettermark that's hard to see
-- Cyan sparkle that looks out of place
-- Overall too many elements competing for attention
+1. **`src/pages/Index.tsx`** - Missing closing `</Suspense>` tag
+2. **`src/lib/sectionHelpers.test.ts`** - Corrupted file with duplicate content merged together
 
 ---
 
-## Solution
+## Fix 1: `src/pages/Index.tsx`
 
-### Fix 1: Remove Duplicate Text from HomeHeroSection
+### Issue
+The outer `<Suspense>` component on line 89 is missing its closing tag. The file ends with just `);` instead of properly closing both the Suspense and the component.
 
-Update `HomeHeroSection.tsx` to:
-- Pass `showTagline={false}` to AppLogo (we want to show custom greeting instead)
-- Remove the duplicate `<h1>WiseResume</h1>` block entirely
-- Keep only the personalized greeting
+### Current Code (lines 88-118)
+```tsx
+  return (
+    <Suspense fallback={<HeroSkeleton />}>
+      <SpaceBackground>
+        ...
+      </SpaceBackground>
+  );  // ← Missing </Suspense> before this
+};
 
-```text
-Before:                              After:
-┌─────────────────────┐              ┌─────────────────────┐
-│      [Logo]         │              │      [Logo]         │
-│    WiseResume       │ ← From       │    WiseResume       │
-│ Your AI Career...   │   AppLogo    ├─────────────────────┤
-├─────────────────────┤              │   Good morning!     │ ← Greeting only
-│    WiseResume       │ ← Duplicate  └─────────────────────┘
-│   Good morning!     │
-└─────────────────────┘
+export default Index;
 ```
 
-### Fix 2: Redesign App Logo Icon
+### Fix
+Add the missing `</Suspense>` closing tag before the closing parenthesis:
 
-Create a cleaner, more modern logo design:
+```tsx
+  return (
+    <Suspense fallback={<HeroSkeleton />}>
+      <SpaceBackground>
+        <main className="min-h-screen">
+          ...
+        </main>
+      </SpaceBackground>
+    </Suspense>  // ← Add this
+  );
+};
 
-**Current Problems:**
-- Document shape inside gradient square is busy
-- "W" lettermark competes with other elements
-- Cyan sparkle looks tacked on
-
-**New Design - Clean "W" with Gradient:**
-- Simple rounded square with gradient
-- Clean, bold "W" lettermark as the main focus
-- Subtle AI sparkle that complements rather than competes
-- Removed the document shape for a cleaner look
-
-```text
-Current:                    New:
-┌──────────────┐           ┌──────────────┐
-│ ╭──────────╮ │           │              │
-│ │ [doc] W  │ │           │    ╲ ╲╱ ╱   │
-│ │ ═══════  │ │           │     ╲╱ ╱    │  ← Bold gradient "W"
-│ │ ═════    │ │           │      ╳      │
-│ ╰──────────╯ │           │              │
-│           ✦  │           │           ✨  │ ← Refined sparkle
-└──────────────┘           └──────────────┘
+export default Index;
 ```
 
 ---
 
-## Technical Changes
+## Fix 2: `src/lib/sectionHelpers.test.ts`
 
-### File 1: `src/components/home/HomeHeroSection.tsx`
-- Change `<AppLogo size="lg" />` to `<AppLogo size="lg" showTagline={false} />`
-- Remove duplicate h1 "WiseResume" text block (lines 90-98)
+### Issue
+The file has corrupted content where two versions of the test file were merged together. Around line 125, there's a duplicate import block and a second `describe` block starting, while the first describe block was never properly closed.
 
-### File 2: `src/components/brand/AppIcon.tsx`
-Redesign to a cleaner icon:
-- Remove the document shape
-- Make the "W" lettermark bolder and centered
-- Keep the gradient background
-- Refine the sparkle to be smaller and more subtle
-- Better proportions for the rounded square
-
-### File 3: `src/components/brand/AppLogo.tsx`
-- Keep existing logic but ensure proper spacing when tagline is hidden
-
----
-
-## Visual Comparison
-
-**Before (Cluttered):**
+### Current Structure
 ```text
-╔═══════════════════════════════╗
-║   ┌─────────────────────┐     ║
-║   │ ╭─────────────────╮ │     ║
-║   │ │ [Document icon] │ │ ✦   ║
-║   │ │     W           │ │     ║
-║   │ │ ───────────     │ │     ║
-║   │ │ ────────        │ │     ║
-║   │ ╰─────────────────╯ │     ║
-║   └─────────────────────┘     ║
-╚═══════════════════════════════╝
-       WiseResume
-  Your AI Career Partner
-       WiseResume         ← DUPLICATE
-     Good morning!
+Lines 1-124: First version of tests (incomplete, missing closing braces)
+Line 125: Duplicate imports start
+Lines 126-303: Second version of tests (complete but duplicated)
 ```
 
-**After (Clean):**
-```text
-╔═══════════════════════════════╗
-║                               ║
-║        ╲     ╲ ╱     ╱        ║
-║         ╲   ╲╱ ╱    ╱         ║
-║          ╲  ╱ ╲    ╱          ║  ✨
-║           ╱   ╲  ╱            ║
-║                               ║
-╚═══════════════════════════════╝
-       WiseResume
-     Good morning!        ← Single greeting
-```
+### Fix
+Remove lines 1-124 entirely and keep only the complete test suite (lines 125-303). The second version is more comprehensive and includes:
+- `getSectionPreview` tests
+- `getSectionIcon` tests  
+- `getSectionName` tests
+- `calculatePageNumbers` tests
+- `countPagesFromBreaks` tests
 
 ---
 
@@ -131,16 +74,15 @@ Redesign to a cleaner icon:
 
 | File | Change |
 |------|--------|
-| `src/components/home/HomeHeroSection.tsx` | Remove duplicate h1, add showTagline={false} |
-| `src/components/brand/AppIcon.tsx` | Redesign to cleaner bold "W" focused icon |
-| `src/components/brand/AppLogo.tsx` | Adjust spacing when tagline hidden |
+| `src/pages/Index.tsx` | Add `</Suspense>` closing tag on line 114 (before the closing `);`) |
+| `src/lib/sectionHelpers.test.ts` | Remove duplicate content (lines 1-124), keep only the complete test suite |
 
 ---
 
-## Benefits
+## Expected Outcome
 
-1. **No more duplicate text** - Clean single "WiseResume" heading
-2. **Cleaner logo** - Bold, recognizable "W" mark without visual clutter
-3. **Better hierarchy** - Logo → Name → Greeting flows naturally
-4. **Modern aesthetic** - Matches premium apps like Linear, Notion, Raycast
-5. **Better scalability** - Simpler icon works at all sizes (favicons, app icons)
+After these fixes:
+- TypeScript compilation will succeed
+- The app will build and load correctly
+- The landing page will render properly
+- All test files will be valid and runnable

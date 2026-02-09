@@ -336,6 +336,9 @@ export default function AuthPage() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      aria-pressed={showPassword}
+                      aria-controls="password"
                     >
                       {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>

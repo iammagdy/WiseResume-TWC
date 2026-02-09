@@ -55,5 +55,9 @@ export const EXIT_ROUTES = ['/', '/dashboard'];
  * Check if the current route should exit the app on back press
  */
 export function shouldExitOnBack(pathname: string): boolean {
-  return EXIT_ROUTES.includes(pathname);
+  // Normalize path by removing trailing slash (unless it's just root '/')
+  const normalizedPath = pathname.length > 1 && pathname.endsWith('/')
+    ? pathname.slice(0, -1)
+    : pathname;
+  return EXIT_ROUTES.includes(normalizedPath);
 }
