@@ -1,4 +1,4 @@
-/* Developer Credit Card - Cosmic Glass Design */
+/* Developer Credit Card - Cosmic Glass Design with Eye-Catching Animations */
 
 .dev-card-wrapper {
   position: relative;
@@ -7,6 +7,13 @@
   flex-direction: column;
   align-items: center;
   gap: 1rem;
+  animation: dev-breathe 4s ease-in-out infinite;
+}
+
+/* Card breathing animation */
+@keyframes dev-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.01); }
 }
 
 /* Animated gradient border */
@@ -46,6 +53,79 @@
   100% { --rotation: 360deg; }
 }
 
+/* Sparkle elements */
+.dev-sparkles {
+  position: absolute;
+  inset: -20px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.dev-sparkle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  animation: dev-sparkle 2s ease-in-out infinite;
+}
+
+.dev-sparkle::before,
+.dev-sparkle::after {
+  content: '';
+  position: absolute;
+  background: hsl(var(--primary));
+}
+
+.dev-sparkle::before {
+  width: 100%;
+  height: 2px;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+}
+
+.dev-sparkle::after {
+  width: 2px;
+  height: 100%;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.dev-sparkle:nth-child(1) {
+  top: 0;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.dev-sparkle:nth-child(2) {
+  top: 30%;
+  right: -10px;
+  animation-delay: 0.5s;
+}
+
+.dev-sparkle:nth-child(3) {
+  bottom: 20%;
+  left: -10px;
+  animation-delay: 1s;
+}
+
+.dev-sparkle:nth-child(4) {
+  bottom: 0;
+  right: 25%;
+  animation-delay: 1.5s;
+}
+
+@keyframes dev-sparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
+}
+
 /* Main glass card */
 .dev-card {
   position: relative;
@@ -63,7 +143,7 @@
   overflow: hidden;
 }
 
-/* Floating particles */
+/* Enhanced floating particles */
 .dev-particles {
   position: absolute;
   inset: 0;
@@ -73,39 +153,86 @@
 
 .dev-particles span {
   position: absolute;
-  width: 4px;
-  height: 4px;
   border-radius: 50%;
-  background: hsl(var(--primary) / 0.4);
-  animation: dev-float 6s ease-in-out infinite;
+  animation: dev-float ease-in-out infinite;
 }
 
 .dev-particles span:nth-child(1) {
-  top: 20%;
-  left: 10%;
+  width: 4px;
+  height: 4px;
+  top: 15%;
+  left: 8%;
+  background: hsl(var(--primary) / 0.6);
+  animation-duration: 5s;
   animation-delay: 0s;
 }
 
 .dev-particles span:nth-child(2) {
-  top: 60%;
-  right: 15%;
-  animation-delay: 2s;
+  width: 6px;
+  height: 6px;
+  top: 45%;
+  right: 10%;
+  background: hsl(210, 100%, 70% / 0.5);
+  animation-duration: 7s;
+  animation-delay: 1s;
 }
 
 .dev-particles span:nth-child(3) {
-  bottom: 20%;
-  left: 30%;
-  animation-delay: 4s;
+  width: 5px;
+  height: 5px;
+  bottom: 25%;
+  left: 25%;
+  background: hsl(280, 80%, 70% / 0.5);
+  animation-duration: 6s;
+  animation-delay: 2s;
+}
+
+.dev-particles span:nth-child(4) {
+  width: 4px;
+  height: 4px;
+  top: 70%;
+  right: 30%;
+  background: hsl(var(--primary) / 0.5);
+  animation-duration: 5.5s;
+  animation-delay: 0.5s;
+}
+
+.dev-particles span:nth-child(5) {
+  width: 5px;
+  height: 5px;
+  top: 30%;
+  left: 50%;
+  background: hsl(210, 100%, 70% / 0.4);
+  animation-duration: 6.5s;
+  animation-delay: 1.5s;
+}
+
+.dev-particles span:nth-child(6) {
+  width: 3px;
+  height: 3px;
+  bottom: 40%;
+  right: 20%;
+  background: hsl(280, 80%, 70% / 0.6);
+  animation-duration: 5s;
+  animation-delay: 2.5s;
 }
 
 @keyframes dev-float {
   0%, 100% {
-    transform: translateY(0) scale(1);
+    transform: translateY(0) translateX(0) scale(1);
     opacity: 0.4;
   }
-  50% {
-    transform: translateY(-10px) scale(1.2);
+  25% {
+    transform: translateY(-15px) translateX(5px) scale(1.3);
     opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-8px) translateX(-5px) scale(1.1);
+    opacity: 0.6;
+  }
+  75% {
+    transform: translateY(-20px) translateX(3px) scale(1.4);
+    opacity: 0.9;
   }
 }
 
@@ -118,7 +245,7 @@
   z-index: 1;
 }
 
-/* Avatar with glow */
+/* Avatar with glow and orbit */
 .dev-avatar-container {
   position: relative;
   flex-shrink: 0;
@@ -126,7 +253,7 @@
 
 .dev-avatar-glow {
   position: absolute;
-  inset: -4px;
+  inset: -6px;
   border-radius: 50%;
   background: linear-gradient(
     135deg,
@@ -134,18 +261,53 @@
     hsl(210, 100%, 70% / 0.4),
     hsl(280, 80%, 70% / 0.4)
   );
-  filter: blur(8px);
+  filter: blur(10px);
   animation: dev-avatar-glow-pulse 3s ease-in-out infinite;
 }
 
 @keyframes dev-avatar-glow-pulse {
   0%, 100% {
-    opacity: 0.6;
+    opacity: 0.5;
     transform: scale(1);
   }
   50% {
-    opacity: 0.9;
-    transform: scale(1.05);
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Orbit ring around avatar */
+.dev-orbit-ring {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 1px dashed hsl(var(--primary) / 0.3);
+  animation: dev-orbit-ring-pulse 4s ease-in-out infinite;
+}
+
+@keyframes dev-orbit-ring-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.dev-orbit-dot {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(210, 100%, 70%));
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  box-shadow: 0 0 10px hsl(var(--primary) / 0.8), 0 0 20px hsl(var(--primary) / 0.4);
+  animation: dev-orbit 8s linear infinite;
+}
+
+@keyframes dev-orbit {
+  0% {
+    transform: rotate(0deg) translateX(52px) rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(52px) rotate(-360deg);
   }
 }
 
@@ -168,19 +330,30 @@
   gap: 0.25rem;
 }
 
+/* Shimmer name effect */
 .dev-name {
   font-size: 1.25rem;
   font-weight: 700;
   margin: 0;
   background: linear-gradient(
-    135deg,
-    hsl(var(--foreground)),
-    hsl(var(--primary))
+    90deg,
+    hsl(var(--foreground)) 0%,
+    hsl(var(--primary)) 25%,
+    hsl(210, 100%, 70%) 50%,
+    hsl(280, 80%, 70%) 75%,
+    hsl(var(--foreground)) 100%
   );
+  background-size: 200% auto;
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  animation: dev-name-shimmer 3s linear infinite;
   line-height: 1.2;
+}
+
+@keyframes dev-name-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
 }
 
 .dev-title {
@@ -189,7 +362,7 @@
   margin: 0 0 0.75rem 0;
 }
 
-/* Contact button */
+/* Contact button with glow pulse */
 .dev-contact-btn {
   display: inline-flex;
   align-items: center;
@@ -212,6 +385,16 @@
   overflow: hidden;
   min-height: 48px;
   width: 100%;
+  animation: dev-btn-glow 2s ease-in-out infinite;
+}
+
+@keyframes dev-btn-glow {
+  0%, 100% {
+    box-shadow: 0 0 10px hsl(var(--primary) / 0.2);
+  }
+  50% {
+    box-shadow: 0 0 25px hsl(var(--primary) / 0.4), 0 0 40px hsl(var(--primary) / 0.2);
+  }
 }
 
 .dev-contact-btn::before {
@@ -221,7 +404,7 @@
   background: linear-gradient(
     90deg,
     transparent 0%,
-    hsl(var(--primary) / 0.2) 50%,
+    hsl(var(--primary) / 0.3) 50%,
     transparent 100%
   );
   background-size: 200% 100%;
@@ -234,15 +417,18 @@
   100% { background-position: -200% center; }
 }
 
-.dev-contact-btn:hover {
-  border-color: hsl(var(--primary) / 0.6);
-  background: linear-gradient(
-    135deg,
-    hsl(var(--primary) / 0.25) 0%,
-    hsl(var(--primary) / 0.1) 100%
-  );
-  transform: translateY(-1px);
-  box-shadow: 0 4px 20px hsl(var(--primary) / 0.2);
+/* Mail icon bounce */
+.dev-mail-icon {
+  width: 1rem;
+  height: 1rem;
+  animation: dev-icon-bounce 2s ease-in-out infinite;
+}
+
+@keyframes dev-icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  25% { transform: translateY(-3px); }
+  50% { transform: translateY(0); }
+  75% { transform: translateY(-2px); }
 }
 
 .dev-contact-btn:active {
@@ -288,6 +474,24 @@
     height: 64px;
   }
   
+  .dev-orbit-ring {
+    inset: -10px;
+  }
+  
+  .dev-orbit-dot {
+    width: 6px;
+    height: 6px;
+  }
+  
+  @keyframes dev-orbit {
+    0% {
+      transform: rotate(0deg) translateX(42px) rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg) translateX(42px) rotate(-360deg);
+    }
+  }
+  
   .dev-name {
     font-size: 1.125rem;
   }
@@ -300,5 +504,10 @@
     padding: 0.625rem 1rem;
     font-size: 0.8125rem;
     min-height: 44px;
+  }
+  
+  .dev-sparkle {
+    width: 6px;
+    height: 6px;
   }
 }
