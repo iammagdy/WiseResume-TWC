@@ -26,12 +26,13 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import {
-  RecruiterPersona,
   RecruiterPersonaInfo,
   RECRUITER_PERSONAS,
   RecruiterAnalysis,
   RedFlag,
 } from '@/types/aiStudio';
+import { findTargetContent } from '@/lib/ai/fixHelpers';
+import { Experience, Education } from '@/types/resume';
 
 interface RecruiterSimSheetProps {
   open: boolean;
@@ -41,7 +42,7 @@ interface RecruiterSimSheetProps {
 type ViewState = 'persona_select' | 'analyzing' | 'results';
 
 export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps) {
-  const { currentResume } = useResumeStore();
+  const { currentResume, updateResume } = useResumeStore();
   const [viewState, setViewState] = useState<ViewState>('persona_select');
   const [selectedPersona, setSelectedPersona] = useState<RecruiterPersonaInfo | null>(null);
   const [analysis, setAnalysis] = useState<RecruiterAnalysis | null>(null);
@@ -76,17 +77,70 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
   const handleApplyFix = async (redFlag: RedFlag) => {
     if (!currentResume || isApplyingFix) return;
     
+    // Safety check: Don't auto-apply contact fixes
+    if (redFlag.fixType === 'contact') {
+      toast.info('Please update your contact details manually.', {
+        description: redFlag.fix,
+      });
+      return;
+    }
+
     setIsApplyingFix(redFlag.issue);
     
     try {
-      // For now, show a toast with the fix suggestion
-      // In the future, this could auto-apply the fix using AI
-      toast.success(`Suggested fix: ${redFlag.fix}`, {
-        duration: 5000,
-        action: {
-          label: 'Got it',
-          onClick: () => {},
+      // 1. Locate the content to fix
+      const target = findTargetContent(currentResume, redFlag);
+
+      if (!target) {
+        toast.error('Could not locate the specific text to fix.', {
+          description: 'Please review and edit the resume manually.',
+        });
+        return;
+      }
+
+      // 2. Call AI to apply the fix
+      const { data, error } = await supabase.functions.invoke('enhance-section', {
+        body: {
+          section: target.section,
+          action: 'fix_error',
+          currentContent: target.content,
+          fixInstruction: redFlag.fix,
+          context: {
+            resume: currentResume,
+          },
         },
+      });
+
+      if (error) throw error;
+      if (!data.improved) throw new Error('AI returned no content');
+
+      // 3. Update the resume store
+      const improvedContent = data.improved;
+
+      if (target.section === 'summary') {
+        updateResume({ summary: improvedContent as string });
+      } else if (target.section === 'skills') {
+        updateResume({ skills: improvedContent as string[] });
+      } else if (target.section === 'experience' && target.id) {
+        const newExperience = currentResume.experience.map(exp =>
+          exp.id === target.id ? { ...(improvedContent as Experience), id: target.id } : exp
+        );
+        updateResume({ experience: newExperience });
+      } else if (target.section === 'education' && target.id) {
+        const newEducation = currentResume.education.map(edu =>
+          edu.id === target.id ? { ...(improvedContent as Education), id: target.id } : edu
+        );
+        updateResume({ education: newEducation });
+      }
+
+      toast.success('Fix applied successfully!', {
+        description: 'Review the changes in the editor.',
+      });
+
+    } catch (err) {
+      console.error('Apply fix error:', err);
+      toast.error('Failed to apply fix automatically.', {
+        description: 'Please try editing manually.',
       });
     } finally {
       setIsApplyingFix(null);

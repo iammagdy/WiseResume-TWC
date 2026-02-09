@@ -175,7 +175,8 @@ export function detectGaps(
     const previousJob = parsed[i + 1];
     
     // Gap is between previous job's end and current job's start
-    const gapMonths = getMonthsDifference(previousJob.end, currentJob.start);
+    // Subtract 1 because adjacent months (diff=1) means 0 months gap
+    const gapMonths = getMonthsDifference(previousJob.end, currentJob.start) - 1;
     
     // Only count gaps of 1+ months
     if (gapMonths >= 1) {
@@ -194,5 +195,6 @@ export function detectGaps(
  * Get total months of gaps
  */
 export function getTotalGapMonths(gaps: GapInfo[]): number {
-  return gaps.reduce((sum, gap) => sum + gap.months, 0);
+  if (!gaps || !Array.isArray(gaps)) return 0;
+  return gaps.reduce((sum, gap) => sum + Math.max(0, gap.months), 0);
 }
