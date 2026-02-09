@@ -1,64 +1,140 @@
 
-# Make Landing Page Default with Profile Navigation
 
-## Overview
+# CV Parsing Logic Enhancement Plan
 
-This plan modifies the Index page to always show the space-themed landing page (with the planet logo, "Launch Your Resume" button, etc.) as the default view every time a user enters the app. A profile avatar will be added in the top right corner that navigates to the dashboard.
+## Comparison Analysis
+
+### Current WiseResume Architecture
+
+| Component | Current Approach | Strengths | Weaknesses |
+|-----------|-----------------|-----------|------------|
+| **Text Extraction** | pdf.js with layout-aware reconstruction, Y-coordinate grouping, two-column detection | Excellent handling of complex layouts, sidebar resumes | N/A - Very solid |
+| **OCR Fallback** | Tesseract.js for scanned PDFs | Client-side, works offline | Slower than cloud OCR |
+| **AI Parsing** | Edge function with tool calling (function schema) | Structured output guaranteed | Prompt could be stronger |
+| **System Prompt** | 177 lines with detailed rules | Comprehensive name detection, section variants | Missing "FULL EXTRACTION" directive |
+| **Local Fallback** | Regex-based `sectionParsers.ts` | Works without AI, good for network errors | Less accurate than AI |
+| **Schema** | OpenAI function calling format | Type-safe output | N/A |
+
+### megZone Architecture (from uploaded document)
+
+| Component | megZone Approach | Strengths | Weaknesses |
+|-----------|------------------|-----------|------------|
+| **Text Extraction** | pdf.js + OCR fallback | Same as WiseResume | N/A |
+| **AI Parsing** | `responseSchema` config in Gemini SDK | Native Gemini structured output | Different SDK format |
+| **System Prompt** | 3 critical instructions only | Concise, focused on extraction | Less comprehensive |
+| **Key Insight** | "FULL EXTRACTION" directive | Prevents AI summarization/truncation | WiseResume is missing this! |
+| **JSON Cleaning** | `cleanAndParseJson` utility | Handles markdown wrapping | WiseResume uses tool calling (better) |
+| **Human Review** | Side-by-side comparison UI | User validation | WiseResume already has ImportReviewSheet |
 
 ---
 
-## Current Behavior
+## Key Enhancement: The "FULL EXTRACTION" Directive
 
-The Index page currently has conditional rendering:
-- **If user has a resume in progress** → Shows a dashboard-style view with resume card and AI actions
-- **If no resume** → Shows the space-themed landing page
-
-The user wants the landing page to always be shown, regardless of resume state.
-
----
-
-## Changes Required
-
-### 1. Modify `src/pages/Index.tsx`
-
-**Remove the conditional rendering** that shows a different view when `hasResume` is true. Always show the space-themed landing page.
-
-Key changes:
-- Remove the entire `if (hasResume)` block (lines 87-208)
-- Keep only the space-themed landing page return statement
-- Remove unused imports that were only used in the dashboard view
-
-### 2. Modify `src/components/landing/HeroSection.tsx`
-
-**Add a profile avatar in the top right corner** that navigates to the dashboard:
+The most valuable insight from the megZone document is the **"FULL EXTRACTION" rule** in the system prompt:
 
 ```text
-+------------------------------------------+
-|                              [Avatar] ◄── Profile button
-|                                          |
-|           🪐 Planet Logo                 |
-|           ✨ WELCOME TO                  |
-|           WiseResume                     |
-|           ...                            |
-+------------------------------------------+
+2. **FULL EXTRACTION:** Extract 100% of the text in the work experience descriptions. 
+   Do not summarize, do not bulletize if it's a paragraph, and do not omit details. 
+   Return the exact text.
 ```
 
-Changes:
-- Import `Avatar`, `AvatarImage`, `AvatarFallback` from UI components
-- Import `User` icon from lucide-react as fallback
-- Import `useAuth` hook to check authentication status
-- Import `useProfile` hook to get user avatar
-- Add an absolute-positioned profile button in the top right
-- On click, navigate to `/dashboard`
-- Show user avatar if logged in, or a default user icon if not
+**Why this matters:**
+- LLMs have a natural tendency to summarize or condense content
+- Resume descriptions often contain valuable keywords for ATS matching
+- Truncated bullets lose important achievements and metrics
 
-### 3. Profile Button Behavior
+---
 
-| State | Display | Click Action |
-|-------|---------|--------------|
-| Logged in with avatar | User's profile picture | Navigate to `/dashboard` |
-| Logged in without avatar | User icon with initials | Navigate to `/dashboard` |
-| Not logged in | User icon | Navigate to `/auth` |
+## Implementation Plan
+
+### 1. Enhance the AI Parsing System Prompt
+
+**File:** `supabase/functions/parse-resume/index.ts`
+
+Add three new critical directives to the existing systemPrompt (line 143):
+
+```typescript
+const systemPrompt = `You are an expert resume parser. Extract ALL structured information from resume text.
+
+CRITICAL RULES:
+1. **PROCESS ALL CONTENT:** The input may be from a multi-page document. Process the ENTIRETY of the text. Do not stop after the first page or section.
+2. **FULL EXTRACTION:** Extract 100% of the text in work experience descriptions. Do NOT summarize, do NOT bulletize paragraphs, and do NOT omit details. Return the EXACT text.
+3. **DATE PARSING:** Be very careful with dates. Preserve original format when possible (YYYY-MM, MMM YYYY, etc.).
+4. Extract EVERYTHING - all jobs, education, projects, skills, certifications. Never skip sections!
+5. Empty fields: use "" for strings, [] for arrays - never omit required fields
+... [keep existing rules 4-16]
+```
+
+### 2. Add "Responsibilities" Field to Experience Schema
+
+**File:** `supabase/functions/parse-resume/index.ts`
+
+The megZone schema separates `responsibilities` (array of detailed bullets) from general description. This improves bullet extraction.
+
+Update the `parseResumeTool` schema (around line 83-98):
+
+```typescript
+properties: {
+  company: { type: "string", ... },
+  position: { type: "string", ... },
+  startDate: { type: "string", ... },
+  endDate: { type: "string", ... },
+  current: { type: "boolean", ... },
+  description: { 
+    type: "string", 
+    description: "Overall job/project description paragraph (non-bullet content)" 
+  },
+  achievements: {
+    type: "array",
+    items: { type: "string" },
+    description: "Key achievements, features built, or bullet points - extract EVERY bullet, do not summarize",
+  },
+  responsibilities: {
+    type: "array",
+    items: { type: "string" },
+    description: "Detailed job responsibilities - extract EVERY bullet point verbatim, do not summarize or combine",
+  },
+  isProject: { type: "boolean", ... },
+},
+```
+
+### 3. Enhance Skills Schema for Categorization (Optional)
+
+**File:** `supabase/functions/parse-resume/index.ts`
+
+The megZone approach categorizes skills. While WiseResume uses a flat array (which is fine), we could add optional categorization:
+
+```typescript
+skills: {
+  type: "object",
+  description: "Skills categorized by type, or use 'other' for a flat list",
+  properties: {
+    technical: { type: "array", items: { type: "string" } },
+    frameworks: { type: "array", items: { type: "string" } },
+    tools: { type: "array", items: { type: "string" } },
+    languages: { type: "array", items: { type: "string" } }, // e.g., "Arabic (Native)"
+    soft: { type: "array", items: { type: "string" } },
+    other: { type: "array", items: { type: "string" } },
+  }
+}
+```
+
+**Note:** This would require updating the frontend to flatten categories, or we can keep the simpler flat array approach.
+
+### 4. Add Robust JSON Cleaning Utility (Already Handled)
+
+WiseResume already uses **tool calling** which guarantees structured JSON output - this is **better** than the megZone approach of regex-based JSON extraction. No change needed here.
+
+---
+
+## Summary of Changes
+
+| Priority | Change | File | Benefit |
+|----------|--------|------|---------|
+| **HIGH** | Add "FULL EXTRACTION" directive | `parse-resume/index.ts` | Prevents AI summarization |
+| **HIGH** | Add "PROCESS ALL CONTENT" directive | `parse-resume/index.ts` | Handles multi-page resumes |
+| **MEDIUM** | Add `responsibilities` field to experience | `parse-resume/index.ts` + types | Better bullet extraction |
+| **LOW** | Categorize skills | `parse-resume/index.ts` + types | Optional enhancement |
 
 ---
 
@@ -66,80 +142,28 @@ Changes:
 
 ### Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/pages/Index.tsx` | Remove conditional dashboard view, keep only landing page |
-| `src/components/landing/HeroSection.tsx` | Add profile avatar button in top right corner |
+1. **`supabase/functions/parse-resume/index.ts`**
+   - Update `systemPrompt` (lines 143-177) to add 3 new critical directives at the top
+   - Optionally add `responsibilities` field to schema
 
-### New Dependencies in HeroSection
+2. **`src/types/resume.ts`** (if adding responsibilities)
+   - Update `Experience` interface to include optional `responsibilities?: string[]`
 
-```typescript
-import { User } from 'lucide-react';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { useAuth } from '@/hooks/useAuth';
-import { useProfile } from '@/hooks/useProfile';
-```
-
-### Profile Button Implementation
-
-```tsx
-{/* Profile button - top right */}
-<motion.button
-  onClick={() => navigate(user ? '/dashboard' : '/auth')}
-  className="absolute top-6 right-4 z-20"
-  initial={{ opacity: 0, scale: 0.8 }}
-  animate={{ opacity: 1, scale: 1 }}
-  transition={{ delay: 0.5 }}
-  whileTap={{ scale: 0.95 }}
->
-  <Avatar className="w-10 h-10 border-2 border-primary/30 shadow-lg">
-    {profile?.avatarUrl ? (
-      <AvatarImage src={profile.avatarUrl} alt="Profile" />
-    ) : null}
-    <AvatarFallback className="bg-primary/20 text-primary">
-      {user ? (
-        profile?.fullName?.charAt(0).toUpperCase() || 
-        user.email?.charAt(0).toUpperCase() || 
-        <User className="w-5 h-5" />
-      ) : (
-        <User className="w-5 h-5" />
-      )}
-    </AvatarFallback>
-  </Avatar>
-</motion.button>
-```
+3. **Backend result mapping** (lines 339-349 in parse-resume/index.ts)
+   - Map new `responsibilities` field if added
+   - Merge into achievements or keep separate based on preference
 
 ---
 
-## Visual Changes
+## What We're NOT Changing
 
-```text
-BEFORE:                           AFTER:
-+------------------+              +------------------+
-|  [Dashboard UI]  |  ──────►     |           [👤]   |  ◄── Profile always visible
-|  when hasResume  |              |                  |
-+------------------+              |    🪐 Planet     |
-                                  |                  |
-                                  |   WiseResume     |
-                                  +------------------+
-```
+The megZone document validates that WiseResume's architecture is already well-designed:
 
----
+- ✅ **Text extraction** - WiseResume's layout-aware approach is excellent
+- ✅ **OCR fallback** - Already implemented with Tesseract.js
+- ✅ **Tool calling** - Better than regex JSON parsing
+- ✅ **Human review** - ImportReviewSheet already provides this
+- ✅ **Type safety** - Already using TypeScript interfaces
 
-## User Flow After Changes
+The main enhancement is **prompt engineering** to prevent AI summarization.
 
-1. User opens app → Always sees landing page with planet logo
-2. User sees profile icon in top right corner
-3. User clicks profile icon:
-   - If logged in → Goes to `/dashboard` to manage resumes
-   - If not logged in → Goes to `/auth` to sign in
-4. "Launch Your Resume" button still works as before → Creates new resume and goes to editor
-
----
-
-## Expected Outcome
-
-- Landing page is always the first thing users see
-- Profile avatar provides easy access to the dashboard/auth
-- Existing functionality (resume creation, upload) remains intact
-- Clean, consistent entry point for all users
