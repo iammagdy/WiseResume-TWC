@@ -375,14 +375,10 @@ export function estimatePageCount(
     return 1;
   }
   
-  const containerWidth = sourceElement.offsetWidth || PAGE_WIDTH;
-  const containerHeight = sourceElement.scrollHeight || sourceElement.offsetHeight || PAGE_HEIGHT;
-  
-  const scaleFactor = PAGE_WIDTH / containerWidth;
-  const sourceHeightPerPage = PRINTABLE_HEIGHT / scaleFactor;
+  const { sourceHeightPerPage, totalHeight } = calculatePDFDimensions(sourceElement);
   
   // Single-page check with 5% buffer
-  if (containerHeight <= sourceHeightPerPage * 1.05 && !manualBreakSections?.length) {
+  if (totalHeight <= sourceHeightPerPage * 1.05 && !manualBreakSections?.length) {
     return 1;
   }
   
@@ -390,7 +386,7 @@ export function estimatePageCount(
   const breaks = findSmartBreakPositions(
     sourceElement,
     sourceHeightPerPage,
-    containerHeight,
+    totalHeight,
     manualBreakSections,
     templateConfig
   );
@@ -506,6 +502,193 @@ async function addPageFooter(
 }
 
 /**
+ * Locates the template element in the DOM.
+ */
+export function getTemplateSourceElement(templateElement?: HTMLElement | null): HTMLElement {
+  let sourceElement = templateElement;
+
+  if (!sourceElement) {
+    sourceElement = document.querySelector('[data-resume-template]') as HTMLElement;
+  }
+
+  if (!sourceElement) {
+    // Fallback: try to find by class or other selectors
+    sourceElement = document.querySelector('.bg-white.text-black.mx-auto.shadow-2xl') as HTMLElement;
+  }
+
+  if (!sourceElement) {
+    console.error('PDF Generator: No template element found');
+    throw new Error('Resume template not found. Please ensure the preview is visible.');
+  }
+
+  return sourceElement;
+}
+
+export interface PDFDimensions {
+  sourceWidth: number;
+  totalHeight: number;
+  globalScaleFactor: number;
+  sourceHeightPerPage: number;
+}
+
+/**
+ * Calculates layout dimensions for PDF generation.
+ */
+export function calculatePDFDimensions(sourceElement: HTMLElement): PDFDimensions {
+  // Get the actual dimensions of the source element
+  const rect = sourceElement.getBoundingClientRect();
+
+  // Use the element's natural width/height, falling back to computed values
+  const computedStyle = window.getComputedStyle(sourceElement);
+  const sourceWidth = Math.max(
+    sourceElement.offsetWidth || rect.width || parseInt(computedStyle.width) || PAGE_WIDTH,
+    PAGE_WIDTH / 2 // Minimum sensible width
+  );
+  const totalHeight = Math.max(
+    sourceElement.scrollHeight || sourceElement.offsetHeight || rect.height || PAGE_HEIGHT,
+    PAGE_HEIGHT / 2 // Minimum sensible height
+  );
+
+  // GLOBAL scale factor - used consistently for ALL pages
+  const globalScaleFactor = PAGE_WIDTH / sourceWidth;
+
+  // How much source height fits on one PDF page (accounting for footer)
+  const sourceHeightPerPage = PRINTABLE_HEIGHT / globalScaleFactor;
+
+  return {
+    sourceWidth,
+    totalHeight,
+    globalScaleFactor,
+    sourceHeightPerPage
+  };
+}
+
+/**
+ * Captures the template element as a canvas.
+ */
+export async function captureTemplateAsCanvas(
+  sourceElement: HTMLElement,
+  width: number,
+  height: number
+): Promise<HTMLCanvasElement> {
+  // Capture the element directly (don't clone - preserves all styles including Tailwind)
+  const canvas = await html2canvas(sourceElement, {
+    scale: SCALE,
+    useCORS: true,
+    allowTaint: true,
+    backgroundColor: '#ffffff',
+    logging: false,
+    width,
+    height,
+    scrollX: 0,
+    scrollY: 0,
+    windowWidth: width,
+    windowHeight: height,
+  });
+
+  console.log('PDF Generator: Canvas captured', { width: canvas.width, height: canvas.height });
+
+  if (canvas.width === 0 || canvas.height === 0) {
+    throw new Error('Canvas capture resulted in empty image');
+  }
+
+  return canvas;
+}
+
+/**
+ * Processes the captured canvas and generates PDF pages based on smart breaks.
+ */
+export async function generatePDFPages(
+  pdfDoc: PDFDocument,
+  canvas: HTMLCanvasElement,
+  smartBreaks: number[],
+  totalHeight: number,
+  globalScaleFactor: number
+): Promise<void> {
+  // If no breaks found (e.g. single page or fixed-sidebar), we have 1 page
+  const numPages = smartBreaks.length + 1;
+
+  // Process pages using smart break positions with CONSISTENT scaling
+  for (let pageNum = 0; pageNum < numPages; pageNum++) {
+    // Calculate page boundaries using smart breaks
+    const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
+    const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
+    const pageContentHeight = pageEnd - pageStart;
+
+    // Calculate the scaled height in PDF points using GLOBAL scale factor
+    const pdfContentHeight = pageContentHeight * globalScaleFactor;
+
+    // Create page canvas at the exact size needed for this slice
+    const pageCanvas = document.createElement('canvas');
+    pageCanvas.width = PAGE_WIDTH * SCALE;
+    pageCanvas.height = Math.ceil(pdfContentHeight * SCALE);
+    const ctx = pageCanvas.getContext('2d');
+
+    if (!ctx) continue;
+
+    // Fill white background
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+    // Source slice from captured canvas (in canvas pixels)
+    const sourceY = pageStart * SCALE;
+    const sourceSliceHeight = pageContentHeight * SCALE;
+
+    if (sourceSliceHeight <= 0) continue;
+
+    console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
+      pageStart,
+      pageEnd,
+      pageContentHeight,
+      pdfContentHeight,
+      sourceY,
+      sourceSliceHeight,
+      globalScaleFactor
+    });
+
+    // Draw the slice - scaled uniformly by global factor
+    // Source: full width, slice height from captured canvas
+    // Dest: full page canvas (already sized to match scaled dimensions)
+    ctx.drawImage(
+      canvas,
+      0, sourceY,                              // Source x, y
+      canvas.width, sourceSliceHeight,         // Source width, height
+      0, 0,                                    // Dest x, y
+      pageCanvas.width, pageCanvas.height      // Dest width, height (maintains aspect ratio)
+    );
+
+    // Convert page canvas to PNG
+    const imgData = pageCanvas.toDataURL('image/png');
+    const pngImage = await pdfDoc.embedPng(imgData);
+
+    // Add page to PDF
+    const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+
+    // In PDF, y=0 is BOTTOM. Position image at TOP of page.
+    // The image is already at correct scale, just position it
+    page.drawImage(pngImage, {
+      x: 0,
+      y: PAGE_HEIGHT - pdfContentHeight,
+      width: PAGE_WIDTH,
+      height: pdfContentHeight,
+    });
+
+    // Draw white rectangle to cleanly mask ALL unused space below content
+    // This ensures manual page breaks result in clean white space (professional look)
+    const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
+    if (contentBottomY > 0) {
+      page.drawRectangle({
+        x: 0,
+        y: 0,
+        width: PAGE_WIDTH,
+        height: contentBottomY, // Covers everything from bottom up to content edge
+        color: rgb(1, 1, 1), // White
+      });
+    }
+  }
+}
+
+/**
  * Generates a PDF from the resume by capturing the rendered React template.
  * This ensures WYSIWYG - what you see in preview is what you get in PDF.
  * 
@@ -524,58 +707,31 @@ export async function generatePDF(
   // Get template configuration
   const templateConfig = getTemplateConfig(templateId);
   
-  // Find the template element - either passed directly or by query
-  let sourceElement = templateElement;
-  
-  if (!sourceElement) {
-    sourceElement = document.querySelector('[data-resume-template]') as HTMLElement;
-  }
-  
-  if (!sourceElement) {
-    // Fallback: try to find by class or other selectors
-    sourceElement = document.querySelector('.bg-white.text-black.mx-auto.shadow-2xl') as HTMLElement;
-  }
-
-  if (!sourceElement) {
-    console.error('PDF Generator: No template element found');
-    throw new Error('Resume template not found. Please ensure the preview is visible.');
-  }
+  // Find the template element
+  const sourceElement = getTemplateSourceElement(templateElement);
 
   // Wait for fonts and images to load
   await document.fonts.ready;
   await new Promise(resolve => setTimeout(resolve, 300));
 
   try {
-    // Get the actual dimensions of the source element
-    const rect = sourceElement.getBoundingClientRect();
-    
-    // Use the element's natural width/height, falling back to computed values
-    const computedStyle = window.getComputedStyle(sourceElement);
-    const sourceWidth = Math.max(
-      sourceElement.offsetWidth || rect.width || parseInt(computedStyle.width) || PAGE_WIDTH,
-      PAGE_WIDTH / 2 // Minimum sensible width
-    );
-    const totalHeight = Math.max(
-      sourceElement.scrollHeight || sourceElement.offsetHeight || rect.height || PAGE_HEIGHT,
-      PAGE_HEIGHT / 2 // Minimum sensible height
-    );
+    // Calculate dimensions
+    const {
+      sourceWidth,
+      totalHeight,
+      globalScaleFactor,
+      sourceHeightPerPage
+    } = calculatePDFDimensions(sourceElement);
     
     console.log('PDF Generator: Capturing element', { 
       sourceWidth, 
       totalHeight, 
-      rect, 
       templateLayout: templateConfig.layout 
     });
-    
-    // GLOBAL scale factor - used consistently for ALL pages
-    const globalScaleFactor = PAGE_WIDTH / sourceWidth;
-    
-    // How much source height fits on one PDF page (accounting for footer)
-    const sourceHeightPerPage = PRINTABLE_HEIGHT / globalScaleFactor;
 
     // Calculate smart break positions that avoid cutting content
     // Pass template config for template-aware pagination
-    const smartBreaks = findSmartBreakPositions(
+    let smartBreaks = findSmartBreakPositions(
       sourceElement, 
       sourceHeightPerPage, 
       totalHeight,
@@ -583,16 +739,16 @@ export async function generatePDF(
       templateConfig
     );
     
-    // For fixed-sidebar templates, always single page regardless of content height
-    const numPages = templateConfig.layout === 'fixed-sidebar' 
-      ? 1 
-      : smartBreaks.length + 1;
+    // For fixed-sidebar templates, explicitly force single page by clearing breaks
+    // This ensures consistency with original logic regardless of smart break detection
+    if (templateConfig.layout === 'fixed-sidebar') {
+      smartBreaks = [];
+    }
 
     console.log('PDF Generator: Smart pagination', { 
       templateLayout: templateConfig.layout,
       globalScaleFactor, 
       sourceHeightPerPage, 
-      numPages,
       totalHeight,
       smartBreaks,
       manualBreakSections 
@@ -601,105 +757,11 @@ export async function generatePDF(
     // Create PDF document
     const pdfDoc = await PDFDocument.create();
 
-    // Capture the element directly (don't clone - preserves all styles including Tailwind)
-    const canvas = await html2canvas(sourceElement, {
-      scale: SCALE,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-      width: sourceWidth,
-      height: totalHeight,
-      scrollX: 0,
-      scrollY: 0,
-      windowWidth: sourceWidth,
-      windowHeight: totalHeight,
-    });
+    // Capture the element directly
+    const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight);
 
-    console.log('PDF Generator: Canvas captured', { width: canvas.width, height: canvas.height });
-
-    if (canvas.width === 0 || canvas.height === 0) {
-      throw new Error('Canvas capture resulted in empty image');
-    }
-
-    // Process pages using smart break positions with CONSISTENT scaling
-    for (let pageNum = 0; pageNum < numPages; pageNum++) {
-      // Calculate page boundaries using smart breaks
-      const pageStart = pageNum === 0 ? 0 : smartBreaks[pageNum - 1];
-      const pageEnd = pageNum === numPages - 1 ? totalHeight : smartBreaks[pageNum];
-      const pageContentHeight = pageEnd - pageStart;
-
-      // Calculate the scaled height in PDF points using GLOBAL scale factor
-      const pdfContentHeight = pageContentHeight * globalScaleFactor;
-
-      // Create page canvas at the exact size needed for this slice
-      const pageCanvas = document.createElement('canvas');
-      pageCanvas.width = PAGE_WIDTH * SCALE;
-      pageCanvas.height = Math.ceil(pdfContentHeight * SCALE);
-      const ctx = pageCanvas.getContext('2d');
-      
-      if (!ctx) continue;
-
-      // Fill white background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-
-      // Source slice from captured canvas (in canvas pixels)
-      const sourceY = pageStart * SCALE;
-      const sourceSliceHeight = pageContentHeight * SCALE;
-
-      if (sourceSliceHeight <= 0) continue;
-
-      console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
-        pageStart,
-        pageEnd,
-        pageContentHeight,
-        pdfContentHeight,
-        sourceY,
-        sourceSliceHeight,
-        globalScaleFactor
-      });
-
-      // Draw the slice - scaled uniformly by global factor
-      // Source: full width, slice height from captured canvas
-      // Dest: full page canvas (already sized to match scaled dimensions)
-      ctx.drawImage(
-        canvas,
-        0, sourceY,                              // Source x, y
-        canvas.width, sourceSliceHeight,         // Source width, height
-        0, 0,                                    // Dest x, y
-        pageCanvas.width, pageCanvas.height      // Dest width, height (maintains aspect ratio)
-      );
-
-      // Convert page canvas to PNG
-      const imgData = pageCanvas.toDataURL('image/png');
-      const pngImage = await pdfDoc.embedPng(imgData);
-
-      // Add page to PDF
-      const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      
-      // In PDF, y=0 is BOTTOM. Position image at TOP of page.
-      // The image is already at correct scale, just position it
-      page.drawImage(pngImage, {
-        x: 0,
-        y: PAGE_HEIGHT - pdfContentHeight,
-        width: PAGE_WIDTH,
-        height: pdfContentHeight,
-      });
-
-      // Draw white rectangle to cleanly mask ALL unused space below content
-      // This ensures manual page breaks result in clean white space (professional look)
-      const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
-      if (contentBottomY > 0) {
-        page.drawRectangle({
-          x: 0,
-          y: 0,
-          width: PAGE_WIDTH,
-          height: contentBottomY, // Covers everything from bottom up to content edge
-          color: rgb(1, 1, 1), // White
-        });
-      }
-    }
+    // Generate pages
+    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor);
 
     // Add page footer (numbers + branding)
     await addPageFooter(pdfDoc, options);
