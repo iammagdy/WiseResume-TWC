@@ -1,124 +1,208 @@
 
+# Redesign Bottom Tab Bar Navigation
 
-# Fix AI Copilot Error and Rename to "Wise AI"
+## Current State Analysis
 
-## Problem Analysis
+The current 5-tab layout has logical issues:
 
-After investigating the error "Failed to execute 'json' on 'Response': Unexpected token '<', "<!doctype "... is not valid JSON", I found **two critical issues**:
+| Tab | Current Content | Issue |
+|-----|-----------------|-------|
+| Home | Resume dashboard | ✓ Core feature |
+| Editor | Resume editing | ✓ Core feature |
+| Interview | Mock interviews | ⚠ Secondary feature (used less frequently) |
+| AI | API key settings only | ❌ Misleading name - contains settings, not AI features |
+| Settings | App preferences | ✓ Standard tab |
 
-### Issue 1: Environment Variable Undefined Bug (Root Cause)
+**Key Problem:** The "AI" tab only contains API key configuration, but users expect AI features there. The actual AI features (Wise AI, Tailor, Recruiter Sim, etc.) are inside the Editor.
 
-The network request shows:
+---
+
+## Recommended Solution: Merge AI into Settings
+
+Consolidate the AI Settings into the main Settings page, reducing to a clean 4-tab layout that follows iOS/Android design patterns.
+
+### New Tab Structure
+
+```text
++------+--------+-----------+----------+
+| Home | Editor | Interview | Settings |
++------+--------+-----------+----------+
+   ⌂       📄        🎤         ⚙
 ```
-Request: POST undefined/functions/v1/agentic-chat
-authorization: Bearer undefined
+
+| Tab | Icon | Content |
+|-----|------|---------|
+| **Home** | Home | Resume dashboard, quick actions |
+| **Editor** | FileText | Resume editing + AI Studio tools |
+| **Interview** | Mic | Mock interview practice |
+| **Settings** | Settings | All settings including AI configuration |
+
+### Settings Page Reorganization
+
+Add a new **"AI & Voice"** section to the Settings page:
+
+```text
+Settings Page Sections:
+├── Profile (existing)
+├── Appearance (existing)
+├── Editor Preferences (existing)
+├── AI & Voice (NEW - merged from AI page)
+│   ├── AI Provider (WiseResume AI / Gemini)
+│   ├── Gemini API Key (if selected)
+│   └── ElevenLabs API Key
+├── Notifications (existing)
+├── Data & Export (existing)
+├── Privacy (existing - remove ElevenLabs from Integrations)
+├── Account (existing)
+└── About (existing)
 ```
 
-**Root cause**: Multiple frontend modules directly use `import.meta.env.VITE_SUPABASE_URL` without fallbacks. When Vite's env injection temporarily fails during preview/build edge cases, these values become `undefined`, causing:
-- Requests go to `undefined/functions/v1/agentic-chat` (which returns the HTML page)
-- The HTML response fails JSON parsing, producing the error shown
+---
 
-### Issue 2: Inconsistent Naming
+## Technical Implementation
 
-The AI assistant is currently named:
-- "AI Copilot" in the UI
-- "MegZone AI" in the backend system prompt
-- Should be: "Wise AI" everywhere
+### Phase 1: Update BottomTabBar
 
-## Solution Overview
+**File: `src/components/layout/BottomTabBar.tsx`**
 
-### Phase 1: Fix Environment Variable Bug
-
-Update all files that directly access `import.meta.env.VITE_SUPABASE_URL` to use the safe client's exported config with fallback values.
-
-**Files affected:**
-| File | Current Issue |
-|------|---------------|
-| `src/lib/agenticChat.ts` | Direct env access, no fallback |
-| `src/lib/aiTailor.ts` | Direct env access, no fallback |
-| `src/lib/aiAnalysis.ts` | Direct env access, no fallback |
-| `src/lib/careerPath.ts` | Direct env access, no fallback |
-
-**Fix approach:**
-1. Export `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` from `safeClient.ts`
-2. Update each affected file to import these values instead of accessing env directly
-
-### Phase 2: Rename to "Wise AI"
-
-Update all UI references and backend prompts:
-
-| Location | Current | New |
-|----------|---------|-----|
-| `AgenticChatSheet.tsx` - Sheet title | "AI Copilot" | "Wise AI" |
-| `AgenticChatSheet.tsx` - Empty state heading | "AI Resume Copilot" | "Wise AI" |
-| `AgenticChatSheet.tsx` - Placeholder | "Ask me to edit your resume..." | "Ask Wise AI to edit your resume..." |
-| `EditorPage.tsx` - Aria label | "Open AI Copilot" | "Open Wise AI" |
-| `agentic-chat/index.ts` - System prompt | "MegZone AI" | "Wise AI" |
-
-## Technical Implementation Details
-
-### safeClient.ts Updates
-
-Export the URL and key constants for use by other modules:
+Remove the AI tab and keep 4 tabs:
 
 ```typescript
-// Add to exports at end of file
-export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };
-```
-
-### Service Layer Updates Pattern
-
-Each service file (agenticChat.ts, aiTailor.ts, etc.) will be updated from:
-
-```typescript
-// Before - fragile
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const response = await fetch(`${SUPABASE_URL}/functions/v1/...`, {
-  headers: {
-    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+const tabs: TabItem[] = [
+  { 
+    path: '/dashboard', 
+    icon: Home, 
+    label: 'Home',
+    matchPaths: ['/dashboard', '/upload']
   },
-});
-```
-
-To:
-
-```typescript
-// After - resilient with fallbacks
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
-
-const response = await fetch(`${SUPABASE_URL}/functions/v1/...`, {
-  headers: {
-    'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+  { 
+    path: '/editor', 
+    icon: FileText, 
+    label: 'Editor',
+    matchPaths: ['/editor', '/preview']
   },
-});
+  { 
+    path: '/interview', 
+    icon: Mic, 
+    label: 'Interview',
+    matchPaths: ['/interview']
+  },
+  { 
+    path: '/settings', 
+    icon: Settings, 
+    label: 'Settings',
+    matchPaths: ['/settings']
+  },
+];
 ```
 
-### Edge Function System Prompt Update
+### Phase 2: Merge AI Settings into Settings Page
 
-Update the system prompt in `agentic-chat/index.ts`:
+**File: `src/pages/SettingsPage.tsx`**
 
-```typescript
-const SYSTEM_PROMPT = `You are Wise AI, an expert resume assistant integrated into the WiseResume editor. You help users improve their resumes through natural conversation.
-...
+Add a new "AI & Voice" section between Editor Preferences and Notifications:
+
+```tsx
+{/* AI & Voice Section */}
+<div>
+  <h2 className="section-header">AI & Voice</h2>
+  <div className="rounded-2xl glass-elevated overflow-hidden">
+    <SettingsRow
+      type="navigation"
+      label="AI Provider"
+      value={aiProvider === 'lovable' ? 'WiseResume AI' : 'Gemini'}
+      icon={<Brain className="w-4 h-4" />}
+      onClick={() => setAISettingsOpen(true)}
+    />
+    <Separator />
+    <SettingsRow
+      type="navigation"
+      label="ElevenLabs API Key"
+      description="For voice interviews"
+      value={elevenlabsApiKey ? '••••••' : 'Not set'}
+      icon={<Mic className="w-4 h-4" />}
+      onClick={() => setElevenLabsKeyOpen(true)}
+    />
+  </div>
+</div>
 ```
 
-## Files to Modify
+### Phase 3: Create AI Settings Sheet
 
-| File | Changes |
-|------|---------|
-| `src/integrations/supabase/safeClient.ts` | Export SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY constants |
-| `src/lib/agenticChat.ts` | Import from safeClient instead of direct env access |
-| `src/lib/aiTailor.ts` | Import from safeClient instead of direct env access |
-| `src/lib/aiAnalysis.ts` | Import from safeClient instead of direct env access |
-| `src/lib/careerPath.ts` | Import from safeClient instead of direct env access |
-| `src/components/editor/AgenticChatSheet.tsx` | Rename "AI Copilot" to "Wise AI" |
-| `src/pages/EditorPage.tsx` | Update aria-label |
-| `supabase/functions/agentic-chat/index.ts` | Update system prompt naming |
+**New File: `src/components/settings/AISettingsSheet.tsx`**
+
+Move the AI provider selection and Gemini key management into a sheet that opens from Settings:
+
+- Provider selection (WiseResume AI / Your Gemini Key)
+- Gemini API key input (when Gemini selected)
+- Key validation status
+- Usage stats (for free tier)
+- Tips card
+
+### Phase 4: Update Navigation & Routes
+
+**File: `src/lib/navigation.ts`**
+
+Remove `/ai` from BACK_ROUTES since it no longer exists.
+
+**File: `src/App.tsx`**
+
+Remove the `/ai` route:
+
+```tsx
+// Remove this route
+<Route path="/ai" element={
+  <Suspense fallback={<AISkeleton />}>
+    <AIPage />
+  </Suspense>
+} />
+```
+
+### Phase 5: Update References
+
+- Remove `AIPage` import from `App.tsx`
+- Update `AIProviderBadge.tsx` navigation to open sheet instead of `/ai`
+- Remove `AISkeleton` from PageSkeletons
+
+---
+
+## Files Summary
+
+| File | Action |
+|------|--------|
+| `src/components/layout/BottomTabBar.tsx` | Modify - Remove AI tab, keep 4 tabs |
+| `src/pages/SettingsPage.tsx` | Modify - Add AI & Voice section |
+| `src/components/settings/AISettingsSheet.tsx` | Create - AI provider configuration sheet |
+| `src/App.tsx` | Modify - Remove /ai route |
+| `src/lib/navigation.ts` | Modify - Remove /ai from BACK_ROUTES |
+| `src/pages/AIPage.tsx` | Delete - No longer needed |
+| `src/components/layout/PageSkeletons.tsx` | Modify - Remove AISkeleton |
+| `src/components/editor/ai/AIProviderBadge.tsx` | Modify - Update settings navigation |
+
+---
 
 ## Benefits
 
-1. **Eliminates Undefined Errors**: Fallback values ensure requests always go to the correct endpoint
-2. **Consistent Branding**: "Wise AI" used throughout app and backend
-3. **Improved Reliability**: No more HTML error pages from failed requests
-4. **Better UX**: Clear, consistent naming helps users understand they're talking to the same AI
+1. **Cleaner Navigation**: 4 tabs is the iOS/Android standard for bottom navigation
+2. **Logical Grouping**: AI settings belong with other settings
+3. **Reduced Confusion**: No more misleading "AI" tab that only has settings
+4. **Familiar Pattern**: Users expect settings in one place
+5. **Better Discoverability**: AI features are already prominent in the Editor (AI Studio bar, Wise AI button)
 
+---
+
+## Visual Comparison
+
+**Before (5 tabs - crowded):**
+```text
+┌──────┬────────┬───────────┬──────┬──────────┐
+│ Home │ Editor │ Interview │  AI  │ Settings │
+└──────┴────────┴───────────┴──────┴──────────┘
+```
+
+**After (4 tabs - clean):**
+```text
+┌────────┬──────────┬─────────────┬──────────┐
+│  Home  │  Editor  │  Interview  │ Settings │
+└────────┴──────────┴─────────────┴──────────┘
+```
