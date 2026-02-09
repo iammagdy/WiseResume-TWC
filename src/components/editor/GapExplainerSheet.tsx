@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { GapInfo, formatDuration } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
 
@@ -80,7 +80,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
 
   const handleGenerate = async () => {
     if (!gap || !selectedReason) {
-      toast({ title: 'Please select a reason', variant: 'destructive' });
+      toast.error('Please select a reason');
       return;
     }
 
@@ -108,7 +108,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
       if (error) throw error;
 
       if (data.error) {
-        toast({ title: data.error, variant: 'destructive' });
+        toast.error(data.error);
         return;
       }
 
@@ -117,10 +117,8 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
       setIsEdited(false);
     } catch (err) {
       console.error('Error generating explanation:', err);
-      toast({
-        title: 'Failed to generate explanation',
+      toast.error('Failed to generate explanation', {
         description: 'Please try again in a moment.',
-        variant: 'destructive',
       });
     } finally {
       setIsGenerating(false);
@@ -131,17 +129,17 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
     try {
       await navigator.clipboard.writeText(explanation);
       setCopied(true);
-      toast({ title: 'Copied to clipboard!' });
+      toast.success('Copied to clipboard!');
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast({ title: 'Failed to copy', variant: 'destructive' });
+      toast.error('Failed to copy');
     }
   };
 
   const handleAddToSummary = () => {
     if (onAddToSummary && explanation) {
       onAddToSummary(explanation);
-      toast({ title: 'Added to summary!' });
+      toast.success('Added to summary!');
       onClose();
     }
   };

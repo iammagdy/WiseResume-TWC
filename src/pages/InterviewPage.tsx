@@ -14,7 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { toast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
 type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
@@ -33,10 +33,8 @@ export default function InterviewPage() {
   
   useEffect(() => {
     if (!hasValidResume) {
-      toast({
-        title: 'Resume Required',
+      toast.info('Resume Required', {
         description: 'Create or upload a resume first to start interview practice.',
-        variant: 'default',
       });
       navigate(user ? '/upload' : '/auth');
     }
@@ -89,7 +87,7 @@ export default function InterviewPage() {
   // Show errors as toast
   useEffect(() => {
     if (error) {
-      toast({ title: 'Error', description: error, variant: 'destructive' });
+      toast.error('Error', { description: error });
     }
   }, [error]);
 

@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -125,18 +124,15 @@ const queryClient = new QueryClient({
  
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <ErrorBoundary>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AppRoutes />
-            <InstallPrompt />
-          </BrowserRouter>
-        </ErrorBoundary>
-      </TooltipProvider>
-    </AuthProvider>
+    <TooltipProvider>
+       <ErrorBoundary>
+         <Toaster />
+         <BrowserRouter>
+           <AppRoutes />
+           <InstallPrompt />
+         </BrowserRouter>
+       </ErrorBoundary>
+    </TooltipProvider>
   </QueryClientProvider>
 );
 
