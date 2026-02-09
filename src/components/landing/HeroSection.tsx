@@ -77,11 +77,27 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="text-muted-foreground text-lg mb-10 leading-relaxed"
+          className="text-muted-foreground text-lg mb-8 leading-relaxed"
         >
-          Your AI Career Companion in the{' '}
-          <span className="text-primary font-medium">Wise Universe</span>
+          Tailor your resume for <span className="text-primary font-medium">any job</span> in seconds with AI
         </motion.p>
+
+        {/* Feature badges */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.55 }}
+          className="flex flex-wrap justify-center gap-2 mb-8"
+        >
+          {['4 AI Recruiters', 'Voice Interviews', 'ATS Optimized'].map((badge) => (
+            <span
+              key={badge}
+              className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+            >
+              ✓ {badge}
+            </span>
+          ))}
+        </motion.div>
 
         {/* Primary CTA */}
         <motion.div

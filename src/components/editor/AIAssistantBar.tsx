@@ -15,10 +15,12 @@ import {
   Linkedin,
   FileText,
   Mic,
+  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { AIEngineBadge } from '@/components/editor/ai/AIEngineBadge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { JobMatchScore, TemplateId } from '@/types/resume';
 
 const TEMPLATE_NAMES: Record<TemplateId, string> = {
@@ -66,6 +68,17 @@ interface AIAssistantBarProps {
   className?: string;
 }
 
+// Secondary tool definitions for cleaner icon grid
+const secondaryTools = [
+  { id: 'enhance', icon: Sparkles, label: 'Enhance', color: 'text-cyan-500' },
+  { id: 'interview', icon: Mic, label: 'Interview', color: 'text-orange-500' },
+  { id: 'career', icon: TrendingUp, label: 'Career', color: 'text-emerald-500' },
+  { id: 'humanizer', icon: Shield, label: 'Humanize', color: 'text-violet-500' },
+  { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', color: 'text-blue-500' },
+  { id: 'onepage', icon: FileText, label: '1-Page', color: 'text-amber-500' },
+  { id: 'recruiter', icon: UserCheck, label: 'Recruiter', color: 'text-rose-500' },
+];
+
 export const AIAssistantBar = memo(function AIAssistantBar({
   matchScore,
   jobDescription,
@@ -83,6 +96,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
 }: AIAssistantBarProps) {
   const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [moreToolsOpen, setMoreToolsOpen] = useState(false);
 
   const handleToggle = () => {
     haptics.light();
@@ -94,6 +108,33 @@ export const AIAssistantBar = memo(function AIAssistantBar({
     action();
     setIsExpanded(false);
   };
+
+  const handleSecondaryAction = (id: string) => {
+    haptics.medium();
+    setIsExpanded(false);
+    
+    switch (id) {
+      case 'enhance': onImprove(); break;
+      case 'interview': navigate('/interview'); break;
+      case 'career': onCareerPath?.(); break;
+      case 'humanizer': onAIDetector?.(); break;
+      case 'linkedin': onLinkedIn?.(); break;
+      case 'onepage': onOnePage?.(); break;
+      case 'recruiter': onRecruiterSim?.(); break;
+    }
+  };
+
+  // Filter available secondary tools based on props
+  const availableSecondaryTools = secondaryTools.filter(tool => {
+    switch (tool.id) {
+      case 'career': return !!onCareerPath;
+      case 'humanizer': return !!onAIDetector;
+      case 'linkedin': return !!onLinkedIn;
+      case 'onepage': return !!onOnePage;
+      case 'recruiter': return !!onRecruiterSim;
+      default: return true;
+    }
+  });
 
   const scoreColor = matchScore
     ? matchScore.overallScore >= 70
@@ -194,130 +235,64 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                   <AIEngineBadge showSettingsLink />
                 </motion.div>
 
-                {/* Section: Optimize for Job */}
-                <div>
-                  <motion.div variants={itemVariants} className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                      Optimize for Job
-                    </span>
-                  </motion.div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <motion.div variants={itemVariants}>
-                      <AIActionButton
-                        icon={<Wand2 className="w-4 h-4 text-primary-foreground" />}
-                        label="Smart Tailor"
-                        description="Auto-adapt to job requirements"
-                        onClick={() => handleAction(onTailor)}
-                      />
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                      <AIActionButton
-                        icon={<Target className="w-4 h-4 text-primary-foreground" />}
-                        label="Job Match"
-                        description="Check ATS fit score"
-                        onClick={() => handleAction(onAnalyze)}
-                      />
-                    </motion.div>
-                  </div>
-                </div>
+                {/* Primary Actions - Tailor & Analyze */}
+                <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
+                  <PrimaryActionButton
+                    icon={<Wand2 className="w-5 h-5" />}
+                    label="Tailor"
+                    description="Adapt to job"
+                    onClick={() => handleAction(onTailor)}
+                    colorClass="text-primary"
+                    bgClass="bg-primary/10"
+                  />
+                  <PrimaryActionButton
+                    icon={<Target className="w-5 h-5" />}
+                    label="Analyze"
+                    description="Check ATS fit"
+                    onClick={() => handleAction(onAnalyze)}
+                    colorClass="text-primary"
+                    bgClass="bg-primary/10"
+                  />
+                </motion.div>
 
-                {/* Section: Enhance & Practice */}
-                <div>
-                  <motion.div variants={itemVariants} className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                      Enhance & Practice
-                    </span>
-                  </motion.div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <motion.div variants={itemVariants}>
-                      <AIActionButton
-                        icon={<Sparkles className="w-4 h-4 text-primary-foreground" />}
-                        label="AI Enhance"
-                        description="Improve bullet points"
-                        onClick={() => handleAction(onImprove)}
-                      />
-                    </motion.div>
-                    {onRecruiterSim && (
-                      <motion.div variants={itemVariants}>
-                        <AIActionButton
-                          icon={<UserCheck className="w-4 h-4 text-primary-foreground" />}
-                          label="Recruiter Sim"
-                          description="Mock interview Q&A"
-                          onClick={() => handleAction(onRecruiterSim)}
-                        />
+                {/* More Tools - Collapsible */}
+                <motion.div variants={itemVariants}>
+                  <Collapsible open={moreToolsOpen} onOpenChange={setMoreToolsOpen}>
+                    <CollapsibleTrigger asChild>
+                      <button 
+                        className="w-full flex items-center justify-between py-2 px-1 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                        onClick={() => haptics.light()}
+                      >
+                        <span className="font-medium">More AI Tools</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground/70">{availableSecondaryTools.length} tools</span>
+                          <motion.div
+                            animate={{ rotate: moreToolsOpen ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </motion.div>
+                        </div>
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="grid grid-cols-4 gap-2 pt-2"
+                      >
+                        {availableSecondaryTools.map((tool) => (
+                          <SecondaryToolButton
+                            key={tool.id}
+                            icon={<tool.icon className={cn("w-5 h-5", tool.color)} />}
+                            label={tool.label}
+                            onClick={() => handleSecondaryAction(tool.id)}
+                          />
+                        ))}
                       </motion.div>
-                    )}
-                    <motion.div variants={itemVariants}>
-                      <AIActionButton
-                        icon={<Mic className="w-4 h-4 text-primary-foreground" />}
-                        label="Voice Interview"
-                        description="Practice with AI voice"
-                        onClick={() => { haptics.medium(); setIsExpanded(false); navigate('/interview'); }}
-                        badge="Live"
-                      />
-                    </motion.div>
-                  </div>
-                  {onCareerPath && (
-                    <motion.div variants={itemVariants} className="mt-2">
-                      <AIActionButton
-                        icon={<TrendingUp className="w-4 h-4 text-primary-foreground" />}
-                        label="Career Path Advisor"
-                        description="Discover your next career move"
-                        onClick={() => handleAction(onCareerPath)}
-                        badge="New"
-                      />
-                    </motion.div>
-                  )}
-                </div>
-
-                {/* Section: Polish & Finalize */}
-                {(onAIDetector || onLinkedIn || onOnePage) && (
-                  <div>
-                    <motion.div variants={itemVariants} className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                        Polish & Finalize
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary">
-                        New
-                      </span>
-                    </motion.div>
-                    <div className="grid grid-cols-3 gap-2">
-                      {onAIDetector && (
-                        <motion.div variants={itemVariants}>
-                          <AIActionButton
-                            icon={<Shield className="w-4 h-4 text-primary-foreground" />}
-                            label="Humanizer"
-                            description="Beat AI detection"
-                            onClick={() => handleAction(onAIDetector)}
-                            featured
-                          />
-                        </motion.div>
-                      )}
-                      {onLinkedIn && (
-                        <motion.div variants={itemVariants}>
-                          <AIActionButton
-                            icon={<Linkedin className="w-4 h-4 text-primary-foreground" />}
-                            label="LinkedIn"
-                            description="Optimize profile"
-                            onClick={() => handleAction(onLinkedIn)}
-                            featured
-                          />
-                        </motion.div>
-                      )}
-                      {onOnePage && (
-                        <motion.div variants={itemVariants}>
-                          <AIActionButton
-                            icon={<FileText className="w-4 h-4 text-primary-foreground" />}
-                            label="1-Page"
-                            description="Condense resume"
-                            onClick={() => handleAction(onOnePage)}
-                            featured
-                          />
-                        </motion.div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                    </CollapsibleContent>
+                  </Collapsible>
+                </motion.div>
 
                 {/* Tip */}
                 {!jobDescription && (
@@ -351,49 +326,61 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   );
 });
 
-interface AIActionButtonProps {
+// Primary action button - large, prominent
+interface PrimaryActionButtonProps {
   icon: React.ReactNode;
   label: string;
-  description?: string;
+  description: string;
   onClick: () => void;
-  badge?: string;
-  featured?: boolean;
+  colorClass: string;
+  bgClass: string;
 }
 
-const AIActionButton = memo(function AIActionButton({ 
-  icon, 
-  label, 
-  description, 
-  onClick, 
-  badge, 
-  featured 
-}: AIActionButtonProps) {
+const PrimaryActionButton = memo(function PrimaryActionButton({
+  icon,
+  label,
+  description,
+  onClick,
+  colorClass,
+  bgClass,
+}: PrimaryActionButtonProps) {
   return (
     <button
-      className={cn(
-        "relative w-full flex items-start gap-3 p-3 rounded-xl text-left",
-        "glass-elevated border-glow transition-all touch-manipulation",
-        "active:scale-[0.97] hover:bg-primary/5",
-        featured && "ring-1 ring-primary/30"
-      )}
       onClick={onClick}
+      className="flex flex-col items-center gap-2 p-4 rounded-xl glass-elevated border border-transparent hover:border-primary/30 active:scale-[0.97] transition-all touch-manipulation"
     >
-      {badge && (
-        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary">
-          {badge}
-        </span>
-      )}
-      <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0">
+      <div className={cn("w-12 h-12 rounded-full flex items-center justify-center", bgClass)}>
+        <span className={colorClass}>{icon}</span>
+      </div>
+      <div className="text-center">
+        <span className="font-medium text-sm block">{label}</span>
+        <span className="text-[11px] text-muted-foreground">{description}</span>
+      </div>
+    </button>
+  );
+});
+
+// Secondary tool button - compact icon-only style
+interface SecondaryToolButtonProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}
+
+const SecondaryToolButton = memo(function SecondaryToolButton({
+  icon,
+  label,
+  onClick,
+}: SecondaryToolButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-transparent hover:bg-muted/50 active:scale-95 transition-all touch-manipulation"
+    >
+      <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
         {icon}
       </div>
-      <div className="flex-1 min-w-0">
-        <span className="font-medium text-sm block">{label}</span>
-        {description && (
-          <span className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5 block">
-            {description}
-          </span>
-        )}
-      </div>
+      <span className="text-[10px] text-muted-foreground font-medium">{label}</span>
     </button>
   );
 });

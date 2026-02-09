@@ -27,6 +27,7 @@ const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m 
 const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground').then(m => ({ default: m.SpaceBackground })));
 const HeroSection = lazy(() => import('@/components/landing/HeroSection').then(m => ({ default: m.HeroSection })));
 const SocialProofBar = lazy(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.SocialProofBar })));
+const WhyWiseResume = lazy(() => import('@/components/landing/WhyWiseResume').then(m => ({ default: m.WhyWiseResume })));
 const HowItWorks = lazy(() => import('@/components/landing/HowItWorks').then(m => ({ default: m.HowItWorks })));
 const FeatureGrid = lazy(() => import('@/components/landing/FeatureGrid').then(m => ({ default: m.FeatureGrid })));
 const TemplateGallery = lazy(() => import('@/components/landing/TemplateGallery').then(m => ({ default: m.TemplateGallery })));
@@ -239,6 +240,9 @@ const Index = () => {
           </Suspense>
           <LazySection skeleton={<SocialProofSkeleton />}>
             <SocialProofBar />
+          </LazySection>
+          <LazySection skeleton={<FeatureGridSkeleton />}>
+            <WhyWiseResume />
           </LazySection>
           <LazySection skeleton={<HowItWorksSkeleton />}>
             <HowItWorks />
