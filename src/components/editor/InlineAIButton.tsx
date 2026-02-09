@@ -4,9 +4,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { haptics } from '@/lib/haptics';
+import { AIProviderFooter } from '@/components/editor/ai/AIProviderBadge';
 
 export type SectionType = 'contact' | 'summary' | 'experience' | 'education' | 'skills';
 
@@ -91,6 +93,8 @@ export function InlineAIButton({
             <span>{action.label}</span>
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        <AIProviderFooter />
       </DropdownMenuContent>
     </DropdownMenu>
   );

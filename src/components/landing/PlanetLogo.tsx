@@ -1,31 +1,27 @@
 import { motion } from 'framer-motion';
-import { FileText } from 'lucide-react';
+import { AppIcon } from '@/components/brand/AppIcon';
 
 interface PlanetLogoProps {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const sizeClasses = {
-  sm: 'w-20 h-20',
-  md: 'w-28 h-28',
-  lg: 'w-36 h-36',
-};
-
-const iconSizes = {
-  sm: 'w-8 h-8',
-  md: 'w-12 h-12',
-  lg: 'w-16 h-16',
+const sizeConfig = {
+  sm: { planet: 100, icon: 48, orbit: 130, moon: 8 },
+  md: { planet: 140, icon: 64, orbit: 175, moon: 10 },
+  lg: { planet: 180, icon: 80, orbit: 220, moon: 14 },
 };
 
 export function PlanetLogo({ size = 'lg' }: PlanetLogoProps) {
+  const config = sizeConfig[size];
+  
   return (
     <div className="relative inline-flex items-center justify-center">
       {/* Orbital ring */}
       <motion.div
         className="absolute rounded-full border border-primary/30"
         style={{
-          width: size === 'lg' ? '180px' : size === 'md' ? '140px' : '100px',
-          height: size === 'lg' ? '60px' : size === 'md' ? '45px' : '32px',
+          width: config.orbit,
+          height: config.orbit * 0.35,
           transform: 'rotateX(70deg)',
         }}
         animate={{ rotate: 360 }}
@@ -34,73 +30,91 @@ export function PlanetLogo({ size = 'lg' }: PlanetLogoProps) {
       
       {/* Outer glow */}
       <motion.div
-        className={`absolute ${sizeClasses[size]} rounded-full`}
+        className="absolute rounded-full"
         style={{
-          background: 'radial-gradient(circle, hsl(270 100% 65% / 0.3) 0%, transparent 70%)',
+          width: config.planet * 1.3,
+          height: config.planet * 1.3,
+          background: 'radial-gradient(circle, hsl(270 100% 65% / 0.35) 0%, transparent 70%)',
         }}
         animate={{
-          scale: [1, 1.2, 1],
+          scale: [1, 1.15, 1],
           opacity: [0.5, 0.8, 0.5],
         }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       />
 
-      {/* Planet body */}
+      {/* Planet body with gradient */}
       <motion.div
-        className={`relative ${sizeClasses[size]} rounded-full overflow-hidden`}
+        className="relative rounded-full overflow-hidden flex items-center justify-center"
         style={{
+          width: config.planet,
+          height: config.planet,
           background: `
-            radial-gradient(circle at 30% 30%, hsl(270 80% 50%) 0%, hsl(270 60% 30%) 50%, hsl(240 40% 15%) 100%)
+            radial-gradient(circle at 30% 30%, hsl(270 80% 55%) 0%, hsl(270 60% 35%) 50%, hsl(240 40% 18%) 100%)
           `,
           boxShadow: `
-            inset -10px -10px 30px hsl(240 40% 10% / 0.8),
-            inset 5px 5px 20px hsl(270 80% 70% / 0.3),
-            0 0 40px hsl(270 100% 65% / 0.4),
-            0 0 80px hsl(270 100% 65% / 0.2)
+            inset -12px -12px 35px hsl(240 40% 10% / 0.8),
+            inset 6px 6px 25px hsl(270 80% 70% / 0.35),
+            0 0 50px hsl(270 100% 65% / 0.45),
+            0 0 100px hsl(270 100% 65% / 0.2)
           `,
         }}
         animate={{
-          y: [0, -8, 0],
+          y: [0, -10, 0],
         }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
       >
-        {/* Surface texture */}
+        {/* Surface texture highlights */}
         <div 
-          className="absolute inset-0 opacity-20"
+          className="absolute inset-0 opacity-25"
           style={{
             background: `
-              radial-gradient(ellipse at 60% 40%, hsl(185 100% 50% / 0.5) 0%, transparent 30%),
-              radial-gradient(ellipse at 30% 70%, hsl(330 100% 65% / 0.3) 0%, transparent 25%)
+              radial-gradient(ellipse at 65% 35%, hsl(185 100% 55% / 0.5) 0%, transparent 30%),
+              radial-gradient(ellipse at 25% 70%, hsl(330 100% 65% / 0.35) 0%, transparent 25%)
             `,
           }}
         />
         
-        {/* Document icon in center */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <FileText className={`${iconSizes[size]} text-primary-foreground/80`} />
+        {/* App Icon in center */}
+        <div className="relative z-10">
+          <AppIcon size={config.icon} showSparkle={true} />
         </div>
         
         {/* Atmosphere glow on edge */}
         <div 
           className="absolute inset-0 rounded-full"
           style={{
-            background: 'radial-gradient(circle at 80% 20%, hsl(185 100% 70% / 0.2) 0%, transparent 40%)',
+            background: 'radial-gradient(circle at 85% 15%, hsl(185 100% 75% / 0.25) 0%, transparent 40%)',
           }}
         />
       </motion.div>
 
-      {/* Small orbiting moon */}
-      <motion.div
-        className="absolute w-3 h-3 rounded-full bg-gradient-to-br from-muted to-muted-foreground/50"
-        style={{
-          boxShadow: '0 0 10px hsl(var(--muted) / 0.5)',
-        }}
-        animate={{
-          rotate: 360,
-        }}
-        transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-        initial={{ x: size === 'lg' ? 80 : size === 'md' ? 60 : 45 }}
-      />
+      {/* Orbiting particles */}
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: config.moon - i * 2,
+            height: config.moon - i * 2,
+            background: `linear-gradient(135deg, hsl(var(--muted)) 0%, hsl(var(--muted-foreground) / 0.5) 100%)`,
+            boxShadow: `0 0 ${8 - i * 2}px hsl(var(--muted) / 0.5)`,
+          }}
+          animate={{
+            rotate: 360,
+          }}
+          transition={{ 
+            duration: 8 + i * 4, 
+            repeat: Infinity, 
+            ease: 'linear',
+            delay: i * 2,
+          }}
+          initial={{ 
+            x: (config.planet / 2 + 15 + i * 12) * Math.cos((i * 120) * Math.PI / 180),
+            y: (config.planet / 2 + 15 + i * 12) * Math.sin((i * 120) * Math.PI / 180) * 0.4,
+          }}
+        />
+      ))}
     </div>
   );
 }
