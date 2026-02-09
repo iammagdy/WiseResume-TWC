@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Sparkles } from 'lucide-react';
 import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -221,7 +221,27 @@ export default function DashboardPage() {
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between glass-header">
           <AppLogo size="sm" />
-          <ThemeDropdown />
+          <div className="flex items-center gap-2">
+            {/* Explore Landing Page Button */}
+            <motion.button
+              onClick={() => {
+                haptics.light();
+                navigate('/');
+              }}
+              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 hover:border-primary/40 transition-colors touch-manipulation overflow-hidden"
+              whileTap={{ scale: 0.95 }}
+            >
+              {/* Shimmer effect */}
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent"
+                animate={{ x: ['-100%', '100%'] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+              />
+              <Sparkles className="w-3.5 h-3.5 text-primary relative z-10" />
+              <span className="relative z-10 text-foreground">Explore</span>
+            </motion.button>
+            <ThemeDropdown />
+          </div>
         </header>
 
         {/* Title Bar */}
