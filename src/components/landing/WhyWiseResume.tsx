@@ -1,91 +1,40 @@
-import { motion } from 'framer-motion';
 import { ArrowRight, Mic, Users, FileCheck, LayoutGrid } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 }
-};
 
 export function WhyWiseResume() {
   return (
     <section className="py-16 px-4 sm:px-6">
-      {/* Section Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="text-center mb-10"
-      >
+      <div className="text-center mb-10 animate-fade-in-up">
         <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
           ✦ What Makes Us Different
         </p>
         <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
           Why WiseResume?
         </h2>
-      </motion.div>
+      </div>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true }}
-        className="max-w-md mx-auto space-y-4"
-      >
-        {/* Before/After Transformation Card */}
-        <motion.div variants={itemVariants}>
+      <div className="max-w-md mx-auto space-y-4">
+        <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
           <BulletTransformCard />
-        </motion.div>
-
-        {/* Feature Grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <motion.div variants={itemVariants}>
-            <FeatureCard
-              icon={<Users className="w-5 h-5 text-rose-500" />}
-              title="4 AI Recruiters"
-              description="Get feedback from different perspectives"
-              gradient="from-rose-500/20 to-rose-500/5"
-            />
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <FeatureCard
-              icon={<Mic className="w-5 h-5 text-orange-500" />}
-              title="Voice Interview"
-              description="Practice with real-time AI coaching"
-              gradient="from-orange-500/20 to-orange-500/5"
-            />
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <FeatureCard
-              icon={<FileCheck className="w-5 h-5 text-emerald-500" />}
-              title="ATS Optimized"
-              description="Pass automated screening systems"
-              gradient="from-emerald-500/20 to-emerald-500/5"
-            />
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <FeatureCard
-              icon={<LayoutGrid className="w-5 h-5 text-blue-500" />}
-              title="12 Templates"
-              description="Professional designs for any role"
-              gradient="from-blue-500/20 to-blue-500/5"
-            />
-          </motion.div>
         </div>
 
-        {/* ATS Score Preview */}
-        <motion.div variants={itemVariants}>
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { icon: <Users className="w-5 h-5 text-rose-500" />, title: '4 AI Recruiters', description: 'Get feedback from different perspectives', gradient: 'from-rose-500/20 to-rose-500/5' },
+            { icon: <Mic className="w-5 h-5 text-orange-500" />, title: 'Voice Interview', description: 'Practice with real-time AI coaching', gradient: 'from-orange-500/20 to-orange-500/5' },
+            { icon: <FileCheck className="w-5 h-5 text-emerald-500" />, title: 'ATS Optimized', description: 'Pass automated screening systems', gradient: 'from-emerald-500/20 to-emerald-500/5' },
+            { icon: <LayoutGrid className="w-5 h-5 text-blue-500" />, title: '12 Templates', description: 'Professional designs for any role', gradient: 'from-blue-500/20 to-blue-500/5' },
+          ].map((feature, i) => (
+            <div key={feature.title} className="animate-fade-in-up" style={{ animationDelay: `${0.15 + i * 0.05}s` }}>
+              <FeatureCard {...feature} />
+            </div>
+          ))}
+        </div>
+
+        <div className="animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
           <ATSScoreCard />
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
   );
 }
@@ -104,24 +53,17 @@ function BulletTransformCard() {
       </div>
       
       <div className="space-y-3">
-        {/* Before */}
         <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20">
           <p className="text-xs text-destructive font-medium mb-1">Before</p>
           <p className="text-sm text-muted-foreground">"Worked on frontend development"</p>
         </div>
         
-        {/* Arrow */}
         <div className="flex justify-center">
-          <motion.div
-            animate={{ y: [0, 4, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center"
-          >
+          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center animate-bounce-gentle">
             <ArrowRight className="w-4 h-4 text-primary rotate-90" />
-          </motion.div>
+          </div>
         </div>
         
-        {/* After */}
         <div className="p-3 rounded-lg bg-success/5 border border-success/20">
           <p className="text-xs text-success font-medium mb-1">After</p>
           <p className="text-sm text-foreground">
@@ -165,18 +107,10 @@ function ATSScoreCard() {
         <span className="text-2xl font-bold text-emerald-500">92%</span>
       </div>
       
-      {/* Progress bar */}
       <div className="h-2 rounded-full bg-muted/50 overflow-hidden mb-3">
-        <motion.div
-          initial={{ width: 0 }}
-          whileInView={{ width: '92%' }}
-          viewport={{ once: true }}
-          transition={{ duration: 1.5, ease: 'easeOut' }}
-          className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400"
-        />
+        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 animate-progress-92" />
       </div>
       
-      {/* Keywords */}
       <div className="flex flex-wrap gap-1.5">
         {['React', 'TypeScript', 'Node.js', 'AWS', '+8 more'].map((keyword, i) => (
           <span 
