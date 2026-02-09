@@ -1,152 +1,129 @@
 
-# Fix Wise AI Chat UI and Resume Save Error
+# Fix "Unauthorized" Errors on AI Features
 
-## Issues Identified
+## Problem Identified
 
-### Issue 1: Cramped UI in AgenticChatSheet Header
+The AI features are failing with "Unauthorized" errors because **the frontend is sending the Supabase anon key instead of the user's access token** when calling edge functions.
 
-From the screenshot, the header shows multiple elements competing for horizontal space:
-- Bot icon + "Wise AI" title
-- AIProviderBadge (shows "WiseResume AI" with settings icon)
-- Brain icon + Switch toggle + "Pro" label
-- Clear button (when messages exist)
-- Sheet's built-in close button (X)
+### Root Cause Analysis
 
-All these elements are trying to fit on one line, causing overlap on smaller screens.
-
-### Issue 2: "Failed to save resume" Error
-
-**Root Cause:** The resume ID `c201e295-f6d7-47ed-b558-e27b87b73f38` stored in zustand's localStorage doesn't exist in the database. The user's actual resume has ID `ede8e10d-1aef-4e1d-a728-d2a50e2901a8`.
+From the edge function logs:
+```
+Auth error: AuthApiError: invalid claim: missing sub claim
+```
 
 This happens because:
-1. zustand persists `currentResumeId` to localStorage
-2. If a resume is deleted server-side or the database is reset, the local ID becomes stale
-3. Auto-save attempts to PATCH a non-existent row, returning 406 error
-4. The error toast appears every 2 seconds (the debounce interval)
 
----
+1. **Edge functions have `verify_jwt = true`** in `supabase/config.toml`, which means they expect a valid user JWT token
+2. **Several frontend service files use `SUPABASE_PUBLISHABLE_KEY`** (the anon key) as the Bearer token instead of the user's actual session `access_token`
+3. The anon key is NOT a valid user JWT - it's a static project key that doesn't contain user claims (like `sub`)
+
+### Affected Files
+
+| File | Problem |
+|------|---------|
+| `src/lib/careerPath.ts` | Uses `SUPABASE_PUBLISHABLE_KEY` instead of user token |
+| `src/lib/agenticChat.ts` | Uses `SUPABASE_PUBLISHABLE_KEY` instead of user token |
+| `src/lib/aiAnalysis.ts` | Uses `SUPABASE_PUBLISHABLE_KEY` instead of user token |
+| `src/lib/aiTailor.ts` | Uses `SUPABASE_PUBLISHABLE_KEY` instead of user token |
+
+**Files that work correctly** (use `supabase.functions.invoke` which automatically includes the user token):
+- `src/hooks/useAIEnhance.ts` - Uses `supabase.functions.invoke`
+- Components that use `supabase.functions.invoke` directly
+
+**Wait - but `useAIEnhance.ts` also fails!** From the logs:
+```
+enhance-section | 401 | timestamp
+```
+
+This means even `supabase.functions.invoke` is failing. Let me check if the supabase client is properly initialized with the user session...
+
+Actually, looking at the auth logs:
+```
+"error": "403: invalid claim: missing sub claim"
+```
+
+This suggests the session token itself might be stale or invalid. The user may be logged in with a Lovable Cloud OAuth token that isn't being properly recognized by the Supabase auth.
+
+### The Real Issue
+
+Looking at `src/contexts/AuthContext.tsx` and the auth logs showing tokens from different domains:
+- `wiseresume.lovable.app` - Published app
+- `id-preview--*.lovable.app` - Preview environment
+
+The user's session token from one environment may not work in another, OR the Lovable Cloud OAuth token has a different format than what Supabase Auth expects.
 
 ## Solution
 
-### Fix 1: Redesign AgenticChatSheet Header
+### Approach 1: Use `supabase.functions.invoke` (Recommended)
 
-Restructure the header to be responsive and avoid overlap:
+The Supabase SDK's `functions.invoke` method automatically:
+1. Gets the current session
+2. Attaches the correct `Authorization` header
+3. Handles token refresh
 
-**Current Layout (cramped on mobile):**
-```text
-[Bot][Wise AI][Badge]........[Brain][Switch][Pro][Clear][X]
+Convert all raw `fetch` calls to use `supabase.functions.invoke`:
+
+**Files to modify:**
+- `src/lib/careerPath.ts`
+- `src/lib/agenticChat.ts`
+- `src/lib/aiAnalysis.ts`
+- `src/lib/aiTailor.ts`
+
+### Code Changes
+
+#### Pattern Before (broken):
+```typescript
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+
+const response = await fetch(`${SUPABASE_URL}/functions/v1/career-path-advisor`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,  // ❌ Wrong!
+  },
+  body: JSON.stringify({ resume, userGeminiKey }),
+});
 ```
 
-**New Layout (two rows when needed):**
-```text
-[Bot] Wise AI                              [Clear][X]
-[Badge]        [Brain][Switch] Pro
-```
+#### Pattern After (correct):
+```typescript
+import { supabase } from '@/integrations/supabase/safeClient';
 
-**Changes:**
-1. Move AIProviderBadge to a second row or make it smaller on mobile
-2. Remove duplicate elements (the Sheet already has a close button)
-3. Use responsive classes to hide less critical elements on mobile
-4. Improve spacing and alignment
+const { data, error } = await supabase.functions.invoke('career-path-advisor', {
+  body: { resume, userGeminiKey },
+});
 
-### Fix 2: Handle Stale Resume IDs
-
-Add validation in EditorPage to detect when `currentResumeId` points to a non-existent resume:
-
-1. Check if the resume exists in database when loading
-2. If it doesn't exist, clear the stale ID and redirect to dashboard
-3. Add better error handling in the update mutation to detect 406 errors
-4. Clear stale ID on 406 error to stop the error loop
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/editor/AgenticChatSheet.tsx` | Redesign header layout for mobile responsiveness |
-| `src/pages/EditorPage.tsx` | Add validation for stale resume IDs |
-| `src/hooks/useResumes.ts` | Better error handling for 406 errors |
-| `src/store/resumeStore.ts` | Add action to clear stale resume ID |
-
----
-
-## Implementation Details
-
-### AgenticChatSheet Header Redesign
-
-```tsx
-<SheetHeader className="px-4 pt-4 pb-2 shrink-0 border-b border-border">
-  {/* Row 1: Title and actions */}
-  <div className="flex items-center justify-between gap-2">
-    <SheetTitle className="flex items-center gap-2">
-      <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
-        <Bot className="w-4 h-4 text-primary-foreground" />
-      </div>
-      <span className="font-semibold">Wise AI</span>
-    </SheetTitle>
-    
-    {/* Right actions - simplified */}
-    <div className="flex items-center gap-1">
-      {messages.length > 0 && (
-        <Button variant="ghost" size="icon" onClick={clearChat}>
-          <Trash2 className="w-4 h-4" />
-        </Button>
-      )}
-    </div>
-  </div>
-  
-  {/* Row 2: Badge and Thinking Mode */}
-  <div className="flex items-center justify-between mt-2">
-    <AIProviderBadge size="xs" showSettingsLink />
-    <div className="flex items-center gap-1.5">
-      <Brain className={cn('w-4 h-4', thinkingMode ? 'text-primary' : 'text-muted-foreground')} />
-      <Switch checked={thinkingMode} onCheckedChange={toggleThinkingMode} className="scale-90" />
-      <span className="text-xs text-muted-foreground">Pro</span>
-    </div>
-  </div>
-</SheetHeader>
-```
-
-### EditorPage Stale ID Handling
-
-```tsx
-// Add to EditorPage
-const { data: resumeFromDb, isLoading, error } = useResume(currentResumeId);
-
-useEffect(() => {
-  // If we have a currentResumeId but it doesn't exist in DB
-  if (currentResumeId && !isLoading && !resumeFromDb && error) {
-    console.warn('Stale resume ID detected, clearing...');
-    setCurrentResumeId(null);
-    toast.error('Resume not found. Please select a resume from the dashboard.');
-    navigate('/dashboard');
+if (error) {
+  // Handle specific error types
+  if (error.message?.includes('401')) {
+    throw new Error('Unauthorized. Please log in again.');
   }
-}, [currentResumeId, isLoading, resumeFromDb, error]);
+  throw error;
+}
+
+return data;
 ```
 
-### Better Error Handling in useResumes
+### Summary of Changes
 
-```tsx
-// In updateResume mutation
-onError: (error: any) => {
-  // Check for 406 error (no rows found)
-  if (error?.message?.includes('PGRST116') || error?.code === 'PGRST116') {
-    toast.error('Resume not found. It may have been deleted.');
-    // Clear the stale ID
-    useResumeStore.getState().setCurrentResumeId(null);
-  } else {
-    toast.error('Failed to save resume');
-  }
-  console.error(error);
-},
-```
+| File | Change |
+|------|--------|
+| `src/lib/careerPath.ts` | Replace `fetch` with `supabase.functions.invoke` |
+| `src/lib/agenticChat.ts` | Replace `fetch` with `supabase.functions.invoke` |
+| `src/lib/aiAnalysis.ts` | Replace `fetch` with `supabase.functions.invoke` |
+| `src/lib/aiTailor.ts` | Replace all `fetch` calls with `supabase.functions.invoke` |
 
----
+This change ensures:
+1. The user's actual access token is used (not the anon key)
+2. Token refresh is handled automatically
+3. Consistent error handling across all AI features
 
-## Summary
+## Technical Details
 
-| Issue | Root Cause | Fix |
-|-------|-----------|-----|
-| Cramped header UI | Too many elements on one row | Split into two rows, improve responsive layout |
-| "Failed to save" loop | Stale resume ID in localStorage | Validate ID on load, handle 406 errors, clear stale IDs |
+The `supabase.functions.invoke` method:
+1. Internally calls `supabase.auth.getSession()` to get the current user token
+2. Adds `Authorization: Bearer <access_token>` header automatically
+3. Handles CORS and content-type headers
+
+This is why files using `supabase.functions.invoke` (like `useAIEnhance.ts`) work correctly, while files using raw `fetch` with `SUPABASE_PUBLISHABLE_KEY` fail with 401 Unauthorized.
