@@ -1,170 +1,159 @@
 
 
-# Add Visual Indicator for Active AI Provider
+# Landing Page as Default + New Logo + Enhanced Space Theme
 
-## Overview
+## Summary
 
-This plan adds visual indicators throughout the editor to show which AI provider (WiseResume AI or user's Gemini key) is currently active. The indicators will appear in key AI interaction points so users always know which provider is powering their AI features.
+Transform the app to always show the space-themed landing page as the default entry point, with a new logo matching the reference screenshot (document icon with gradient and cyan sparkle), and enhanced space animations.
 
-## Design Approach
+---
 
-The indicators will follow the existing "Cosmic Glass UI" theme with subtle, non-intrusive badges that provide at-a-glance information about the active AI provider. The design includes:
+## Current State vs. Desired State
 
-- A small chip/badge showing provider name and tier
-- Color-coded styling: purple/primary for WiseResume AI, blue for Gemini
-- Optional tier indicator (Free/Paid) when using Gemini
-- Consistent placement across all AI-related components
+| Aspect | Current | Desired |
+|--------|---------|---------|
+| **Default Page** | Shows home dashboard if user has resume, landing page only for new users | Always show landing page as default for ALL users |
+| **Logo** | Simple "W" lettermark in gradient square | Document icon inside gradient planet with orbital ring (like reference) |
+| **Space Background** | 80 stars with basic animations | More stars, enhanced nebula effects, improved shooting star |
 
-## Components to Add/Modify
+---
 
-### 1. Create AI Provider Indicator Component
+## Changes Overview
 
-**New File: `src/components/editor/ai/AIProviderBadge.tsx`**
+### 1. Update Index.tsx - Always Show Landing Page First
 
-A reusable badge component that displays the current AI provider:
+Remove the conditional logic that shows the home dashboard for users with existing resumes. Instead, always render the landing page as the default view.
 
 ```text
-+---------------------------------------+
-|  ✨ WiseResume AI                     |   (Default - purple)
-+---------------------------------------+
+Current Logic:
+if (hasResume) → Show HomeBackground + ResumeCard
+else → Show SpaceBackground + HeroSection
 
-+---------------------------------------+
-|  🔷 Gemini Free                       |   (User key - blue)
-+---------------------------------------+
-
-+---------------------------------------+
-|  🔷 Gemini Paid                       |   (User key - green border)
-+---------------------------------------+
+New Logic:
+Always → Show SpaceBackground + HeroSection (landing page)
 ```
 
-**Features:**
-- Uses `getAIProviderInfo()` from `src/lib/aiProvider.ts`
-- Compact size option for inline use (InlineAIButton)
-- Full size for prominent display (AIAssistantBar)
-- Tooltip with additional info on tap/hover
+The user can still access their resume by clicking "Launch Your Resume" or navigating to `/dashboard`.
 
-### 2. Add Indicator to AI Assistant Bar (Expanded)
+### 2. Update App Logo (AppIcon.tsx)
 
-**File: `src/components/editor/AIAssistantBar.tsx`**
+Replace the current "W" lettermark design with a document-style icon matching the reference:
 
-Add the provider badge in the expanded AI Studio panel, visible when users access AI features:
+**New Logo Design:**
+- Gradient background (purple to pink, rounded square)
+- White document shape with folded corner
+- "W" lettermark inside document
+- Lines representing resume text
+- Cyan sparkle in corner for AI indicator
 
-- Position: Below the "AI Studio" header, above action buttons
-- Style: Full-width info bar with provider name + link to AI settings
-- Behavior: Tapping opens the AI Settings page
-
-### 3. Add Indicator to AI Copilot Sheet Header
-
-**File: `src/components/editor/AgenticChatSheet.tsx`**
-
-Show the provider badge in the chat header so users know which AI is responding:
-
-- Position: Next to "AI Copilot" title
-- Style: Small badge showing provider name
-- Updates reactively if user changes provider mid-session
-
-### 4. Add Indicator to InlineAIButton Dropdown
-
-**File: `src/components/editor/InlineAIButton.tsx`**
-
-Show provider info in the dropdown menu footer when using per-section AI:
-
-- Position: Bottom of dropdown menu, separated by divider
-- Style: Muted text with provider info
-- Action: Links to AI settings for easy switching
-
-### 5. Add Indicator to AI Enhancement Dialog
-
-**File: `src/components/editor/ai/AIEnhanceDialog.tsx`**
-
-Show which AI processed the enhancement:
-
-- Position: In the header, next to the Sparkles icon
-- Style: Small "via WiseResume AI" or "via Gemini" text
-
-### 6. Create Custom Hook for Reactive Provider Info
-
-**New File: `src/hooks/useAIProviderInfo.ts`**
-
-A hook that provides reactive access to provider info with proper Zustand subscription:
-
-```typescript
-export function useAIProviderInfo() {
-  const aiProvider = useSettingsStore((s) => s.aiProvider);
-  const geminiKeyTier = useSettingsStore((s) => s.geminiKeyTier);
-  const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
-  
-  // Return computed provider info that updates on state changes
-}
+```text
+┌─────────────────────────┐
+│   ╭─────────────────╮   │
+│   │ ╲               │✦  │ ← Cyan AI sparkle
+│   │  W              │   │ ← W lettermark
+│   │ ════════════    │   │ ← Resume lines
+│   │ ═════════       │   │
+│   ╰─────────────────╯   │
+└─────────────────────────┘
+     Purple→Pink Gradient
 ```
 
-## Visual Design Specifications
+### 3. Update PlanetLogo.tsx - Match Reference Style
 
-### Provider Badge Variants
+Enhance the planet logo to match the reference screenshot:
+- Document icon inside the planet
+- Orbital ring with small particles
+- Glowing purple atmosphere
+- Small orbiting dots/moons
 
-**Default Provider (WiseResume AI):**
-- Background: `bg-primary/10`
-- Border: `border-primary/20`
-- Icon: Sparkles (primary color)
-- Text: "WiseResume AI"
+### 4. Enhance SpaceBackground.tsx
 
-**Gemini Free Tier:**
-- Background: `bg-blue-500/10`
-- Border: `border-blue-500/20`
-- Icon: Custom Gemini icon or diamond
-- Text: "Gemini Free"
+Add more visual interest:
+- Increase star count from 80 to 120
+- Add 2-3 shooting stars at different intervals
+- More prominent nebula colors
+- Subtle floating particles near the planet
 
-**Gemini Paid Tier:**
-- Background: `bg-blue-500/10`
-- Border: `border-green-500/30` (subtle green accent for paid)
-- Icon: Custom Gemini icon
-- Text: "Gemini Paid"
+### 5. Update Favicon
 
-### Size Variants
+Update the favicon to match the new logo design.
 
-| Variant | Use Case | Height | Font Size |
-|---------|----------|--------|-----------|
-| xs | InlineAIButton dropdown | 20px | 10px |
-| sm | Sheet headers, tooltips | 24px | 11px |
-| md | AIAssistantBar expanded | 28px | 12px |
+---
 
-## Implementation Details
-
-### Phase 1: Create Base Components
-
-1. Create `AIProviderBadge.tsx` with size variants
-2. Create `useAIProviderInfo.ts` hook
-3. Add Gemini icon asset (or use existing diamond/gem icon)
-
-### Phase 2: Integrate into AI Components
-
-4. Add badge to `AIAssistantBar.tsx` expanded view
-5. Add badge to `AgenticChatSheet.tsx` header
-6. Add provider info to `InlineAIButton.tsx` dropdown footer
-7. Add "via" text to `AIEnhanceDialog.tsx` header
-
-### Phase 3: Polish and Settings Link
-
-8. Add navigation to AI settings on badge tap
-9. Ensure smooth transitions when provider changes
-10. Test on mobile for touch target sizes (min 44px tap area)
-
-## File Summary
+## File Changes
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/editor/ai/AIProviderBadge.tsx` | Create | Reusable provider indicator badge |
-| `src/hooks/useAIProviderInfo.ts` | Create | Reactive hook for provider state |
-| `src/components/editor/AIAssistantBar.tsx` | Modify | Add provider badge to expanded view |
-| `src/components/editor/AgenticChatSheet.tsx` | Modify | Add provider badge to header |
-| `src/components/editor/InlineAIButton.tsx` | Modify | Add provider info to dropdown footer |
-| `src/components/editor/ai/AIEnhanceDialog.tsx` | Modify | Add "via" provider text to header |
+| `src/pages/Index.tsx` | **Modify** | Remove conditional, always show landing page |
+| `src/components/brand/AppIcon.tsx` | **Modify** | New document-style logo matching reference |
+| `src/components/landing/PlanetLogo.tsx` | **Modify** | Enhanced with document icon and better effects |
+| `src/components/landing/SpaceBackground.tsx` | **Modify** | More stars, multiple shooting stars, enhanced nebula |
+| `public/favicon.svg` | **Modify** | Update to match new logo design |
 
-## Benefits
+---
 
-1. **Transparency**: Users always know which AI is processing their requests
-2. **Trust**: Clear indication when using personal API key vs default
-3. **Quick Access**: Tapping badge navigates to AI settings for easy switching
-4. **Consistency**: Same visual language across all AI touchpoints
-5. **Non-Intrusive**: Subtle badges that don't clutter the interface
+## Technical Details
+
+### Index.tsx Changes
+
+The current file has a conditional at line 86:
+```tsx
+if (hasResume) {
+  return (
+    <MobileLayout>
+      <HomeBackground>
+        // ... home dashboard
+      </HomeBackground>
+    </MobileLayout>
+  );
+}
+```
+
+This will be removed so the landing page with `SpaceBackground` and `HeroSection` always renders.
+
+### New AppIcon.tsx Design
+
+```tsx
+// Key SVG elements:
+- Gradient background rect with rounded corners
+- White document shape with folded corner path
+- "W" lettermark stroke path
+- Resume text lines as rects
+- Cyan 4-point star sparkle in corner
+```
+
+### Enhanced SpaceBackground
+
+```tsx
+// Additional features:
+- Star count: 80 → 120
+- Multiple shooting stars with staggered delays
+- Enhanced nebula gradients with more color variation
+- Parallax depth effect on star layers
+```
+
+### PlanetLogo Updates
+
+Maintain the planet aesthetic but ensure it prominently features:
+- Central document/resume icon
+- Visible orbital elements
+- Glowing atmosphere matching the reference screenshot
+
+---
+
+## User Flow After Changes
+
+1. User opens app → Sees landing page with space background
+2. Clicks "Launch Your Resume" → Creates new resume → Goes to editor
+3. OR clicks "Upload existing resume" → Goes to upload page
+4. Can access dashboard via navigation or the "Explore" button
+
+---
+
+## Performance Considerations
+
+- Stars use CSS animations where possible (GPU-accelerated)
+- Shooting stars use `transform` and `opacity` only
+- Planet logo animations use Framer Motion with hardware acceleration
+- Lazy loading maintained for non-critical components
 
