@@ -1,10 +1,8 @@
 import { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Target, Wand2, Plus } from 'lucide-react';
+import { Target, Wand2, Plus, Mic } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { AppLogo } from '@/components/brand/AppLogo';
-import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { 
@@ -18,10 +16,12 @@ import {
 import { LazySection } from '@/components/landing/LazySection';
 import { ResumeCardSkeleton, ActionCardsGridSkeleton } from '@/components/home/HomeSkeletons';
 import { HomeBackground } from '@/components/home/HomeBackground';
+import { HomeHeroSection } from '@/components/home/HomeHeroSection';
+import { ActionPill } from '@/components/home/ActionPill';
+import haptics from '@/lib/haptics';
 
 // Lazy load heavy components not needed for initial render
 const ResumeCard = lazy(() => import('@/components/home/ResumeCard').then(m => ({ default: m.ResumeCard })));
-const ActionCard = lazy(() => import('@/components/home/ActionCard').then(m => ({ default: m.ActionCard })));
 const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
 const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
 const SpaceBackground = lazy(() => import('@/components/landing/SpaceBackground').then(m => ({ default: m.SpaceBackground })));
@@ -88,10 +88,8 @@ const Index = () => {
       <MobileLayout>
         <HomeBackground>
           <div className="min-h-full flex flex-col">
-            {/* App Header */}
-            <header className="pt-safe pt-6 pb-6 px-4 flex flex-col items-center">
-              <AppLogo size="md" />
-            </header>
+            {/* Premium Animated Header */}
+            <HomeHeroSection userName={currentResume.contactInfo.fullName || undefined} />
 
             {/* Returning User Dashboard */}
             <div className="flex-1 flex flex-col px-4 pb-safe">
@@ -100,10 +98,10 @@ const Index = () => {
                 className="mb-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
+                transition={{ delay: 0.2 }}
               >
                 <h2 className="text-sm font-medium text-muted-foreground mb-3">
-                  Continue where you left off
+                  Continue your journey
                 </h2>
                 <Suspense fallback={<ResumeCardSkeleton />}>
                   <ResumeCard
@@ -115,49 +113,70 @@ const Index = () => {
                 </Suspense>
               </motion.section>
 
-              {/* AI Actions */}
+              {/* AI Actions as Pills */}
               <motion.section 
                 className="mb-8"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
+                transition={{ delay: 0.3 }}
               >
                 <h2 className="text-sm font-medium text-muted-foreground mb-3">
-                  AI-Powered Actions
+                  Quick Actions
                 </h2>
-                <Suspense fallback={<ActionCardsGridSkeleton />}>
-                  <div className="grid grid-cols-2 gap-3">
-                    <ActionCard
-                      icon={Target}
-                      title="Score Match"
-                      description="Analyze job compatibility"
-                      onClick={() => setShowJobSheet(true)}
-                    />
-                    <ActionCard
-                      icon={Wand2}
-                      title="Tailor Resume"
-                      description="Customize for a job"
-                      onClick={() => setShowTailor(true)}
-                    />
-                  </div>
-                </Suspense>
+                <div className="flex gap-3 overflow-x-auto scrollbar-hide -mx-1 px-1 pb-2">
+                  <ActionPill
+                    icon={Target}
+                    label="Match"
+                    color="emerald"
+                    onClick={() => setShowJobSheet(true)}
+                  />
+                  <ActionPill
+                    icon={Wand2}
+                    label="Tailor"
+                    color="purple"
+                    onClick={() => setShowTailor(true)}
+                  />
+                  <ActionPill
+                    icon={Mic}
+                    label="Interview"
+                    color="orange"
+                    onClick={() => navigate('/interview')}
+                  />
+                </div>
               </motion.section>
 
-              {/* Create New */}
+              {/* Animated Create New Button */}
               <motion.section 
                 className="mt-auto pb-6"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.4 }}
               >
-                <Button
-                  variant="outline"
-                  className="w-full h-12 gap-2 glass-card hover:border-primary/40"
-                  onClick={handleUpload}
+                <motion.button
+                  className="relative w-full h-14 rounded-2xl overflow-hidden touch-manipulation group"
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    haptics.medium();
+                    handleUpload();
+                  }}
                 >
-                  <Plus className="w-5 h-5" />
-                  Create New Resume
-                </Button>
+                  {/* Rotating gradient border */}
+                  <div className="absolute inset-0 rotating-border rounded-2xl" />
+                  
+                  {/* Inner content */}
+                  <div className="absolute inset-[2px] rounded-[14px] bg-background/95 flex items-center justify-center gap-2 transition-colors group-hover:bg-background/80">
+                    <Plus className="w-5 h-5 text-primary" />
+                    <span className="font-medium text-foreground">Create New Resume</span>
+                  </div>
+
+                  {/* Shimmer overlay */}
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
+                    initial={{ x: '-100%' }}
+                    animate={{ x: '100%' }}
+                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                  />
+                </motion.button>
               </motion.section>
 
               {/* Sign In Link */}
@@ -165,7 +184,7 @@ const Index = () => {
                 className="text-center pb-4"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
+                transition={{ delay: 0.5 }}
               >
                 <button
                   onClick={handleSignIn}
