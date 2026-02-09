@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 
 interface Star {
@@ -24,7 +24,7 @@ function generateStars(count: number): Star[] {
 }
 
 export function SpaceBackground({ children }: { children: React.ReactNode }) {
-  const starsRef = useRef<Star[]>(generateStars(120));
+  const stars = useMemo(() => generateStars(50), []);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[hsl(240_30%_3%)]">
@@ -50,7 +50,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
 
       {/* Star field with parallax layers */}
       <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-        {starsRef.current.map((star) => (
+        {stars.map((star) => (
           <motion.div
             key={star.id}
             className="absolute rounded-full bg-white"
