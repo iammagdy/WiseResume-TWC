@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 
 interface AIEnhanceDialogProps {
   isOpen: boolean;
@@ -48,7 +49,10 @@ export function AIEnhanceDialog({
               <div className="p-2.5 rounded-lg bg-primary/10">
                 <Sparkles className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="font-semibold text-lg">{title}</h3>
+              <div>
+                <h3 className="font-semibold text-lg">{title}</h3>
+                <AIProviderVia className="mt-0.5" />
+              </div>
             </div>
             <Button variant="ghost" size="icon" onClick={onDiscard} className="min-w-[44px] min-h-[44px]">
               <X className="w-5 h-5" />
