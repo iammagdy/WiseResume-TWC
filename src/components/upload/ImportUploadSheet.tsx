@@ -12,7 +12,6 @@ import {
   FileText, 
   FileCode, 
   Image as ImageIcon, 
-  X,
   Shield,
   Sparkles,
 } from 'lucide-react';
@@ -132,8 +131,8 @@ export function ImportUploadSheet({
           disabled={isProcessing}
         />
 
-        {/* Header with AI Badge and Close */}
-        <div className="flex items-center justify-between pb-4">
+        {/* Header with AI Badge */}
+        <div className="pb-4">
           <Badge 
             variant="outline" 
             className="border-primary/40 bg-primary/10 text-primary px-3 py-1"
@@ -141,13 +140,6 @@ export function ImportUploadSheet({
             <Sparkles className="w-3 h-3 mr-1.5" />
             WISE AI ENGINE
           </Badge>
-          <button
-            onClick={onClose}
-            className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-muted/50 transition-colors touch-manipulation"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5 text-muted-foreground" />
-          </button>
         </div>
 
         {/* Title */}
