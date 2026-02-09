@@ -1,409 +1,205 @@
 
-# AI Provider Management System with Gemini API Fallback
+# Add Gemini API Key Support to Remaining Edge Functions
 
 ## Overview
 
-This plan implements a complete AI provider management system that allows users to bring their own Google Gemini API key as an alternative to the built-in Lovable AI gateway. The system includes automatic tier detection, smart rate limiting, and a dedicated AI settings page accessible from a new bottom navigation tab.
+This plan updates the 12 remaining edge functions to support user-provided Gemini API keys, allowing users to bypass the Lovable AI gateway and call Google's Gemini API directly. This follows the pattern already established in `tailor-resume` and `enhance-section`.
 
-## Architecture Summary
+## Functions to Update
 
-```text
-+-------------------+       +-------------------+       +-------------------+
-|  Frontend App     |       |  Edge Functions   |       |  AI Gateways      |
-|                   |       |                   |       |                   |
-|  Settings Store   | ----> |  Shared AI Client | ----> |  Lovable Gateway  |
-|  (Provider Choice)|       |  (Routing Logic)  |       |  OR               |
-|                   |       |                   |       |  Google Direct    |
-+-------------------+       +-------------------+       +-------------------+
-```
+| Function | Current State | Priority |
+|----------|--------------|----------|
+| agentic-chat | Lovable gateway only | High |
+| analyze-resume | Lovable gateway only | High |
+| career-path-advisor | Lovable gateway only | High |
+| detect-and-humanize | Lovable gateway only | High |
+| explain-gap | Lovable gateway only | High |
+| generate-cover-letter | Lovable gateway only | High |
+| interview-chat | Lovable gateway only | High |
+| one-page-optimizer | Lovable gateway only | High |
+| optimize-for-linkedin | Lovable gateway only | High |
+| parse-linkedin | Lovable gateway only | High |
+| parse-resume | Lovable gateway only | High |
+| recruiter-simulation | Uses OLD API endpoint | Critical (bug fix) |
 
-## Implementation Details
+## Special Cases
 
-### Phase 1: Extend Settings Store
+| Function | Decision |
+|----------|----------|
+| generate-headshot | Keep Lovable gateway only (image generation model not available via direct Gemini API) |
+| parse-job-url | Keep Lovable gateway only (SSRF protection complexity, low priority) |
 
-**File: `src/store/settingsStore.ts`**
+## Implementation Pattern
 
-Add new fields for AI provider configuration:
+Each function will be updated following the established pattern from `enhance-section`:
 
-```typescript
-// New types
-export type AIProvider = 'lovable' | 'gemini';
-export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
-
-// New state fields
-interface SettingsState {
-  // ... existing fields ...
-  
-  // AI Provider Settings
-  aiProvider: AIProvider;
-  geminiApiKey: string;
-  geminiKeyTier: GeminiKeyTier;
-  geminiKeyValidated: boolean;
-  geminiDailyUsage: { date: string; count: number };
-  
-  // Actions
-  setAIProvider: (provider: AIProvider) => void;
-  setGeminiApiKey: (key: string) => void;
-  setGeminiKeyTier: (tier: GeminiKeyTier) => void;
-  setGeminiKeyValidated: (validated: boolean) => void;
-  incrementGeminiDailyUsage: () => void;
-  resetGeminiDailyUsage: () => void;
-}
-```
-
-**Default Values:**
-- `aiProvider: 'lovable'` - Use built-in gateway by default
-- `geminiApiKey: ''` - No key initially
-- `geminiKeyTier: 'unknown'`
-- `geminiKeyValidated: false`
-- `geminiDailyUsage: { date: '', count: 0 }`
-
-### Phase 2: Create Gemini Key Validator Utility
-
-**New File: `src/lib/geminiKeyValidator.ts`**
-
-This module handles key validation and tier detection by calling Google's API directly:
+### 1. Extract userGeminiKey from Request Body
 
 ```typescript
-interface GeminiKeyValidationResult {
-  isValid: boolean;
-  tier: 'free' | 'paid' | 'unknown';
-  availableModels: string[];
-  error?: string;
-}
-
-export async function validateGeminiKey(apiKey: string): Promise<GeminiKeyValidationResult> {
-  // 1. Call https://generativelanguage.googleapis.com/v1beta/models?key={apiKey}
-  //    to verify key is valid and get available models
-  
-  // 2. Make a minimal test request to detect tier from rate limit headers
-  //    Free tier: 2-15 RPM, Paid: 1000+ RPM
-  //    Check x-ratelimit-limit-requests header
-  
-  // 3. Return validation result with tier and models
-}
+const { existingParams, userGeminiKey } = await req.json();
 ```
 
-**Tier Detection Logic:**
-- Free tier keys have very low RPM limits (2-15 depending on model)
-- Paid tier keys show limits of 1000+ RPM
-- Extract from `x-ratelimit-limit-requests` response header
-
-### Phase 3: Create Shared AI Client for Edge Functions
-
-**New File: `supabase/functions/_shared/aiClient.ts`**
-
-Centralized AI routing logic used by all edge functions:
+### 2. Add AI Routing Logic
 
 ```typescript
-interface AICallOptions {
-  model: string;
-  messages: { role: string; content: string }[];
-  temperature?: number;
-  maxTokens?: number;
-  userGeminiKey?: string;
+// Determine which AI gateway to use
+const useGeminiDirect = !!userGeminiKey;
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+if (!useGeminiDirect && !LOVABLE_API_KEY) {
+  throw new Error("LOVABLE_API_KEY is not configured");
 }
 
-interface AIResponse {
-  content: string;
-  usage?: { promptTokens: number; completionTokens: number };
-}
+// Choose API endpoint and auth based on provider
+const apiUrl = useGeminiDirect
+  ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+  : "https://ai.gateway.lovable.dev/v1/chat/completions";
 
-export async function callAI(options: AICallOptions): Promise<AIResponse> {
-  const { model, messages, temperature = 0.7, maxTokens, userGeminiKey } = options;
-  
-  // Determine which gateway to use
-  if (userGeminiKey) {
-    // Call Google's OpenAI-compatible endpoint directly
-    // https://generativelanguage.googleapis.com/v1beta/openai/chat/completions
-    // Strip "google/" prefix from model name
-    // Map unsupported models to closest available
-  } else {
-    // Use Lovable gateway with LOVABLE_API_KEY
-    // https://ai.gateway.lovable.dev/v1/chat/completions
+const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+const modelName = useGeminiDirect 
+  ? "gemini-2.5-flash-preview-05-20"  // Direct Gemini model name
+  : "google/gemini-2.5-flash";         // Lovable gateway model name
+```
+
+### 3. Enhanced Error Handling for Gemini Direct
+
+```typescript
+if (!response.ok) {
+  if (response.status === 401 || response.status === 403) {
+    return new Response(
+      JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
-}
-
-// Model mapping for direct Gemini calls
-const MODEL_MAPPING: Record<string, string> = {
-  'google/gemini-2.5-flash': 'gemini-2.5-flash',
-  'google/gemini-2.5-pro': 'gemini-2.5-pro',
-  'google/gemini-3-flash-preview': 'gemini-2.0-flash', // Fallback
-  // ... etc
-};
-```
-
-### Phase 4: Update All Edge Functions
-
-All 15 AI-calling edge functions need modification to accept an optional `userGeminiKey` parameter:
-
-| Function | Model Used | Changes Required |
-|----------|------------|------------------|
-| tailor-resume | gemini-2.5-pro | Use shared aiClient |
-| analyze-resume | gemini-2.5-flash | Use shared aiClient |
-| enhance-section | gemini-2.5-flash | Use shared aiClient |
-| generate-cover-letter | gemini-2.5-flash | Use shared aiClient |
-| career-path-advisor | gemini-2.5-flash | Use shared aiClient |
-| detect-and-humanize | gemini-3-flash | Use shared aiClient |
-| explain-gap | gemini-3-flash | Use shared aiClient |
-| interview-chat | gemini-2.5-flash | Use shared aiClient |
-| one-page-optimizer | gemini-2.5-flash | Use shared aiClient |
-| optimize-for-linkedin | gemini-2.5-flash | Use shared aiClient |
-| parse-job-url | gemini-2.5-flash | Use shared aiClient |
-| parse-linkedin | gemini-2.5-flash | Use shared aiClient |
-| parse-resume | gemini-2.5-flash | Use shared aiClient |
-| recruiter-simulation | gemini-2.5-flash | Use shared aiClient |
-| generate-headshot | Image model | Special handling |
-
-**Pattern for each edge function:**
-
-```typescript
-// Extract user key from request body
-const { userGeminiKey, ...otherParams } = await req.json();
-
-// Use shared AI client instead of direct fetch
-const aiResponse = await callAI({
-  model: 'google/gemini-2.5-flash',
-  messages: [...],
-  userGeminiKey,
-});
-```
-
-### Phase 5: Update Frontend Service Layer
-
-Modify all frontend modules that call edge functions to include the Gemini key when configured:
-
-**Files to update:**
-- `src/lib/aiTailor.ts` - tailorResume, parseJobUrl, generateCoverLetter
-- `src/lib/aiAnalysis.ts` - analyzeResume
-- `src/hooks/useAIEnhance.ts` - enhance function
-- Any sheet components that invoke functions directly
-
-**Pattern:**
-
-```typescript
-import { useSettingsStore } from '@/store/settingsStore';
-
-// In each function:
-const { aiProvider, geminiApiKey } = useSettingsStore.getState();
-const userGeminiKey = aiProvider === 'gemini' && geminiApiKey ? geminiApiKey : undefined;
-
-const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
-  method: 'POST',
-  body: JSON.stringify({ 
-    resume, 
-    jobDescription,
-    userGeminiKey, // Only included when using Gemini
-  }),
-});
-```
-
-### Phase 6: Implement Smart Rate Limiting
-
-**New File: `src/lib/rateLimiter.ts`**
-
-Create a client-side rate limiter with provider-aware limits:
-
-```typescript
-// Rate limit profiles by provider and tier
-const RATE_LIMITS = {
-  lovable: {
-    tailor: { rpm: 5, rpd: Infinity },
-    analyze: { rpm: 10, rpd: Infinity },
-    enhance: { rpm: 10, rpd: Infinity },
-    // ... etc
-  },
-  gemini_free: {
-    tailor: { rpm: 2, rpd: 50 },  // Very conservative for free tier
-    analyze: { rpm: 5, rpd: 100 },
-    enhance: { rpm: 5, rpd: 100 },
-    // ... etc
-  },
-  gemini_paid: {
-    tailor: { rpm: 60, rpd: Infinity },
-    analyze: { rpm: 60, rpd: Infinity },
-    enhance: { rpm: 60, rpd: Infinity },
-    // ... etc
-  },
-};
-
-export function checkRateLimit(feature: string): { allowed: boolean; waitSeconds: number } {
-  const { aiProvider, geminiKeyTier, geminiDailyUsage } = useSettingsStore.getState();
-  const profile = aiProvider === 'lovable' ? 'lovable' 
-    : geminiKeyTier === 'paid' ? 'gemini_paid' : 'gemini_free';
-  
-  // Check RPM (sliding window in memory)
-  // Check RPD for free tier (persisted in store)
-  // Reset daily usage at midnight Pacific time
+  if (response.status === 429) {
+    const errorMsg = useGeminiDirect 
+      ? "Rate limit exceeded. Your Gemini key may have hit its quota."
+      : "Rate limits exceeded, please try again later.";
+    return new Response(
+      JSON.stringify({ error: errorMsg }),
+      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  // ... existing error handling
 }
 ```
 
-### Phase 7: Build AI Settings Page
+## Model Mapping
 
-**New File: `src/pages/AIPage.tsx`**
+| Lovable Gateway Model | Direct Gemini Model |
+|----------------------|---------------------|
+| google/gemini-2.5-flash | gemini-2.5-flash-preview-05-20 |
+| google/gemini-2.5-pro | gemini-2.5-pro-preview-05-06 |
+| google/gemini-3-flash-preview | gemini-2.0-flash |
+| openai/gpt-5-mini | gemini-2.5-flash-preview-05-20 (fallback) |
 
-A dedicated page for all AI-related configuration:
+## Detailed Changes Per Function
 
-```text
-+----------------------------------------------------------+
-|  AI Settings                                              |
-+----------------------------------------------------------+
-|                                                           |
-|  AI PROVIDER                                              |
-|  +-------------------------------------------------+      |
-|  | ○ WiseResume AI (Default)                       |      |
-|  |   Free tier included, no setup required         |      |
-|  |                                                 |      |
-|  | ● Your Own Gemini API Key                       |      |
-|  |   Use your Google AI Studio key                 |      |
-|  +-------------------------------------------------+      |
-|                                                           |
-|  GEMINI API KEY                            [Validated ✓]  |
-|  +-------------------------------------------------+      |
-|  | ••••••••••••••••••XXXX    [Validate] [Clear]    |      |
-|  +-------------------------------------------------+      |
-|  | Tier: Paid | Models: 12 available               |      |
-|  | Get a key at: ai.google.dev/aistudio            |      |
-|  +-------------------------------------------------+      |
-|                                                           |
-|  USAGE THIS SESSION                                       |
-|  +-------------------------------------------------+      |
-|  | Requests: 23 | Remaining: 977 RPM               |      |
-|  | Daily (free tier only): 45/500                  |      |
-|  +-------------------------------------------------+      |
-|                                                           |
-|  VOICE INTEGRATION                                        |
-|  +-------------------------------------------------+      |
-|  | ElevenLabs API Key                    [•••••→]  |      |
-|  | For speech-to-text in interviews               |      |
-|  +-------------------------------------------------+      |
-|                                                           |
-|  TIPS                                                     |
-|  +-------------------------------------------------+      |
-|  | • Free tier has strict daily limits (50-500)    |      |
-|  | • Paid tier unlocks faster responses            |      |
-|  | • Keys are stored locally, never sent to our    |      |
-|  |   servers except to Google directly             |      |
-|  +-------------------------------------------------+      |
-+----------------------------------------------------------+
-```
+### 1. agentic-chat/index.ts
+- Extract `userGeminiKey` from request body
+- Add routing logic for AI gateway selection
+- Update model name based on provider
+- Add Gemini-specific error handling
 
-**Key UI Components:**
-- Radio group for provider selection
-- API key input with validation button and status badge
-- Tier detection badge (Free/Paid/Unknown)
-- Usage statistics card
-- Link to Google AI Studio
-- Move ElevenLabs key config here from Settings
+### 2. analyze-resume/index.ts
+- Extract `userGeminiKey` from request body
+- Add provider routing with model mapping
+- Enhance error messages for direct Gemini calls
 
-### Phase 8: Add AI Tab to Bottom Navigation
+### 3. career-path-advisor/index.ts
+- Extract `userGeminiKey` from request body
+- Add dual-provider support
+- Update logging to indicate provider used
 
-**File: `src/components/layout/BottomTabBar.tsx`**
+### 4. detect-and-humanize/index.ts
+- Extract `userGeminiKey` from request body
+- Update both detection and humanization API calls
+- Handle provider-specific errors for both calls
 
-Add new tab entry:
+### 5. explain-gap/index.ts
+- Extract `userGeminiKey` from request body
+- Add provider routing logic
+- Model uses tool calling - ensure compatibility with Gemini direct
 
-```typescript
-import { Brain } from 'lucide-react'; // or Bot, Cpu, Sparkles
+### 6. generate-cover-letter/index.ts
+- Already validates auth, just needs routing logic
+- Add provider selection and model mapping
+- Update error messages
 
-const tabs: TabItem[] = [
-  { path: '/dashboard', icon: Home, label: 'Home', matchPaths: ['/dashboard'] },
-  { path: '/editor', icon: FileText, label: 'Editor', matchPaths: ['/editor', '/preview'] },
-  { path: '/interview', icon: Mic, label: 'Interview', matchPaths: ['/interview'] },
-  { path: '/ai', icon: Brain, label: 'AI', matchPaths: ['/ai'] },  // NEW
-  { path: '/settings', icon: Settings, label: 'Settings', matchPaths: ['/settings'] },
-];
-```
+### 7. interview-chat/index.ts
+- Extract `userGeminiKey` from request body
+- Update both role analysis and main chat AI calls
+- Add provider-specific error handling
 
-**Note:** This removes the "New" (upload) tab. Upload can be accessed from the Dashboard page instead, or via a floating action button.
+### 8. one-page-optimizer/index.ts
+- Extract `userGeminiKey` from request body
+- Add provider routing logic
+- Update logging
 
-**File: `src/App.tsx`**
+### 9. optimize-for-linkedin/index.ts
+- Extract `userGeminiKey` from request body
+- Add dual-provider support
+- Maintain JSON parsing logic
 
-Add route for AI page:
+### 10. parse-linkedin/index.ts
+- Extract `userGeminiKey` from request body
+- Add provider routing with tool calling support
+- Gemini supports tool calling via OpenAI-compatible endpoint
 
-```typescript
-const AIPage = lazy(() => import("./pages/AIPage"));
+### 11. parse-resume/index.ts
+- Extract `userGeminiKey` from request body
+- Add provider routing with tool calling support
+- Ensure tool_choice works with Gemini direct
 
-// Inside AppShell routes:
-<Route path="/ai" element={
-  <Suspense fallback={<AISkeleton />}>
-    <AIPage />
-  </Suspense>
-} />
-```
+### 12. recruiter-simulation/index.ts (Critical Bug Fix)
+- Currently uses WRONG API endpoint: `lovable.dev/api/llm/openai/v1/chat/completions`
+- Should use: `ai.gateway.lovable.dev/v1/chat/completions`
+- Add `userGeminiKey` support
+- Fix model name (currently uses `openai/gpt-5-mini`, should map correctly)
 
-**File: `src/components/layout/PageSkeletons.tsx`**
+## Frontend Service Layer Updates
 
-Add loading skeleton:
+The following frontend modules also need updates to pass `userGeminiKey`:
 
-```typescript
-export function AISkeleton() {
-  return (
-    <div className="flex-1 flex flex-col animate-pulse">
-      <header className="pt-safe pt-4 pb-3 px-4 border-b border-border">
-        <div className="h-7 w-28 bg-muted rounded" />
-      </header>
-      <div className="px-4 py-4 space-y-4">
-        <div className="h-24 bg-muted rounded-xl" />
-        <div className="h-32 bg-muted rounded-xl" />
-        <div className="h-20 bg-muted rounded-xl" />
-      </div>
-    </div>
-  );
-}
-```
+### Already Updated:
+- `src/lib/aiTailor.ts` ✅
+- `src/lib/aiAnalysis.ts` ✅ (partially - only analyzeResume)
+- `src/hooks/useAIEnhance.ts` ✅
+- `src/lib/careerPath.ts` ✅
+- `src/lib/agenticChat.ts` ✅
 
-### Phase 9: Error Handling and Fallback Logic
+### Need Updates:
+- Components that directly call edge functions (need to check hooks and sheets)
 
-Implement comprehensive error handling for both providers:
+## Files to Modify
 
-**Edge Function Error Responses:**
+| File | Changes |
+|------|---------|
+| supabase/functions/agentic-chat/index.ts | Add userGeminiKey routing |
+| supabase/functions/analyze-resume/index.ts | Add userGeminiKey routing |
+| supabase/functions/career-path-advisor/index.ts | Add userGeminiKey routing |
+| supabase/functions/detect-and-humanize/index.ts | Add userGeminiKey routing |
+| supabase/functions/explain-gap/index.ts | Add userGeminiKey routing |
+| supabase/functions/generate-cover-letter/index.ts | Add userGeminiKey routing |
+| supabase/functions/interview-chat/index.ts | Add userGeminiKey routing |
+| supabase/functions/one-page-optimizer/index.ts | Add userGeminiKey routing |
+| supabase/functions/optimize-for-linkedin/index.ts | Add userGeminiKey routing |
+| supabase/functions/parse-linkedin/index.ts | Add userGeminiKey routing |
+| supabase/functions/parse-resume/index.ts | Add userGeminiKey routing |
+| supabase/functions/recruiter-simulation/index.ts | Fix API endpoint + add userGeminiKey |
 
-| Error | Lovable Gateway | Gemini Direct |
-|-------|-----------------|---------------|
-| Rate limit | 429 + generic message | 429 + tier-specific message |
-| Invalid key | N/A | 401 + "Invalid API key" |
-| Credits exhausted | 402 | 429 + "Daily quota exceeded" |
-| Network error | 500 | 500 |
+## Testing Strategy
 
-**Frontend Error Handling:**
-
-```typescript
-// In catch blocks:
-if (error.message.includes('Daily quota exceeded')) {
-  toast.error('Free tier daily limit reached. Try again tomorrow or use a paid key.');
-} else if (error.message.includes('Invalid API key')) {
-  toast.error('Your Gemini API key is invalid. Please check your settings.');
-  // Optionally auto-switch back to Lovable
-} else if (error.message.includes('Rate limit')) {
-  toast.error('Too many requests. Please wait a moment.');
-}
-```
-
-**Key Principle:** Never silently switch providers - always respect user's explicit choice.
-
-## File Summary
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/store/settingsStore.ts` | Modify | Add AI provider fields |
-| `src/lib/geminiKeyValidator.ts` | Create | Key validation + tier detection |
-| `src/lib/rateLimiter.ts` | Create | Client-side rate limiting |
-| `supabase/functions/_shared/aiClient.ts` | Create | Shared AI routing logic |
-| `supabase/functions/*/index.ts` (15 files) | Modify | Use shared aiClient |
-| `src/lib/aiTailor.ts` | Modify | Pass userGeminiKey |
-| `src/lib/aiAnalysis.ts` | Modify | Pass userGeminiKey |
-| `src/hooks/useAIEnhance.ts` | Modify | Pass userGeminiKey |
-| `src/pages/AIPage.tsx` | Create | AI settings page |
-| `src/components/layout/BottomTabBar.tsx` | Modify | Add AI tab |
-| `src/components/layout/PageSkeletons.tsx` | Modify | Add AISkeleton |
-| `src/App.tsx` | Modify | Add /ai route |
-| `supabase/config.toml` | Keep unchanged | No new functions needed |
+After implementation:
+1. Test each function with default Lovable gateway (no userGeminiKey)
+2. Test each function with a valid Gemini API key
+3. Test error handling with an invalid Gemini key
+4. Verify tool calling works correctly for parse-resume and parse-linkedin
 
 ## Benefits
 
-1. **User Choice**: Users can bring their own API key if desired
-2. **Cost Savings**: Free tier users can use their own Gemini free key to bypass Lovable quotas
-3. **No Breaking Changes**: Existing flow works unchanged (Lovable gateway remains default)
-4. **Transparent Tier Detection**: Users know immediately if their key is free or paid
-5. **Smart Rate Limiting**: Prevents users from hitting Google's limits unexpectedly
-6. **Centralized Logic**: Shared aiClient makes future provider additions easy
+1. Consistent behavior across all AI functions
+2. Users can use their own Gemini API keys everywhere
+3. Fixed critical bug in recruiter-simulation endpoint
+4. Better error messages for provider-specific issues
+5. Centralized routing pattern for future maintenance
