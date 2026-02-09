@@ -1,129 +1,116 @@
 
-# Fix Toast Notifications: Design & Behavior
+# Fix All AI Features - Complete Auth & CORS Resolution
 
 ## Problem Summary
 
-The current toast notifications have two major issues:
-1. **No way to dismiss** - Toasts appear to stay on screen forever (missing close button)
-2. **Poor design** - Boring, basic styling that doesn't match the app's vibrant theme
+All AI features are failing due to TWO critical issues discovered:
 
-## Current State
+1. **CORS Header Mismatch** in 2 edge functions (`agentic-chat`, `career-path-advisor`)
+2. **Missing JWT Config** for 3 edge functions not listed in config.toml
+3. **Potential Deployment Sync** - functions need redeployment to ensure latest code is live
 
-Looking at `src/components/ui/sonner.tsx`:
-- Uses the default Sonner configuration with minimal styling
-- **No `closeButton` prop** - users can't manually dismiss toasts
-- **No `duration` prop** - uses default 4000ms, but some toasts may be using `Infinity` or missing this
-- **Basic styling** - just background/border colors, no gradients, icons, or visual interest
+## Root Causes
 
-## Solution
+### Issue 1: CORS Headers Missing Required Supabase Client Headers
 
-### 1. Add Close Button & Set Reasonable Duration
+Two functions use incomplete CORS headers:
 
-Enable the `closeButton` prop on the Toaster component and set an explicit duration:
+| Function | Current Headers | Status |
+|----------|----------------|--------|
+| `agentic-chat` | `Content-Type, Authorization, X-Client-Info, Apikey` | MISSING Supabase platform headers |
+| `career-path-advisor` | `Content-Type, Authorization, X-Client-Info, Apikey` | MISSING Supabase platform headers |
 
-```tsx
-<Sonner
-  closeButton={true}      // Add X button to dismiss
-  duration={4000}         // 4 seconds auto-dismiss
-  // ... rest of config
-/>
+The Supabase JavaScript client sends these additional headers that get blocked:
+- `x-supabase-client-platform`
+- `x-supabase-client-platform-version`
+- `x-supabase-client-runtime`
+- `x-supabase-client-runtime-version`
+
+### Issue 2: Missing Config Entries
+
+Three functions are missing from `config.toml`:
+- `agentic-chat`
+- `career-path-advisor`
+- No `verify_jwt` setting means default behavior (may cause issues)
+
+## Implementation Plan
+
+### Part A: Fix CORS Headers (2 functions)
+
+**File: `supabase/functions/agentic-chat/index.ts`**
+
+Replace lines 4-8:
+```typescript
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
 ```
 
-### 2. Modern, Vibrant Toast Styling
+**File: `supabase/functions/career-path-advisor/index.ts`**
 
-Transform the boring toasts into beautiful, themed notifications that match the app's design:
-
-**Visual Improvements:**
-- Add backdrop blur (glass effect)
-- Use primary/accent color accents for different toast types
-- Add subtle glow effects
-- Better typography and spacing
-- Swipe-to-dismiss indication on mobile
-- Animated entrance/exit
-
-### 3. Rich Colors for Toast Types
-
-Enable `richColors` for success/error/warning to have meaningful color coding:
-
-```tsx
-<Sonner
-  richColors={true}  // Green for success, red for error, etc.
-/>
+Replace lines 4-8:
+```typescript
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
 ```
 
-### 4. Mobile-Optimized Positioning
+### Part B: Update Config.toml
 
-Position toasts at the top-center for mobile for better visibility:
+Add missing function entries:
 
-```tsx
-<Sonner
-  position="top-center"  // Better for mobile
-/>
+```toml
+[functions.agentic-chat]
+verify_jwt = true
+
+[functions.career-path-advisor]
+verify_jwt = true
 ```
 
----
+### Part C: Deploy All Edge Functions
 
-## Implementation Details
+After fixing the code, deploy all 18 edge functions to ensure the latest code is running:
 
-### File: `src/components/ui/sonner.tsx`
+1. enhance-section
+2. analyze-resume
+3. tailor-resume
+4. parse-resume
+5. parse-linkedin
+6. parse-job-url
+7. generate-cover-letter
+8. generate-headshot
+9. recruiter-simulation
+10. detect-and-humanize
+11. optimize-for-linkedin
+12. one-page-optimizer
+13. explain-gap
+14. interview-chat
+15. elevenlabs-scribe-token
+16. agentic-chat
+17. career-path-advisor
 
-**Changes:**
-1. Add `closeButton={true}` for manual dismiss
-2. Add `duration={4000}` for 4-second auto-dismiss
-3. Add `richColors={true}` for colored toast types
-4. Add `position="top-center"` for mobile visibility
-5. Update `toastOptions.classNames` with modern styling:
-   - Glass effect background
-   - Rounded corners
-   - Primary color accents
-   - Close button styling
-   - Better shadows
+## Files to Modify
 
-### File: `src/index.css`
+| File | Change |
+|------|--------|
+| `supabase/functions/agentic-chat/index.ts` | Fix CORS headers |
+| `supabase/functions/career-path-advisor/index.ts` | Fix CORS headers |
+| `supabase/config.toml` | Add missing function entries |
 
-**Add custom toast styles:**
-- Custom close button styling
-- Success/error/warning color overrides
-- Smooth animations
-- Mobile-responsive sizing
-- Swipe indicator
+## Technical Notes
 
----
+- The CORS issue causes preflight (OPTIONS) requests to fail
+- When OPTIONS fails, the actual POST request never happens
+- This explains why auth appears to fail - the request is blocked before reaching auth code
+- All 18 functions need deployment to ensure code matches repository
 
-## Design Preview
+## Verification
 
-### Before (boring)
-```
-┌────────────────────────────┐
-│ Something went wrong       │
-└────────────────────────────┘
-```
-
-### After (modern)
-```
-┌────────────────────────────────┬───┐
-│ ✓ Profile updated successfully │ ✕ │
-│   Your changes have been saved │   │
-└────────────────────────────────┴───┘
- ↑ Glass background, primary accent, close button
-```
-
----
-
-## Summary of Changes
-
-| File | Changes |
-|------|---------|
-| `src/components/ui/sonner.tsx` | Add closeButton, duration, richColors, position, enhanced styling |
-| `src/index.css` | Add custom toast CSS for glass effects, animations, close button |
-
----
-
-## Result
-
-After implementation:
-- Users can dismiss toasts with the X button
-- Toasts auto-dismiss after 4 seconds
-- Toasts have beautiful glass styling matching the app theme
-- Success/error/warning toasts have appropriate colors
-- Mobile-friendly positioning and touch interactions
+After deployment, test these features in order:
+1. AI Enhance button on Summary section (enhance-section)
+2. Resume import/upload (parse-resume)
+3. Wise AI Chat (agentic-chat)
+4. Career Path Advisor (career-path-advisor)
+5. Resume Tailoring (tailor-resume)
