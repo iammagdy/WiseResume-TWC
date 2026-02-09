@@ -1,158 +1,124 @@
 
-# Add Back Button to AI and Settings Pages + Mobile UX Audit
 
-## Problem Identified
+# Fix AI Copilot Error and Rename to "Wise AI"
 
-After analyzing all pages in the app, the following screens are missing back buttons:
+## Problem Analysis
 
-| Page | Current State | Issue |
-|------|---------------|-------|
-| **AIPage (`/ai`)** | No back button in header | User has no visual back navigation cue |
-| **SettingsPage (`/settings`)** | No back button in header | User has no visual back navigation cue |
+After investigating the error "Failed to execute 'json' on 'Response': Unexpected token '<', "<!doctype "... is not valid JSON", I found **two critical issues**:
 
-While both pages are accessible via the bottom tab bar and the hardware back button works (thanks to `useBackButton` hook), adding visual back buttons improves mobile UX consistency and accessibility.
+### Issue 1: Environment Variable Undefined Bug (Root Cause)
 
-## Pages Already Mobile-Friendly (with back buttons)
-
-- **EditorPage** - Has back button
-- **PreviewPage** - Has back button  
-- **UploadPage** - Has back button
-- **InterviewPage** - Has back buttons in all phases (setup, preview, active, summary)
-- **AuthPage** - Has "Back to Home" button
-- **Index/Dashboard** - Root screens, no back needed
-
-## Implementation Plan
-
-### Phase 1: Add Back Button to AIPage
-
-**File: `src/pages/AIPage.tsx`**
-
-Current header (line 101-108):
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-  <div className="flex items-center gap-3">
-    <div className="p-2 rounded-xl bg-primary/10">
-      <Brain className="w-5 h-5 text-primary" />
-    </div>
-    <h1 className="text-xl font-semibold">AI Settings</h1>
-  </div>
-</header>
+The network request shows:
+```
+Request: POST undefined/functions/v1/agentic-chat
+authorization: Bearer undefined
 ```
 
-Updated header with back button:
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-  <div className="flex items-center gap-3">
-    <button 
-      onClick={() => navigate('/dashboard')}
-      className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-      aria-label="Go back"
-    >
-      <ArrowLeft className="w-6 h-6" />
-    </button>
-    <div className="p-2 rounded-xl bg-primary/10">
-      <Brain className="w-5 h-5 text-primary" />
-    </div>
-    <h1 className="text-xl font-semibold">AI Settings</h1>
-  </div>
-</header>
-```
+**Root cause**: Multiple frontend modules directly use `import.meta.env.VITE_SUPABASE_URL` without fallbacks. When Vite's env injection temporarily fails during preview/build edge cases, these values become `undefined`, causing:
+- Requests go to `undefined/functions/v1/agentic-chat` (which returns the HTML page)
+- The HTML response fails JSON parsing, producing the error shown
 
-Changes needed:
-- Import `ArrowLeft` from lucide-react
-- Import `useNavigate` from react-router-dom
-- Add `const navigate = useNavigate();` at component top
-- Add back button with 48px touch target
+### Issue 2: Inconsistent Naming
 
-### Phase 2: Add Back Button to SettingsPage
+The AI assistant is currently named:
+- "AI Copilot" in the UI
+- "MegZone AI" in the backend system prompt
+- Should be: "Wise AI" everywhere
 
-**File: `src/pages/SettingsPage.tsx`**
+## Solution Overview
 
-Current header (line 177-179):
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 glass-header">
-  <h1 className="text-xl font-bold">Settings</h1>
-</header>
-```
+### Phase 1: Fix Environment Variable Bug
 
-Updated header with back button:
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 glass-header">
-  <div className="flex items-center gap-3">
-    <button 
-      onClick={() => navigate('/dashboard')}
-      className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-      aria-label="Go back"
-    >
-      <ArrowLeft className="w-6 h-6" />
-    </button>
-    <h1 className="text-xl font-bold">Settings</h1>
-  </div>
-</header>
-```
+Update all files that directly access `import.meta.env.VITE_SUPABASE_URL` to use the safe client's exported config with fallback values.
 
-Changes needed:
-- Import `ArrowLeft` from lucide-react (already has `useNavigate`)
-- Add back button with 48px touch target
+**Files affected:**
+| File | Current Issue |
+|------|---------------|
+| `src/lib/agenticChat.ts` | Direct env access, no fallback |
+| `src/lib/aiTailor.ts` | Direct env access, no fallback |
+| `src/lib/aiAnalysis.ts` | Direct env access, no fallback |
+| `src/lib/careerPath.ts` | Direct env access, no fallback |
 
-### Phase 3: Update Navigation Route Mapping
+**Fix approach:**
+1. Export `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` from `safeClient.ts`
+2. Update each affected file to import these values instead of accessing env directly
 
-**File: `src/lib/navigation.ts`**
+### Phase 2: Rename to "Wise AI"
 
-Ensure the back routes are correctly mapped for hardware back button:
+Update all UI references and backend prompts:
+
+| Location | Current | New |
+|----------|---------|-----|
+| `AgenticChatSheet.tsx` - Sheet title | "AI Copilot" | "Wise AI" |
+| `AgenticChatSheet.tsx` - Empty state heading | "AI Resume Copilot" | "Wise AI" |
+| `AgenticChatSheet.tsx` - Placeholder | "Ask me to edit your resume..." | "Ask Wise AI to edit your resume..." |
+| `EditorPage.tsx` - Aria label | "Open AI Copilot" | "Open Wise AI" |
+| `agentic-chat/index.ts` - System prompt | "MegZone AI" | "Wise AI" |
+
+## Technical Implementation Details
+
+### safeClient.ts Updates
+
+Export the URL and key constants for use by other modules:
 
 ```typescript
-const BACK_ROUTES: Record<string, string> = {
-  '/editor': '/dashboard',
-  '/preview': '/editor',
-  '/upload': '/dashboard',
-  '/interview': '/dashboard',
-  '/settings': '/dashboard',
-  '/ai': '/dashboard',  // ADD THIS
-  '/auth': '/',
-};
+// Add to exports at end of file
+export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };
 ```
 
-## Mobile-Friendliness Audit Results
+### Service Layer Updates Pattern
 
-The app is already well-optimized for mobile with:
+Each service file (agenticChat.ts, aiTailor.ts, etc.) will be updated from:
 
-1. **Touch Targets**: All buttons use `min-w-[48px] min-h-[48px]` (44px+ standard)
-2. **Safe Areas**: Uses `pt-safe` and `pb-safe` for notched devices
-3. **Bottom Navigation**: Persistent tab bar with proper touch targets
-4. **Hardware Back Button**: `useBackButton` hook handles Android back gesture
-5. **Haptic Feedback**: Uses `haptics` library for native feel
-6. **Keyboard Handling**: `useKeyboardAwareScroll` for input focus
-7. **Glass UI**: Consistent glassmorphism design across all screens
-8. **Pull-to-Refresh**: Dashboard has pull-to-refresh support
-9. **Responsive Typography**: Uses clamp() and responsive font sizes
-10. **Overflow Handling**: Proper scroll containers with `overscroll-contain`
-
-## File Changes Summary
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/pages/AIPage.tsx` | Modify | Add ArrowLeft back button to header |
-| `src/pages/SettingsPage.tsx` | Modify | Add ArrowLeft back button to header |
-| `src/lib/navigation.ts` | Modify | Add `/ai` route to BACK_ROUTES mapping |
-
-## Back Button Design Pattern
-
-All back buttons follow this consistent pattern for accessibility and touch-friendliness:
-
-```tsx
-<button 
-  onClick={() => navigate('/dashboard')}
-  className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-  aria-label="Go back"
->
-  <ArrowLeft className="w-6 h-6" />
-</button>
+```typescript
+// Before - fragile
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const response = await fetch(`${SUPABASE_URL}/functions/v1/...`, {
+  headers: {
+    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+  },
+});
 ```
 
-Key properties:
-- **48px minimum touch target** (exceeds iOS/Android 44px guideline)
-- **Negative margin** (`-ml-3`) to align with content edge
-- **Visual feedback** on hover and active states
-- **Accessible label** for screen readers
-- **Touch manipulation** CSS for responsive touch
+To:
+
+```typescript
+// After - resilient with fallbacks
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+
+const response = await fetch(`${SUPABASE_URL}/functions/v1/...`, {
+  headers: {
+    'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
+  },
+});
+```
+
+### Edge Function System Prompt Update
+
+Update the system prompt in `agentic-chat/index.ts`:
+
+```typescript
+const SYSTEM_PROMPT = `You are Wise AI, an expert resume assistant integrated into the WiseResume editor. You help users improve their resumes through natural conversation.
+...
+```
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/integrations/supabase/safeClient.ts` | Export SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY constants |
+| `src/lib/agenticChat.ts` | Import from safeClient instead of direct env access |
+| `src/lib/aiTailor.ts` | Import from safeClient instead of direct env access |
+| `src/lib/aiAnalysis.ts` | Import from safeClient instead of direct env access |
+| `src/lib/careerPath.ts` | Import from safeClient instead of direct env access |
+| `src/components/editor/AgenticChatSheet.tsx` | Rename "AI Copilot" to "Wise AI" |
+| `src/pages/EditorPage.tsx` | Update aria-label |
+| `supabase/functions/agentic-chat/index.ts` | Update system prompt naming |
+
+## Benefits
+
+1. **Eliminates Undefined Errors**: Fallback values ensure requests always go to the correct endpoint
+2. **Consistent Branding**: "Wise AI" used throughout app and backend
+3. **Improved Reliability**: No more HTML error pages from failed requests
+4. **Better UX**: Clear, consistent naming helps users understand they're talking to the same AI
+
