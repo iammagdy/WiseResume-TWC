@@ -10,17 +10,19 @@ import {
   parseResumePDF, 
   parseResumePDFWithOCR,
   parseTextWithAI,
+  regenerateResumeIds,
   getExtractionSummary, 
   PDFParseError,
   estimateOCRTime,
   OCRProgressCallback,
 } from '@/lib/pdfParser';
 import { extractTextFromImage } from '@/lib/pdf/ocrExtractor';
+import { validateAndCleanResumeData, extractTextFromHTML } from '@/lib/jsonResumeValidator';
 import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/UploadErrorRecovery';
 import { UploadProgressSteps, ParseStep } from '@/components/upload/UploadProgressSteps';
 import { ImportReviewSheet, SelectedSections } from '@/components/upload/ImportReviewSheet';
-import { FileTypeSelector, FileType } from '@/components/upload/FileTypeSelector';
+import { ImportUploadSheet, FileType } from '@/components/upload/ImportUploadSheet';
 import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
@@ -36,8 +38,7 @@ export default function UploadPage() {
   const [parseStep, setParseStep] = useState<ParseStep>('reading');
   
   // File type selector state
-  const [showFileTypeSelector, setShowFileTypeSelector] = useState(false);
-  const [expectedFileType, setExpectedFileType] = useState<FileType | null>(null);
+  const [showImportSheet, setShowImportSheet] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Error recovery state
@@ -68,20 +69,10 @@ export default function UploadPage() {
       case 'pdf': return '.pdf,application/pdf';
       case 'word': return '.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
       case 'image': return '.jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp';
+      case 'json': return '.json,application/json';
+      case 'html': return '.html,.htm,text/html';
     }
   }
-
-  // Handle file type selection from sheet
-  const handleFileTypeSelect = useCallback((type: FileType) => {
-    setExpectedFileType(type); // Remember expected type for validation
-    setShowFileTypeSelector(false);
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.accept = getAcceptString(type);
-      // Small delay to ensure accept is set before click
-      setTimeout(() => fileInputRef.current?.click(), 50);
-    }
-  }, []);
 
   const handleOCRConfirm = useCallback(async () => {
     if (!pendingFile) return;
@@ -200,22 +191,115 @@ export default function UploadPage() {
     setPendingResumeData(null);
   }, []);
 
-  // Detect file type from MIME type
-  function getFileType(file: File): 'pdf' | 'word' | 'image' | 'unknown' {
+  // Detect file type from MIME type or extension
+  function detectFileType(file: File): FileType {
     const mime = file.type.toLowerCase();
-    if (mime === 'application/pdf') return 'pdf';
-    if (mime.startsWith('image/')) return 'image';
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    
+    if (mime === 'application/pdf' || ext === 'pdf') return 'pdf';
+    if (mime === 'application/json' || ext === 'json') return 'json';
+    if (mime === 'text/html' || ext === 'html' || ext === 'htm') return 'html';
+    if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) return 'image';
     if (
       mime === 'application/msword' ||
-      mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      mime === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      ext === 'doc' ||
+      ext === 'docx'
     ) return 'word';
-    // Check extension as fallback
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (ext === 'pdf') return 'pdf';
-    if (ext === 'doc' || ext === 'docx') return 'word';
-    if (['jpg', 'jpeg', 'png', 'webp'].includes(ext || '')) return 'image';
-    return 'unknown';
+    
+    return 'pdf'; // Default fallback
   }
+
+  // Handle JSON file (direct import, skips AI)
+  const handleJSONFile = useCallback(async (file: File) => {
+    setFileName(file.name);
+    setIsProcessing(true);
+    setShowErrorRecovery(false);
+    setParseStep('reading');
+
+    try {
+      const text = await file.text();
+      let parsed: unknown;
+      
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        toast.error('Invalid JSON file. Please check the file format.');
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('extracting');
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      const validated = validateAndCleanResumeData(parsed);
+      const withNewIds = regenerateResumeIds(validated);
+      const extraction = getExtractionSummary(withNewIds);
+
+      if (extraction.isEmpty) {
+        toast.error('No resume data found in JSON file.');
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('complete');
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      setPendingResumeData(withNewIds);
+      setShowImportReview(true);
+      toast.success('JSON imported! No AI processing needed.', { duration: 3000 });
+    } catch (error) {
+      console.error('Error parsing JSON:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to parse JSON file.');
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
+
+  // Handle HTML file
+  const handleHTMLFile = useCallback(async (file: File) => {
+    setFileName(file.name);
+    setIsProcessing(true);
+    setShowErrorRecovery(false);
+    setParseStep('reading');
+
+    try {
+      const html = await file.text();
+      
+      setParseStep('extracting');
+      const text = extractTextFromHTML(html);
+
+      if (!text.trim() || text.length < 50) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('analyzing');
+      const resumeData = await parseTextWithAI(text);
+      const extraction = getExtractionSummary(resumeData);
+
+      if (extraction.isEmpty) {
+        setErrorType('NO_TEXT');
+        setShowErrorRecovery(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      setParseStep('complete');
+      await new Promise(resolve => setTimeout(resolve, 400));
+
+      setPendingResumeData(resumeData);
+      setShowImportReview(true);
+    } catch (error) {
+      console.error('Error parsing HTML:', error);
+      setErrorType('CORRUPTED');
+      setShowErrorRecovery(true);
+    } finally {
+      setIsProcessing(false);
+    }
+  }, []);
 
   // Handle Word document
   const handleWordFile = useCallback(async (file: File) => {
@@ -323,8 +407,8 @@ export default function UploadPage() {
     }
   }, []);
 
-  const handleFile = useCallback(async (file: File) => {
-    const fileType = getFileType(file);
+  const handleFile = useCallback(async (file: File, fileType?: FileType) => {
+    const detectedType = fileType || detectFileType(file);
     
     // Size check
     if (file.size > 10 * 1024 * 1024) {
@@ -332,19 +416,32 @@ export default function UploadPage() {
       return;
     }
 
+    // Close the import sheet when processing starts
+    setShowImportSheet(false);
+
     // Route to appropriate handler
-    if (fileType === 'word') {
+    if (detectedType === 'json') {
+      await handleJSONFile(file);
+      return;
+    }
+
+    if (detectedType === 'html') {
+      await handleHTMLFile(file);
+      return;
+    }
+
+    if (detectedType === 'word') {
       await handleWordFile(file);
       return;
     }
 
-    if (fileType === 'image') {
+    if (detectedType === 'image') {
       await handleImageFile(file);
       return;
     }
 
-    if (fileType !== 'pdf') {
-      toast.error('Unsupported file type. Please use PDF, Word, or image files.');
+    if (detectedType !== 'pdf') {
+      toast.error('Unsupported file type. Please use PDF, Word, Image, JSON, or HTML files.');
       return;
     }
 
@@ -467,25 +564,18 @@ export default function UploadPage() {
     e.target.value = '';
     
     try {
-      // Validate file type matches expected selection
-      const actualType = getFileType(file);
-      if (expectedFileType && actualType !== expectedFileType && actualType !== 'unknown') {
-        const typeLabels: Record<FileType, string> = {
-          pdf: 'PDF',
-          word: 'Word document',
-          image: 'image',
-        };
-        toast.error(`Please select a ${typeLabels[expectedFileType]}. You selected a ${actualType === 'pdf' ? 'PDF' : actualType === 'word' ? 'Word document' : 'image'}.`);
-        return;
-      }
-      
       await handleFile(file);
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Something went wrong. Please try again.');
       setIsProcessing(false);
     }
-  }, [handleFile, expectedFileType]);
+  }, [handleFile]);
+
+  // Handle file selection from the new ImportUploadSheet
+  const handleFileFromSheet = useCallback((file: File, type: FileType) => {
+    handleFile(file, type);
+  }, [handleFile]);
 
   return (
     <div className="flex-1 flex flex-col">
@@ -533,7 +623,7 @@ export default function UploadPage() {
               <UploadZone
                 isDragging={isDragging}
                 isProcessing={isProcessing}
-                onUploadClick={() => !isProcessing && setShowFileTypeSelector(true)}
+                onUploadClick={() => !isProcessing && setShowImportSheet(true)}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -575,7 +665,7 @@ export default function UploadPage() {
 
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <FileText className="w-4 h-4" />
-                      <span>PDF, Word, or Image • max 10MB</span>
+                      <span>PDF, Word, Image, JSON, HTML • max 10MB</span>
                     </div>
                   </>
                 )}
@@ -620,11 +710,12 @@ export default function UploadPage() {
         parsedData={pendingResumeData}
       />
       
-      {/* File Type Selector Sheet */}
-      <FileTypeSelector
-        open={showFileTypeSelector}
-        onClose={() => setShowFileTypeSelector(false)}
-        onSelectType={handleFileTypeSelect}
+      {/* Import Upload Sheet (replaces FileTypeSelector) */}
+      <ImportUploadSheet
+        open={showImportSheet}
+        onClose={() => setShowImportSheet(false)}
+        onFileSelect={handleFileFromSheet}
+        isProcessing={isProcessing}
       />
     </div>
   );

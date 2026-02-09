@@ -17,6 +17,9 @@ import { handleAIError } from './aiProvider';
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
 
+/** Timeout for AI parsing requests (60 seconds) */
+const PARSE_TIMEOUT = 60000;
+
 /**
  * Result from initial PDF parsing attempt.
  * If needsOCR is true, call parseResumePDFWithOCR to try OCR extraction.
@@ -31,10 +34,13 @@ export interface ParseResult {
 /**
  * Call the AI edge function to parse resume text into structured data.
  * Falls back to local regex parsing if AI fails.
+ * Includes 60s timeout to prevent infinite hangs.
  * Exported for use with Word and Image parsing.
  */
 export async function parseTextWithAI(text: string): Promise<ResumeData> {
   const SUPABASE_URL = supabaseConfig.url;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
 
   try {
     console.log('Calling AI to parse resume text...');
@@ -44,6 +50,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     
     if (!session?.access_token) {
       console.warn('No auth session, falling back to local parser');
+      clearTimeout(timeoutId);
       return parseResumeText(text);
     }
     
@@ -54,6 +61,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
         'Authorization': `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({ text }),
+      signal: controller.signal,
     });
 
     if (!response.ok) {
@@ -62,8 +70,14 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 
     const data = await response.json();
     console.log('AI parsing successful');
-    return data;
+    return regenerateResumeIds(data);
   } catch (error) {
+    // Handle timeout specifically
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.warn('AI parsing timed out after 60s, falling back to local parser');
+      return parseResumeText(text);
+    }
+    
     console.error('AI parsing error, falling back to local parser:', error);
     
     // Re-throw rate limit and payment errors
@@ -75,7 +89,32 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     // Fall back to local regex parsing for network errors
     console.log('Using fallback local parser...');
     return parseResumeText(text);
+  } finally {
+    clearTimeout(timeoutId);
   }
+}
+
+/**
+ * Regenerate all IDs in resume data to prevent React key conflicts.
+ * Applied after AI parsing or JSON import.
+ */
+export function regenerateResumeIds(data: ResumeData): ResumeData {
+  return {
+    ...data,
+    id: undefined, // Clear old ID so a new one is assigned on save
+    experience: data.experience?.map(exp => ({
+      ...exp,
+      id: crypto.randomUUID(),
+    })) || [],
+    education: data.education?.map(edu => ({
+      ...edu,
+      id: crypto.randomUUID(),
+    })) || [],
+    certifications: data.certifications?.map(cert => ({
+      ...cert,
+      id: crypto.randomUUID(),
+    })) || [],
+  };
 }
 
 /**
