@@ -18,6 +18,7 @@ interface ChatRequest {
   message: string;
   conversationHistory: ChatMessage[];
   currentResume: unknown;
+  userGeminiKey?: string;
 }
 
 interface FunctionCallResult {
@@ -172,7 +173,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { message, conversationHistory, currentResume } = (await req.json()) as ChatRequest;
+    const { message, conversationHistory, currentResume, userGeminiKey } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
       return new Response(
@@ -196,10 +197,22 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Determine which AI gateway to use
+    const useGeminiDirect = !!userGeminiKey;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+
+    if (!useGeminiDirect && !LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    const apiUrl = useGeminiDirect
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+    const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
+
+    console.log(`agentic-chat: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
 
     const resumeContext = currentResume
       ? `\n\nCurrent Resume:\n${JSON.stringify(currentResume, null, 2).slice(0, 4000)}`
@@ -211,14 +224,14 @@ Deno.serve(async (req: Request) => {
       { role: "user", content: message },
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: modelName,
         messages,
         tools: TOOLS,
         temperature: 0.7,
@@ -226,21 +239,28 @@ Deno.serve(async (req: Request) => {
       }),
     });
 
-    if (response.status === 429) {
-      return new Response(
-        JSON.stringify({ error: "Rate limit exceeded. Please wait a moment." }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (response.status === 402) {
-      return new Response(
-        JSON.stringify({ error: "AI credits exhausted." }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        return new Response(
+          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        const errorMsg = useGeminiDirect
+          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
+          : "Rate limit exceeded. Please wait a moment.";
+        return new Response(
+          JSON.stringify({ error: errorMsg }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "AI credits exhausted." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       const errText = await response.text();
       console.error("AI error:", response.status, errText);
       throw new Error(`AI request failed: ${response.status}`);

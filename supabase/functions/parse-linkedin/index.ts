@@ -65,7 +65,7 @@ serve(async (req) => {
     const userId = claimsData.claims.sub;
     console.log('Authenticated user:', userId);
 
-    const { profileText } = await req.json();
+    const { profileText, userGeminiKey } = await req.json();
 
     // ============= SECURITY: Input validation =============
     if (!profileText || typeof profileText !== "string") {
@@ -97,10 +97,22 @@ serve(async (req) => {
       );
     }
 
+    // Determine which AI gateway to use
+    const useGeminiDirect = !!userGeminiKey;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
+
+    if (!useGeminiDirect && !LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    const apiUrl = useGeminiDirect
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+    const modelName = useGeminiDirect ? "gemini-2.0-flash" : "google/gemini-3-flash-preview";
+
+    console.log(`parse-linkedin: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
 
     const systemPrompt = `You are an expert at extracting structured resume data from LinkedIn profile text.
 
@@ -119,14 +131,14 @@ Your task is to parse the provided LinkedIn profile content and extract the foll
 Be thorough and extract as much relevant information as possible. For dates, use formats like "Jan 2020" or "2020". 
 If a position is current, mark it as such. Clean up any formatting issues in the text.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(apiUrl, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: modelName,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Please extract structured resume data from this LinkedIn profile:\n\n${profileText}` },
@@ -191,9 +203,18 @@ If a position is current, mark it as such. Clean up any formatting issues in the
     });
 
     if (!response.ok) {
-      if (response.status === 429) {
+      if (response.status === 401 || response.status === 403) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
+          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        const errorMsg = useGeminiDirect
+          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
+          : "Rate limit exceeded. Please try again in a moment.";
+        return new Response(
+          JSON.stringify({ error: errorMsg }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

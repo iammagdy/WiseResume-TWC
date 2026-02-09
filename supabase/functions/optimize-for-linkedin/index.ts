@@ -39,6 +39,7 @@ interface LinkedInOptimizeRequest {
   resume: ResumeData;
   targetRole?: string;
   region?: 'global' | 'gcc' | 'emea' | 'apac' | 'americas';
+  userGeminiKey?: string;
 }
 
 interface LinkedInOptimizeResult {
@@ -65,7 +66,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { resume, targetRole, region = 'global' }: LinkedInOptimizeRequest = await req.json();
+    const { resume, targetRole, region = 'global', userGeminiKey }: LinkedInOptimizeRequest = await req.json();
 
     if (!resume) {
       return new Response(
@@ -74,14 +75,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Determine which AI gateway to use
+    const useGeminiDirect = !!userGeminiKey;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
+
+    if (!useGeminiDirect && !LOVABLE_API_KEY) {
       console.error('LOVABLE_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const apiUrl = useGeminiDirect
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+    const modelName = useGeminiDirect ? "gemini-2.0-flash" : "google/gemini-3-flash-preview";
+
+    console.log(`optimize-for-linkedin: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
 
     const regionContext = {
       global: 'Use internationally recognized terminology and avoid region-specific idioms.',
@@ -139,14 +152,14 @@ Guidelines:
 4. Skills should include both broad and specific terms recruiters search for
 5. Make content scannable with strategic line breaks in About sections`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: modelName,
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
       }),
@@ -156,9 +169,18 @@ Guidelines:
       const errorText = await response.text();
       console.error('LinkedIn optimization API error:', errorText);
       
-      if (response.status === 429) {
+      if (response.status === 401 || response.status === 403) {
         return new Response(
-          JSON.stringify({ error: 'rate_limit', message: 'Too many requests. Please try again later.' }),
+          JSON.stringify({ error: 'Invalid API key. Please check your AI settings.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 429) {
+        const errorMsg = useGeminiDirect
+          ? 'Rate limit exceeded. Your Gemini key may have hit its quota.'
+          : 'Too many requests. Please try again later.';
+        return new Response(
+          JSON.stringify({ error: 'rate_limit', message: errorMsg }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
