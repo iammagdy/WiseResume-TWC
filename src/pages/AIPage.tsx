@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Brain, Key, Zap, CheckCircle2, AlertCircle, ExternalLink, Trash2, Eye, EyeOff, Mic, Info, Loader2, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Brain, Key, Zap, CheckCircle2, AlertCircle, ExternalLink, Trash2, Eye, EyeOff, Mic, Info, Loader2, ChevronRight, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { validateGeminiKey } from '@/lib/geminiKeyValidator';
@@ -15,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { ElevenLabsKeySheet } from '@/components/settings/ElevenLabsKeySheet';
 
 export default function AIPage() {
+  const navigate = useNavigate();
   const {
     aiProvider,
     setAIProvider,
@@ -100,6 +102,13 @@ export default function AIPage() {
       {/* Header */}
       <header className="pt-safe pt-4 pb-3 px-4 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/dashboard')}
+            className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="w-6 h-6" />
+          </button>
           <div className="p-2 rounded-xl bg-primary/10">
             <Brain className="w-5 h-5 text-primary" />
           </div>
