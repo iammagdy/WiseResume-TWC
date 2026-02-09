@@ -1,76 +1,126 @@
 
-# Fix AI Features (401 Errors) and PDF Downloads on Mobile
 
-## Problem 1: ALL AI Edge Functions Return 401
+# Fix PDF Truncation on iOS and Verify AI Features
 
-**Root Cause Found**: The `verify_jwt = true` setting in `supabase/config.toml` causes Supabase's gateway to validate the JWT **before** the function code runs. The gateway is rejecting the JWT with "Invalid JWT", so the function code (which has its own `getUser(token)` auth check) never even executes.
+## Problem 1: AI Features
+The AI features are **actually working now** after the last `verify_jwt = false` fix. A direct test of `enhance-section` returned a successful 200 response. The user may be seeing cached behavior or needs to refresh. However, we should ensure the client-side error handling shows clear messages.
 
-Evidence:
-- Edge function logs show NO auth error messages (the code never runs)
-- Analytics show ALL function calls returning 401 (enhance-section, interview-chat, elevenlabs-scribe-token, parse-resume)
-- Direct curl test confirmed: `{"code":401,"message":"Invalid JWT"}` at the gateway level
-- The functions already implement their own robust auth via `supabaseClient.auth.getUser(token)`
+## Problem 2: PDF Truncation on iOS (The Real Bug)
 
-**Fix**: Set `verify_jwt = false` for all functions in `supabase/config.toml`. The functions already verify auth themselves using `getUser(token)`, which is more reliable in Lovable Cloud environments.
+The PDF is being truncated on iOS due to two compounding issues:
 
-## Problem 2: PDF Download Broken on Mobile (iOS/Android)
+### Root Cause A: `getBoundingClientRect()` returns transform-affected values on iOS
+The `calculatePDFDimensions` function uses `rect.width` from `getBoundingClientRect()` as a fallback. On iOS Safari, when framer-motion applies CSS transforms (`scale: 0.95` during animation), `getBoundingClientRect()` returns the **visually scaled** dimensions, not the actual layout dimensions. This causes `sourceWidth` to be smaller than expected, which distorts the `globalScaleFactor` and leads to content being cut off.
 
-**Root Cause**: The current download method uses `document.createElement('a')` + `link.click()` which does not work reliably on iOS Safari and some Android browsers. Mobile browsers block or ignore programmatic link clicks for downloads.
+### Root Cause B: `html2canvas` on iOS Safari has viewport clipping
+`html2canvas` on iOS Safari fails to capture content that extends beyond the visible viewport. Content below the fold is rendered as blank white space, causing truncation.
 
-Additionally, there's a **bug**: the `cover-letter` case in the switch statement (line 208-212) is missing a `break`, causing it to fall through to the `combined` case.
+### Root Cause C: Container width is `100%` not `612px`
+The resume container uses `width: '100%'` with `maxWidth: '612px'`. On mobile screens smaller than 612px, the actual width shrinks to match the screen, but `html2canvas` still captures at that smaller width. The PDF then scales this up, but the content layout was reflowed for the smaller width, potentially pushing content to a second "page" that gets clipped.
 
-**Fix**: Use `window.open(url, '_blank')` as fallback for mobile devices, and add the missing `break` statement.
+## Solution
 
----
+### Fix 1: Force fixed dimensions before PDF capture (`src/lib/pdfGenerator.ts`)
+Before capturing, temporarily override the resume element to:
+- Set explicit `width: 612px` (not `100%`)
+- Remove any CSS transforms
+- Scroll the container to ensure all content is visible
+- Set `overflow: visible` on parent containers
+- Then restore everything after capture
 
-## Changes
-
-### File 1: `supabase/config.toml`
-Set `verify_jwt = false` for ALL 17 edge functions. The functions handle their own authentication securely.
-
-### File 2: `src/pages/PreviewPage.tsx`
-1. Add mobile detection for download method
-2. On mobile: use `window.open(blobUrl)` instead of `link.click()` for reliable PDF downloads on iOS/Android
-3. Fix the missing `break` in the `cover-letter` switch case
-4. Add proper cover letter PDF generation (currently falls through to combined)
-
-### File 3: Redeploy all edge functions
-After config change, redeploy all functions so the `verify_jwt = false` setting takes effect.
-
----
-
-## Technical Details
-
-### Why verify_jwt = false is safe
-Every single edge function already implements authentication:
 ```typescript
-const token = authHeader.replace('Bearer ', '');
-const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-if (authError || !user) {
-  return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
+async function prepareForCapture(sourceElement: HTMLElement): { cleanup: () => void } {
+  const originalStyles = {
+    width: sourceElement.style.width,
+    maxWidth: sourceElement.style.maxWidth,
+    transform: sourceElement.style.transform,
+    minHeight: sourceElement.style.minHeight,
+  };
+  
+  // Force exact PDF-width layout
+  sourceElement.style.width = '612px';
+  sourceElement.style.maxWidth = '612px';
+  sourceElement.style.transform = 'none';
+  
+  // Ensure parent scroll containers show all content
+  let parent = sourceElement.parentElement;
+  const parentOverflows: { el: HTMLElement; overflow: string }[] = [];
+  while (parent) {
+    const overflow = parent.style.overflow;
+    parentOverflows.push({ el: parent, overflow });
+    parent.style.overflow = 'visible';
+    parent = parent.parentElement;
+  }
+  
+  // Force layout recalculation
+  sourceElement.offsetHeight; // triggers reflow
+  
+  return {
+    cleanup: () => {
+      sourceElement.style.width = originalStyles.width;
+      sourceElement.style.maxWidth = originalStyles.maxWidth;
+      sourceElement.style.transform = originalStyles.transform;
+      sourceElement.style.minHeight = originalStyles.minHeight;
+      parentOverflows.forEach(({ el, overflow }) => {
+        el.style.overflow = overflow;
+      });
+    }
+  };
 }
 ```
-This is actually MORE secure than gateway JWT verification because it validates the token against the auth service directly.
 
-### Mobile PDF Download Fix
+### Fix 2: Use `offsetWidth` instead of `getBoundingClientRect` (`src/lib/pdfGenerator.ts`)
+Change `calculatePDFDimensions` to prioritize `offsetWidth`/`scrollHeight` which are not affected by CSS transforms:
+
 ```typescript
-// Current (broken on mobile):
-link.click();
+// Use offsetWidth (not affected by transforms) instead of rect.width
+const sourceWidth = sourceElement.offsetWidth || PAGE_WIDTH;
+const totalHeight = sourceElement.scrollHeight || PAGE_HEIGHT;
+```
 
-// Fixed (works on all devices):
-if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
-  window.open(url, '_blank');
-} else {
-  link.click();
+### Fix 3: Add `will-change` and scroll to top before capture
+In `captureTemplateAsCanvas`, scroll the parent to ensure all content is in the rendering context for iOS Safari:
+
+```typescript
+// Scroll parent to top to ensure iOS Safari renders all content
+sourceElement.scrollIntoView({ block: 'start' });
+window.scrollTo(0, 0);
+```
+
+### Fix 4: Improve mobile download with blob conversion for iOS
+The `window.open(url, '_blank')` approach may not work well for blob URLs on iOS Safari. Instead, use the `navigator.share` API as primary method on iOS, falling back to creating a temporary download link with a data URL:
+
+```typescript
+if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+  // iOS: Try share API first, then fallback to data URL
+  try {
+    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    await navigator.share({ files: [file] });
+  } catch {
+    // Fallback: convert to data URL for iOS
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      window.open(dataUrl, '_blank');
+    };
+    reader.readAsDataURL(pdfBlob);
+  }
 }
 ```
 
----
+## Files to Modify
 
-## Summary
+| File | Change |
+|------|--------|
+| `src/lib/pdfGenerator.ts` | Add `prepareForCapture()` function, fix dimension calculation, add iOS scroll workaround |
+| `src/pages/PreviewPage.tsx` | Improve iOS download to use `navigator.share` API with data URL fallback |
+
+## Technical Summary
 
 | Issue | Root Cause | Fix |
 |-------|-----------|-----|
-| All AI features 401 | Gateway JWT verification rejecting tokens | Set verify_jwt = false |
-| PDF download on mobile | link.click() blocked by mobile browsers | Use window.open() fallback |
-| Cover letter export bug | Missing break in switch statement | Add break statement |
+| PDF truncated on iOS | CSS transforms affect dimensions + html2canvas viewport clipping | Force 612px width, remove transforms, overflow:visible before capture |
+| Content cut off | `getBoundingClientRect` returns scaled values | Use `offsetWidth`/`scrollHeight` instead |
+| Download fails on iOS | Blob URLs don't work in iOS Safari `window.open` | Use `navigator.share` API with data URL fallback |
+| AI features "not working" | Already fixed - user needs to refresh | No code change needed (verify with testing) |
+
