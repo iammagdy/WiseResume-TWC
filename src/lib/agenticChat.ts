@@ -11,7 +11,17 @@ export interface ChatMessage {
     name: string;
     args: Record<string, unknown>;
   };
+  suggestion?: SuggestionProposal[];
   timestamp: number;
+}
+
+export interface SuggestionProposal {
+  section: string;
+  itemId?: string;
+  original: string;
+  suggested: string;
+  explanation: string;
+  status?: 'pending' | 'accepted' | 'rejected';
 }
 
 interface FunctionCallResponse {
@@ -21,17 +31,36 @@ interface FunctionCallResponse {
   message: string;
 }
 
+interface SuggestionResponse {
+  type: 'suggestion';
+  proposals: SuggestionProposal[];
+  message: string;
+}
+
 interface TextResponse {
   type: 'text';
   content: string;
 }
 
-type ChatResponse = FunctionCallResponse | TextResponse;
+type ChatResponse = FunctionCallResponse | SuggestionResponse | TextResponse;
+
+export interface FunctionResult {
+  name: string;
+  result: {
+    success: boolean;
+    applied?: Record<string, unknown>;
+    error?: string;
+  };
+}
 
 export async function sendChatMessage(
   message: string,
   conversationHistory: ChatMessage[],
-  currentResume: ResumeData | null
+  currentResume: ResumeData | null,
+  options?: {
+    thinkingMode?: boolean;
+    functionResponse?: FunctionResult;
+  }
 ): Promise<ChatResponse> {
   const rateCheck = checkAIRateLimit('chat');
   if (!rateCheck.allowed) {
@@ -56,6 +85,8 @@ export async function sendChatMessage(
       conversationHistory: historyForApi,
       currentResume,
       userGeminiKey,
+      thinkingMode: options?.thinkingMode ?? false,
+      functionResponse: options?.functionResponse,
     }),
   });
 
@@ -65,4 +96,18 @@ export async function sendChatMessage(
 
   trackGeminiUsage();
   return response.json();
+}
+
+// Helper to send closed-loop feedback after function execution
+export async function sendFunctionFeedback(
+  originalMessage: string,
+  conversationHistory: ChatMessage[],
+  currentResume: ResumeData | null,
+  functionResult: FunctionResult,
+  thinkingMode?: boolean
+): Promise<ChatResponse> {
+  return sendChatMessage(originalMessage, conversationHistory, currentResume, {
+    thinkingMode,
+    functionResponse: functionResult,
+  });
 }
