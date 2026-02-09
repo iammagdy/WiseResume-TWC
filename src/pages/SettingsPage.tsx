@@ -24,7 +24,7 @@ import {
   Brain,
   Mic
 } from 'lucide-react';
-import ProfileCard from '@/components/settings/ProfileCard';
+import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -431,34 +431,13 @@ export default function SettingsPage() {
             </h2>
             
             {/* Developer Credit Card */}
-            <div className="mb-4">
-              <ProfileCard
-                name="Magdy Saber"
-                title="Creator & Developer"
-                handle="magdysaber"
-                status="magdysaber.com"
-                contactText="Contact Me"
-                avatarUrl={developerPhoto}
-                showUserInfo={true}
-                enableTilt={true}
-                enableMobileTilt={false}
-                onContactClick={() => window.open('mailto:contact@magdysaber.com')}
-                behindGlowEnabled={true}
-                behindGlowColor="rgba(125, 190, 255, 0.67)"
-                innerGradient="linear-gradient(145deg,#60496e8c 0%,#71C4FF44 100%)"
-              />
-            </div>
-
-            {/* Website Link */}
-            <a 
-              href="https://magdysaber.com" 
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 text-sm text-primary hover:underline mt-4 mb-6"
-            >
-              <ExternalLink className="w-4 h-4" />
-              magdysaber.com
-            </a>
+            <DeveloperCreditCard
+              name="Magdy Saber"
+              title="Creator & Developer"
+              avatarUrl={developerPhoto}
+              websiteUrl="https://magdysaber.com"
+              onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+            />
 
             {/* Version Info */}
             <div className="p-4 rounded-2xl glass-elevated">
