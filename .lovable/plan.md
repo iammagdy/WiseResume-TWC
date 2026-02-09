@@ -1,146 +1,159 @@
 
-# Fix Duplicate WiseResume Text & Improve Logo Design
 
-## Problem Analysis
+# Landing Page as Default + New Logo + Enhanced Space Theme
 
-Based on the screenshot, there are two issues:
+## Summary
 
-### Issue 1: Duplicate "WiseResume" Text
-The `HomeHeroSection` component is rendering:
-1. `<AppLogo size="lg" />` - which already shows "WiseResume" + "Your AI Career Partner"
-2. A separate `<h1>WiseResume</h1>` below it (lines 91-98)
-
-This creates the duplicate text you're seeing.
-
-### Issue 2: Logo Design Problems
-The current logo looks cluttered with:
-- Purple gradient background square
-- White document shape inside
-- "W" lettermark that's hard to see
-- Cyan sparkle that looks out of place
-- Overall too many elements competing for attention
+Transform the app to always show the space-themed landing page as the default entry point, with a new logo matching the reference screenshot (document icon with gradient and cyan sparkle), and enhanced space animations.
 
 ---
 
-## Solution
+## Current State vs. Desired State
 
-### Fix 1: Remove Duplicate Text from HomeHeroSection
+| Aspect | Current | Desired |
+|--------|---------|---------|
+| **Default Page** | Shows home dashboard if user has resume, landing page only for new users | Always show landing page as default for ALL users |
+| **Logo** | Simple "W" lettermark in gradient square | Document icon inside gradient planet with orbital ring (like reference) |
+| **Space Background** | 80 stars with basic animations | More stars, enhanced nebula effects, improved shooting star |
 
-Update `HomeHeroSection.tsx` to:
-- Pass `showTagline={false}` to AppLogo (we want to show custom greeting instead)
-- Remove the duplicate `<h1>WiseResume</h1>` block entirely
-- Keep only the personalized greeting
+---
+
+## Changes Overview
+
+### 1. Update Index.tsx - Always Show Landing Page First
+
+Remove the conditional logic that shows the home dashboard for users with existing resumes. Instead, always render the landing page as the default view.
 
 ```text
-Before:                              After:
-┌─────────────────────┐              ┌─────────────────────┐
-│      [Logo]         │              │      [Logo]         │
-│    WiseResume       │ ← From       │    WiseResume       │
-│ Your AI Career...   │   AppLogo    ├─────────────────────┤
-├─────────────────────┤              │   Good morning!     │ ← Greeting only
-│    WiseResume       │ ← Duplicate  └─────────────────────┘
-│   Good morning!     │
-└─────────────────────┘
+Current Logic:
+if (hasResume) → Show HomeBackground + ResumeCard
+else → Show SpaceBackground + HeroSection
+
+New Logic:
+Always → Show SpaceBackground + HeroSection (landing page)
 ```
 
-### Fix 2: Redesign App Logo Icon
+The user can still access their resume by clicking "Launch Your Resume" or navigating to `/dashboard`.
 
-Create a cleaner, more modern logo design:
+### 2. Update App Logo (AppIcon.tsx)
 
-**Current Problems:**
-- Document shape inside gradient square is busy
-- "W" lettermark competes with other elements
-- Cyan sparkle looks tacked on
+Replace the current "W" lettermark design with a document-style icon matching the reference:
 
-**New Design - Clean "W" with Gradient:**
-- Simple rounded square with gradient
-- Clean, bold "W" lettermark as the main focus
-- Subtle AI sparkle that complements rather than competes
-- Removed the document shape for a cleaner look
+**New Logo Design:**
+- Gradient background (purple to pink, rounded square)
+- White document shape with folded corner
+- "W" lettermark inside document
+- Lines representing resume text
+- Cyan sparkle in corner for AI indicator
 
 ```text
-Current:                    New:
-┌──────────────┐           ┌──────────────┐
-│ ╭──────────╮ │           │              │
-│ │ [doc] W  │ │           │    ╲ ╲╱ ╱   │
-│ │ ═══════  │ │           │     ╲╱ ╱    │  ← Bold gradient "W"
-│ │ ═════    │ │           │      ╳      │
-│ ╰──────────╯ │           │              │
-│           ✦  │           │           ✨  │ ← Refined sparkle
-└──────────────┘           └──────────────┘
+┌─────────────────────────┐
+│   ╭─────────────────╮   │
+│   │ ╲               │✦  │ ← Cyan AI sparkle
+│   │  W              │   │ ← W lettermark
+│   │ ════════════    │   │ ← Resume lines
+│   │ ═════════       │   │
+│   ╰─────────────────╯   │
+└─────────────────────────┘
+     Purple→Pink Gradient
 ```
 
+### 3. Update PlanetLogo.tsx - Match Reference Style
+
+Enhance the planet logo to match the reference screenshot:
+- Document icon inside the planet
+- Orbital ring with small particles
+- Glowing purple atmosphere
+- Small orbiting dots/moons
+
+### 4. Enhance SpaceBackground.tsx
+
+Add more visual interest:
+- Increase star count from 80 to 120
+- Add 2-3 shooting stars at different intervals
+- More prominent nebula colors
+- Subtle floating particles near the planet
+
+### 5. Update Favicon
+
+Update the favicon to match the new logo design.
+
 ---
 
-## Technical Changes
+## File Changes
 
-### File 1: `src/components/home/HomeHeroSection.tsx`
-- Change `<AppLogo size="lg" />` to `<AppLogo size="lg" showTagline={false} />`
-- Remove duplicate h1 "WiseResume" text block (lines 90-98)
-
-### File 2: `src/components/brand/AppIcon.tsx`
-Redesign to a cleaner icon:
-- Remove the document shape
-- Make the "W" lettermark bolder and centered
-- Keep the gradient background
-- Refine the sparkle to be smaller and more subtle
-- Better proportions for the rounded square
-
-### File 3: `src/components/brand/AppLogo.tsx`
-- Keep existing logic but ensure proper spacing when tagline is hidden
+| File | Action | Description |
+|------|--------|-------------|
+| `src/pages/Index.tsx` | **Modify** | Remove conditional, always show landing page |
+| `src/components/brand/AppIcon.tsx` | **Modify** | New document-style logo matching reference |
+| `src/components/landing/PlanetLogo.tsx` | **Modify** | Enhanced with document icon and better effects |
+| `src/components/landing/SpaceBackground.tsx` | **Modify** | More stars, multiple shooting stars, enhanced nebula |
+| `public/favicon.svg` | **Modify** | Update to match new logo design |
 
 ---
 
-## Visual Comparison
+## Technical Details
 
-**Before (Cluttered):**
-```text
-╔═══════════════════════════════╗
-║   ┌─────────────────────┐     ║
-║   │ ╭─────────────────╮ │     ║
-║   │ │ [Document icon] │ │ ✦   ║
-║   │ │     W           │ │     ║
-║   │ │ ───────────     │ │     ║
-║   │ │ ────────        │ │     ║
-║   │ ╰─────────────────╯ │     ║
-║   └─────────────────────┘     ║
-╚═══════════════════════════════╝
-       WiseResume
-  Your AI Career Partner
-       WiseResume         ← DUPLICATE
-     Good morning!
+### Index.tsx Changes
+
+The current file has a conditional at line 86:
+```tsx
+if (hasResume) {
+  return (
+    <MobileLayout>
+      <HomeBackground>
+        // ... home dashboard
+      </HomeBackground>
+    </MobileLayout>
+  );
+}
 ```
 
-**After (Clean):**
-```text
-╔═══════════════════════════════╗
-║                               ║
-║        ╲     ╲ ╱     ╱        ║
-║         ╲   ╲╱ ╱    ╱         ║
-║          ╲  ╱ ╲    ╱          ║  ✨
-║           ╱   ╲  ╱            ║
-║                               ║
-╚═══════════════════════════════╝
-       WiseResume
-     Good morning!        ← Single greeting
+This will be removed so the landing page with `SpaceBackground` and `HeroSection` always renders.
+
+### New AppIcon.tsx Design
+
+```tsx
+// Key SVG elements:
+- Gradient background rect with rounded corners
+- White document shape with folded corner path
+- "W" lettermark stroke path
+- Resume text lines as rects
+- Cyan 4-point star sparkle in corner
 ```
 
+### Enhanced SpaceBackground
+
+```tsx
+// Additional features:
+- Star count: 80 → 120
+- Multiple shooting stars with staggered delays
+- Enhanced nebula gradients with more color variation
+- Parallax depth effect on star layers
+```
+
+### PlanetLogo Updates
+
+Maintain the planet aesthetic but ensure it prominently features:
+- Central document/resume icon
+- Visible orbital elements
+- Glowing atmosphere matching the reference screenshot
+
 ---
 
-## Files to Modify
+## User Flow After Changes
 
-| File | Change |
-|------|--------|
-| `src/components/home/HomeHeroSection.tsx` | Remove duplicate h1, add showTagline={false} |
-| `src/components/brand/AppIcon.tsx` | Redesign to cleaner bold "W" focused icon |
-| `src/components/brand/AppLogo.tsx` | Adjust spacing when tagline hidden |
+1. User opens app → Sees landing page with space background
+2. Clicks "Launch Your Resume" → Creates new resume → Goes to editor
+3. OR clicks "Upload existing resume" → Goes to upload page
+4. Can access dashboard via navigation or the "Explore" button
 
 ---
 
-## Benefits
+## Performance Considerations
 
-1. **No more duplicate text** - Clean single "WiseResume" heading
-2. **Cleaner logo** - Bold, recognizable "W" mark without visual clutter
-3. **Better hierarchy** - Logo → Name → Greeting flows naturally
-4. **Modern aesthetic** - Matches premium apps like Linear, Notion, Raycast
-5. **Better scalability** - Simpler icon works at all sizes (favicons, app icons)
+- Stars use CSS animations where possible (GPU-accelerated)
+- Shooting stars use `transform` and `opacity` only
+- Planet logo animations use Framer Motion with hardware acceleration
+- Lazy loading maintained for non-critical components
+
