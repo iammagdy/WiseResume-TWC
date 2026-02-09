@@ -1,7 +1,7 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Target, Wand2, Plus, Loader2 } from 'lucide-react';
+import { Target, Wand2, Plus } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { AppLogo } from '@/components/brand/AppLogo';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ const AlertDialogTitle = lazy(() => import('@/components/ui/alert-dialog').then(
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const { currentResume, matchScore, clearAll, setCurrentResume } = useResumeStore();
   
   const [showJobSheet, setShowJobSheet] = useState(false);
@@ -51,24 +51,6 @@ const Index = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const hasResume = currentResume !== null;
-
-  // Redirect authenticated users to dashboard
-  useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/dashboard');
-    }
-  }, [authLoading, user, navigate]);
-
-  // Show loading state while checking auth
-  if (authLoading) {
-    return (
-      <MobileLayout>
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MobileLayout>
-    );
-  }
 
   const handleUpload = () => {
     navigate('/upload');
