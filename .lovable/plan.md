@@ -1,91 +1,81 @@
 
-
-# Fix Build Errors in Test Files
+# Fix Build Errors - Syntax Issues in Two Files
 
 ## Problem Summary
 
-The app won't start due to TypeScript build errors in two test files:
+Two files have syntax errors preventing the build:
 
-1. **`diffUtils.test.ts`** - Missing `current` property in Experience mock
-2. **`pdfGenerator.test.ts`** - Incomplete TemplateConfig mock with wrong property names
+1. **`src/pages/Index.tsx`** - Missing closing `</Suspense>` tag
+2. **`src/lib/sectionHelpers.test.ts`** - Corrupted file with duplicate content merged together
 
 ---
 
-## Fixes
+## Fix 1: `src/pages/Index.tsx`
 
-### Fix 1: `src/lib/diffUtils.test.ts` (Line 199)
+### Issue
+The outer `<Suspense>` component on line 89 is missing its closing tag. The file ends with just `);` instead of properly closing both the Suspense and the component.
 
-**Problem:** The `Experience` type requires a `current: boolean` property, but the mock is missing it.
-
-**Solution:** Add `current: false` to the mock Experience object.
-
-```text
-Before:
-const mockExp: Experience = {
-  id: '1',
-  position: 'Developer',
-  company: 'Tech Corp',
-  startDate: '2020-01',
-  endDate: '2021-01',
-  description: 'Wrote code',
-  achievements: ['Built app', 'Fixed bugs']
+### Current Code (lines 88-118)
+```tsx
+  return (
+    <Suspense fallback={<HeroSkeleton />}>
+      <SpaceBackground>
+        ...
+      </SpaceBackground>
+  );  // ← Missing </Suspense> before this
 };
 
-After:
-const mockExp: Experience = {
-  id: '1',
-  position: 'Developer',
-  company: 'Tech Corp',
-  startDate: '2020-01',
-  endDate: '2021-01',
-  current: false,  // ← Add this
-  description: 'Wrote code',
-  achievements: ['Built app', 'Fixed bugs']
+export default Index;
+```
+
+### Fix
+Add the missing `</Suspense>` closing tag before the closing parenthesis:
+
+```tsx
+  return (
+    <Suspense fallback={<HeroSkeleton />}>
+      <SpaceBackground>
+        <main className="min-h-screen">
+          ...
+        </main>
+      </SpaceBackground>
+    </Suspense>  // ← Add this
+  );
 };
+
+export default Index;
 ```
 
 ---
 
-### Fix 2: `src/lib/pdfGenerator.test.ts` (Lines 50-54)
+## Fix 2: `src/lib/sectionHelpers.test.ts`
 
-**Problem:** The mock `TemplateConfig` is missing required properties and uses an invalid `layout` value.
+### Issue
+The file has corrupted content where two versions of the test file were merged together. Around line 125, there's a duplicate import block and a second `describe` block starting, while the first describe block was never properly closed.
 
-**Solution:** Provide all required properties with correct types.
-
+### Current Structure
 ```text
-Before:
-vi.mock("@/lib/templateConfig", () => ({
-  getTemplateConfig: vi.fn().mockReturnValue({
-    id: "modern",
-    layout: "single-column",  // ← Invalid value
-    breakableSections: ["summary", "experience", "education"],
-  } as TemplateConfig),
-}));
-
-After:
-vi.mock("@/lib/templateConfig", () => ({
-  getTemplateConfig: vi.fn().mockReturnValue({
-    id: "modern",
-    name: "Modern",
-    layout: "linear",  // ← Valid value
-    supportsPageBreaks: true,
-    supportsManualBreaks: true,
-    maxRecommendedPages: 3,
-    singlePageOptimized: false,
-    breakableSections: ["summary", "experience", "education", "skills", "certifications"],
-    supportsPhoto: false,
-  } as TemplateConfig),
-}));
+Lines 1-124: First version of tests (incomplete, missing closing braces)
+Line 125: Duplicate imports start
+Lines 126-303: Second version of tests (complete but duplicated)
 ```
+
+### Fix
+Remove lines 1-124 entirely and keep only the complete test suite (lines 125-303). The second version is more comprehensive and includes:
+- `getSectionPreview` tests
+- `getSectionIcon` tests  
+- `getSectionName` tests
+- `calculatePageNumbers` tests
+- `countPagesFromBreaks` tests
 
 ---
 
 ## Files to Modify
 
-| File | Line(s) | Change |
-|------|---------|--------|
-| `src/lib/diffUtils.test.ts` | 199-207 | Add `current: false` to mock Experience |
-| `src/lib/pdfGenerator.test.ts` | 49-55 | Complete the TemplateConfig mock with all required properties |
+| File | Change |
+|------|--------|
+| `src/pages/Index.tsx` | Add `</Suspense>` closing tag on line 114 (before the closing `);`) |
+| `src/lib/sectionHelpers.test.ts` | Remove duplicate content (lines 1-124), keep only the complete test suite |
 
 ---
 
@@ -93,6 +83,6 @@ vi.mock("@/lib/templateConfig", () => ({
 
 After these fixes:
 - TypeScript compilation will succeed
-- The app will build and start correctly
-- All existing test logic remains unchanged (only type compliance added)
-
+- The app will build and load correctly
+- The landing page will render properly
+- All test files will be valid and runnable
