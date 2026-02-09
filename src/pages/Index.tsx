@@ -112,6 +112,7 @@ const Index = () => {
           </LazySection>
         </main>
       </SpaceBackground>
+    </Suspense>
   );
 };
 
