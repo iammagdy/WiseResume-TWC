@@ -1,4 +1,5 @@
 import { ResumeData, EnhancedTailorResult, TailorProgress, TailorStep, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
 export interface TailorResult {
   summary: string;
@@ -54,6 +55,7 @@ export async function tailorResumeWithProgress(
   onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void
 ): Promise<SuperTailorResult> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const userGeminiKey = getUserGeminiKey();
 
   // Enhanced progress simulation with fun facts
   let currentStepIndex = 0;
@@ -78,7 +80,7 @@ export async function tailorResumeWithProgress(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ resume, jobDescription }),
+      body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
     });
 
     clearInterval(progressInterval);
@@ -91,8 +93,14 @@ export async function tailorResumeWithProgress(
       if (response.status === 402) {
         throw new Error('AI credits exhausted. Please add more credits.');
       }
+      if (response.status === 401 && error.error?.includes('Invalid')) {
+        throw new Error('Invalid Gemini API key. Please check your AI settings.');
+      }
       throw new Error(error.error || 'Failed to tailor resume');
     }
+
+    // Track usage for Gemini free tier
+    trackGeminiUsage();
 
     onProgress({
       step: 'complete',
@@ -112,6 +120,7 @@ export async function tailorResume(
   jobDescription: string
 ): Promise<TailorResult> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
     method: 'POST',
@@ -119,7 +128,7 @@ export async function tailorResume(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ resume, jobDescription }),
+    body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
   });
 
   if (!response.ok) {
@@ -130,14 +139,19 @@ export async function tailorResume(
     if (response.status === 402) {
       throw new Error('AI credits exhausted. Please add more credits.');
     }
+    if (response.status === 401 && error.error?.includes('Invalid')) {
+      throw new Error('Invalid Gemini API key. Please check your AI settings.');
+    }
     throw new Error(error.error || 'Failed to tailor resume');
   }
 
+  trackGeminiUsage();
   return response.json();
 }
 
 export async function parseJobUrl(url: string): Promise<{ title: string; company: string; description: string }> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
     method: 'POST',
@@ -145,13 +159,14 @@ export async function parseJobUrl(url: string): Promise<{ title: string; company
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify({ url, userGeminiKey }),
   });
 
   if (!response.ok) {
     throw new Error('Failed to parse job URL');
   }
 
+  trackGeminiUsage();
   return response.json();
 }
 
@@ -161,6 +176,7 @@ export async function generateCoverLetter(
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional'
 ): Promise<string> {
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-cover-letter`, {
     method: 'POST',
@@ -168,7 +184,7 @@ export async function generateCoverLetter(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ resume, jobDescription, tone }),
+    body: JSON.stringify({ resume, jobDescription, tone, userGeminiKey }),
   });
 
   if (!response.ok) {
@@ -182,6 +198,7 @@ export async function generateCoverLetter(
     throw new Error(error.error || 'Failed to generate cover letter');
   }
 
+  trackGeminiUsage();
   const data = await response.json();
   return data.coverLetter;
 }

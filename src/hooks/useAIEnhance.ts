@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
+import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact';
 export type ActionType = 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
@@ -32,6 +33,8 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     setResult(null);
 
     try {
+      const userGeminiKey = getUserGeminiKey();
+      
       const { data, error } = await supabase.functions.invoke('enhance-section', {
         body: {
           section,
@@ -41,6 +44,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
             resume: resumeContext,
             jobDescription,
           },
+          userGeminiKey,
         },
       });
 
@@ -53,12 +57,15 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           toast.error('Too many requests. Please wait a moment and try again.');
         } else if (data.error === 'payment_required') {
           toast.error('AI credits exhausted. Please check your account.');
+        } else if (data.error === 'invalid_key') {
+          toast.error('Invalid Gemini API key. Please check your AI settings.');
         } else {
           toast.error(data.message || 'Failed to enhance content');
         }
         return null;
       }
 
+      trackGeminiUsage();
       setResult(data);
       return data;
 

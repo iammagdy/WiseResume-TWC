@@ -1,5 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
 export interface ChatMessage {
   id: string;
@@ -37,6 +38,7 @@ export async function sendChatMessage(
   }
 
   const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const userGeminiKey = getUserGeminiKey();
 
   const historyForApi = conversationHistory.slice(-10).map((m) => ({
     role: m.role,
@@ -53,6 +55,7 @@ export async function sendChatMessage(
       message,
       conversationHistory: historyForApi,
       currentResume,
+      userGeminiKey,
     }),
   });
 
@@ -64,8 +67,12 @@ export async function sendChatMessage(
     if (response.status === 402) {
       throw new Error('AI credits exhausted.');
     }
+    if (response.status === 401 && error.error?.includes('Invalid')) {
+      throw new Error('Invalid Gemini API key. Please check your AI settings.');
+    }
     throw new Error(error.error || 'Chat request failed');
   }
 
+  trackGeminiUsage();
   return response.json();
 }

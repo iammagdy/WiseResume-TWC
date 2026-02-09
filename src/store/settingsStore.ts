@@ -4,6 +4,15 @@ import { TemplateId, PDFOptions } from '@/types/resume';
 
 export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
 
+// AI Provider types
+export type AIProvider = 'lovable' | 'gemini';
+export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
+
+interface GeminiDailyUsage {
+  date: string;
+  count: number;
+}
+
 interface SettingsState {
   // Notifications
   showAutoSaveToasts: boolean;
@@ -25,6 +34,13 @@ interface SettingsState {
   // Integrations
   elevenlabsApiKey: string;
   
+  // AI Provider Settings
+  aiProvider: AIProvider;
+  geminiApiKey: string;
+  geminiKeyTier: GeminiKeyTier;
+  geminiKeyValidated: boolean;
+  geminiDailyUsage: GeminiDailyUsage;
+  
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
   setShowAIEnhancementTips: (value: boolean) => void;
@@ -36,6 +52,15 @@ interface SettingsState {
   setPdfDefaults: (defaults: Partial<PDFOptions>) => void;
   setHasSeenAIIntro: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
+  
+  // AI Provider Actions
+  setAIProvider: (provider: AIProvider) => void;
+  setGeminiApiKey: (key: string) => void;
+  setGeminiKeyTier: (tier: GeminiKeyTier) => void;
+  setGeminiKeyValidated: (validated: boolean) => void;
+  incrementGeminiDailyUsage: () => void;
+  resetGeminiDailyUsage: () => void;
+  
   resetSettings: () => void;
 }
 
@@ -54,11 +79,22 @@ const defaultSettings = {
   },
   hasSeenAIIntro: false,
   elevenlabsApiKey: '',
+  // AI Provider defaults
+  aiProvider: 'lovable' as AIProvider,
+  geminiApiKey: '',
+  geminiKeyTier: 'unknown' as GeminiKeyTier,
+  geminiKeyValidated: false,
+  geminiDailyUsage: { date: '', count: 0 } as GeminiDailyUsage,
 };
+
+// Helper to get Pacific midnight reset
+function getTodayPacific(): string {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
+}
 
 export const useSettingsStore = create<SettingsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...defaultSettings,
 
       setShowAutoSaveToasts: (value) => set({ showAutoSaveToasts: value }),
@@ -74,6 +110,29 @@ export const useSettingsStore = create<SettingsState>()(
         })),
       setHasSeenAIIntro: (value) => set({ hasSeenAIIntro: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
+      
+      // AI Provider Actions
+      setAIProvider: (provider) => set({ aiProvider: provider }),
+      setGeminiApiKey: (key) => set({ 
+        geminiApiKey: key,
+        geminiKeyValidated: false,
+        geminiKeyTier: 'unknown',
+      }),
+      setGeminiKeyTier: (tier) => set({ geminiKeyTier: tier }),
+      setGeminiKeyValidated: (validated) => set({ geminiKeyValidated: validated }),
+      incrementGeminiDailyUsage: () => {
+        const today = getTodayPacific();
+        const current = get().geminiDailyUsage;
+        
+        if (current.date !== today) {
+          // Reset for new day
+          set({ geminiDailyUsage: { date: today, count: 1 } });
+        } else {
+          set({ geminiDailyUsage: { date: today, count: current.count + 1 } });
+        }
+      },
+      resetGeminiDailyUsage: () => set({ geminiDailyUsage: { date: '', count: 0 } }),
+      
       resetSettings: () => set(defaultSettings),
     }),
     {
