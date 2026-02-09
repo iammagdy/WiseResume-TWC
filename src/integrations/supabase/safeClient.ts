@@ -35,3 +35,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 export const supabaseConfig = {
   url: SUPABASE_URL,
 };
+
+// Export URL and key for use by service modules (with fallbacks)
+export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };
