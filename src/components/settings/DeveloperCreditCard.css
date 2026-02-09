@@ -1,0 +1,304 @@
+/* Developer Credit Card - Cosmic Glass Design */
+
+.dev-card-wrapper {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+/* Animated gradient border */
+.dev-card-border {
+  position: absolute;
+  inset: 0;
+  border-radius: 1.25rem;
+  padding: 2px;
+  background: linear-gradient(
+    var(--rotation, 0deg),
+    hsl(var(--primary) / 0.8),
+    hsl(210, 100%, 70%),
+    hsl(280, 80%, 70%),
+    hsl(var(--primary) / 0.8)
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: dev-gradient-rotate 4s linear infinite;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+@property --rotation {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes dev-gradient-rotate {
+  0% { --rotation: 0deg; }
+  100% { --rotation: 360deg; }
+}
+
+/* Main glass card */
+.dev-card {
+  position: relative;
+  width: 100%;
+  padding: 1.5rem;
+  border-radius: 1.25rem;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--background) / 0.8) 0%,
+    hsl(var(--muted) / 0.4) 100%
+  );
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid hsl(var(--border) / 0.3);
+  overflow: hidden;
+}
+
+/* Floating particles */
+.dev-particles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.dev-particles span {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: hsl(var(--primary) / 0.4);
+  animation: dev-float 6s ease-in-out infinite;
+}
+
+.dev-particles span:nth-child(1) {
+  top: 20%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.dev-particles span:nth-child(2) {
+  top: 60%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.dev-particles span:nth-child(3) {
+  bottom: 20%;
+  left: 30%;
+  animation-delay: 4s;
+}
+
+@keyframes dev-float {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-10px) scale(1.2);
+    opacity: 0.8;
+  }
+}
+
+/* Content layout */
+.dev-card-content {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Avatar with glow */
+.dev-avatar-container {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.dev-avatar-glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.6),
+    hsl(210, 100%, 70% / 0.4),
+    hsl(280, 80%, 70% / 0.4)
+  );
+  filter: blur(8px);
+  animation: dev-avatar-glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes dev-avatar-glow-pulse {
+  0%, 100% {
+    opacity: 0.6;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
+}
+
+.dev-avatar {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid hsl(var(--primary) / 0.3);
+  background: hsl(var(--muted));
+}
+
+/* Info section */
+.dev-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.dev-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(
+    135deg,
+    hsl(var(--foreground)),
+    hsl(var(--primary))
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1.2;
+}
+
+.dev-title {
+  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  margin: 0 0 0.75rem 0;
+}
+
+/* Contact button */
+.dev-contact-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--primary) / 0.4);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.15) 0%,
+    hsl(var(--primary) / 0.05) 100%
+  );
+  color: hsl(var(--primary));
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  min-height: 48px;
+  width: 100%;
+}
+
+.dev-contact-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--primary) / 0.2) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: dev-btn-shine 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes dev-btn-shine {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+.dev-contact-btn:hover {
+  border-color: hsl(var(--primary) / 0.6);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.25) 0%,
+    hsl(var(--primary) / 0.1) 100%
+  );
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px hsl(var(--primary) / 0.2);
+}
+
+.dev-contact-btn:active {
+  transform: scale(0.98);
+}
+
+/* Website link */
+.dev-website-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  background: transparent;
+  border: none;
+  color: hsl(var(--primary));
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dev-website-link:hover {
+  background: hsl(var(--primary) / 0.1);
+}
+
+.dev-website-link:active {
+  transform: scale(0.98);
+}
+
+/* Responsive */
+@media (max-width: 360px) {
+  .dev-card {
+    padding: 1.25rem;
+  }
+  
+  .dev-card-content {
+    gap: 1rem;
+  }
+  
+  .dev-avatar {
+    width: 64px;
+    height: 64px;
+  }
+  
+  .dev-name {
+    font-size: 1.125rem;
+  }
+  
+  .dev-title {
+    font-size: 0.8125rem;
+  }
+  
+  .dev-contact-btn {
+    padding: 0.625rem 1rem;
+    font-size: 0.8125rem;
+    min-height: 44px;
+  }
+}
