@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { lovable } from '@/integrations/lovable/index';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
@@ -18,6 +19,7 @@ type AuthMode = 'login' | 'signup' | 'forgot-password';
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -61,24 +63,10 @@ export default function AuthPage() {
 
   // Check auth state on mount and redirect if authenticated
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session) {
-          navigate('/dashboard', { replace: true });
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/dashboard', { replace: true });
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
+    if (session) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [session, navigate]);
 
    const validateInputs = (): boolean => {
      setTouched({ email: true, password: true });
