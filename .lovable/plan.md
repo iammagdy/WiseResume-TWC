@@ -1,170 +1,158 @@
 
+# Add Back Button to AI and Settings Pages + Mobile UX Audit
 
-# Add Visual Indicator for Active AI Provider
+## Problem Identified
 
-## Overview
+After analyzing all pages in the app, the following screens are missing back buttons:
 
-This plan adds visual indicators throughout the editor to show which AI provider (WiseResume AI or user's Gemini key) is currently active. The indicators will appear in key AI interaction points so users always know which provider is powering their AI features.
+| Page | Current State | Issue |
+|------|---------------|-------|
+| **AIPage (`/ai`)** | No back button in header | User has no visual back navigation cue |
+| **SettingsPage (`/settings`)** | No back button in header | User has no visual back navigation cue |
 
-## Design Approach
+While both pages are accessible via the bottom tab bar and the hardware back button works (thanks to `useBackButton` hook), adding visual back buttons improves mobile UX consistency and accessibility.
 
-The indicators will follow the existing "Cosmic Glass UI" theme with subtle, non-intrusive badges that provide at-a-glance information about the active AI provider. The design includes:
+## Pages Already Mobile-Friendly (with back buttons)
 
-- A small chip/badge showing provider name and tier
-- Color-coded styling: purple/primary for WiseResume AI, blue for Gemini
-- Optional tier indicator (Free/Paid) when using Gemini
-- Consistent placement across all AI-related components
+- **EditorPage** - Has back button
+- **PreviewPage** - Has back button  
+- **UploadPage** - Has back button
+- **InterviewPage** - Has back buttons in all phases (setup, preview, active, summary)
+- **AuthPage** - Has "Back to Home" button
+- **Index/Dashboard** - Root screens, no back needed
 
-## Components to Add/Modify
+## Implementation Plan
 
-### 1. Create AI Provider Indicator Component
+### Phase 1: Add Back Button to AIPage
 
-**New File: `src/components/editor/ai/AIProviderBadge.tsx`**
+**File: `src/pages/AIPage.tsx`**
 
-A reusable badge component that displays the current AI provider:
-
-```text
-+---------------------------------------+
-|  ✨ WiseResume AI                     |   (Default - purple)
-+---------------------------------------+
-
-+---------------------------------------+
-|  🔷 Gemini Free                       |   (User key - blue)
-+---------------------------------------+
-
-+---------------------------------------+
-|  🔷 Gemini Paid                       |   (User key - green border)
-+---------------------------------------+
+Current header (line 101-108):
+```tsx
+<header className="pt-safe pt-4 pb-3 px-4 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10">
+  <div className="flex items-center gap-3">
+    <div className="p-2 rounded-xl bg-primary/10">
+      <Brain className="w-5 h-5 text-primary" />
+    </div>
+    <h1 className="text-xl font-semibold">AI Settings</h1>
+  </div>
+</header>
 ```
 
-**Features:**
-- Uses `getAIProviderInfo()` from `src/lib/aiProvider.ts`
-- Compact size option for inline use (InlineAIButton)
-- Full size for prominent display (AIAssistantBar)
-- Tooltip with additional info on tap/hover
+Updated header with back button:
+```tsx
+<header className="pt-safe pt-4 pb-3 px-4 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10">
+  <div className="flex items-center gap-3">
+    <button 
+      onClick={() => navigate('/dashboard')}
+      className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+      aria-label="Go back"
+    >
+      <ArrowLeft className="w-6 h-6" />
+    </button>
+    <div className="p-2 rounded-xl bg-primary/10">
+      <Brain className="w-5 h-5 text-primary" />
+    </div>
+    <h1 className="text-xl font-semibold">AI Settings</h1>
+  </div>
+</header>
+```
 
-### 2. Add Indicator to AI Assistant Bar (Expanded)
+Changes needed:
+- Import `ArrowLeft` from lucide-react
+- Import `useNavigate` from react-router-dom
+- Add `const navigate = useNavigate();` at component top
+- Add back button with 48px touch target
 
-**File: `src/components/editor/AIAssistantBar.tsx`**
+### Phase 2: Add Back Button to SettingsPage
 
-Add the provider badge in the expanded AI Studio panel, visible when users access AI features:
+**File: `src/pages/SettingsPage.tsx`**
 
-- Position: Below the "AI Studio" header, above action buttons
-- Style: Full-width info bar with provider name + link to AI settings
-- Behavior: Tapping opens the AI Settings page
+Current header (line 177-179):
+```tsx
+<header className="pt-safe pt-4 pb-3 px-4 glass-header">
+  <h1 className="text-xl font-bold">Settings</h1>
+</header>
+```
 
-### 3. Add Indicator to AI Copilot Sheet Header
+Updated header with back button:
+```tsx
+<header className="pt-safe pt-4 pb-3 px-4 glass-header">
+  <div className="flex items-center gap-3">
+    <button 
+      onClick={() => navigate('/dashboard')}
+      className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+      aria-label="Go back"
+    >
+      <ArrowLeft className="w-6 h-6" />
+    </button>
+    <h1 className="text-xl font-bold">Settings</h1>
+  </div>
+</header>
+```
 
-**File: `src/components/editor/AgenticChatSheet.tsx`**
+Changes needed:
+- Import `ArrowLeft` from lucide-react (already has `useNavigate`)
+- Add back button with 48px touch target
 
-Show the provider badge in the chat header so users know which AI is responding:
+### Phase 3: Update Navigation Route Mapping
 
-- Position: Next to "AI Copilot" title
-- Style: Small badge showing provider name
-- Updates reactively if user changes provider mid-session
+**File: `src/lib/navigation.ts`**
 
-### 4. Add Indicator to InlineAIButton Dropdown
-
-**File: `src/components/editor/InlineAIButton.tsx`**
-
-Show provider info in the dropdown menu footer when using per-section AI:
-
-- Position: Bottom of dropdown menu, separated by divider
-- Style: Muted text with provider info
-- Action: Links to AI settings for easy switching
-
-### 5. Add Indicator to AI Enhancement Dialog
-
-**File: `src/components/editor/ai/AIEnhanceDialog.tsx`**
-
-Show which AI processed the enhancement:
-
-- Position: In the header, next to the Sparkles icon
-- Style: Small "via WiseResume AI" or "via Gemini" text
-
-### 6. Create Custom Hook for Reactive Provider Info
-
-**New File: `src/hooks/useAIProviderInfo.ts`**
-
-A hook that provides reactive access to provider info with proper Zustand subscription:
+Ensure the back routes are correctly mapped for hardware back button:
 
 ```typescript
-export function useAIProviderInfo() {
-  const aiProvider = useSettingsStore((s) => s.aiProvider);
-  const geminiKeyTier = useSettingsStore((s) => s.geminiKeyTier);
-  const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
-  
-  // Return computed provider info that updates on state changes
-}
+const BACK_ROUTES: Record<string, string> = {
+  '/editor': '/dashboard',
+  '/preview': '/editor',
+  '/upload': '/dashboard',
+  '/interview': '/dashboard',
+  '/settings': '/dashboard',
+  '/ai': '/dashboard',  // ADD THIS
+  '/auth': '/',
+};
 ```
 
-## Visual Design Specifications
+## Mobile-Friendliness Audit Results
 
-### Provider Badge Variants
+The app is already well-optimized for mobile with:
 
-**Default Provider (WiseResume AI):**
-- Background: `bg-primary/10`
-- Border: `border-primary/20`
-- Icon: Sparkles (primary color)
-- Text: "WiseResume AI"
+1. **Touch Targets**: All buttons use `min-w-[48px] min-h-[48px]` (44px+ standard)
+2. **Safe Areas**: Uses `pt-safe` and `pb-safe` for notched devices
+3. **Bottom Navigation**: Persistent tab bar with proper touch targets
+4. **Hardware Back Button**: `useBackButton` hook handles Android back gesture
+5. **Haptic Feedback**: Uses `haptics` library for native feel
+6. **Keyboard Handling**: `useKeyboardAwareScroll` for input focus
+7. **Glass UI**: Consistent glassmorphism design across all screens
+8. **Pull-to-Refresh**: Dashboard has pull-to-refresh support
+9. **Responsive Typography**: Uses clamp() and responsive font sizes
+10. **Overflow Handling**: Proper scroll containers with `overscroll-contain`
 
-**Gemini Free Tier:**
-- Background: `bg-blue-500/10`
-- Border: `border-blue-500/20`
-- Icon: Custom Gemini icon or diamond
-- Text: "Gemini Free"
-
-**Gemini Paid Tier:**
-- Background: `bg-blue-500/10`
-- Border: `border-green-500/30` (subtle green accent for paid)
-- Icon: Custom Gemini icon
-- Text: "Gemini Paid"
-
-### Size Variants
-
-| Variant | Use Case | Height | Font Size |
-|---------|----------|--------|-----------|
-| xs | InlineAIButton dropdown | 20px | 10px |
-| sm | Sheet headers, tooltips | 24px | 11px |
-| md | AIAssistantBar expanded | 28px | 12px |
-
-## Implementation Details
-
-### Phase 1: Create Base Components
-
-1. Create `AIProviderBadge.tsx` with size variants
-2. Create `useAIProviderInfo.ts` hook
-3. Add Gemini icon asset (or use existing diamond/gem icon)
-
-### Phase 2: Integrate into AI Components
-
-4. Add badge to `AIAssistantBar.tsx` expanded view
-5. Add badge to `AgenticChatSheet.tsx` header
-6. Add provider info to `InlineAIButton.tsx` dropdown footer
-7. Add "via" text to `AIEnhanceDialog.tsx` header
-
-### Phase 3: Polish and Settings Link
-
-8. Add navigation to AI settings on badge tap
-9. Ensure smooth transitions when provider changes
-10. Test on mobile for touch target sizes (min 44px tap area)
-
-## File Summary
+## File Changes Summary
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/editor/ai/AIProviderBadge.tsx` | Create | Reusable provider indicator badge |
-| `src/hooks/useAIProviderInfo.ts` | Create | Reactive hook for provider state |
-| `src/components/editor/AIAssistantBar.tsx` | Modify | Add provider badge to expanded view |
-| `src/components/editor/AgenticChatSheet.tsx` | Modify | Add provider badge to header |
-| `src/components/editor/InlineAIButton.tsx` | Modify | Add provider info to dropdown footer |
-| `src/components/editor/ai/AIEnhanceDialog.tsx` | Modify | Add "via" provider text to header |
+| `src/pages/AIPage.tsx` | Modify | Add ArrowLeft back button to header |
+| `src/pages/SettingsPage.tsx` | Modify | Add ArrowLeft back button to header |
+| `src/lib/navigation.ts` | Modify | Add `/ai` route to BACK_ROUTES mapping |
 
-## Benefits
+## Back Button Design Pattern
 
-1. **Transparency**: Users always know which AI is processing their requests
-2. **Trust**: Clear indication when using personal API key vs default
-3. **Quick Access**: Tapping badge navigates to AI settings for easy switching
-4. **Consistency**: Same visual language across all AI touchpoints
-5. **Non-Intrusive**: Subtle badges that don't clutter the interface
+All back buttons follow this consistent pattern for accessibility and touch-friendliness:
 
+```tsx
+<button 
+  onClick={() => navigate('/dashboard')}
+  className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+  aria-label="Go back"
+>
+  <ArrowLeft className="w-6 h-6" />
+</button>
+```
+
+Key properties:
+- **48px minimum touch target** (exceeds iOS/Android 44px guideline)
+- **Negative margin** (`-ml-3`) to align with content edge
+- **Visual feedback** on hover and active states
+- **Accessible label** for screen readers
+- **Touch manipulation** CSS for responsive touch
