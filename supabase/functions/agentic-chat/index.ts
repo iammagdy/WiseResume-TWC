@@ -11,8 +11,9 @@ const MAX_MESSAGE_SIZE = 10 * 1024;
 const MAX_HISTORY_SIZE = 200 * 1024;
 
 interface ChatMessage {
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "function";
   content: string;
+  name?: string;
 }
 
 interface ChatRequest {
@@ -20,6 +21,11 @@ interface ChatRequest {
   conversationHistory: ChatMessage[];
   currentResume: unknown;
   userGeminiKey?: string;
+  thinkingMode?: boolean;
+  functionResponse?: {
+    name: string;
+    result: Record<string, unknown>;
+  };
 }
 
 interface FunctionCallResult {
@@ -29,12 +35,24 @@ interface FunctionCallResult {
   message: string;
 }
 
+interface SuggestionResult {
+  type: "suggestion";
+  proposals: Array<{
+    section: string;
+    original: string;
+    suggested: string;
+    explanation: string;
+    itemId?: string;
+  }>;
+  message: string;
+}
+
 interface TextResult {
   type: "text";
   content: string;
 }
 
-type ChatResponse = FunctionCallResult | TextResult;
+type ChatResponse = FunctionCallResult | SuggestionResult | TextResult;
 
 const TOOLS = [
   {
@@ -68,6 +86,31 @@ const TOOLS = [
           achievements: { type: "array", items: { type: "string" } },
         },
         required: ["company", "position", "startDate"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_experience",
+      description: "Updates an existing work experience entry by company name or position. Use when user wants to modify an existing job.",
+      parameters: {
+        type: "object",
+        properties: {
+          identifier: { type: "string", description: "Company name or position to find and update" },
+          updates: {
+            type: "object",
+            properties: {
+              description: { type: "string" },
+              achievements: { type: "array", items: { type: "string" } },
+              position: { type: "string" },
+              startDate: { type: "string" },
+              endDate: { type: "string" },
+              current: { type: "boolean" },
+            },
+          },
+        },
+        required: ["identifier", "updates"],
       },
     },
   },
@@ -120,8 +163,35 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "proofread",
-      description: "Proofreads the entire resume and returns corrections. Use when user asks to check for errors.",
+      name: "suggest_edits",
+      description: "For subjective or risky changes, propose edits for user approval instead of directly applying. Use when the request is vague (e.g., 'make it better', 'more leadership-focused') or when multiple sections would change.",
+      parameters: {
+        type: "object",
+        properties: {
+          proposals: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                section: { type: "string", description: "summary, experience, skills, or education" },
+                itemId: { type: "string", description: "For experience/education: company name or school to identify the item" },
+                original: { type: "string", description: "Current text being replaced" },
+                suggested: { type: "string", description: "Proposed new text" },
+                explanation: { type: "string", description: "Why this change improves the resume (1 sentence)" },
+              },
+              required: ["section", "original", "suggested", "explanation"],
+            },
+          },
+        },
+        required: ["proposals"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "proofread_and_fix",
+      description: "Scans the resume for spelling, grammar, and clarity issues. Returns structured fixes that can be auto-applied or shown for review.",
       parameters: {
         type: "object",
         properties: {
@@ -130,14 +200,16 @@ const TOOLS = [
             items: {
               type: "object",
               properties: {
-                section: { type: "string" },
-                original: { type: "string" },
-                corrected: { type: "string" },
-                reason: { type: "string" },
+                section: { type: "string", description: "summary, experience, education, or skills" },
+                itemId: { type: "string", description: "For array items: company name or school name" },
+                original: { type: "string", description: "Text with the error" },
+                corrected: { type: "string", description: "Fixed text" },
+                reason: { type: "string", description: "Grammar, Spelling, Clarity, or Punctuation" },
               },
               required: ["section", "original", "corrected", "reason"],
             },
           },
+          autoApply: { type: "boolean", description: "If true, apply all fixes automatically. If false, show for user review." },
         },
         required: ["fixes"],
       },
@@ -159,14 +231,21 @@ You have access to tools that can DIRECTLY modify the user's resume. When the us
 The user's current resume data is provided. Reference it when giving advice.
 
 ## Tool Usage Rules
-1. update_summary: When user wants to change/write/improve their summary
-2. add_experience: When user wants to add a new job or project
-3. update_skills: When user wants to completely replace their skills
-4. add_skills: When user wants to add specific new skills
-5. update_contact: When user wants to change contact information
-6. proofread: When user asks to check for errors, typos, or grammar
+1. **update_summary**: When user wants to change/write/improve their summary
+2. **add_experience**: When user wants to add a NEW job or project
+3. **update_experience**: When user wants to MODIFY an EXISTING job (e.g., "update my Google job", "change my current role description")
+4. **update_skills**: When user wants to completely replace their skills
+5. **add_skills**: When user wants to add specific new skills
+6. **update_contact**: When user wants to change contact information
+7. **suggest_edits**: For SUBJECTIVE changes like "make it more leadership-focused", "improve it", "make it better". Show proposals instead of auto-applying.
+8. **proofread_and_fix**: When user asks to check for errors, typos, grammar, or spelling. Return structured fixes.
 
-Always explain what you did after making a change. Keep responses concise (2-4 sentences max for tool responses).`;
+## Critical Rules
+- For vague requests like "improve my resume" or "make it more X", use suggest_edits to propose changes for approval
+- For specific requests like "change my title to X" or "add React to my skills", apply directly
+- When proofreading, set autoApply: false to let the user review fixes
+- Always explain what you did after making a change (2-4 sentences max)
+- Use **bold** and *italics* for emphasis in your responses`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -199,7 +278,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { message, conversationHistory, currentResume, userGeminiKey } = (await req.json()) as ChatRequest;
+    const { message, conversationHistory, currentResume, userGeminiKey, thinkingMode, functionResponse } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
       return new Response(
@@ -236,19 +315,57 @@ Deno.serve(async (req: Request) => {
       : "https://ai.gateway.lovable.dev/v1/chat/completions";
 
     const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-    const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
+    
+    // Use Pro model with thinking for complex tasks
+    let modelName: string;
+    if (thinkingMode) {
+      modelName = useGeminiDirect ? "gemini-2.5-pro-preview-06-05" : "google/gemini-2.5-pro";
+    } else {
+      modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
+    }
 
-    console.log(`agentic-chat: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
+    console.log(`agentic-chat: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}, model: ${modelName}, thinking: ${thinkingMode}`);
 
     const resumeContext = currentResume
       ? `\n\nCurrent Resume:\n${JSON.stringify(currentResume, null, 2).slice(0, 4000)}`
       : "\n\nNo resume loaded yet.";
 
-    const messages = [
-      { role: "system", content: SYSTEM_PROMPT + resumeContext },
-      ...(conversationHistory || []).slice(-10),
-      { role: "user", content: message },
+    // Build messages array
+    const messages: ChatMessage[] = [
+      { role: "system" as const, content: SYSTEM_PROMPT + resumeContext },
+      ...(conversationHistory || []).slice(-10).map(m => ({
+        role: m.role as "user" | "assistant" | "function",
+        content: m.content,
+        ...(m.name ? { name: m.name } : {}),
+      })),
+      { role: "user" as const, content: message },
     ];
+
+    // If this is a function response (closed-loop feedback), add it
+    if (functionResponse) {
+      messages.push({
+        role: "function" as const,
+        name: functionResponse.name,
+        content: JSON.stringify(functionResponse.result),
+      });
+    }
+
+    const requestBody: Record<string, unknown> = {
+      model: modelName,
+      messages,
+      tools: TOOLS,
+      temperature: thinkingMode ? 0.9 : 0.7,
+      max_tokens: thinkingMode ? 4000 : 2000,
+    };
+
+    // Add thinking budget for Pro model
+    if (thinkingMode && !useGeminiDirect) {
+      requestBody.extra_body = {
+        thinkingConfig: {
+          thinkingBudget: 2048,
+        },
+      };
+    }
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -256,13 +373,7 @@ Deno.serve(async (req: Request) => {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: modelName,
-        messages,
-        tools: TOOLS,
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -312,11 +423,45 @@ Deno.serve(async (req: Request) => {
         args = {};
       }
 
+      const functionName = toolCall.function.name;
+
+      // Handle suggest_edits specially - return as suggestion type
+      if (functionName === "suggest_edits") {
+        const result: SuggestionResult = {
+          type: "suggestion",
+          proposals: (args.proposals as SuggestionResult["proposals"]) || [],
+          message: assistantMessage.content || "I have some suggestions for your resume. Please review and accept or reject each change.",
+        };
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Handle proofread_and_fix - also return as suggestion if autoApply is false
+      if (functionName === "proofread_and_fix" && args.autoApply === false) {
+        const fixes = (args.fixes as Array<{ section: string; itemId?: string; original: string; corrected: string; reason: string }>) || [];
+        const proposals = fixes.map(fix => ({
+          section: fix.section,
+          itemId: fix.itemId,
+          original: fix.original,
+          suggested: fix.corrected,
+          explanation: `${fix.reason}: ${fix.original} → ${fix.corrected}`,
+        }));
+        const result: SuggestionResult = {
+          type: "suggestion",
+          proposals,
+          message: assistantMessage.content || `I found ${fixes.length} issue(s) to fix. Please review each correction.`,
+        };
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       const result: FunctionCallResult = {
         type: "function_call",
-        functionName: toolCall.function.name,
+        functionName,
         args,
-        message: assistantMessage.content || `I'll ${toolCall.function.name.replace(/_/g, " ")} for you.`,
+        message: assistantMessage.content || `I'll ${functionName.replace(/_/g, " ")} for you.`,
       };
 
       return new Response(JSON.stringify(result), {
