@@ -21,6 +21,7 @@ import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/Upload
 import { UploadProgressSteps, ParseStep } from '@/components/upload/UploadProgressSteps';
 import { ImportReviewSheet, SelectedSections } from '@/components/upload/ImportReviewSheet';
 import { FileTypeSelector, FileType } from '@/components/upload/FileTypeSelector';
+import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
 
@@ -529,18 +530,13 @@ export default function UploadPage() {
               exit={{ opacity: 0 }}
             >
               {/* Upload Zone */}
-              <motion.div
-                className={`flex-1 min-h-[280px] rounded-3xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-8 cursor-pointer ${
-                  isDragging 
-                    ? 'border-primary bg-primary/10' 
-                    : 'border-border hover:border-primary/50'
-                } ${isProcessing ? 'pointer-events-none' : ''}`}
-                onClick={() => !isProcessing && setShowFileTypeSelector(true)}
+              <UploadZone
+                isDragging={isDragging}
+                isProcessing={isProcessing}
+                onUploadClick={() => !isProcessing && setShowFileTypeSelector(true)}
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
               >
                 {/* Hidden file input controlled by ref */}
                 <input
@@ -583,7 +579,7 @@ export default function UploadPage() {
                     </div>
                   </>
                 )}
-              </motion.div>
+              </UploadZone>
 
               {/* Tips - More Compact */}
               {!isProcessing && (
