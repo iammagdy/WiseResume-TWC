@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { OfflineBanner } from './OfflineBanner';
 import { BottomTabBar } from './BottomTabBar';
+import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 
 interface MobileLayoutProps {
   children: ReactNode;
@@ -24,6 +25,8 @@ export function MobileLayout({
    hasFloatingAction = false,
 }: MobileLayoutProps) {
   const mainRef = useRef<HTMLElement>(null);
+
+  useKeyboardAwareScroll();
 
   // Auto-scroll to focused input
   useEffect(() => {

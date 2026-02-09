@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft } from 'lucide-react';
+import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
@@ -23,6 +23,8 @@ import { RecruiterSimSheet } from '@/components/editor/ai/RecruiterSimSheet';
 import { AIDetectorSheet } from '@/components/editor/ai/AIDetectorSheet';
 import { LinkedInOptimizerSheet } from '@/components/editor/ai/LinkedInOptimizerSheet';
 import { OnePageWizardSheet } from '@/components/editor/ai/OnePageWizardSheet';
+import { AgenticChatSheet } from '@/components/editor/AgenticChatSheet';
+import { CareerPathSheet } from '@/components/editor/CareerPathSheet';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -47,6 +49,8 @@ export default function EditorPage() {
   const [showAIDetector, setShowAIDetector] = useState(false);
   const [showLinkedIn, setShowLinkedIn] = useState(false);
   const [showOnePage, setShowOnePage] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showCareerPath, setShowCareerPath] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
   
@@ -196,6 +200,14 @@ export default function EditorPage() {
             </button>
             <h1 className="text-lg font-display font-semibold truncate">Edit Resume</h1>
           </div>
+          <button
+            onClick={() => setShowChat(true)}
+            className="p-3 -mr-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center relative"
+            aria-label="Open AI Copilot"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
+          </button>
         </div>
       </header>
         {/* Progress Bar with Save Status */}
@@ -307,6 +319,7 @@ export default function EditorPage() {
             onAIDetector={() => setShowAIDetector(true)}
             onLinkedIn={() => setShowLinkedIn(true)}
             onOnePage={() => setShowOnePage(true)}
+            onCareerPath={() => setShowCareerPath(true)}
             className="pt-3"
           />
 
@@ -345,6 +358,8 @@ export default function EditorPage() {
       <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />
       <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />
       <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />
+      <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />
+      <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />
     </div>
   );
 }

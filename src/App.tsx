@@ -12,6 +12,7 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import {
   DashboardSkeleton,
   EditorSkeleton,
@@ -129,6 +130,7 @@ const App = () => (
          <Sonner />
          <BrowserRouter>
            <AppRoutes />
+           <InstallPrompt />
          </BrowserRouter>
        </ErrorBoundary>
     </TooltipProvider>

@@ -642,3 +642,26 @@
    transform: translateZ(0);
    backface-visibility: hidden;
  }
+
+/* Keyboard-aware layout */
+.keyboard-aware-bottom {
+  bottom: var(--keyboard-height, 0px);
+  transition: bottom 0.15s ease-out;
+}
+
+/* Small screen fixes (< 375px) */
+@media (max-width: 374px) {
+  .glass-card,
+  .glass-surface,
+  .glass-elevated {
+    padding: 0.75rem;
+  }
+}
+
+/* Landscape mobile adjustments */
+@media (max-height: 500px) and (orientation: landscape) {
+  .mobile-drawer,
+  [data-sheet-bottom] {
+    max-height: 95vh;
+  }
+}

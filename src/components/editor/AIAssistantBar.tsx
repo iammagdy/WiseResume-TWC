@@ -59,6 +59,7 @@ interface AIAssistantBarProps {
   onAIDetector?: () => void;
   onLinkedIn?: () => void;
   onOnePage?: () => void;
+  onCareerPath?: () => void;
   className?: string;
 }
 
@@ -74,6 +75,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   onAIDetector,
   onLinkedIn,
   onOnePage,
+  onCareerPath,
   className,
 }: AIAssistantBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -240,6 +242,17 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                       </motion.div>
                     )}
                   </div>
+                  {onCareerPath && (
+                    <motion.div variants={itemVariants} className="mt-2">
+                      <AIActionButton
+                        icon={<TrendingUp className="w-4 h-4 text-primary-foreground" />}
+                        label="Career Path Advisor"
+                        description="Discover your next career move"
+                        onClick={() => handleAction(onCareerPath)}
+                        badge="New"
+                      />
+                    </motion.div>
+                  )}
                 </div>
 
                 {/* Section: Polish & Finalize */}

@@ -1,17 +1,18 @@
- import React, { Component, ErrorInfo, ReactNode } from 'react';
- import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
- import { Button } from '@/components/ui/button';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { AlertTriangle, RefreshCw, Home, WifiOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
  
  interface Props {
-   children: ReactNode;
-   fallback?: ReactNode;
- }
- 
- interface State {
-   hasError: boolean;
-   error: Error | null;
-   errorInfo: ErrorInfo | null;
- }
+  children: ReactNode;
+  fallback?: ReactNode;
+  onReset?: () => void;
+}
+
+interface State {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+}
  
  export class ErrorBoundary extends Component<Props, State> {
    public state: State = {
@@ -30,6 +31,7 @@
    }
  
    private handleRetry = () => {
+     this.props.onReset?.();
      this.setState({ hasError: false, error: null, errorInfo: null });
    };
  
