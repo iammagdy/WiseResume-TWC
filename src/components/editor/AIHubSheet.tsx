@@ -17,6 +17,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { JobMatchScore } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -277,6 +278,17 @@ export function AIHubSheet({
               <p className="text-sm line-clamp-2">{jobDescription}</p>
             </motion.div>
           )}
+        </div>
+
+        {/* Explicit Close Button for Mobile */}
+        <div className="shrink-0 p-4 border-t border-border pb-safe">
+          <Button 
+            variant="ghost" 
+            className="w-full h-12" 
+            onClick={() => onOpenChange(false)}
+          >
+            Close
+          </Button>
         </div>
       </SheetContent>
     </Sheet>

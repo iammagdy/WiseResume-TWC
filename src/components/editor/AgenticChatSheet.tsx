@@ -352,7 +352,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
           )}
         </div>
 
-        <div className="shrink-0 border-t border-border p-3 pb-safe">
+        <div className="shrink-0 border-t border-border p-3 space-y-2 pb-safe">
           <div className="flex items-center gap-2">
             <input
               ref={inputRef}
@@ -377,6 +377,14 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
               <Send className="w-4 h-4" />
             </Button>
           </div>
+          {/* Explicit Close Button for Mobile */}
+          <Button 
+            variant="ghost" 
+            className="w-full h-10 text-muted-foreground" 
+            onClick={() => onOpenChange(false)}
+          >
+            Close
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
