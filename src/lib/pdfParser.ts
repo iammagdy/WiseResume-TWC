@@ -12,6 +12,7 @@ import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textE
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
 import { supabase, supabaseConfig } from '@/integrations/supabase/safeClient';
+import { handleAIError } from './aiProvider';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -56,18 +57,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-      console.error('AI parsing failed:', response.status, error);
-      
-      // Throw specific errors for rate limits and payment issues
-      if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again in a moment.');
-      }
-      if (response.status === 402) {
-        throw new Error('AI credits exhausted. Please add more credits.');
-      }
-      
-      throw new Error(error.error || 'AI parsing failed');
+      await handleAIError(response, 'AI parsing failed');
     }
 
     const data = await response.json();
