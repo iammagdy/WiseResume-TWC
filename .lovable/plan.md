@@ -1,88 +1,123 @@
 
-# Fix Build Errors - Syntax Issues in Two Files
+
+# Fix Build Errors - Missing Imports
 
 ## Problem Summary
 
-Two files have syntax errors preventing the build:
+Multiple build errors are preventing the app from compiling:
 
-1. **`src/pages/Index.tsx`** - Missing closing `</Suspense>` tag
-2. **`src/lib/sectionHelpers.test.ts`** - Corrupted file with duplicate content merged together
+1. **`src/pages/Index.tsx`** - Missing imports for `AppLogo` and `Button` components
+2. **`src/lib/agenticChat.ts`** - Missing import for `handleAIError` from `./aiProvider`
+3. **`src/lib/aiAnalysis.ts`** - Missing import for `handleAIError` from `./aiProvider`
+4. **`src/lib/aiTailor.ts`** - Missing import for `handleAIError` from `./aiProvider`
+5. **`src/lib/careerPath.ts`** - Missing import for `handleAIError` from `./aiProvider`
+6. **`src/hooks/useAuth.test.tsx`** - TypeScript spread argument errors in mock functions
 
 ---
 
 ## Fix 1: `src/pages/Index.tsx`
 
-### Issue
-The outer `<Suspense>` component on line 89 is missing its closing tag. The file ends with just `);` instead of properly closing both the Suspense and the component.
+**Problem:** The file uses `AppLogo` (line 92) and `Button` (lines 148, 155) but doesn't import them.
 
-### Current Code (lines 88-118)
-```tsx
-  return (
-    <Suspense fallback={<HeroSkeleton />}>
-      <SpaceBackground>
-        ...
-      </SpaceBackground>
-  );  // ← Missing </Suspense> before this
-};
+**Solution:** Add these imports to the file's import statements.
 
-export default Index;
-```
-
-### Fix
-Add the missing `</Suspense>` closing tag before the closing parenthesis:
-
-```tsx
-  return (
-    <Suspense fallback={<HeroSkeleton />}>
-      <SpaceBackground>
-        <main className="min-h-screen">
-          ...
-        </main>
-      </SpaceBackground>
-    </Suspense>  // ← Add this
-  );
-};
-
-export default Index;
+```typescript
+// Add to imports
+import { AppLogo } from '@/components/brand/AppLogo';
+import { Button } from '@/components/ui/button';
 ```
 
 ---
 
-## Fix 2: `src/lib/sectionHelpers.test.ts`
+## Fix 2: `src/lib/agenticChat.ts`
 
-### Issue
-The file has corrupted content where two versions of the test file were merged together. Around line 125, there's a duplicate import block and a second `describe` block starting, while the first describe block was never properly closed.
+**Problem:** Uses `handleAIError` (line 63) but doesn't import it.
 
-### Current Structure
-```text
-Lines 1-124: First version of tests (incomplete, missing closing braces)
-Line 125: Duplicate imports start
-Lines 126-303: Second version of tests (complete but duplicated)
+**Solution:** Add the import from `./aiProvider`.
+
+```typescript
+// Update line 3 to include handleAIError
+import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
 ```
 
-### Fix
-Remove lines 1-124 entirely and keep only the complete test suite (lines 125-303). The second version is more comprehensive and includes:
-- `getSectionPreview` tests
-- `getSectionIcon` tests  
-- `getSectionName` tests
-- `calculatePageNumbers` tests
-- `countPagesFromBreaks` tests
+---
+
+## Fix 3: `src/lib/aiAnalysis.ts`
+
+**Problem:** Uses `handleAIError` (line 26) but doesn't import it.
+
+**Solution:** Add the import from `./aiProvider`.
+
+```typescript
+// Update line 2 to include handleAIError
+import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
+```
+
+---
+
+## Fix 4: `src/lib/aiTailor.ts`
+
+**Problem:** Uses `handleAIError` (lines 89, 124, 144, 168) but doesn't import it.
+
+**Solution:** Add the import from `./aiProvider`.
+
+```typescript
+// Update line 2 to include handleAIError
+import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
+```
+
+---
+
+## Fix 5: `src/lib/careerPath.ts`
+
+**Problem:** Uses `handleAIError` (line 67) but doesn't import it.
+
+**Solution:** Add the import from `./aiProvider`.
+
+```typescript
+// Update line 3 to include handleAIError
+import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
+```
+
+---
+
+## Fix 6: `src/hooks/useAuth.test.tsx`
+
+**Problem:** TypeScript error on lines 19-20 - spread arguments must have tuple type.
+
+**Current Code:**
+```typescript
+onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
+getSession: (...args: unknown[]) => mockGetSession(...args),
+```
+
+**Solution:** Remove the argument forwarding since the mock functions don't need them:
+
+```typescript
+onAuthStateChange: () => mockOnAuthStateChange(),
+getSession: () => mockGetSession(),
+```
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/pages/Index.tsx` | Add `</Suspense>` closing tag on line 114 (before the closing `);`) |
-| `src/lib/sectionHelpers.test.ts` | Remove duplicate content (lines 1-124), keep only the complete test suite |
+| File | Line(s) | Change |
+|------|---------|--------|
+| `src/pages/Index.tsx` | 1-30 | Add imports for `AppLogo` and `Button` |
+| `src/lib/agenticChat.ts` | 3 | Add `handleAIError` to existing import |
+| `src/lib/aiAnalysis.ts` | 2 | Add `handleAIError` to existing import |
+| `src/lib/aiTailor.ts` | 2 | Add `handleAIError` to existing import |
+| `src/lib/careerPath.ts` | 3 | Add `handleAIError` to existing import |
+| `src/hooks/useAuth.test.tsx` | 19-20 | Fix spread argument syntax |
 
 ---
 
 ## Expected Outcome
 
 After these fixes:
+- All missing imports will be resolved
 - TypeScript compilation will succeed
-- The app will build and load correctly
-- The landing page will render properly
-- All test files will be valid and runnable
+- The app will build and run correctly
+- The full user flow (landing page → create resume → editor) can be tested
+
