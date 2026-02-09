@@ -1,46 +1,46 @@
 project_id = "hjnnamwgztlhzkeuufln"
 
 [functions.analyze-resume]
-verify_jwt = false
+verify_jwt = true
 
 [functions.enhance-section]
-verify_jwt = false
+verify_jwt = true
 
 [functions.explain-gap]
-verify_jwt = false
+verify_jwt = true
 
 [functions.interview-chat]
-verify_jwt = false
+verify_jwt = true
 
 [functions.parse-linkedin]
-verify_jwt = false
+verify_jwt = true
 
 [functions.parse-job-url]
-verify_jwt = false
+verify_jwt = true
 
 [functions.parse-resume]
-verify_jwt = false
+verify_jwt = true
 
 [functions.tailor-resume]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-cover-letter]
-verify_jwt = false
+verify_jwt = true
 
 [functions.elevenlabs-scribe-token]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-headshot]
-verify_jwt = false
+verify_jwt = true
 
 [functions.recruiter-simulation]
-verify_jwt = false
+verify_jwt = true
 
 [functions.detect-and-humanize]
-verify_jwt = false
+verify_jwt = true
 
 [functions.optimize-for-linkedin]
-verify_jwt = false
+verify_jwt = true
 
 [functions.one-page-optimizer]
-verify_jwt = false
+verify_jwt = true
