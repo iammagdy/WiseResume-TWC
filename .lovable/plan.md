@@ -1,132 +1,176 @@
 
 
-# Agentic Chat Enhancement Plan
+# Import Screen UI Redesign & Logic Enhancement Plan
 
-## Analysis Summary
+## Overview
 
-After comparing the megZone agentic architecture with WiseResume's current implementation, I've identified **5 key missing features** that would significantly improve the AI assistant's capabilities.
-
-| Feature | Status | Impact |
-|---------|--------|--------|
-| Closed-Loop Feedback | ❌ Missing | Critical - AI doesn't know if edits succeeded |
-| suggestEdits (Human-in-Loop) | ❌ Missing | High - Prevents unwanted changes on subjective edits |
-| update_experience tool | ❌ Missing | High - Can only add, not modify experiences |
-| Thinking Mode toggle | ❌ Missing | Medium - Complex reasoning for career pivots |
-| proofreadAndApplyFixes | ⚠️ Partial | Medium - Proofread exists but doesn't apply fixes |
+This plan addresses two objectives:
+1. **UI Redesign**: Transform the current Upload Page to match the sleek megZone "Wise AI Engine" modal design
+2. **Logic Enhancement**: Compare and adopt better import logic from the megZone architecture
 
 ---
 
-## Changes Required
+## Comparison Analysis
 
-### 1. Add Closed-Loop Feedback (Priority: Critical)
+### UI Comparison
 
-**Problem:** Currently, when the AI calls a function like `update_summary`, WiseResume executes it locally but never tells the AI whether it succeeded. The AI is "flying blind."
+| Aspect | Current WiseResume | megZone (Screenshot) | Verdict |
+|--------|-------------------|---------------------|---------|
+| **Layout** | Full page with separate header | Modal/dialog with close button | megZone is more elegant for mobile |
+| **Branding** | No AI branding | "WISE AI ENGINE" badge at top | megZone adds trust |
+| **Drop Zone** | Large circle icon, "Upload Your Resume" text | Clean bordered box with icon, description | megZone is cleaner |
+| **Format Pills** | Bottom sheet selector (tap to choose type) | Inline pills below drop zone | megZone shows all options at once |
+| **Privacy Note** | Tips section at bottom | "Privacy First" badge with shield | megZone builds trust better |
+| **File Types** | PDF, Word, Image | PDF, DOCX, IMG (OCR), **JSON** | megZone adds JSON import |
+| **Style** | Gradient icon, light theme | Dark theme, gradient border, purple accents | megZone is more modern |
 
-**Solution:** After executing a function call, send the result back to the AI so it can provide a meaningful confirmation.
+### Logic Comparison
+
+| Feature | Current WiseResume | megZone | Verdict |
+|---------|-------------------|---------|---------|
+| **JSON Import** | Not supported | Skips AI, direct schema validation | Add to WiseResume |
+| **HTML Import** | Not supported | Mentioned in spec (.HTML, .HTM) | Add to WiseResume |
+| **PDF Scanned Check** | Uses character count < 50 threshold | Uses character count < 50 threshold | Same |
+| **OCR Fallback** | Tesseract.js (client-side) | Gemini Vision (cloud) | Both valid |
+| **AI Parsing** | Edge function with tool calling | Gemini with responseSchema | Same approach |
+| **File Size Limit** | 10MB | 2MB | WiseResume is more generous |
+| **Review Flow** | ImportReviewSheet (select sections) | Split-pane with source preview | WiseResume is simpler for mobile |
+| **Timeout** | No explicit timeout | 60s racing promise | Add timeout to WiseResume |
+| **ID Regeneration** | Not mentioned | Post-parse UUID regeneration | Add to WiseResume |
+| **System Prompt** | Already enhanced with FULL EXTRACTION | "Forensic Data Entry" persona | Already done |
+
+---
+
+## Proposed Changes
+
+### 1. UI Redesign (High Priority)
+
+Redesign the Upload Page to match the megZone modal aesthetic:
+
+**New Layout Structure:**
+```text
+┌────────────────────────────────────┐
+│ [WISE AI ENGINE]              [X]  │ ← Badge + close button
+│                                    │
+│ 📤 Import Resume                   │
+│ Upload your existing CV and let    │
+│ our AI parse, organize, and        │
+│ optimize it for the editor.        │
+│                                    │
+│ ┌────────────────────────────────┐ │
+│ │                                │ │
+│ │      Click to upload           │ │ ← Drop zone
+│ │      or drag and drop          │ │
+│ │                                │ │
+│ │ .JSON, .PDF, .DOCX, .PNG, etc. │ │
+│ └────────────────────────────────┘ │
+│                                    │
+│ [PDF] [DOCX] [IMG] [JSON]          │ ← Format pills
+│  Auto   Word  OCR/  Direct         │
+│ Parsing Docs Vision Data           │
+│                                    │
+│ ┌────────────────────────────────┐ │
+│ │ 🛡️ Privacy First               │ │ ← Trust badge
+│ │ We parse your document         │ │
+│ │ securely. No data is stored    │ │
+│ │ permanently until you save.    │ │
+│ └────────────────────────────────┘ │
+└────────────────────────────────────┘
+```
+
+**File:** Create new component `src/components/upload/ImportResumeSheet.tsx`
+- Use Sheet component (bottom sheet on mobile)
+- Add "WISE AI ENGINE" gradient badge
+- Inline format pills instead of separate selector sheet
+- Add dark glassmorphism styling
+- Add "Privacy First" trust section
+- Keep drag-and-drop functionality
+
+**File:** Update `src/pages/UploadPage.tsx`
+- Optionally make the upload accessible via sheet OR page
+- Update styling to match dark gradient aesthetic
+- Add JSON file type support
+
+### 2. Add JSON Import (High Priority)
+
+**Problem:** Users cannot import backup JSON files directly.
+
+**Solution:** Add JSON file type that skips AI and validates directly.
 
 **Files to modify:**
-- `src/hooks/useAgenticChat.ts` - Add second API call with function result
-- `supabase/functions/agentic-chat/index.ts` - Handle function response in conversation
+- `src/pages/UploadPage.tsx` - Add 'json' to FileType
+- `src/components/upload/FileTypeSelector.tsx` - Add JSON option
+- Create `src/lib/jsonResumeValidator.ts` - Validation logic
 
+**Logic:**
 ```typescript
-// After local execution, send back to AI:
-const functionResponse = {
-  role: 'function',
-  name: functionName,
-  content: JSON.stringify({ success: true, applied: args })
+// When JSON file detected:
+const handleJSONFile = async (file: File) => {
+  const text = await file.text();
+  const parsed = JSON.parse(text);
+  const validated = validateAndCleanResumeData(parsed);
+  // Regenerate IDs to prevent React key conflicts
+  const withNewIds = regenerateIds(validated);
+  setPendingResumeData(withNewIds);
+  setShowImportReview(true);
 };
-// Then call API again with this response
-// AI will then provide a natural confirmation message
 ```
 
-### 2. Add `suggestEdits` Tool (Priority: High)
+### 3. Add HTML Import (Medium Priority)
 
-**Problem:** Currently, all edits are auto-applied. For subjective changes like "Make my resume more leadership-focused," the AI might change things the user didn't want.
+**Problem:** Some users export resumes as HTML from other tools.
 
-**Solution:** Add a new tool that returns **proposals** (original vs. suggested) for user review before applying.
-
-**New tool definition:**
-```typescript
-{
-  name: "suggest_edits",
-  description: "For subjective/risky changes, propose edits for user approval instead of directly applying",
-  parameters: {
-    proposals: [{
-      section: "summary|experience|skills",
-      original: "Current text",
-      suggested: "New text",
-      explanation: "Why this change improves the resume"
-    }]
-  }
-}
-```
-
-**UI enhancement:** Add a diff card in chat showing Green/Red comparison with Accept/Reject buttons.
-
-### 3. Add `update_experience` Tool (Priority: High)
-
-**Problem:** The AI can only ADD new experiences, not modify existing ones. Users saying "Update my Google job description" have no recourse.
+**Solution:** Parse HTML and extract text for AI processing.
 
 **Files to modify:**
-- `supabase/functions/agentic-chat/index.ts` - Add tool definition
-- `src/hooks/useAgenticChat.ts` - Add handler
+- `src/pages/UploadPage.tsx` - Add 'html' file type
+- Create handler using DOMParser to extract text content
 
-**New tool:**
+### 4. Add Request Timeout (Medium Priority)
+
+**Problem:** No timeout on AI parsing requests - could hang indefinitely.
+
+**Solution:** Wrap API calls in Promise.race with 60s timeout.
+
+**File:** `src/lib/pdfParser.ts`
+
 ```typescript
-{
-  name: "update_experience",
-  description: "Update an existing work experience entry by company name or position",
-  parameters: {
-    identifier: { type: "string", description: "Company name or position to find" },
-    updates: {
-      description: "optional string",
-      achievements: "optional string[]",
-      // ... other updatable fields
-    }
+const PARSE_TIMEOUT = 60000; // 60 seconds
+
+async function parseTextWithAI(text: string): Promise<ResumeData> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    // ...
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 ```
 
-### 4. Add Thinking Mode Toggle (Priority: Medium)
+### 5. Add ID Regeneration (Low Priority)
 
-**Problem:** Gemini Flash is fast but struggles with complex reasoning like "Rewrite my resume for a career change from finance to tech."
+**Problem:** Imported data might have duplicate IDs causing React list key issues.
 
-**Solution:** Add a toggle in the UI that switches to Gemini 2.5 Pro with `thinkingBudget` for complex tasks.
+**Solution:** Post-parse, regenerate all experience/education/certification IDs.
 
-**Files to modify:**
-- `src/components/editor/AgenticChatSheet.tsx` - Add toggle switch
-- `src/lib/agenticChat.ts` - Pass `thinkingMode` param
-- `supabase/functions/agentic-chat/index.ts` - Use Pro model + thinking config
+**File:** `src/lib/pdfParser.ts` or new utility
 
-### 5. Enhance Proofread with Auto-Apply (Priority: Medium)
-
-**Problem:** Current `proofread` tool just signals completion but doesn't return fixes. megZone's `proofreadAndApplyFixes` returns structured fixes and applies them.
-
-**Solution:** Enhance the proofread tool to return actionable fixes and optionally apply them.
-
-**Enhanced tool:**
 ```typescript
-{
-  name: "proofread_and_fix",
-  description: "Scan resume for errors and fix them",
-  parameters: {
-    fixes: [{
-      section: "summary|experience|education",
-      itemId: "optional - for array items",
-      original: "text with error",
-      corrected: "fixed text",
-      reason: "Grammar|Spelling|Clarity"
-    }],
-    autoApply: { type: "boolean", description: "Apply fixes automatically or show diff" }
-  }
+function regenerateIds(data: ResumeData): ResumeData {
+  return {
+    ...data,
+    experience: data.experience.map(exp => ({ ...exp, id: crypto.randomUUID() })),
+    education: data.education.map(edu => ({ ...edu, id: crypto.randomUUID() })),
+    certifications: data.certifications.map(cert => ({ ...cert, id: crypto.randomUUID() })),
+  };
 }
 ```
-
-### 6. Add Markdown Rendering (Priority: Low)
-
-**Problem:** AI responses are rendered as plain text, losing formatting.
-
-**Solution:** Use `react-markdown` to render assistant messages.
 
 ---
 
@@ -134,53 +178,35 @@ const functionResponse = {
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/agentic-chat/index.ts` | Add 3 new tools, enhance prompt, handle function response loop |
-| `src/hooks/useAgenticChat.ts` | Add closed-loop feedback, new function handlers, thinking mode |
-| `src/lib/agenticChat.ts` | Add `thinkingMode` and `functionResponse` params |
-| `src/components/editor/AgenticChatSheet.tsx` | Add thinking toggle, suggest-edits diff cards, markdown rendering |
+| `src/components/upload/ImportResumeSheet.tsx` | NEW - Redesigned import UI as sheet |
+| `src/pages/UploadPage.tsx` | Add JSON/HTML handlers, timeout, UI refresh |
+| `src/components/upload/FileTypeSelector.tsx` | Add JSON option with icon |
+| `src/lib/jsonResumeValidator.ts` | NEW - JSON import validation |
+| `src/lib/pdfParser.ts` | Add timeout, ID regeneration |
+| `src/types/resume.ts` | No changes needed |
 
 ---
 
 ## Summary of Enhancements
 
-```text
-BEFORE:                          AFTER:
-┌─────────────────────┐          ┌─────────────────────┐
-│ User: "Update my    │          │ User: "Update my    │
-│ summary"            │          │ summary"            │
-│                     │          │                     │
-│ → AI calls tool     │          │ → AI calls tool     │
-│ → App executes      │          │ → App executes      │
-│ → AI: "I updated    │          │ → App tells AI ✓    │ ← NEW: Feedback loop
-│   it" (guessing)    │          │ → AI: "Done! Your   │
-│                     │          │   summary now says  │
-│                     │          │   X instead of Y"   │
-└─────────────────────┘          └─────────────────────┘
-
-┌─────────────────────┐          ┌─────────────────────┐
-│ User: "Make it more │          │ User: "Make it more │
-│ leadership-focused" │          │ leadership-focused" │
-│                     │          │                     │
-│ → AI changes things │          │ → AI proposes edits │ ← NEW: suggestEdits
-│ → User: "Wait, I    │          │ → Shows diff card   │
-│   didn't want that" │          │ → User: Accept ✓    │
-└─────────────────────┘          └─────────────────────┘
-
-┌─────────────────────┐          ┌─────────────────────┐
-│ [🧠 Flash only]     │          │ [Toggle: 🧠 Pro]    │ ← NEW: Thinking mode
-│                     │          │                     │
-│ Simple edits only   │          │ Complex reasoning   │
-│                     │          │ Career pivots, etc. │
-└─────────────────────┘          └─────────────────────┘
-```
+| Enhancement | Source | Benefit |
+|-------------|--------|---------|
+| JSON Import | megZone | Backup/restore without AI latency |
+| HTML Import | megZone | Accept more file formats |
+| Request Timeout | megZone | Prevent infinite hangs |
+| ID Regeneration | megZone | Prevent React key conflicts |
+| Format Pills UI | megZone Screenshot | Better discoverability |
+| Privacy Badge | megZone Screenshot | Build user trust |
+| AI Engine Branding | megZone Screenshot | Professional feel |
 
 ---
 
-## New Message Types
+## What We're NOT Changing
 
-The chat will support three message types:
+The megZone specification also confirms WiseResume's architecture is already well-designed:
 
-1. **Text** - Regular conversation
-2. **Function Call** - Shows badge + confirmation (existing)
-3. **Suggestion Card** - Shows diff with Accept/Reject buttons (NEW)
+- Text extraction (pdf.js with Y-coordinate grouping) is excellent
+- OCR fallback (Tesseract.js) works well for client-side processing
+- FULL EXTRACTION directive already implemented
+- ImportReviewSheet for section selection is better for mobile than split-pane
 
