@@ -210,6 +210,13 @@ export default function PreviewPage() {
             toast.error('Generate a cover letter first');
             return;
           }
+          pdfBlob = await generateCoverLetterPDF(
+            generatedCoverLetter,
+            currentResume.contactInfo,
+            pdfOptions
+          );
+          fileName = `${baseName}_Cover_Letter.pdf`;
+          break;
 
         case 'combined':
           if (!generatedCoverLetter) {
@@ -241,13 +248,20 @@ export default function PreviewPage() {
       }
 
       const url = URL.createObjectURL(pdfBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Mobile browsers block programmatic link clicks; open in new tab instead
+        window.open(url, '_blank');
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
 
       const successMessages: Record<ExportType, string> = {
         'resume': 'Resume downloaded!',
