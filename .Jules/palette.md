@@ -1,3 +1,3 @@
-## 2026-02-09 - [Accessible File Upload Zones]
-**Learning:** Custom drop zones (divs) are inaccessible to keyboard users by default.
-**Action:** Always add `role="button"`, `tabIndex="0"`, `onKeyDown` (Enter/Space), and visible focus rings (`focus-visible:ring`) to interactive non-button elements.
+## 2026-02-09 - Accessible Password Toggles
+**Learning:** Icon-only buttons (like password visibility toggles) are often missed accessibility issues in form fields.
+**Action:** Always add `aria-label` (dynamic if state changes) and `aria-pressed` to toggle buttons.
