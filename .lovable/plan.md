@@ -1,169 +1,186 @@
 
 
-# CV Parsing Logic Enhancement Plan
+# Agentic Chat Enhancement Plan
 
-## Comparison Analysis
+## Analysis Summary
 
-### Current WiseResume Architecture
+After comparing the megZone agentic architecture with WiseResume's current implementation, I've identified **5 key missing features** that would significantly improve the AI assistant's capabilities.
 
-| Component | Current Approach | Strengths | Weaknesses |
-|-----------|-----------------|-----------|------------|
-| **Text Extraction** | pdf.js with layout-aware reconstruction, Y-coordinate grouping, two-column detection | Excellent handling of complex layouts, sidebar resumes | N/A - Very solid |
-| **OCR Fallback** | Tesseract.js for scanned PDFs | Client-side, works offline | Slower than cloud OCR |
-| **AI Parsing** | Edge function with tool calling (function schema) | Structured output guaranteed | Prompt could be stronger |
-| **System Prompt** | 177 lines with detailed rules | Comprehensive name detection, section variants | Missing "FULL EXTRACTION" directive |
-| **Local Fallback** | Regex-based `sectionParsers.ts` | Works without AI, good for network errors | Less accurate than AI |
-| **Schema** | OpenAI function calling format | Type-safe output | N/A |
-
-### megZone Architecture (from uploaded document)
-
-| Component | megZone Approach | Strengths | Weaknesses |
-|-----------|------------------|-----------|------------|
-| **Text Extraction** | pdf.js + OCR fallback | Same as WiseResume | N/A |
-| **AI Parsing** | `responseSchema` config in Gemini SDK | Native Gemini structured output | Different SDK format |
-| **System Prompt** | 3 critical instructions only | Concise, focused on extraction | Less comprehensive |
-| **Key Insight** | "FULL EXTRACTION" directive | Prevents AI summarization/truncation | WiseResume is missing this! |
-| **JSON Cleaning** | `cleanAndParseJson` utility | Handles markdown wrapping | WiseResume uses tool calling (better) |
-| **Human Review** | Side-by-side comparison UI | User validation | WiseResume already has ImportReviewSheet |
+| Feature | Status | Impact |
+|---------|--------|--------|
+| Closed-Loop Feedback | ❌ Missing | Critical - AI doesn't know if edits succeeded |
+| suggestEdits (Human-in-Loop) | ❌ Missing | High - Prevents unwanted changes on subjective edits |
+| update_experience tool | ❌ Missing | High - Can only add, not modify experiences |
+| Thinking Mode toggle | ❌ Missing | Medium - Complex reasoning for career pivots |
+| proofreadAndApplyFixes | ⚠️ Partial | Medium - Proofread exists but doesn't apply fixes |
 
 ---
 
-## Key Enhancement: The "FULL EXTRACTION" Directive
+## Changes Required
 
-The most valuable insight from the megZone document is the **"FULL EXTRACTION" rule** in the system prompt:
+### 1. Add Closed-Loop Feedback (Priority: Critical)
 
-```text
-2. **FULL EXTRACTION:** Extract 100% of the text in the work experience descriptions. 
-   Do not summarize, do not bulletize if it's a paragraph, and do not omit details. 
-   Return the exact text.
-```
+**Problem:** Currently, when the AI calls a function like `update_summary`, WiseResume executes it locally but never tells the AI whether it succeeded. The AI is "flying blind."
 
-**Why this matters:**
-- LLMs have a natural tendency to summarize or condense content
-- Resume descriptions often contain valuable keywords for ATS matching
-- Truncated bullets lose important achievements and metrics
+**Solution:** After executing a function call, send the result back to the AI so it can provide a meaningful confirmation.
 
----
-
-## Implementation Plan
-
-### 1. Enhance the AI Parsing System Prompt
-
-**File:** `supabase/functions/parse-resume/index.ts`
-
-Add three new critical directives to the existing systemPrompt (line 143):
+**Files to modify:**
+- `src/hooks/useAgenticChat.ts` - Add second API call with function result
+- `supabase/functions/agentic-chat/index.ts` - Handle function response in conversation
 
 ```typescript
-const systemPrompt = `You are an expert resume parser. Extract ALL structured information from resume text.
-
-CRITICAL RULES:
-1. **PROCESS ALL CONTENT:** The input may be from a multi-page document. Process the ENTIRETY of the text. Do not stop after the first page or section.
-2. **FULL EXTRACTION:** Extract 100% of the text in work experience descriptions. Do NOT summarize, do NOT bulletize paragraphs, and do NOT omit details. Return the EXACT text.
-3. **DATE PARSING:** Be very careful with dates. Preserve original format when possible (YYYY-MM, MMM YYYY, etc.).
-4. Extract EVERYTHING - all jobs, education, projects, skills, certifications. Never skip sections!
-5. Empty fields: use "" for strings, [] for arrays - never omit required fields
-... [keep existing rules 4-16]
+// After local execution, send back to AI:
+const functionResponse = {
+  role: 'function',
+  name: functionName,
+  content: JSON.stringify({ success: true, applied: args })
+};
+// Then call API again with this response
+// AI will then provide a natural confirmation message
 ```
 
-### 2. Add "Responsibilities" Field to Experience Schema
+### 2. Add `suggestEdits` Tool (Priority: High)
 
-**File:** `supabase/functions/parse-resume/index.ts`
+**Problem:** Currently, all edits are auto-applied. For subjective changes like "Make my resume more leadership-focused," the AI might change things the user didn't want.
 
-The megZone schema separates `responsibilities` (array of detailed bullets) from general description. This improves bullet extraction.
+**Solution:** Add a new tool that returns **proposals** (original vs. suggested) for user review before applying.
 
-Update the `parseResumeTool` schema (around line 83-98):
-
+**New tool definition:**
 ```typescript
-properties: {
-  company: { type: "string", ... },
-  position: { type: "string", ... },
-  startDate: { type: "string", ... },
-  endDate: { type: "string", ... },
-  current: { type: "boolean", ... },
-  description: { 
-    type: "string", 
-    description: "Overall job/project description paragraph (non-bullet content)" 
-  },
-  achievements: {
-    type: "array",
-    items: { type: "string" },
-    description: "Key achievements, features built, or bullet points - extract EVERY bullet, do not summarize",
-  },
-  responsibilities: {
-    type: "array",
-    items: { type: "string" },
-    description: "Detailed job responsibilities - extract EVERY bullet point verbatim, do not summarize or combine",
-  },
-  isProject: { type: "boolean", ... },
-},
-```
-
-### 3. Enhance Skills Schema for Categorization (Optional)
-
-**File:** `supabase/functions/parse-resume/index.ts`
-
-The megZone approach categorizes skills. While WiseResume uses a flat array (which is fine), we could add optional categorization:
-
-```typescript
-skills: {
-  type: "object",
-  description: "Skills categorized by type, or use 'other' for a flat list",
-  properties: {
-    technical: { type: "array", items: { type: "string" } },
-    frameworks: { type: "array", items: { type: "string" } },
-    tools: { type: "array", items: { type: "string" } },
-    languages: { type: "array", items: { type: "string" } }, // e.g., "Arabic (Native)"
-    soft: { type: "array", items: { type: "string" } },
-    other: { type: "array", items: { type: "string" } },
+{
+  name: "suggest_edits",
+  description: "For subjective/risky changes, propose edits for user approval instead of directly applying",
+  parameters: {
+    proposals: [{
+      section: "summary|experience|skills",
+      original: "Current text",
+      suggested: "New text",
+      explanation: "Why this change improves the resume"
+    }]
   }
 }
 ```
 
-**Note:** This would require updating the frontend to flatten categories, or we can keep the simpler flat array approach.
+**UI enhancement:** Add a diff card in chat showing Green/Red comparison with Accept/Reject buttons.
 
-### 4. Add Robust JSON Cleaning Utility (Already Handled)
+### 3. Add `update_experience` Tool (Priority: High)
 
-WiseResume already uses **tool calling** which guarantees structured JSON output - this is **better** than the megZone approach of regex-based JSON extraction. No change needed here.
+**Problem:** The AI can only ADD new experiences, not modify existing ones. Users saying "Update my Google job description" have no recourse.
+
+**Files to modify:**
+- `supabase/functions/agentic-chat/index.ts` - Add tool definition
+- `src/hooks/useAgenticChat.ts` - Add handler
+
+**New tool:**
+```typescript
+{
+  name: "update_experience",
+  description: "Update an existing work experience entry by company name or position",
+  parameters: {
+    identifier: { type: "string", description: "Company name or position to find" },
+    updates: {
+      description: "optional string",
+      achievements: "optional string[]",
+      // ... other updatable fields
+    }
+  }
+}
+```
+
+### 4. Add Thinking Mode Toggle (Priority: Medium)
+
+**Problem:** Gemini Flash is fast but struggles with complex reasoning like "Rewrite my resume for a career change from finance to tech."
+
+**Solution:** Add a toggle in the UI that switches to Gemini 2.5 Pro with `thinkingBudget` for complex tasks.
+
+**Files to modify:**
+- `src/components/editor/AgenticChatSheet.tsx` - Add toggle switch
+- `src/lib/agenticChat.ts` - Pass `thinkingMode` param
+- `supabase/functions/agentic-chat/index.ts` - Use Pro model + thinking config
+
+### 5. Enhance Proofread with Auto-Apply (Priority: Medium)
+
+**Problem:** Current `proofread` tool just signals completion but doesn't return fixes. megZone's `proofreadAndApplyFixes` returns structured fixes and applies them.
+
+**Solution:** Enhance the proofread tool to return actionable fixes and optionally apply them.
+
+**Enhanced tool:**
+```typescript
+{
+  name: "proofread_and_fix",
+  description: "Scan resume for errors and fix them",
+  parameters: {
+    fixes: [{
+      section: "summary|experience|education",
+      itemId: "optional - for array items",
+      original: "text with error",
+      corrected: "fixed text",
+      reason: "Grammar|Spelling|Clarity"
+    }],
+    autoApply: { type: "boolean", description: "Apply fixes automatically or show diff" }
+  }
+}
+```
+
+### 6. Add Markdown Rendering (Priority: Low)
+
+**Problem:** AI responses are rendered as plain text, losing formatting.
+
+**Solution:** Use `react-markdown` to render assistant messages.
 
 ---
 
-## Summary of Changes
+## Implementation Files
 
-| Priority | Change | File | Benefit |
-|----------|--------|------|---------|
-| **HIGH** | Add "FULL EXTRACTION" directive | `parse-resume/index.ts` | Prevents AI summarization |
-| **HIGH** | Add "PROCESS ALL CONTENT" directive | `parse-resume/index.ts` | Handles multi-page resumes |
-| **MEDIUM** | Add `responsibilities` field to experience | `parse-resume/index.ts` + types | Better bullet extraction |
-| **LOW** | Categorize skills | `parse-resume/index.ts` + types | Optional enhancement |
-
----
-
-## Technical Details
-
-### Files to Modify
-
-1. **`supabase/functions/parse-resume/index.ts`**
-   - Update `systemPrompt` (lines 143-177) to add 3 new critical directives at the top
-   - Optionally add `responsibilities` field to schema
-
-2. **`src/types/resume.ts`** (if adding responsibilities)
-   - Update `Experience` interface to include optional `responsibilities?: string[]`
-
-3. **Backend result mapping** (lines 339-349 in parse-resume/index.ts)
-   - Map new `responsibilities` field if added
-   - Merge into achievements or keep separate based on preference
+| File | Changes |
+|------|---------|
+| `supabase/functions/agentic-chat/index.ts` | Add 3 new tools, enhance prompt, handle function response loop |
+| `src/hooks/useAgenticChat.ts` | Add closed-loop feedback, new function handlers, thinking mode |
+| `src/lib/agenticChat.ts` | Add `thinkingMode` and `functionResponse` params |
+| `src/components/editor/AgenticChatSheet.tsx` | Add thinking toggle, suggest-edits diff cards, markdown rendering |
 
 ---
 
-## What We're NOT Changing
+## Summary of Enhancements
 
-The megZone document validates that WiseResume's architecture is already well-designed:
+```text
+BEFORE:                          AFTER:
+┌─────────────────────┐          ┌─────────────────────┐
+│ User: "Update my    │          │ User: "Update my    │
+│ summary"            │          │ summary"            │
+│                     │          │                     │
+│ → AI calls tool     │          │ → AI calls tool     │
+│ → App executes      │          │ → App executes      │
+│ → AI: "I updated    │          │ → App tells AI ✓    │ ← NEW: Feedback loop
+│   it" (guessing)    │          │ → AI: "Done! Your   │
+│                     │          │   summary now says  │
+│                     │          │   X instead of Y"   │
+└─────────────────────┘          └─────────────────────┘
 
-- ✅ **Text extraction** - WiseResume's layout-aware approach is excellent
-- ✅ **OCR fallback** - Already implemented with Tesseract.js
-- ✅ **Tool calling** - Better than regex JSON parsing
-- ✅ **Human review** - ImportReviewSheet already provides this
-- ✅ **Type safety** - Already using TypeScript interfaces
+┌─────────────────────┐          ┌─────────────────────┐
+│ User: "Make it more │          │ User: "Make it more │
+│ leadership-focused" │          │ leadership-focused" │
+│                     │          │                     │
+│ → AI changes things │          │ → AI proposes edits │ ← NEW: suggestEdits
+│ → User: "Wait, I    │          │ → Shows diff card   │
+│   didn't want that" │          │ → User: Accept ✓    │
+└─────────────────────┘          └─────────────────────┘
 
-The main enhancement is **prompt engineering** to prevent AI summarization.
+┌─────────────────────┐          ┌─────────────────────┐
+│ [🧠 Flash only]     │          │ [Toggle: 🧠 Pro]    │ ← NEW: Thinking mode
+│                     │          │                     │
+│ Simple edits only   │          │ Complex reasoning   │
+│                     │          │ Career pivots, etc. │
+└─────────────────────┘          └─────────────────────┘
+```
+
+---
+
+## New Message Types
+
+The chat will support three message types:
+
+1. **Text** - Regular conversation
+2. **Function Call** - Shows badge + confirmation (existing)
+3. **Suggestion Card** - Shows diff with Accept/Reject buttons (NEW)
 
