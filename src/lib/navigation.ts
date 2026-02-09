@@ -10,7 +10,7 @@ const BACK_ROUTES: Record<string, string> = {
   '/editor': '/dashboard',
   '/preview': '/editor',
   '/upload': '/dashboard',
-  '/interview': '/dashboard',
+  '/interview': '/preview',
   '/settings': '/dashboard',
   '/auth': '/',
 };
