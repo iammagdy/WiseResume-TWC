@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import triggerHaptic from '@/lib/haptics';
@@ -23,23 +22,15 @@ export function BottomCTA() {
         aria-hidden="true"
       />
 
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        className="max-w-md mx-auto text-center relative z-10"
-      >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          whileInView={{ scale: 1, opacity: 1 }}
-          viewport={{ once: true }}
+      <div className="max-w-md mx-auto text-center relative z-10 animate-fade-in-up">
+        <div
           className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-br from-primary to-accent mb-4 sm:mb-6"
           style={{
             boxShadow: '0 0 40px hsl(var(--primary) / 0.4), 0 0 80px hsl(var(--primary) / 0.2)',
           }}
         >
           <Rocket className="w-7 h-7 sm:w-8 sm:h-8 text-primary-foreground" />
-        </motion.div>
+        </div>
 
         <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-3 sm:mb-4">
           Ready for Takeoff? 🚀
@@ -64,7 +55,7 @@ export function BottomCTA() {
         >
           Already aboard? <span className="text-primary font-medium">Sign in</span>
         </button>
-      </motion.div>
+      </div>
     </section>
   );
 }
