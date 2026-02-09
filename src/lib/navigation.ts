@@ -12,7 +12,6 @@ const BACK_ROUTES: Record<string, string> = {
   '/upload': '/dashboard',
   '/interview': '/dashboard',
   '/settings': '/dashboard',
-  '/ai': '/dashboard',
   '/auth': '/',
 };
 
