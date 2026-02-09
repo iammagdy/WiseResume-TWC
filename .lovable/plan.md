@@ -1,107 +1,106 @@
 
 
-# Further Landing Page Performance Optimization
+# Fix iOS PDF Download (Toast Shows Success But File Not Saved)
 
-## Current Issues Found
+## Problem
 
-The landing page still has significant performance drag from **framer-motion** being used heavily across every section, plus unnecessary data fetching and heavy component rendering on the landing page.
+On iOS, tapping "Download" shows a success toast ("Resume downloaded!") but the file is never actually saved. The user can't find the PDF anywhere on their device.
 
-### Issue 1: PlanetLogo runs 5 infinite JS animations
-The PlanetLogo component uses 5 separate `framer-motion` `animate` loops (orbital ring, glow pulse, planet float, 3 orbiting particles) -- all running from the moment the page loads.
-
-### Issue 2: HeroSection fetches auth + profile on landing
-`useAuth()` and `useProfile()` trigger network requests (session check, profile fetch) even for first-time visitors who have no account. This blocks rendering.
-
-### Issue 3: HowItWorks has infinite particle animations
-Each connecting line between steps has a `motion.div` particle animated left-to-right infinitely.
-
-### Issue 4: FeatureGrid creates 18 animated star particles
-Each of the 6 feature cards has 3 `motion.div` star particles with infinite opacity/scale animations -- even though they're only visible on hover.
-
-### Issue 5: AnimatedCounter uses setInterval at 60fps
-The counter in SocialProofBar fires `setInterval` every 16ms (60fps) to count up numbers, which is wasteful on mobile.
-
-### Issue 6: TemplateGallery renders full template trees
-3 complete template React component trees (each 612x792px) are rendered just for small thumbnails on the landing page.
-
----
+**Root Cause**: The success toast at line 290 fires unconditionally after the download attempt, regardless of whether the file was actually saved. On iOS Safari:
+- `window.open(url, '_blank')` with a blob URL just opens a blank tab or gets blocked by the popup blocker -- it does NOT trigger a download
+- `window.open(dataUrl, '_blank')` with a base64 data URL shows raw PDF data in a tab but doesn't save a file
+- `navigator.share()` is the ONLY reliable way to save/send a PDF on iOS, but if the user cancels the share sheet, the catch block falls back to `window.open` which silently fails
 
 ## Solution
 
-### Part 1: Replace PlanetLogo framer-motion with CSS (`PlanetLogo.tsx`)
-- Replace all 5 `motion.div` elements with plain `div` elements using CSS animations
-- Add CSS keyframes for orbit, glow-pulse, and float in `index.css`
-- Remove `framer-motion` import entirely from this component
+### 1. Make `navigator.share` the primary (and only real) iOS download method
+- Remove the broken `window.open` fallbacks for iOS
+- If `navigator.share` is available, use it and only show success toast when it completes
+- If share is cancelled by user, show an info toast explaining how to save
+- If `navigator.share` is truly unavailable (very old iOS), create a temporary `<a>` tag with a data URL and `download` attribute as last resort
 
-### Part 2: Defer auth/profile loading in HeroSection (`HeroSection.tsx`)
-- Remove `useAuth()` and `useProfile()` from the hero
-- Show a generic user icon always; only check auth state lazily after the page has loaded (via `useEffect` with `requestIdleCallback`)
-- This eliminates network requests blocking the landing page
+### 2. Move success toast inside confirmed-success paths
+- Only show "Resume downloaded!" when we know the file was actually delivered
+- Show contextual messages for cancellation or fallback scenarios
 
-### Part 3: Remove infinite particle animations (`HowItWorks.tsx`)
-- Replace the animated particle `motion.div` on connecting lines with a static gradient dot or remove entirely
-- Replace `motion.div` wrappers with plain `div` + CSS fade-in class
-- Remove `framer-motion` import
+### 3. Add explicit "Save to Files" instructions for iOS fallback
+- If share API isn't supported, guide the user to long-press and "Download Linked File"
 
-### Part 4: Remove star particle animations (`FeatureGrid.tsx`)
-- Remove the 18 `motion.div` star particles entirely (they're only visible on hover and add no value on mobile where there's no hover)
-- Replace `motion.div` wrappers with plain `div` + CSS classes for entrance animations
-- Remove `framer-motion` import
+## File Changes
 
-### Part 5: Replace AnimatedCounter with CSS counter (`SocialProofBar.tsx`)
-- Replace the `setInterval`-based counter with a simple CSS animation or just show the final number immediately
-- Replace `motion.section` with plain section + CSS fade-in
-- Remove `framer-motion` import
+### `src/pages/PreviewPage.tsx` (lines 250-291)
 
-### Part 6: Remove framer-motion from remaining sections
-- **WhyWiseResume.tsx**: Replace `motion.div` variants with CSS classes, replace bouncing arrow with CSS animation
-- **BottomCTA.tsx**: Replace `motion.div` with CSS fade-in classes
+Replace the download logic with:
 
-### Part 7: Use static images for TemplateGallery thumbnails (`TemplateGallery.tsx`)
-- Instead of rendering full template component trees, use simple colored placeholder cards with template name labels
-- This eliminates 3 heavy React subtrees from the landing page
+```typescript
+const url = URL.createObjectURL(pdfBlob);
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+const isMobile = isIOS || /Android/i.test(navigator.userAgent);
 
-### Part 8: Add new CSS animations to `index.css`
-Add these lightweight CSS keyframes:
-- `orbit-rotate` - for PlanetLogo orbital ring
-- `glow-pulse` - for PlanetLogo outer glow
-- `float-gentle` - for PlanetLogo planet body
-- `fade-in-up` - reusable entrance animation for all sections
+let downloadSucceeded = false;
 
----
+if (isIOS) {
+  // iOS: navigator.share is the ONLY reliable download method
+  try {
+    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: fileName });
+      downloadSucceeded = true;
+    } else {
+      // Fallback: open blob in new tab with instructions
+      const newTab = window.open(url, '_blank');
+      if (newTab) {
+        toast.info('Tap the share icon in Safari, then "Save to Files"', { duration: 6000 });
+      } else {
+        // Popup blocked - use anchor download with data URL
+        const reader = new FileReader();
+        const dataUrl = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(pdfBlob);
+        });
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = fileName;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.info('If the file did not save, tap and hold the download button, then "Download Linked File"', { duration: 6000 });
+      }
+    }
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      // User cancelled the share sheet
+      toast.info('Download cancelled. Tap download again to save your PDF.');
+    } else {
+      toast.error('Could not save PDF. Try using the Share button instead.');
+    }
+  }
+} else if (isMobile) {
+  // Android: blob URLs work with window.open
+  window.open(url, '_blank');
+  downloadSucceeded = true;
+} else {
+  // Desktop: standard anchor download
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  downloadSucceeded = true;
+}
 
-## Technical Details
+if (downloadSucceeded) {
+  const successMessages = { ... };
+  toast.success(successMessages[type]);
+}
+```
 
-### Files to Modify
-
-| File | Change | Impact |
-|------|--------|--------|
-| `src/components/landing/PlanetLogo.tsx` | Replace 5 motion.div with CSS animations | Remove ~5 JS animation loops |
-| `src/components/landing/HeroSection.tsx` | Defer auth loading, remove useProfile from critical path | Eliminate 2 network requests on load |
-| `src/components/landing/HowItWorks.tsx` | Remove framer-motion, use CSS | Remove 2 infinite JS animations |
-| `src/components/landing/FeatureGrid.tsx` | Remove star particles + framer-motion | Remove 18 infinite JS animations |
-| `src/components/landing/SocialProofBar.tsx` | Remove AnimatedCounter, use CSS | Remove 60fps setInterval |
-| `src/components/landing/WhyWiseResume.tsx` | Remove framer-motion, use CSS | Remove stagger animations |
-| `src/components/landing/BottomCTA.tsx` | Remove framer-motion, use CSS | Remove 2 motion elements |
-| `src/components/landing/TemplateGallery.tsx` | Replace full templates with styled placeholders | Remove 3 heavy component trees |
-| `src/index.css` | Add CSS keyframes for orbit, glow, float, fade-in-up | Enable CSS-only animations |
-
-### Expected Improvements
-
-| Metric | Current | After |
-|--------|---------|-------|
-| JS animation loops on load | ~30 | 0 |
-| framer-motion imports on landing | 7 files | 0 files |
-| Network requests on landing | 3+ (auth, profile, session) | 0 (deferred) |
-| React component trees for thumbnails | 3 full templates | 3 simple divs |
-| Main thread blocking time | High | Minimal |
-
-### Testing Checklist
-1. Landing page renders instantly on mobile without delay
-2. PlanetLogo still has orbital ring, glow, and float effect (via CSS)
-3. Scrolling is smooth with no jank
-4. "Launch Your Resume" and "Upload existing resume" buttons work
-5. Profile avatar still appears after idle auth check
-6. Template gallery shows styled placeholders that look good
-7. All entrance animations still work (fade-in on scroll)
+Key differences from current code:
+- Success toast only fires when download is confirmed (share completed or desktop link clicked)
+- Share cancellation (`AbortError`) shows helpful info toast instead of broken fallback
+- No more `window.open(dataUrl)` which shows garbage in a tab
+- Clear user guidance when fallback paths are used
 
