@@ -1,158 +1,159 @@
 
-# Add Back Button to AI and Settings Pages + Mobile UX Audit
 
-## Problem Identified
+# Landing Page as Default + New Logo + Enhanced Space Theme
 
-After analyzing all pages in the app, the following screens are missing back buttons:
+## Summary
 
-| Page | Current State | Issue |
-|------|---------------|-------|
-| **AIPage (`/ai`)** | No back button in header | User has no visual back navigation cue |
-| **SettingsPage (`/settings`)** | No back button in header | User has no visual back navigation cue |
+Transform the app to always show the space-themed landing page as the default entry point, with a new logo matching the reference screenshot (document icon with gradient and cyan sparkle), and enhanced space animations.
 
-While both pages are accessible via the bottom tab bar and the hardware back button works (thanks to `useBackButton` hook), adding visual back buttons improves mobile UX consistency and accessibility.
+---
 
-## Pages Already Mobile-Friendly (with back buttons)
+## Current State vs. Desired State
 
-- **EditorPage** - Has back button
-- **PreviewPage** - Has back button  
-- **UploadPage** - Has back button
-- **InterviewPage** - Has back buttons in all phases (setup, preview, active, summary)
-- **AuthPage** - Has "Back to Home" button
-- **Index/Dashboard** - Root screens, no back needed
+| Aspect | Current | Desired |
+|--------|---------|---------|
+| **Default Page** | Shows home dashboard if user has resume, landing page only for new users | Always show landing page as default for ALL users |
+| **Logo** | Simple "W" lettermark in gradient square | Document icon inside gradient planet with orbital ring (like reference) |
+| **Space Background** | 80 stars with basic animations | More stars, enhanced nebula effects, improved shooting star |
 
-## Implementation Plan
+---
 
-### Phase 1: Add Back Button to AIPage
+## Changes Overview
 
-**File: `src/pages/AIPage.tsx`**
+### 1. Update Index.tsx - Always Show Landing Page First
 
-Current header (line 101-108):
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-  <div className="flex items-center gap-3">
-    <div className="p-2 rounded-xl bg-primary/10">
-      <Brain className="w-5 h-5 text-primary" />
-    </div>
-    <h1 className="text-xl font-semibold">AI Settings</h1>
-  </div>
-</header>
+Remove the conditional logic that shows the home dashboard for users with existing resumes. Instead, always render the landing page as the default view.
+
+```text
+Current Logic:
+if (hasResume) → Show HomeBackground + ResumeCard
+else → Show SpaceBackground + HeroSection
+
+New Logic:
+Always → Show SpaceBackground + HeroSection (landing page)
 ```
 
-Updated header with back button:
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-10">
-  <div className="flex items-center gap-3">
-    <button 
-      onClick={() => navigate('/dashboard')}
-      className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-      aria-label="Go back"
-    >
-      <ArrowLeft className="w-6 h-6" />
-    </button>
-    <div className="p-2 rounded-xl bg-primary/10">
-      <Brain className="w-5 h-5 text-primary" />
-    </div>
-    <h1 className="text-xl font-semibold">AI Settings</h1>
-  </div>
-</header>
+The user can still access their resume by clicking "Launch Your Resume" or navigating to `/dashboard`.
+
+### 2. Update App Logo (AppIcon.tsx)
+
+Replace the current "W" lettermark design with a document-style icon matching the reference:
+
+**New Logo Design:**
+- Gradient background (purple to pink, rounded square)
+- White document shape with folded corner
+- "W" lettermark inside document
+- Lines representing resume text
+- Cyan sparkle in corner for AI indicator
+
+```text
+┌─────────────────────────┐
+│   ╭─────────────────╮   │
+│   │ ╲               │✦  │ ← Cyan AI sparkle
+│   │  W              │   │ ← W lettermark
+│   │ ════════════    │   │ ← Resume lines
+│   │ ═════════       │   │
+│   ╰─────────────────╯   │
+└─────────────────────────┘
+     Purple→Pink Gradient
 ```
 
-Changes needed:
-- Import `ArrowLeft` from lucide-react
-- Import `useNavigate` from react-router-dom
-- Add `const navigate = useNavigate();` at component top
-- Add back button with 48px touch target
+### 3. Update PlanetLogo.tsx - Match Reference Style
 
-### Phase 2: Add Back Button to SettingsPage
+Enhance the planet logo to match the reference screenshot:
+- Document icon inside the planet
+- Orbital ring with small particles
+- Glowing purple atmosphere
+- Small orbiting dots/moons
 
-**File: `src/pages/SettingsPage.tsx`**
+### 4. Enhance SpaceBackground.tsx
 
-Current header (line 177-179):
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 glass-header">
-  <h1 className="text-xl font-bold">Settings</h1>
-</header>
-```
+Add more visual interest:
+- Increase star count from 80 to 120
+- Add 2-3 shooting stars at different intervals
+- More prominent nebula colors
+- Subtle floating particles near the planet
 
-Updated header with back button:
-```tsx
-<header className="pt-safe pt-4 pb-3 px-4 glass-header">
-  <div className="flex items-center gap-3">
-    <button 
-      onClick={() => navigate('/dashboard')}
-      className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-      aria-label="Go back"
-    >
-      <ArrowLeft className="w-6 h-6" />
-    </button>
-    <h1 className="text-xl font-bold">Settings</h1>
-  </div>
-</header>
-```
+### 5. Update Favicon
 
-Changes needed:
-- Import `ArrowLeft` from lucide-react (already has `useNavigate`)
-- Add back button with 48px touch target
+Update the favicon to match the new logo design.
 
-### Phase 3: Update Navigation Route Mapping
+---
 
-**File: `src/lib/navigation.ts`**
-
-Ensure the back routes are correctly mapped for hardware back button:
-
-```typescript
-const BACK_ROUTES: Record<string, string> = {
-  '/editor': '/dashboard',
-  '/preview': '/editor',
-  '/upload': '/dashboard',
-  '/interview': '/dashboard',
-  '/settings': '/dashboard',
-  '/ai': '/dashboard',  // ADD THIS
-  '/auth': '/',
-};
-```
-
-## Mobile-Friendliness Audit Results
-
-The app is already well-optimized for mobile with:
-
-1. **Touch Targets**: All buttons use `min-w-[48px] min-h-[48px]` (44px+ standard)
-2. **Safe Areas**: Uses `pt-safe` and `pb-safe` for notched devices
-3. **Bottom Navigation**: Persistent tab bar with proper touch targets
-4. **Hardware Back Button**: `useBackButton` hook handles Android back gesture
-5. **Haptic Feedback**: Uses `haptics` library for native feel
-6. **Keyboard Handling**: `useKeyboardAwareScroll` for input focus
-7. **Glass UI**: Consistent glassmorphism design across all screens
-8. **Pull-to-Refresh**: Dashboard has pull-to-refresh support
-9. **Responsive Typography**: Uses clamp() and responsive font sizes
-10. **Overflow Handling**: Proper scroll containers with `overscroll-contain`
-
-## File Changes Summary
+## File Changes
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/pages/AIPage.tsx` | Modify | Add ArrowLeft back button to header |
-| `src/pages/SettingsPage.tsx` | Modify | Add ArrowLeft back button to header |
-| `src/lib/navigation.ts` | Modify | Add `/ai` route to BACK_ROUTES mapping |
+| `src/pages/Index.tsx` | **Modify** | Remove conditional, always show landing page |
+| `src/components/brand/AppIcon.tsx` | **Modify** | New document-style logo matching reference |
+| `src/components/landing/PlanetLogo.tsx` | **Modify** | Enhanced with document icon and better effects |
+| `src/components/landing/SpaceBackground.tsx` | **Modify** | More stars, multiple shooting stars, enhanced nebula |
+| `public/favicon.svg` | **Modify** | Update to match new logo design |
 
-## Back Button Design Pattern
+---
 
-All back buttons follow this consistent pattern for accessibility and touch-friendliness:
+## Technical Details
 
+### Index.tsx Changes
+
+The current file has a conditional at line 86:
 ```tsx
-<button 
-  onClick={() => navigate('/dashboard')}
-  className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-  aria-label="Go back"
->
-  <ArrowLeft className="w-6 h-6" />
-</button>
+if (hasResume) {
+  return (
+    <MobileLayout>
+      <HomeBackground>
+        // ... home dashboard
+      </HomeBackground>
+    </MobileLayout>
+  );
+}
 ```
 
-Key properties:
-- **48px minimum touch target** (exceeds iOS/Android 44px guideline)
-- **Negative margin** (`-ml-3`) to align with content edge
-- **Visual feedback** on hover and active states
-- **Accessible label** for screen readers
-- **Touch manipulation** CSS for responsive touch
+This will be removed so the landing page with `SpaceBackground` and `HeroSection` always renders.
+
+### New AppIcon.tsx Design
+
+```tsx
+// Key SVG elements:
+- Gradient background rect with rounded corners
+- White document shape with folded corner path
+- "W" lettermark stroke path
+- Resume text lines as rects
+- Cyan 4-point star sparkle in corner
+```
+
+### Enhanced SpaceBackground
+
+```tsx
+// Additional features:
+- Star count: 80 → 120
+- Multiple shooting stars with staggered delays
+- Enhanced nebula gradients with more color variation
+- Parallax depth effect on star layers
+```
+
+### PlanetLogo Updates
+
+Maintain the planet aesthetic but ensure it prominently features:
+- Central document/resume icon
+- Visible orbital elements
+- Glowing atmosphere matching the reference screenshot
+
+---
+
+## User Flow After Changes
+
+1. User opens app → Sees landing page with space background
+2. Clicks "Launch Your Resume" → Creates new resume → Goes to editor
+3. OR clicks "Upload existing resume" → Goes to upload page
+4. Can access dashboard via navigation or the "Explore" button
+
+---
+
+## Performance Considerations
+
+- Stars use CSS animations where possible (GPU-accelerated)
+- Shooting stars use `transform` and `opacity` only
+- Planet logo animations use Framer Motion with hardware acceleration
+- Lazy loading maintained for non-critical components
+
