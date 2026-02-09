@@ -128,29 +128,3 @@ export function InterviewSkeleton() {
   );
 }
 
-export function AISkeleton() {
-  return (
-    <div className="flex-1 flex flex-col animate-pulse">
-      {/* Header */}
-      <header className="pt-safe pt-4 pb-3 px-4 border-b border-border">
-        <div className="h-7 w-28 bg-muted rounded" />
-      </header>
-      
-      {/* Provider Selection Card */}
-      <div className="px-4 py-4">
-        <div className="p-4 rounded-xl bg-card border border-border space-y-3">
-          <div className="h-5 w-24 bg-muted rounded" />
-          <div className="h-16 bg-muted rounded-lg" />
-          <div className="h-16 bg-muted rounded-lg" />
-        </div>
-      </div>
-      
-      {/* API Key Card */}
-      <div className="px-4 space-y-4">
-        <div className="h-32 bg-muted rounded-xl" />
-        <div className="h-24 bg-muted rounded-xl" />
-        <div className="h-20 bg-muted rounded-xl" />
-      </div>
-    </div>
-  );
-}
