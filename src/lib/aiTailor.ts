@@ -1,5 +1,6 @@
 import { ResumeData, EnhancedTailorResult, TailorProgress, TailorStep, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 export interface TailorResult {
   summary: string;
@@ -54,7 +55,6 @@ export async function tailorResumeWithProgress(
   jobDescription: string,
   onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void
 ): Promise<SuperTailorResult> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   // Enhanced progress simulation with fun facts
@@ -78,7 +78,7 @@ export async function tailorResumeWithProgress(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
       },
       body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
     });
@@ -86,17 +86,7 @@ export async function tailorResumeWithProgress(
     clearInterval(progressInterval);
 
     if (!response.ok) {
-      const error = await response.json();
-      if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again later.');
-      }
-      if (response.status === 402) {
-        throw new Error('AI credits exhausted. Please add more credits.');
-      }
-      if (response.status === 401 && error.error?.includes('Invalid')) {
-        throw new Error('Invalid Gemini API key. Please check your AI settings.');
-      }
-      throw new Error(error.error || 'Failed to tailor resume');
+      await handleAIError(response, 'Failed to tailor resume');
     }
 
     // Track usage for Gemini free tier
@@ -119,30 +109,19 @@ export async function tailorResume(
   resume: ResumeData,
   jobDescription: string
 ): Promise<TailorResult> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-    if (response.status === 402) {
-      throw new Error('AI credits exhausted. Please add more credits.');
-    }
-    if (response.status === 401 && error.error?.includes('Invalid')) {
-      throw new Error('Invalid Gemini API key. Please check your AI settings.');
-    }
-    throw new Error(error.error || 'Failed to tailor resume');
+    await handleAIError(response, 'Failed to tailor resume');
   }
 
   trackGeminiUsage();
@@ -150,20 +129,19 @@ export async function tailorResume(
 }
 
 export async function parseJobUrl(url: string): Promise<{ title: string; company: string; description: string }> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ url, userGeminiKey }),
   });
 
   if (!response.ok) {
-    throw new Error('Failed to parse job URL');
+    await handleAIError(response, 'Failed to parse job URL');
   }
 
   trackGeminiUsage();
@@ -175,27 +153,19 @@ export async function generateCoverLetter(
   jobDescription: string,
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional'
 ): Promise<string> {
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-cover-letter`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ resume, jobDescription, tone, userGeminiKey }),
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-    if (response.status === 402) {
-      throw new Error('AI credits exhausted. Please add more credits.');
-    }
-    throw new Error(error.error || 'Failed to generate cover letter');
+    await handleAIError(response, 'Failed to generate cover letter');
   }
 
   trackGeminiUsage();

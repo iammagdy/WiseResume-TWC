@@ -36,7 +36,7 @@ export function AppLogo({ showTagline = true, size = 'lg' }: AppLogoProps) {
 
   return (
     <motion.div
-      className="flex flex-col items-center gap-3"
+      className={`flex flex-col items-center ${showTagline ? 'gap-3' : 'gap-2'}`}
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
