@@ -1,52 +1,66 @@
 
-# Fix "Failed to Enhance Content" Error in AI Features
+# Complete Fix Plan: AI Studio UI, AI Features, and One-Page Wizard
 
-## Problem Summary
+## Issues Summary
 
-Three edge functions are using a non-existent authentication method `supabase.auth.getClaims(token)` instead of the correct `supabase.auth.getUser(token)`. This causes authentication to fail silently and return "Unauthorized" errors.
+### Issue 1: AI Studio Has No Exit Option on Mobile
+**Root Cause:** The AIHubSheet and other bottom sheets use the Sheet component which **does** have a close button (`X` in top-right corner). However, looking at the user's report and the sheet component code, the close button is there BUT:
+1. On 85vh height sheets, users may not see the close button if they scroll down
+2. The close button may be positioned where the safe area or notch overlaps
+3. Users may not realize they can tap the dark overlay to close
 
-## Root Cause
+**Solution:** Add an explicit "Close" button at the bottom of AI sheets for better mobile UX, and ensure the header has proper padding for notched devices.
 
-```typescript
-// BROKEN (method doesn't exist)
-const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
-if (authError || !claimsData?.claims) { ... }
-const userId = claimsData.claims.sub;
+### Issue 2: All AI Features Failing with "Unauthorized"
+**Root Cause:** 6 Edge Functions are using the non-existent `supabase.auth.getClaims(token)` method instead of `supabase.auth.getUser(token)`:
 
-// CORRECT (standard Supabase method)
-const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-if (authError || !user) { ... }
-const userId = user.id;
-```
+| Edge Function | Status |
+|---------------|--------|
+| `parse-resume` | Uses `getClaims` (BROKEN) |
+| `parse-linkedin` | Uses `getClaims` (BROKEN) |
+| `recruiter-simulation` | Uses `getClaims` (BROKEN) |
+| `generate-headshot` | Uses `getClaims` (BROKEN) |
+| `generate-cover-letter` | Uses `getClaims` (BROKEN) |
+| `parse-job-url` | Uses `getClaims` (BROKEN) |
+| `enhance-section` | Fixed in previous session |
+| `analyze-resume` | Fixed in previous session |
+| `tailor-resume` | Fixed in previous session |
 
-## Edge Functions to Fix
+### Issue 3: Move One-Page Wizard to Download/Preview Page
+**Current Location:** In EditorPage's AI Studio bar
+**New Location:** PreviewPage's ExportOptionsSheet
 
-| Function | Line | Current (Broken) | Fix To |
-|----------|------|------------------|--------|
-| `enhance-section/index.ts` | 153-161 | `getClaims(token)` | `getUser(token)` |
-| `analyze-resume/index.ts` | 35-44 | `getClaims(token)` | `getUser(token)` |
-| `tailor-resume/index.ts` | 35-44 | `getClaims(token)` | `getUser(token)` |
+The user wants to download either a normal CV or a one-page condensed version from the same place.
 
-## Implementation
+---
 
-### 1. Fix enhance-section/index.ts (Lines 152-162)
+## Implementation Plan
+
+### Part A: Fix AI Studio UI - Add Explicit Close Button
+
+**Files to modify:**
+- `src/components/editor/AIHubSheet.tsx`
+- `src/components/editor/AgenticChatSheet.tsx`
+- Other sheets that may have this issue
+
+**Changes:**
+1. Add a footer section with an explicit "Close" button
+2. Ensure proper `pt-safe` padding on headers for notched devices
+3. Increase drag indicator visibility
+
+### Part B: Fix All Remaining Edge Functions (6 functions)
+
+**Pattern to apply to each function:**
 
 Replace:
 ```typescript
-const token = authHeader.replace('Bearer ', '');
 const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
-if (authError || !claimsData?.claims) {
-  return new Response(
-    JSON.stringify({ error: 'Unauthorized' }),
-    { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
+if (authError || !claimsData?.claims) { ... }
 const userId = claimsData.claims.sub;
 ```
 
 With:
 ```typescript
-const token = authHeader.replace('Bearer ', '');
 const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 if (authError || !user) {
   console.error('Auth error:', authError);
@@ -58,35 +72,110 @@ if (authError || !user) {
 const userId = user.id;
 ```
 
-### 2. Fix analyze-resume/index.ts (Lines 34-44)
+**Files to fix:**
+1. `supabase/functions/parse-resume/index.ts` (lines 213-222)
+2. `supabase/functions/parse-linkedin/index.ts` (lines 57-65)
+3. `supabase/functions/recruiter-simulation/index.ts` (lines 102-112)
+4. `supabase/functions/generate-headshot/index.ts` (lines 33-42)
+5. `supabase/functions/generate-cover-letter/index.ts` (lines 36-45)
+6. `supabase/functions/parse-job-url/index.ts` (lines 156-165)
 
-Same pattern - replace `getClaims(token)` with `getUser(token)`.
+### Part C: Add One-Page Wizard to Preview/Export Page
 
-### 3. Fix tailor-resume/index.ts (Lines 34-44)
+**Files to modify:**
+1. `src/pages/PreviewPage.tsx` - Add OnePageWizardSheet and integration
+2. `src/components/editor/ExportOptionsSheet.tsx` - Add "One-Page" export option
 
-Same pattern - replace `getClaims(token)` with `getUser(token)`.
+**Changes:**
+1. Import OnePageWizardSheet in PreviewPage
+2. Add state for showing one-page wizard
+3. Add a new export option card for "One-Page Resume"
+4. Update the export flow to optionally apply one-page optimization before generating PDF
 
-## Verification
+---
 
-After these fixes, the following AI features will work correctly:
-- AI Enhance (summary, experience, skills, etc.)
-- Resume Analysis 
-- Resume Tailoring
-- Career Path Advisor (already working)
-- Wise AI Agentic Chat (already working)
+## Technical Details
 
-## Technical Notes
+### A. AI Studio UI Fix
 
-- `getUser(token)` validates the JWT and returns the full user object
-- The user ID is accessed via `user.id` instead of `claimsData.claims.sub`
-- Adding `console.error('Auth error:', authError)` helps with debugging
-- No changes needed to the frontend code - it's already using `supabase.functions.invoke` correctly
+The Sheet component already has a close button at line 77, but we'll add redundancy for better mobile UX:
 
-## Summary
+```tsx
+// In AIHubSheet.tsx - add footer before closing </SheetContent>
+<div className="shrink-0 p-4 border-t border-border">
+  <Button 
+    variant="ghost" 
+    className="w-full" 
+    onClick={() => onOpenChange(false)}
+  >
+    Close
+  </Button>
+</div>
+```
 
-| Task | File | Effort |
-|------|------|--------|
-| Fix auth method | `enhance-section/index.ts` | 1 min |
-| Fix auth method | `analyze-resume/index.ts` | 1 min |
-| Fix auth method | `tailor-resume/index.ts` | 1 min |
-| Deploy and test | - | 2 min |
+### B. Edge Function Auth Fix Pattern
+
+Each function needs the same fix - replacing `getClaims` with `getUser`:
+
+```typescript
+// BEFORE (broken)
+const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
+if (authError || !claimsData?.claims) {
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), ...);
+}
+const userId = claimsData.claims.sub;
+
+// AFTER (working)
+const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+if (authError || !user) {
+  console.error('Auth error:', authError);
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), ...);
+}
+const userId = user.id;
+```
+
+### C. One-Page Wizard in Export
+
+Add to ExportOptionsSheet:
+
+```tsx
+// New export option
+{
+  id: 'one-page' as ExportType,
+  label: 'One-Page Resume',
+  description: 'AI-condensed to fit one page',
+  icon: FileText,
+  available: true,
+}
+```
+
+---
+
+## Files to Modify Summary
+
+| File | Changes |
+|------|---------|
+| `src/components/editor/AIHubSheet.tsx` | Add close footer button |
+| `src/components/editor/AgenticChatSheet.tsx` | Add close footer button |
+| `supabase/functions/parse-resume/index.ts` | Fix `getClaims` → `getUser` |
+| `supabase/functions/parse-linkedin/index.ts` | Fix `getClaims` → `getUser` |
+| `supabase/functions/recruiter-simulation/index.ts` | Fix `getClaims` → `getUser` |
+| `supabase/functions/generate-headshot/index.ts` | Fix `getClaims` → `getUser` |
+| `supabase/functions/generate-cover-letter/index.ts` | Fix `getClaims` → `getUser` |
+| `supabase/functions/parse-job-url/index.ts` | Fix `getClaims` → `getUser` |
+| `src/pages/PreviewPage.tsx` | Add OnePageWizardSheet integration |
+| `src/components/editor/ExportOptionsSheet.tsx` | Add one-page export option |
+| `src/types/resume.ts` | Add 'one-page' to ExportType if needed |
+
+---
+
+## Testing Checklist
+
+After implementation:
+1. Open AI Studio on mobile - verify close button is visible and works
+2. Import a CV using parse-resume - verify no "Unauthorized" error
+3. Use Wise AI agentic chat - verify it responds correctly
+4. Try AI Enhance on a section - verify enhancement works
+5. Try Recruiter Simulation - verify it works
+6. Go to Preview page - verify One-Page option appears in export sheet
+7. Test One-Page export flow - verify it condenses and downloads correctly
