@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Mic } from 'lucide-react';
+import { FileText, Settings, Home } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -22,13 +22,7 @@ const tabs: TabItem[] = [
     path: '/editor', 
     icon: FileText, 
     label: 'Editor',
-    matchPaths: ['/editor', '/preview']
-  },
-  { 
-    path: '/interview', 
-    icon: Mic, 
-    label: 'Interview',
-    matchPaths: ['/interview']
+    matchPaths: ['/editor', '/preview', '/interview']
   },
   { 
     path: '/settings', 

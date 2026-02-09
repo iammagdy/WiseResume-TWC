@@ -109,6 +109,16 @@ export default function DashboardPage() {
     });
   };
 
+  const handleInterview = (resumeId: string) => {
+    const resume = resumes?.find(r => r.id === resumeId);
+    if (resume) {
+      haptics.light();
+      setCurrentResumeId(resumeId);
+      setCurrentResume(dbToResumeData(resume));
+      navigate('/interview');
+    }
+  };
+
   const handleDelete = (resumeId: string) => {
     setDeleteResumeId(resumeId);
   };
@@ -303,6 +313,7 @@ export default function DashboardPage() {
                             onEdit={handleEdit}
                             onDuplicate={handleDuplicate}
                             onDelete={handleDelete}
+                            onInterview={handleInterview}
                             onCreateTailored={handleCreateTailored}
                             delay={index * 0.05}
                           />
@@ -317,6 +328,7 @@ export default function DashboardPage() {
                           onEdit={handleEdit}
                           onDuplicate={handleDuplicate}
                           onDelete={handleDelete}
+                          onInterview={handleInterview}
                           delay={index * 0.05}
                         />
                       );
@@ -330,6 +342,7 @@ export default function DashboardPage() {
                         onEdit={handleEdit}
                         onDuplicate={handleDuplicate}
                         onDelete={handleDelete}
+                        onInterview={handleInterview}
                         delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
                         showTailoredBadge
                       />

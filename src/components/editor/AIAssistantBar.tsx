@@ -1,4 +1,5 @@
 import { useState, memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
@@ -13,6 +14,7 @@ import {
   Shield,
   Linkedin,
   FileText,
+  Mic,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -79,6 +81,7 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   onCareerPath,
   className,
 }: AIAssistantBarProps) {
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleToggle = () => {
@@ -247,6 +250,15 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                         />
                       </motion.div>
                     )}
+                    <motion.div variants={itemVariants}>
+                      <AIActionButton
+                        icon={<Mic className="w-4 h-4 text-primary-foreground" />}
+                        label="Voice Interview"
+                        description="Practice with AI voice"
+                        onClick={() => { haptics.medium(); setIsExpanded(false); navigate('/interview'); }}
+                        badge="Live"
+                      />
+                    </motion.div>
                   </div>
                   {onCareerPath && (
                     <motion.div variants={itemVariants} className="mt-2">
