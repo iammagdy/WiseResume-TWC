@@ -33,6 +33,20 @@ const TEMPLATE_NAMES: Record<TemplateId, string> = {
   elegant: 'Elegant',
 };
 
+// Stagger animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.05 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  show: { opacity: 1, y: 0 }
+};
+
 interface AIAssistantBarProps {
   matchScore?: JobMatchScore | null;
   jobDescription?: string;
@@ -163,85 +177,144 @@ export const AIAssistantBar = memo(function AIAssistantBar({
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="px-4 pb-4 space-y-3">
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="px-4 pb-4 space-y-4"
+              >
                 {/* Divider */}
                 <div className="h-px bg-border" />
 
-                {/* Action Grid - Primary Row */}
-                <div className="grid grid-cols-2 gap-2">
-                  <AIActionButton
-                    icon={<Wand2 className="w-4 h-4" />}
-                    label="Smart Tailor"
-                    onClick={() => handleAction(onTailor)}
-                  />
-                  <AIActionButton
-                    icon={<Target className="w-4 h-4" />}
-                    label="Job Match"
-                    onClick={() => handleAction(onAnalyze)}
-                  />
-                  <AIActionButton
-                    icon={<Sparkles className="w-4 h-4" />}
-                    label="AI Enhance"
-                    onClick={() => handleAction(onImprove)}
-                  />
-                  {onRecruiterSim && (
-                    <AIActionButton
-                      icon={<UserCheck className="w-4 h-4" />}
-                      label="Recruiter Sim"
-                      onClick={() => handleAction(onRecruiterSim)}
-                    />
-                  )}
+                {/* Section: Optimize for Job */}
+                <div>
+                  <motion.div variants={itemVariants} className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                      Optimize for Job
+                    </span>
+                  </motion.div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <motion.div variants={itemVariants}>
+                      <AIActionButton
+                        icon={<Wand2 className="w-4 h-4 text-primary-foreground" />}
+                        label="Smart Tailor"
+                        description="Auto-adapt to job requirements"
+                        onClick={() => handleAction(onTailor)}
+                      />
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                      <AIActionButton
+                        icon={<Target className="w-4 h-4 text-primary-foreground" />}
+                        label="Job Match"
+                        description="Check ATS fit score"
+                        onClick={() => handleAction(onAnalyze)}
+                      />
+                    </motion.div>
+                  </div>
                 </div>
 
-                {/* New AI Features Row */}
-                <div className="grid grid-cols-3 gap-2">
-                  {onAIDetector && (
-                    <AIActionButton
-                      icon={<Shield className="w-4 h-4" />}
-                      label="Humanizer"
-                      onClick={() => handleAction(onAIDetector)}
-                      badge="New"
-                      compact
-                    />
-                  )}
-                  {onLinkedIn && (
-                    <AIActionButton
-                      icon={<Linkedin className="w-4 h-4" />}
-                      label="LinkedIn"
-                      onClick={() => handleAction(onLinkedIn)}
-                      badge="New"
-                      compact
-                    />
-                  )}
-                  {onOnePage && (
-                    <AIActionButton
-                      icon={<FileText className="w-4 h-4" />}
-                      label="1-Page"
-                      onClick={() => handleAction(onOnePage)}
-                      badge="New"
-                      compact
-                    />
-                  )}
+                {/* Section: Enhance & Practice */}
+                <div>
+                  <motion.div variants={itemVariants} className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                      Enhance & Practice
+                    </span>
+                  </motion.div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <motion.div variants={itemVariants}>
+                      <AIActionButton
+                        icon={<Sparkles className="w-4 h-4 text-primary-foreground" />}
+                        label="AI Enhance"
+                        description="Improve bullet points"
+                        onClick={() => handleAction(onImprove)}
+                      />
+                    </motion.div>
+                    {onRecruiterSim && (
+                      <motion.div variants={itemVariants}>
+                        <AIActionButton
+                          icon={<UserCheck className="w-4 h-4 text-primary-foreground" />}
+                          label="Recruiter Sim"
+                          description="Mock interview Q&A"
+                          onClick={() => handleAction(onRecruiterSim)}
+                        />
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
+
+                {/* Section: Polish & Finalize */}
+                {(onAIDetector || onLinkedIn || onOnePage) && (
+                  <div>
+                    <motion.div variants={itemVariants} className="flex items-center justify-between mb-2">
+                      <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                        Polish & Finalize
+                      </span>
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary">
+                        New
+                      </span>
+                    </motion.div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {onAIDetector && (
+                        <motion.div variants={itemVariants}>
+                          <AIActionButton
+                            icon={<Shield className="w-4 h-4 text-primary-foreground" />}
+                            label="Humanizer"
+                            description="Beat AI detection"
+                            onClick={() => handleAction(onAIDetector)}
+                            featured
+                          />
+                        </motion.div>
+                      )}
+                      {onLinkedIn && (
+                        <motion.div variants={itemVariants}>
+                          <AIActionButton
+                            icon={<Linkedin className="w-4 h-4 text-primary-foreground" />}
+                            label="LinkedIn"
+                            description="Optimize profile"
+                            onClick={() => handleAction(onLinkedIn)}
+                            featured
+                          />
+                        </motion.div>
+                      )}
+                      {onOnePage && (
+                        <motion.div variants={itemVariants}>
+                          <AIActionButton
+                            icon={<FileText className="w-4 h-4 text-primary-foreground" />}
+                            label="1-Page"
+                            description="Condense resume"
+                            onClick={() => handleAction(onOnePage)}
+                            featured
+                          />
+                        </motion.div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Tip */}
                 {!jobDescription && (
-                  <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
+                  <motion.div 
+                    variants={itemVariants}
+                    className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10"
+                  >
                     <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                     <p className="text-xs text-muted-foreground">
                       <span className="text-foreground font-medium">Pro tip:</span> Paste a job URL or description to get a personalized match score and tailoring suggestions.
                     </p>
-                  </div>
+                  </motion.div>
                 )}
 
                 {/* Current Job Summary */}
                 {jobDescription && (
-                  <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                  <motion.div 
+                    variants={itemVariants}
+                    className="p-3 rounded-xl bg-muted/30 border border-border"
+                  >
                     <p className="text-xs text-muted-foreground mb-1">Target Job</p>
                     <p className="text-sm line-clamp-2">{jobDescription}</p>
-                  </div>
+                  </motion.div>
                 )}
-              </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -253,32 +326,46 @@ export const AIAssistantBar = memo(function AIAssistantBar({
 interface AIActionButtonProps {
   icon: React.ReactNode;
   label: string;
+  description?: string;
   onClick: () => void;
   badge?: string;
-  compact?: boolean;
+  featured?: boolean;
 }
 
-const AIActionButton = memo(function AIActionButton({ icon, label, onClick, badge, compact }: AIActionButtonProps) {
+const AIActionButton = memo(function AIActionButton({ 
+  icon, 
+  label, 
+  description, 
+  onClick, 
+  badge, 
+  featured 
+}: AIActionButtonProps) {
   return (
     <button
       className={cn(
-        "relative flex items-center gap-2 rounded-xl glass-elevated border-glow transition-all touch-manipulation active:scale-[0.97]",
-        compact ? "p-2 flex-col justify-center" : "p-3"
+        "relative w-full flex items-start gap-3 p-3 rounded-xl text-left",
+        "glass-elevated border-glow transition-all touch-manipulation",
+        "active:scale-[0.97] hover:bg-primary/5",
+        featured && "ring-1 ring-primary/30"
       )}
       onClick={onClick}
     >
       {badge && (
-        <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-[10px] font-medium shadow-[0_0_8px_hsl(var(--primary)/0.4)]">
+        <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/20 text-primary">
           {badge}
         </span>
       )}
-      <div className={cn(
-        "rounded-lg icon-glow flex items-center justify-center text-primary",
-        compact ? "w-6 h-6" : "w-8 h-8"
-      )}>
+      <div className="w-9 h-9 rounded-xl gradient-primary flex items-center justify-center shrink-0">
         {icon}
       </div>
-      <span className={cn("font-medium", compact ? "text-xs" : "text-sm")}>{label}</span>
+      <div className="flex-1 min-w-0">
+        <span className="font-medium text-sm block">{label}</span>
+        {description && (
+          <span className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5 block">
+            {description}
+          </span>
+        )}
+      </div>
     </button>
   );
 });
