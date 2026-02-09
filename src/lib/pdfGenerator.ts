@@ -502,6 +502,52 @@ async function addPageFooter(
 }
 
 /**
+ * Prepares the resume element for PDF capture on mobile/iOS.
+ * Forces exact 612px width, removes CSS transforms, ensures all content visible.
+ * Returns a cleanup function to restore original styles.
+ */
+function prepareForCapture(sourceElement: HTMLElement): () => void {
+  const originalStyles = {
+    width: sourceElement.style.width,
+    maxWidth: sourceElement.style.maxWidth,
+    transform: sourceElement.style.transform,
+    minHeight: sourceElement.style.minHeight,
+  };
+
+  // Force exact PDF-width layout (prevents mobile reflow at smaller widths)
+  sourceElement.style.width = '612px';
+  sourceElement.style.maxWidth = '612px';
+  // Remove any framer-motion transforms that affect getBoundingClientRect
+  sourceElement.style.transform = 'none';
+
+  // Ensure parent scroll containers show all content (iOS Safari viewport clipping fix)
+  const parentOverflows: { el: HTMLElement; overflow: string }[] = [];
+  let parent = sourceElement.parentElement;
+  while (parent) {
+    parentOverflows.push({ el: parent, overflow: parent.style.overflow });
+    parent.style.overflow = 'visible';
+    parent = parent.parentElement;
+  }
+
+  // Scroll to top so iOS Safari renders all content
+  sourceElement.scrollIntoView({ block: 'start' });
+  window.scrollTo(0, 0);
+
+  // Force layout recalculation
+  sourceElement.offsetHeight;
+
+  return () => {
+    sourceElement.style.width = originalStyles.width;
+    sourceElement.style.maxWidth = originalStyles.maxWidth;
+    sourceElement.style.transform = originalStyles.transform;
+    sourceElement.style.minHeight = originalStyles.minHeight;
+    parentOverflows.forEach(({ el, overflow }) => {
+      el.style.overflow = overflow;
+    });
+  };
+}
+
+/**
  * Locates the template element in the DOM.
  */
 export function getTemplateSourceElement(templateElement?: HTMLElement | null): HTMLElement {
@@ -512,7 +558,6 @@ export function getTemplateSourceElement(templateElement?: HTMLElement | null): 
   }
 
   if (!sourceElement) {
-    // Fallback: try to find by class or other selectors
     sourceElement = document.querySelector('.bg-white.text-black.mx-auto.shadow-2xl') as HTMLElement;
   }
 
@@ -533,19 +578,16 @@ export interface PDFDimensions {
 
 /**
  * Calculates layout dimensions for PDF generation.
+ * Uses offsetWidth/scrollHeight which are NOT affected by CSS transforms (unlike getBoundingClientRect).
  */
 export function calculatePDFDimensions(sourceElement: HTMLElement): PDFDimensions {
-  // Get the actual dimensions of the source element
-  const rect = sourceElement.getBoundingClientRect();
-
-  // Use the element's natural width/height, falling back to computed values
-  const computedStyle = window.getComputedStyle(sourceElement);
+  // Use offsetWidth (transform-agnostic) instead of getBoundingClientRect which returns scaled values on iOS
   const sourceWidth = Math.max(
-    sourceElement.offsetWidth || rect.width || parseInt(computedStyle.width) || PAGE_WIDTH,
+    sourceElement.offsetWidth || PAGE_WIDTH,
     PAGE_WIDTH / 2 // Minimum sensible width
   );
   const totalHeight = Math.max(
-    sourceElement.scrollHeight || sourceElement.offsetHeight || rect.height || PAGE_HEIGHT,
+    sourceElement.scrollHeight || sourceElement.offsetHeight || PAGE_HEIGHT,
     PAGE_HEIGHT / 2 // Minimum sensible height
   );
 
@@ -714,8 +756,11 @@ export async function generatePDF(
   await document.fonts.ready;
   await new Promise(resolve => setTimeout(resolve, 300));
 
+  // Prepare element for capture: fix width, remove transforms, ensure visibility
+  const cleanup = prepareForCapture(sourceElement);
+
   try {
-    // Calculate dimensions
+    // Calculate dimensions (after prepareForCapture so we get correct 612px width)
     const {
       sourceWidth,
       totalHeight,
@@ -730,7 +775,6 @@ export async function generatePDF(
     });
 
     // Calculate smart break positions that avoid cutting content
-    // Pass template config for template-aware pagination
     let smartBreaks = findSmartBreakPositions(
       sourceElement, 
       sourceHeightPerPage, 
@@ -740,7 +784,6 @@ export async function generatePDF(
     );
     
     // For fixed-sidebar templates, explicitly force single page by clearing breaks
-    // This ensures consistency with original logic regardless of smart break detection
     if (templateConfig.layout === 'fixed-sidebar') {
       smartBreaks = [];
     }
@@ -775,6 +818,9 @@ export async function generatePDF(
   } catch (error) {
     console.error('PDF capture error:', error);
     throw new Error('Failed to capture resume template. Please try again.');
+  } finally {
+    // Always restore original styles
+    cleanup();
   }
 }
 
