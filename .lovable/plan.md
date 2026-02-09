@@ -1,126 +1,107 @@
 
 
-# Fix PDF Truncation on iOS and Verify AI Features
+# Further Landing Page Performance Optimization
 
-## Problem 1: AI Features
-The AI features are **actually working now** after the last `verify_jwt = false` fix. A direct test of `enhance-section` returned a successful 200 response. The user may be seeing cached behavior or needs to refresh. However, we should ensure the client-side error handling shows clear messages.
+## Current Issues Found
 
-## Problem 2: PDF Truncation on iOS (The Real Bug)
+The landing page still has significant performance drag from **framer-motion** being used heavily across every section, plus unnecessary data fetching and heavy component rendering on the landing page.
 
-The PDF is being truncated on iOS due to two compounding issues:
+### Issue 1: PlanetLogo runs 5 infinite JS animations
+The PlanetLogo component uses 5 separate `framer-motion` `animate` loops (orbital ring, glow pulse, planet float, 3 orbiting particles) -- all running from the moment the page loads.
 
-### Root Cause A: `getBoundingClientRect()` returns transform-affected values on iOS
-The `calculatePDFDimensions` function uses `rect.width` from `getBoundingClientRect()` as a fallback. On iOS Safari, when framer-motion applies CSS transforms (`scale: 0.95` during animation), `getBoundingClientRect()` returns the **visually scaled** dimensions, not the actual layout dimensions. This causes `sourceWidth` to be smaller than expected, which distorts the `globalScaleFactor` and leads to content being cut off.
+### Issue 2: HeroSection fetches auth + profile on landing
+`useAuth()` and `useProfile()` trigger network requests (session check, profile fetch) even for first-time visitors who have no account. This blocks rendering.
 
-### Root Cause B: `html2canvas` on iOS Safari has viewport clipping
-`html2canvas` on iOS Safari fails to capture content that extends beyond the visible viewport. Content below the fold is rendered as blank white space, causing truncation.
+### Issue 3: HowItWorks has infinite particle animations
+Each connecting line between steps has a `motion.div` particle animated left-to-right infinitely.
 
-### Root Cause C: Container width is `100%` not `612px`
-The resume container uses `width: '100%'` with `maxWidth: '612px'`. On mobile screens smaller than 612px, the actual width shrinks to match the screen, but `html2canvas` still captures at that smaller width. The PDF then scales this up, but the content layout was reflowed for the smaller width, potentially pushing content to a second "page" that gets clipped.
+### Issue 4: FeatureGrid creates 18 animated star particles
+Each of the 6 feature cards has 3 `motion.div` star particles with infinite opacity/scale animations -- even though they're only visible on hover.
+
+### Issue 5: AnimatedCounter uses setInterval at 60fps
+The counter in SocialProofBar fires `setInterval` every 16ms (60fps) to count up numbers, which is wasteful on mobile.
+
+### Issue 6: TemplateGallery renders full template trees
+3 complete template React component trees (each 612x792px) are rendered just for small thumbnails on the landing page.
+
+---
 
 ## Solution
 
-### Fix 1: Force fixed dimensions before PDF capture (`src/lib/pdfGenerator.ts`)
-Before capturing, temporarily override the resume element to:
-- Set explicit `width: 612px` (not `100%`)
-- Remove any CSS transforms
-- Scroll the container to ensure all content is visible
-- Set `overflow: visible` on parent containers
-- Then restore everything after capture
+### Part 1: Replace PlanetLogo framer-motion with CSS (`PlanetLogo.tsx`)
+- Replace all 5 `motion.div` elements with plain `div` elements using CSS animations
+- Add CSS keyframes for orbit, glow-pulse, and float in `index.css`
+- Remove `framer-motion` import entirely from this component
 
-```typescript
-async function prepareForCapture(sourceElement: HTMLElement): { cleanup: () => void } {
-  const originalStyles = {
-    width: sourceElement.style.width,
-    maxWidth: sourceElement.style.maxWidth,
-    transform: sourceElement.style.transform,
-    minHeight: sourceElement.style.minHeight,
-  };
-  
-  // Force exact PDF-width layout
-  sourceElement.style.width = '612px';
-  sourceElement.style.maxWidth = '612px';
-  sourceElement.style.transform = 'none';
-  
-  // Ensure parent scroll containers show all content
-  let parent = sourceElement.parentElement;
-  const parentOverflows: { el: HTMLElement; overflow: string }[] = [];
-  while (parent) {
-    const overflow = parent.style.overflow;
-    parentOverflows.push({ el: parent, overflow });
-    parent.style.overflow = 'visible';
-    parent = parent.parentElement;
-  }
-  
-  // Force layout recalculation
-  sourceElement.offsetHeight; // triggers reflow
-  
-  return {
-    cleanup: () => {
-      sourceElement.style.width = originalStyles.width;
-      sourceElement.style.maxWidth = originalStyles.maxWidth;
-      sourceElement.style.transform = originalStyles.transform;
-      sourceElement.style.minHeight = originalStyles.minHeight;
-      parentOverflows.forEach(({ el, overflow }) => {
-        el.style.overflow = overflow;
-      });
-    }
-  };
-}
-```
+### Part 2: Defer auth/profile loading in HeroSection (`HeroSection.tsx`)
+- Remove `useAuth()` and `useProfile()` from the hero
+- Show a generic user icon always; only check auth state lazily after the page has loaded (via `useEffect` with `requestIdleCallback`)
+- This eliminates network requests blocking the landing page
 
-### Fix 2: Use `offsetWidth` instead of `getBoundingClientRect` (`src/lib/pdfGenerator.ts`)
-Change `calculatePDFDimensions` to prioritize `offsetWidth`/`scrollHeight` which are not affected by CSS transforms:
+### Part 3: Remove infinite particle animations (`HowItWorks.tsx`)
+- Replace the animated particle `motion.div` on connecting lines with a static gradient dot or remove entirely
+- Replace `motion.div` wrappers with plain `div` + CSS fade-in class
+- Remove `framer-motion` import
 
-```typescript
-// Use offsetWidth (not affected by transforms) instead of rect.width
-const sourceWidth = sourceElement.offsetWidth || PAGE_WIDTH;
-const totalHeight = sourceElement.scrollHeight || PAGE_HEIGHT;
-```
+### Part 4: Remove star particle animations (`FeatureGrid.tsx`)
+- Remove the 18 `motion.div` star particles entirely (they're only visible on hover and add no value on mobile where there's no hover)
+- Replace `motion.div` wrappers with plain `div` + CSS classes for entrance animations
+- Remove `framer-motion` import
 
-### Fix 3: Add `will-change` and scroll to top before capture
-In `captureTemplateAsCanvas`, scroll the parent to ensure all content is in the rendering context for iOS Safari:
+### Part 5: Replace AnimatedCounter with CSS counter (`SocialProofBar.tsx`)
+- Replace the `setInterval`-based counter with a simple CSS animation or just show the final number immediately
+- Replace `motion.section` with plain section + CSS fade-in
+- Remove `framer-motion` import
 
-```typescript
-// Scroll parent to top to ensure iOS Safari renders all content
-sourceElement.scrollIntoView({ block: 'start' });
-window.scrollTo(0, 0);
-```
+### Part 6: Remove framer-motion from remaining sections
+- **WhyWiseResume.tsx**: Replace `motion.div` variants with CSS classes, replace bouncing arrow with CSS animation
+- **BottomCTA.tsx**: Replace `motion.div` with CSS fade-in classes
 
-### Fix 4: Improve mobile download with blob conversion for iOS
-The `window.open(url, '_blank')` approach may not work well for blob URLs on iOS Safari. Instead, use the `navigator.share` API as primary method on iOS, falling back to creating a temporary download link with a data URL:
+### Part 7: Use static images for TemplateGallery thumbnails (`TemplateGallery.tsx`)
+- Instead of rendering full template component trees, use simple colored placeholder cards with template name labels
+- This eliminates 3 heavy React subtrees from the landing page
 
-```typescript
-if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-  // iOS: Try share API first, then fallback to data URL
-  try {
-    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-    await navigator.share({ files: [file] });
-  } catch {
-    // Fallback: convert to data URL for iOS
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      window.open(dataUrl, '_blank');
-    };
-    reader.readAsDataURL(pdfBlob);
-  }
-}
-```
+### Part 8: Add new CSS animations to `index.css`
+Add these lightweight CSS keyframes:
+- `orbit-rotate` - for PlanetLogo orbital ring
+- `glow-pulse` - for PlanetLogo outer glow
+- `float-gentle` - for PlanetLogo planet body
+- `fade-in-up` - reusable entrance animation for all sections
 
-## Files to Modify
+---
 
-| File | Change |
-|------|--------|
-| `src/lib/pdfGenerator.ts` | Add `prepareForCapture()` function, fix dimension calculation, add iOS scroll workaround |
-| `src/pages/PreviewPage.tsx` | Improve iOS download to use `navigator.share` API with data URL fallback |
+## Technical Details
 
-## Technical Summary
+### Files to Modify
 
-| Issue | Root Cause | Fix |
-|-------|-----------|-----|
-| PDF truncated on iOS | CSS transforms affect dimensions + html2canvas viewport clipping | Force 612px width, remove transforms, overflow:visible before capture |
-| Content cut off | `getBoundingClientRect` returns scaled values | Use `offsetWidth`/`scrollHeight` instead |
-| Download fails on iOS | Blob URLs don't work in iOS Safari `window.open` | Use `navigator.share` API with data URL fallback |
-| AI features "not working" | Already fixed - user needs to refresh | No code change needed (verify with testing) |
+| File | Change | Impact |
+|------|--------|--------|
+| `src/components/landing/PlanetLogo.tsx` | Replace 5 motion.div with CSS animations | Remove ~5 JS animation loops |
+| `src/components/landing/HeroSection.tsx` | Defer auth loading, remove useProfile from critical path | Eliminate 2 network requests on load |
+| `src/components/landing/HowItWorks.tsx` | Remove framer-motion, use CSS | Remove 2 infinite JS animations |
+| `src/components/landing/FeatureGrid.tsx` | Remove star particles + framer-motion | Remove 18 infinite JS animations |
+| `src/components/landing/SocialProofBar.tsx` | Remove AnimatedCounter, use CSS | Remove 60fps setInterval |
+| `src/components/landing/WhyWiseResume.tsx` | Remove framer-motion, use CSS | Remove stagger animations |
+| `src/components/landing/BottomCTA.tsx` | Remove framer-motion, use CSS | Remove 2 motion elements |
+| `src/components/landing/TemplateGallery.tsx` | Replace full templates with styled placeholders | Remove 3 heavy component trees |
+| `src/index.css` | Add CSS keyframes for orbit, glow, float, fade-in-up | Enable CSS-only animations |
+
+### Expected Improvements
+
+| Metric | Current | After |
+|--------|---------|-------|
+| JS animation loops on load | ~30 | 0 |
+| framer-motion imports on landing | 7 files | 0 files |
+| Network requests on landing | 3+ (auth, profile, session) | 0 (deferred) |
+| React component trees for thumbnails | 3 full templates | 3 simple divs |
+| Main thread blocking time | High | Minimal |
+
+### Testing Checklist
+1. Landing page renders instantly on mobile without delay
+2. PlanetLogo still has orbital ring, glow, and float effect (via CSS)
+3. Scrolling is smooth with no jank
+4. "Launch Your Resume" and "Upload existing resume" buttons work
+5. Profile avatar still appears after idle auth check
+6. Template gallery shows styled placeholders that look good
+7. All entrance animations still work (fade-in on scroll)
 
