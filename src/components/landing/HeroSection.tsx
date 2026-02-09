@@ -1,14 +1,32 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Rocket, FileText, ChevronDown } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Rocket, FileText, ChevronDown, Star } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { PlanetLogo } from './PlanetLogo';
 import triggerHaptic from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 
+const jobTitles = ['Software Engineer', 'Product Manager', 'UX Designer', 'Data Scientist', 'Marketing Lead'];
+
+const testimonials = [
+  { text: 'Got 3 interviews in a week!', author: 'Sarah K.' },
+  { text: 'Landed my dream job!', author: 'Mike T.' },
+  { text: 'Best resume tool ever!', author: 'Alex R.' },
+];
+
 export function HeroSection() {
   const navigate = useNavigate();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const [currentJobIndex, setCurrentJobIndex] = useState(0);
+
+  // Typing effect for job titles
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentJobIndex((prev) => (prev + 1) % jobTitles.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLaunch = () => {
     triggerHaptic.medium();
@@ -40,6 +58,44 @@ export function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-12">
+      {/* Floating testimonial badges */}
+      <motion.div
+        className="absolute top-24 -left-2 sm:left-8 glass-card px-3 py-2 rounded-xl text-xs max-w-[140px] hidden sm:block"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0, y: [0, -8, 0] }}
+        transition={{ 
+          opacity: { delay: 1.5 },
+          y: { duration: 4, repeat: Infinity, ease: 'easeInOut' }
+        }}
+      >
+        <div className="flex items-center gap-1 mb-1">
+          <Star className="w-3 h-3 text-warning fill-warning" />
+          <Star className="w-3 h-3 text-warning fill-warning" />
+          <Star className="w-3 h-3 text-warning fill-warning" />
+        </div>
+        <p className="text-foreground/90">"{testimonials[0].text}"</p>
+        <p className="text-muted-foreground mt-1">— {testimonials[0].author}</p>
+      </motion.div>
+
+      <motion.div
+        className="absolute top-40 -right-2 sm:right-8 glass-card px-3 py-2 rounded-xl text-xs max-w-[140px] hidden sm:block"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0, y: [0, 10, 0], rotate: [1, -1, 1] }}
+        transition={{ 
+          opacity: { delay: 2 },
+          y: { duration: 5, repeat: Infinity, ease: 'easeInOut' },
+          rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' }
+        }}
+      >
+        <div className="flex items-center gap-1 mb-1">
+          <Star className="w-3 h-3 text-warning fill-warning" />
+          <Star className="w-3 h-3 text-warning fill-warning" />
+          <Star className="w-3 h-3 text-warning fill-warning" />
+        </div>
+        <p className="text-foreground/90">"{testimonials[1].text}"</p>
+        <p className="text-muted-foreground mt-1">— {testimonials[1].author}</p>
+      </motion.div>
+
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto w-full">
         {/* Planet Logo with glow */}
@@ -62,33 +118,63 @@ export function HeroSection() {
           ✨ Welcome to
         </motion.p>
 
-        {/* Headline */}
+        {/* Headline with shimmer */}
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="font-display text-4xl sm:text-5xl font-bold text-foreground mb-4"
+          className="font-display text-4xl sm:text-5xl font-bold mb-4"
         >
-          <span className="gradient-text">WiseResume</span>
+          <span className="text-shimmer">WiseResume</span>
         </motion.h1>
 
-        {/* Subheadline */}
+        {/* Animated subheadline with typing effect */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="text-muted-foreground text-lg mb-10 leading-relaxed"
+          className="text-muted-foreground text-lg mb-8 leading-relaxed h-14"
         >
-          Your AI Career Companion in the{' '}
-          <span className="text-primary font-medium">Wise Universe</span>
+          Tailor your resume for{' '}
+          <AnimatePresence mode="wait">
+            <motion.span
+              key={currentJobIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="text-primary font-medium inline-block"
+            >
+              {jobTitles[currentJobIndex]}
+            </motion.span>
+          </AnimatePresence>
+          {' '}in seconds with AI
         </motion.p>
 
-        {/* Primary CTA */}
+        {/* Feature badges with icons */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.55 }}
+          className="flex flex-wrap justify-center gap-2 mb-8"
+        >
+          {['4 AI Recruiters', 'Voice Interviews', 'ATS Optimized'].map((badge) => (
+            <span
+              key={badge}
+              className="px-3 py-1.5 rounded-full text-xs font-medium glass-surface text-primary border border-primary/20 flex items-center gap-1.5"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              {badge}
+            </span>
+          ))}
+        </motion.div>
+
+        {/* Glassmorphism CTA container */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.6 }}
-          className="w-full space-y-4"
+          className="w-full space-y-4 glass-elevated p-4 rounded-2xl"
         >
           <Button
             size="lg"
