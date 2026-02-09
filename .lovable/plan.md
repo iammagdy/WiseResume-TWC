@@ -1,205 +1,170 @@
 
-# Add Gemini API Key Support to Remaining Edge Functions
+
+# Add Visual Indicator for Active AI Provider
 
 ## Overview
 
-This plan updates the 12 remaining edge functions to support user-provided Gemini API keys, allowing users to bypass the Lovable AI gateway and call Google's Gemini API directly. This follows the pattern already established in `tailor-resume` and `enhance-section`.
+This plan adds visual indicators throughout the editor to show which AI provider (WiseResume AI or user's Gemini key) is currently active. The indicators will appear in key AI interaction points so users always know which provider is powering their AI features.
 
-## Functions to Update
+## Design Approach
 
-| Function | Current State | Priority |
-|----------|--------------|----------|
-| agentic-chat | Lovable gateway only | High |
-| analyze-resume | Lovable gateway only | High |
-| career-path-advisor | Lovable gateway only | High |
-| detect-and-humanize | Lovable gateway only | High |
-| explain-gap | Lovable gateway only | High |
-| generate-cover-letter | Lovable gateway only | High |
-| interview-chat | Lovable gateway only | High |
-| one-page-optimizer | Lovable gateway only | High |
-| optimize-for-linkedin | Lovable gateway only | High |
-| parse-linkedin | Lovable gateway only | High |
-| parse-resume | Lovable gateway only | High |
-| recruiter-simulation | Uses OLD API endpoint | Critical (bug fix) |
+The indicators will follow the existing "Cosmic Glass UI" theme with subtle, non-intrusive badges that provide at-a-glance information about the active AI provider. The design includes:
 
-## Special Cases
+- A small chip/badge showing provider name and tier
+- Color-coded styling: purple/primary for WiseResume AI, blue for Gemini
+- Optional tier indicator (Free/Paid) when using Gemini
+- Consistent placement across all AI-related components
 
-| Function | Decision |
-|----------|----------|
-| generate-headshot | Keep Lovable gateway only (image generation model not available via direct Gemini API) |
-| parse-job-url | Keep Lovable gateway only (SSRF protection complexity, low priority) |
+## Components to Add/Modify
 
-## Implementation Pattern
+### 1. Create AI Provider Indicator Component
 
-Each function will be updated following the established pattern from `enhance-section`:
+**New File: `src/components/editor/ai/AIProviderBadge.tsx`**
 
-### 1. Extract userGeminiKey from Request Body
+A reusable badge component that displays the current AI provider:
 
-```typescript
-const { existingParams, userGeminiKey } = await req.json();
+```text
++---------------------------------------+
+|  ✨ WiseResume AI                     |   (Default - purple)
++---------------------------------------+
+
++---------------------------------------+
+|  🔷 Gemini Free                       |   (User key - blue)
++---------------------------------------+
+
++---------------------------------------+
+|  🔷 Gemini Paid                       |   (User key - green border)
++---------------------------------------+
 ```
 
-### 2. Add AI Routing Logic
+**Features:**
+- Uses `getAIProviderInfo()` from `src/lib/aiProvider.ts`
+- Compact size option for inline use (InlineAIButton)
+- Full size for prominent display (AIAssistantBar)
+- Tooltip with additional info on tap/hover
+
+### 2. Add Indicator to AI Assistant Bar (Expanded)
+
+**File: `src/components/editor/AIAssistantBar.tsx`**
+
+Add the provider badge in the expanded AI Studio panel, visible when users access AI features:
+
+- Position: Below the "AI Studio" header, above action buttons
+- Style: Full-width info bar with provider name + link to AI settings
+- Behavior: Tapping opens the AI Settings page
+
+### 3. Add Indicator to AI Copilot Sheet Header
+
+**File: `src/components/editor/AgenticChatSheet.tsx`**
+
+Show the provider badge in the chat header so users know which AI is responding:
+
+- Position: Next to "AI Copilot" title
+- Style: Small badge showing provider name
+- Updates reactively if user changes provider mid-session
+
+### 4. Add Indicator to InlineAIButton Dropdown
+
+**File: `src/components/editor/InlineAIButton.tsx`**
+
+Show provider info in the dropdown menu footer when using per-section AI:
+
+- Position: Bottom of dropdown menu, separated by divider
+- Style: Muted text with provider info
+- Action: Links to AI settings for easy switching
+
+### 5. Add Indicator to AI Enhancement Dialog
+
+**File: `src/components/editor/ai/AIEnhanceDialog.tsx`**
+
+Show which AI processed the enhancement:
+
+- Position: In the header, next to the Sparkles icon
+- Style: Small "via WiseResume AI" or "via Gemini" text
+
+### 6. Create Custom Hook for Reactive Provider Info
+
+**New File: `src/hooks/useAIProviderInfo.ts`**
+
+A hook that provides reactive access to provider info with proper Zustand subscription:
 
 ```typescript
-// Determine which AI gateway to use
-const useGeminiDirect = !!userGeminiKey;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-if (!useGeminiDirect && !LOVABLE_API_KEY) {
-  throw new Error("LOVABLE_API_KEY is not configured");
+export function useAIProviderInfo() {
+  const aiProvider = useSettingsStore((s) => s.aiProvider);
+  const geminiKeyTier = useSettingsStore((s) => s.geminiKeyTier);
+  const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
+  
+  // Return computed provider info that updates on state changes
 }
-
-// Choose API endpoint and auth based on provider
-const apiUrl = useGeminiDirect
-  ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-  : "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-const modelName = useGeminiDirect 
-  ? "gemini-2.5-flash-preview-05-20"  // Direct Gemini model name
-  : "google/gemini-2.5-flash";         // Lovable gateway model name
 ```
 
-### 3. Enhanced Error Handling for Gemini Direct
+## Visual Design Specifications
 
-```typescript
-if (!response.ok) {
-  if (response.status === 401 || response.status === 403) {
-    return new Response(
-      JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
-      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-  if (response.status === 429) {
-    const errorMsg = useGeminiDirect 
-      ? "Rate limit exceeded. Your Gemini key may have hit its quota."
-      : "Rate limits exceeded, please try again later.";
-    return new Response(
-      JSON.stringify({ error: errorMsg }),
-      { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-  // ... existing error handling
-}
-```
+### Provider Badge Variants
 
-## Model Mapping
+**Default Provider (WiseResume AI):**
+- Background: `bg-primary/10`
+- Border: `border-primary/20`
+- Icon: Sparkles (primary color)
+- Text: "WiseResume AI"
 
-| Lovable Gateway Model | Direct Gemini Model |
-|----------------------|---------------------|
-| google/gemini-2.5-flash | gemini-2.5-flash-preview-05-20 |
-| google/gemini-2.5-pro | gemini-2.5-pro-preview-05-06 |
-| google/gemini-3-flash-preview | gemini-2.0-flash |
-| openai/gpt-5-mini | gemini-2.5-flash-preview-05-20 (fallback) |
+**Gemini Free Tier:**
+- Background: `bg-blue-500/10`
+- Border: `border-blue-500/20`
+- Icon: Custom Gemini icon or diamond
+- Text: "Gemini Free"
 
-## Detailed Changes Per Function
+**Gemini Paid Tier:**
+- Background: `bg-blue-500/10`
+- Border: `border-green-500/30` (subtle green accent for paid)
+- Icon: Custom Gemini icon
+- Text: "Gemini Paid"
 
-### 1. agentic-chat/index.ts
-- Extract `userGeminiKey` from request body
-- Add routing logic for AI gateway selection
-- Update model name based on provider
-- Add Gemini-specific error handling
+### Size Variants
 
-### 2. analyze-resume/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing with model mapping
-- Enhance error messages for direct Gemini calls
+| Variant | Use Case | Height | Font Size |
+|---------|----------|--------|-----------|
+| xs | InlineAIButton dropdown | 20px | 10px |
+| sm | Sheet headers, tooltips | 24px | 11px |
+| md | AIAssistantBar expanded | 28px | 12px |
 
-### 3. career-path-advisor/index.ts
-- Extract `userGeminiKey` from request body
-- Add dual-provider support
-- Update logging to indicate provider used
+## Implementation Details
 
-### 4. detect-and-humanize/index.ts
-- Extract `userGeminiKey` from request body
-- Update both detection and humanization API calls
-- Handle provider-specific errors for both calls
+### Phase 1: Create Base Components
 
-### 5. explain-gap/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing logic
-- Model uses tool calling - ensure compatibility with Gemini direct
+1. Create `AIProviderBadge.tsx` with size variants
+2. Create `useAIProviderInfo.ts` hook
+3. Add Gemini icon asset (or use existing diamond/gem icon)
 
-### 6. generate-cover-letter/index.ts
-- Already validates auth, just needs routing logic
-- Add provider selection and model mapping
-- Update error messages
+### Phase 2: Integrate into AI Components
 
-### 7. interview-chat/index.ts
-- Extract `userGeminiKey` from request body
-- Update both role analysis and main chat AI calls
-- Add provider-specific error handling
+4. Add badge to `AIAssistantBar.tsx` expanded view
+5. Add badge to `AgenticChatSheet.tsx` header
+6. Add provider info to `InlineAIButton.tsx` dropdown footer
+7. Add "via" text to `AIEnhanceDialog.tsx` header
 
-### 8. one-page-optimizer/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing logic
-- Update logging
+### Phase 3: Polish and Settings Link
 
-### 9. optimize-for-linkedin/index.ts
-- Extract `userGeminiKey` from request body
-- Add dual-provider support
-- Maintain JSON parsing logic
+8. Add navigation to AI settings on badge tap
+9. Ensure smooth transitions when provider changes
+10. Test on mobile for touch target sizes (min 44px tap area)
 
-### 10. parse-linkedin/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing with tool calling support
-- Gemini supports tool calling via OpenAI-compatible endpoint
+## File Summary
 
-### 11. parse-resume/index.ts
-- Extract `userGeminiKey` from request body
-- Add provider routing with tool calling support
-- Ensure tool_choice works with Gemini direct
-
-### 12. recruiter-simulation/index.ts (Critical Bug Fix)
-- Currently uses WRONG API endpoint: `lovable.dev/api/llm/openai/v1/chat/completions`
-- Should use: `ai.gateway.lovable.dev/v1/chat/completions`
-- Add `userGeminiKey` support
-- Fix model name (currently uses `openai/gpt-5-mini`, should map correctly)
-
-## Frontend Service Layer Updates
-
-The following frontend modules also need updates to pass `userGeminiKey`:
-
-### Already Updated:
-- `src/lib/aiTailor.ts` ✅
-- `src/lib/aiAnalysis.ts` ✅ (partially - only analyzeResume)
-- `src/hooks/useAIEnhance.ts` ✅
-- `src/lib/careerPath.ts` ✅
-- `src/lib/agenticChat.ts` ✅
-
-### Need Updates:
-- Components that directly call edge functions (need to check hooks and sheets)
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| supabase/functions/agentic-chat/index.ts | Add userGeminiKey routing |
-| supabase/functions/analyze-resume/index.ts | Add userGeminiKey routing |
-| supabase/functions/career-path-advisor/index.ts | Add userGeminiKey routing |
-| supabase/functions/detect-and-humanize/index.ts | Add userGeminiKey routing |
-| supabase/functions/explain-gap/index.ts | Add userGeminiKey routing |
-| supabase/functions/generate-cover-letter/index.ts | Add userGeminiKey routing |
-| supabase/functions/interview-chat/index.ts | Add userGeminiKey routing |
-| supabase/functions/one-page-optimizer/index.ts | Add userGeminiKey routing |
-| supabase/functions/optimize-for-linkedin/index.ts | Add userGeminiKey routing |
-| supabase/functions/parse-linkedin/index.ts | Add userGeminiKey routing |
-| supabase/functions/parse-resume/index.ts | Add userGeminiKey routing |
-| supabase/functions/recruiter-simulation/index.ts | Fix API endpoint + add userGeminiKey |
-
-## Testing Strategy
-
-After implementation:
-1. Test each function with default Lovable gateway (no userGeminiKey)
-2. Test each function with a valid Gemini API key
-3. Test error handling with an invalid Gemini key
-4. Verify tool calling works correctly for parse-resume and parse-linkedin
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/editor/ai/AIProviderBadge.tsx` | Create | Reusable provider indicator badge |
+| `src/hooks/useAIProviderInfo.ts` | Create | Reactive hook for provider state |
+| `src/components/editor/AIAssistantBar.tsx` | Modify | Add provider badge to expanded view |
+| `src/components/editor/AgenticChatSheet.tsx` | Modify | Add provider badge to header |
+| `src/components/editor/InlineAIButton.tsx` | Modify | Add provider info to dropdown footer |
+| `src/components/editor/ai/AIEnhanceDialog.tsx` | Modify | Add "via" provider text to header |
 
 ## Benefits
 
-1. Consistent behavior across all AI functions
-2. Users can use their own Gemini API keys everywhere
-3. Fixed critical bug in recruiter-simulation endpoint
-4. Better error messages for provider-specific issues
-5. Centralized routing pattern for future maintenance
+1. **Transparency**: Users always know which AI is processing their requests
+2. **Trust**: Clear indication when using personal API key vs default
+3. **Quick Access**: Tapping badge navigates to AI settings for easy switching
+4. **Consistency**: Same visual language across all AI touchpoints
+5. **Non-Intrusive**: Subtle badges that don't clutter the interface
+
