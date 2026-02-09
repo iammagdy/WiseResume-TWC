@@ -15,14 +15,14 @@ function generateStars(count: number): Star[] {
     id: i,
     x: Math.random() * 100,
     y: Math.random() * 100,
-    size: Math.random() * 2 + 1,
+    size: Math.random() * 2.5 + 0.5,
     opacity: Math.random() * 0.5 + 0.3,
     delay: Math.random() * 3,
   }));
 }
 
 export function SpaceBackground({ children }: { children: React.ReactNode }) {
-  const starsRef = useRef<Star[]>(generateStars(50));
+  const starsRef = useRef<Star[]>(generateStars(80));
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[hsl(var(--space-deep))]">
