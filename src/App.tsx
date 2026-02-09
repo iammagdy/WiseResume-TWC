@@ -12,6 +12,7 @@ import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import {
   DashboardSkeleton,
@@ -20,7 +21,6 @@ import {
   PreviewSkeleton,
   UploadSkeleton,
   InterviewSkeleton,
-  AISkeleton,
 } from "@/components/layout/PageSkeletons";
 
 // Eagerly load Index for LCP
@@ -34,7 +34,6 @@ const AuthPage = lazy(() => import("./pages/AuthPage"));
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const InterviewPage = lazy(() => import("./pages/InterviewPage"));
-const AIPage = lazy(() => import("./pages/AIPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -117,11 +116,6 @@ const queryClient = new QueryClient({
               <InterviewPage />
             </Suspense>
           } />
-          <Route path="/ai" element={
-            <Suspense fallback={<AISkeleton />}>
-              <AIPage />
-            </Suspense>
-          } />
         </Route>
         
         <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
@@ -131,16 +125,18 @@ const queryClient = new QueryClient({
  
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-       <ErrorBoundary>
-         <Toaster />
-         <Sonner />
-         <BrowserRouter>
-           <AppRoutes />
-           <InstallPrompt />
-         </BrowserRouter>
-       </ErrorBoundary>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <ErrorBoundary>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+            <InstallPrompt />
+          </BrowserRouter>
+        </ErrorBoundary>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

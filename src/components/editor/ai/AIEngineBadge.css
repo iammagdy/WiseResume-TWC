@@ -1,0 +1,125 @@
+/* AI Engine Badge - Cosmic Glass Design */
+
+.ai-engine-badge {
+  position: relative;
+  width: 100%;
+  border-radius: 1rem;
+  padding: 2px;
+  background: linear-gradient(
+    var(--angle, 0deg),
+    hsl(var(--primary) / 0.6),
+    hsl(var(--primary) / 0.2),
+    hsl(var(--primary) / 0.4),
+    hsl(var(--primary) / 0.1)
+  );
+  animation: ai-border-rotate 6s linear infinite;
+}
+
+.ai-engine-badge-inner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  border-radius: calc(1rem - 2px);
+  background: hsl(var(--background) / 0.85);
+  backdrop-filter: blur(12px);
+  overflow: hidden;
+}
+
+/* Pulsing icon animation */
+.ai-engine-icon {
+  animation: ai-icon-pulse 3s ease-in-out infinite;
+}
+
+/* Shimmer text effect */
+.ai-engine-text {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--foreground)) 0%,
+    hsl(var(--foreground)) 40%,
+    hsl(var(--primary)) 50%,
+    hsl(var(--foreground)) 60%,
+    hsl(var(--foreground)) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: ai-text-shimmer 4s ease-in-out infinite;
+}
+
+/* Floating particles */
+.ai-engine-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: hsl(var(--primary) / 0.6);
+  pointer-events: none;
+}
+
+.ai-engine-particle:nth-child(1) {
+  top: 20%;
+  left: 15%;
+  animation: ai-particle-float 4s ease-in-out infinite;
+}
+
+.ai-engine-particle:nth-child(2) {
+  top: 60%;
+  right: 20%;
+  animation: ai-particle-float 5s ease-in-out infinite 0.5s;
+}
+
+/* Settings gear hover effect */
+.ai-engine-settings {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  opacity: 0.6;
+}
+
+.ai-engine-badge:hover .ai-engine-settings,
+.ai-engine-badge:active .ai-engine-settings {
+  opacity: 1;
+  transform: rotate(45deg);
+}
+
+/* Keyframes */
+@keyframes ai-border-rotate {
+  0% { --angle: 0deg; }
+  100% { --angle: 360deg; }
+}
+
+@keyframes ai-icon-pulse {
+  0%, 100% { 
+    transform: scale(1); 
+    filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.4)); 
+  }
+  50% { 
+    transform: scale(1.1); 
+    filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.6)); 
+  }
+}
+
+@keyframes ai-text-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes ai-particle-float {
+  0%, 100% { 
+    transform: translateY(0) translateX(0); 
+    opacity: 0.3; 
+  }
+  50% { 
+    transform: translateY(-8px) translateX(4px); 
+    opacity: 0.7; 
+  }
+}
+
+/* Register custom property for gradient animation */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}

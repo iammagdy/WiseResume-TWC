@@ -1,5 +1,4 @@
-import { memo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { memo, useState } from 'react';
 import { Sparkles, Diamond, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIProviderInfo } from '@/hooks/useAIProviderInfo';
@@ -10,6 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 
 type BadgeSize = 'xs' | 'sm' | 'md';
 
@@ -36,13 +36,13 @@ export const AIProviderBadge = memo(function AIProviderBadge({
   showSettingsLink = false,
   className,
 }: AIProviderBadgeProps) {
-  const navigate = useNavigate();
+  const [sheetOpen, setSheetOpen] = useState(false);
   const providerInfo = useAIProviderInfo();
 
   const handleClick = () => {
     if (showSettingsLink) {
       haptics.light();
-      navigate('/ai');
+      setSheetOpen(true);
     }
   };
 
@@ -95,23 +95,26 @@ export const AIProviderBadge = memo(function AIProviderBadge({
   }
 
   return (
-    <TooltipProvider>
-      <Tooltip delayDuration={300}>
-        <TooltipTrigger asChild>
-          {badge}
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs">
-          <p>
-            {providerInfo.isCustomKey
-              ? `Using your Gemini API key (${providerInfo.tierLabel})`
-              : 'Using WiseResume AI (default)'}
-          </p>
-          <p className="text-muted-foreground mt-0.5">
-            Tap to change AI provider
-          </p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            {badge}
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">
+            <p>
+              {providerInfo.isCustomKey
+                ? `Using your Gemini API key (${providerInfo.tierLabel})`
+                : 'Using WiseResume AI (default)'}
+            </p>
+            <p className="text-muted-foreground mt-0.5">
+              Tap to change AI provider
+            </p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <AISettingsSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+    </>
   );
 });
 
@@ -121,12 +124,12 @@ export const AIProviderFooter = memo(function AIProviderFooter({
 }: {
   className?: string;
 }) {
-  const navigate = useNavigate();
+  const [sheetOpen, setSheetOpen] = useState(false);
   const providerInfo = useAIProviderInfo();
 
   const handleClick = () => {
     haptics.light();
-    navigate('/ai');
+    setSheetOpen(true);
   };
 
   const isGemini = providerInfo.provider === 'gemini';
@@ -134,18 +137,21 @@ export const AIProviderFooter = memo(function AIProviderFooter({
   const iconClass = isGemini ? 'text-blue-400' : 'text-primary';
 
   return (
-    <button
-      onClick={handleClick}
-      className={cn(
-        'w-full flex items-center justify-center gap-1.5 py-2 text-[10px] text-muted-foreground',
-        'hover:text-foreground transition-colors',
-        className
-      )}
-    >
-      <IconComponent className={cn('w-3 h-3', iconClass)} />
-      <span>Powered by {providerInfo.name}</span>
-      <span className="text-muted-foreground/60">• Change</span>
-    </button>
+    <>
+      <button
+        onClick={handleClick}
+        className={cn(
+          'w-full flex items-center justify-center gap-1.5 py-2 text-[10px] text-muted-foreground',
+          'hover:text-foreground transition-colors',
+          className
+        )}
+      >
+        <IconComponent className={cn('w-3 h-3', iconClass)} />
+        <span>Powered by {providerInfo.name}</span>
+        <span className="text-muted-foreground/60">• Change</span>
+      </button>
+      <AISettingsSheet open={sheetOpen} onOpenChange={setSheetOpen} />
+    </>
   );
 });
 
