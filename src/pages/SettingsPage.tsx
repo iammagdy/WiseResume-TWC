@@ -19,7 +19,8 @@ import {
   Fingerprint,
   Clock,
   Key,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft
 } from 'lucide-react';
 import ProfileCard from '@/components/settings/ProfileCard';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -175,7 +176,16 @@ export default function SettingsPage() {
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 glass-header">
-          <h1 className="text-xl font-bold">Settings</h1>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <h1 className="text-xl font-bold">Settings</h1>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
