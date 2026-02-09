@@ -119,6 +119,10 @@ export function formatDateRange(startDate: string, endDate: string, isCurrent: b
   const startStr = formatMonthYear(start);
   const endStr = end?.isPresent ? 'Present' : (end ? formatMonthYear(end) : '');
   
+  if (!endStr) {
+    return startStr;
+  }
+
   return `${startStr} – ${endStr}`;
 }
 
