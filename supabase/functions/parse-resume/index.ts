@@ -29,6 +29,7 @@ interface ParsedResume {
     current: boolean;
     description: string;
     achievements: string[];
+    responsibilities?: string[];
     isProject?: boolean;
   }>;
   education: Array<{
@@ -87,11 +88,16 @@ const parseResumeTool = {
               startDate: { type: "string", description: "Start date - accept any format: MMM YYYY, YYYY, Summer 2024, etc." },
               endDate: { type: "string", description: "End date - accept any format, or 'Present' if current/ongoing" },
               current: { type: "boolean", description: "True if this is the current job or ongoing project" },
-              description: { type: "string", description: "Job/project description and responsibilities" },
+              description: { type: "string", description: "Overall job/project description paragraph (non-bullet content)" },
               achievements: {
                 type: "array",
                 items: { type: "string" },
-                description: "Key achievements, features built, or bullet points",
+                description: "Key achievements, features built, or bullet points - extract EVERY bullet VERBATIM, do NOT summarize",
+              },
+              responsibilities: {
+                type: "array",
+                items: { type: "string" },
+                description: "Detailed job responsibilities - extract EVERY bullet point VERBATIM, do NOT summarize or combine",
               },
               isProject: { type: "boolean", description: "True if this is a personal/academic project, false for work experience" },
             },
@@ -142,32 +148,37 @@ const parseResumeTool = {
 
 const systemPrompt = `You are an expert resume parser. Extract ALL structured information from resume text.
 
-CRITICAL RULES:
-1. Extract EVERYTHING - all jobs, education, projects, skills, certifications. Never skip sections!
-2. Empty fields: use "" for strings, [] for arrays - never omit required fields
-3. Dates: Accept ANY format ("2024", "Summer 2024", "Jan 2020 - Present", "2020-2023")
-4. Current roles/projects: endDate="Present", current=true
-5. Skills: Parse as individual items. Include languages with proficiency (e.g., "Arabic (Native)", "English (Fluent)")
-6. Projects: Add to experience array with isProject=true, company=project name or "Personal Project"
-7. Languages: Add to skills array with level, e.g., "French (Beginner)", "Spanish (Intermediate)"
-8. Certifications: Include issuer from context when available. Match "Certificates", "Training", "Courses" sections
-9. Phone numbers: Extract exactly as written (supports international formats like +20, 011xxx, etc.)
-10. Handle sidebar layouts, two-column designs, and creative CV formats
+=== CRITICAL EXTRACTION RULES (HIGHEST PRIORITY) ===
+1. **PROCESS ALL CONTENT:** The input may be from a multi-page document. Process the ENTIRETY of the text. Do NOT stop after the first page or section.
+2. **FULL EXTRACTION:** Extract 100% of the text in work experience descriptions. Do NOT summarize, do NOT bulletize paragraphs, and do NOT omit details. Return the EXACT text as written.
+3. **VERBATIM BULLETS:** For achievements and responsibilities, copy each bullet point EXACTLY as written. Never combine, rephrase, or condense multiple bullets into one.
 
-CRITICAL NAME DETECTION RULES:
-11. The person's FULL NAME is typically the LARGEST/most prominent text at the very TOP of the resume
-12. NEVER use these as names - they are section headers/labels:
+=== GENERAL EXTRACTION RULES ===
+4. Extract EVERYTHING - all jobs, education, projects, skills, certifications. Never skip sections!
+5. Empty fields: use "" for strings, [] for arrays - never omit required fields
+6. Dates: Accept ANY format ("2024", "Summer 2024", "Jan 2020 - Present", "2020-2023")
+7. Current roles/projects: endDate="Present", current=true
+8. Skills: Parse as individual items. Include languages with proficiency (e.g., "Arabic (Native)", "English (Fluent)")
+9. Projects: Add to experience array with isProject=true, company=project name or "Personal Project"
+10. Languages: Add to skills array with level, e.g., "French (Beginner)", "Spanish (Intermediate)"
+11. Certifications: Include issuer from context when available. Match "Certificates", "Training", "Courses" sections
+12. Phone numbers: Extract exactly as written (supports international formats like +20, 011xxx, etc.)
+13. Handle sidebar layouts, two-column designs, and creative CV formats
+
+=== CRITICAL NAME DETECTION RULES ===
+14. The person's FULL NAME is typically the LARGEST/most prominent text at the very TOP of the resume
+15. NEVER use these as names - they are section headers/labels:
     - "Contact Me", "Contact", "Contact Info", "Contact Details", "Get In Touch"
     - "Personal Information", "Personal Info", "Personal Details", "Personal Data"
     - "About Me", "About", "Profile", "Bio", "Summary", "Objective"
     - "Resume", "CV", "Curriculum Vitae"
     - Any single generic word that describes a section (Contact, Summary, Skills, Experience, Education)
-13. A valid name is usually 2-5 words containing a first name and last name (e.g., "John Smith", "Mohamed Ahmed Ali")
-14. Names are NEVER verbs or action phrases like "Contact Me" or "Hire Me"
-15. Names often appear in ALL CAPS or Title Case at the document start, BEFORE any section headers
-16. If the first line looks like a section header, look for the actual person name nearby (usually largest text)
+16. A valid name is usually 2-5 words containing a first name and last name (e.g., "John Smith", "Mohamed Ahmed Ali")
+17. Names are NEVER verbs or action phrases like "Contact Me" or "Hire Me"
+18. Names often appear in ALL CAPS or Title Case at the document start, BEFORE any section headers
+19. If the first line looks like a section header, look for the actual person name nearby (usually largest text)
 
-SECTION NAME VARIANTS TO RECOGNIZE:
+=== SECTION NAME VARIANTS TO RECOGNIZE ===
 - Experience → Work Experience, Employment, Professional Experience, Career History
 - Education → Academic Background, Qualifications, Schooling
 - Skills → Technical Skills, Core Competencies, Languages, Soft Skills, Hard Skills
@@ -345,6 +356,7 @@ serve(async (req) => {
         current: exp.current || false,
         description: exp.description || '',
         achievements: exp.achievements || [],
+        responsibilities: exp.responsibilities || [],
         isProject: exp.isProject || false,
       })),
       education: (parsedData.education || []).map(edu => ({

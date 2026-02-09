@@ -17,6 +17,7 @@ export interface Experience {
   current: boolean;
   description: string;
   achievements: string[];
+  responsibilities?: string[]; // Detailed job responsibilities - extracted verbatim
   isProject?: boolean; // Flag for project entries (vs work experience)
 }
 
