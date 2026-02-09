@@ -203,7 +203,7 @@ export default function EditorPage() {
           <button
             onClick={() => setShowChat(true)}
             className="p-3 -mr-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center relative"
-            aria-label="Open AI Copilot"
+            aria-label="Open Wise AI"
           >
             <MessageCircle className="w-5 h-5" />
             <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />

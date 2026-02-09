@@ -1,6 +1,7 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 export interface NextRole {
   title: string;
@@ -51,14 +52,13 @@ export async function analyzeCareerPath(
     throw new Error(`Too many requests. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const response = await fetch(`${SUPABASE_URL}/functions/v1/career-path-advisor`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({ resume, userGeminiKey }),
   });
