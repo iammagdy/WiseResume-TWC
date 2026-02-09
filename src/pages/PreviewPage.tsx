@@ -250,27 +250,48 @@ export default function PreviewPage() {
       const url = URL.createObjectURL(pdfBlob);
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       const isMobile = isIOS || /Android/i.test(navigator.userAgent);
-      
-      if (isIOS && navigator.share && navigator.canShare) {
-        // iOS: Use share API for reliable file handling
+
+      let downloadSucceeded = false;
+
+      if (isIOS) {
+        // iOS: navigator.share is the ONLY reliable download method
         try {
           const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-          if (navigator.canShare({ files: [file] })) {
+          if (navigator.canShare?.({ files: [file] })) {
             await navigator.share({ files: [file], title: fileName });
+            downloadSucceeded = true;
           } else {
-            window.open(url, '_blank');
+            // Fallback: open blob in new tab with instructions
+            const newTab = window.open(url, '_blank');
+            if (newTab) {
+              toast.info('Tap the share icon in Safari, then "Save to Files"', { duration: 6000 });
+            } else {
+              // Popup blocked - use anchor download with data URL
+              const dataUrl = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(pdfBlob);
+              });
+              const link = document.createElement('a');
+              link.href = dataUrl;
+              link.download = fileName;
+              link.target = '_blank';
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              toast.info('If the file did not save, tap and hold the download button, then "Download Linked File"', { duration: 6000 });
+            }
           }
-        } catch (shareErr) {
-          // User cancelled or share failed - fallback to data URL
-          const reader = new FileReader();
-          reader.onload = () => {
-            const dataUrl = reader.result as string;
-            window.open(dataUrl, '_blank');
-          };
-          reader.readAsDataURL(pdfBlob);
+        } catch (err: any) {
+          if (err?.name === 'AbortError') {
+            toast.info('Download cancelled. Tap download again to save your PDF.');
+          } else {
+            toast.error('Could not save PDF. Try using the Share button instead.');
+          }
         }
       } else if (isMobile) {
         window.open(url, '_blank');
+        downloadSucceeded = true;
       } else {
         const link = document.createElement('a');
         link.href = url;
@@ -279,15 +300,18 @@ export default function PreviewPage() {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        downloadSucceeded = true;
       }
 
-      const successMessages: Record<ExportType, string> = {
-        'resume': 'Resume downloaded!',
-        'cover-letter': 'Cover letter downloaded!',
-        'combined': 'Application package downloaded!',
-        'one-page': 'One-page resume downloaded!',
-      };
-      toast.success(successMessages[type]);
+      if (downloadSucceeded) {
+        const successMessages: Record<ExportType, string> = {
+          'resume': 'Resume downloaded!',
+          'cover-letter': 'Cover letter downloaded!',
+          'combined': 'Application package downloaded!',
+          'one-page': 'One-page resume downloaded!',
+        };
+        toast.success(successMessages[type]);
+      }
       setShowExportSheet(false);
        
        // Track positive action for rate app prompt
