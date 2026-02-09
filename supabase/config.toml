@@ -44,3 +44,9 @@ verify_jwt = true
 
 [functions.one-page-optimizer]
 verify_jwt = true
+
+[functions.agentic-chat]
+verify_jwt = true
+
+[functions.career-path-advisor]
+verify_jwt = true
