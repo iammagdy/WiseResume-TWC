@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAgenticChat } from '@/hooks/useAgenticChat';
 import { haptics } from '@/lib/haptics';
+import { AIProviderBadge } from '@/components/editor/ai/AIProviderBadge';
 
 interface AgenticChatSheetProps {
   open: boolean;
@@ -98,6 +99,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
               AI Copilot
+              <AIProviderBadge size="xs" showSettingsLink />
             </SheetTitle>
             {messages.length > 0 && (
               <Button
