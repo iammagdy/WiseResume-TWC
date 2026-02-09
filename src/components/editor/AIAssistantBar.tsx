@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
-import { AIProviderBadge } from '@/components/editor/ai/AIProviderBadge';
+import { AIEngineBadge } from '@/components/editor/ai/AIEngineBadge';
 import { JobMatchScore, TemplateId } from '@/types/resume';
 
 const TEMPLATE_NAMES: Record<TemplateId, string> = {
@@ -189,13 +189,10 @@ export const AIAssistantBar = memo(function AIAssistantBar({
                 animate="show"
                 className="px-4 pb-4 space-y-4"
               >
-                {/* Provider Badge */}
-                <motion.div variants={itemVariants} className="flex items-center justify-center">
-                  <AIProviderBadge size="md" showSettingsLink />
+                {/* AI Engine Badge */}
+                <motion.div variants={itemVariants}>
+                  <AIEngineBadge showSettingsLink />
                 </motion.div>
-
-                {/* Divider */}
-                <div className="h-px bg-border" />
 
                 {/* Section: Optimize for Job */}
                 <div>
