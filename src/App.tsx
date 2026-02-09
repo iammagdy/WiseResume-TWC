@@ -128,8 +128,10 @@ const App = () => (
        <ErrorBoundary>
          <Toaster />
          <BrowserRouter>
-           <AppRoutes />
-           <InstallPrompt />
+           <AuthProvider>
+             <AppRoutes />
+             <InstallPrompt />
+           </AuthProvider>
          </BrowserRouter>
        </ErrorBoundary>
     </TooltipProvider>
