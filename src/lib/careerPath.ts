@@ -1,6 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
 
 export interface NextRole {
   title: string;
@@ -64,17 +64,7 @@ export async function analyzeCareerPath(
   });
 
   if (!response.ok) {
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
-    }
-    if (response.status === 402) {
-      throw new Error('AI credits exhausted.');
-    }
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    if (response.status === 401 && error.error?.includes('Invalid')) {
-      throw new Error('Invalid Gemini API key. Please check your AI settings.');
-    }
-    throw new Error(error.error || 'Failed to analyze career path');
+    await handleAIError(response, 'Failed to analyze career path');
   }
 
   trackGeminiUsage();
