@@ -6,9 +6,9 @@ interface PlanetLogoProps {
 }
 
 const sizeConfig = {
-  sm: { planet: 100, icon: 48, orbit: 130, moon: 8 },
-  md: { planet: 140, icon: 64, orbit: 175, moon: 10 },
-  lg: { planet: 180, icon: 80, orbit: 220, moon: 14 },
+  sm: { planet: 100, icon: 64, orbit: 130, moon: 8 },
+  md: { planet: 140, icon: 90, orbit: 175, moon: 10 },
+  lg: { planet: 180, icon: 115, orbit: 220, moon: 14 },
 };
 
 export function PlanetLogo({ size = 'lg' }: PlanetLogoProps) {
