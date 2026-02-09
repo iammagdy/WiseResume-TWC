@@ -2,7 +2,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Settings, Home } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 
 interface TabItem {
   path: string;
@@ -78,23 +77,24 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
             >
               <div className="relative">
                 <div className={cn(
-                  'p-2 rounded-xl transition-all',
+                  'p-2 rounded-xl transition-all duration-200',
                   active && 'bg-primary/15 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.4)]'
                 )}>
                   <Icon
                     className={cn(
-                      'w-5 h-5 transition-colors',
+                      'w-5 h-5 transition-colors duration-200',
                       active ? 'text-primary' : 'text-muted-foreground'
                     )}
                   />
                 </div>
-                {active && (
-                  <motion.div
-                    layoutId="tab-indicator"
-                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]"
-                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                  />
-                )}
+                {/* CSS-only indicator - no layoutId for performance */}
+                <div
+                  className={cn(
+                    'absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]',
+                    'transition-all duration-200',
+                    active ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+                  )}
+                />
               </div>
               <span
                 className={cn(
