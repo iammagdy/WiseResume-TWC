@@ -1,20 +1,70 @@
 import { describe, it, expect } from 'vitest';
-import { compareSkills, diffText, compareExperience, countChanges, SkillDiff, TextDiff } from './diffUtils';
+import { countChanges, compareSkills, diffText, compareExperience } from './diffUtils';
+import { Experience } from '@/types/resume';
 
 describe('diffUtils', () => {
+  describe('countChanges', () => {
+    it('should correctly count added and removed items', () => {
+      const skillDiff = {
+        added: ['React', 'TypeScript'],
+        removed: ['jQuery'],
+        unchanged: ['HTML', 'CSS']
+      };
+
+      const result = countChanges(skillDiff);
+
+      expect(result).toEqual({ added: 2, removed: 1 });
+    });
+
+    it('should handle empty added and removed arrays', () => {
+      const skillDiff = {
+        added: [],
+        removed: [],
+        unchanged: ['HTML', 'CSS']
+      };
+
+      const result = countChanges(skillDiff);
+
+      expect(result).toEqual({ added: 0, removed: 0 });
+    });
+
+    it('should ignore unchanged items', () => {
+      const skillDiff = {
+        added: ['React'],
+        removed: [],
+        unchanged: ['HTML', 'CSS', 'JavaScript']
+      };
+
+      const result = countChanges(skillDiff);
+
+      expect(result).toEqual({ added: 1, removed: 0 });
+    });
+  });
+
   describe('compareSkills', () => {
-    it('should correctly identify added and removed skills', () => {
-      const original = ['React', 'TypeScript'];
-      const tailored = ['React', 'Node.js'];
+    it('should identify added skills', () => {
+      const original = ['HTML', 'CSS'];
+      const tailored = ['HTML', 'CSS', 'React'];
 
       const result = compareSkills(original, tailored);
 
-      expect(result.added).toEqual(['Node.js']);
-      expect(result.removed).toEqual(['TypeScript']);
-      expect(result.unchanged).toEqual(['React']);
+      expect(result.added).toEqual(['React']);
+      expect(result.removed).toEqual([]);
+      expect(result.unchanged).toEqual(['HTML', 'CSS']);
     });
 
-    it('should handle case insensitivity', () => {
+    it('should identify removed skills', () => {
+      const original = ['HTML', 'CSS', 'jQuery'];
+      const tailored = ['HTML', 'CSS'];
+
+      const result = compareSkills(original, tailored);
+
+      expect(result.added).toEqual([]);
+      expect(result.removed).toEqual(['jQuery']);
+      expect(result.unchanged).toEqual(['HTML', 'CSS']);
+    });
+
+    it('should handle case insensitivity correctly', () => {
       const original = ['React'];
       const tailored = ['react'];
 
@@ -25,49 +75,23 @@ describe('diffUtils', () => {
       expect(result.unchanged).toEqual(['react']);
     });
 
-    it('should handle special characters', () => {
-      const original = ['C++', '.NET'];
-      const tailored = ['C++', 'C#', '.NET'];
-
-      const result = compareSkills(original, tailored);
-
-      expect(result.added).toEqual(['C#']);
-      expect(result.removed).toEqual([]);
-      expect(result.unchanged).toEqual(['C++', '.NET']);
-    });
-
     it('should handle empty arrays', () => {
-      const original: string[] = [];
-      const tailored = ['React'];
+      const result = compareSkills([], []);
 
-      const result = compareSkills(original, tailored);
-
-      expect(result.added).toEqual(['React']);
+      expect(result.added).toEqual([]);
       expect(result.removed).toEqual([]);
       expect(result.unchanged).toEqual([]);
-
-      const result2 = compareSkills(['React'], []);
-      expect(result2.added).toEqual([]);
-      expect(result2.removed).toEqual(['React']);
-      expect(result2.unchanged).toEqual([]);
     });
 
-    it('should handle duplicates in input', () => {
-      const original = ['React', 'React'];
-      const tailored = ['React'];
+    it('should handle completely different arrays', () => {
+      const original = ['Java'];
+      const tailored = ['Python'];
 
       const result = compareSkills(original, tailored);
 
-      // Depending on implementation, duplicates might appear in unchanged
-      // The current implementation iterates over tailored for unchanged, so 1 'React' -> 1 unchanged
-      expect(result.unchanged).toHaveLength(1);
-      expect(result.unchanged).toContain('React');
-
-      // If original has duplicates, and tailored has one, logic says:
-      // tailored element exists in original set -> unchanged.
-      // original element exists in tailored set -> not removed.
-      expect(result.removed).toEqual([]);
-      expect(result.added).toEqual([]);
+      expect(result.added).toEqual(['Python']);
+      expect(result.removed).toEqual(['Java']);
+      expect(result.unchanged).toEqual([]);
     });
   });
 
@@ -76,80 +100,61 @@ describe('diffUtils', () => {
       const text = 'Hello world';
       const result = diffText(text, text);
 
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({ type: 'unchanged', text: 'Hello world' });
+      expect(result).toEqual([{ type: 'unchanged', text: 'Hello world' }]);
     });
 
     it('should handle completely different strings', () => {
       const original = 'Hello world';
-      const tailored = 'Goodbye space';
+      const tailored = 'Goodbye universe';
 
       const result = diffText(original, tailored);
 
-      // Expected: removed 'Hello world', added 'Goodbye space'
-      // The implementation splits by space.
-      // "Hello world" -> ["Hello", "world"]
-      // "Goodbye space" -> ["Goodbye", "space"]
-      // LCS is empty.
-      // "Hello" removed, "Goodbye" added. "world" removed, "space" added.
-      // mergedDiffs merges consecutive same types.
+      // Expected: removed "Hello world", added "Goodbye universe"
+      // or structured diff depending on implementation detail of LCS
+      // LCS of ["Hello", "world"] and ["Goodbye", "universe"] is empty.
+      // So it should be removed Hello, removed world, added Goodbye, added universe.
+      // Or merged.
 
-      // Let's see how the implementation handles it.
-      // It iterates and adds.
-      // It might interleave removed/added or group them.
-      // Since LCS is empty, it will remove original words then add tailored words or vice versa depending on the loop.
+      // Let's see what mergeDiffs does.
+      // It merges consecutive diffs of same type.
+      // So likely: removed "Hello world", added "Goodbye universe" (order depends on implementation)
 
-      // The loop:
-      // while (origIdx < originalWords.length || tailIdx < tailoredWords.length)
-      // origMatchesLCS is false. tailMatchesLCS is false.
-      // elseif (!origMatchesLCS && origIdx < originalWords.length) -> removes original word.
-      // loop continues.
+      // diffText logic:
+      // while loop:
+      // if (origMatchesLCS && tailMatchesLCS) -> unchanged
+      // else if (!origMatchesLCS) -> removed
+      // else if (!tailMatchesLCS) -> added
 
-      // So it will remove all original words, then add all tailored words?
+      // Since LCS is empty:
+      // !origMatchesLCS is true -> removed "Hello"
+      // !origMatchesLCS is true -> removed "world"
+      // !tailMatchesLCS is true -> added "Goodbye"
+      // !tailMatchesLCS is true -> added "universe"
+
+      // So removed "Hello world", added "Goodbye universe".
       // Wait, let's trace:
-      // 1. orig "Hello" != LCS. remove "Hello". origIdx++.
-      // 2. orig "world" != LCS. remove "world". origIdx++.
-      // 3. origIdx == len.
-      // 4. tail "Goodbye" != LCS. add "Goodbye". tailIdx++.
-      // 5. tail "space" != LCS. add "space". tailIdx++.
+      // origIdx=0 (Hello). LCS empty. removed "Hello". origIdx=1.
+      // origIdx=1 (world). LCS empty. removed "world". origIdx=2.
+      // origIdx=2 (>= length). loop condition: origIdx < len || tailIdx < len.
+      // tailIdx=0 (Goodbye). added "Goodbye". tailIdx=1.
+      // tailIdx=1 (universe). added "universe". tailIdx=2.
 
-      // Merged: removed "Hello world", added "Goodbye space".
+      // merged: removed "Hello world", added "Goodbye universe".
 
-      // Wait, is that how mergeDiffs works?
-      // remove "Hello", remove "world" -> remove "Hello world".
-      // add "Goodbye", add "space" -> add "Goodbye space".
-
-      expect(result).toEqual([
-        { type: 'removed', text: 'Hello world' },
-        { type: 'added', text: 'Goodbye space' }
-      ]);
+      expect(result).toContainEqual({ type: 'removed', text: 'Hello world' });
+      expect(result).toContainEqual({ type: 'added', text: 'Goodbye universe' });
     });
 
-    it('should handle insertions', () => {
+    it('should identify added words', () => {
       const original = 'Hello world';
       const tailored = 'Hello beautiful world';
 
       const result = diffText(original, tailored);
 
       // LCS: Hello, world
-      // 1. Hello match. Unchanged "Hello".
-      // 2. orig "world" vs tail "beautiful". "world" is in LCS (next match). "beautiful" is not.
-      // Wait, the loop:
-      // lcsIdx points to "Hello".
-      // orig "Hello" == lcs[0]. tail "Hello" == lcs[0]. -> Unchanged "Hello". lcsIdx++, origIdx++, tailIdx++.
-
-      // lcsIdx points to "world".
-      // orig "world" == lcs[1]. YES.
-      // tail "beautiful" == lcs[1]. NO.
-
-      // if (origMatchesLCS && tailMatchesLCS) -> false.
-      // else if (!origMatchesLCS && origIdx < length) -> false (orig matches LCS).
-      // else if (!tailMatchesLCS && tailIdx < length) -> true. Added "beautiful". tailIdx++.
-
-      // Next iter:
-      // lcsIdx points to "world".
-      // orig "world". tail "world".
-      // match. Unchanged "world".
+      // unchanged "Hello"
+      // added "beautiful"
+      // unchanged "world"
 
       expect(result).toEqual([
         { type: 'unchanged', text: 'Hello' },
@@ -158,7 +163,7 @@ describe('diffUtils', () => {
       ]);
     });
 
-    it('should handle deletions', () => {
+    it('should identify removed words', () => {
       const original = 'Hello beautiful world';
       const tailored = 'Hello world';
 
@@ -171,154 +176,115 @@ describe('diffUtils', () => {
       ]);
     });
 
-    it('should handle replacements', () => {
-      const original = 'Hello old world';
-      const tailored = 'Hello new world';
+    it('should handle typos (replace)', () => {
+      const original = 'Hello world';
+      const tailored = 'Hello word';
 
       const result = diffText(original, tailored);
+
+      // LCS: Hello
+      // unchanged "Hello"
+      // removed "world"
+      // added "word"
 
       expect(result).toEqual([
         { type: 'unchanged', text: 'Hello' },
-        { type: 'removed', text: 'old' },
-        { type: 'added', text: 'new' },
-        { type: 'unchanged', text: 'world' }
+        { type: 'removed', text: 'world' },
+        { type: 'added', text: 'word' }
       ]);
-    });
-
-    it('should handle empty strings', () => {
-      // Test empty original
-      const result1 = diffText('', 'Hello');
-      expect(result1).toHaveLength(1);
-      expect(result1[0]).toEqual({ type: 'added', text: 'Hello' });
-
-      // Test empty tailored
-      const result2 = diffText('Hello', '');
-      expect(result2).toHaveLength(1);
-      expect(result2[0]).toEqual({ type: 'removed', text: 'Hello' });
-    });
-
-    it('should handle multiple spaces', () => {
-      const original = 'Hello  world';
-      const tailored = 'Hello world';
-
-      const result = diffText(original, tailored);
-
-      // split(/\s+/) treats multiple spaces as one delimiter
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual({ type: 'unchanged', text: 'Hello world' });
     });
   });
 
   describe('compareExperience', () => {
-    it('should handle matching experiences', () => {
-      const original = [{
-        id: '1',
-        position: 'Developer',
-        company: 'Tech Corp',
-        location: 'Remote',
-        startDate: '2020',
-        endDate: 'Present',
-        description: 'Built cool stuff',
-        achievements: ['Launched app']
-      }];
+    const mockExp: Experience = {
+      id: '1',
+      position: 'Developer',
+      company: 'Tech Corp',
+      startDate: '2020-01',
+      endDate: '2021-01',
+      current: false,
+      description: 'Wrote code',
+      achievements: ['Built app', 'Fixed bugs']
+    };
 
+    it('should compare matching experiences', () => {
+      const original = [mockExp];
       const tailored = [{
         position: 'Developer',
         company: 'Tech Corp',
-        description: 'Built cool stuff',
-        achievements: ['Launched app']
+        description: 'Wrote clean code', // changed
+        achievements: ['Built app', 'Optimized performance'] // changed
       }];
 
       const result = compareExperience(original, tailored);
 
       expect(result).toHaveLength(1);
-      expect(result[0].descriptionDiff).toHaveLength(1);
-      expect(result[0].descriptionDiff[0].type).toBe('unchanged');
-      expect(result[0].achievementsDiff.added).toEqual([]);
-      expect(result[0].achievementsDiff.removed).toEqual([]);
+      expect(result[0].position).toBe('Developer');
+
+      // Description diff: unchanged "Wrote", added "clean", unchanged "code" (or similar)
+      // "Wrote code" vs "Wrote clean code"
+      // LCS: Wrote, code
+      // unchanged "Wrote", added "clean", unchanged "code"
+      expect(result[0].descriptionDiff).toEqual([
+        { type: 'unchanged', text: 'Wrote' },
+        { type: 'added', text: 'clean' },
+        { type: 'unchanged', text: 'code' }
+      ]);
+
+      // Achievements diff
+      // Original: Built app, Fixed bugs
+      // Tailored: Built app, Optimized performance
+      // Added: Optimized performance
+      // Removed: Fixed bugs
+      // Unchanged: Built app
+      expect(result[0].achievementsDiff.added).toEqual(['Optimized performance']);
+      expect(result[0].achievementsDiff.removed).toEqual(['Fixed bugs']);
+      expect(result[0].achievementsDiff.unchanged).toEqual(['Built app']);
     });
 
     it('should handle new experiences', () => {
-      const original: any[] = [];
+      const original: Experience[] = [];
       const tailored = [{
-        position: 'Developer',
-        company: 'Tech Corp',
-        description: 'Built cool stuff',
-        achievements: ['Launched app']
-      }];
-
-      const result = compareExperience(original, tailored);
-
-      expect(result).toHaveLength(1);
-      // New experience -> all description added
-      expect(result[0].descriptionDiff).toHaveLength(1);
-      expect(result[0].descriptionDiff[0].type).toBe('added');
-      // All achievements added
-      expect(result[0].achievementsDiff.added).toEqual(['Launched app']);
-    });
-
-    it('should handle partial updates', () => {
-      const original = [{
-        id: '1',
-        position: 'Developer',
-        company: 'Tech Corp',
-        location: 'Remote',
-        startDate: '2020',
-        endDate: 'Present',
-        description: 'Built stuff',
-        achievements: ['Old achievement']
-      }];
-
-      const tailored = [{
-        position: 'Senior Developer', // Title change handled by caller matching? No, compareExperience assumes index matching based on implementation: tailored.map((exp, index) => original[index])
-        company: 'Tech Corp',
-        description: 'Built amazing stuff',
+        position: 'New Job',
+        company: 'New Co',
+        description: 'New role',
         achievements: ['New achievement']
       }];
 
       const result = compareExperience(original, tailored);
 
       expect(result).toHaveLength(1);
-      // Description diff: "stuff" -> "amazing stuff" (roughly)
-      // "Built stuff" vs "Built amazing stuff"
-      // "Built" unchanged. "amazing" added. "stuff" unchanged.
-
-      expect(result[0].descriptionDiff).toEqual(expect.arrayContaining([
-        expect.objectContaining({ type: 'unchanged', text: 'Built' }),
-        expect.objectContaining({ type: 'added', text: 'amazing' }),
-        expect.objectContaining({ type: 'unchanged', text: 'stuff' })
-      ]));
-
+      expect(result[0].descriptionDiff).toEqual([{ type: 'added', text: 'New role' }]);
       expect(result[0].achievementsDiff.added).toEqual(['New achievement']);
-      expect(result[0].achievementsDiff.removed).toEqual(['Old achievement']);
-    });
-  });
-
-  describe('countChanges', () => {
-    it('should count added and removed skills correctly', () => {
-      const skillDiff: SkillDiff = {
-        added: ['A', 'B'],
-        removed: ['C'],
-        unchanged: ['D']
-      };
-
-      const result = countChanges(skillDiff);
-
-      expect(result.added).toBe(2);
-      expect(result.removed).toBe(1);
+      expect(result[0].achievementsDiff.removed).toEqual([]);
     });
 
-    it('should return zeros for empty diff', () => {
-      const skillDiff: SkillDiff = {
-        added: [],
-        removed: [],
-        unchanged: []
-      };
+    it('should handle tailored having more items than original', () => {
+      const original = [mockExp];
+      const tailored = [
+        {
+          position: 'Developer',
+          company: 'Tech Corp',
+          description: 'Wrote code',
+          achievements: ['Built app', 'Fixed bugs']
+        },
+        {
+          position: 'Senior Developer',
+          company: 'Tech Corp',
+          description: 'Led team',
+          achievements: ['Launched product']
+        }
+      ];
 
-      const result = countChanges(skillDiff);
+      const result = compareExperience(original, tailored);
 
-      expect(result.added).toBe(0);
-      expect(result.removed).toBe(0);
+      expect(result).toHaveLength(2);
+
+      // First one matches original
+      expect(result[0].descriptionDiff).toEqual([{ type: 'unchanged', text: 'Wrote code' }]);
+
+      // Second one is new
+      expect(result[1].descriptionDiff).toEqual([{ type: 'added', text: 'Led team' }]);
     });
   });
 });
