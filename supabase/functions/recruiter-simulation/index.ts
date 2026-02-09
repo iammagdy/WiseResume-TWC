@@ -99,8 +99,8 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
-    if (authError || !claimsData?.claims) {
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError || !user) {
       console.error('Auth error:', authError?.message || 'Invalid token');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
     console.log('Authenticated user:', userId);
     // === END AUTHENTICATION ===
 

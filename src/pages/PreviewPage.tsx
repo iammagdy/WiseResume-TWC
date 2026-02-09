@@ -20,6 +20,7 @@ import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
 import { ExportOptionsSheet } from '@/components/editor/ExportOptionsSheet';
 import { ResumePhotoSheet } from '@/components/editor/ResumePhotoSheet';
+import { OnePageWizardSheet } from '@/components/editor/ai/OnePageWizardSheet';
 import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { toast } from 'sonner';
@@ -64,6 +65,7 @@ export default function PreviewPage() {
   const [showPageBreakSheet, setShowPageBreakSheet] = useState(false);
   const [showExportSheet, setShowExportSheet] = useState(false);
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
+  const [showOnePageWizard, setShowOnePageWizard] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
   
@@ -251,6 +253,7 @@ export default function PreviewPage() {
         'resume': 'Resume downloaded!',
         'cover-letter': 'Cover letter downloaded!',
         'combined': 'Application package downloaded!',
+        'one-page': 'One-page resume downloaded!',
       };
       toast.success(successMessages[type]);
       setShowExportSheet(false);
@@ -527,6 +530,13 @@ export default function PreviewPage() {
         coverLetterContext={coverLetterJobContext}
         onExport={handleExport}
         isExporting={isGenerating}
+        onOnePageWizard={() => setShowOnePageWizard(true)}
+      />
+
+      {/* One-Page Wizard Sheet */}
+      <OnePageWizardSheet
+        open={showOnePageWizard}
+        onOpenChange={setShowOnePageWizard}
       />
 
       {/* Photo Prompt Sheet */}

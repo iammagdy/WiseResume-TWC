@@ -33,15 +33,16 @@ serve(async (req) => {
     );
 
     const token = authHeader.replace('Bearer ', '');
-    const { data: claimsData, error: authError } = await supabaseClient.auth.getClaims(token);
-    if (authError || !claimsData?.claims) {
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError || !user) {
+      console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
     console.log('Authenticated user:', userId);
 
     const { resume, jobDescription, tone = 'professional', userGeminiKey } = await req.json();

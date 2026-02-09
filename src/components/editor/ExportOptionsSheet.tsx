@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Loader2, Check } from 'lucide-react';
+import { Download, FileText, Package, Loader2, Check, Minimize2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -16,6 +16,7 @@ interface ExportOptionsSheetProps {
   coverLetterContext?: CoverLetterContext | null;
   onExport: (type: ExportType, showPageNumbers: boolean, showBranding: boolean) => void;
   isExporting: boolean;
+  onOnePageWizard?: () => void;
 }
 
 export function ExportOptionsSheet({
@@ -25,6 +26,7 @@ export function ExportOptionsSheet({
   coverLetterContext,
   onExport,
   isExporting,
+  onOnePageWizard,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
   
@@ -49,6 +51,14 @@ export function ExportOptionsSheet({
       available: true,
     },
     {
+      id: 'one-page' as ExportType,
+      label: 'One-Page Resume',
+      description: 'AI-condensed to fit one page',
+      icon: Minimize2,
+      available: true,
+      isAI: true,
+    },
+    {
       id: 'cover-letter' as ExportType,
       label: 'Cover Letter Only',
       description: hasCoverLetter 
@@ -69,6 +79,11 @@ export function ExportOptionsSheet({
   ];
 
   const handleExport = () => {
+    if (selectedType === 'one-page' && onOnePageWizard) {
+      onOpenChange(false);
+      onOnePageWizard();
+      return;
+    }
     onExport(selectedType, showPageNumbers, showBranding);
   };
 
@@ -112,6 +127,11 @@ export function ExportOptionsSheet({
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{option.label}</span>
+                      {(option as any).isAI && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
+                          AI
+                        </span>
+                      )}
                       {selectedType === option.id && option.available && (
                         <Check className="w-4 h-4 text-primary" />
                       )}
@@ -168,7 +188,7 @@ export function ExportOptionsSheet({
             size="lg"
             className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={handleExport}
-            disabled={isExporting || (selectedType !== 'resume' && !hasCoverLetter)}
+            disabled={isExporting || (selectedType !== 'resume' && selectedType !== 'one-page' && !hasCoverLetter)}
             style={{
               boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
             }}
@@ -177,6 +197,11 @@ export function ExportOptionsSheet({
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 Generating PDF...
+              </>
+            ) : selectedType === 'one-page' ? (
+              <>
+                <Minimize2 className="w-5 h-5 mr-2" />
+                Open One-Page Wizard
               </>
             ) : (
               <>
