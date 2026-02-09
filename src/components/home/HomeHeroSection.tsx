@@ -84,18 +84,8 @@ export function HomeHeroSection({ userName }: HomeHeroSectionProps) {
       >
         {/* Glow behind logo */}
         <div className="absolute inset-0 scale-150 rounded-full bg-primary/20 blur-2xl animate-pulse-glow" />
-        <AppLogo size="lg" />
+        <AppLogo size="lg" showTagline={false} />
       </motion.div>
-
-      {/* Shimmer gradient text title */}
-      <motion.h1
-        className="font-display text-3xl font-bold text-shimmer mb-2"
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        WiseResume
-      </motion.h1>
 
       {/* Personalized greeting */}
       <motion.p
