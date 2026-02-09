@@ -35,10 +35,21 @@ export function DeveloperCreditCard({
       {/* Animated gradient border */}
       <div className="dev-card-border" />
       
-      {/* Glass card */}
+      {/* Sparkle elements */}
+      <div className="dev-sparkles">
+        <span className="dev-sparkle" />
+        <span className="dev-sparkle" />
+        <span className="dev-sparkle" />
+        <span className="dev-sparkle" />
+      </div>
+      
+      {/* Glass card with breathing effect */}
       <div className="dev-card">
-        {/* Floating particles */}
+        {/* Enhanced floating particles */}
         <div className="dev-particles">
+          <span />
+          <span />
+          <span />
           <span />
           <span />
           <span />
@@ -46,9 +57,12 @@ export function DeveloperCreditCard({
         
         {/* Content layout */}
         <div className="dev-card-content">
-          {/* Avatar with glow ring */}
+          {/* Avatar with glow ring and orbit */}
           <div className="dev-avatar-container">
             <div className="dev-avatar-glow" />
+            <div className="dev-orbit-ring">
+              <span className="dev-orbit-dot" />
+            </div>
             <img 
               src={avatarUrl} 
               alt={name}
@@ -61,12 +75,12 @@ export function DeveloperCreditCard({
             <h3 className="dev-name">{name}</h3>
             <p className="dev-title">{title}</p>
             
-            {/* Contact button */}
+            {/* Contact button with glow pulse */}
             <button 
               className="dev-contact-btn"
               onClick={handleContactClick}
             >
-              <Mail className="w-4 h-4" />
+              <Mail className="dev-mail-icon" />
               <span>Contact Me</span>
             </button>
           </div>
