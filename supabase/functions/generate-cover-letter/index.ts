@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ============= SECURITY: Input validation limits =============
+const MAX_RESUME_SIZE = 100 * 1024; // 100KB
+const MAX_JOB_DESCRIPTION_SIZE = 50 * 1024; // 50KB
+const VALID_TONES = ['professional', 'enthusiastic', 'conversational'];
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -41,12 +46,38 @@ serve(async (req) => {
 
     const { resume, jobDescription, tone = 'professional' } = await req.json();
     
-    if (!resume || !jobDescription) {
+    // ============= SECURITY: Input validation =============
+    if (!resume || typeof resume !== 'object') {
       return new Response(
-        JSON.stringify({ error: 'Resume and job description are required' }),
+        JSON.stringify({ error: 'Resume is required and must be an object' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    if (!jobDescription || typeof jobDescription !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Job description is required and must be a string' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const resumeStr = JSON.stringify(resume);
+    if (resumeStr.length > MAX_RESUME_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Resume data is too large. Maximum size is ${MAX_RESUME_SIZE / 1024}KB.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (jobDescription.length > MAX_JOB_DESCRIPTION_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Job description is too large. Maximum size is ${MAX_JOB_DESCRIPTION_SIZE / 1024}KB.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate tone
+    const validTone = VALID_TONES.includes(tone) ? tone : 'professional';
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -64,7 +95,7 @@ serve(async (req) => {
 2. Highlight relevant experience and skills from the resume
 3. Show genuine interest in the role
 4. Are concise (300-400 words)
-5. Use the specified tone: ${toneDescriptions[tone] || toneDescriptions.professional}
+5. Use the specified tone: ${toneDescriptions[validTone] || toneDescriptions.professional}
 
 Do not use generic phrases like "I am writing to apply for". Be specific and impactful.`;
 
@@ -89,9 +120,9 @@ Education: ${resume.education?.[0]?.degree || ''} in ${resume.education?.[0]?.fi
 JOB DESCRIPTION:
 ${jobDescription}
 
-Write a ${tone} cover letter. Start directly with an engaging opening paragraph. Include 2-3 body paragraphs highlighting relevant experience. End with a confident call to action.`;
+Write a ${validTone} cover letter. Start directly with an engaging opening paragraph. Include 2-3 body paragraphs highlighting relevant experience. End with a confident call to action.`;
 
-    console.log("Generating cover letter with tone:", tone);
+    console.log("Generating cover letter with tone:", validTone);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

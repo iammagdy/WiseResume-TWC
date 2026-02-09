@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ============= SECURITY: Input validation limits =============
+const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
+const MAX_CONTEXT_SIZE = 100 * 1024; // 100KB for context (resume data)
+const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact'];
+const VALID_ACTIONS = ['generate', 'improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets'];
+
 interface EnhanceRequest {
   section: 'summary' | 'experience' | 'education' | 'skills' | 'contact';
   action: 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
@@ -134,6 +140,37 @@ serve(async (req) => {
     console.log('Authenticated user:', userId);
 
     const { section, action, currentContent, context } = await req.json() as EnhanceRequest;
+
+    // ============= SECURITY: Input validation =============
+    if (!section || !VALID_SECTIONS.includes(section)) {
+      return new Response(
+        JSON.stringify({ error: `Invalid section. Must be one of: ${VALID_SECTIONS.join(', ')}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!action || !VALID_ACTIONS.includes(action)) {
+      return new Response(
+        JSON.stringify({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(', ')}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const contentStr = JSON.stringify(currentContent || '');
+    if (contentStr.length > MAX_CONTENT_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Content is too large. Maximum size is ${MAX_CONTENT_SIZE / 1024}KB.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const contextStr = JSON.stringify(context || {});
+    if (contextStr.length > MAX_CONTEXT_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Context is too large. Maximum size is ${MAX_CONTEXT_SIZE / 1024}KB.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log(`Enhancing ${section} with action: ${action}`);
 

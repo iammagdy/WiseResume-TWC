@@ -7,6 +7,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ============= SECURITY: Input validation limits =============
+const MAX_MESSAGES = 50; // Maximum number of messages in history
+const MAX_MESSAGE_LENGTH = 10 * 1024; // 10KB per message
+const MAX_RESUME_SIZE = 100 * 1024; // 100KB
+const MAX_JOB_DESCRIPTION_SIZE = 50 * 1024; // 50KB
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -42,6 +48,50 @@ serve(async (req) => {
     console.log('Authenticated user:', user.id);
 
     const { messages, resumeData, jobDescription, endInterview, analyzeRole } = await req.json();
+
+    // ============= SECURITY: Input validation =============
+    if (messages) {
+      if (!Array.isArray(messages)) {
+        return new Response(
+          JSON.stringify({ error: 'Messages must be an array' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (messages.length > MAX_MESSAGES) {
+        return new Response(
+          JSON.stringify({ error: `Too many messages. Maximum is ${MAX_MESSAGES}.` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      for (const msg of messages) {
+        if (typeof msg.content !== 'string' || msg.content.length > MAX_MESSAGE_LENGTH) {
+          return new Response(
+            JSON.stringify({ error: `Message content too large. Maximum is ${MAX_MESSAGE_LENGTH / 1024}KB per message.` }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+
+    if (resumeData) {
+      const resumeStr = JSON.stringify(resumeData);
+      if (resumeStr.length > MAX_RESUME_SIZE) {
+        return new Response(
+          JSON.stringify({ error: `Resume data is too large. Maximum size is ${MAX_RESUME_SIZE / 1024}KB.` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    if (jobDescription && typeof jobDescription === 'string' && jobDescription.length > MAX_JOB_DESCRIPTION_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Job description is too large. Maximum size is ${MAX_JOB_DESCRIPTION_SIZE / 1024}KB.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 

@@ -7,6 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// ============= SECURITY: Input validation limits =============
+const MAX_PROFILE_TEXT_SIZE = 200 * 1024; // 200KB for LinkedIn profiles (they can be long)
+
 interface LinkedInData {
   summary: string | null;
   experience: Array<{
@@ -64,9 +67,17 @@ serve(async (req) => {
 
     const { profileText } = await req.json();
 
+    // ============= SECURITY: Input validation =============
     if (!profileText || typeof profileText !== "string") {
       return new Response(
-        JSON.stringify({ error: "Profile text is required" }),
+        JSON.stringify({ error: "Profile text is required and must be a string" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (profileText.length > MAX_PROFILE_TEXT_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Profile text is too large. Maximum size is ${MAX_PROFILE_TEXT_SIZE / 1024}KB.` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

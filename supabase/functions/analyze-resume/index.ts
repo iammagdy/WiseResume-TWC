@@ -6,6 +6,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ============= SECURITY: Input validation limits =============
+const MAX_RESUME_SIZE = 100 * 1024; // 100KB
+const MAX_JOB_DESCRIPTION_SIZE = 50 * 1024; // 50KB
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -41,9 +45,32 @@ serve(async (req) => {
 
     const { resume, jobDescription } = await req.json();
     
-    if (!resume || !jobDescription) {
+    // ============= SECURITY: Input validation =============
+    if (!resume || typeof resume !== 'object') {
       return new Response(
-        JSON.stringify({ error: 'Resume and job description are required' }),
+        JSON.stringify({ error: 'Resume is required and must be an object' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!jobDescription || typeof jobDescription !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Job description is required and must be a string' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const resumeStr = JSON.stringify(resume);
+    if (resumeStr.length > MAX_RESUME_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Resume data is too large. Maximum size is ${MAX_RESUME_SIZE / 1024}KB.` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (jobDescription.length > MAX_JOB_DESCRIPTION_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Job description is too large. Maximum size is ${MAX_JOB_DESCRIPTION_SIZE / 1024}KB.` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

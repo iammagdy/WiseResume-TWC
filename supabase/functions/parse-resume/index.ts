@@ -6,6 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+// ============= SECURITY: Input validation limits =============
+const MAX_TEXT_LENGTH = 100 * 1024; // 100KB max for resume text
+
 // Resume data structure matching the frontend ResumeData type
 interface ParsedResume {
   contactInfo: {
@@ -209,9 +212,17 @@ serve(async (req) => {
 
     const { text } = await req.json();
 
+    // ============= SECURITY: Input validation =============
     if (!text || typeof text !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid "text" field' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (text.length > MAX_TEXT_LENGTH) {
+      return new Response(
+        JSON.stringify({ error: `Resume text is too large. Maximum size is ${MAX_TEXT_LENGTH / 1024}KB.` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
