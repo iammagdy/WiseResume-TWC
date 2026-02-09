@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Rocket, FileText, ChevronDown, Star } from 'lucide-react';
+import { Rocket, FileText, ChevronDown, Star, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PlanetLogo } from './PlanetLogo';
 import triggerHaptic from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 
 const jobTitles = ['Software Engineer', 'Product Manager', 'UX Designer', 'Data Scientist', 'Marketing Lead'];
 
@@ -17,6 +20,8 @@ const testimonials = [
 
 export function HeroSection() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { profile } = useProfile(user?.id, user);
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
 
@@ -27,6 +32,11 @@ export function HeroSection() {
     }, 3000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleProfileClick = () => {
+    triggerHaptic.light();
+    navigate(user ? '/dashboard' : '/auth');
+  };
 
   const handleLaunch = () => {
     triggerHaptic.medium();
@@ -58,6 +68,32 @@ export function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-12">
+      {/* Profile button - top right */}
+      <motion.button
+        onClick={handleProfileClick}
+        className="absolute top-6 right-4 z-20"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.5 }}
+        whileTap={{ scale: 0.95 }}
+        aria-label={user ? 'Go to dashboard' : 'Sign in'}
+      >
+        <Avatar className="w-10 h-10 border-2 border-primary/30 shadow-lg">
+          {profile?.avatarUrl ? (
+            <AvatarImage src={profile.avatarUrl} alt="Profile" />
+          ) : null}
+          <AvatarFallback className="bg-primary/20 text-primary">
+            {user ? (
+              profile?.fullName?.charAt(0).toUpperCase() || 
+              user.email?.charAt(0).toUpperCase() || 
+              <User className="w-5 h-5" />
+            ) : (
+              <User className="w-5 h-5" />
+            )}
+          </AvatarFallback>
+        </Avatar>
+      </motion.button>
+
       {/* Floating testimonial badges */}
       <motion.div
         className="absolute top-24 -left-2 sm:left-8 glass-card px-3 py-2 rounded-xl text-xs max-w-[140px] hidden sm:block"
