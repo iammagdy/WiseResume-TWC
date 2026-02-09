@@ -15,7 +15,6 @@ const jobTitles = ['Software Engineer', 'Product Manager', 'UX Designer', 'Data 
 const testimonials = [
   { text: 'Got 3 interviews in a week!', author: 'Sarah K.' },
   { text: 'Landed my dream job!', author: 'Mike T.' },
-  { text: 'Best resume tool ever!', author: 'Alex R.' },
 ];
 
 export function HeroSection() {
@@ -25,7 +24,7 @@ export function HeroSection() {
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const [currentJobIndex, setCurrentJobIndex] = useState(0);
 
-  // Typing effect for job titles
+  // Typing effect for job titles - deferred to avoid blocking
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentJobIndex((prev) => (prev + 1) % jobTitles.length);
@@ -40,7 +39,6 @@ export function HeroSection() {
 
   const handleLaunch = () => {
     triggerHaptic.medium();
-    // Create a new blank resume before navigating
     setCurrentResume({
       contactInfo: {
         fullName: '',
@@ -68,14 +66,11 @@ export function HeroSection() {
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 sm:px-6 py-12">
-      {/* Profile button - top right */}
-      <motion.button
+      {/* Profile button - immediate render, simple fade */}
+      <button
         onClick={handleProfileClick}
-        className="absolute top-6 right-4 z-20"
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.5 }}
-        whileTap={{ scale: 0.95 }}
+        className="absolute top-6 right-4 z-20 opacity-0 animate-fade-in"
+        style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
         aria-label={user ? 'Go to dashboard' : 'Sign in'}
       >
         <Avatar className="w-10 h-10 border-2 border-primary/30 shadow-lg">
@@ -92,17 +87,12 @@ export function HeroSection() {
             )}
           </AvatarFallback>
         </Avatar>
-      </motion.button>
+      </button>
 
-      {/* Floating testimonial badges */}
-      <motion.div
-        className="absolute top-24 -left-2 sm:left-8 glass-card px-3 py-2 rounded-xl text-xs max-w-[140px] hidden sm:block"
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0, y: [0, -8, 0] }}
-        transition={{ 
-          opacity: { delay: 1.5 },
-          y: { duration: 4, repeat: Infinity, ease: 'easeInOut' }
-        }}
+      {/* Static testimonial badges - no continuous animation */}
+      <div
+        className="absolute top-24 -left-2 sm:left-8 glass-card px-3 py-2 rounded-xl text-xs max-w-[140px] hidden sm:block opacity-0 animate-fade-in"
+        style={{ animationDelay: '0.8s', animationFillMode: 'forwards' }}
       >
         <div className="flex items-center gap-1 mb-1">
           <Star className="w-3 h-3 text-warning fill-warning" />
@@ -111,17 +101,11 @@ export function HeroSection() {
         </div>
         <p className="text-foreground/90">"{testimonials[0].text}"</p>
         <p className="text-muted-foreground mt-1">— {testimonials[0].author}</p>
-      </motion.div>
+      </div>
 
-      <motion.div
-        className="absolute top-40 -right-2 sm:right-8 glass-card px-3 py-2 rounded-xl text-xs max-w-[140px] hidden sm:block"
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0, y: [0, 10, 0], rotate: [1, -1, 1] }}
-        transition={{ 
-          opacity: { delay: 2 },
-          y: { duration: 5, repeat: Infinity, ease: 'easeInOut' },
-          rotate: { duration: 6, repeat: Infinity, ease: 'easeInOut' }
-        }}
+      <div
+        className="absolute top-40 -right-2 sm:right-8 glass-card px-3 py-2 rounded-xl text-xs max-w-[140px] hidden sm:block opacity-0 animate-fade-in"
+        style={{ animationDelay: '1s', animationFillMode: 'forwards' }}
       >
         <div className="flex items-center gap-1 mb-1">
           <Star className="w-3 h-3 text-warning fill-warning" />
@@ -130,69 +114,56 @@ export function HeroSection() {
         </div>
         <p className="text-foreground/90">"{testimonials[1].text}"</p>
         <p className="text-muted-foreground mt-1">— {testimonials[1].author}</p>
-      </motion.div>
+      </div>
 
-      {/* Content */}
+      {/* Content - minimal motion, fast entrance */}
       <div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto w-full">
-        {/* Planet Logo with glow */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="mb-8"
-        >
+        {/* Planet Logo - simple scale */}
+        <div className="mb-8 opacity-0 animate-scale-in" style={{ animationFillMode: 'forwards' }}>
           <PlanetLogo size="lg" />
-        </motion.div>
+        </div>
 
         {/* Welcome text */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="text-secondary text-sm font-medium tracking-wider uppercase mb-2"
+        <p
+          className="text-secondary text-sm font-medium tracking-wider uppercase mb-2 opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}
         >
           ✨ Welcome to
-        </motion.p>
+        </p>
 
-        {/* Headline with shimmer */}
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="font-display text-4xl sm:text-5xl font-bold mb-4"
+        {/* Headline */}
+        <h1
+          className="font-display text-4xl sm:text-5xl font-bold mb-4 opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.15s', animationFillMode: 'forwards' }}
         >
           <span className="text-shimmer">WiseResume</span>
-        </motion.h1>
+        </h1>
 
-        {/* Animated subheadline with typing effect */}
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="text-muted-foreground text-lg mb-8 leading-relaxed h-14"
+        {/* Animated job title - only this uses framer-motion */}
+        <p
+          className="text-muted-foreground text-lg mb-8 leading-relaxed h-14 opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}
         >
           Tailor your resume for{' '}
           <AnimatePresence mode="wait">
             <motion.span
               key={currentJobIndex}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
               className="text-primary font-medium inline-block"
             >
               {jobTitles[currentJobIndex]}
             </motion.span>
           </AnimatePresence>
           {' '}in seconds with AI
-        </motion.p>
+        </p>
 
-        {/* Feature badges with icons */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.55 }}
-          className="flex flex-wrap justify-center gap-2 mb-8"
+        {/* Feature badges - static */}
+        <div
+          className="flex flex-wrap justify-center gap-2 mb-8 opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.25s', animationFillMode: 'forwards' }}
         >
           {['4 AI Recruiters', 'Voice Interviews', 'ATS Optimized'].map((badge) => (
             <span
@@ -203,14 +174,12 @@ export function HeroSection() {
               {badge}
             </span>
           ))}
-        </motion.div>
+        </div>
 
-        {/* Glassmorphism CTA container */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
-          className="w-full space-y-4 glass-elevated p-4 rounded-2xl"
+        {/* CTA buttons */}
+        <div
+          className="w-full space-y-4 glass-elevated p-4 rounded-2xl opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
         >
           <Button
             size="lg"
@@ -221,7 +190,6 @@ export function HeroSection() {
             Launch Your Resume
           </Button>
 
-          {/* Secondary CTA */}
           <Button
             variant="ghost"
             size="lg"
@@ -231,36 +199,28 @@ export function HeroSection() {
             <FileText className="w-5 h-5" />
             Upload existing resume
           </Button>
-        </motion.div>
+        </div>
 
         {/* Trust text */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
-          className="text-sm text-muted-foreground mt-8 flex items-center gap-2"
+        <p
+          className="text-sm text-muted-foreground mt-8 flex items-center gap-2 opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.4s', animationFillMode: 'forwards' }}
         >
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
           Free • No credit card • 5 minutes
-        </motion.p>
+        </p>
       </div>
 
-      {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2 }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2"
+      {/* Scroll indicator - CSS animation */}
+      <div
+        className="absolute bottom-8 left-1/2 -translate-x-1/2 opacity-0 animate-fade-in"
+        style={{ animationDelay: '0.6s', animationFillMode: 'forwards' }}
       >
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          className="flex flex-col items-center gap-1 text-muted-foreground/50"
-        >
+        <div className="flex flex-col items-center gap-1 text-muted-foreground/50 animate-bounce-gentle">
           <span className="text-xs">Explore</span>
           <ChevronDown className="w-5 h-5" />
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
     </section>
   );
 }

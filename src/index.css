@@ -547,7 +547,69 @@
   }
 }
 
-/* Animations */
+/* Performance-optimized CSS-only animations */
+
+/* Star twinkling - CSS only, GPU accelerated */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.star-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+  will-change: opacity, transform;
+}
+
+/* Shooting star - single CSS animation */
+@keyframes shooting-star {
+  0% { 
+    transform: translateX(0) translateY(0);
+    opacity: 0;
+  }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { 
+    transform: translateX(120vw) translateY(30vh);
+    opacity: 0;
+  }
+}
+
+.shooting-star {
+  animation: shooting-star 3s ease-out infinite;
+  animation-delay: 5s;
+}
+
+/* Fast fade-in for hero elements */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}
+
+/* Scale-in for logo */
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-scale-in {
+  animation: scale-in 0.4s ease-out forwards;
+}
+
+/* Gentle bounce for scroll indicator */
+@keyframes bounce-gentle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+.animate-bounce-gentle {
+  animation: bounce-gentle 1.5s ease-in-out infinite;
+}
+
+/* Original float animation */
 @keyframes float {
   0%, 100% {
     transform: translateY(0) rotate(0deg);
