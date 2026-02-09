@@ -7,6 +7,7 @@ interface DetectAndHumanizeRequest {
   text: string;
   action: 'detect' | 'humanize' | 'both';
   tone?: 'professional' | 'confident' | 'friendly';
+  userGeminiKey?: string;
 }
 
 interface DetectionResult {
@@ -33,7 +34,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { text, action, tone = 'professional' }: DetectAndHumanizeRequest = await req.json();
+    const { text, action, tone = 'professional', userGeminiKey }: DetectAndHumanizeRequest = await req.json();
 
     if (!text || !action) {
       return new Response(
@@ -42,14 +43,26 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Determine which AI gateway to use
+    const useGeminiDirect = !!userGeminiKey;
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
+
+    if (!useGeminiDirect && !LOVABLE_API_KEY) {
       console.error('LOVABLE_API_KEY not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const apiUrl = useGeminiDirect
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+    const modelName = useGeminiDirect ? "gemini-2.0-flash" : "google/gemini-3-flash-preview";
+
+    console.log(`detect-and-humanize: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
 
     let result: { detection?: DetectionResult; humanized?: HumanizeResult } = {};
 
@@ -86,14 +99,14 @@ Analyze this text:
 ${text}
 """`;
 
-      const detectResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const detectResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: modelName,
           messages: [{ role: 'user', content: detectPrompt }],
           temperature: 0.3,
         }),
@@ -103,9 +116,18 @@ ${text}
         const errorText = await detectResponse.text();
         console.error('Detection API error:', errorText);
         
-        if (detectResponse.status === 429) {
+        if (detectResponse.status === 401 || detectResponse.status === 403) {
           return new Response(
-            JSON.stringify({ error: 'rate_limit', message: 'Too many requests. Please try again later.' }),
+            JSON.stringify({ error: 'Invalid API key. Please check your AI settings.' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (detectResponse.status === 429) {
+          const errorMsg = useGeminiDirect
+            ? 'Rate limit exceeded. Your Gemini key may have hit its quota.'
+            : 'Too many requests. Please try again later.';
+          return new Response(
+            JSON.stringify({ error: 'rate_limit', message: errorMsg }),
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
@@ -165,14 +187,14 @@ Return a JSON object with this structure:
 
 Make the rewrite feel genuinely human while preserving the professional quality and key information.`;
 
-      const humanizeResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const humanizeResponse = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: modelName,
           messages: [{ role: 'user', content: humanizePrompt }],
           temperature: 0.7,
         }),
@@ -182,9 +204,18 @@ Make the rewrite feel genuinely human while preserving the professional quality 
         const errorText = await humanizeResponse.text();
         console.error('Humanize API error:', errorText);
         
-        if (humanizeResponse.status === 429) {
+        if (humanizeResponse.status === 401 || humanizeResponse.status === 403) {
           return new Response(
-            JSON.stringify({ error: 'rate_limit', message: 'Too many requests. Please try again later.' }),
+            JSON.stringify({ error: 'Invalid API key. Please check your AI settings.' }),
+            { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        if (humanizeResponse.status === 429) {
+          const errorMsg = useGeminiDirect
+            ? 'Rate limit exceeded. Your Gemini key may have hit its quota.'
+            : 'Too many requests. Please try again later.';
+          return new Response(
+            JSON.stringify({ error: 'rate_limit', message: errorMsg }),
             { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }

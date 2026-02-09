@@ -47,7 +47,7 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const { messages, resumeData, jobDescription, endInterview, analyzeRole } = await req.json();
+    const { messages, resumeData, jobDescription, endInterview, analyzeRole, userGeminiKey } = await req.json();
 
     // ============= SECURITY: Input validation =============
     if (messages) {
@@ -92,8 +92,22 @@ serve(async (req) => {
       );
     }
 
+    // Determine which AI gateway to use
+    const useGeminiDirect = !!userGeminiKey;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    if (!useGeminiDirect && !LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    const apiUrl = useGeminiDirect
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+    const modelName = useGeminiDirect ? "gemini-2.0-flash" : "google/gemini-3-flash-preview";
+
+    console.log(`interview-chat: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
 
     const resumeContext = resumeData
       ? `
@@ -136,24 +150,29 @@ Focus on:
 - Categories should be like: Technical, Behavioral, Situational, Culture Fit, System Design, Leadership, etc. — pick 3-4 most relevant
 - Industry insights should reference real trends and expectations for this role`;
 
-      const response = await fetch(
-        "https://ai.gateway.lovable.dev/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [{ role: "user", content: analyzePrompt }],
-          }),
-        }
-      );
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [{ role: "user", content: analyzePrompt }],
+        }),
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error("AI gateway error:", response.status, errorText);
+        
+        if (response.status === 401 || response.status === 403) {
+          return new Response(
+            JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
+            { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
         return new Response(
           JSON.stringify({ error: "AI service error" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -230,25 +249,31 @@ ${jobDescription ? `IMPORTANT: You have analyzed the job description thoroughly.
 
 Start with a warm introduction as Wise AI and your first question. Do NOT list multiple questions at once. Do NOT include a score block in your very first message (since the candidate hasn't answered yet).`;
 
-    const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [{ role: "system", content: systemPrompt }, ...messages],
-        }),
-      }
-    );
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: modelName,
+        messages: [{ role: "system", content: systemPrompt }, ...messages],
+      }),
+    });
 
     if (!response.ok) {
-      if (response.status === 429) {
+      if (response.status === 401 || response.status === 403) {
         return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
+          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        const errorMsg = useGeminiDirect
+          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
+          : "Rate limit exceeded. Please wait a moment and try again.";
+        return new Response(
+          JSON.stringify({ error: errorMsg }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

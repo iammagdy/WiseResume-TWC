@@ -50,6 +50,7 @@ interface RecruiterSimulationRequest {
   persona: RecruiterPersona;
   targetRole?: string;
   targetIndustry?: string;
+  userGeminiKey?: string;
 }
 
 const PERSONA_PROMPTS: Record<RecruiterPersona, { name: string; style: string; priorities: string }> = {
@@ -111,7 +112,7 @@ Deno.serve(async (req) => {
     console.log('Authenticated user:', userId);
     // === END AUTHENTICATION ===
 
-    const { resume, persona, targetRole, targetIndustry }: RecruiterSimulationRequest = await req.json();
+    const { resume, persona, targetRole, targetIndustry, userGeminiKey }: RecruiterSimulationRequest = await req.json();
 
     if (!resume || !persona) {
       return new Response(
@@ -127,6 +128,27 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Determine which AI gateway to use
+    const useGeminiDirect = !!userGeminiKey;
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+
+    if (!useGeminiDirect && !LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY not configured');
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const apiUrl = useGeminiDirect
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
+    const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
+
+    console.log(`recruiter-simulation: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
 
     const resumeText = formatResumeForAnalysis(resume);
     const targetContext = targetRole 
@@ -155,7 +177,7 @@ Your response must be valid JSON with this exact structure:
       "fixType": "<summary|experience|skills|education|contact>"
     }
   ],
-  "questionsId Ask": [
+  "questionsIdAsk": [
     {
       "question": "<what you'd ask in an interview>",
       "concern": "<what's driving this question>",
@@ -183,15 +205,15 @@ ${resumeText}
 
 Analyze this resume from your unique perspective as ${personaConfig.name}. Be specific and reference actual content from the resume. Remember: you're thinking out loud about whether to move this candidate forward.`;
 
-    // Call Lovable AI
-    const response = await fetch('https://lovable.dev/api/llm/openai/v1/chat/completions', {
+    // Call AI gateway
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
+        model: modelName,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -203,7 +225,30 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Lovable AI error:', errorText);
+      console.error('AI gateway error:', response.status, errorText);
+      
+      if (response.status === 401 || response.status === 403) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid API key. Please check your AI settings.' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 429) {
+        const errorMsg = useGeminiDirect
+          ? 'Rate limit exceeded. Your Gemini key may have hit its quota.'
+          : 'Rate limit exceeded. Please try again later.';
+        return new Response(
+          JSON.stringify({ error: errorMsg }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'AI credits exhausted.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ error: 'AI analysis failed' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
