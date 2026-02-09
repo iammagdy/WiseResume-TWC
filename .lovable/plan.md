@@ -1,129 +1,195 @@
 
 
-# Redesign AI Studio Provider Badge for Mobile
+# Comprehensive UI Refresh: AI Studio & Landing Page
 
-## Current Issues
+## Problem Analysis
 
-Based on the screenshot, the AI Provider Badge has several problems:
+### Issue 1: AI Studio Icons Looking Bad
+The current AI Studio panel has several UX problems:
+- **Visual clutter**: 9+ action cards all using the same gradient-primary icon style
+- **Overwhelming**: Too many options visible at once, causes decision paralysis
+- **Poor hierarchy**: All tools look equally important despite different use frequencies
+- **Icon monotony**: Every icon has the same purple gradient background
 
-| Issue | Description |
-|-------|-------------|
-| **Plain Appearance** | Simple pill badge looks flat and boring compared to the cosmic glass UI |
-| **No Visual Interest** | Static design doesn't match the animated, premium feel of other elements |
-| **Poor Hierarchy** | Centered placement feels disconnected from the content sections |
-| **Missing Premium Feel** | Lacks the glow, shimmer, and depth of other AI Studio components |
+### Issue 2: Landing Page Missing Unique Value Props
+The current landing uses generic space-themed phrases but doesn't highlight:
+- **AI-powered tailoring** with before/after bullet transformation
+- **4 recruiter persona simulation**
+- **Voice mock interviews** with real-time scoring
+- **ATS optimization** with keyword analysis
+- **12 professional templates**
 
-## New Design Concept: "Cosmic AI Engine Badge"
+---
 
-A premium, animated badge that matches the cosmic glass aesthetic with subtle pulsing glow and shimmer effects.
+## Solution Overview
 
-### Visual Preview
+### Part A: AI Studio → Clean Action Hub
+
+**Replace the cluttered action grid with a focused 3-tier system:**
 
 ```text
-Current (Plain):
-┌─────────────────────────────┐
-│     ✦ WiseResume AI  ⚙     │
-└─────────────────────────────┘
+Before (Cluttered):
+┌──────────────┬──────────────┐
+│ Smart Tailor │ Job Match    │
+├──────────────┼──────────────┤
+│ AI Enhance   │ Recruiter Sim│
+├──────────────┼──────────────┤
+│ Voice Interv │ Career Path  │
+├──────────┬───┴──┬───────────┤
+│Humanizer│ Link │   1-Page   │
+└─────────┴──────┴────────────┘
 
-New (Cosmic Glass):
-╭─────────────────────────────────────╮
-│  ⟨ animated glow border ⟩          │
-│                                     │
-│   ✦  Powered by WiseResume AI  ⚙   │ ← shimmer text
-│      ↑ pulsing icon                 │ ← floating particles
-│                                     │
-╰─────────────────────────────────────╯
+After (Clean 3-Tier):
+╭─────────────────────────────╮
+│   🎯 Quick Actions (2)      │ ← Most used, always visible
+│   ┌─────────┐ ┌─────────┐   │
+│   │ Tailor  │ │ Analyze │   │
+│   └─────────┘ └─────────┘   │
+├─────────────────────────────┤
+│   ✨ More AI Tools (7) ▼    │ ← Collapsible submenu
+│   ┌─────┐┌─────┐┌─────┐     │
+│   │ 🎤  ││ 🔍  ││ 📄  │ ... │
+│   └─────┘└─────┘└─────┘     │
+╰─────────────────────────────╯
 ```
 
-### Design Features
+**Icon Design Refresh:**
+- Remove heavy gradient backgrounds
+- Use outline/line icons with subtle color tints
+- Add micro-animations on tap instead of static gradients
+- Group tools visually by category with subtle separators
 
-1. **Animated Gradient Border** - Subtle rotating gradient like the Developer Card
-2. **Pulsing AI Icon** - Sparkles icon with breathing glow animation
-3. **Shimmer Text Effect** - Moving gradient across "WiseResume AI" text
-4. **Glass Background** - Matches the cosmic theme with blur effect
-5. **Floating Micro-Particles** - 2-3 tiny dots for ambient motion
-6. **Full-Width Layout** - Spans the panel width instead of being a compact pill
+---
+
+### Part B: Landing Page → Feature Showcase
+
+**Add a new "Why WiseResume?" section highlighting unique features:**
+
+```text
+╭─────────────────────────────────────────╮
+│         ✦ Why WiseResume? ✦            │
+│                                         │
+│  ┌───────────────────────────────────┐  │
+│  │ 🔄 Before & After Magic           │  │
+│  │ "Worked on frontend" →            │  │
+│  │ "Built 15+ React components       │  │
+│  │  serving 50K+ users"              │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐   │
+│  │ 4 AI    │ │ Voice   │ │ 12 Pro  │   │
+│  │Recruiter│ │Interview│ │Templates│   │
+│  │Personas │ │ Coach   │ │         │   │
+│  └─────────┘ └─────────┘ └─────────┘   │
+│                                         │
+│  ┌───────────────────────────────────┐  │
+│  │ 🎯 ATS Score: 92%                 │  │
+│  │ ████████████░░░░ Keywords matched │  │
+│  └───────────────────────────────────┘  │
+╰─────────────────────────────────────────╯
+```
 
 ---
 
 ## Technical Implementation
 
-### Phase 1: Create New AIEngineBadge Component
-
-**New File: `src/components/editor/ai/AIEngineBadge.tsx`**
-
-A completely redesigned badge component specifically for AI Studio:
-
-```typescript
-interface AIEngineBadgeProps {
-  showSettingsLink?: boolean;
-  className?: string;
-}
-```
-
-Component structure:
-- Full-width container with animated gradient border
-- Glass morphism background
-- Flexbox layout with pulsing icon, shimmer text, and settings gear
-- 2 floating particles for ambient motion
-
-### Phase 2: Create AIEngineBadge Styles
-
-**New File: `src/components/editor/ai/AIEngineBadge.css`**
-
-Key animations:
-
-1. **Icon Pulse**
-```css
-@keyframes ai-icon-pulse {
-  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 4px hsl(var(--primary) / 0.4)); }
-  50% { transform: scale(1.1); filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.6)); }
-}
-```
-
-2. **Text Shimmer**
-```css
-@keyframes ai-text-shimmer {
-  0% { background-position: 200% center; }
-  100% { background-position: -200% center; }
-}
-```
-
-3. **Border Glow Rotate**
-```css
-@keyframes ai-border-rotate {
-  0% { --angle: 0deg; }
-  100% { --angle: 360deg; }
-}
-```
-
-4. **Floating Particles**
-```css
-@keyframes ai-particle-float {
-  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
-  50% { transform: translateY(-10px) translateX(5px); opacity: 0.6; }
-}
-```
-
-### Phase 3: Update AIAssistantBar
+### Phase 1: Redesign AI Studio Action Cards
 
 **File: `src/components/editor/AIAssistantBar.tsx`**
 
-Replace the simple `AIProviderBadge` with the new `AIEngineBadge`:
+1. **Create tier system:**
+   - Primary actions (Tailor + Analyze) - always visible as large buttons
+   - Secondary actions - collapsible "More AI Tools" section with icon-only grid
+   
+2. **New icon styling:**
+   - Replace `gradient-primary` background with transparent backgrounds
+   - Use colored icon strokes/fills matching their category
+   - Add subtle hover/tap animations
 
+3. **Action categories:**
+   | Category | Actions | Icon Color |
+   |----------|---------|------------|
+   | Optimize | Tailor, Analyze | Primary (purple) |
+   | Enhance | AI Enhance, Career Path | Secondary (cyan) |
+   | Practice | Recruiter Sim, Voice Interview | Accent (orange) |
+   | Polish | Humanizer, LinkedIn, 1-Page | Muted |
+
+**New AIActionButton styles:**
 ```tsx
-// Before
-<motion.div variants={itemVariants} className="flex items-center justify-center">
-  <AIProviderBadge size="md" showSettingsLink />
-</motion.div>
-
-// After
-<motion.div variants={itemVariants}>
-  <AIEngineBadge showSettingsLink />
-</motion.div>
+// Replace heavy gradient boxes with clean icon buttons
+<button className="flex flex-col items-center gap-1 p-3 rounded-xl 
+                   bg-transparent hover:bg-primary/5 active:scale-95">
+  <div className="w-10 h-10 rounded-full bg-primary/10 
+                  flex items-center justify-center">
+    <Wand2 className="w-5 h-5 text-primary" />
+  </div>
+  <span className="text-xs text-muted-foreground">Tailor</span>
+</button>
 ```
 
-Also remove the divider below the badge since the new design is visually distinct.
+### Phase 2: Create "Why WiseResume" Landing Section
+
+**New File: `src/components/landing/WhyWiseResume.tsx`**
+
+**Features to highlight:**
+
+| Feature | Visual | Description |
+|---------|--------|-------------|
+| **Bullet Transformation** | Before/after card with animation | Shows "Worked on X" → "Achieved Y with Z impact" |
+| **4 Recruiter Personas** | 4 avatar icons with names | Sarah (Fortune 500), Marcus (Startup), Priya (Tech), James (Executive) |
+| **Voice Interview** | Waveform animation | Real-time mock interviews with AI scoring |
+| **ATS Optimization** | Animated progress bar | Shows keyword matching score |
+| **12 Templates** | Mini template thumbnails | Professional, ATS-friendly designs |
+
+**Layout:**
+```tsx
+<section className="py-16 px-4">
+  {/* Section header */}
+  <h2>What Makes Us Different?</h2>
+  
+  {/* Before/After Transformation Card */}
+  <BulletTransformCard />
+  
+  {/* Feature grid */}
+  <div className="grid grid-cols-2 gap-4">
+    <RecruiterPersonasCard />
+    <VoiceInterviewCard />
+    <ATSScoreCard />
+    <TemplatesCard />
+  </div>
+</section>
+```
+
+### Phase 3: Update FeatureGrid with Better Icons
+
+**File: `src/components/landing/FeatureGrid.tsx`**
+
+Update features to be more specific:
+- "Orbit Score" → "ATS Match Score" with visual score indicator
+- "Warp Tailor" → "Smart Tailor" with before/after preview
+- "Beam Export" → "Pro Templates" with template preview
+
+### Phase 4: Enhance HeroSection Subtitle
+
+**File: `src/components/landing/HeroSection.tsx`**
+
+Update the subtitle to be more specific:
+```tsx
+// Before
+<p>Your AI Career Companion in the Wise Universe</p>
+
+// After  
+<p>Tailor your resume for any job in seconds with AI</p>
+```
+
+Add feature badges below CTA:
+```tsx
+<div className="flex gap-3 text-xs text-muted-foreground">
+  <span>✓ 4 AI Recruiters</span>
+  <span>✓ Voice Interviews</span>
+  <span>✓ ATS Optimized</span>
+</div>
+```
 
 ---
 
@@ -131,28 +197,70 @@ Also remove the divider below the badge since the new design is visually distinc
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/components/editor/ai/AIEngineBadge.tsx` | Create | New premium badge component for AI Studio |
-| `src/components/editor/ai/AIEngineBadge.css` | Create | Animations and styles for the badge |
-| `src/components/editor/AIAssistantBar.tsx` | Modify | Use AIEngineBadge instead of AIProviderBadge |
+| `src/components/editor/AIAssistantBar.tsx` | Major refactor | Tier-based action system, new icon styles |
+| `src/components/landing/WhyWiseResume.tsx` | Create | New unique features showcase section |
+| `src/components/landing/FeatureGrid.tsx` | Modify | More specific feature descriptions |
+| `src/components/landing/HeroSection.tsx` | Modify | Clearer value prop, feature badges |
+| `src/pages/Index.tsx` | Modify | Add WhyWiseResume section |
 
 ---
 
-## Animation Timing
+## Visual Comparison
 
-| Animation | Duration | Effect |
-|-----------|----------|--------|
-| Border rotate | 6s | Slow, premium feel |
-| Icon pulse | 3s | Breathing effect |
-| Text shimmer | 4s | Moving gradient |
-| Particles float | 4s, 5s | Staggered ambient motion |
+**AI Studio Before:**
+```text
+┌─────────────────────────────────────────┐
+│ ◆ Powered by WiseResume AI  ⚙          │
+├─────────────────────────────────────────┤
+│ OPTIMIZE FOR JOB                        │
+│ ┌─[gradient]──┐ ┌─[gradient]──┐         │
+│ │ ✦ Tailor   │ │ ◉ Match    │         │
+│ │ Auto-adapt │ │ Check ATS  │         │
+│ └─────────────┘ └─────────────┘         │
+├─────────────────────────────────────────┤
+│ ENHANCE & PRACTICE                      │
+│ ┌─[gradient]──┐ ┌─[gradient]──┐         │
+│ │ ✦ Enhance  │ │ 👤 Recruiter│         │
+│ └─────────────┘ └─────────────┘         │
+│ ... 4 more rows ...                     │
+└─────────────────────────────────────────┘
+```
+
+**AI Studio After:**
+```text
+┌─────────────────────────────────────────┐
+│ ◆ WiseResume AI  ⚙                      │
+├─────────────────────────────────────────┤
+│ ┌───────────────┐ ┌───────────────┐     │
+│ │ ✦ Tailor     │ │ ◉ Analyze    │     │← Primary (large)
+│ │ for this job │ │ job match    │     │
+│ └───────────────┘ └───────────────┘     │
+├─────────────────────────────────────────┤
+│ More Tools                          [▼] │← Collapsible
+│ ╭──────────────────────────────────────╮│
+│ │ 💬  🎤  📊  🛡️  💼  📄  📈         ││← Icon grid
+│ │Chat Int Path Hum Link 1Pg Career   ││
+│ ╰──────────────────────────────────────╯│
+└─────────────────────────────────────────┘
+```
+
+**Landing Page Feature Order:**
+1. HeroSection (updated subtitle + badges)
+2. SocialProofBar (unchanged)
+3. **WhyWiseResume** (NEW - unique features)
+4. HowItWorks (unchanged)
+5. FeatureGrid (updated descriptions)
+6. TemplateGallery (unchanged)
+7. BottomCTA (unchanged)
 
 ---
 
 ## Benefits
 
-1. **Matches AI Studio Theme** - Same cosmic glass aesthetic as action cards
-2. **Eye-Catching on Mobile** - Animations work without hover interactions
-3. **Premium Feel** - Communicates the AI engine as a first-class feature
-4. **Clear CTA** - Full-width design makes it easy to tap
-5. **Brand Consistency** - Uses the same animation patterns as Developer Card
+1. **Reduced cognitive load** - AI Studio shows only 2 primary actions by default
+2. **Better discoverability** - Secondary tools still accessible, just grouped
+3. **Cleaner aesthetic** - Lighter icon style matches cosmic glass theme
+4. **Clear value prop** - Landing page now explains why WiseResume is unique
+5. **Mobile-optimized** - Less scrolling in AI Studio panel
+6. **Faster decision-making** - Users immediately see the 2 most useful actions
 
