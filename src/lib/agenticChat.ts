@@ -1,7 +1,7 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
 export interface ChatMessage {
   id: string;
@@ -74,28 +74,27 @@ export async function sendChatMessage(
     content: m.content,
   }));
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/agentic-chat`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({
+  const { data, error } = await supabase.functions.invoke('agentic-chat', {
+    body: {
       message,
       conversationHistory: historyForApi,
       currentResume,
       userGeminiKey,
       thinkingMode: options?.thinkingMode ?? false,
       functionResponse: options?.functionResponse,
-    }),
+    },
   });
 
-  if (!response.ok) {
-    await handleAIError(response, 'Chat request failed');
+  if (error) {
+    console.error('Chat error:', error);
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      throw new Error('Unauthorized. Please log in again.');
+    }
+    throw new Error('Chat request failed');
   }
 
   trackGeminiUsage();
-  return response.json();
+  return data;
 }
 
 // Helper to send closed-loop feedback after function execution
