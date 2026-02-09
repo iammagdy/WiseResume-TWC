@@ -1,7 +1,7 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
-import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
 export interface NextRole {
   title: string;
@@ -54,19 +54,18 @@ export async function analyzeCareerPath(
 
   const userGeminiKey = getUserGeminiKey();
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/career-path-advisor`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ resume, userGeminiKey }),
+  const { data, error } = await supabase.functions.invoke('career-path-advisor', {
+    body: { resume, userGeminiKey },
   });
 
-  if (!response.ok) {
-    await handleAIError(response, 'Failed to analyze career path');
+  if (error) {
+    console.error('Career path error:', error);
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      throw new Error('Unauthorized. Please log in again.');
+    }
+    throw new Error('Failed to analyze career path');
   }
 
   trackGeminiUsage();
-  return response.json();
+  return data;
 }

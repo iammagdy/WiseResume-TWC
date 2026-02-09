@@ -1,6 +1,6 @@
-import { ResumeData, EnhancedTailorResult, TailorProgress, TailorStep, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
-import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
 export interface TailorResult {
   summary: string;
@@ -74,19 +74,18 @@ export async function tailorResumeWithProgress(
   }, 1500);
 
   try {
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-      },
-      body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
+    const { data, error } = await supabase.functions.invoke('tailor-resume', {
+      body: { resume, jobDescription, userGeminiKey },
     });
 
     clearInterval(progressInterval);
 
-    if (!response.ok) {
-      await handleAIError(response, 'Failed to tailor resume');
+    if (error) {
+      console.error('Tailor resume error:', error);
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        throw new Error('Unauthorized. Please log in again.');
+      }
+      throw new Error('Failed to tailor resume');
     }
 
     // Track usage for Gemini free tier
@@ -98,7 +97,7 @@ export async function tailorResumeWithProgress(
       message: '🎉 Tailoring complete! Your resume is supercharged.',
     } as TailorProgress);
 
-    return response.json();
+    return data;
   } catch (error) {
     clearInterval(progressInterval);
     throw error;
@@ -111,41 +110,39 @@ export async function tailorResume(
 ): Promise<TailorResult> {
   const userGeminiKey = getUserGeminiKey();
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/tailor-resume`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
+  const { data, error } = await supabase.functions.invoke('tailor-resume', {
+    body: { resume, jobDescription, userGeminiKey },
   });
 
-  if (!response.ok) {
-    await handleAIError(response, 'Failed to tailor resume');
+  if (error) {
+    console.error('Tailor resume error:', error);
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      throw new Error('Unauthorized. Please log in again.');
+    }
+    throw new Error('Failed to tailor resume');
   }
 
   trackGeminiUsage();
-  return response.json();
+  return data;
 }
 
 export async function parseJobUrl(url: string): Promise<{ title: string; company: string; description: string }> {
   const userGeminiKey = getUserGeminiKey();
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/parse-job-url`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ url, userGeminiKey }),
+  const { data, error } = await supabase.functions.invoke('parse-job-url', {
+    body: { url, userGeminiKey },
   });
 
-  if (!response.ok) {
-    await handleAIError(response, 'Failed to parse job URL');
+  if (error) {
+    console.error('Parse job URL error:', error);
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      throw new Error('Unauthorized. Please log in again.');
+    }
+    throw new Error('Failed to parse job URL');
   }
 
   trackGeminiUsage();
-  return response.json();
+  return data;
 }
 
 export async function generateCoverLetter(
@@ -155,20 +152,18 @@ export async function generateCoverLetter(
 ): Promise<string> {
   const userGeminiKey = getUserGeminiKey();
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-cover-letter`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ resume, jobDescription, tone, userGeminiKey }),
+  const { data, error } = await supabase.functions.invoke('generate-cover-letter', {
+    body: { resume, jobDescription, tone, userGeminiKey },
   });
 
-  if (!response.ok) {
-    await handleAIError(response, 'Failed to generate cover letter');
+  if (error) {
+    console.error('Cover letter error:', error);
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      throw new Error('Unauthorized. Please log in again.');
+    }
+    throw new Error('Failed to generate cover letter');
   }
 
   trackGeminiUsage();
-  const data = await response.json();
   return data.coverLetter;
 }

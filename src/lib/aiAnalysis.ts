@@ -1,6 +1,6 @@
 import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
-import { getUserGeminiKey, trackGeminiUsage, handleAIError } from './aiProvider';
-import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
 interface AnalysisResult {
   score: JobMatchScore;
@@ -13,19 +13,18 @@ export async function analyzeResume(
 ): Promise<AnalysisResult> {
   const userGeminiKey = getUserGeminiKey();
 
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/analyze-resume`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
-    },
-    body: JSON.stringify({ resume, jobDescription, userGeminiKey }),
+  const { data, error } = await supabase.functions.invoke('analyze-resume', {
+    body: { resume, jobDescription, userGeminiKey },
   });
 
-  if (!response.ok) {
-    await handleAIError(response, 'Failed to analyze resume');
+  if (error) {
+    console.error('Analyze resume error:', error);
+    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      throw new Error('Unauthorized. Please log in again.');
+    }
+    throw new Error('Failed to analyze resume');
   }
 
   trackGeminiUsage();
-  return response.json();
+  return data;
 }
