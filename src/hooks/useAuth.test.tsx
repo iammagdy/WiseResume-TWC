@@ -16,8 +16,8 @@ const mockGetSession = vi.fn(() => Promise.resolve({
 vi.mock('@/integrations/supabase/safeClient', () => ({
   supabase: {
     auth: {
-      onAuthStateChange: (...args: unknown[]) => mockOnAuthStateChange(...args),
-      getSession: (...args: unknown[]) => mockGetSession(...args),
+      onAuthStateChange: () => mockOnAuthStateChange(),
+      getSession: () => mockGetSession(),
       signOut: vi.fn(),
     },
   },

@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Target, Wand2, Plus, Mic } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
+import { AppLogo } from '@/components/brand/AppLogo';
+import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { 
