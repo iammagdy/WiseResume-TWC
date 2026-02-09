@@ -335,19 +335,20 @@ function splitIntoBlocks(lines: string[]): string[][] {
   return blocks;
 }
 
+const MONTHS_PATTERN = 'Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?';
+
+// Pattern: "Month Year - Month Year" or "Month Year - Present"
+const RANGE_PATTERN = new RegExp(
+  `((?:${MONTHS_PATTERN})\\s*\\d{4}|\\d{4})\\s*[-–—to]+\\s*((?:${MONTHS_PATTERN})\\s*\\d{4}|\\d{4}|Present|Current|Now)`,
+  'i'
+);
+
 /**
  * Extract date range from text.
+ * // Exported for testing purposes
  */
-function extractDateRange(text: string): { startDate: string; endDate: string; current: boolean } {
-  const months = 'Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?';
-  
-  // Pattern: "Month Year - Month Year" or "Month Year - Present"
-  const rangePattern = new RegExp(
-    `((?:${months})\\s*\\d{4}|\\d{4})\\s*[-–—to]+\\s*((?:${months})\\s*\\d{4}|\\d{4}|Present|Current|Now)`,
-    'i'
-  );
-  
-  const match = text.match(rangePattern);
+export function extractDateRange(text: string): { startDate: string; endDate: string; current: boolean } {
+  const match = text.match(RANGE_PATTERN);
   
   if (match) {
     const endStr = match[2].toLowerCase();
