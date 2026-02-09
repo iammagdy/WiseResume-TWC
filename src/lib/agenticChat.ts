@@ -1,6 +1,7 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 export interface ChatMessage {
   id: string;
@@ -37,7 +38,6 @@ export async function sendChatMessage(
     throw new Error(`Too many messages. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
   const userGeminiKey = getUserGeminiKey();
 
   const historyForApi = conversationHistory.slice(-10).map((m) => ({
@@ -49,7 +49,7 @@ export async function sendChatMessage(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      'Authorization': `Bearer ${SUPABASE_PUBLISHABLE_KEY}`,
     },
     body: JSON.stringify({
       message,
@@ -60,17 +60,7 @@ export async function sendChatMessage(
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Request failed' }));
-    if (response.status === 429) {
-      throw new Error('Too many requests. Please wait a moment.');
-    }
-    if (response.status === 402) {
-      throw new Error('AI credits exhausted.');
-    }
-    if (response.status === 401 && error.error?.includes('Invalid')) {
-      throw new Error('Invalid Gemini API key. Please check your AI settings.');
-    }
-    throw new Error(error.error || 'Chat request failed');
+    await handleAIError(response, 'Chat request failed');
   }
 
   trackGeminiUsage();

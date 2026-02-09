@@ -48,13 +48,23 @@ export function parseResumeDate(dateStr: string): ParsedDate | null {
     return { month: now.getMonth(), year: now.getFullYear(), isPresent: true };
   }
   
-  // Try "Month Year" format (e.g., "Jan 2020", "January 2020")
-  const monthYearMatch = trimmed.match(/^([a-z]+)\s*(\d{4})$/);
+  // Try "Month Year" format (e.g., "Jan 2020", "Jan, 2020", "Jan. 2020")
+  const monthYearMatch = trimmed.match(/^([a-z]+)[.,]?\s*(\d{4})$/);
   if (monthYearMatch) {
     const monthStr = monthYearMatch[1];
     const year = parseInt(monthYearMatch[2], 10);
     const month = MONTH_MAP[monthStr];
     if (month !== undefined && !isNaN(year)) {
+      return { month, year };
+    }
+  }
+
+  // Try "MM/YYYY" format (e.g., "05/2020", "5/2020")
+  const slashMatch = trimmed.match(/^(\d{1,2})\/(\d{4})$/);
+  if (slashMatch) {
+    const month = parseInt(slashMatch[1], 10) - 1; // Convert 1-12 to 0-11
+    const year = parseInt(slashMatch[2], 10);
+    if (!isNaN(year) && month >= 0 && month <= 11) {
       return { month, year };
     }
   }
@@ -90,18 +100,19 @@ export function getMonthsDifference(start: ParsedDate, end: ParsedDate): number 
  * Format a duration in months to a human-readable string
  */
 export function formatDuration(months: number): string {
-  if (months < 0) return '';
-  if (months === 0) return '< 1 mo';
+  const m = Math.round(months);
+  if (m < 0) return '';
+  if (m === 0) return 'Less than 1 month';
   
-  const years = Math.floor(months / 12);
-  const remainingMonths = months % 12;
+  const years = Math.floor(m / 12);
+  const remainingMonths = m % 12;
   
   const parts: string[] = [];
   if (years > 0) {
-    parts.push(`${years} yr${years > 1 ? 's' : ''}`);
+    parts.push(`${years} ${years === 1 ? 'year' : 'years'}`);
   }
   if (remainingMonths > 0) {
-    parts.push(`${remainingMonths} mo`);
+    parts.push(`${remainingMonths} ${remainingMonths === 1 ? 'month' : 'months'}`);
   }
   
   return parts.join(' ');
@@ -119,6 +130,10 @@ export function formatDateRange(startDate: string, endDate: string, isCurrent: b
   const startStr = formatMonthYear(start);
   const endStr = end?.isPresent ? 'Present' : (end ? formatMonthYear(end) : '');
   
+  if (!endStr) {
+    return startStr;
+  }
+
   return `${startStr} – ${endStr}`;
 }
 
@@ -174,7 +189,8 @@ export function detectGaps(
     const previousJob = parsed[i + 1];
     
     // Gap is between previous job's end and current job's start
-    const gapMonths = getMonthsDifference(previousJob.end, currentJob.start);
+    // Subtract 1 because adjacent months (diff=1) means 0 months gap
+    const gapMonths = getMonthsDifference(previousJob.end, currentJob.start) - 1;
     
     // Only count gaps of 1+ months
     if (gapMonths >= 1) {
@@ -193,5 +209,6 @@ export function detectGaps(
  * Get total months of gaps
  */
 export function getTotalGapMonths(gaps: GapInfo[]): number {
-  return gaps.reduce((sum, gap) => sum + gap.months, 0);
+  if (!gaps || !Array.isArray(gaps)) return 0;
+  return gaps.reduce((sum, gap) => sum + Math.max(0, gap.months), 0);
 }

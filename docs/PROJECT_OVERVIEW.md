@@ -64,13 +64,13 @@ WiseResume solves the #1 job seeker pain point: "Is my resume good enough?" It p
 | TanStack Query | Server state & caching |
 | React Hook Form | Form state management |
 
-### Backend (Lovable Cloud / Supabase)
+### Backend (Supabase)
 | Service | Purpose |
 |---------|---------|
 | Supabase Auth | Email/password authentication |
 | Supabase Database | PostgreSQL for data persistence |
 | Supabase Edge Functions | 11 serverless AI functions |
-| Lovable AI Gateway | Access to Gemini & GPT models |
+| AI Gateway | Access to Gemini & GPT models |
 
 ### Native Capabilities (Capacitor)
 | Plugin | Purpose |
@@ -687,8 +687,8 @@ Editor → AI Bar → Recruiter Sim → Choose Persona
 - **App Name:** WiseResume
 - **Brand:** WiseUniverse
 - **AI Assistant:** Wise AI
-- **Platform:** Lovable.dev
-- **Backend:** Lovable Cloud (Supabase)
+- **Platform:** WiseResume Web
+- **Backend:** Supabase
 
 ---
 

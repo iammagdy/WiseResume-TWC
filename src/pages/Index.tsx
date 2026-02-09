@@ -1,10 +1,8 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Target, Wand2, Plus, Loader2 } from 'lucide-react';
+import { Target, Wand2, Plus, Mic } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { AppLogo } from '@/components/brand/AppLogo';
-import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { 
@@ -36,6 +34,7 @@ const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet
 const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
 const HeroSection = lazy(() => import('@/components/landing/HeroSection').then(m => ({ default: m.HeroSection })));
 const SocialProofBar = lazy(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.SocialProofBar })));
+const WhyWiseResume = lazy(() => import('@/components/landing/WhyWiseResume').then(m => ({ default: m.WhyWiseResume })));
 const HowItWorks = lazy(() => import('@/components/landing/HowItWorks').then(m => ({ default: m.HowItWorks })));
 const FeatureGrid = lazy(() => import('@/components/landing/FeatureGrid').then(m => ({ default: m.FeatureGrid })));
 const TemplateGallery = lazy(() => import('@/components/landing/TemplateGallery').then(m => ({ default: m.TemplateGallery })));
@@ -43,7 +42,7 @@ const BottomCTA = lazy(() => import('@/components/landing/BottomCTA').then(m => 
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const { currentResume, matchScore, clearAll, setCurrentResume } = useResumeStore();
   
   const [showJobSheet, setShowJobSheet] = useState(false);
@@ -51,24 +50,6 @@ const Index = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const hasResume = currentResume !== null;
-
-  // Redirect authenticated users to dashboard
-  useEffect(() => {
-    if (!authLoading && user) {
-      navigate('/dashboard');
-    }
-  }, [authLoading, user, navigate]);
-
-  // Show loading state while checking auth
-  if (authLoading) {
-    return (
-      <MobileLayout>
-        <div className="flex-1 flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </MobileLayout>
-    );
-  }
 
   const handleUpload = () => {
     navigate('/upload');

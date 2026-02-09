@@ -10,7 +10,8 @@ import {
   Target,
   Clock,
   GitBranch,
-  Crown
+  Crown,
+  Mic
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ interface ResumeListCardProps {
   onEdit: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onInterview?: (id: string) => void;
   delay?: number;
   showMasterBadge?: boolean;
   showTailoredBadge?: boolean;
@@ -77,6 +79,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   onEdit,
   onDuplicate,
   onDelete,
+  onInterview,
   showMasterBadge = false,
   showTailoredBadge = false,
 }: ResumeListCardProps) {
@@ -294,6 +297,18 @@ export const ResumeListCard = memo(function ResumeListCard({
                 <Copy className="w-4 h-4 mr-2" />
                 Duplicate
               </DropdownMenuItem>
+              {onInterview && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    haptics.light();
+                    onInterview(resume.id);
+                  }}
+                >
+                  <Mic className="w-4 h-4 mr-2" />
+                  Practice Interview
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={(e) => {

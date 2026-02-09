@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { ModernTemplate } from '@/components/templates/ModernTemplate';
@@ -490,10 +490,18 @@ export default function PreviewPage() {
               variant="outline"
               size="lg"
               className="flex-1 h-11 sm:h-12 touch-manipulation"
+              onClick={() => navigate('/interview')}
+            >
+              <Mic className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <span className="text-sm sm:text-base">Interview</span>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-11 sm:h-12 px-3 touch-manipulation"
               onClick={handleShare}
             >
-              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-              <span className="text-sm sm:text-base">Share</span>
+              <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
         </motion.div>
