@@ -1,59 +1,52 @@
 
 
-# Fix Resume Card Layout Shift on Initial Load
+# Fix DashboardStats Layout Shift and Visual Duplication
 
 ## Problem
-When the dashboard first loads, the resume card appears in a "bare" state (no left border accent, no AI nudge, loading score ring) and then visibly changes ~2 seconds later once the health score API returns. This creates a jarring layout shift.
+Two issues on the dashboard:
 
-## Root Cause
-The card's appearance depends heavily on `healthScore` data that loads asynchronously:
-- The left colored border only appears when `healthScore` exists
-- The AI improvement nudge only appears when `healthScore.topImprovement` exists
-- The ScoreRing switches from a pulsing placeholder to the actual score
+1. **Layout shift**: The stats row (score ring, resume count, best score) inside the hero card is hidden until `avgScore > 0`, then suddenly appears ~2 seconds later, causing the card to grow and push content down.
 
-All three changes happening at once create a noticeable visual jump.
+2. **Visual duplication**: The same `ScoreRing` component appears in the hero card (avg score) AND on each resume card (individual score), at similar sizes, making it feel like elements are duplicated.
 
-## Solution
-Make the pre-score state visually consistent with the post-score state so the transition is seamless:
+## Changes
 
-### File: `src/components/dashboard/ResumeListCard.tsx`
+### File: `src/components/dashboard/DashboardStats.tsx`
 
-1. **Always show the left border** -- use a neutral/muted border color when no score is available yet, so the card width and position don't shift when the score loads
-2. **Reserve space for the AI nudge** -- add a placeholder skeleton line for the nudge area when the score hasn't loaded yet, so the card height stays stable
-3. **Clean up unused `FileText` import** -- it's no longer used in this component
-
-### File: `src/components/dashboard/ScoreRing.tsx`
-
-4. **Improve loading state** -- instead of a plain pulsing circle with "...", show a shimmer skeleton that matches the final ring's dimensions exactly (same size, same shape), preventing any size jitter
+1. **Always show the stats row** when `totalResumes > 0`, even before scores load. Replace the `avgScore > 0` guard with just `totalResumes > 0`.
+2. **Show loading state for the score ring** when `avgScore === 0` (scores still loading) -- use `ScoreRing` with `isLoading` prop so the ring placeholder is visible from the start, preventing layout shift.
+3. **Show "---" or skeleton for bestScore** while scores are loading.
+4. **Remove entrance animations** (`initial={{ scale: 0.8, opacity: 0 }}`, `initial={{ opacity: 0, x: -10 }}`) from the stats row items. The parent `motion.div` already handles the hero card entrance; these stacked animations cause the "popping in" effect.
+5. **Differentiate the hero ScoreRing** -- increase the size or add a label like "AVG" below it to make it visually distinct from the per-card score rings.
 
 ## Technical Details
 
-### Left Border (ResumeListCard.tsx)
-Current: border only renders when `healthScore` exists
+### Stats Row Visibility (line 115)
 ```
-healthScore && healthScore.overallScore >= 80 && "border-l-4 border-l-success"
-```
-Fixed: always show `border-l-4`, defaulting to `border-l-muted` when no score
-```
-"border-l-4",
-healthScore
-  ? healthScore.overallScore >= 80 ? "border-l-success"
-    : healthScore.overallScore >= 60 ? "border-l-warning"
-    : "border-l-destructive"
-  : "border-l-muted"
+// Before
+{totalResumes > 0 && avgScore > 0 && (
+
+// After
+{totalResumes > 0 && (
 ```
 
-### AI Nudge Placeholder (ResumeListCard.tsx)
-When `healthScore` is null and the card is still scoring, show a small shimmer bar where the nudge text would appear:
-```
-{!healthScore && (
-  <div className="mt-1.5 h-4 w-3/4 rounded bg-muted animate-pulse" />
-)}
+### ScoreRing Loading
+```tsx
+<ScoreRing
+  score={avgScore}
+  size={72}
+  strokeWidth={5}
+  isLoading={avgScore === 0}
+/>
 ```
 
-### ScoreRing Loading (ScoreRing.tsx)
-Replace the basic pulsing circle with a proper circular shimmer skeleton that matches the SVG ring dimensions, keeping layout stable.
+### Remove Per-Item Animations
+Replace `motion.div` wrappers around stats items with plain `div` elements, keeping only the parent hero card animation.
 
-### Files Modified
-1. `src/components/dashboard/ResumeListCard.tsx` -- stable border + nudge placeholder + remove unused import
-2. `src/components/dashboard/ScoreRing.tsx` -- improved loading skeleton
+### BestScore Loading
+```tsx
+<p className="text-lg font-bold leading-tight">
+  {bestScore > 0 ? bestScore : '—'}
+</p>
+```
+
