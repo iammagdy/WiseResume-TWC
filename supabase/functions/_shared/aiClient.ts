@@ -117,7 +117,8 @@ async function callLovableGateway(
   temperature: number,
   maxTokens?: number,
   tools?: AITool[],
-  toolChoice?: { type: 'function'; function: { name: string } } | 'auto'
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
 ): Promise<AIResponse> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
