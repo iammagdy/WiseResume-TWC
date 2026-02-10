@@ -260,7 +260,7 @@ export function TemplateGallery() {
     <section className="py-12 sm:py-16">
       <div className="text-center mb-8 sm:mb-10 px-4 sm:px-6 opacity-0 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
         <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
-          🚀 12 Pro Templates
+          12 Pro Templates
         </p>
         <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
           Choose Your Flight Suit

@@ -9,7 +9,6 @@ import {
 import { LazySection } from '@/components/landing/LazySection';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { HeroSection } from '@/components/landing/HeroSection';
-import { QuickActions } from '@/components/landing/QuickActions';
 const SocialProofBar = lazy(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.SocialProofBar })));
 const WhyWiseResume = lazy(() => import('@/components/landing/WhyWiseResume').then(m => ({ default: m.WhyWiseResume })));
 const HowItWorks = lazy(() => import('@/components/landing/HowItWorks').then(m => ({ default: m.HowItWorks })));
@@ -23,7 +22,6 @@ const Index = () => {
       <main className="min-h-screen">
         {/* Hero loads immediately - no Suspense for LCP */}
         <HeroSection />
-        <QuickActions />
         <LazySection skeleton={<SocialProofSkeleton />}>
           <SocialProofBar />
         </LazySection>

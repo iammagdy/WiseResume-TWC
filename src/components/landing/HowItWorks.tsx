@@ -11,7 +11,7 @@ export function HowItWorks() {
     <section className="py-12 sm:py-16 px-4 sm:px-6">
       <div className="text-center mb-8 sm:mb-10 animate-fade-in-up">
         <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
-          🛸 Your Journey
+          Your Journey
         </p>
         <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
           Mission Control

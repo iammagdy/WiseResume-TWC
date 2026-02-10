@@ -6,7 +6,7 @@ export function WhyWiseResume() {
     <section className="py-16 px-4 sm:px-6">
       <div className="text-center mb-10 animate-fade-in-up">
         <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
-          ✦ What Makes Us Different
+          What Makes Us Different
         </p>
         <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
           Why WiseResume?
@@ -29,10 +29,6 @@ export function WhyWiseResume() {
               <FeatureCard {...feature} />
             </div>
           ))}
-        </div>
-
-        <div className="animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
-          <ATSScoreCard />
         </div>
       </div>
     </section>
@@ -90,39 +86,6 @@ function FeatureCard({ icon, title, description, gradient }: FeatureCardProps) {
       </div>
       <h3 className="font-semibold text-sm mb-1">{title}</h3>
       <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
-    </Card>
-  );
-}
-
-function ATSScoreCard() {
-  return (
-    <Card className="p-5 border-border/30 bg-card/50 backdrop-blur-sm">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center">
-            <FileCheck className="w-4 h-4 text-emerald-500" />
-          </div>
-          <span className="font-semibold text-sm">ATS Match Score</span>
-        </div>
-        <span className="text-2xl font-bold text-emerald-500">92%</span>
-      </div>
-      
-      <div className="h-2 rounded-full bg-muted/50 overflow-hidden mb-3">
-        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400 animate-progress-92" />
-      </div>
-      
-      <div className="flex flex-wrap gap-1.5">
-        {['React', 'TypeScript', 'Node.js', 'AWS', '+8 more'].map((keyword, i) => (
-          <span 
-            key={keyword}
-            className={`px-2 py-0.5 rounded-full text-xs ${
-              i < 4 ? 'bg-emerald-500/10 text-emerald-600' : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            {keyword}
-          </span>
-        ))}
-      </div>
     </Card>
   );
 }

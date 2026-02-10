@@ -34,42 +34,13 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
       
       {/* Nebula overlay - static */}
       <div 
-        className="absolute inset-0 opacity-40"
+        className="absolute inset-0 opacity-25"
         style={{
           background: `
             radial-gradient(ellipse at 15% 25%, hsl(270 70% 25% / 0.5) 0%, transparent 45%),
             radial-gradient(ellipse at 85% 55%, hsl(185 70% 25% / 0.4) 0%, transparent 40%),
             radial-gradient(ellipse at 50% 85%, hsl(330 70% 25% / 0.4) 0%, transparent 50%)
           `,
-        }}
-        aria-hidden="true"
-      />
-
-      {/* Star field - CSS-only animations for performance */}
-      <div className="absolute inset-0 overflow-hidden" aria-hidden="true">
-        {stars.map((star) => (
-          <div
-            key={star.id}
-            className="absolute rounded-full bg-white star-twinkle"
-            style={{
-              left: `${star.x}%`,
-              top: `${star.y}%`,
-              width: star.size,
-              height: star.size,
-              opacity: star.opacity,
-              animationDelay: `${star.delay}s`,
-            }}
-          />
-        ))}
-      </div>
-
-      {/* Single shooting star - CSS animation */}
-      <div
-        className="absolute w-1 h-1 bg-white rounded-full shooting-star"
-        style={{
-          top: '10%',
-          left: '-5%',
-          boxShadow: '0 0 6px 2px rgba(255,255,255,0.4), -20px 0 10px rgba(255,255,255,0.1)',
         }}
         aria-hidden="true"
       />
