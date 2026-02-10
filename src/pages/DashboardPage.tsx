@@ -425,6 +425,11 @@ export default function DashboardPage() {
         )}
       </Suspense>
 
+      {/* Floating Create Button */}
+      {resumes && resumes.length > 0 && (
+        <FloatingCreateButton onClick={() => setShowCreateDialog(true)} />
+      )}
+
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>
         <AlertDialogContent>
