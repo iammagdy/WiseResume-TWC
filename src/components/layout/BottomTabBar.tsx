@@ -73,7 +73,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
         className
       )}
     >
-      <div className="flex items-center justify-around h-16">
+      <div className="flex items-center justify-around h-16 relative">
         {tabs.map((tab) => {
           const active = isActive(tab);
           const Icon = tab.icon;
@@ -85,44 +85,30 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 h-full',
                 'touch-manipulation active:scale-95 transition-all',
-                'min-w-[52px]'
+                'min-w-[52px] relative'
               )}
             >
-              <div className="relative">
+              {/* Floating pill indicator */}
+              {active && (
                 <motion.div
+                  layoutId="tab-pill"
+                  className="absolute inset-x-2 top-1 bottom-1 rounded-2xl gradient-primary opacity-[0.12]"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              
+              <div className="relative z-10">
+                <Icon
                   className={cn(
-                    'p-2 rounded-xl transition-colors duration-200',
-                    active && 'bg-primary/15'
+                    'w-5 h-5 transition-colors duration-200',
+                    active ? 'text-primary' : 'text-muted-foreground'
                   )}
-                  animate={active ? {
-                    boxShadow: '0 0 20px -4px hsl(270 100% 65% / 0.4)',
-                  } : {
-                    boxShadow: '0 0 0px 0px transparent',
-                  }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <Icon
-                    className={cn(
-                      'w-5 h-5 transition-colors duration-200',
-                      active ? 'text-primary' : 'text-muted-foreground'
-                    )}
-                  />
-                </motion.div>
-                {/* Active indicator dot */}
-                <motion.div
-                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
-                  initial={false}
-                  animate={{
-                    scale: active ? 1 : 0,
-                    opacity: active ? 1 : 0,
-                  }}
-                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               </div>
               <span
                 className={cn(
-                  'text-[10px] font-medium transition-colors',
-                  active ? 'text-primary' : 'text-muted-foreground'
+                  'text-[10px] transition-all duration-200 relative z-10',
+                  active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
                 )}
               >
                 {tab.label}
