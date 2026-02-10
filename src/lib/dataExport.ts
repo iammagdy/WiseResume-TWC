@@ -1,6 +1,7 @@
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useSettingsStore } from '@/store/settingsStore';
+import { TailorHistory } from '@/types/resume';
 
 interface ExportData {
   exportVersion: string;
@@ -122,6 +123,30 @@ export function exportSingleResume(resume: DatabaseResume): void {
 
   const safeName = resumeData.contactInfo.fullName?.replace(/[^a-z0-9]/gi, '-') || 'resume';
   downloadJson(exportData, `${safeName}-${resume.id.slice(0, 8)}.json`);
+}
+
+export function exportTailorHistory(history: TailorHistory[]): void {
+  const exportData = {
+    exportVersion: '1.0',
+    exportDate: new Date().toISOString(),
+    tailorHistory: history.map((entry) => ({
+      jobTitle: entry.jobTitle,
+      company: entry.company,
+      scoreBefore: entry.scoreBeforeAfter.before,
+      scoreAfter: entry.scoreBeforeAfter.after,
+      appliedSections: entry.appliedSections,
+      date: entry.createdAt,
+      tailoredResume: {
+        summary: entry.tailorResult.summary,
+        skills: entry.tailorResult.skills,
+        experience: entry.tailorResult.experience,
+        education: entry.tailorResult.education,
+      },
+    })),
+  };
+
+  const date = new Date().toISOString().split('T')[0];
+  downloadJson(exportData, `tailor-history-${date}.json`);
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
