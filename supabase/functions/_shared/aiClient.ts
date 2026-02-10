@@ -191,6 +191,7 @@ async function callGeminiDirect(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok) {
