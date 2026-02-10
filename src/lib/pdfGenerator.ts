@@ -2,6 +2,17 @@ import html2canvas from 'html2canvas';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions, SectionId } from '@/types/resume';
 import { TemplateConfig, getTemplateConfig } from '@/lib/templateConfig';
+import type { OnProgressCallback } from '@/hooks/useExportProgress';
+
+/** Typed error class for programmatic handling of PDF generation failures. */
+export class PdfGenerationError extends Error {
+  code: 'EMPTY_CANVAS' | 'MISSING_ELEMENT' | 'CAPTURE_FAILED' | 'UNKNOWN';
+  constructor(message: string, code: PdfGenerationError['code'] = 'UNKNOWN') {
+    super(message);
+    this.name = 'PdfGenerationError';
+    this.code = code;
+  }
+}
 
 // PDF dimensions (Letter size in points)
 const PAGE_WIDTH = 612;
@@ -646,10 +657,8 @@ export async function captureTemplateAsCanvas(
     windowHeight: height,
   });
 
-  console.log('PDF Generator: Canvas captured', { width: canvas.width, height: canvas.height });
-
   if (canvas.width === 0 || canvas.height === 0) {
-    throw new Error('Canvas capture resulted in empty image');
+    throw new PdfGenerationError('Canvas capture resulted in empty image', 'EMPTY_CANVAS');
   }
 
   return canvas;
@@ -696,15 +705,7 @@ export async function generatePDFPages(
 
     if (sourceSliceHeight <= 0) continue;
 
-    console.log(`PDF Generator: Page ${pageNum + 1}/${numPages}`, {
-      pageStart,
-      pageEnd,
-      pageContentHeight,
-      pdfContentHeight,
-      sourceY,
-      sourceSliceHeight,
-      globalScaleFactor
-    });
+    // Debug logging removed for production cleanliness
 
     // Draw the slice - scaled uniformly by global factor
     // Source: full width, slice height from captured canvas
@@ -762,7 +763,8 @@ export async function generatePDF(
   templateId: TemplateId,
   templateElement?: HTMLElement | null,
   manualBreakSections?: string[],
-  options?: PDFOptions
+  options?: PDFOptions,
+  onProgress?: OnProgressCallback
 ): Promise<Blob> {
   // Get template configuration
   const templateConfig = getTemplateConfig(templateId);
@@ -770,9 +772,13 @@ export async function generatePDF(
   // Find the template element
   const sourceElement = getTemplateSourceElement(templateElement);
 
+  onProgress?.('preparing', 5);
+
   // Wait for fonts and images to load
   await document.fonts.ready;
   await new Promise(resolve => setTimeout(resolve, 300));
+
+  onProgress?.('preparing', 10);
 
   // Prepare element for capture: fix width, remove transforms, ensure visibility
   const cleanup = prepareForCapture(sourceElement);
@@ -785,12 +791,6 @@ export async function generatePDF(
       globalScaleFactor,
       sourceHeightPerPage
     } = calculatePDFDimensions(sourceElement);
-    
-    console.log('PDF Generator: Capturing element', { 
-      sourceWidth, 
-      totalHeight, 
-      templateLayout: templateConfig.layout 
-    });
 
     // Calculate smart break positions that avoid cutting content
     let smartBreaks = findSmartBreakPositions(
@@ -806,45 +806,41 @@ export async function generatePDF(
       smartBreaks = [];
     }
 
-    console.log('PDF Generator: Smart pagination', { 
-      templateLayout: templateConfig.layout,
-      globalScaleFactor, 
-      sourceHeightPerPage, 
-      totalHeight,
-      smartBreaks,
-      manualBreakSections 
-    });
-
     // Create PDF document
     const pdfDoc = await PDFDocument.create();
+
+    onProgress?.('capturing', 20);
 
     // Capture the element directly
     const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight);
 
+    onProgress?.('paginating', 40);
+
     // Generate pages
     await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor);
 
+    onProgress?.('finalizing', 80);
+
     // Add page footer (numbers + branding)
     await addPageFooter(pdfDoc, options);
+
+    onProgress?.('finalizing', 90);
 
     // Generate PDF bytes
     const pdfBytes = await pdfDoc.save();
     const buffer = pdfBytes.buffer as ArrayBuffer;
     
-    console.log('PDF Generator: PDF created successfully');
+    onProgress?.('downloading', 100);
     return new Blob([buffer], { type: 'application/pdf' });
   } catch (error) {
-    console.error('PDF capture error:', error);
-    throw new Error('Failed to capture resume template. Please try again.');
+    if (error instanceof PdfGenerationError) throw error;
+    throw new PdfGenerationError('Failed to capture resume template. Please try again.', 'CAPTURE_FAILED');
   } finally {
     // Always restore original styles
     cleanup();
   }
 }
 
-/**
- * Generates a cover letter PDF with native text rendering.
- */
 /**
  * Generates a single-page PDF by scaling all content to fit on one page.
  * Used by the One-Page Wizard and one-page export option.
@@ -853,21 +849,23 @@ export async function generateOnePagePDF(
   resume: ResumeData,
   templateId: TemplateId,
   templateElement?: HTMLElement | null,
-  options?: PDFOptions
+  options?: PDFOptions,
+  onProgress?: OnProgressCallback
 ): Promise<Blob> {
   const templateConfig = getTemplateConfig(templateId);
   const sourceElement = getTemplateSourceElement(templateElement);
 
+  onProgress?.('preparing', 5);
   await document.fonts.ready;
   await new Promise(resolve => setTimeout(resolve, 300));
+  onProgress?.('preparing', 10);
 
   const cleanup = prepareForCapture(sourceElement);
 
   try {
     const { sourceWidth, totalHeight, globalScaleFactor } = calculatePDFDimensions(sourceElement);
 
-    console.log('One-Page PDF: Capturing', { sourceWidth, totalHeight, globalScaleFactor });
-
+    onProgress?.('capturing', 20);
     const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight);
 
     const pdfDoc = await PDFDocument.create();
@@ -886,8 +884,7 @@ export async function generateOnePagePDF(
     // Center horizontally if scaled down
     const offsetX = (PAGE_WIDTH - finalWidth) / 2;
 
-    console.log('One-Page PDF: Scaling', { pdfContentHeight, fitScale, finalWidth, finalHeight });
-
+    onProgress?.('embedding', 50);
     const imgData = canvas.toDataURL('image/png');
     const pngImage = await pdfDoc.embedPng(imgData);
 
@@ -913,14 +910,15 @@ export async function generateOnePagePDF(
       });
     }
 
+    onProgress?.('finalizing', 85);
     await addPageFooter(pdfDoc, options);
 
     const pdfBytes = await pdfDoc.save();
-    console.log('One-Page PDF: Created successfully');
+    onProgress?.('downloading', 100);
     return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
   } catch (error) {
-    console.error('One-Page PDF error:', error);
-    throw new Error('Failed to generate one-page PDF. Please try again.');
+    if (error instanceof PdfGenerationError) throw error;
+    throw new PdfGenerationError('Failed to generate one-page PDF. Please try again.', 'CAPTURE_FAILED');
   } finally {
     cleanup();
   }

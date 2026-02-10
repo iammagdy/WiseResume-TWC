@@ -26,8 +26,11 @@ const PageBreakSheet = lazy(() => import('@/components/editor/PageBreakSheet').t
 const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsSheet').then(m => ({ default: m.ExportOptionsSheet })));
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then(m => ({ default: m.ResumePhotoSheet })));
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
-import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
+import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF, getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
+import { downloadFile } from '@/lib/downloadUtils';
+import { generateAndDownloadDOCX } from '@/lib/docxGenerator';
+import { useExportProgress } from '@/hooks/useExportProgress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
@@ -75,6 +78,7 @@ export default function PreviewPage() {
   const resumeRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
   
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
@@ -88,7 +92,6 @@ export default function PreviewPage() {
     
     const config = getTemplateConfig(selectedTemplate);
     if (config.supportsPhoto && !currentResume.contactInfo.photoUrl) {
-      // Check if user has dismissed this before
       const dismissed = localStorage.getItem(`photo-prompt-${currentResume.id}`);
       if (!dismissed) {
         setShowPhotoSheet(true);
@@ -97,12 +100,9 @@ export default function PreviewPage() {
   }, [selectedTemplate, currentResume?.id]);
 
   // Update section ordering based on actual DOM layout after render
-  // This ensures sections are shown in their visual order (important for multi-column templates)
   useEffect(() => {
     const updateSectionOrder = () => {
       if (!resumeRef.current) return;
-      
-      // Small delay to ensure template has rendered
       requestAnimationFrame(() => {
         if (resumeRef.current) {
           const orderedSections = getSectionsInDOMOrder(resumeRef.current);
@@ -110,17 +110,12 @@ export default function PreviewPage() {
         }
       });
     };
-
     updateSectionOrder();
   }, [currentResume, selectedTemplate]);
 
-  // Use DOM-ordered sections, falling back to data-based ordering if DOM hasn't rendered yet
+  // Use DOM-ordered sections, falling back to data-based ordering
   const availableSections = useMemo(() => {
-    if (domSections.length > 0) {
-      return domSections;
-    }
-    
-    // Fallback: data-based order (used before first render)
+    if (domSections.length > 0) return domSections;
     if (!currentResume) return [];
     const sections: SectionId[] = [];
     if (currentResume.summary) sections.push('summary');
@@ -131,7 +126,6 @@ export default function PreviewPage() {
     return sections;
   }, [currentResume, domSections]);
 
-  // Get manual break sections for passing to components
   const manualBreakSections = useMemo(() => {
     if (pageBreakSettings.mode === 'manual' && pageBreakSettings.breakAfterSections.length > 0) {
       return pageBreakSettings.breakAfterSections;
@@ -139,8 +133,7 @@ export default function PreviewPage() {
     return undefined;
   }, [pageBreakSettings]);
 
-
-  // Resume guard - redirect to appropriate page based on auth state
+  // Resume guard
   if (!currentResume) {
     navigate(user ? '/dashboard' : '/');
     return null;
@@ -150,10 +143,7 @@ export default function PreviewPage() {
   const handleUseProfilePhoto = () => {
     if (profile?.avatarUrl) {
       updateResume({
-        contactInfo: {
-          ...currentResume.contactInfo,
-          photoUrl: profile.avatarUrl,
-        },
+        contactInfo: { ...currentResume.contactInfo, photoUrl: profile.avatarUrl },
       });
       toast.success('Profile photo added to resume');
     }
@@ -161,34 +151,17 @@ export default function PreviewPage() {
 
   const handleUploadPhoto = async (blob: Blob) => {
     try {
-      // Upload to storage if user is authenticated
       if (user) {
         const fileName = `${user.id}/resume-photo-${Date.now()}.png`;
         const { data, error } = await supabase.storage
           .from('avatars')
           .upload(fileName, blob, { upsert: true });
-        
         if (error) throw error;
-        
-        const { data: urlData } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(fileName);
-        
-        updateResume({
-          contactInfo: {
-            ...currentResume.contactInfo,
-            photoUrl: urlData.publicUrl,
-          },
-        });
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
+        updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: urlData.publicUrl } });
       } else {
-        // For non-authenticated users, use blob URL (temporary)
         const url = URL.createObjectURL(blob);
-        updateResume({
-          contactInfo: {
-            ...currentResume.contactInfo,
-            photoUrl: url,
-          },
-        });
+        updateResume({ contactInfo: { ...currentResume.contactInfo, photoUrl: url } });
       }
       toast.success('Photo added to resume');
     } catch (error) {
@@ -205,160 +178,122 @@ export default function PreviewPage() {
 
   const handleExport = async (type: ExportType, showPageNumbers: boolean, showBranding: boolean = true) => {
     setIsGenerating(true);
-    try {
-      let pdfBlob: Blob;
-      let fileName: string;
-      const baseName = currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
-      const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
+    resetProgress();
 
-      switch (type) {
-        case 'cover-letter':
-          if (!generatedCoverLetter) {
-            toast.error('Generate a cover letter first');
-            return;
+    const MAX_RETRIES = 2;
+    let attempt = 0;
+
+    const tryExport = async (): Promise<void> => {
+      try {
+        const baseName = currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
+        const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
+
+        // DOCX export path
+        if (type === 'docx') {
+          onProgress('preparing', 10);
+          onProgress('finalizing', 50);
+          const success = await generateAndDownloadDOCX(currentResume);
+          onProgress('downloading', 100);
+          if (success) {
+            toast.success('Word document downloaded!');
+            setShowExportSheet(false);
+            incrementPositiveActions();
           }
-          pdfBlob = await generateCoverLetterPDF(
-            generatedCoverLetter,
-            currentResume.contactInfo,
-            pdfOptions
-          );
-          fileName = `${baseName}_Cover_Letter.pdf`;
-          break;
+          return;
+        }
 
-        case 'combined':
-          if (!generatedCoverLetter) {
-            toast.error('Generate a cover letter first');
-            return;
-          }
-          pdfBlob = await generateCombinedPDF(
-            currentResume,
-            selectedTemplate,
-            generatedCoverLetter,
-            resumeRef.current,
-            manualBreakSections,
-            pdfOptions
-          );
-          fileName = `${baseName}_Application_Package.pdf`;
-          break;
+        let pdfBlob: Blob;
+        let fileName: string;
 
-        case 'one-page':
-          pdfBlob = await generateOnePagePDF(
-            currentResume,
-            selectedTemplate,
-            resumeRef.current,
-            pdfOptions
-          );
-          fileName = `${baseName}_Resume_OnePage.pdf`;
-          break;
+        switch (type) {
+          case 'cover-letter':
+            if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
+            pdfBlob = await generateCoverLetterPDF(generatedCoverLetter, currentResume.contactInfo, pdfOptions);
+            fileName = `${baseName}_Cover_Letter.pdf`;
+            break;
 
-        case 'resume':
-        default:
-          pdfBlob = await generatePDF(
-            currentResume,
-            selectedTemplate,
-            resumeRef.current,
-            manualBreakSections,
-            pdfOptions
-          );
-          fileName = `${baseName}_Resume.pdf`;
-          break;
-      }
+          case 'combined':
+            if (!generatedCoverLetter) { toast.error('Generate a cover letter first'); return; }
+            pdfBlob = await generateCombinedPDF(currentResume, selectedTemplate, generatedCoverLetter, resumeRef.current, manualBreakSections, pdfOptions);
+            fileName = `${baseName}_Application_Package.pdf`;
+            break;
 
-      const url = URL.createObjectURL(pdfBlob);
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const isMobile = isIOS || /Android/i.test(navigator.userAgent);
+          case 'one-page':
+            pdfBlob = await generateOnePagePDF(currentResume, selectedTemplate, resumeRef.current, pdfOptions, onProgress);
+            fileName = `${baseName}_Resume_OnePage.pdf`;
+            break;
 
-      let downloadSucceeded = false;
+          case 'resume':
+          default:
+            pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, pdfOptions, onProgress);
+            fileName = `${baseName}_Resume.pdf`;
+            break;
+        }
 
-      if (isIOS) {
-        // iOS: navigator.share is the ONLY reliable download method
-        try {
-          const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
-          if (navigator.canShare?.({ files: [file] })) {
-            await navigator.share({ files: [file], title: fileName });
-            downloadSucceeded = true;
-          } else {
-            // Fallback: open blob in new tab with instructions
-            const newTab = window.open(url, '_blank');
-            if (newTab) {
-              toast.info('Tap the share icon in Safari, then "Save to Files"', { duration: 6000 });
-            } else {
-              // Popup blocked - use anchor download with data URL
-              const dataUrl = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result as string);
-                reader.readAsDataURL(pdfBlob);
-              });
-              const link = document.createElement('a');
-              link.href = dataUrl;
-              link.download = fileName;
-              link.target = '_blank';
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              toast.info('If the file did not save, tap and hold the download button, then "Download Linked File"', { duration: 6000 });
-            }
-          }
-        } catch (err: any) {
-          if (err?.name === 'AbortError') {
-            toast.info('Download cancelled. Tap download again to save your PDF.');
-          } else {
-            toast.error('Could not save PDF. Try using the Share button instead.');
+        onProgress('downloading', 95);
+        const result = await downloadFile({ blob: pdfBlob, fileName });
+
+        if (result.cancelled) {
+          toast.info('Download cancelled. Tap download again to save your PDF.');
+          return;
+        }
+
+        if (result.success) {
+          const successMessages: Record<ExportType, string> = {
+            'resume': 'Resume downloaded!',
+            'cover-letter': 'Cover letter downloaded!',
+            'combined': 'Application package downloaded!',
+            'one-page': 'One-page resume downloaded!',
+            'docx': 'Word document downloaded!',
+          };
+          toast.success(successMessages[type]);
+          if (result.method === 'data-url' || result.method === 'open') {
+            toast.info('If the file did not save, use the share icon to "Save to Files"', { duration: 6000 });
           }
         }
-      } else if (isMobile) {
-        window.open(url, '_blank');
-        downloadSucceeded = true;
-      } else {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        downloadSucceeded = true;
-      }
 
-      if (downloadSucceeded) {
-        const successMessages: Record<ExportType, string> = {
-          'resume': 'Resume downloaded!',
-          'cover-letter': 'Cover letter downloaded!',
-          'combined': 'Application package downloaded!',
-          'one-page': 'One-page resume downloaded!',
-        };
-        toast.success(successMessages[type]);
+        onProgress('downloading', 100);
+        setShowExportSheet(false);
+        incrementPositiveActions();
+
+        setTimeout(() => {
+          if (shouldPromptForRating()) {
+            toast('Enjoying WiseResume?', {
+              description: 'Rate us on the app store to help others find us!',
+              duration: 8000,
+              action: { label: 'Rate Now', onClick: openAppStore },
+              cancel: { label: 'Later', onClick: dismissRating },
+            });
+          }
+        }, 1500);
+
+      } catch (error) {
+        attempt++;
+        const isPdfError = error instanceof PdfGenerationError;
+        const errorMessage = isPdfError && error.code === 'EMPTY_CANVAS'
+          ? 'Empty canvas captured. Ensure the resume preview is visible.'
+          : isPdfError && error.code === 'MISSING_ELEMENT'
+            ? 'Resume template not found. Please go back and try again.'
+            : 'Failed to generate PDF.';
+
+        if (attempt < MAX_RETRIES && isPdfError && error.code !== 'MISSING_ELEMENT') {
+          toast.error(`${errorMessage} Retrying... (${attempt}/${MAX_RETRIES})`, { duration: 3000 });
+          await new Promise(r => setTimeout(r, 500));
+          return tryExport();
+        }
+
+        console.error('Export error:', error);
+        toast.error(errorMessage, {
+          action: attempt >= MAX_RETRIES ? { label: 'Retry', onClick: () => handleExport(type, showPageNumbers, showBranding) } : undefined,
+        });
       }
-      setShowExportSheet(false);
-       
-       // Track positive action for rate app prompt
-       incrementPositiveActions();
-       
-       // Check if we should prompt for rating
-       setTimeout(() => {
-         if (shouldPromptForRating()) {
-           toast(
-             'Enjoying WiseResume?',
-             {
-               description: 'Rate us on the app store to help others find us!',
-               duration: 8000,
-               action: {
-                 label: 'Rate Now',
-                 onClick: openAppStore,
-               },
-               cancel: {
-                 label: 'Later',
-                 onClick: dismissRating,
-               },
-             }
-           );
-         }
-       }, 1500);
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      toast.error('Failed to generate PDF. Please try again.');
+    };
+
+    try {
+      await tryExport();
     } finally {
       setIsGenerating(false);
+      resetProgress();
     }
   };
 
@@ -369,13 +304,7 @@ export default function PreviewPage() {
   const handleSaveToFiles = async () => {
     setIsGenerating(true);
     try {
-      const pdfBlob = await generatePDF(
-        currentResume,
-        selectedTemplate,
-        resumeRef.current,
-        manualBreakSections,
-        { showPageNumbers: true }
-      );
+      const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true });
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
@@ -401,18 +330,9 @@ export default function PreviewPage() {
   const handleShare = async () => {
     if (navigator.share) {
       try {
-        const pdfBlob = await generatePDF(
-          currentResume,
-          selectedTemplate,
-          resumeRef.current,
-          manualBreakSections,
-          { showPageNumbers: true }
-        );
+        const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true });
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
-        await navigator.share({
-          title: 'My Resume',
-          files: [file],
-        });
+        await navigator.share({ title: 'My Resume', files: [file] });
       } catch (error) {
         console.error('Share error:', error);
         toast.error('Failed to share. Try downloading instead.');
@@ -488,7 +408,6 @@ export default function PreviewPage() {
             onClick={() => setShowPageBreakSheet(true)}
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors",
-              // Show different styles based on template support
               !templateConfig.supportsPageBreaks
                 ? "bg-muted text-muted-foreground"
                 : pageBreakSettings.mode === 'manual'
@@ -538,7 +457,6 @@ export default function PreviewPage() {
             <Suspense fallback={<TemplateSkeleton />}>
               <TemplateComponent resume={currentResume} />
             </Suspense>
-            {/* Page break indicators - hidden during PDF generation or for single-page templates */}
             {!isGenerating && showPageBreaks && templateConfig.supportsPageBreaks && (
               <PageBreakIndicator
                 templateRef={resumeRef}
@@ -549,7 +467,7 @@ export default function PreviewPage() {
           </motion.div>
         </div>
 
-        {/* Bottom actions - flex layout avoids sticky overlap issues */}
+        {/* Bottom actions */}
         <motion.div
           className="shrink-0 p-3 sm:p-4 glass border-t border-border space-y-2 sm:space-y-3 pb-safe"
           initial={{ opacity: 0, y: 20 }}
@@ -655,6 +573,7 @@ export default function PreviewPage() {
             onExport={handleExport}
             isExporting={isGenerating}
             templateElement={resumeRef.current}
+            exportProgress={exportProgress}
           />
         )}
         {showOnePageWizard && (

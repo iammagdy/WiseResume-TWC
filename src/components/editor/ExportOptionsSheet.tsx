@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Loader2, Check, Minimize2 } from 'lucide-react';
+import { Download, FileText, Package, Loader2, Check, Minimize2, FileType } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { ExportType, CoverLetterContext } from '@/types/resume';
 import { useSettingsStore } from '@/store/settingsStore';
 import { estimateOnePageScale } from '@/lib/pdfGenerator';
 import { cn } from '@/lib/utils';
+import type { ExportProgress } from '@/hooks/useExportProgress';
 
 interface ExportOptionsSheetProps {
   open: boolean;
@@ -19,6 +21,7 @@ interface ExportOptionsSheetProps {
   onExport: (type: ExportType, showPageNumbers: boolean, showBranding: boolean) => void;
   isExporting: boolean;
   templateElement?: HTMLElement | null;
+  exportProgress?: ExportProgress;
 }
 
 export function ExportOptionsSheet({
@@ -29,6 +32,7 @@ export function ExportOptionsSheet({
   onExport,
   isExporting,
   templateElement,
+  exportProgress,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
   
@@ -63,6 +67,14 @@ export function ExportOptionsSheet({
       available: true,
     },
     {
+      id: 'docx' as ExportType,
+      label: 'Word Document',
+      description: 'ATS-friendly text-selectable DOCX',
+      icon: FileType,
+      available: true,
+      badge: 'ATS-Friendly',
+    },
+    {
       id: 'one-page' as ExportType,
       label: 'One-Page Resume',
       description: 'Scale entire resume to fit one page',
@@ -92,6 +104,8 @@ export function ExportOptionsSheet({
   const handleExport = () => {
     onExport(selectedType, showPageNumbers, showBranding);
   };
+
+  const isDocx = selectedType === 'docx';
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -136,6 +150,11 @@ export function ExportOptionsSheet({
                       {selectedType === option.id && option.available && (
                         <Check className="w-4 h-4 text-primary" />
                       )}
+                      {'badge' in option && option.badge && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-green-500/50 text-green-600 dark:text-green-400">
+                          {option.badge}
+                        </Badge>
+                      )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {option.description}
@@ -161,50 +180,61 @@ export function ExportOptionsSheet({
             ))}
           </div>
 
-          {/* Footer options */}
-          <div className="space-y-3">
-            {/* Page numbers toggle */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-              <div className="space-y-0.5">
-                <Label htmlFor="page-numbers" className="font-medium">
-                  Page Numbers
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Show "Page X of Y" in footer
-                </p>
+          {/* Footer options - hidden for DOCX */}
+          {!isDocx && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+                <div className="space-y-0.5">
+                  <Label htmlFor="page-numbers" className="font-medium">
+                    Page Numbers
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Show "Page X of Y" in footer
+                  </p>
+                </div>
+                <Switch
+                  id="page-numbers"
+                  checked={showPageNumbers}
+                  onCheckedChange={setShowPageNumbers}
+                />
               </div>
-              <Switch
-                id="page-numbers"
-                checked={showPageNumbers}
-                onCheckedChange={setShowPageNumbers}
-              />
-            </div>
 
-            {/* Branding badge toggle */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
-              <div className="space-y-0.5">
-                <Label htmlFor="branding" className="font-medium flex items-center gap-1.5">
-                  <span className="text-primary">✦</span>
-                  WiseResume Badge
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Professional prestige stamp
-                </p>
+              <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
+                <div className="space-y-0.5">
+                  <Label htmlFor="branding" className="font-medium flex items-center gap-1.5">
+                    <span className="text-primary">✦</span>
+                    WiseResume Badge
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Professional prestige stamp
+                  </p>
+                </div>
+                <Switch
+                  id="branding"
+                  checked={showBranding}
+                  onCheckedChange={setShowBranding}
+                />
               </div>
-              <Switch
-                id="branding"
-                checked={showBranding}
-                onCheckedChange={setShowBranding}
-              />
             </div>
-          </div>
+          )}
+
+          {/* Progress indicator */}
+          {exportProgress?.isActive && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{exportProgress.message}</span>
+                <span className="font-medium">{Math.round(exportProgress.progress)}%</span>
+              </div>
+              <Progress value={exportProgress.progress} className="h-2" />
+            </div>
+          )}
 
           {/* Export button */}
           <Button
             size="lg"
             className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={handleExport}
-            disabled={isExporting || (selectedType !== 'resume' && selectedType !== 'one-page' && !hasCoverLetter)}
+            disabled={isExporting || (selectedType !== 'resume' && selectedType !== 'one-page' && selectedType !== 'docx' && !hasCoverLetter)}
             style={{
               boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
             }}
@@ -212,12 +242,12 @@ export function ExportOptionsSheet({
             {isExporting ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                Generating PDF...
+                {exportProgress?.isActive ? exportProgress.message : 'Generating...'}
               </>
             ) : (
               <>
                 <Download className="w-5 h-5 mr-2" />
-                {selectedType === 'combined' ? 'Download Package' : 'Download PDF'}
+                {isDocx ? 'Download DOCX' : selectedType === 'combined' ? 'Download Package' : 'Download PDF'}
               </>
             )}
           </Button>
