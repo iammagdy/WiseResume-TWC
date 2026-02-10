@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } fro
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
 import { Button } from '@/components/ui/button';
@@ -375,18 +376,20 @@ export default function EditorPage() {
         onDismiss={handleDismissAIIntro}
       />
 
-      {/* Sheets - lazy loaded */}
-      <Suspense fallback={null}>
-        {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
-        {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
-        {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
-        {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
-        {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
-        {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
-        {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
-        {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
-        {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
-      </Suspense>
+      {/* Sheets - lazy loaded, wrapped in ErrorBoundary */}
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
+          {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
+          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
+          {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
+          {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
+          {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
+          {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
+          {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
+          {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }

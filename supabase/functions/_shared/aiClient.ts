@@ -88,10 +88,23 @@ function mapModelForGemini(model: string): string {
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userGeminiKey } = options;
 
-  if (userGeminiKey) {
-    return callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice);
-  } else {
-    return callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice);
+  // 30-second timeout for all AI calls
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+  try {
+    if (userGeminiKey) {
+      return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    } else {
+      return await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw createAIError('network', 'AI request timed out after 30 seconds. Please try again.', 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
@@ -104,7 +117,8 @@ async function callLovableGateway(
   temperature: number,
   maxTokens?: number,
   tools?: AITool[],
-  toolChoice?: { type: 'function'; function: { name: string } } | 'auto'
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
 ): Promise<AIResponse> {
   const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   if (!LOVABLE_API_KEY) {
@@ -130,6 +144,7 @@ async function callLovableGateway(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok) {
@@ -151,7 +166,8 @@ async function callGeminiDirect(
   temperature: number,
   maxTokens?: number,
   tools?: AITool[],
-  toolChoice?: { type: 'function'; function: { name: string } } | 'auto'
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
 ): Promise<AIResponse> {
   const geminiModel = mapModelForGemini(model);
   
@@ -175,6 +191,7 @@ async function callGeminiDirect(
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+    signal,
   });
 
   if (!response.ok) {
@@ -273,4 +290,39 @@ function createAIError(type: AIError['type'], message: string, status: number): 
  */
 export function isAIError(error: unknown): error is AIError {
   return error instanceof Error && 'type' in error && 'status' in error;
+}
+
+/**
+ * Robust JSON extraction from AI response text.
+ * Tries direct parse first, then regex extraction.
+ */
+export function parseAIJSON<T = unknown>(text: string): T | null {
+  // Try direct parse first (most reliable)
+  try {
+    return JSON.parse(text.trim()) as T;
+  } catch {
+    // Fall through
+  }
+
+  // Try extracting from markdown code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (codeBlockMatch) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim()) as T;
+    } catch {
+      // Fall through
+    }
+  }
+
+  // Last resort: find the outermost {...} or [...]
+  const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[1]) as T;
+    } catch {
+      // Fall through
+    }
+  }
+
+  return null;
 }
