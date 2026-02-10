@@ -3,7 +3,7 @@
  import { Label } from '@/components/ui/label';
  import { Textarea } from '@/components/ui/textarea';
  import { cn } from '@/lib/utils';
- import { AlertCircle } from 'lucide-react';
+ import { AlertCircle, CheckCircle2 } from 'lucide-react';
  
  interface FormFieldProps {
    id: string;
