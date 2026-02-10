@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResumeListCard } from './ResumeListCard';
 import { DatabaseResume } from '@/hooks/useResumes';
+import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
