@@ -69,6 +69,7 @@ describe("pdfGenerator", () => {
     // Setup DOM mock
     mockElement = document.createElement("div");
     mockElement.setAttribute("data-resume-template", "true");
+    mockElement.scrollIntoView = vi.fn();
     document.body.appendChild(mockElement);
 
     // Setup Canvas mock
@@ -110,6 +111,9 @@ describe("pdfGenerator", () => {
       marginTop: "0px",
       marginBottom: "0px",
     } as any);
+
+    // Mock window.scrollTo
+    vi.spyOn(window, "scrollTo").mockImplementation(() => {});
 
     // Mock document.fonts
     Object.defineProperty(document, 'fonts', {
