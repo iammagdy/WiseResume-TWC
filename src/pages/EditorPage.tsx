@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } fro
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
+import { StepperNav } from '@/components/editor/StepperNav';
+import { SectionCard } from '@/components/editor/SectionCard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
