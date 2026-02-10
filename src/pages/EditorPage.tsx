@@ -269,30 +269,60 @@ export default function EditorPage() {
             className="flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
             ref={scrollContainerRef}
           >
-            <TabsContent value="contact" className="mt-0" forceMount hidden={activeTab !== 'contact'}>
-              <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'}>
-                <ContactSection />
-              </SectionCard>
+            <TabsContent value="contact" className="mt-0">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'}>
+                  <ContactSection />
+                </SectionCard>
+              </motion.div>
             </TabsContent>
-            <TabsContent value="summary" className="mt-0" forceMount hidden={activeTab !== 'summary'}>
-              <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'}>
-                <SummarySection />
-              </SectionCard>
+            <TabsContent value="summary" className="mt-0">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'}>
+                  <SummarySection />
+                </SectionCard>
+              </motion.div>
             </TabsContent>
-            <TabsContent value="experience" className="mt-0" forceMount hidden={activeTab !== 'experience'}>
-              <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'}>
-                <ExperienceSection />
-              </SectionCard>
+            <TabsContent value="experience" className="mt-0">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'}>
+                  <ExperienceSection />
+                </SectionCard>
+              </motion.div>
             </TabsContent>
-            <TabsContent value="education" className="mt-0" forceMount hidden={activeTab !== 'education'}>
-              <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'}>
-                <EducationSection />
-              </SectionCard>
+            <TabsContent value="education" className="mt-0">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'}>
+                  <EducationSection />
+                </SectionCard>
+              </motion.div>
             </TabsContent>
-            <TabsContent value="skills" className="mt-0" forceMount hidden={activeTab !== 'skills'}>
-              <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'}>
-                <SkillsSection />
-              </SectionCard>
+            <TabsContent value="skills" className="mt-0">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'}>
+                  <SkillsSection />
+                </SectionCard>
+              </motion.div>
             </TabsContent>
           </div>
         </Tabs>
