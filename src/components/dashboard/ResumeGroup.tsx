@@ -128,6 +128,7 @@ export function ResumeGroup({
                   onEdit={onEdit}
                   onDuplicate={onDuplicate}
                   onDelete={onDelete}
+                  onRename={onRename}
                   onInterview={onInterview}
                   delay={0}
                   showTailoredBadge
