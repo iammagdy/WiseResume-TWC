@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.career-path-advisor]
 verify_jwt = false
+
+[functions.score-resume]
+verify_jwt = false
