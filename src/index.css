@@ -50,10 +50,9 @@
     --warning-foreground: 240 20% 4%;
 
     /* Gradient stops */
-    --gradient-start: 270 100% 65%;
-    --gradient-mid: 300 100% 60%;
+    --gradient-start: 355 90% 60%;
+    --gradient-mid: 340 85% 55%;
     --gradient-end: 330 100% 65%;
-
     /* Space theme additions */
     --space-deep: 240 30% 3%;
     --space-nebula: 270 60% 15%;
