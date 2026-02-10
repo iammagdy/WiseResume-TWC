@@ -96,6 +96,7 @@ export const ResumeListCard = memo(function ResumeListCard({
 }: ResumeListCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
   
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
