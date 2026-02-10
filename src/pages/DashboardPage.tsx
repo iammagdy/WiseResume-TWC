@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Sparkles } from 'lucide-react';
@@ -18,6 +18,7 @@ const OnboardingCarousel = lazy(() => import('@/components/onboarding/Onboarding
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
+import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
@@ -39,6 +40,8 @@ export default function DashboardPage() {
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const { scoreResume, getCachedScore, scoringId } = useResumeScore();
+  const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
@@ -75,6 +78,32 @@ export default function DashboardPage() {
       navigate('/auth');
     }
   }, [authLoading, user, navigate]);
+
+  // Auto-score resumes in background (one at a time, debounced)
+  useEffect(() => {
+    if (!resumes || resumes.length === 0) return;
+    
+    let cancelled = false;
+    
+    const scoreNext = async () => {
+      for (const resume of resumes) {
+        if (cancelled) break;
+        const cached = getCachedScore(resume.id, resume.updated_at);
+        if (cached) {
+          setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
+          continue;
+        }
+        const resumeData = dbToResumeData(resume);
+        const score = await scoreResume(resume.id, resumeData, resume.updated_at);
+        if (score && !cancelled) {
+          setHealthScores(prev => ({ ...prev, [resume.id]: score }));
+        }
+      }
+    };
+    
+    const timer = setTimeout(scoreNext, 1000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [resumes, scoreResume, getCachedScore]);
 
   const handleOnboardingComplete = async () => {
     if (user) {
@@ -357,6 +386,8 @@ export default function DashboardPage() {
                             onInterview={handleInterview}
                             onCreateTailored={handleCreateTailored}
                             delay={index * 0.05}
+                            healthScores={healthScores}
+                            scoringId={scoringId}
                           />
                         );
                       }
@@ -371,6 +402,8 @@ export default function DashboardPage() {
                           onDelete={handleDelete}
                           onInterview={handleInterview}
                           delay={index * 0.05}
+                          healthScore={healthScores[masterResume.id]}
+                          isScoring={scoringId === masterResume.id}
                         />
                       );
                     })}
@@ -386,6 +419,8 @@ export default function DashboardPage() {
                         onInterview={handleInterview}
                         delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
                         showTailoredBadge
+                        healthScore={healthScores[resume.id]}
+                        isScoring={scoringId === resume.id}
                       />
                     ))}
                   </>

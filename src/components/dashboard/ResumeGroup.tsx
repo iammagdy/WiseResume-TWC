@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResumeListCard } from './ResumeListCard';
 import { DatabaseResume } from '@/hooks/useResumes';
+import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
@@ -17,6 +18,8 @@ interface ResumeGroupProps {
   onInterview?: (id: string) => void;
   onCreateTailored: (parentId: string) => void;
   delay?: number;
+  healthScores?: Record<string, ResumeHealthScore>;
+  scoringId?: string | null;
 }
 
 export function ResumeGroup({
@@ -28,6 +31,8 @@ export function ResumeGroup({
   onInterview,
   onCreateTailored,
   delay = 0,
+  healthScores = {},
+  scoringId = null,
 }: ResumeGroupProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasTailored = tailoredVersions.length > 0;
@@ -74,6 +79,8 @@ export function ResumeGroup({
             onInterview={onInterview}
             delay={0}
             showMasterBadge={hasTailored}
+            healthScore={healthScores[masterResume.id]}
+            isScoring={scoringId === masterResume.id}
           />
           
           {/* Tailored count badge */}
@@ -121,6 +128,8 @@ export function ResumeGroup({
                   onInterview={onInterview}
                   delay={0}
                   showTailoredBadge
+                  healthScore={healthScores[resume.id]}
+                  isScoring={scoringId === resume.id}
                 />
               </motion.div>
             ))}
