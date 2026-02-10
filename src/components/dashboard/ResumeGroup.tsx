@@ -122,7 +122,6 @@ export function ResumeGroup({
                   onDelete={onDelete}
                   onRename={onRename}
                   onInterview={onInterview}
-                  delay={0}
                   showTailoredBadge
                   healthScore={healthScores[resume.id]}
                   isScoring={scoringId === resume.id}
