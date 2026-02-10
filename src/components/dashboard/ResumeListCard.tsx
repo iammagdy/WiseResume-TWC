@@ -88,6 +88,8 @@ export const ResumeListCard = memo(function ResumeListCard({
   onInterview,
   showMasterBadge = false,
   showTailoredBadge = false,
+  healthScore,
+  isScoring = false,
 }: ResumeListCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
