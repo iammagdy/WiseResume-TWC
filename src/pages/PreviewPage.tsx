@@ -661,6 +661,9 @@ export default function PreviewPage() {
           <OnePageWizardSheet
             open={showOnePageWizard}
             onOpenChange={setShowOnePageWizard}
+            onExportOnePage={() => {
+              setTimeout(() => handleExport('one-page', true, true), 300);
+            }}
           />
         )}
         {showPhotoSheet && (
