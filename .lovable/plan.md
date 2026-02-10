@@ -1,60 +1,102 @@
 
 
-# Fix: 5-Second Blank White Screen on App Load
+# Fix: Infinite Loading on Editor Page
 
-## Problem
-The app shows a blank white screen for ~5 seconds before anything renders. The `<div id="root"></div>` in `index.html` is empty, so users see nothing until:
-1. The JS bundle downloads and parses
-2. React initializes and mounts
-3. Auth context resolves (up to 5s timeout)
-4. Google Fonts finish loading
+## Root Cause Analysis
 
-## Solution
-A two-part fix: add an instant HTML-level loading indicator, and eliminate render-blocking patterns.
+After analyzing the codebase, I found **three interconnected issues** causing the app to show a loading skeleton forever on the `/editor` route:
+
+### Issue 1: Failed Lazy Imports with No Recovery (Primary Cause)
+All page routes use `React.lazy()` wrapped in `Suspense`. If the JavaScript chunk fails to load (network hiccup, stale service worker cache, etc.), the Suspense fallback (skeleton) stays visible **forever** with no retry mechanism or error feedback.
+
+### Issue 2: AnimatePresence `mode="wait"` Delays Route Transitions
+The `AppShell` uses `AnimatePresence mode="wait"`, which forces the old page to fully complete its exit animation before the new page begins rendering. This adds artificial delay on every route change and can interact badly with Suspense -- the skeleton only starts showing AFTER the exit animation finishes.
+
+### Issue 3: `navigate()` Called During Render (Anti-Pattern)
+In `EditorPage.tsx` (line 189-192), if `currentResume` is null, the component calls `navigate()` during the render phase and returns `null`. This is a React anti-pattern that can cause silent failures or render loops in React 18 concurrent mode.
 
 ---
 
 ## Changes
 
-### 1. `index.html` -- Add Inline Loading Spinner
+### 1. `src/App.tsx` -- Add Retry-Capable Lazy Loading
 
-Add a lightweight, pure-CSS loading indicator inside the `#root` div. React automatically replaces `#root`'s children when it mounts, so no cleanup code is needed.
+Create a `lazyWithRetry` wrapper that retries failed chunk imports up to 2 times with a delay, then does a hard page reload as a last resort (fixes stale service worker chunks). This prevents infinite skeleton states from network errors.
 
-```html
-<div id="root">
-  <!-- Instant loading indicator replaced by React on mount -->
-  <div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#0a0a14;">
-    <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
-      <div style="width:32px;height:32px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);border-top-color:hsl(355,90%,60%);animation:sp .8s linear infinite;"></div>
-      <span style="font-family:system-ui,sans-serif;font-size:14px;color:rgba(255,255,255,0.5);">Loading...</span>
-    </div>
-  </div>
-  <style>@keyframes sp{to{transform:rotate(360deg)}}</style>
-</div>
+```typescript
+function lazyWithRetry(factory: () => Promise<{ default: React.ComponentType }>) {
+  return lazy(() =>
+    factory().catch((err) => {
+      // Retry once after 1s
+      return new Promise<{ default: React.ComponentType }>((resolve) =>
+        setTimeout(() => resolve(factory()), 1000)
+      ).catch(() => {
+        // Final fallback: reload page to bust stale SW cache
+        window.location.reload();
+        return { default: () => null };
+      });
+    })
+  );
+}
 ```
 
-This renders in under 50ms with zero JS, using the app's dark background color and primary brand color for the spinner.
+Apply this to all lazy page imports:
+```typescript
+const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
+const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
+// ...etc for all lazy routes
+```
 
-### 2. `src/App.tsx` -- Eliminate Render-Blocking Auth Wait
+### 2. `src/components/layout/AppShell.tsx` -- Remove `mode="wait"` from AnimatePresence
 
-The `AppRoutes` component currently renders the landing page (`Index`) which calls `useAuth()` via `HeroSection`. While `AuthProvider.loading` is `true`, no content is blocked (the provider renders children immediately). However, the `useBiometricLock` hook initializes with `isLocked: true` and only unlocks after the `checkAvailability` async call resolves. On web, this call returns quickly but still causes a brief flicker.
+Change `AnimatePresence mode="wait"` to just `AnimatePresence`. This allows the new page to start rendering immediately while the old page exits, eliminating the transition delay. Also simplify the motion.div to remove the initial/exit animations that add perceived latency.
 
-No changes needed to `AuthContext` -- it already pre-hydrates from cache and renders children immediately.
+Before:
+```tsx
+<AnimatePresence mode="wait">
+  <motion.div
+    key={location.pathname}
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
+    exit={{ opacity: 0, x: -20 }}
+    transition={{ duration: 0.2, ease: "easeInOut" }}
+  >
+```
 
-### 3. `src/components/landing/HeroSection.tsx` -- Defer Non-Critical Auth Check
+After:
+```tsx
+<motion.div
+  key={location.pathname}
+  initial={{ opacity: 0 }}
+  animate={{ opacity: 1 }}
+  transition={{ duration: 0.15 }}
+>
+```
 
-The `HeroSection` calls both `useAuth()` and `useProfile()` on mount. The profile fetch triggers a network request that can delay interactivity. The profile data is only needed for the avatar in the top-right corner, so we can defer it:
+### 3. `src/pages/EditorPage.tsx` -- Replace `navigate()` During Render with `<Navigate>`
 
-- Keep `useAuth()` as-is (it reads from context, no delay)
-- Delay the profile query render -- show the sign-in button immediately, swap to avatar once profile loads (this already works since `useProfile` returns `null` initially)
+Replace the anti-pattern of calling `navigate()` during render with React Router's `<Navigate>` component, which is the correct declarative approach.
 
-No code changes needed here; the current pattern is correct.
+Before:
+```tsx
+if (!currentResume) {
+  navigate(user ? '/dashboard' : '/');
+  return null;
+}
+```
 
-### 4. `index.html` -- Make Font Loading Non-Blocking
+After:
+```tsx
+import { Navigate } from 'react-router-dom';
+// ...
+if (!currentResume) {
+  return <Navigate to={user ? '/dashboard' : '/'} replace />;
+}
+```
 
-The current font preload uses `onload` pattern which is good, but add a `font-display: swap` fallback in the noscript tag and ensure the preload doesn't block first paint. The current implementation is already correct with `as="style"` and `onload`.
+### 4. `src/App.tsx` -- Add Suspense Timeout Fallback
 
-No changes needed.
+Add an `ErrorBoundary` around each route's `Suspense` so that if a lazy import throws (after retries fail), the user sees an error message with a retry button instead of an infinite skeleton.
 
 ---
 
@@ -62,12 +104,12 @@ No changes needed.
 
 | File | Change | Impact |
 |------|--------|--------|
-| `index.html` | Add inline CSS spinner inside `#root` | Instant visual feedback (< 50ms) |
-
-This is a single, surgical change. The spinner matches the app's dark theme (`#0a0a14` background) and uses the primary brand color (`hsl(355,90%,60%)`) for the spinning indicator. React's `createRoot().render()` automatically replaces the contents of `#root`, so the spinner disappears the moment the app mounts -- no JavaScript cleanup needed.
+| `src/App.tsx` | Add `lazyWithRetry` wrapper + ErrorBoundary per route | Prevents infinite skeleton from failed chunk loads |
+| `src/components/layout/AppShell.tsx` | Remove AnimatePresence `mode="wait"`, simplify transition | Faster route transitions, eliminates transition deadlock |
+| `src/pages/EditorPage.tsx` | Replace `navigate()` with `<Navigate>` component | Fixes React anti-pattern, prevents render loop |
 
 ## Testing
-- Hard-refresh the app (Ctrl+Shift+R) and confirm the spinner appears immediately
-- Verify the spinner disappears once the landing page renders
-- Test on slow 3G throttling in DevTools to confirm the spinner is visible during load
+- Hard-refresh the app and navigate to `/editor` -- should load immediately or show error message if chunk fails
+- Navigate between pages rapidly to confirm no transition delays
+- Test with slow 3G throttling to verify the retry mechanism works
 
