@@ -114,8 +114,8 @@ export function HeroSection() {
         </h1>
 
         <p
-          className="text-muted-foreground text-lg mb-10 leading-relaxed opacity-0 animate-fade-in max-w-sm"
-          style={{ animationDelay: '0.15s', animationFillMode: 'forwards' }}
+          className="text-muted-foreground text-lg mb-10 leading-relaxed animate-fade-in max-w-sm"
+          style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}
         >
           AI-powered resumes that land interviews
         </p>
