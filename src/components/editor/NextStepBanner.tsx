@@ -1,9 +1,9 @@
-import { X, Eye, Target } from 'lucide-react';
+import { X, Eye, Target, Mic } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface NextStepBannerProps {
-  variant: 'preview' | 'tailor';
+  variant: 'preview' | 'tailor' | 'interview';
   onAction: () => void;
 }
 
@@ -20,6 +20,12 @@ const config = {
     actionLabel: 'Tailor',
     settingsKey: 'hasSeenTailorHint' as const,
   },
+  interview: {
+    icon: Mic,
+    text: 'Ready to practice? Try AI Interview Prep.',
+    actionLabel: 'Interview',
+    settingsKey: 'hasSeenInterviewHint' as const,
+  },
 };
 
 export function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
@@ -30,6 +36,7 @@ export function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
   const dismiss = () => {
     if (settingsKey === 'hasSeenPreviewHint') settings.setHasSeenPreviewHint(true);
     if (settingsKey === 'hasSeenTailorHint') settings.setHasSeenTailorHint(true);
+    if (settingsKey === 'hasSeenInterviewHint') settings.setHasSeenInterviewHint(true);
   };
 
   if (dismissed) return null;
