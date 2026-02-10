@@ -88,10 +88,23 @@ function mapModelForGemini(model: string): string {
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
   const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userGeminiKey } = options;
 
-  if (userGeminiKey) {
-    return callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice);
-  } else {
-    return callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice);
+  // 30-second timeout for all AI calls
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
+  try {
+    if (userGeminiKey) {
+      return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    } else {
+      return await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      throw createAIError('network', 'AI request timed out after 30 seconds. Please try again.', 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
