@@ -153,11 +153,12 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   return (
     <div className={cn(
-      "relative overflow-hidden rounded-2xl",
-      // Score-based left border accent
-      healthScore && healthScore.overallScore >= 80 && "border-l-4 border-l-success",
-      healthScore && healthScore.overallScore >= 60 && healthScore.overallScore < 80 && "border-l-4 border-l-warning",
-      healthScore && healthScore.overallScore < 60 && "border-l-4 border-l-destructive",
+      "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
+      healthScore
+        ? healthScore.overallScore >= 80 ? "border-l-success"
+          : healthScore.overallScore >= 60 ? "border-l-warning"
+          : "border-l-destructive"
+        : "border-l-muted",
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
