@@ -294,16 +294,16 @@ export default function DashboardPage() {
           <QuickActionChips onCreateNew={() => setShowCreateDialog(true)} />
         )}
 
-        {/* Search (only show if there are resumes) */}
+        {/* Search pill */}
         {resumes && resumes.length > 0 && (
           <div className="px-4 pb-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search resumes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-full h-11 glass-input"
               />
             </div>
           </div>
