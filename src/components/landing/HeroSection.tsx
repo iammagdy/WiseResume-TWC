@@ -58,8 +58,8 @@ export function HeroSection() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 opacity-0 animate-fade-in"
-              style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+              className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 animate-fade-in"
+              style={{ animationFillMode: 'backwards', animationDelay: '0.3s' }}
             >
               <Avatar className="h-9 w-9 border-2 border-primary/30">
                 <AvatarImage src={profile?.avatarUrl ?? undefined} />
@@ -91,8 +91,8 @@ export function HeroSection() {
       ) : (
         <button
           onClick={() => { triggerHaptic.light(); navigate('/auth'); }}
-          className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+          className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors animate-fade-in"
+          style={{ animationFillMode: 'backwards', animationDelay: '0.3s' }}
         >
           <LogIn className="w-4 h-4" />
           Sign In
@@ -102,28 +102,28 @@ export function HeroSection() {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto w-full">
         {/* Planet logo */}
-        <div className="mb-10 opacity-0 animate-scale-in" style={{ animationFillMode: 'forwards' }}>
+        <div className="mb-10 animate-scale-in" style={{ animationFillMode: 'backwards' }}>
           <PlanetLogo size="md" />
         </div>
 
         <h1
-          className="font-display text-4xl sm:text-5xl font-bold mb-4 opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}
+          className="font-display text-4xl sm:text-5xl font-bold mb-4 animate-fade-in"
+          style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}
         >
           <span className="text-shimmer">WiseResume</span>
         </h1>
 
         <p
-          className="text-muted-foreground text-lg mb-10 leading-relaxed opacity-0 animate-fade-in max-w-sm"
-          style={{ animationDelay: '0.15s', animationFillMode: 'forwards' }}
+          className="text-muted-foreground text-lg mb-10 leading-relaxed animate-fade-in max-w-sm"
+          style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}
         >
           AI-powered resumes that land interviews
         </p>
 
         {/* CTA buttons */}
         <div
-          className="w-full space-y-3 glass-elevated p-5 rounded-2xl opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}
+          className="w-full space-y-3 glass-elevated p-5 rounded-2xl animate-fade-in"
+          style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}
         >
           <Button
             size="lg"
@@ -147,8 +147,8 @@ export function HeroSection() {
 
         {/* Trust text */}
         <p
-          className="text-sm text-muted-foreground mt-8 flex items-center gap-2 opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+          className="text-sm text-muted-foreground mt-8 flex items-center gap-2 animate-fade-in"
+          style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}
         >
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
           Free · No credit card · 5 minutes

@@ -167,7 +167,23 @@ export default function EditorPage() {
         saveToCloud();
       }
     };
-  }, []);
+  }, [user, currentResumeId, currentResume, saveToCloud]);
+
+  // Warn guests about unsaved data loss (H6)
+  useEffect(() => {
+    if (user || !currentResume) return;
+
+    const hasContent = currentResume.contactInfo?.fullName || currentResume.summary || currentResume.experience?.length > 0;
+    if (!hasContent) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [user, currentResume]);
 
   // Resume guard - redirect to appropriate page based on auth state
   if (!currentResume) {

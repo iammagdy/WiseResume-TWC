@@ -128,7 +128,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.2 }}
                   className={cn(
-                    'text-[10px] relative z-10',
+                    'text-[11px] relative z-10',
                     active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
                   )}
                 >
