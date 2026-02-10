@@ -827,6 +827,87 @@ export async function generatePDF(
 /**
  * Generates a cover letter PDF with native text rendering.
  */
+/**
+ * Generates a single-page PDF by scaling all content to fit on one page.
+ * Used by the One-Page Wizard and one-page export option.
+ */
+export async function generateOnePagePDF(
+  resume: ResumeData,
+  templateId: TemplateId,
+  templateElement?: HTMLElement | null,
+  options?: PDFOptions
+): Promise<Blob> {
+  const templateConfig = getTemplateConfig(templateId);
+  const sourceElement = getTemplateSourceElement(templateElement);
+
+  await document.fonts.ready;
+  await new Promise(resolve => setTimeout(resolve, 300));
+
+  const cleanup = prepareForCapture(sourceElement);
+
+  try {
+    const { sourceWidth, totalHeight, globalScaleFactor } = calculatePDFDimensions(sourceElement);
+
+    console.log('One-Page PDF: Capturing', { sourceWidth, totalHeight, globalScaleFactor });
+
+    const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight);
+
+    const pdfDoc = await PDFDocument.create();
+
+    // Calculate the full content height in PDF points
+    const pdfContentHeight = totalHeight * globalScaleFactor;
+
+    // Calculate scale factor to fit everything on one page
+    const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
+      ? PRINTABLE_HEIGHT / pdfContentHeight
+      : 1;
+
+    const finalWidth = PAGE_WIDTH * fitScale;
+    const finalHeight = pdfContentHeight * fitScale;
+
+    // Center horizontally if scaled down
+    const offsetX = (PAGE_WIDTH - finalWidth) / 2;
+
+    console.log('One-Page PDF: Scaling', { pdfContentHeight, fitScale, finalWidth, finalHeight });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pngImage = await pdfDoc.embedPng(imgData);
+
+    const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+
+    // Position at top of page, centered horizontally
+    page.drawImage(pngImage, {
+      x: offsetX,
+      y: PAGE_HEIGHT - finalHeight,
+      width: finalWidth,
+      height: finalHeight,
+    });
+
+    // White-fill below content
+    const contentBottomY = PAGE_HEIGHT - finalHeight;
+    if (contentBottomY > FOOTER_RESERVED_PT) {
+      page.drawRectangle({
+        x: 0,
+        y: FOOTER_RESERVED_PT,
+        width: PAGE_WIDTH,
+        height: contentBottomY - FOOTER_RESERVED_PT,
+        color: rgb(1, 1, 1),
+      });
+    }
+
+    await addPageFooter(pdfDoc, options);
+
+    const pdfBytes = await pdfDoc.save();
+    console.log('One-Page PDF: Created successfully');
+    return new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+  } catch (error) {
+    console.error('One-Page PDF error:', error);
+    throw new Error('Failed to generate one-page PDF. Please try again.');
+  } finally {
+    cleanup();
+  }
+}
+
 export async function generateCoverLetterPDF(
   coverLetter: string,
   contactInfo: ContactInfo,
