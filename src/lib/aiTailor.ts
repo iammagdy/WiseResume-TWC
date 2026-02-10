@@ -50,13 +50,15 @@ const ENHANCED_STEPS: { step: EnhancedTailorStep; message: string; funFact: stri
   { step: 'finalizing', message: 'Finalizing your supercharged resume...', funFact: FUN_FACTS[0] },
 ];
 
+export type TailorIntensity = 'light' | 'moderate' | 'aggressive';
+
 export async function tailorResumeWithProgress(
   resume: ResumeData,
   jobDescription: string,
-  onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void
+  onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void,
+  intensity: TailorIntensity = 'moderate'
 ): Promise<SuperTailorResult> {
   const userGeminiKey = getUserGeminiKey();
-
   // Enhanced progress simulation with fun facts
   let currentStepIndex = 0;
   const progressInterval = setInterval(() => {
@@ -75,9 +77,8 @@ export async function tailorResumeWithProgress(
 
   try {
     const { data, error } = await supabase.functions.invoke('tailor-resume', {
-      body: { resume, jobDescription, userGeminiKey },
+      body: { resume, jobDescription, userGeminiKey, intensity },
     });
-
     clearInterval(progressInterval);
 
     if (error) {

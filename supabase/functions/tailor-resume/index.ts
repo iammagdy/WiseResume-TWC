@@ -44,7 +44,8 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Authenticated user:', userId);
 
-    const { resume, jobDescription, userGeminiKey } = await req.json();
+    const { resume, jobDescription, userGeminiKey, intensity } = await req.json();
+    const tailorIntensity = intensity || 'moderate';
     
     // ============= SECURITY: Input validation =============
     if (!resume || typeof resume !== 'object') {
@@ -84,9 +85,35 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // ============= SUPERCHARGED AI TAILORING ENGINE =============
-    
+    // ============= INTENSITY-BASED PROMPT MODIFIERS =============
+    const intensityInstructions: Record<string, string> = {
+      light: `
+## INTENSITY: LIGHT
+- Make MINIMAL changes. Only adjust keywords and phrasing to better match the job description.
+- Preserve the candidate's original voice and writing style as much as possible.
+- Focus on keyword insertion, not rewriting.
+- Do NOT change sentence structure unless absolutely necessary.
+- Keep achievement bullets mostly intact, only adding relevant keywords.`,
+      moderate: `
+## INTENSITY: MODERATE (Standard)
+- Balance between preserving the candidate's voice and optimizing for the job.
+- Rewrite bullets to be stronger but maintain the original meaning.
+- Add metrics where they naturally fit.
+- Optimize keyword placement throughout.`,
+      aggressive: `
+## INTENSITY: AGGRESSIVE
+- Maximize ATS compatibility above all else.
+- Rewrite EXTENSIVELY using exact job description terminology.
+- Transform EVERY bullet point into a powerful, metrics-driven achievement.
+- Restructure descriptions to front-load the most relevant keywords.
+- Use the strongest possible action verbs.
+- Ensure maximum keyword density without obvious stuffing.
+- Position every piece of experience to directly map to job requirements.`,
+    };
+
     const systemPrompt = `You are a LEGENDARY resume writer, career strategist, and ATS optimization expert with 20+ years of experience helping candidates land jobs at top companies.
+
+${intensityInstructions[tailorIntensity] || intensityInstructions.moderate}
 
 ## YOUR MISSION
 Transform this resume into a PERFECT match for the target job while maintaining complete authenticity.

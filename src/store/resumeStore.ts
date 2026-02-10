@@ -15,6 +15,7 @@ interface ResumeState {
   selectedTemplate: TemplateId;
   pageBreakSettings: PageBreakSettings;
   tailorHistory: TailorHistory[];
+  tailorHistoryByResume: Record<string, TailorHistory[]>;
   generatedCoverLetter: string | null;
   coverLetterJobContext: CoverLetterContext | null;
   
@@ -32,8 +33,9 @@ interface ResumeState {
   setIsAnalyzing: (analyzing: boolean) => void;
   setSelectedTemplate: (template: TemplateId) => void;
   setPageBreakSettings: (settings: PageBreakSettings) => void;
-  addTailorHistory: (entry: Omit<TailorHistory, 'id' | 'createdAt'>) => void;
+  addTailorHistory: (entry: Omit<TailorHistory, 'id' | 'createdAt'>, resumeId?: string) => void;
   clearTailorHistory: () => void;
+  getTailorHistoryForResume: (resumeId: string) => TailorHistory[];
   restoreTailorVersion: (id: string) => void;
   setGeneratedCoverLetter: (letter: string | null, context?: CoverLetterContext) => void;
   
@@ -79,6 +81,7 @@ export const useResumeStore = create<ResumeState>()(
       selectedTemplate: 'modern',
       pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
       tailorHistory: [],
+      tailorHistoryByResume: {},
       generatedCoverLetter: null,
       coverLetterJobContext: null,
       currentComparison: null,
@@ -101,18 +104,28 @@ export const useResumeStore = create<ResumeState>()(
       setSelectedTemplate: (template) => set({ selectedTemplate: template }),
       setPageBreakSettings: (settings) => set({ pageBreakSettings: settings }),
       
-      addTailorHistory: (entry) => set((state) => ({
-        tailorHistory: [
-          {
-            ...entry,
-            id: uuidv4(),
-            createdAt: new Date().toISOString(),
-          },
-          ...state.tailorHistory.slice(0, 9), // Keep last 10
-        ],
-      })),
+      addTailorHistory: (entry, resumeId) => set((state) => {
+        const newEntry = {
+          ...entry,
+          id: uuidv4(),
+          createdAt: new Date().toISOString(),
+        };
+        const newHistory = [newEntry, ...state.tailorHistory.slice(0, 9)];
+        
+        // Also store by resume ID
+        const byResume = { ...state.tailorHistoryByResume };
+        if (resumeId) {
+          byResume[resumeId] = [newEntry, ...(byResume[resumeId] || []).slice(0, 4)];
+        }
+        
+        return { tailorHistory: newHistory, tailorHistoryByResume: byResume };
+      }),
       
-      clearTailorHistory: () => set({ tailorHistory: [] }),
+      clearTailorHistory: () => set({ tailorHistory: [], tailorHistoryByResume: {} }),
+      
+      getTailorHistoryForResume: (resumeId: string) => {
+        return get().tailorHistoryByResume[resumeId] || [];
+      },
       
       restoreTailorVersion: (id) => {
         const state = get();
@@ -235,6 +248,7 @@ export const useResumeStore = create<ResumeState>()(
         selectedTemplate: 'modern',
         pageBreakSettings: { mode: 'auto', breakAfterSections: [] },
         tailorHistory: [],
+        tailorHistoryByResume: {},
         generatedCoverLetter: null,
         coverLetterJobContext: null,
         currentComparison: null,

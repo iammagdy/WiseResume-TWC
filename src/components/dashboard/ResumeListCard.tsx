@@ -11,7 +11,8 @@ import {
   Clock,
   GitBranch,
   Crown,
-  Mic
+  Mic,
+  Sparkles
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ import {
 import { DatabaseResume } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useResumeStore } from '@/store/resumeStore';
 
 interface ResumeListCardProps {
   resume: DatabaseResume;
@@ -85,6 +87,13 @@ export const ResumeListCard = memo(function ResumeListCard({
 }: ResumeListCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Fit score badge from tailor history
+  const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
+  const latestTailor = useMemo(() => {
+    const history = getTailorHistoryForResume(resume.id);
+    return history.length > 0 ? history[0] : null;
+  }, [resume.id, getTailorHistoryForResume]);
   
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-SWIPE_THRESHOLD, -20], [1, 0]);
@@ -218,6 +227,12 @@ export const ResumeListCard = memo(function ResumeListCard({
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1">
                     <GitBranch className="w-3 h-3" />
                     Tailored
+                  </Badge>
+                )}
+                {latestTailor && (
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-success/30 text-success">
+                    <Sparkles className="w-3 h-3" />
+                    {latestTailor.scoreBeforeAfter.after}% • {latestTailor.jobTitle}
                   </Badge>
                 )}
               </div>
