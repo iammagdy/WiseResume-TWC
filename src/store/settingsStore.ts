@@ -5,7 +5,7 @@ import { TemplateId, PDFOptions } from '@/types/resume';
 export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
 
 // AI Provider types
-export type AIProvider = 'lovable' | 'gemini';
+export type AIProvider = 'wiseresume' | 'gemini';
 export type GeminiKeyTier = 'free' | 'paid' | 'unknown';
 
 interface GeminiDailyUsage {
@@ -89,7 +89,7 @@ const defaultSettings = {
   hasSeenInterviewHint: false,
   elevenlabsApiKey: '',
   // AI Provider defaults
-  aiProvider: 'lovable' as AIProvider,
+  aiProvider: 'wiseresume' as AIProvider,
   geminiApiKey: '',
   geminiKeyTier: 'unknown' as GeminiKeyTier,
   geminiKeyValidated: false,

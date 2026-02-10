@@ -52,8 +52,8 @@ class RateLimiter {
 
 export const aiRateLimiter = new RateLimiter();
 
-// Rate limits for Lovable gateway (default)
-const LOVABLE_RATE_LIMITS = {
+// Rate limits for default AI gateway
+const DEFAULT_RATE_LIMITS = {
   tailor: { maxRequests: 5, windowMs: 60000, rpd: Infinity },
   analyze: { maxRequests: 10, windowMs: 60000, rpd: Infinity },
   coverLetter: { maxRequests: 5, windowMs: 60000, rpd: Infinity },
@@ -100,10 +100,10 @@ const GEMINI_PAID_RATE_LIMITS = {
   interview: { maxRequests: 100, windowMs: 60000, rpd: Infinity },
 } as const;
 
-export type AIFeature = keyof typeof LOVABLE_RATE_LIMITS;
+export type AIFeature = keyof typeof DEFAULT_RATE_LIMITS;
 
 // Legacy export for backward compatibility
-export const AI_RATE_LIMITS = LOVABLE_RATE_LIMITS;
+export const AI_RATE_LIMITS = DEFAULT_RATE_LIMITS;
 
 // Type for rate limit config
 interface RateLimitConfig {
@@ -120,8 +120,8 @@ type RateLimitProfile = Record<AIFeature, RateLimitConfig>;
 function getRateLimitsForProvider(): RateLimitProfile {
   const { aiProvider, geminiKeyTier } = useSettingsStore.getState();
   
-  if (aiProvider === 'lovable') {
-    return LOVABLE_RATE_LIMITS as unknown as RateLimitProfile;
+  if (aiProvider === 'wiseresume') {
+    return DEFAULT_RATE_LIMITS as unknown as RateLimitProfile;
   }
   
   // Gemini provider

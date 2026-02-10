@@ -19,9 +19,9 @@ export function useAIProviderInfo(): AIProviderInfo {
   const geminiKeyTier = useSettingsStore((s) => s.geminiKeyTier);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
 
-  if (aiProvider === 'lovable') {
+  if (aiProvider === 'wiseresume') {
     return {
-      provider: 'lovable',
+      provider: 'wiseresume',
       name: 'WiseResume AI',
       isCustomKey: false,
       tier: 'default',
