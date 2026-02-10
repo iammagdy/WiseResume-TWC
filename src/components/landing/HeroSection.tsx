@@ -1,9 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { Rocket, FileText, LogIn } from 'lucide-react';
+import { Rocket, FileText, LogIn, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PlanetLogo } from './PlanetLogo';
 import triggerHaptic from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 
 const particles = [
   { size: 4, x: '10%', y: '20%', blur: 6, color: 'var(--primary)', duration: 10, delay: 0 },
@@ -17,6 +20,17 @@ const particles = [
 export function HeroSection() {
   const navigate = useNavigate();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const { user, isAuthenticated } = useAuth();
+  const { profile } = useProfile(user?.id, user);
+
+  const getInitials = () => {
+    if (profile?.fullName) {
+      const parts = profile.fullName.trim().split(/\s+/);
+      return (parts[0]?.[0] ?? '') + (parts[parts.length - 1]?.[0] ?? '');
+    }
+    if (user?.email) return user.email[0].toUpperCase();
+    return null;
+  };
 
   const handleLaunch = () => {
     triggerHaptic.medium();
@@ -47,15 +61,30 @@ export function HeroSection() {
 
   return (
     <section className="relative min-h-[85vh] flex flex-col items-center justify-center px-4 sm:px-6 py-12 overflow-hidden">
-      {/* Sign in link */}
-      <button
-        onClick={() => { triggerHaptic.light(); navigate('/auth'); }}
-        className="absolute top-6 right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors opacity-0 animate-fade-in"
-        style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
-      >
-        <LogIn className="w-4 h-4" />
-        Sign In
-      </button>
+      {/* Sign in / Avatar */}
+      {isAuthenticated ? (
+        <button
+          onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
+          className="absolute top-6 right-4 z-20 opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+        >
+          <Avatar className="h-9 w-9 border-2 border-primary/30">
+            <AvatarImage src={profile?.avatarUrl ?? undefined} />
+            <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+              {getInitials() ?? <User className="w-4 h-4" />}
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      ) : (
+        <button
+          onClick={() => { triggerHaptic.light(); navigate('/auth'); }}
+          className="absolute top-6 right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors opacity-0 animate-fade-in"
+          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+        >
+          <LogIn className="w-4 h-4" />
+          Sign In
+        </button>
+      )}
 
       {/* Animated gradient mesh blobs */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
