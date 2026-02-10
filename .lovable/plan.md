@@ -1,84 +1,45 @@
 
 
-# Landing Page Redesign -- Cleaner, More Professional
+# Mobile Responsiveness Fixes -- Verified Plan
 
-## Design Philosophy
-Simplify the visual noise while keeping the cosmic/space brand identity. The current page has too many competing visual effects (particles, blobs, rotating borders, pulsing rings, gradient meshes) that make it feel cluttered. The redesign focuses on **clarity, breathing room, and polish**.
+All 8 issues from the analysis have been verified against the current codebase and are valid. Here is the confirmed implementation plan:
 
-## Key Design Changes
+## Changes
 
-### 1. SpaceBackground -- Simplify
-- Keep the deep space gradient and star field (they're already lightweight)
-- Remove the shooting star animation (distracting)
-- Reduce nebula opacity from 40% to 25% for subtlety
+### 1. InterviewPage.tsx -- Fix bottom controls padding (Line 263)
+Replace hardcoded `pb-24` with `pb-safe` to match the pattern used across the rest of the app (23 files already use `pb-safe`).
 
-### 2. HeroSection -- Clean & Focused
-- Remove the 3 animated gradient mesh blobs (visual noise)
-- Remove the 6 floating particle orbs (clutter)
-- Remove the 2 pulsing concentric rings around the planet logo
-- Remove the `rotating-border` wrapper on CTA buttons -- use clean glass card instead
-- Remove the `animate-cta-glow` from the primary button
-- Make the PlanetLogo smaller (use `md` size instead of `lg`) for better proportion
-- Add more vertical spacing between elements for breathing room
-- Simplify the subtitle text to be shorter and punchier
-- Keep the avatar dropdown and sign-in button as-is
+### 2. InterviewPage.tsx -- Fix back button touch targets (Lines 163, 185, 210)
+Three back buttons use `p-1` (~32px touch area). Update all three to use proper 48px touch targets with the standard pattern: `p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center`.
 
-### 3. QuickActions -- Remove Entirely
-- The hero already has "Create New Resume" and "Upload Existing Resume" buttons
-- QuickActions section duplicates these with 4 cards (Create New, Upload Resume, AI Tailor, Mock Interview)
-- Removing it eliminates redundancy and shortens the page
+### 3. HeroSection.tsx -- Fix safe-area overlap for sign-in/avatar button
+The `absolute top-6 right-4` positioning doesn't account for notch safe areas. Update to `top-[max(1.5rem,env(safe-area-inset-top))]`.
 
-### 4. SocialProofBar -- Subtle Refinement
-- Reduce padding, make it feel inline rather than a standalone section
-- Keep the 3 stats but use slightly smaller text
+### 4. FeatureGrid.tsx -- Single column on tiny screens
+Change `grid-cols-2` to `grid-cols-1 xs:grid-cols-2`. The `xs: 375px` breakpoint is already configured in the Tailwind config.
 
-### 5. WhyWiseResume -- Cleaner Cards
-- Keep the BulletTransformCard (it's the strongest visual)
-- Keep the 4 feature cards in the 2x2 grid
-- Remove ATSScoreCard (redundant with FeatureGrid's "ATS Match Score")
-- Cleaner section header without emoji
+### 5. PreviewPage.tsx -- Hide button labels on tiny screens (Lines 600, 611, 621)
+Add `hidden xs:inline` to Edit, Save, and Interview text labels so buttons become icon-only on screens under 375px. The Share button is already icon-only.
 
-### 6. HowItWorks -- Simplify
-- Keep the 3-step layout
-- Remove emoji from section header
-- Use cleaner step badges
+### 6. DashboardPage.tsx -- Fix Explore button touch target (Line 236)
+Change `py-1.5` to `py-2` and add `min-h-[44px]` to meet the 44px minimum touch target.
 
-### 7. FeatureGrid -- Reduce to 4 Features
-- Remove "AI Humanizer" and "12 Pro Templates" (covered elsewhere)
-- Keep: ATS Match Score, Smart Tailor, Voice Interview, 4 AI Recruiters
-- Use a clean 2x2 grid on mobile
-- Remove emoji from section header
+### 7. index.css -- Add text-balance utility
+Add a `.text-balance { text-wrap: balance; }` utility class for better heading wrapping.
 
-### 8. TemplateGallery -- Keep As-Is
-- The horizontal scroll carousel with mini-previews is well done
-- Just clean up section header (remove emoji)
+### 8. index.css -- Add keyboard-safe-bottom utility
+Add a `.keyboard-safe-bottom` class that accounts for both safe-area insets and keyboard height.
 
-### 9. BottomCTA -- Simplify
-- Remove the nebula glow overlay
-- Remove emoji from heading
-- Cleaner, more confident copy
-- Remove "Already aboard?" sign-in link (redundant with hero)
+## Files Modified
 
-## Files Changed
+| File | Issues Fixed |
+|------|-------------|
+| `src/pages/InterviewPage.tsx` | #1 (pb-safe), #2 (touch targets) |
+| `src/components/landing/HeroSection.tsx` | #3 (safe-area) |
+| `src/components/landing/FeatureGrid.tsx` | #4 (grid cols) |
+| `src/pages/PreviewPage.tsx` | #5 (button labels) |
+| `src/pages/DashboardPage.tsx` | #6 (touch target) |
+| `src/index.css` | #7 (text-balance), #8 (keyboard-safe) |
 
-| File | Change |
-|------|--------|
-| `src/components/landing/SpaceBackground.tsx` | Remove shooting star, reduce nebula opacity |
-| `src/components/landing/HeroSection.tsx` | Remove blobs, particles, pulsing rings, rotating-border; use smaller logo; cleaner CTA card |
-| `src/pages/Index.tsx` | Remove QuickActions import and section |
-| `src/components/landing/SocialProofBar.tsx` | Minor padding/sizing tweaks |
-| `src/components/landing/WhyWiseResume.tsx` | Remove ATSScoreCard, clean headers |
-| `src/components/landing/HowItWorks.tsx` | Remove emoji from header |
-| `src/components/landing/FeatureGrid.tsx` | Reduce to 4 features, remove emoji, 2x2 grid |
-| `src/components/landing/BottomCTA.tsx` | Remove nebula glow, clean copy, remove redundant sign-in link |
-| `src/components/landing/TemplateGallery.tsx` | Clean section header |
-
-## What Stays the Same
-- Space theme colors and dark background
-- All authentication/avatar dropdown logic
-- Glassmorphism design system
-- Lazy loading architecture
-- Mobile-first responsive approach
-- Template gallery carousel with mini previews
-- PlanetLogo component (just used at smaller size)
+All changes are minimal, targeted fixes that follow existing patterns in the codebase.
 
