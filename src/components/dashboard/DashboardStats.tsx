@@ -42,6 +42,8 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ totalResumes, healthScores, userName }: DashboardStatsProps) {
+  const streak = useLoginStreak();
+
   const { avgScore, bestScore } = useMemo(() => {
     const scores = Object.values(healthScores).map(s => s.overallScore);
     if (scores.length === 0) return { avgScore: 0, bestScore: 0 };
