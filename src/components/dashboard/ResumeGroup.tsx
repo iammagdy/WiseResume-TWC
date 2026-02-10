@@ -18,7 +18,6 @@ interface ResumeGroupProps {
   onRename?: (id: string, newTitle: string) => void;
   onInterview?: (id: string) => void;
   onCreateTailored: (parentId: string) => void;
-  delay?: number;
   healthScores?: Record<string, ResumeHealthScore>;
   scoringId?: string | null;
 }
