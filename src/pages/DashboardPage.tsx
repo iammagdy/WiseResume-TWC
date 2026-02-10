@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Sparkles } from 'lucide-react';
@@ -18,6 +18,7 @@ const OnboardingCarousel = lazy(() => import('@/components/onboarding/Onboarding
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
+import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
