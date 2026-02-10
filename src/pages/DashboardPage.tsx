@@ -233,7 +233,7 @@ export default function DashboardPage() {
                 haptics.light();
                 navigate('/');
               }}
-              className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 hover:border-primary/40 transition-colors touch-manipulation overflow-hidden"
+              className="relative flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 hover:border-primary/40 transition-colors touch-manipulation overflow-hidden min-h-[44px]"
               whileTap={{ scale: 0.95 }}
             >
               {/* Shimmer effect */}

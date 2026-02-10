@@ -160,7 +160,7 @@ export default function InterviewPage() {
     return (
       <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <button onClick={() => { setPendingJobDescription(undefined); }} className="touch-manipulation p-1">
+          <button onClick={() => { setPendingJobDescription(undefined); }} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
@@ -182,7 +182,7 @@ export default function InterviewPage() {
     return (
       <div className="flex-1 flex flex-col">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <button onClick={() => navigate('/preview')} className="touch-manipulation p-1">
+          <button onClick={() => navigate('/preview')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ export default function InterviewPage() {
       {/* Premium glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/preview')} className="touch-manipulation p-1">
+          <button onClick={() => navigate('/preview')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
@@ -260,7 +260,7 @@ export default function InterviewPage() {
       </div>
 
       {/* Controls */}
-      <div className="shrink-0 border-t border-border/20 bg-card/50 backdrop-blur-xl px-4 py-4 space-y-3 pb-24">
+      <div className="shrink-0 border-t border-border/20 bg-card/50 backdrop-blur-xl px-4 py-4 space-y-3 pb-safe">
         <div className="flex flex-col items-center gap-2">
           <InterviewToggle 
             status={status} 
