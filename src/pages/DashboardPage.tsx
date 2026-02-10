@@ -432,37 +432,6 @@ export default function DashboardPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Temporary Toast Test Panel */}
-      <div className="fixed bottom-20 right-4 z-50 glass-elevated rounded-2xl p-2 flex gap-1.5 shadow-xl border border-border/40">
-        <button
-          onClick={() => toast.success("Resume saved successfully!", { description: "Your changes have been synced." })}
-          className="p-2 rounded-xl hover:bg-[hsl(var(--success)/0.15)] transition-colors"
-          title="Test Success"
-        >
-          <CheckCircle2 className="w-4 h-4 text-[hsl(var(--success))]" />
-        </button>
-        <button
-          onClick={() => toast.error("Export failed", { description: "Please check your connection and try again." })}
-          className="p-2 rounded-xl hover:bg-[hsl(var(--destructive)/0.15)] transition-colors"
-          title="Test Error"
-        >
-          <XCircle className="w-4 h-4 text-[hsl(var(--destructive))]" />
-        </button>
-        <button
-          onClick={() => toast.warning("Storage almost full", { description: "You have 2 resumes remaining on the free plan." })}
-          className="p-2 rounded-xl hover:bg-[hsl(var(--warning)/0.15)] transition-colors"
-          title="Test Warning"
-        >
-          <AlertTriangle className="w-4 h-4 text-[hsl(var(--warning))]" />
-        </button>
-        <button
-          onClick={() => toast.info("New templates available", { description: "Check out 3 new professional templates." })}
-          className="p-2 rounded-xl hover:bg-[hsl(var(--secondary)/0.15)] transition-colors"
-          title="Test Info"
-        >
-          <Info className="w-4 h-4 text-[hsl(var(--secondary))]" />
-        </button>
-      </div>
     </div>
   );
 }

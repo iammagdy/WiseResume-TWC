@@ -87,7 +87,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     }
     
     // Fall back to local regex parsing for network errors
-    console.log('Using fallback local parser...');
+    if (import.meta.env.DEV) console.log('Using fallback local parser...');
     return parseResumeText(text);
   } finally {
     clearTimeout(timeoutId);

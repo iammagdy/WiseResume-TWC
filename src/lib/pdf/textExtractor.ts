@@ -112,7 +112,7 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
   const wordCount = cleanedText.split(/\s+/).filter(w => w.length > 1).length;
   
   // Log first 200 chars for debugging parsing issues
-  console.log('PDF extraction preview:', cleanedText.substring(0, 200), `(${wordCount} words, ${cleanedText.length} chars)`);
+  if (import.meta.env.DEV) console.log('PDF extraction preview:', cleanedText.substring(0, 200), `(${wordCount} words, ${cleanedText.length} chars)`);
   
   if (cleanedText.length === 0 || !hasLetters || wordCount < 10) {
     // Instead of throwing, return needsOCR flag so UI can offer OCR
