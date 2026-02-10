@@ -159,6 +159,12 @@ export default function DashboardPage() {
     }
   };
 
+  const handleRename = (resumeId: string, newTitle: string) => {
+    updateResume.mutate({ resumeId, updates: {}, title: newTitle }, {
+      onSuccess: () => toast.success('Resume renamed'),
+    });
+  };
+
   const handleDelete = (resumeId: string) => {
     setDeleteResumeId(resumeId);
   };
