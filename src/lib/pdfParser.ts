@@ -69,7 +69,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     }
 
     const data = await response.json();
-    console.log('AI parsing successful');
+    if (import.meta.env.DEV) console.log('AI parsing successful');
     return regenerateResumeIds(data);
   } catch (error) {
     // Handle timeout specifically
