@@ -92,16 +92,24 @@ async function extractPageWithOCR(
   const scale = 2;
   const viewport = page.getViewport({ scale });
   
-  // Create canvas for rendering
+  // Create canvas for rendering (cap at 2048px for iOS WebKit compatibility)
+  const maxCanvasDim = 2048;
   const canvas = document.createElement('canvas');
-  const context = canvas.getContext('2d');
+  const context = canvas.getContext('2d', { willReadFrequently: true });
   
   if (!context) {
     throw new Error('Failed to create canvas context for OCR');
   }
   
-  canvas.width = viewport.width;
-  canvas.height = viewport.height;
+  let canvasWidth = viewport.width;
+  let canvasHeight = viewport.height;
+  if (canvasWidth > maxCanvasDim || canvasHeight > maxCanvasDim) {
+    const scaleFactor = maxCanvasDim / Math.max(canvasWidth, canvasHeight);
+    canvasWidth = Math.round(canvasWidth * scaleFactor);
+    canvasHeight = Math.round(canvasHeight * scaleFactor);
+  }
+  canvas.width = canvasWidth;
+  canvas.height = canvasHeight;
   
   // Render PDF page to canvas
   await page.render({

@@ -166,17 +166,19 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 13. Handle sidebar layouts, two-column designs, and creative CV formats
 
 === CRITICAL NAME DETECTION RULES ===
-14. The person's FULL NAME is typically the LARGEST/most prominent text at the very TOP of the resume
-15. NEVER use these as names - they are section headers/labels:
-    - "Contact Me", "Contact", "Contact Info", "Contact Details", "Get In Touch"
-    - "Personal Information", "Personal Info", "Personal Details", "Personal Data"
-    - "About Me", "About", "Profile", "Bio", "Summary", "Objective"
-    - "Resume", "CV", "Curriculum Vitae"
-    - Any single generic word that describes a section (Contact, Summary, Skills, Experience, Education)
-16. A valid name is usually 2-5 words containing a first name and last name (e.g., "John Smith", "Mohamed Ahmed Ali")
-17. Names are NEVER verbs or action phrases like "Contact Me" or "Hire Me"
-18. Names often appear in ALL CAPS or Title Case at the document start, BEFORE any section headers
-19. If the first line looks like a section header, look for the actual person name nearby (usually largest text)
+14. The person's FULL NAME is almost always on the VERY FIRST LINE of the resume text, before any other content
+15. If the first line contains a section header like "Contact", "Personal Info", etc., skip it and check lines 2-4 for the name
+16. A valid name is 2-5 words, each word capitalized or ALL CAPS, containing ONLY letters (and possibly hyphens/apostrophes)
+17. NEVER use ANY of these as a name:
+    - Email addresses (anything with @)
+    - Phone numbers (anything with digits)
+    - URLs (anything with http, www, .com, .linkedin)
+    - Section headers: "Contact Me", "Contact", "Contact Info", "Personal Information", "About Me", "Profile", "Summary", "Resume", "CV", "Curriculum Vitae"
+    - Single words that describe sections (Contact, Summary, Skills, Experience, Education, Objective)
+    - Job titles or role descriptions
+18. Names are NEVER verbs, phrases, or sentences
+19. If you cannot confidently identify a person's name, set fullName to "" rather than guessing wrong
+20. Look for the name in this priority order: (1) first line of text, (2) largest/prominent text, (3) text appearing before any section headers
 
 === SECTION NAME VARIANTS TO RECOGNIZE ===
 - Experience → Work Experience, Employment, Professional Experience, Career History
@@ -338,9 +340,33 @@ serve(async (req) => {
     // Generate unique IDs for experience, education, and certifications
     const generateId = () => crypto.randomUUID();
 
+    // Post-process: validate the extracted name
+    let fullName = parsedData.contactInfo.fullName || '';
+    
+    // Reject names that look like section headers, emails, or invalid values
+    const invalidNamePatterns = /^(contact|summary|profile|resume|cv|about|personal|objective|experience|education|skills|hire me|get in touch)/i;
+    const looksLikeEmail = fullName.includes('@');
+    const looksLikeUrl = /https?:|www\.|\.com|\.linkedin/i.test(fullName);
+    const looksLikePhone = /^\+?\d[\d\s\-()]{6,}$/.test(fullName);
+    const tooFewWords = fullName.trim().split(/\s+/).length < 2;
+    
+    if (invalidNamePatterns.test(fullName.trim()) || looksLikeEmail || looksLikeUrl || looksLikePhone || tooFewWords) {
+      console.warn('Rejected invalid name:', fullName);
+      // Try to extract from first few lines of input text
+      const firstLines = text.split('\n').filter((l: string) => l.trim()).slice(0, 5);
+      const nameCandidate = firstLines.find((line: string) => {
+        const t = line.trim();
+        const words = t.split(/\s+/);
+        return words.length >= 2 && words.length <= 5 && 
+               /^[A-Za-z\u00C0-\u024F\u0600-\u06FF\- ']+$/.test(t) &&
+               !invalidNamePatterns.test(t);
+      });
+      fullName = nameCandidate?.trim() || '';
+    }
+
     const resumeData = {
       contactInfo: {
-        fullName: parsedData.contactInfo.fullName || '',
+        fullName,
         email: parsedData.contactInfo.email || '',
         phone: parsedData.contactInfo.phone || '',
         location: parsedData.contactInfo.location || '',
