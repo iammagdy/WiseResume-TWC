@@ -112,25 +112,17 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
           </p>
 
           {/* Stats Row with Score Ring */}
-          {totalResumes > 0 && avgScore > 0 && (
+{totalResumes > 0 && (
             <div className="flex items-center gap-5">
               {/* Large Score Ring */}
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-              >
-                <ScoreRing score={avgScore} size={72} strokeWidth={5} />
-              </motion.div>
+              <div className="flex flex-col items-center gap-1">
+                <ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={avgScore === 0} />
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Avg</span>
+              </div>
 
               {/* Stats beside ring */}
               <div className="flex-1 grid grid-cols-2 gap-3">
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="flex items-center gap-2.5"
-                >
+                <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                     <FileText className="w-4.5 h-4.5 text-primary" />
                   </div>
@@ -138,22 +130,17 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
                     <p className="text-lg font-bold leading-tight">{totalResumes}</p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Resumes</p>
                   </div>
-                </motion.div>
+                </div>
 
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 }}
-                  className="flex items-center gap-2.5"
-                >
+                <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center">
                     <Award className="w-4.5 h-4.5 text-success" />
                   </div>
                   <div>
-                    <p className="text-lg font-bold leading-tight">{bestScore}</p>
+                    <p className="text-lg font-bold leading-tight">{bestScore > 0 ? bestScore : '—'}</p>
                     <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Best</p>
                   </div>
-                </motion.div>
+                </div>
               </div>
             </div>
           )}
