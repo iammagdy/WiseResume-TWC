@@ -1,15 +1,17 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
-  History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3
+  History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
+  Zap, Gauge, Flame
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useResumeStore } from '@/store/resumeStore';
-import { tailorResumeWithProgress } from '@/lib/aiTailor';
+import { tailorResumeWithProgress, TailorIntensity } from '@/lib/aiTailor';
 import { toast } from 'sonner';
 import { CompareSheet } from './CompareSheet';
 import { TailorProgressComponent } from './tailor/TailorProgress';
@@ -24,6 +26,8 @@ import { InterviewPrepCard } from './tailor/InterviewPrepCard';
 import { BulletComparison } from './tailor/BulletComparison';
 import { SmartSkillSuggestions } from './tailor/SmartSkillSuggestions';
 import { MultiJobCompareSheet } from './tailor/MultiJobCompareSheet';
+import { KeywordHeatmap } from './tailor/KeywordHeatmap';
+import { QuickActions } from './tailor/QuickActions';
 import { 
   EnhancedTailorResult, 
   TailorProgress, 
@@ -72,6 +76,8 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   const [activeTab, setActiveTab] = useState<string>('changes');
   const [showMultiCompare, setShowMultiCompare] = useState(false);
   const [isAddingToComparison, setIsAddingToComparison] = useState(false);
+  const [intensity, setIntensity] = useState<TailorIntensity>('moderate');
+  const autoTailorTriggered = useRef(false);
 
   // Section toggles
   const [enabledSections, setEnabledSections] = useState<TailorSectionId[]>([
@@ -86,7 +92,7 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
     );
   };
 
-  const handleTailor = async () => {
+  const handleTailor = useCallback(async () => {
     if (!jobDescription.trim()) {
       toast.error('Please paste a job description first');
       return;
@@ -107,7 +113,8 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
       const result = await tailorResumeWithProgress(
         currentResume, 
         jobDescription,
-        (p) => setProgress(p)
+        (p) => setProgress(p),
+        intensity
       );
       setTailorResult(result as SuperTailorResult);
       
@@ -127,8 +134,42 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
       setIsTailoring(false);
       setProgress(null);
     }
-  };
+  }, [jobDescription, currentResume, intensity]);
 
+  // Auto-tailor when a URL is parsed
+  const handleParsedJobInfo = useCallback((info: { title: string; company: string } | null) => {
+    setParsedJobInfo(info);
+    // If job description was set from URL parsing, auto-trigger tailoring
+    if (info && jobDescription.trim() && currentResume && !autoTailorTriggered.current) {
+      autoTailorTriggered.current = true;
+      toast.info('Auto-tailoring your resume...', { duration: 2000 });
+      // Small delay to let the UI update
+      setTimeout(() => handleTailor(), 500);
+    }
+  }, [jobDescription, currentResume, handleTailor]);
+
+  // Reset auto-tailor flag when sheet opens
+  useEffect(() => {
+    if (open) {
+      autoTailorTriggered.current = false;
+    }
+  }, [open]);
+
+  // Build resume text for keyword heatmap
+  const resumeText = useMemo(() => {
+    if (!currentResume) return '';
+    const parts = [
+      currentResume.summary,
+      ...currentResume.experience.map(e => `${e.position} ${e.company} ${e.description} ${e.achievements.join(' ')}`),
+      ...currentResume.education.map(e => `${e.degree} ${e.field} ${e.institution}`),
+      ...currentResume.skills,
+    ];
+    return parts.join(' ');
+  }, [currentResume]);
+
+  const handleUpdateTailorResult = useCallback((updated: Partial<SuperTailorResult>) => {
+    setTailorResult(prev => prev ? { ...prev, ...updated } : null);
+  }, []);
   const handleApplyChanges = () => {
     if (!tailorResult || !currentResume) return;
 
@@ -163,7 +204,7 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
       tailorResult,
       scoreBeforeAfter: tailorResult.overallScore,
       appliedSections: enabledSections,
-    });
+    }, currentResume.id);
 
     toast.success('Changes applied to your resume!');
     setTailorResult(null);
@@ -490,6 +531,16 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
                   </TabsContent>
                 </Tabs>
 
+                {/* Quick Actions */}
+                {currentResume && (
+                  <QuickActions
+                    resume={currentResume}
+                    tailorResult={tailorResult}
+                    jobDescription={jobDescription}
+                    onUpdateResult={handleUpdateTailorResult}
+                  />
+                )}
+
                 {/* Action Buttons */}
                 <div className="space-y-3 pt-2">
                   <Button
@@ -582,8 +633,46 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
               <JobUrlParser
                 value={jobDescription}
                 onChange={setJobDescription}
-                onParsed={setParsedJobInfo}
+                onParsed={handleParsedJobInfo}
               />
+
+              {/* Keyword Heatmap */}
+              {jobDescription.trim() && currentResume && (
+                <KeywordHeatmap
+                  jobDescription={jobDescription}
+                  resumeSkills={currentResume.skills}
+                  resumeText={resumeText}
+                />
+              )}
+
+              {/* Intensity Selector */}
+              <div className="space-y-2">
+                <h4 className="font-semibold text-sm">Tailoring Intensity</h4>
+                <ToggleGroup
+                  type="single"
+                  value={intensity}
+                  onValueChange={(val) => val && setIntensity(val as TailorIntensity)}
+                  className="w-full grid grid-cols-3"
+                >
+                  <ToggleGroupItem value="light" className="text-xs gap-1">
+                    <Zap className="w-3.5 h-3.5" />
+                    Light
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="moderate" className="text-xs gap-1">
+                    <Gauge className="w-3.5 h-3.5" />
+                    Moderate
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="aggressive" className="text-xs gap-1">
+                    <Flame className="w-3.5 h-3.5" />
+                    Aggressive
+                  </ToggleGroupItem>
+                </ToggleGroup>
+                <p className="text-[11px] text-muted-foreground">
+                  {intensity === 'light' && 'Minimal keyword tweaks, preserves your voice'}
+                  {intensity === 'moderate' && 'Balanced rewrite with keyword optimization'}
+                  {intensity === 'aggressive' && 'Maximum ATS compatibility, extensive rewrite'}
+                </p>
+              </div>
 
               <Button
                 className="w-full h-12 gradient-primary font-semibold"
