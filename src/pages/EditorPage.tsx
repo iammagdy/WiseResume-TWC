@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle } from 'lucide-react';
@@ -14,19 +14,21 @@ import { SummarySection } from '@/components/editor/SummarySection';
 import { ExperienceSection } from '@/components/editor/ExperienceSection';
 import { EducationSection } from '@/components/editor/EducationSection';
 import { SkillsSection } from '@/components/editor/SkillsSection';
-import { JobAnalysisSheet } from '@/components/editor/JobAnalysisSheet';
-import { TemplateSelector } from '@/components/editor/TemplateSelector';
-import { TailorSheet } from '@/components/editor/TailorSheet';
 import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
-import { RecruiterSimSheet } from '@/components/editor/ai/RecruiterSimSheet';
-import { AIDetectorSheet } from '@/components/editor/ai/AIDetectorSheet';
-import { LinkedInOptimizerSheet } from '@/components/editor/ai/LinkedInOptimizerSheet';
-import { OnePageWizardSheet } from '@/components/editor/ai/OnePageWizardSheet';
-import { AgenticChatSheet } from '@/components/editor/AgenticChatSheet';
-import { CareerPathSheet } from '@/components/editor/CareerPathSheet';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
+
+// Lazy-loaded sheet components (only loaded when opened)
+const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
+const TemplateSelector = lazy(() => import('@/components/editor/TemplateSelector').then(m => ({ default: m.TemplateSelector })));
+const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
+const RecruiterSimSheet = lazy(() => import('@/components/editor/ai/RecruiterSimSheet').then(m => ({ default: m.RecruiterSimSheet })));
+const AIDetectorSheet = lazy(() => import('@/components/editor/ai/AIDetectorSheet').then(m => ({ default: m.AIDetectorSheet })));
+const LinkedInOptimizerSheet = lazy(() => import('@/components/editor/ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
+const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
+const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
+const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -381,16 +383,18 @@ export default function EditorPage() {
         onDismiss={handleDismissAIIntro}
       />
 
-      {/* Sheets */}
-      <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />
-      <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />
-      <TailorSheet open={showTailor} onOpenChange={setShowTailor} />
-      <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />
-      <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />
-      <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />
-      <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />
-      <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />
-      <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />
+      {/* Sheets - lazy loaded */}
+      <Suspense fallback={null}>
+        {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
+        {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
+        {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
+        {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
+        {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
+        {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
+        {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
+        {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
+        {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
+      </Suspense>
     </div>
   );
 }

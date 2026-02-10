@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Upload, FileText, ArrowLeft } from 'lucide-react';
-import mammoth from 'mammoth';
+// mammoth is dynamically imported when needed (see handleWordFile)
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations } from '@/hooks/useResumes';
@@ -313,7 +313,8 @@ export default function UploadPage() {
       setParseStep('extracting');
       
       const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
+      const mammoth = await import('mammoth');
+      const result = await mammoth.default.extractRawText({ arrayBuffer });
       const text = result.value;
 
       if (!text.trim()) {

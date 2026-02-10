@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
@@ -26,17 +26,8 @@ import {
 } from 'lucide-react';
 import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
-import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
-import { DefaultTemplateSheet } from '@/components/settings/DefaultTemplateSheet';
-import { PDFDefaultsSheet } from '@/components/settings/PDFDefaultsSheet';
-import { DataExportSheet } from '@/components/settings/DataExportSheet';
-import { DeleteDataDialog } from '@/components/settings/DeleteDataDialog';
-import { BiometricSetupSheet } from '@/components/settings/BiometricSetupSheet';
-import { BiometricTimeoutSheet } from '@/components/settings/BiometricTimeoutSheet';
-import { ElevenLabsKeySheet } from '@/components/settings/ElevenLabsKeySheet';
-import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
@@ -50,6 +41,17 @@ import { haptics } from '@/lib/haptics';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
+
+// Lazy-loaded sheets
+const EditProfileSheet = lazy(() => import('@/components/settings/EditProfileSheet').then(m => ({ default: m.EditProfileSheet })));
+const DefaultTemplateSheet = lazy(() => import('@/components/settings/DefaultTemplateSheet').then(m => ({ default: m.DefaultTemplateSheet })));
+const PDFDefaultsSheet = lazy(() => import('@/components/settings/PDFDefaultsSheet').then(m => ({ default: m.PDFDefaultsSheet })));
+const DataExportSheet = lazy(() => import('@/components/settings/DataExportSheet').then(m => ({ default: m.DataExportSheet })));
+const DeleteDataDialog = lazy(() => import('@/components/settings/DeleteDataDialog').then(m => ({ default: m.DeleteDataDialog })));
+const BiometricSetupSheet = lazy(() => import('@/components/settings/BiometricSetupSheet').then(m => ({ default: m.BiometricSetupSheet })));
+const BiometricTimeoutSheet = lazy(() => import('@/components/settings/BiometricTimeoutSheet').then(m => ({ default: m.BiometricTimeoutSheet })));
+const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKeySheet').then(m => ({ default: m.ElevenLabsKeySheet })));
+const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then(m => ({ default: m.AISettingsSheet })));
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -454,74 +456,84 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Sheets and Dialogs */}
-      <EditProfileSheet
-        open={editProfileOpen}
-        onOpenChange={setEditProfileOpen}
-        profile={profile}
-        userId={user?.id}
-        userEmail={user?.email}
-        onSave={updateProfile}
-      />
-
-      <DefaultTemplateSheet
-        open={templateSheetOpen}
-        onOpenChange={setTemplateSheetOpen}
-        selectedTemplate={defaultTemplate}
-        onSelect={setDefaultTemplate}
-      />
-
-      <PDFDefaultsSheet
-        open={pdfDefaultsSheetOpen}
-        onOpenChange={setPdfDefaultsSheetOpen}
-        pdfDefaults={pdfDefaults}
-        onUpdate={setPdfDefaults}
-      />
-
-      <DataExportSheet
-        open={dataExportSheetOpen}
-        onOpenChange={setDataExportSheetOpen}
-        resumes={resumes}
-        userEmail={user?.email ?? null}
-        userName={profile?.fullName ?? null}
-        currentResumeId={currentResumeId}
-      />
-
-      {user && (
-        <DeleteDataDialog
-          open={deleteDialogOpen}
-          onOpenChange={setDeleteDialogOpen}
-          userId={user.id}
-          resumeCount={resumes.length}
-          onDeleted={handleDataDeleted}
-        />
-      )}
- 
-      <BiometricSetupSheet
-        open={biometricSetupOpen}
-        onOpenChange={setBiometricSetupOpen}
-        biometryType={biometryType}
-        onEnable={handleBiometricSetupConfirm}
-      />
-
-      <BiometricTimeoutSheet
-        open={biometricTimeoutOpen}
-        onOpenChange={setBiometricTimeoutOpen}
-        selectedTimeout={biometricLockTimeout}
-        onSelect={setBiometricLockTimeout}
-      />
-
-      <ElevenLabsKeySheet
-        open={elevenLabsKeyOpen}
-        onOpenChange={setElevenLabsKeyOpen}
-        currentKey={elevenlabsApiKey}
-        onSave={setElevenlabsApiKey}
-      />
-
-      <AISettingsSheet
-        open={aiSettingsOpen}
-        onOpenChange={setAISettingsOpen}
-      />
+      {/* Sheets and Dialogs - lazy loaded */}
+      <Suspense fallback={null}>
+        {editProfileOpen && (
+          <EditProfileSheet
+            open={editProfileOpen}
+            onOpenChange={setEditProfileOpen}
+            profile={profile}
+            userId={user?.id}
+            userEmail={user?.email}
+            onSave={updateProfile}
+          />
+        )}
+        {templateSheetOpen && (
+          <DefaultTemplateSheet
+            open={templateSheetOpen}
+            onOpenChange={setTemplateSheetOpen}
+            selectedTemplate={defaultTemplate}
+            onSelect={setDefaultTemplate}
+          />
+        )}
+        {pdfDefaultsSheetOpen && (
+          <PDFDefaultsSheet
+            open={pdfDefaultsSheetOpen}
+            onOpenChange={setPdfDefaultsSheetOpen}
+            pdfDefaults={pdfDefaults}
+            onUpdate={setPdfDefaults}
+          />
+        )}
+        {dataExportSheetOpen && (
+          <DataExportSheet
+            open={dataExportSheetOpen}
+            onOpenChange={setDataExportSheetOpen}
+            resumes={resumes}
+            userEmail={user?.email ?? null}
+            userName={profile?.fullName ?? null}
+            currentResumeId={currentResumeId}
+          />
+        )}
+        {deleteDialogOpen && user && (
+          <DeleteDataDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            userId={user.id}
+            resumeCount={resumes.length}
+            onDeleted={handleDataDeleted}
+          />
+        )}
+        {biometricSetupOpen && (
+          <BiometricSetupSheet
+            open={biometricSetupOpen}
+            onOpenChange={setBiometricSetupOpen}
+            biometryType={biometryType}
+            onEnable={handleBiometricSetupConfirm}
+          />
+        )}
+        {biometricTimeoutOpen && (
+          <BiometricTimeoutSheet
+            open={biometricTimeoutOpen}
+            onOpenChange={setBiometricTimeoutOpen}
+            selectedTimeout={biometricLockTimeout}
+            onSelect={setBiometricLockTimeout}
+          />
+        )}
+        {elevenLabsKeyOpen && (
+          <ElevenLabsKeySheet
+            open={elevenLabsKeyOpen}
+            onOpenChange={setElevenLabsKeyOpen}
+            currentKey={elevenlabsApiKey}
+            onSave={setElevenlabsApiKey}
+          />
+        )}
+        {aiSettingsOpen && (
+          <AISettingsSheet
+            open={aiSettingsOpen}
+            onOpenChange={setAISettingsOpen}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }
