@@ -1,46 +1,24 @@
 
-# Add Rename Resume Feature
+# Fix Resume Card Flash on Initial Load
 
 ## Problem
-Resumes default to "Test Resume" (or "Untitled Resume") even when the contact info has a real name. Users need a way to rename resumes directly from the dashboard card.
+The resume card appears "different" on first load because of entrance animations. The `ResumeGroup` wrapper uses `motion.div` with `initial={{ opacity: 0, y: 20 }}` which makes the card start invisible and shifted down, then animate into place. This creates a visible flash/jank where the card looks wrong before settling.
+
+## Solution
+Remove the staggered entrance animations from the resume card rendering. The cards should appear instantly since the page already has its own `PageTransition` wrapper handling the overall page entrance.
 
 ## Changes
 
-### 1. Add "Rename" to the dropdown menu
-**File: `src/components/dashboard/ResumeListCard.tsx`**
+### File: `src/components/dashboard/ResumeGroup.tsx`
+- Change the outer `motion.div` from animated entrance (`initial={{ opacity: 0, y: 20 }}`) to a plain `div` -- no fade/slide on mount
+- Keep the `AnimatePresence` animations for the expandable tailored versions section (those are interactive, not initial load)
+- Remove the `delay` prop since it's no longer needed for staggered entrance
 
-- Add a new `onRename` callback prop: `onRename?: (id: string, newTitle: string) => void`
-- Add a `Pencil` (or `Type`) icon "Rename" menu item in the dropdown, placed before "Edit"
-- When clicked, set local state `isRenaming = true` which swaps the title `<h3>` for a small inline `<input>` pre-filled with the current title
-- On Enter or blur, call `onRename(resume.id, newTitle)` and exit rename mode
-- On Escape, cancel and revert
+### File: `src/pages/DashboardPage.tsx`
+- Remove `delay={index * 0.05}` from `ResumeGroup` and standalone `ResumeListCard` calls since the stagger animation is being removed
 
-### 2. Wire up rename in the parent
-**File: `src/pages/DashboardPage.tsx`**
+### File: `src/components/dashboard/ResumeListCard.tsx`
+- Remove the unused `delay` prop from the interface and component (it was accepted but never used inside the component)
 
-- Import `useResumeMutations` (already imported for delete/duplicate)
-- Use `updateResume.mutateAsync({ resumeId, updates: {}, title: newTitle })` to save the new name
-- Pass the handler as `onRename` to each `ResumeListCard`
-
-### 3. Add success toast
-**File: `src/hooks/useResumes.ts`**
-
-- No changes needed -- the `updateResume` mutation already handles the DB update and cache invalidation. The parent just calls it with the new title.
-
-## Technical Details
-
-### Inline Rename UX
-- The title text becomes an `<input>` with `autoFocus`, styled to match the current font (same `font-semibold text-foreground` classes)
-- Glass-input styling on the input for consistency
-- Click outside or press Enter to confirm; Escape to cancel
-- `e.stopPropagation()` on the input to prevent triggering card navigation
-
-### Dropdown Addition
-A new menu item between the top of the menu and "Edit":
-```
-Rename   (Pencil icon)
-Edit     (Edit2 icon)
-Duplicate
----
-Delete
-```
+## Why This Fixes It
+The page-level `PageTransition` component already handles a smooth entrance for the entire dashboard content. Adding per-card staggered fade-in on top of that creates visual jank -- cards appear blank then pop in one by one. Removing the card-level animation lets them render instantly within the page transition, eliminating the "loading" flash.
