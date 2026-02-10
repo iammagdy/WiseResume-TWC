@@ -1,4 +1,4 @@
-import { Target, Wand2, LayoutGrid, Mic, Shield, Users } from 'lucide-react';
+import { Target, Wand2, Mic, Users } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 
 const features = [
@@ -30,20 +30,6 @@ const features = [
     gradient: 'from-rose-500/30 to-rose-500/5',
     iconColor: 'text-rose-500',
   },
-  {
-    icon: Shield,
-    title: 'AI Humanizer',
-    description: 'Rewrite AI-generated content to pass detection',
-    gradient: 'from-violet-500/30 to-violet-500/5',
-    iconColor: 'text-violet-500',
-  },
-  {
-    icon: LayoutGrid,
-    title: '12 Pro Templates',
-    description: 'Professional, ATS-friendly designs for any role',
-    gradient: 'from-blue-500/30 to-blue-500/5',
-    iconColor: 'text-blue-500',
-  },
 ];
 
 export function FeatureGrid() {
@@ -51,14 +37,14 @@ export function FeatureGrid() {
     <section className="py-12 sm:py-16 px-4 sm:px-6">
       <div className="text-center mb-8 sm:mb-10 animate-fade-in-up">
         <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
-          ⚡ AI-Powered Features
+          AI-Powered Features
         </p>
         <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
           Everything You Need to Land the Job
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-3xl mx-auto">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-lg mx-auto">
         {features.map((feature, index) => (
           <div
             key={feature.title}
