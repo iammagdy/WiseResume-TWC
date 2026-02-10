@@ -1,34 +1,71 @@
 
-# Fix Three Export Flow Issues
 
-## 1. Make `estimateOnePageScale` use `prepareForCapture` for accurate mobile measurements
+# Smart URL Extraction for Job URL Parser
 
-Currently `estimateOnePageScale` calls `calculatePDFDimensions` directly on the element, which on mobile may have a viewport-scaled width (not 612px). The fix wraps the measurement in `prepareForCapture` / cleanup to force the correct 612px layout before measuring.
+## Problem
 
-**File: `src/lib/pdfGenerator.ts`**
-- Update `estimateOnePageScale` to call `prepareForCapture(templateElement)` before `calculatePDFDimensions`, then call the cleanup function afterward
-- Wrap in try/finally to guarantee cleanup
+When users copy a job link from LinkedIn's share feature, they get text like:
+`"Check out this job at Loynova: https://www.linkedin.com/jobs/view/4353480180"`
 
-## 2. Replace 300ms `setTimeout` with `requestAnimationFrame` + `setTimeout` combo
+The current `isUrl()` check uses `new URL(text)` which fails on this because it's not a pure URL -- it has surrounding text. So the component either rejects it or treats it as plain text, forcing the user to manually trim the URL.
 
-The current `setTimeout(() => handleExport(...), 300)` is a race condition -- the DOM may not have updated yet (or it may update faster, wasting time). Replace with a double-`requestAnimationFrame` pattern that waits for the browser to actually paint the updated content before triggering export.
+## Solution
 
-**File: `src/pages/PreviewPage.tsx` (line 664-665)**
-- Replace `setTimeout(() => handleExport('one-page', true, true), 300)` with:
+Add a `extractUrl` helper that uses a regex to find a URL anywhere in the pasted text. Update the input handler and parse handler to use this extraction logic.
+
+## Technical Details
+
+### File: `src/components/editor/tailor/JobUrlParser.tsx`
+
+**1. Add `extractUrl` helper** (next to the existing `isUrl` function):
+
 ```typescript
-requestAnimationFrame(() => {
-  requestAnimationFrame(() => {
-    handleExport('one-page', true, true);
-  });
-});
+const extractUrl = (text: string): string | null => {
+  const match = text.match(/https?:\/\/[^\s"'<>]+/i);
+  return match ? match[0] : null;
+};
 ```
 
-## 3. Remove unused `onOnePageWizard` prop
+**2. Update `setUrlInput` on change** -- when the user pastes into the URL input, extract the URL automatically:
 
-The `onOnePageWizard` prop is defined in `ExportOptionsSheet` but never used inside the component (it's only passed in from PreviewPage).
+```typescript
+// In the Input onChange handler (line 92):
+onChange={(e) => {
+  const raw = e.target.value;
+  const extracted = extractUrl(raw);
+  setUrlInput(extracted || raw);
+}}
+```
 
-**File: `src/components/editor/ExportOptionsSheet.tsx`**
-- Remove `onOnePageWizard` from the interface and destructured props
+**3. Update `handleParseUrl`** -- use `extractUrl` as a fallback before rejecting:
 
-**File: `src/pages/PreviewPage.tsx` (line 656)**
-- Remove `onOnePageWizard={() => setShowOnePageWizard(true)}` from the ExportOptionsSheet render
+```typescript
+const handleParseUrl = async () => {
+  const url = extractUrl(urlInput) || urlInput.trim();
+  if (!url || !isUrl(url)) {
+    toast.error('Please enter a valid URL');
+    return;
+  }
+  setIsParsing(true);
+  try {
+    const data = await parseJobUrl(url);
+    // ... rest stays the same
+```
+
+**4. Update `handleInputChange`** -- also extract URL from mixed text:
+
+```typescript
+const handleInputChange = (text: string) => {
+  const extracted = extractUrl(text);
+  if (extracted) {
+    setUrlInput(extracted);
+    setShowManual(false);
+  } else {
+    onChange(text);
+    setShowManual(true);
+  }
+};
+```
+
+These changes mean that pasting `"Check out this job at Loynova: https://www.linkedin.com/jobs/view/4353480180"` into either the URL input or the general input will automatically extract and use just `https://www.linkedin.com/jobs/view/4353480180`.
+
