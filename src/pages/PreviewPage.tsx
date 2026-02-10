@@ -1,26 +1,30 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText, Mic, FolderDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
-import { ModernTemplate } from '@/components/templates/ModernTemplate';
-import { ClassicTemplate } from '@/components/templates/ClassicTemplate';
-import { MinimalTemplate } from '@/components/templates/MinimalTemplate';
-import { ProfessionalTemplate } from '@/components/templates/ProfessionalTemplate';
-import { DeveloperTemplate } from '@/components/templates/DeveloperTemplate';
-import { CreativeTemplate } from '@/components/templates/CreativeTemplate';
-import { ExecutiveTemplate } from '@/components/templates/ExecutiveTemplate';
-import { CompactTemplate } from '@/components/templates/CompactTemplate';
-import { AcademicTemplate } from '@/components/templates/AcademicTemplate';
-import { HealthcareTemplate } from '@/components/templates/HealthcareTemplate';
-import { SalesTemplate } from '@/components/templates/SalesTemplate';
-import { ElegantTemplate } from '@/components/templates/ElegantTemplate';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
-import { PageBreakSheet } from '@/components/editor/PageBreakSheet';
-import { ExportOptionsSheet } from '@/components/editor/ExportOptionsSheet';
-import { ResumePhotoSheet } from '@/components/editor/ResumePhotoSheet';
-import { OnePageWizardSheet } from '@/components/editor/ai/OnePageWizardSheet';
+
+// Lazy-loaded templates (only the selected one loads)
+const ModernTemplate = lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate })));
+const ClassicTemplate = lazy(() => import('@/components/templates/ClassicTemplate').then(m => ({ default: m.ClassicTemplate })));
+const MinimalTemplate = lazy(() => import('@/components/templates/MinimalTemplate').then(m => ({ default: m.MinimalTemplate })));
+const ProfessionalTemplate = lazy(() => import('@/components/templates/ProfessionalTemplate').then(m => ({ default: m.ProfessionalTemplate })));
+const DeveloperTemplate = lazy(() => import('@/components/templates/DeveloperTemplate').then(m => ({ default: m.DeveloperTemplate })));
+const CreativeTemplate = lazy(() => import('@/components/templates/CreativeTemplate').then(m => ({ default: m.CreativeTemplate })));
+const ExecutiveTemplate = lazy(() => import('@/components/templates/ExecutiveTemplate').then(m => ({ default: m.ExecutiveTemplate })));
+const CompactTemplate = lazy(() => import('@/components/templates/CompactTemplate').then(m => ({ default: m.CompactTemplate })));
+const AcademicTemplate = lazy(() => import('@/components/templates/AcademicTemplate').then(m => ({ default: m.AcademicTemplate })));
+const HealthcareTemplate = lazy(() => import('@/components/templates/HealthcareTemplate').then(m => ({ default: m.HealthcareTemplate })));
+const SalesTemplate = lazy(() => import('@/components/templates/SalesTemplate').then(m => ({ default: m.SalesTemplate })));
+const ElegantTemplate = lazy(() => import('@/components/templates/ElegantTemplate').then(m => ({ default: m.ElegantTemplate })));
+
+// Lazy-loaded sheets
+const PageBreakSheet = lazy(() => import('@/components/editor/PageBreakSheet').then(m => ({ default: m.PageBreakSheet })));
+const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsSheet').then(m => ({ default: m.ExportOptionsSheet })));
+const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then(m => ({ default: m.ResumePhotoSheet })));
+const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
 import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { toast } from 'sonner';
@@ -520,7 +524,9 @@ export default function PreviewPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <TemplateComponent resume={currentResume} />
+            <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading template...</div>}>
+              <TemplateComponent resume={currentResume} />
+            </Suspense>
             {/* Page break indicators - hidden during PDF generation or for single-page templates */}
             {!isGenerating && showPageBreaks && templateConfig.supportsPageBreaks && (
               <PageBreakIndicator
@@ -615,45 +621,49 @@ export default function PreviewPage() {
         </motion.div>
       </div>
 
-      {/* Page Break Settings Sheet */}
-      <PageBreakSheet
-        open={showPageBreakSheet}
-        onOpenChange={setShowPageBreakSheet}
-        settings={pageBreakSettings}
-        onSettingsChange={setPageBreakSettings}
-        availableSections={availableSections}
-        templateConfig={templateConfig}
-        resume={currentResume ?? undefined}
-        onSwitchTemplate={setSelectedTemplate}
-      />
-
-      {/* Export Options Sheet */}
-      <ExportOptionsSheet
-        open={showExportSheet}
-        onOpenChange={setShowExportSheet}
-        hasCoverLetter={!!generatedCoverLetter}
-        coverLetterContext={coverLetterJobContext}
-        onExport={handleExport}
-        isExporting={isGenerating}
-        onOnePageWizard={() => setShowOnePageWizard(true)}
-      />
-
-      {/* One-Page Wizard Sheet */}
-      <OnePageWizardSheet
-        open={showOnePageWizard}
-        onOpenChange={setShowOnePageWizard}
-      />
-
-      {/* Photo Prompt Sheet */}
-      <ResumePhotoSheet
-        open={showPhotoSheet}
-        onOpenChange={setShowPhotoSheet}
-        profilePhotoUrl={profile?.avatarUrl || null}
-        resumeId={currentResume?.id}
-        onUseProfilePhoto={handleUseProfilePhoto}
-        onUploadPhoto={handleUploadPhoto}
-        onKeepInitials={handleKeepInitials}
-      />
+      {/* Sheets - lazy loaded */}
+      <Suspense fallback={null}>
+        {showPageBreakSheet && (
+          <PageBreakSheet
+            open={showPageBreakSheet}
+            onOpenChange={setShowPageBreakSheet}
+            settings={pageBreakSettings}
+            onSettingsChange={setPageBreakSettings}
+            availableSections={availableSections}
+            templateConfig={templateConfig}
+            resume={currentResume ?? undefined}
+            onSwitchTemplate={setSelectedTemplate}
+          />
+        )}
+        {showExportSheet && (
+          <ExportOptionsSheet
+            open={showExportSheet}
+            onOpenChange={setShowExportSheet}
+            hasCoverLetter={!!generatedCoverLetter}
+            coverLetterContext={coverLetterJobContext}
+            onExport={handleExport}
+            isExporting={isGenerating}
+            onOnePageWizard={() => setShowOnePageWizard(true)}
+          />
+        )}
+        {showOnePageWizard && (
+          <OnePageWizardSheet
+            open={showOnePageWizard}
+            onOpenChange={setShowOnePageWizard}
+          />
+        )}
+        {showPhotoSheet && (
+          <ResumePhotoSheet
+            open={showPhotoSheet}
+            onOpenChange={setShowPhotoSheet}
+            profilePhotoUrl={profile?.avatarUrl || null}
+            resumeId={currentResume?.id}
+            onUseProfilePhoto={handleUseProfilePhoto}
+            onUploadPhoto={handleUploadPhoto}
+            onKeepInitials={handleKeepInitials}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

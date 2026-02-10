@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, Sparkles } from 'lucide-react';
@@ -9,10 +9,12 @@ import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { AppLogo } from '@/components/brand/AppLogo';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
-import { CreateResumeDialog } from '@/components/dashboard/CreateResumeDialog';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
-import { OnboardingCarousel } from '@/components/onboarding/OnboardingCarousel';
+
+// Lazy-loaded dialogs
+const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
+const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
@@ -190,10 +192,12 @@ export default function DashboardPage() {
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50"
         >
-          <OnboardingCarousel
-            onComplete={handleOnboardingComplete}
-            onSkip={handleOnboardingComplete}
-          />
+          <Suspense fallback={null}>
+            <OnboardingCarousel
+              onComplete={handleOnboardingComplete}
+              onSkip={handleOnboardingComplete}
+            />
+          </Suspense>
         </motion.div>
       </AnimatePresence>
     );
@@ -391,16 +395,20 @@ export default function DashboardPage() {
           </PullToRefresh>
         )}
 
-      {/* Create Resume Dialog */}
-      <CreateResumeDialog
-        open={showCreateDialog}
-        onOpenChange={(open) => {
-          setShowCreateDialog(open);
-          if (!open) setCreateTailoredParentId(null);
-        }}
-        existingResumes={resumes || []}
-        parentResumeId={createTailoredParentId}
-      />
+      {/* Create Resume Dialog - lazy loaded */}
+      <Suspense fallback={null}>
+        {showCreateDialog && (
+          <CreateResumeDialog
+            open={showCreateDialog}
+            onOpenChange={(open) => {
+              setShowCreateDialog(open);
+              if (!open) setCreateTailoredParentId(null);
+            }}
+            existingResumes={resumes || []}
+            parentResumeId={createTailoredParentId}
+          />
+        )}
+      </Suspense>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>
