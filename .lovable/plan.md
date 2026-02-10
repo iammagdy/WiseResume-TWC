@@ -1,62 +1,41 @@
 
 
-# Smooth Theme Toggle with Morph Animation
+# Change Tab Active Color from Purple to Red + Add Tab Transition Animations
 
 ## What Changes
 
-Redesign the `ThemeToggle` component with an animated sun/moon icon morph and a smooth full-page color transition when switching themes.
+The active tab color across the app (bottom tab bar, editor stepper nav) is currently purple (`--primary: 270 100% 65%`). This will be changed to a vibrant red, and smooth animations will be added for tab-to-tab transitions.
 
----
+## Changes
 
-## 1. Animated Icon Morph
+### 1. Update Primary Color to Red
 
-Replace the static Sun/Moon/Monitor icons with an animated SVG that morphs between states:
-- **Sun to Moon**: Sun rays retract and fade while a crescent shadow slides in
-- **Moon to Sun**: Crescent slides out, rays extend with a staggered spring animation
-- Uses `framer-motion` `AnimatePresence` + `motion.svg` for the morph
+Modify `src/index.css` to change the `--primary` CSS variable from purple (hue 270) to red (hue 0/355) in both dark and light themes. This automatically updates every component using `text-primary`, `bg-primary`, `gradient-primary`, etc.
 
-## 2. Sliding Pill Indicator
+- Dark mode: `--primary: 355 90% 60%` (vibrant red)
+- Light mode: `--primary: 355 75% 50%` (slightly deeper red for contrast)
+- Also update `--ring` and `--sidebar-primary` to match
+- Update gradient stops (`--gradient-start`, `--gradient-mid`) to use red hues
 
-The existing `layoutId="theme-indicator"` border overlay will be replaced with a filled gradient pill background that slides between the three options using `layoutId` -- matching the premium tab bar style already in the app.
+### 2. Enhance Bottom Tab Bar Animations
 
-## 3. Full-Page Color Transition
+Modify `src/components/layout/BottomTabBar.tsx`:
+- Add a scale bounce animation on the active icon (icon scales up briefly when selected)
+- Add a vertical slide-up micro-animation on the label when it becomes active
+- The existing `layoutId="tab-pill"` sliding pill already animates between tabs -- keep it but ensure it uses the new red gradient
 
-Add a CSS transition on the `:root` / `.dark` / `.light` CSS custom properties so the entire page smoothly cross-fades between color palettes instead of snapping instantly:
-- Add `transition: background-color 0.4s ease, color 0.3s ease` to `body` and key elements
-- A brief circular ripple overlay expands from the toggle button's position outward (using a `clip-path: circle()` animation) for a "paint splash" effect
+### 3. Enhance Editor Stepper Nav Animations
 
-## 4. Toggle Button Glow
-
-The active theme button gets a subtle glow matching its meaning:
-- Light: warm amber glow
-- Dark: cool purple glow  
-- System: neutral blue glow
-
----
-
-## Technical Details
+Modify `src/components/editor/StepperNav.tsx`:
+- Update the glow ring animation to use the new red hue instead of purple (hue 270)
+- Add a scale-in bounce when a step becomes active
+- The connecting progress line already animates -- it will automatically pick up the new red color via `gradient-primary`
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/settings/ThemeToggle.tsx` | Complete rewrite with animated icon morph, sliding pill, ripple trigger |
-| `src/index.css` | Add `transition` rules to `body`, `.dark`, `.light` for smooth color crossfade; add `@keyframes theme-ripple` for the circular clip-path expansion |
-
-### No New Files or Dependencies
-
-Everything uses existing `framer-motion` and CSS animations.
-
-### Implementation Approach
-
-**ThemeToggle.tsx**:
-- Animated sun/moon icon component using `motion.circle`, `motion.line` for rays
-- Sun state: circle + 8 rotating rays; Moon state: circle with crescent mask sliding in
-- `AnimatePresence` with `mode="wait"` for clean icon swap
-- `motion.div` with `layoutId="theme-pill"` as the sliding background pill
-- On click: trigger haptic, update theme, and spawn a full-screen `motion.div` overlay that animates `clipPath` from `circle(0%)` to `circle(150%)` with the theme's target background color, then removes itself
-
-**index.css**:
-- Add smooth `transition` on CSS custom property consumers: `body { transition: background-color 0.4s ease; }` and similar for `card`, `popover` backgrounds
-- The ripple overlay handles the visual "morph" while CSS transitions handle the underlying property changes
+| `src/index.css` | Change `--primary` from purple to red in both `:root` and `.light`, update gradient stops and ring color |
+| `src/components/layout/BottomTabBar.tsx` | Add icon bounce + label slide animations on tab switch |
+| `src/components/editor/StepperNav.tsx` | Update glow animation hue from 270 to 355, add step bounce |
 
