@@ -27,11 +27,21 @@ export const ScoreRing = memo(function ScoreRing({
 
   if (isLoading) {
     return (
-      <div
-        className="rounded-full border-2 border-muted animate-pulse flex items-center justify-center"
-        style={{ width: size, height: size }}
-      >
-        <span className="text-[10px] text-muted-foreground">…</span>
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg className="w-full h-full -rotate-90" viewBox={`0 0 ${size} ${size}`}>
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            stroke="hsl(var(--muted))"
+            strokeWidth={strokeWidth}
+            fill="none"
+            className="animate-pulse"
+          />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xs font-bold text-muted-foreground animate-pulse">—</span>
+        </div>
       </div>
     );
   }

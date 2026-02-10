@@ -6,7 +6,7 @@ import {
   Copy, 
   Trash2, 
   Star,
-  FileText,
+  
   Target,
   Clock,
   GitBranch,
@@ -153,11 +153,12 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   return (
     <div className={cn(
-      "relative overflow-hidden rounded-2xl",
-      // Score-based left border accent
-      healthScore && healthScore.overallScore >= 80 && "border-l-4 border-l-success",
-      healthScore && healthScore.overallScore >= 60 && healthScore.overallScore < 80 && "border-l-4 border-l-warning",
-      healthScore && healthScore.overallScore < 60 && "border-l-4 border-l-destructive",
+      "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
+      healthScore
+        ? healthScore.overallScore >= 80 ? "border-l-success"
+          : healthScore.overallScore >= 60 ? "border-l-warning"
+          : "border-l-destructive"
+        : "border-l-muted",
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
@@ -300,14 +301,16 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </span>
               </div>
               {/* AI Improvement Nudge */}
-              {healthScore && healthScore.topImprovement && (
+              {healthScore && healthScore.topImprovement ? (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
                   <span className="text-xs text-muted-foreground truncate italic">
                     {healthScore.topImprovement}
                   </span>
                 </div>
-              )}
+              ) : !healthScore ? (
+                <div className="mt-1.5 h-4 w-3/4 rounded bg-muted animate-pulse" />
+              ) : null}
             </div>
           </div>
 
