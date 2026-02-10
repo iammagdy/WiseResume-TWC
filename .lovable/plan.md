@@ -1,38 +1,70 @@
 
 
-# Fix Infinite Loading on All Pages
+# Fix iOS Compatibility and Improve PDF Import Parsing
 
-## Root Cause
+## Issue 1: Auth State Stuck (Causes Infinite Loading)
 
-In `AuthContext.tsx`, when no cached session exists (or it's expired), the auth `loading` state starts as `true` and waits for `supabase.auth.getSession()` to resolve. Two problems:
+### Root Cause
+The `markResolved` function with a `resolved` flag in `AuthContext.tsx` was introduced to fix the timeout issue, but it has a critical side effect: after the first resolution, `onAuthStateChange` is completely ignored. This means:
+- Signing out does not update the UI (user stays "logged in")
+- Token refreshes are ignored
+- Signing in on another tab is not reflected
 
-1. The `.then()` call has no `.catch()` -- if the network request fails, `loading` stays `true` forever
-2. There is no timeout -- if the request hangs on slow mobile networks, the app stays frozen
-
-Since every protected page (Settings, Dashboard, Editor, etc.) checks `if (loading) return <Skeleton />`, a stuck loading state causes infinite skeleton screens across the entire app.
-
-## Fix
-
-### 1. Add error handling and timeout to AuthContext (`src/contexts/AuthContext.tsx`)
-
-- Add `.catch()` to the `getSession()` call that sets `loading: false` (with null user/session) so the page can redirect to auth instead of freezing
-- Add a 5-second safety timeout that forces `loading: false` if neither `onAuthStateChange` nor `getSession()` have resolved yet
-- Clean up the timeout on unmount or when auth resolves
+### Fix (`src/contexts/AuthContext.tsx`)
+- Keep the `resolved` flag ONLY for the initial loading state (to stop showing skeletons)
+- After initial resolution, let `onAuthStateChange` continue updating user/session state normally
+- Keep the 5-second safety timeout and `.catch()` for the initial load
+- The timeout should only control `loading: false`, not block future auth events
 
 ```text
-Before:
-  getSession().then(...)   // no catch, no timeout
-
-After:
-  getSession().then(...).catch(...)   // handles failures
-  setTimeout(() => force loading=false, 5000)  // safety net
+Before: markResolved() blocks ALL future auth state changes
+After:  resolved flag only controls initial loading=false, onAuthStateChange always updates user/session
 ```
 
-### 2. Files Changed
+## Issue 2: PDF Parsing - Wrong Name / Missing Data
+
+### Root Cause
+The client-side `pdfjs-dist` text extraction works well for digital PDFs but has issues with:
+1. PDFs where text items lack proper transforms (two-column/creative layouts)
+2. Text ordering issues in sidebar-style resumes where the name appears in a sidebar
+3. The quality threshold (50 chars minimum) is too low -- some PDFs extract garbage text that passes the check but confuses the AI
+
+### Fix (`src/lib/pdf/textExtractor.ts`)
+- Increase the quality check threshold: require at least 3 letter-words (not just any letters) to confirm good extraction
+- Add a secondary quality signal: check if extracted text has reasonable word count (at least 10 words)
+- Log the first 200 chars of extracted text for debugging
+
+### Fix (`supabase/functions/parse-resume/index.ts`)
+- Strengthen the system prompt name detection rules with additional guidance:
+  - The name is almost always on the FIRST LINE of the extracted text
+  - If the first line contains "Contact" or similar headers, skip it and look at line 2-3
+  - Never use email addresses, phone numbers, or URLs as names
+- Add a post-processing validation: if `fullName` looks like a section header or contains "@", clear it and try to extract from the first few lines of the raw text
+
+## Issue 3: iOS-Specific Compatibility
+
+### Current State (Already Good)
+- `viewport-fit=cover` is set
+- Safe area insets are applied via CSS `env(safe-area-inset-*)`
+- `apple-mobile-web-app-capable` and `black-translucent` status bar are configured
+- `100dvh` is used for dynamic viewport height
+
+### Remaining iOS Fix (`src/lib/pdf/ocrExtractor.ts`)
+- On iOS Safari, large canvas rendering can crash or produce blank results due to memory limits
+- Cap canvas dimensions to 2048x2048 for OCR (iOS WebKit limit is ~4096px but 2048 is safer)
+- Add `willReadFrequently: true` to `getContext('2d')` for better iOS performance
+
+### Fix (`src/index.css`)
+- Ensure `-webkit-overflow-scrolling: touch` is applied for smooth scrolling on iOS
+- Add `overscroll-behavior: none` on the body to prevent iOS rubber-band bounce interfering with the app
+
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/contexts/AuthContext.tsx` | Add `.catch()` handler and 5-second safety timeout |
-
-This is a one-file fix. No other changes needed since all pages already handle the `!loading && !user` case by redirecting to `/auth`.
+| `src/contexts/AuthContext.tsx` | Fix `resolved` flag to only control initial loading, not block future auth events |
+| `src/lib/pdf/textExtractor.ts` | Improve extraction quality check with word-count validation and debug logging |
+| `supabase/functions/parse-resume/index.ts` | Strengthen name detection in AI prompt and add post-processing name validation |
+| `src/lib/pdf/ocrExtractor.ts` | Cap canvas size for iOS, add `willReadFrequently` hint |
+| `src/index.css` | Add iOS scrolling fixes (`-webkit-overflow-scrolling`, `overscroll-behavior`) |
 
