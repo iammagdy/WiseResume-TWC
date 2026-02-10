@@ -59,38 +59,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    let resolved = false;
+    let initialResolved = false;
 
-    const markResolved = (user: User | null, session: Session | null) => {
-      if (resolved) return;
-      resolved = true;
+    const resolveInitialLoad = (user: User | null, session: Session | null) => {
+      if (!initialResolved) {
+        initialResolved = true;
+      }
       setState({ user, session, loading: false });
       cacheSession(user, session);
     };
 
     // Safety timeout: force loading=false after 5s
     const timeout = setTimeout(() => {
-      if (!resolved) {
+      if (!initialResolved) {
         console.warn('Auth session fetch timed out after 5s');
-        markResolved(null, null);
+        resolveInitialLoad(null, null);
       }
     }, 5000);
 
     // Set up auth state listener BEFORE getting session
+    // This continues to fire for sign-in, sign-out, token refresh, etc.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
-        markResolved(session?.user ?? null, session);
+        resolveInitialLoad(session?.user ?? null, session);
       }
     );
 
-    // Get initial session (will update cache if different)
+    // Get initial session
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
-        markResolved(session?.user ?? null, session);
+        resolveInitialLoad(session?.user ?? null, session);
       })
       .catch(() => {
         console.warn('Failed to fetch auth session');
-        markResolved(null, null);
+        resolveInitialLoad(null, null);
       });
 
     return () => {

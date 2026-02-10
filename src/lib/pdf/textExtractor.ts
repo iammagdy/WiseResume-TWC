@@ -108,10 +108,13 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
 
   // Check if we got meaningful text
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();
-  // Be conservative: only classify as "no text" when extraction is truly empty/near-empty.
   const hasLetters = /[A-Za-z]/.test(cleanedText);
+  const wordCount = cleanedText.split(/\s+/).filter(w => w.length > 1).length;
   
-  if (cleanedText.length === 0 || (!hasLetters && cleanedText.length < 20)) {
+  // Log first 200 chars for debugging parsing issues
+  console.log('PDF extraction preview:', cleanedText.substring(0, 200), `(${wordCount} words, ${cleanedText.length} chars)`);
+  
+  if (cleanedText.length === 0 || !hasLetters || wordCount < 10) {
     // Instead of throwing, return needsOCR flag so UI can offer OCR
     console.warn('PDF extraction produced too little text - OCR may be needed', {
       pages: pageCount,
