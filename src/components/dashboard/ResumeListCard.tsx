@@ -203,29 +203,11 @@ export const ResumeListCard = memo(function ResumeListCard({
         <div className="flex items-start justify-between gap-3">
           {/* Left: Icon and Content */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            {/* Resume Health Score Ring or Icon */}
+            {/* Resume Health Score Ring */}
             {healthScore ? (
               <ScoreRing score={healthScore.overallScore} size={48} isLoading={isScoring} />
-            ) : isScoring ? (
-              <ScoreRing score={0} size={48} isLoading />
             ) : (
-              <div className="relative">
-                <div className="w-12 h-12 rounded-xl gradient-primary flex items-center justify-center flex-shrink-0 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.4)]">
-                  <FileText className="w-6 h-6 text-primary-foreground" />
-                </div>
-                {matchScore !== null && (
-                  <div 
-                    className={cn(
-                      'absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-background',
-                      matchScore >= 80 ? 'bg-success text-success-foreground' :
-                      matchScore >= 60 ? 'bg-warning text-warning-foreground' :
-                      'bg-destructive text-destructive-foreground'
-                    )}
-                  >
-                    {matchScore}
-                  </div>
-                )}
-              </div>
+              <ScoreRing score={0} size={48} isLoading />
             )}
 
             {/* Content */}
