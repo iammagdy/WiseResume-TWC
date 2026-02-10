@@ -15,7 +15,6 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 import { DailyTipCard } from '@/components/dashboard/DailyTipCard';
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
-import { PageTransition } from '@/components/layout/PageTransition';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 // Lazy-loaded dialogs
@@ -219,6 +218,11 @@ export default function DashboardPage() {
   const isLoading = authLoading || resumesLoading;
   const hasResumes = filteredResumes && filteredResumes.length > 0;
 
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 }
+  };
+
   // Handle creating a tailored version
   const handleCreateTailored = (parentId: string) => {
     setCreateTailoredParentId(parentId);
@@ -265,7 +269,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <PageTransition className="min-h-full flex flex-col">
+    <div className="min-h-full flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between glass-header">
           <AppLogo size="sm" showTagline={false} />
@@ -386,52 +390,55 @@ export default function DashboardPage() {
                       
                       if (tailoredVersions.length > 0) {
                         return (
-                          <ResumeGroup
-                            key={masterResume.id}
-                            masterResume={masterResume}
-                            tailoredVersions={tailoredVersions}
+                          <motion.div key={masterResume.id} variants={itemVariants}>
+                            <ResumeGroup
+                              masterResume={masterResume}
+                              tailoredVersions={tailoredVersions}
+                              onEdit={handleEdit}
+                              onDuplicate={handleDuplicate}
+                              onDelete={handleDelete}
+                              onRename={handleRename}
+                              onInterview={handleInterview}
+                              onCreateTailored={handleCreateTailored}
+                              healthScores={healthScores}
+                              scoringId={scoringId}
+                            />
+                          </motion.div>
+                        );
+                      }
+
+                      // Single resume without tailored versions
+                      return (
+                        <motion.div key={masterResume.id} variants={itemVariants}>
+                          <ResumeListCard
+                            resume={masterResume}
                             onEdit={handleEdit}
                             onDuplicate={handleDuplicate}
                             onDelete={handleDelete}
                             onRename={handleRename}
                             onInterview={handleInterview}
-                            onCreateTailored={handleCreateTailored}
-                            healthScores={healthScores}
-                            scoringId={scoringId}
+                            healthScore={healthScores[masterResume.id]}
+                            isScoring={scoringId === masterResume.id}
                           />
-                        );
-                      }
-                      
-                      // Single resume without tailored versions
-                      return (
+                        </motion.div>
+                      );
+                    })}
+
+                    {/* Render orphaned tailored resumes (parent was deleted) */}
+                    {resumeHierarchy.orphanTailored.map((resume, index) => (
+                      <motion.div key={resume.id} variants={itemVariants}>
                         <ResumeListCard
-                          key={masterResume.id}
-                          resume={masterResume}
+                          resume={resume}
                           onEdit={handleEdit}
                           onDuplicate={handleDuplicate}
                           onDelete={handleDelete}
                           onRename={handleRename}
                           onInterview={handleInterview}
-                          healthScore={healthScores[masterResume.id]}
-                          isScoring={scoringId === masterResume.id}
+                          showTailoredBadge
+                          healthScore={healthScores[resume.id]}
+                          isScoring={scoringId === resume.id}
                         />
-                      );
-                    })}
-                    
-                    {/* Render orphaned tailored resumes (parent was deleted) */}
-                    {resumeHierarchy.orphanTailored.map((resume, index) => (
-                      <ResumeListCard
-                        key={resume.id}
-                        resume={resume}
-                        onEdit={handleEdit}
-                        onDuplicate={handleDuplicate}
-                        onDelete={handleDelete}
-                        onRename={handleRename}
-                        onInterview={handleInterview}
-                        showTailoredBadge
-                        healthScore={healthScores[resume.id]}
-                        isScoring={scoringId === resume.id}
-                      />
+                      </motion.div>
                     ))}
                   </>
                 )}
@@ -482,6 +489,6 @@ export default function DashboardPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-    </PageTransition>
+    </div>
   );
 }
