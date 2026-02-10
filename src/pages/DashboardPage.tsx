@@ -23,6 +23,7 @@ import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResum
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
+import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/safeClient';
