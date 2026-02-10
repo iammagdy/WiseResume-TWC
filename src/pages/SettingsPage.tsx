@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
+import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, 
@@ -171,11 +172,7 @@ export default function SettingsPage() {
   const profileCompletion = calculateProfileCompletion(profile);
 
   if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
+    return <SettingsSkeleton />;
   }
 
   return (

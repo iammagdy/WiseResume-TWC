@@ -128,3 +128,73 @@ export function InterviewSkeleton() {
   );
 }
 
+export function AuthSkeleton() {
+  return (
+    <div className="min-h-screen min-h-[100dvh] bg-background flex items-center justify-center px-6">
+      <div className="w-full max-w-sm animate-pulse space-y-6">
+        {/* Back button */}
+        <div className="w-10 h-10 bg-muted rounded-full" />
+        
+        {/* Title & subtitle */}
+        <div className="space-y-2">
+          <div className="h-8 w-48 bg-muted rounded" />
+          <div className="h-4 w-64 bg-muted rounded" />
+        </div>
+        
+        {/* Input fields */}
+        <div className="space-y-3">
+          <div className="h-12 w-full bg-muted rounded-lg" />
+          <div className="h-12 w-full bg-muted rounded-lg" />
+        </div>
+        
+        {/* Primary button */}
+        <div className="h-14 w-full bg-muted rounded-lg" />
+        
+        {/* Divider */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-muted" />
+          <div className="h-4 w-8 bg-muted rounded" />
+          <div className="flex-1 h-px bg-muted" />
+        </div>
+        
+        {/* Social buttons */}
+        <div className="space-y-3">
+          <div className="h-12 w-full bg-muted rounded-lg" />
+          <div className="h-12 w-full bg-muted rounded-lg" />
+        </div>
+        
+        {/* Toggle link */}
+        <div className="h-4 w-48 bg-muted rounded mx-auto" />
+      </div>
+    </div>
+  );
+}
+
+export function TemplateSkeleton() {
+  return (
+    <div className="w-full h-full min-h-[400px] animate-pulse p-8 space-y-4">
+      {/* Name */}
+      <div className="h-7 w-48 bg-muted rounded mx-auto" />
+      {/* Contact line */}
+      <div className="h-3 w-64 bg-muted rounded mx-auto" />
+      {/* Divider */}
+      <div className="h-px w-full bg-muted my-4" />
+      {/* Section heading */}
+      <div className="h-4 w-24 bg-muted rounded" />
+      {/* Lines */}
+      <div className="space-y-2">
+        <div className="h-3 w-full bg-muted/60 rounded" />
+        <div className="h-3 w-5/6 bg-muted/60 rounded" />
+        <div className="h-3 w-4/6 bg-muted/60 rounded" />
+      </div>
+      {/* Section heading */}
+      <div className="h-4 w-28 bg-muted rounded mt-4" />
+      {/* Lines */}
+      <div className="space-y-2">
+        <div className="h-3 w-full bg-muted/60 rounded" />
+        <div className="h-3 w-3/4 bg-muted/60 rounded" />
+      </div>
+    </div>
+  );
+}
+
