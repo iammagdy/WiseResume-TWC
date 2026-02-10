@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Sparkles } from 'lucide-react';
+import { Plus, Search, Sparkles, User } from 'lucide-react';
 import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
