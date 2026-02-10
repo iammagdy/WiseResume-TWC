@@ -1,94 +1,87 @@
 
 
-# Apply Glass Theme Across All UI Components
+# Dashboard Polish: Avatar, Tips, Activity & Icon Alignment
 
-## Overview
-
-The app already has a well-defined glass utility system (`.glass`, `.glass-card`, `.glass-elevated`, `.glass-input`, `.glass-header`, `.icon-glow`, `.border-glow`), but several core UI primitives still use opaque `bg-popover`, `bg-background`, or plain `border` styles instead of the translucent glassmorphism treatment. This plan updates every remaining UI component to use the glass theme consistently.
+## Problem
+The dashboard feels incomplete -- it's missing personal touches (avatar, streak), engagement elements (tips/quotes), activity context, and the quick-action icon chips look misaligned with inconsistent sizing and spacing.
 
 ## Changes
 
-### 1. Dialog (Alert Dialog + Dialog)
+### 1. Header: Add Profile Avatar
+**File: `src/pages/DashboardPage.tsx`**
 
-**File: `src/components/ui/dialog.tsx`**
-- Replace opaque `border bg-background` on `DialogContent` with `glass-elevated` + `border-border/30` + subtle glow shadow
-- Update overlay from `bg-black/80` to `bg-black/60 backdrop-blur-sm` for a frosted overlay effect
+Replace the bare header with one that includes the user's avatar (or initials fallback) next to the Explore button and theme toggle. Uses profile data already available via `useProfile`.
 
-**File: `src/components/ui/alert-dialog.tsx`**
-- Same treatment: replace `border bg-background` on `AlertDialogContent` with `glass-elevated` + `border-border/30`
-- Update overlay to `bg-black/60 backdrop-blur-sm`
+- Show a 36px avatar circle with the user's `avatarUrl` or initials from `fullName`
+- Tapping it navigates to `/settings`
+- Moves the logo to the left, avatar + Explore + theme toggle to the right
 
-### 2. Dropdown Menu
+### 2. Stats Card: Add Login Streak & Motivational Tip
+**File: `src/components/dashboard/DashboardStats.tsx`**
 
-**File: `src/components/ui/dropdown-menu.tsx`**
-- Replace `border bg-popover` on `DropdownMenuContent` and `DropdownMenuSubContent` with glass-surface styling: `glass-surface rounded-xl` with glow shadow
-- Update menu item focus states to use `focus:bg-primary/10` instead of `focus:bg-accent` for a subtler glass-compatible highlight
+- Add a rotating motivational tip/quote below the greeting text (e.g., "Tip: Tailoring your resume increases callbacks by 40%"). Rotate through a hardcoded list based on the day.
+- Add a small "streak" indicator showing days active (stored in localStorage for simplicity) -- a flame icon with count.
 
-### 3. Select
+### 3. Resume Card: Recent Activity Line
+**File: `src/components/dashboard/ResumeListCard.tsx`**
 
-**File: `src/components/ui/select.tsx`**
-- Update `SelectTrigger` from `border border-input bg-background` to `glass-input rounded-xl`
-- Update `SelectContent` from `border bg-popover` to `glass-surface rounded-xl` with glow shadow
+- Below the "Edited X ago" timestamp, show a brief activity context when available (e.g., the AI nudge is already there but only shows for scored resumes). No structural change needed -- just ensure consistent spacing.
 
-### 4. Popover
+### 4. Quick Action Chips: Fix Alignment & Icon Consistency
+**File: `src/components/dashboard/QuickActionChips.tsx`**
 
-**File: `src/components/ui/popover.tsx`**
-- Replace `border bg-popover` on `PopoverContent` with `glass-elevated rounded-xl` + glow shadow
+This is the main "messy" area. The chips have nested icon containers with inconsistent sizing and the overall layout feels uneven.
 
-### 5. Tooltip
+- Make all chips equal width using `flex-1` instead of fixed `min-w-[80px]`
+- Remove the nested double-icon container (currently the icon sits inside a `bg-*` div inside another `bg-*` button) -- simplify to a single icon container per chip
+- Standardize icon container to `w-11 h-11 rounded-xl` with `glass-surface` background and a colored icon
+- Add consistent `border-glow` subtle effect to each chip
+- Center-align the content vertically
 
-**File: `src/components/ui/tooltip.tsx`**
-- Replace `border bg-popover` on `TooltipContent` with glass surface styling: translucent background with backdrop-blur
+### 5. New Component: Daily Tip Card
+**File: `src/components/dashboard/DailyTipCard.tsx`** (new file)
 
-### 6. Context Menu
+A small glass card shown below the quick actions with a lightbulb icon and a rotating career tip. Tips rotate daily based on `Date`. Dismissible for the session.
 
-**File: `src/components/ui/context-menu.tsx`**
-- Replace `border bg-popover` on `ContextMenuContent` and `ContextMenuSubContent` with `glass-surface rounded-xl`
+---
 
-### 7. Sheet Overlay
+## Technical Details
 
-**File: `src/components/ui/sheet.tsx`**
-- Update overlay from `bg-black/80` to `bg-black/60 backdrop-blur-sm` for consistency with dialog overlays
+### DashboardPage.tsx Header Changes
+```
+Header layout:
+[AppLogo]  ............  [Avatar] [Explore] [ThemeToggle]
+```
 
-### 8. Progress Bar
+Avatar component: reuse the `Avatar` from `@radix-ui/react-avatar` with `AvatarImage` / `AvatarFallback` showing initials.
 
-**File: `src/components/ui/progress.tsx`**
-- Replace opaque `bg-secondary` track with translucent `bg-secondary/30 backdrop-blur-sm`
-- Add glow effect to the indicator: `gradient-primary` with subtle shadow
+### QuickActionChips.tsx Cleanup
+Current structure (nested backgrounds):
+```
+button(bg-primary/10) > div(bg-primary/10) > Icon
+```
 
-### 9. Switch
+Fixed structure (single layer):
+```
+button(glass-surface border-glow) > div(icon-glow) > Icon + Label
+```
 
-**File: `src/components/ui/switch.tsx`**
-- Add a subtle glow when checked: `data-[state=checked]:shadow-[0_0_12px_-2px_hsl(var(--primary)/0.4)]`
-- Make the unchecked track translucent: `data-[state=unchecked]:bg-input/60`
+All three chips get `flex-1` so they share equal width across the row.
 
-### 10. Floating Create Button
+### DailyTipCard.tsx
+- Array of ~10 career tips hardcoded
+- Select tip: `tips[new Date().getDate() % tips.length]`
+- Dismissible via local state (reappears next session)
+- Glass card with `Lightbulb` icon and small text
 
-**File: `src/components/dashboard/FloatingCreateButton.tsx`**
-- Add `backdrop-blur-md` and a glass border to the FAB for consistency with the glass theme
+### Login Streak (localStorage)
+- Key: `wise_resume_streak`
+- On mount: check last login date vs today. If consecutive day, increment. If same day, no-op. If gap, reset to 1.
+- Display: small flame icon + number in the stats card header area
 
-## Summary Table
-
-| Component | Current Style | Glass Treatment |
-|-----------|--------------|-----------------|
-| Dialog overlay | `bg-black/80` | `bg-black/60 backdrop-blur-sm` |
-| Dialog content | `border bg-background` | `glass-elevated border-border/30` |
-| AlertDialog overlay | `bg-black/80` | `bg-black/60 backdrop-blur-sm` |
-| AlertDialog content | `border bg-background` | `glass-elevated border-border/30` |
-| Sheet overlay | `bg-black/80` | `bg-black/60 backdrop-blur-sm` |
-| DropdownMenu content | `border bg-popover` | `glass-surface rounded-xl` |
-| Select trigger | `border bg-background` | `glass-input rounded-xl` |
-| Select content | `border bg-popover` | `glass-surface rounded-xl` |
-| Popover content | `border bg-popover` | `glass-elevated rounded-xl` |
-| Tooltip content | `border bg-popover` | Glass surface with blur |
-| Context menu | `border bg-popover` | `glass-surface rounded-xl` |
-| Progress track | `bg-secondary` | `bg-secondary/30` with blur |
-| Switch | Opaque track | Translucent track + glow |
-| FAB | Solid gradient | Glass border + blur |
-
-## Technical Notes
-- All glass utilities are already defined in `src/index.css` -- no new CSS needed
-- The `glass-surface` and `glass-elevated` classes include `backdrop-filter: blur()`, translucent backgrounds, and subtle borders
-- Overlay blur creates a frosted-glass effect behind dialogs/sheets, reinforcing the premium feel
-- All changes are in UI primitive files, so every usage across the app benefits automatically
+### Files Modified
+1. `src/pages/DashboardPage.tsx` -- avatar in header, DailyTipCard placement
+2. `src/components/dashboard/DashboardStats.tsx` -- streak indicator
+3. `src/components/dashboard/QuickActionChips.tsx` -- fix alignment, simplify icon nesting
+4. `src/components/dashboard/DailyTipCard.tsx` -- new file
 
