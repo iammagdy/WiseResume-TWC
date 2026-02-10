@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 
 // Routes that show bottom nav
-const TAB_ROUTES = ['/dashboard', '/editor', '/upload', '/settings', '/interview', '/preview'];
+const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview'];
 
 // Routes that show guest save banner
 const GUEST_BANNER_ROUTES = ['/editor', '/preview'];

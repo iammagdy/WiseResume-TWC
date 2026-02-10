@@ -219,7 +219,7 @@ export default function DashboardPage() {
   const hasResumes = filteredResumes && filteredResumes.length > 0;
 
   const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 1, y: 0 },
     visible: { opacity: 1, y: 0 }
   };
 
