@@ -417,6 +417,8 @@ export default function DashboardPage() {
                         onInterview={handleInterview}
                         delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
                         showTailoredBadge
+                        healthScore={healthScores[resume.id]}
+                        isScoring={scoringId === resume.id}
                       />
                     ))}
                   </>
