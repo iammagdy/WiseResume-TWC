@@ -18,7 +18,6 @@ interface ExportOptionsSheetProps {
   coverLetterContext?: CoverLetterContext | null;
   onExport: (type: ExportType, showPageNumbers: boolean, showBranding: boolean) => void;
   isExporting: boolean;
-  onOnePageWizard?: () => void;
   templateElement?: HTMLElement | null;
 }
 
@@ -29,7 +28,6 @@ export function ExportOptionsSheet({
   coverLetterContext,
   onExport,
   isExporting,
-  onOnePageWizard,
   templateElement,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();

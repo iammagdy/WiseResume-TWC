@@ -653,7 +653,6 @@ export default function PreviewPage() {
             coverLetterContext={coverLetterJobContext}
             onExport={handleExport}
             isExporting={isGenerating}
-            onOnePageWizard={() => setShowOnePageWizard(true)}
             templateElement={resumeRef.current}
           />
         )}
@@ -662,7 +661,11 @@ export default function PreviewPage() {
             open={showOnePageWizard}
             onOpenChange={setShowOnePageWizard}
             onExportOnePage={() => {
-              setTimeout(() => handleExport('one-page', true, true), 300);
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  handleExport('one-page', true, true);
+                });
+              });
             }}
           />
         )}
