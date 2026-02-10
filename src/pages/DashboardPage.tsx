@@ -40,6 +40,8 @@ export default function DashboardPage() {
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const { scoreResume, getCachedScore, scoringId } = useResumeScore();
+  const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
