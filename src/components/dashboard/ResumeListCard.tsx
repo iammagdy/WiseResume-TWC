@@ -87,6 +87,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   onEdit,
   onDuplicate,
   onDelete,
+  onRename,
   onInterview,
   showMasterBadge = false,
   showTailoredBadge = false,
