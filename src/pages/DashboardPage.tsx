@@ -410,6 +410,7 @@ export default function DashboardPage() {
                           onEdit={handleEdit}
                           onDuplicate={handleDuplicate}
                           onDelete={handleDelete}
+                          onRename={handleRename}
                           onInterview={handleInterview}
                           delay={index * 0.05}
                           healthScore={healthScores[masterResume.id]}
