@@ -236,9 +236,32 @@ export const ResumeListCard = memo(function ResumeListCard({
                 {resume.is_primary && (
                   <Star className="w-4 h-4 text-warning fill-warning flex-shrink-0" />
                 )}
-                <h3 className="font-semibold text-foreground truncate">
-                  {resume.title}
-                </h3>
+                {isRenaming ? (
+                  <input
+                    autoFocus
+                    className="font-semibold text-foreground bg-transparent glass-input rounded-lg px-2 py-0.5 h-7 w-full max-w-[180px] text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    defaultValue={resume.title}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val && val !== resume.title && onRename) onRename(resume.id, val);
+                      setIsRenaming(false);
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter') {
+                        const val = e.currentTarget.value.trim();
+                        if (val && val !== resume.title && onRename) onRename(resume.id, val);
+                        setIsRenaming(false);
+                      }
+                      if (e.key === 'Escape') setIsRenaming(false);
+                    }}
+                  />
+                ) : (
+                  <h3 className="font-semibold text-foreground truncate">
+                    {resume.title}
+                  </h3>
+                )}
                 {showMasterBadge && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary">
                     <Crown className="w-3 h-3" />
