@@ -1,62 +1,36 @@
 
+# Fix Landing Page Template Gallery
 
-# Improve App Flow and Feature Discoverability
+## Problems
+1. The template gallery only shows 3 out of 12 available templates (Modern, Executive, Creative)
+2. The template previews are just gray skeleton placeholder bars on a dark background -- they look broken/empty as seen in the screenshot
+3. The placeholders have very low contrast (`bg-muted-foreground/8`) making them nearly invisible on the dark space theme
 
-## Current Problems
+## Solution
 
-The app has a confusing user journey with several discoverability issues:
+### Redesign TemplateGallery.tsx with rich, visible previews
 
-1. **Landing page is overwhelming** -- The space-themed landing page (Hero, SocialProof, HowItWorks, FeatureGrid, TemplateGallery, BottomCTA) has a lot of marketing content but doesn't clearly guide users to take action. The rotating job titles add visual noise without helping users understand what to do.
+**Show more templates:** Expand from 3 to 6 representative templates (Modern, Classic, Creative, Executive, Developer, Elegant) to better showcase the "12 Pro Templates" claim.
 
-2. **"Launch Your Resume" goes straight to a blank editor** -- New users click the main CTA and land on an empty editor with no guidance. They don't know what to fill in first or that AI features exist.
+**Replace skeleton placeholders with styled mini-previews:** Instead of barely-visible gray bars, render each template card with:
+- A white/light background (like a real resume page) so content is visible against the dark space theme
+- Colored accent bars and section headers matching each template's style
+- Visible placeholder text lines with proper contrast
+- Each card styled to hint at its template's unique layout (e.g., Creative shows a sidebar, Professional shows a two-column layout)
 
-3. **Onboarding only shows after sign-up** -- The 3-step onboarding carousel (Upload, AI Tailor, Export) only appears on the Dashboard for authenticated users. Guest users never see it.
+**Improve the carousel UX:**
+- Show template count badge ("6 of 12 templates")
+- Add a "See all templates" link that navigates to the editor
+- Better snap scrolling with proper gap and sizing
 
-4. **Feature discovery is hidden** -- AI features like Tailor, Recruiter Sim, AI Detector, Career Path, etc. are buried behind the AI Assistant Bar at the bottom of the editor. The AI Intro Tooltip helps, but users must already be in the editor to see it.
+### Technical Changes
 
-5. **No clear "what to do next" guidance** -- After creating a resume, users don't know to go to Preview, or that they can tailor it, or practice interviews.
+**File: `src/components/landing/TemplateGallery.tsx`**
+- Expand `templates` array from 3 to 6 entries with distinct accent colors
+- Change the card inner background from `bg-card/80` (dark) to `bg-white` so it looks like an actual resume page
+- Use visible placeholder colors (`bg-gray-200`, `bg-gray-300`) instead of near-transparent ones (`bg-muted-foreground/8`)
+- Add unique layout hints per template (e.g., sidebar for Creative, two-column grid for Professional)
+- Add a "See all 12 templates" link below the dots
+- Add subtitle text: "Pick a design, customize it with AI"
 
-## Proposed Changes
-
-### 1. Simplify the Landing Page Hero (HeroSection.tsx)
-- Replace the rotating job titles animation with a clear, static value proposition
-- Simplify the CTAs to two clear paths: "Create New Resume" and "Upload Resume"
-- Add a small "Sign In" link for returning users instead of the avatar button
-- Remove the floating testimonial badges (they're hidden on mobile anyway)
-
-### 2. Add a Quick Feature Tour for First-Time Visitors (new component)
-- Create a `FeatureSpotlight` component -- a simple horizontal scroll of 4 cards shown on the landing page between the hero and the rest
-- Each card is a clear action: "Create from Scratch", "Upload Existing", "AI Tailor to a Job", "Practice Interview"
-- Tapping a card navigates directly to the relevant page
-
-### 3. Add Contextual "Next Step" Prompts in the Editor (EditorPage.tsx)
-- When a user has filled in at least contact info + 1 experience, show a subtle banner: "Ready to preview? Tap Preview to see your resume"
-- When in Preview, show a prompt: "Want to tailor this for a specific job? Try AI Tailor"
-- These are dismissible and stored in settings store
-
-### 4. Improve the Empty Editor State
-- When the editor loads with a blank resume, show inline placeholder hints in each section (e.g., "Start by adding your name and contact info" in the contact section header)
-- Auto-focus the first field (full name)
-
-### 5. Add a "How It Works" Mini-Guide on Dashboard Empty State (EmptyState.tsx)
-- When a user has zero resumes, show 3 simple steps with icons directly in the empty state instead of just a "Create" button
-- Steps: "1. Create or Upload", "2. AI enhances it", "3. Download PDF"
-
-## Technical Details
-
-### Files to modify:
-- `src/components/landing/HeroSection.tsx` -- Simplify hero, remove rotating titles, clearer CTAs
-- `src/components/dashboard/EmptyState.tsx` -- Add mini how-it-works steps
-- `src/pages/EditorPage.tsx` -- Add "next step" contextual banner when resume is sufficiently filled
-- `src/store/settingsStore.ts` -- Add `hasSeenNextStepHint` flag
-
-### New files to create:
-- `src/components/landing/QuickActions.tsx` -- 4-card horizontal scroll with clear action paths
-- `src/components/editor/NextStepBanner.tsx` -- Dismissible contextual prompt for next actions
-
-### Files with minor updates:
-- `src/pages/Index.tsx` -- Add QuickActions between Hero and SocialProof
-- `src/pages/PreviewPage.tsx` -- Add "Try AI Tailor" prompt for first-time users
-
-### No database or backend changes needed -- all state is stored client-side in the settings store.
-
+**No new files needed. No backend changes.**
