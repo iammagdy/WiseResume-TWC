@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ import { NextStepBanner } from '@/components/editor/NextStepBanner';
 
 export default function EditorPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
   const { 
@@ -59,6 +60,15 @@ export default function EditorPage() {
   const [showCareerPath, setShowCareerPath] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
+
+  // Auto-open Tailor sheet if navigated with ?openTailor=1
+  useEffect(() => {
+    if (searchParams.get('openTailor') === '1') {
+      setShowTailor(true);
+      searchParams.delete('openTailor');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
   
   // Track last saved version to detect changes
   const lastSavedResumeRef = useRef<string>('');
