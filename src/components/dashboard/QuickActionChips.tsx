@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Upload, FileText, Mic, Linkedin } from 'lucide-react';
+import { Upload, FileText, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -9,9 +9,30 @@ interface QuickActionChipsProps {
 }
 
 const actions = [
-  { icon: FileText, label: 'New Resume', gradient: 'from-primary/20 to-accent/20', textColor: 'text-primary', action: 'create' },
-  { icon: Upload, label: 'Upload PDF', gradient: 'from-secondary/20 to-primary/20', textColor: 'text-secondary', action: 'upload' },
-  { icon: Mic, label: 'Interview', gradient: 'from-success/20 to-secondary/20', textColor: 'text-success', action: 'interview' },
+  {
+    icon: FileText,
+    label: 'New Resume',
+    action: 'create',
+    bg: 'bg-primary/10',
+    iconColor: 'text-primary',
+    borderColor: 'border-primary/20',
+  },
+  {
+    icon: Upload,
+    label: 'Upload PDF',
+    action: 'upload',
+    bg: 'bg-secondary/10',
+    iconColor: 'text-secondary',
+    borderColor: 'border-secondary/20',
+  },
+  {
+    icon: Mic,
+    label: 'Interview',
+    action: 'interview',
+    bg: 'bg-success/10',
+    iconColor: 'text-success',
+    borderColor: 'border-success/20',
+  },
 ];
 
 export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
@@ -38,22 +59,26 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
         {actions.map((item, i) => (
           <motion.button
             key={item.label}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 + i * 0.06 }}
             onClick={() => handleAction(item.action)}
             className={cn(
-              'flex items-center gap-2 px-4 py-2.5 rounded-full',
-              'bg-gradient-to-r whitespace-nowrap',
-              item.gradient,
-              'border border-border/30',
+              'flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl',
+              'border whitespace-nowrap',
+              item.bg, item.borderColor,
               'touch-manipulation active:scale-95 transition-transform',
-              'min-h-[44px] flex-shrink-0'
+              'min-h-[64px] min-w-[80px] flex-shrink-0'
             )}
-            whileTap={{ scale: 0.95 }}
+            whileTap={{ scale: 0.93 }}
           >
-            <item.icon className={cn('w-4 h-4', item.textColor)} />
-            <span className="text-sm font-medium">{item.label}</span>
+            <div className={cn(
+              'w-10 h-10 rounded-xl flex items-center justify-center',
+              item.bg,
+            )}>
+              <item.icon className={cn('w-5 h-5', item.iconColor)} />
+            </div>
+            <span className="text-[11px] font-medium text-foreground">{item.label}</span>
           </motion.button>
         ))}
       </div>

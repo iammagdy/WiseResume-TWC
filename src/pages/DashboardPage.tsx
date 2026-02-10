@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
+import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { PageTransition } from '@/components/layout/PageTransition';
 
 // Lazy-loaded dialogs
@@ -293,16 +294,16 @@ export default function DashboardPage() {
           <QuickActionChips onCreateNew={() => setShowCreateDialog(true)} />
         )}
 
-        {/* Search (only show if there are resumes) */}
+        {/* Search pill */}
         {resumes && resumes.length > 0 && (
           <div className="px-4 pb-3">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Search resumes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-full h-11 glass-input"
               />
             </div>
           </div>
@@ -423,6 +424,11 @@ export default function DashboardPage() {
           />
         )}
       </Suspense>
+
+      {/* Floating Create Button */}
+      {resumes && resumes.length > 0 && (
+        <FloatingCreateButton onClick={() => setShowCreateDialog(true)} />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>

@@ -3,7 +3,7 @@
  import { Label } from '@/components/ui/label';
  import { Textarea } from '@/components/ui/textarea';
  import { cn } from '@/lib/utils';
- import { AlertCircle } from 'lucide-react';
+ import { AlertCircle, CheckCircle2 } from 'lucide-react';
  
  interface FormFieldProps {
    id: string;
@@ -59,29 +59,37 @@
          {label}
          {required && <span className="text-destructive">*</span>}
        </Label>
-       <div className="relative">
-         <Input
-           id={id}
-           type={type}
-           value={value}
-           onChange={(e) => onChange(e.target.value)}
-           onBlur={onBlur}
-           placeholder={placeholder}
-           autoComplete={autoComplete}
-           className={cn(
-             'h-12',
-             showError && 'border-destructive focus-visible:ring-destructive',
-             rightElement && 'pr-14'
-           )}
-           aria-invalid={showError ? 'true' : undefined}
-           aria-describedby={showError ? `${id}-error` : undefined}
-         />
-         {rightElement && (
-           <div className="absolute right-0 top-0 h-full flex items-center">
-             {rightElement}
-           </div>
-         )}
-       </div>
+        <div className="relative group">
+          <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl bg-gradient-to-b from-primary via-secondary to-accent opacity-0 group-focus-within:opacity-100 transition-opacity duration-200" />
+          <Input
+            id={id}
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={onBlur}
+            placeholder={placeholder}
+            autoComplete={autoComplete}
+            className={cn(
+              'h-12',
+              showError && 'border-destructive focus-visible:ring-destructive',
+              rightElement && 'pr-14',
+              !showError && value && touched && 'border-success/40',
+            )}
+            aria-invalid={showError ? 'true' : undefined}
+            aria-describedby={showError ? `${id}-error` : undefined}
+          />
+          {/* Validation checkmark */}
+          {!showError && value && touched && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              <CheckCircle2 className="w-4 h-4 text-success" />
+            </div>
+          )}
+          {rightElement && !(!showError && value && touched) && (
+            <div className="absolute right-0 top-0 h-full flex items-center">
+              {rightElement}
+            </div>
+          )}
+        </div>
        {showError && (
          <p
            id={`${id}-error`}
