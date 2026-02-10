@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Sparkles,
   Layout,
+  Download,
 } from 'lucide-react';
 import {
   Sheet,
@@ -28,6 +29,7 @@ import { haptics } from '@/lib/haptics';
 interface OnePageWizardSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onExportOnePage?: () => void;
 }
 
 interface ContentReduction {
@@ -63,7 +65,7 @@ interface OnePageResult {
 
 type ViewState = 'preview' | 'analyzing' | 'results';
 
-export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetProps) {
+export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OnePageWizardSheetProps) {
   const { currentResume, updateResume } = useResumeStore();
   const [viewState, setViewState] = useState<ViewState>('preview');
   const [isLoading, setIsLoading] = useState(false);
@@ -101,17 +103,15 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
     }
   };
 
-  const handleApplyChanges = () => {
+  const applyCondensedChanges = () => {
     if (!currentResume || !result) return;
 
-    // Apply condensed summary if available
     let updatedResume = { ...currentResume };
     
     if (result.condensedSummary) {
       updatedResume.summary = result.condensedSummary;
     }
 
-    // Apply condensed experience
     if (result.condensedExperience && result.condensedExperience.length > 0) {
       updatedResume.experience = currentResume.experience.map(exp => {
         const condensed = result.condensedExperience.find(c => c.id === exp.id);
@@ -127,9 +127,21 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
     }
 
     updateResume(updatedResume);
+  };
+
+  const handleApplyChanges = () => {
+    applyCondensedChanges();
     haptics.success();
     toast.success('Resume condensed successfully!');
     onOpenChange(false);
+  };
+
+  const handleApplyAndDownload = () => {
+    applyCondensedChanges();
+    haptics.success();
+    toast.success('Changes applied! Generating one-page PDF...');
+    onOpenChange(false);
+    onExportOnePage?.();
   };
 
   const handleReset = () => {
@@ -338,9 +350,13 @@ export function OnePageWizardSheet({ open, onOpenChange }: OnePageWizardSheetPro
 
           {viewState === 'results' && result && (
             <>
-              <Button className="w-full" onClick={handleApplyChanges}>
+              <Button className="w-full" onClick={handleApplyAndDownload}>
+                <Download className="w-4 h-4 mr-2" />
+                Apply & Download One-Page PDF
+              </Button>
+              <Button variant="outline" className="w-full" onClick={handleApplyChanges}>
                 <CheckCircle2 className="w-4 h-4 mr-2" />
-                Apply All Changes
+                Apply Changes Only
               </Button>
               <Button variant="ghost" className="w-full" onClick={handleReset}>
                 Cancel
