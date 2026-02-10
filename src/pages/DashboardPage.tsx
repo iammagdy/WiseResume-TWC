@@ -45,6 +45,7 @@ export default function DashboardPage() {
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
+  const { profile } = useProfile(user?.id, user);
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
