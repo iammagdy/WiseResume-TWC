@@ -59,10 +59,11 @@ export function QuickActions() {
       <h2 className="text-lg font-display font-semibold text-center mb-1">What would you like to do?</h2>
       <p className="text-sm text-muted-foreground text-center mb-5">Pick a path to get started</p>
       <div className="flex gap-3 overflow-x-auto scrollbar-hide snap-x snap-mandatory pb-2 -mx-4 px-4">
-        {actions.map((action) => (
+        {actions.map((action, index) => (
           <Card
             key={action.title}
-            className="flex-shrink-0 w-[140px] snap-center p-4 flex flex-col items-center text-center gap-2 cursor-pointer hover:border-primary/40 active:scale-95 transition-all touch-manipulation"
+            className="flex-shrink-0 w-[140px] snap-center p-4 flex flex-col items-center text-center gap-2 cursor-pointer hover:border-primary/40 hover:-translate-y-0.5 active:scale-95 transition-all touch-manipulation opacity-0 animate-fade-in"
+            style={{ animationDelay: `${0.1 + index * 0.08}s`, animationFillMode: 'forwards' }}
             onClick={() => handleAction(action)}
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
