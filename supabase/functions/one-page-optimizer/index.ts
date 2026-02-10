@@ -1,3 +1,5 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -45,7 +47,7 @@ interface OnePageRequest {
   resume: ResumeData;
   targetRole?: string;
   yearsOfExperience?: number;
-  preserveRecent?: number; // Number of recent jobs to preserve fully
+  preserveRecent?: number;
   userGeminiKey?: string;
 }
 
@@ -76,36 +78,24 @@ interface OnePageResult {
   overallStrategy: string;
 }
 
+const MAX_PAYLOAD_SIZE = 100000;
+
 function estimatePageCount(resume: ResumeData): number {
   let charCount = 0;
-  
-  // Contact info
   charCount += Object.values(resume.contactInfo).filter(Boolean).join(' ').length;
-  
-  // Summary
   charCount += resume.summary?.length || 0;
-  
-  // Experience
   resume.experience?.forEach(exp => {
-    charCount += exp.position.length + exp.company.length + 50; // dates, formatting
+    charCount += exp.position.length + exp.company.length + 50;
     charCount += exp.description?.length || 0;
-    exp.achievements?.forEach(a => charCount += a.length + 5); // bullets
+    exp.achievements?.forEach(a => charCount += a.length + 5);
   });
-  
-  // Education
   resume.education?.forEach(edu => {
     charCount += edu.degree.length + edu.field.length + edu.institution.length + 50;
   });
-  
-  // Skills
   charCount += resume.skills?.join(', ').length || 0;
-  
-  // Certifications
   resume.certifications?.forEach(cert => {
     charCount += cert.name.length + cert.issuer.length + 30;
   });
-  
-  // Rough estimate: ~3000 characters per page for a standard resume
   return Math.ceil(charCount / 3000);
 }
 
@@ -115,7 +105,40 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { resume, targetRole, yearsOfExperience, preserveRecent = 2, userGeminiKey }: OnePageRequest = await req.json();
+    // Authentication check
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError || !user) {
+      console.error('Auth error:', authError?.message);
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const bodyText = await req.text();
+    if (bodyText.length > MAX_PAYLOAD_SIZE) {
+      return new Response(
+        JSON.stringify({ error: `Payload must be under ${MAX_PAYLOAD_SIZE} characters` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { resume, targetRole, yearsOfExperience, preserveRecent = 2, userGeminiKey }: OnePageRequest = JSON.parse(bodyText);
 
     if (!resume) {
       return new Response(
