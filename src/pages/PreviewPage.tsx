@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
+import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText, Mic, FolderDown } from 'lucide-react';
@@ -534,7 +535,7 @@ export default function PreviewPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
           >
-            <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading template...</div>}>
+            <Suspense fallback={<TemplateSkeleton />}>
               <TemplateComponent resume={currentResume} />
             </Suspense>
             {/* Page break indicators - hidden during PDF generation or for single-page templates */}

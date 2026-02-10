@@ -20,7 +20,9 @@ import {
   PreviewSkeleton,
   UploadSkeleton,
   InterviewSkeleton,
+  AuthSkeleton,
 } from "@/components/layout/PageSkeletons";
+import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
@@ -81,7 +83,7 @@ const queryClient = new QueryClient({
       <Routes>
         {/* Landing and auth - no shell */}
         <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<Suspense fallback={null}><AuthPage /></Suspense>} />
+        <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
         
         {/* All tabbed pages share the persistent shell */}
         <Route element={<AppShell />}>
@@ -117,7 +119,7 @@ const queryClient = new QueryClient({
           } />
         </Route>
         
-        <Route path="*" element={<Suspense fallback={null}><NotFound /></Suspense>} />
+        <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
       </Routes>
    );
  }
