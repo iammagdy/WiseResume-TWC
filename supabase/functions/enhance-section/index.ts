@@ -162,6 +162,9 @@ serve(async (req) => {
 
     console.log('Enhancement complete:', JSON.stringify(enhancedContent).slice(0, 200));
 
+    // Record usage for rate limiting
+    await recordUsage(userId, 'enhance', { section, action });
+
     return new Response(JSON.stringify(enhancedContent), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
