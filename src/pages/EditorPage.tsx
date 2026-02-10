@@ -77,33 +77,14 @@ export default function EditorPage() {
   // Track last saved version to detect changes
   const lastSavedResumeRef = useRef<string>('');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Smart tab scrolling refs
-  const TAB_ORDER = useMemo(() => ['contact', 'summary', 'experience', 'education', 'skills'], []);
-  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   // Smart tab change handler with auto-scroll
   const handleTabChange = useCallback((newTab: string) => {
-    const prevIndex = TAB_ORDER.indexOf(activeTab);
-    const newIndex = TAB_ORDER.indexOf(newTab);
-    const isMovingRight = newIndex > prevIndex;
-    
-    // Scroll to show the NEXT tab in direction of movement
-    const targetIndex = isMovingRight 
-      ? Math.min(newIndex + 1, TAB_ORDER.length - 1)
-      : Math.max(newIndex - 1, 0);
-    
-    // Scroll that tab into view with smooth animation
-    setTimeout(() => {
-      tabRefs.current[targetIndex]?.scrollIntoView({ 
-        behavior: 'smooth', 
-        inline: 'center',
-        block: 'nearest'
-      });
-    }, 50);
-    
     setActiveTab(newTab);
-  }, [activeTab, TAB_ORDER]);
+    // Scroll content to top smoothly when switching tabs
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // Detect and handle stale resume IDs
   useEffect(() => {
@@ -284,7 +265,10 @@ export default function EditorPage() {
 
         {/* Editor Tabs (hidden tab list, content driven by stepper) */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0">
+          <div
+            className="flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
+            ref={scrollContainerRef}
+          >
             <TabsContent value="contact" className="mt-0" forceMount hidden={activeTab !== 'contact'}>
               <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'}>
                 <ContactSection />
@@ -345,11 +329,8 @@ export default function EditorPage() {
           >
             <Button
               size="lg"
-              className="w-full h-14 text-lg font-semibold gradient-primary"
+              className="w-full h-14 text-lg font-semibold gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
               onClick={() => navigate('/preview')}
-              style={{
-                boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-              }}
             >
               <Download className="w-5 h-5 mr-2" />
               Preview & Export
