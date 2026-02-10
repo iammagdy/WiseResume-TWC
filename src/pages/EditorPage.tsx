@@ -376,18 +376,20 @@ export default function EditorPage() {
         onDismiss={handleDismissAIIntro}
       />
 
-      {/* Sheets - lazy loaded */}
-      <Suspense fallback={null}>
-        {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
-        {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
-        {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
-        {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
-        {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
-        {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
-        {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
-        {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
-        {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
-      </Suspense>
+      {/* Sheets - lazy loaded, wrapped in ErrorBoundary */}
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
+          {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
+          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
+          {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
+          {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
+          {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
+          {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
+          {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
+          {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
+        </Suspense>
+      </ErrorBoundary>
     </div>
   );
 }
