@@ -91,8 +91,8 @@ export function HeroSection() {
       ) : (
         <button
           onClick={() => { triggerHaptic.light(); navigate('/auth'); }}
-          className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+          className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors animate-fade-in"
+          style={{ animationFillMode: 'backwards', animationDelay: '0.3s' }}
         >
           <LogIn className="w-4 h-4" />
           Sign In
