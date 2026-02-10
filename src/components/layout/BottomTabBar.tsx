@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Settings, Home, Upload, Mic } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
@@ -98,21 +98,33 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               )}
               
               <div className="relative z-10">
-                <Icon
-                  className={cn(
-                    'w-5 h-5 transition-colors duration-200',
-                    active ? 'text-primary' : 'text-muted-foreground'
-                  )}
-                />
+                <motion.div
+                  animate={active ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                >
+                  <Icon
+                    className={cn(
+                      'w-5 h-5 transition-colors duration-200',
+                      active ? 'text-primary' : 'text-muted-foreground'
+                    )}
+                  />
+                </motion.div>
               </div>
-              <span
-                className={cn(
-                  'text-[10px] transition-all duration-200 relative z-10',
-                  active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
-                )}
-              >
-                {tab.label}
-              </span>
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={active ? 'active' : 'inactive'}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2 }}
+                  className={cn(
+                    'text-[10px] relative z-10',
+                    active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
+                  )}
+                >
+                  {tab.label}
+                </motion.span>
+              </AnimatePresence>
             </button>
           );
         })}

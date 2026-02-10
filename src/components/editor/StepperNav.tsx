@@ -55,12 +55,13 @@ export const StepperNav = memo(function StepperNav({
                   !isActive && !isCompleted && !isPast && 'border-border bg-card/50',
                 )}
                 animate={isActive ? {
+                  scale: [0.9, 1.1, 1],
                   boxShadow: [
-                    '0 0 0 0px hsl(270 100% 65% / 0)',
-                    '0 0 0 6px hsl(270 100% 65% / 0.15)',
-                    '0 0 0 0px hsl(270 100% 65% / 0)',
+                    '0 0 0 0px hsl(355 90% 60% / 0)',
+                    '0 0 0 6px hsl(355 90% 60% / 0.15)',
+                    '0 0 0 0px hsl(355 90% 60% / 0)',
                   ],
-                } : {}}
+                } : { scale: 1 }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
                 {isCompleted ? (
