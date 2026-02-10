@@ -15,6 +15,7 @@ interface ResumeGroupProps {
   onEdit: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => void;
   onInterview?: (id: string) => void;
   onCreateTailored: (parentId: string) => void;
   delay?: number;
