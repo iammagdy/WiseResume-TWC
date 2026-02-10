@@ -79,6 +79,32 @@ export default function DashboardPage() {
     }
   }, [authLoading, user, navigate]);
 
+  // Auto-score resumes in background (one at a time, debounced)
+  useEffect(() => {
+    if (!resumes || resumes.length === 0) return;
+    
+    let cancelled = false;
+    
+    const scoreNext = async () => {
+      for (const resume of resumes) {
+        if (cancelled) break;
+        const cached = getCachedScore(resume.id, resume.updated_at);
+        if (cached) {
+          setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
+          continue;
+        }
+        const resumeData = dbToResumeData(resume);
+        const score = await scoreResume(resume.id, resumeData, resume.updated_at);
+        if (score && !cancelled) {
+          setHealthScores(prev => ({ ...prev, [resume.id]: score }));
+        }
+      }
+    };
+    
+    const timer = setTimeout(scoreNext, 1000);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [resumes, scoreResume, getCachedScore]);
+
   const handleOnboardingComplete = async () => {
     if (user) {
       await supabase
