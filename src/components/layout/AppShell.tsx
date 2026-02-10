@@ -22,7 +22,7 @@ export function AppShell() {
       <OfflineBanner />
       {showGuestBanner && <GuestSaveBanner />}
       <main className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}>
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
           <motion.div
             key={location.pathname}
             initial={{ opacity: 0 }}
