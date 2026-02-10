@@ -107,8 +107,8 @@ export function HeroSection() {
         </div>
 
         <h1
-          className="font-display text-4xl sm:text-5xl font-bold mb-4 opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}
+          className="font-display text-4xl sm:text-5xl font-bold mb-4 animate-fade-in"
+          style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}
         >
           <span className="text-shimmer">WiseResume</span>
         </h1>
