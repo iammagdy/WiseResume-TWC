@@ -102,7 +102,7 @@ export function HeroSection() {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto w-full">
         {/* Planet logo */}
-        <div className="mb-10 opacity-0 animate-scale-in" style={{ animationFillMode: 'forwards' }}>
+        <div className="mb-10 animate-scale-in" style={{ animationFillMode: 'backwards' }}>
           <PlanetLogo size="md" />
         </div>
 
