@@ -274,7 +274,7 @@ export default function SettingsPage() {
               <SettingsRow
                 type="navigation"
                 label="AI Provider"
-                value={aiProvider === 'lovable' ? 'WiseResume AI' : 'Gemini'}
+                value={aiProvider === 'wiseresume' ? 'WiseResume AI' : 'Gemini'}
                 icon={<Brain className="w-4 h-4" />}
                 onClick={() => setAISettingsOpen(true)}
               />

@@ -1,6 +1,6 @@
 /**
  * Shared AI Client for Edge Functions
- * Routes AI requests to either Lovable Gateway or Google Gemini directly
+ * Routes AI requests to either the AI Gateway or Google Gemini directly
  */
 
 export interface AIMessage {
@@ -96,7 +96,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
 }
 
 /**
- * Calls the Lovable AI Gateway (default path)
+ * Calls the AI Gateway (default path)
  */
 async function callLovableGateway(
   model: string,
@@ -214,10 +214,10 @@ function parseOpenAIResponse(data: any): AIResponse {
 }
 
 /**
- * Handles errors from Lovable Gateway
+ * Handles errors from the AI Gateway
  */
 function handleGatewayError(status: number, errorText: string): never {
-  console.error('Lovable Gateway error:', status, errorText);
+  console.error('AI Gateway error:', status, errorText);
   
   if (status === 429) {
     throw createAIError('rate_limit', 'Rate limit exceeded. Please try again later.', 429);

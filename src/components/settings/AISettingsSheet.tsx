@@ -134,16 +134,16 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
               className="space-y-3"
             >
               <motion.label
-                htmlFor="lovable-sheet"
+                htmlFor="wiseresume-sheet"
                 whileTap={{ scale: 0.98 }}
                 className={cn(
                   "flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                  aiProvider === 'lovable' 
+                  aiProvider === 'wiseresume' 
                     ? "border-primary bg-primary/5" 
                     : "border-border bg-card hover:bg-accent/50"
                 )}
               >
-                <RadioGroupItem value="lovable" id="lovable-sheet" className="mt-0.5" />
+                <RadioGroupItem value="wiseresume" id="wiseresume-sheet" className="mt-0.5" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span className="font-medium">WiseResume AI</span>

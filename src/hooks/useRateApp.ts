@@ -43,7 +43,8 @@
      
      // For Android, open Play Store
      if (Capacitor.getPlatform() === 'android') {
-       window.open('https://play.google.com/store/apps/details?id=app.lovable.c36950b6370c414abd480b62b16c61e5', '_blank');
+        // TODO: Replace with actual Play Store URL
+        window.open('https://play.google.com/store/apps/details?id=com.wiseresume.app', '_blank');
      }
      // For iOS, would open App Store
      else if (Capacitor.getPlatform() === 'ios') {

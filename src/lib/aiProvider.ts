@@ -7,7 +7,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 
 /**
  * Gets the user's Gemini API key if they're using the Gemini provider
- * Returns undefined if using Lovable (default) or no key is configured
+ * Returns undefined if using WiseResume AI (default) or no key is configured
  */
 export function getUserGeminiKey(): string | undefined {
   const { aiProvider, geminiApiKey, geminiKeyValidated } = useSettingsStore.getState();
@@ -41,7 +41,7 @@ export function getAIProviderInfo(): {
 } {
   const { aiProvider, geminiKeyTier, geminiKeyValidated } = useSettingsStore.getState();
   
-  if (aiProvider === 'lovable') {
+  if (aiProvider === 'wiseresume') {
     return { name: 'WiseResume AI', isCustomKey: false, tier: 'default' };
   }
   
