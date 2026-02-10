@@ -12,7 +12,8 @@ import {
   GitBranch,
   Crown,
   Mic,
-  Sparkles
+  Sparkles,
+  Pencil
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
