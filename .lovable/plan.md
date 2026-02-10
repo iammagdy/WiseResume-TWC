@@ -1,57 +1,69 @@
 
 
-# Tailor History Export Feature
+# Polished Skeleton Loading Across All Pages
 
-## Overview
+## Current State
 
-Add an "Export Report" button to the Tailor History sheet that downloads a readable JSON report of all tailoring history entries, following the existing export pattern used in `dataExport.ts`.
+The app already has strong skeleton infrastructure:
+- Route-level Suspense fallbacks for all tabbed pages using `PageSkeletons.tsx`
+- Landing page lazy sections with `LandingSkeletons.tsx`
+- Dashboard data loading uses `SkeletonCardList`
+- Shimmer-based `Skeleton` component with smooth animation
+
+## Gaps Found
+
+| Page | Issue |
+|------|-------|
+| Settings | Uses plain "Loading..." text instead of `SettingsSkeleton` |
+| Auth | `Suspense fallback={null}` -- no skeleton |
+| NotFound | `Suspense fallback={null}` -- no skeleton |
+| Preview template area | Lazy templates have no inline loading state |
 
 ## Changes
 
-### 1. Add export function to `src/lib/dataExport.ts`
+### 1. Fix SettingsPage loading state (src/pages/SettingsPage.tsx)
 
-Add a new `exportTailorHistory` function that:
-- Accepts `TailorHistory[]` array
-- Formats each entry with job title, company, score before/after, applied sections, date, and the tailor result (summary, skills, experience changes)
-- Uses the existing `downloadJson` helper to trigger the download
-- Filename: `tailor-history-{date}.json`
+Replace the generic "Loading..." div (lines 173-179) with the existing `SettingsSkeleton` component that's already built but unused here.
 
-### 2. Update `src/components/editor/tailor/TailorHistorySheet.tsx`
-
-- Import `exportTailorHistory` from `dataExport`
-- Add a `Download` icon import from lucide-react
-- Add an "Export Report" button in the footer next to the existing "Clear History" button
-- The button calls `exportTailorHistory(history)` and shows a success toast
-
-### Technical Details
-
-**Export data shape:**
-```json
-{
-  "exportVersion": "1.0",
-  "exportDate": "2026-02-10T...",
-  "tailorHistory": [
-    {
-      "jobTitle": "Software Engineer",
-      "company": "Google",
-      "scoreBefore": 62,
-      "scoreAfter": 87,
-      "appliedSections": ["summary", "skills", "experience"],
-      "date": "2026-02-09T...",
-      "tailoredResume": {
-        "summary": "...",
-        "skills": [...],
-        "experience": [...],
-        "education": [...]
-      }
-    }
-  ]
-}
+```text
+Before: <div className="animate-pulse text-muted-foreground">Loading...</div>
+After:  <SettingsSkeleton /> (imported from PageSkeletons)
 ```
 
-**Footer layout** -- two buttons side by side:
-- "Export Report" (outline, primary text) on the left
-- "Clear History" (outline, destructive text) on the right
+### 2. Add Auth page skeleton (src/components/layout/PageSkeletons.tsx)
 
-Both files follow existing patterns already in the codebase, keeping the change minimal and consistent.
+Add an `AuthSkeleton` that mirrors the auth form layout -- back button, heading, two input fields, a button, social buttons, and toggle link.
+
+### 3. Update App.tsx route fallbacks
+
+- Auth route: change `fallback={null}` to `fallback={<AuthSkeleton />}`
+- NotFound route: change `fallback={null}` to `fallback={<PageLoadingSpinner />}` (already exists, lightweight)
+
+### 4. Add Preview template loading skeleton (src/pages/PreviewPage.tsx)
+
+Wrap the lazy-loaded template rendering in a `Suspense` with a resume-shaped skeleton placeholder (A4-ratio card with shimmer) so users see a document outline while the template JS loads.
+
+### 5. Add AuthSkeleton to PageSkeletons.tsx
+
+New skeleton matching the auth page structure:
+- Back arrow placeholder
+- Title and subtitle placeholders
+- Two input field placeholders
+- Primary button placeholder
+- Divider with "or" placeholder
+- Two social button placeholders
+- Toggle link placeholder
+
+## Technical Details
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `src/pages/SettingsPage.tsx` | Import `SettingsSkeleton`, replace loading fallback |
+| `src/components/layout/PageSkeletons.tsx` | Add `AuthSkeleton` export |
+| `src/App.tsx` | Update Auth and NotFound Suspense fallbacks |
+| `src/pages/PreviewPage.tsx` | Add Suspense wrapper around template render with skeleton |
+
+All changes use existing patterns (CSS `animate-pulse`, `bg-muted` rounded divs) and existing components (`Skeleton`, `PageLoadingSpinner`) -- no new dependencies needed.
 
