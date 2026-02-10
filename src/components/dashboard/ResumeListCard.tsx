@@ -149,7 +149,13 @@ export const ResumeListCard = memo(function ResumeListCard({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div className={cn(
+      "relative overflow-hidden rounded-2xl",
+      // Score-based left border accent
+      healthScore && healthScore.overallScore >= 80 && "border-l-4 border-l-success",
+      healthScore && healthScore.overallScore >= 60 && healthScore.overallScore < 80 && "border-l-4 border-l-warning",
+      healthScore && healthScore.overallScore < 60 && "border-l-4 border-l-destructive",
+    )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
         {/* Duplicate action (right swipe) */}
