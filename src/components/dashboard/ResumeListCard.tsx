@@ -284,13 +284,22 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </span>
               </div>
 
-              {/* Bottom Row: Time */}
+              {/* Bottom Row: Time + AI Nudge */}
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
               </div>
+              {/* AI Improvement Nudge */}
+              {healthScore && healthScore.topImprovement && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate italic">
+                    {healthScore.topImprovement}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
