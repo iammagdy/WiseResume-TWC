@@ -166,7 +166,8 @@ async function callGeminiDirect(
   temperature: number,
   maxTokens?: number,
   tools?: AITool[],
-  toolChoice?: { type: 'function'; function: { name: string } } | 'auto'
+  toolChoice?: { type: 'function'; function: { name: string } } | 'auto',
+  signal?: AbortSignal
 ): Promise<AIResponse> {
   const geminiModel = mapModelForGemini(model);
   
