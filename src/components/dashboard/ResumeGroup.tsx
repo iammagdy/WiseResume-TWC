@@ -15,6 +15,7 @@ interface ResumeGroupProps {
   onEdit: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => void;
   onInterview?: (id: string) => void;
   onCreateTailored: (parentId: string) => void;
   delay?: number;
@@ -28,6 +29,7 @@ export function ResumeGroup({
   onEdit,
   onDuplicate,
   onDelete,
+  onRename,
   onInterview,
   onCreateTailored,
   delay = 0,
@@ -76,6 +78,7 @@ export function ResumeGroup({
             onEdit={onEdit}
             onDuplicate={onDuplicate}
             onDelete={onDelete}
+            onRename={onRename}
             onInterview={onInterview}
             delay={0}
             showMasterBadge={hasTailored}
@@ -125,6 +128,7 @@ export function ResumeGroup({
                   onEdit={onEdit}
                   onDuplicate={onDuplicate}
                   onDelete={onDelete}
+                  onRename={onRename}
                   onInterview={onInterview}
                   delay={0}
                   showTailoredBadge

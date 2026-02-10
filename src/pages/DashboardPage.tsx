@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
-  const { deleteResume, duplicateResume } = useResumeMutations();
+  const { deleteResume, duplicateResume, updateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
@@ -157,6 +157,12 @@ export default function DashboardPage() {
       setCurrentResume(dbToResumeData(resume));
       navigate('/interview');
     }
+  };
+
+  const handleRename = (resumeId: string, newTitle: string) => {
+    updateResume.mutate({ resumeId, updates: {}, title: newTitle }, {
+      onSuccess: () => toast.success('Resume renamed'),
+    });
   };
 
   const handleDelete = (resumeId: string) => {
@@ -387,6 +393,7 @@ export default function DashboardPage() {
                             onEdit={handleEdit}
                             onDuplicate={handleDuplicate}
                             onDelete={handleDelete}
+                            onRename={handleRename}
                             onInterview={handleInterview}
                             onCreateTailored={handleCreateTailored}
                             delay={index * 0.05}
@@ -404,6 +411,7 @@ export default function DashboardPage() {
                           onEdit={handleEdit}
                           onDuplicate={handleDuplicate}
                           onDelete={handleDelete}
+                          onRename={handleRename}
                           onInterview={handleInterview}
                           delay={index * 0.05}
                           healthScore={healthScores[masterResume.id]}
@@ -420,6 +428,7 @@ export default function DashboardPage() {
                         onEdit={handleEdit}
                         onDuplicate={handleDuplicate}
                         onDelete={handleDelete}
+                        onRename={handleRename}
                         onInterview={handleInterview}
                         delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
                         showTailoredBadge

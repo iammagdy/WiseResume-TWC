@@ -12,7 +12,8 @@ import {
   GitBranch,
   Crown,
   Mic,
-  Sparkles
+  Sparkles,
+  Pencil
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -37,6 +38,7 @@ interface ResumeListCardProps {
   onEdit: (id: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename?: (id: string, newTitle: string) => void;
   onInterview?: (id: string) => void;
   delay?: number;
   showMasterBadge?: boolean;
@@ -85,6 +87,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   onEdit,
   onDuplicate,
   onDelete,
+  onRename,
   onInterview,
   showMasterBadge = false,
   showTailoredBadge = false,
@@ -93,6 +96,7 @@ export const ResumeListCard = memo(function ResumeListCard({
 }: ResumeListCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
   
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
@@ -232,9 +236,32 @@ export const ResumeListCard = memo(function ResumeListCard({
                 {resume.is_primary && (
                   <Star className="w-4 h-4 text-warning fill-warning flex-shrink-0" />
                 )}
-                <h3 className="font-semibold text-foreground truncate">
-                  {resume.title}
-                </h3>
+                {isRenaming ? (
+                  <input
+                    autoFocus
+                    className="font-semibold text-foreground bg-transparent glass-input rounded-lg px-2 py-0.5 h-7 w-full max-w-[180px] text-sm focus:outline-none focus:ring-1 focus:ring-primary/40"
+                    defaultValue={resume.title}
+                    onClick={(e) => e.stopPropagation()}
+                    onBlur={(e) => {
+                      const val = e.target.value.trim();
+                      if (val && val !== resume.title && onRename) onRename(resume.id, val);
+                      setIsRenaming(false);
+                    }}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter') {
+                        const val = e.currentTarget.value.trim();
+                        if (val && val !== resume.title && onRename) onRename(resume.id, val);
+                        setIsRenaming(false);
+                      }
+                      if (e.key === 'Escape') setIsRenaming(false);
+                    }}
+                  />
+                ) : (
+                  <h3 className="font-semibold text-foreground truncate">
+                    {resume.title}
+                  </h3>
+                )}
                 {showMasterBadge && (
                   <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary">
                     <Crown className="w-3 h-3" />
@@ -319,6 +346,18 @@ export const ResumeListCard = memo(function ResumeListCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              {onRename && (
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    haptics.light();
+                    setIsRenaming(true);
+                  }}
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Rename
+                </DropdownMenuItem>
+              )}
               <DropdownMenuItem
                 onClick={(e) => {
                   e.stopPropagation();
