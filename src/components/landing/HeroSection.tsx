@@ -58,8 +58,8 @@ export function HeroSection() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 opacity-0 animate-fade-in"
-              style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+              className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 animate-fade-in"
+              style={{ animationFillMode: 'backwards', animationDelay: '0.3s' }}
             >
               <Avatar className="h-9 w-9 border-2 border-primary/30">
                 <AvatarImage src={profile?.avatarUrl ?? undefined} />
