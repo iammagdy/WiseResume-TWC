@@ -2,6 +2,7 @@ import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useSettingsStore } from '@/store/settingsStore';
 import { TailorHistory } from '@/types/resume';
+import { downloadFile } from '@/lib/downloadUtils';
 
 interface ExportData {
   exportVersion: string;
@@ -36,18 +37,10 @@ interface ExportData {
   };
 }
 
-function downloadJson(data: unknown, filename: string) {
+async function downloadJson(data: unknown, filename: string) {
   const json = JSON.stringify(data, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  await downloadFile({ blob, fileName: filename });
 }
 
 export async function exportAllResumes(
@@ -94,10 +87,10 @@ export async function exportAllResumes(
   };
 
   const date = new Date().toISOString().split('T')[0];
-  downloadJson(exportData, `wiseresume-backup-${date}.json`);
+  await downloadJson(exportData, `wiseresume-backup-${date}.json`);
 }
 
-export function exportSingleResume(resume: DatabaseResume): void {
+export async function exportSingleResume(resume: DatabaseResume): Promise<void> {
   const resumeData = dbToResumeData(resume);
   
   const exportData = {
@@ -122,10 +115,10 @@ export function exportSingleResume(resume: DatabaseResume): void {
   };
 
   const safeName = resumeData.contactInfo.fullName?.replace(/[^a-z0-9]/gi, '-') || 'resume';
-  downloadJson(exportData, `${safeName}-${resume.id.slice(0, 8)}.json`);
+  await downloadJson(exportData, `${safeName}-${resume.id.slice(0, 8)}.json`);
 }
 
-export function exportTailorHistory(history: TailorHistory[]): void {
+export async function exportTailorHistory(history: TailorHistory[]): Promise<void> {
   const exportData = {
     exportVersion: '1.0',
     exportDate: new Date().toISOString(),
@@ -146,11 +139,67 @@ export function exportTailorHistory(history: TailorHistory[]): void {
   };
 
   const date = new Date().toISOString().split('T')[0];
-  downloadJson(exportData, `tailor-history-${date}.json`);
+  await downloadJson(exportData, `tailor-history-${date}.json`);
+}
+
+/**
+ * Validates and imports resumes from a backup JSON file.
+ * Returns the number of resumes imported.
+ */
+export async function importResumes(file: File, userId: string): Promise<number> {
+  const text = await file.text();
+  let data: any;
+  
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('Invalid JSON file. Please select a valid WiseResume backup.');
+  }
+
+  // Validate export schema
+  if (!data.exportVersion || typeof data.exportVersion !== 'string') {
+    throw new Error('Not a valid WiseResume backup file (missing exportVersion).');
+  }
+
+  const resumes = data.resumes || (data.resume ? [data.resume] : []);
+  
+  if (!Array.isArray(resumes) || resumes.length === 0) {
+    throw new Error('No resumes found in the backup file.');
+  }
+
+  // Validate each resume has required fields
+  for (const resume of resumes) {
+    if (!resume.contactInfo || !resume.title) {
+      throw new Error('Backup contains invalid resume data (missing contactInfo or title).');
+    }
+  }
+
+  // Upsert resumes into the database
+  let imported = 0;
+  for (const resume of resumes) {
+    const { error } = await supabase.from('resumes').upsert({
+      id: resume.id || undefined,
+      user_id: userId,
+      title: resume.title,
+      contact_info: resume.contactInfo,
+      summary: resume.summary || '',
+      experience: resume.experience || [],
+      education: resume.education || [],
+      skills: resume.skills || [],
+      certifications: resume.certifications || [],
+      template_id: resume.templateId || 'modern',
+      target_job_title: resume.targetJobTitle || null,
+      target_company: resume.targetCompany || null,
+      job_match_score: resume.jobMatchScore || null,
+    }, { onConflict: 'id' });
+
+    if (!error) imported++;
+  }
+
+  return imported;
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
-  // Delete all resumes
   const { error: resumesError } = await supabase
     .from('resumes')
     .delete()
@@ -158,7 +207,6 @@ export async function deleteAllUserData(userId: string): Promise<void> {
 
   if (resumesError) throw resumesError;
 
-  // Delete profile
   const { error: profileError } = await supabase
     .from('profiles')
     .delete()
@@ -166,7 +214,6 @@ export async function deleteAllUserData(userId: string): Promise<void> {
 
   if (profileError) throw profileError;
 
-  // Clear local storage
   localStorage.removeItem('wiseresume-settings');
   localStorage.removeItem('resume-store');
 }
