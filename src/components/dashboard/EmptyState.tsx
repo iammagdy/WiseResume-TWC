@@ -19,17 +19,22 @@ export function EmptyState({ onCreateNew }: EmptyStateProps) {
       animate={{ opacity: 1, y: 0 }}
       className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center"
     >
-      {/* Animated Icon */}
+      {/* Animated Floating Icon */}
       <motion.div
         initial={{ scale: 0.8 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.1, type: 'spring', stiffness: 200 }}
-        className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center mb-6"
+        animate={{ scale: 1, y: [0, -8, 0] }}
+        transition={{ 
+          scale: { delay: 0.1, type: 'spring', stiffness: 200 },
+          y: { duration: 3, repeat: Infinity, ease: 'easeInOut' }
+        }}
+        className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center mb-6 relative"
         style={{
           boxShadow: '0 20px 40px -10px hsl(var(--primary) / 0.4)',
         }}
       >
         <FileText className="w-10 h-10 text-primary-foreground" />
+        {/* Pulsing ring */}
+        <div className="absolute inset-0 rounded-2xl animate-ring-pulse border-2 border-primary/40" />
       </motion.div>
 
       <h2 className="text-xl font-semibold mb-1">No Resumes Yet</h2>

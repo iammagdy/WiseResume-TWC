@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle } from 'lucide-react';
+import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
@@ -275,6 +275,7 @@ export default function EditorPage() {
                 value="contact" 
                 className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
               >
+                <User className="w-4 h-4" />
                 Contact
                 {sectionStatus.contact && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
@@ -283,6 +284,7 @@ export default function EditorPage() {
                 value="summary" 
                 className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
               >
+                <AlignLeft className="w-4 h-4" />
                 Summary
                 {sectionStatus.summary && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
@@ -291,6 +293,7 @@ export default function EditorPage() {
                 value="experience" 
                 className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
               >
+                <Briefcase className="w-4 h-4" />
                 Work
                 {sectionStatus.experience && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
@@ -299,6 +302,7 @@ export default function EditorPage() {
                 value="education" 
                 className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
               >
+                <GraduationCap className="w-4 h-4" />
                 Education
                 {sectionStatus.education && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>
@@ -307,6 +311,7 @@ export default function EditorPage() {
                 value="skills" 
                 className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
               >
+                <Wrench className="w-4 h-4" />
                 Skills
                 {sectionStatus.skills && <Check className="w-3.5 h-3.5 text-success" />}
               </TabsTrigger>

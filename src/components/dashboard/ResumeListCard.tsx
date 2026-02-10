@@ -149,7 +149,13 @@ export const ResumeListCard = memo(function ResumeListCard({
   };
 
   return (
-    <div className="relative overflow-hidden rounded-2xl">
+    <div className={cn(
+      "relative overflow-hidden rounded-2xl",
+      // Score-based left border accent
+      healthScore && healthScore.overallScore >= 80 && "border-l-4 border-l-success",
+      healthScore && healthScore.overallScore >= 60 && healthScore.overallScore < 80 && "border-l-4 border-l-warning",
+      healthScore && healthScore.overallScore < 60 && "border-l-4 border-l-destructive",
+    )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
         {/* Duplicate action (right swipe) */}
@@ -278,13 +284,22 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </span>
               </div>
 
-              {/* Bottom Row: Time */}
+              {/* Bottom Row: Time + AI Nudge */}
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
               </div>
+              {/* AI Improvement Nudge */}
+              {healthScore && healthScore.topImprovement && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
+                  <span className="text-xs text-muted-foreground truncate italic">
+                    {healthScore.topImprovement}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

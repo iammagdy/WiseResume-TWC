@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home } from 'lucide-react';
+import { FileText, Settings, Home, Upload, Mic } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
@@ -15,13 +16,25 @@ const tabs: TabItem[] = [
     path: '/dashboard', 
     icon: Home, 
     label: 'Home',
-    matchPaths: ['/dashboard', '/upload']
+    matchPaths: ['/dashboard']
   },
   { 
     path: '/editor', 
     icon: FileText, 
     label: 'Editor',
-    matchPaths: ['/editor', '/preview', '/interview']
+    matchPaths: ['/editor', '/preview']
+  },
+  { 
+    path: '/upload', 
+    icon: Upload, 
+    label: 'Upload',
+    matchPaths: ['/upload']
+  },
+  { 
+    path: '/interview', 
+    icon: Mic, 
+    label: 'Interview',
+    matchPaths: ['/interview']
   },
   { 
     path: '/settings', 
@@ -70,30 +83,40 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               key={tab.path}
               onClick={() => handleTabPress(tab)}
               className={cn(
-                'flex flex-col items-center justify-center gap-1 flex-1 h-full',
+                'flex flex-col items-center justify-center gap-0.5 flex-1 h-full',
                 'touch-manipulation active:scale-95 transition-all',
-                'min-w-[64px]'
+                'min-w-[52px]'
               )}
             >
               <div className="relative">
-                <div className={cn(
-                  'p-2 rounded-xl transition-all duration-200',
-                  active && 'bg-primary/15 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.4)]'
-                )}>
+                <motion.div
+                  className={cn(
+                    'p-2 rounded-xl transition-colors duration-200',
+                    active && 'bg-primary/15'
+                  )}
+                  animate={active ? {
+                    boxShadow: '0 0 20px -4px hsl(270 100% 65% / 0.4)',
+                  } : {
+                    boxShadow: '0 0 0px 0px transparent',
+                  }}
+                  transition={{ duration: 0.3 }}
+                >
                   <Icon
                     className={cn(
                       'w-5 h-5 transition-colors duration-200',
                       active ? 'text-primary' : 'text-muted-foreground'
                     )}
                   />
-                </div>
-                {/* CSS-only indicator - no layoutId for performance */}
-                <div
-                  className={cn(
-                    'absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary)/0.6)]',
-                    'transition-all duration-200',
-                    active ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
-                  )}
+                </motion.div>
+                {/* Active indicator dot */}
+                <motion.div
+                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"
+                  initial={false}
+                  animate={{
+                    scale: active ? 1 : 0,
+                    opacity: active ? 1 : 0,
+                  }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 />
               </div>
               <span

@@ -11,6 +11,9 @@ import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
 import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
+import { DashboardStats } from '@/components/dashboard/DashboardStats';
+import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
+import { PageTransition } from '@/components/layout/PageTransition';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -20,6 +23,7 @@ import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResum
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
+import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -41,6 +45,7 @@ export default function DashboardPage() {
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
+  const { profile } = useProfile(user?.id, user);
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -251,12 +256,11 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="min-h-full flex flex-col">
+    <PageTransition className="min-h-full flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between glass-header">
           <AppLogo size="sm" />
           <div className="flex items-center gap-2">
-            {/* Explore Landing Page Button */}
             <motion.button
               onClick={() => {
                 haptics.light();
@@ -265,7 +269,6 @@ export default function DashboardPage() {
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 hover:border-primary/40 transition-colors touch-manipulation overflow-hidden min-h-[44px]"
               whileTap={{ scale: 0.95 }}
             >
-              {/* Shimmer effect */}
               <motion.div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent"
                 animate={{ x: ['-100%', '100%'] }}
@@ -278,25 +281,17 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Title Bar */}
-        <div className="px-4 pt-4 pb-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold">My Resumes</h1>
-            <p className="text-sm text-muted-foreground">
-              {resumes?.length || 0} resume{resumes?.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          <Button
-            onClick={() => {
-              haptics.light();
-              setShowCreateDialog(true);
-            }}
-            className="gradient-primary"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New
-          </Button>
-        </div>
+        {/* Personalized Stats Header */}
+        <DashboardStats
+          totalResumes={resumes?.length || 0}
+          healthScores={healthScores}
+          userName={profile?.fullName}
+        />
+
+        {/* Quick Action Chips */}
+        {resumes && resumes.length > 0 && (
+          <QuickActionChips onCreateNew={() => setShowCreateDialog(true)} />
+        )}
 
         {/* Search (only show if there are resumes) */}
         {resumes && resumes.length > 0 && (
@@ -311,22 +306,6 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-        )}
-
-        {/* Interview Prep Banner */}
-        {resumes && resumes.length > 0 && (
-          <NextStepBanner
-            variant="interview"
-            onAction={() => {
-              const firstResume = resumes[0];
-              if (firstResume) {
-                haptics.light();
-                setCurrentResumeId(firstResume.id);
-                setCurrentResume(dbToResumeData(firstResume));
-                navigate('/interview');
-              }
-            }}
-          />
         )}
 
         {/* Content with Pull-to-Refresh */}
@@ -467,6 +446,6 @@ export default function DashboardPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-    </div>
+    </PageTransition>
   );
 }
