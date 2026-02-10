@@ -24,31 +24,30 @@ export function HeroSection() {
     return null;
   };
 
-  const handleLaunch = () => {
+  const handleGetStarted = () => {
     triggerHaptic.medium();
-    setCurrentResume({
-      contactInfo: {
-        fullName: '',
-        email: '',
-        phone: '',
-        location: '',
-        linkedin: '',
-        portfolio: '',
-      },
-      summary: '',
-      experience: [],
-      education: [],
-      skills: [],
-      certifications: [],
-      templateId: 'modern',
-    });
-    setCurrentResumeId(null);
-    navigate('/editor');
-  };
-
-  const handleUpload = () => {
-    triggerHaptic.light();
-    navigate('/upload');
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      setCurrentResume({
+        contactInfo: {
+          fullName: '',
+          email: '',
+          phone: '',
+          location: '',
+          linkedin: '',
+          portfolio: '',
+        },
+        summary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        certifications: [],
+        templateId: 'modern',
+      });
+      setCurrentResumeId(null);
+      navigate('/editor');
+    }
   };
 
   return (
