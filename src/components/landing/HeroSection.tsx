@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Rocket, FileText, LogIn, User, LayoutDashboard, Settings, LogOut } from 'lucide-react';
+import { Rocket, LogIn, User, LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -24,31 +24,30 @@ export function HeroSection() {
     return null;
   };
 
-  const handleLaunch = () => {
+  const handleGetStarted = () => {
     triggerHaptic.medium();
-    setCurrentResume({
-      contactInfo: {
-        fullName: '',
-        email: '',
-        phone: '',
-        location: '',
-        linkedin: '',
-        portfolio: '',
-      },
-      summary: '',
-      experience: [],
-      education: [],
-      skills: [],
-      certifications: [],
-      templateId: 'modern',
-    });
-    setCurrentResumeId(null);
-    navigate('/editor');
-  };
-
-  const handleUpload = () => {
-    triggerHaptic.light();
-    navigate('/upload');
+    if (isAuthenticated) {
+      navigate('/dashboard');
+    } else {
+      setCurrentResume({
+        contactInfo: {
+          fullName: '',
+          email: '',
+          phone: '',
+          location: '',
+          linkedin: '',
+          portfolio: '',
+        },
+        summary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        certifications: [],
+        templateId: 'modern',
+      });
+      setCurrentResumeId(null);
+      navigate('/editor');
+    }
   };
 
   return (
@@ -120,28 +119,18 @@ export function HeroSection() {
           AI-powered resumes that land interviews
         </p>
 
-        {/* CTA buttons */}
+        {/* CTA button */}
         <div
-          className="w-full space-y-3 glass-elevated p-5 rounded-2xl animate-fade-in"
+          className="w-full animate-fade-in"
           style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}
         >
           <Button
             size="lg"
             className="w-full h-14 text-lg font-semibold gap-3 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
-            onClick={handleLaunch}
+            onClick={handleGetStarted}
           >
             <Rocket className="w-5 h-5" />
-            Create New Resume
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="lg"
-            className="w-full h-12 text-muted-foreground hover:text-foreground gap-2 border border-border/50 hover:border-primary/50 hover:bg-primary/5"
-            onClick={handleUpload}
-          >
-            <FileText className="w-5 h-5" />
-            Upload Existing Resume
+            {isAuthenticated ? 'Go to Dashboard' : 'Get Started'}
           </Button>
         </div>
 
