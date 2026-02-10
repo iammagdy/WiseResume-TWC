@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => ({
     sourcemap: true,
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  optimizeDeps: {
+    exclude: ['docx'],
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

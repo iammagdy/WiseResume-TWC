@@ -1,15 +1,3 @@
-import {
-  Document,
-  Paragraph,
-  TextRun,
-  HeadingLevel,
-  AlignmentType,
-  Packer,
-  BorderStyle,
-  Tab,
-  TabStopType,
-  TabStopPosition,
-} from 'docx';
 import { ResumeData } from '@/types/resume';
 import { downloadFile } from '@/lib/downloadUtils';
 
@@ -17,32 +5,25 @@ import { downloadFile } from '@/lib/downloadUtils';
  * Generates an ATS-friendly DOCX from resume data and triggers download.
  */
 export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boolean> {
-  const doc = buildDocument(resume);
-  const blob = await Packer.toBlob(doc);
-  const baseName = resume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume';
-  const result = await downloadFile({
-    blob,
-    fileName: `${baseName}_Resume.docx`,
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  });
-  return result.success;
-}
+  const {
+    Document, Paragraph, TextRun, HeadingLevel, AlignmentType, Packer, BorderStyle,
+  } = await import('docx');
 
-function buildDocument(resume: ResumeData): Document {
-  const sections: Paragraph[] = [];
+  const sections: InstanceType<typeof Paragraph>[] = [];
 
   // Contact header
-  sections.push(...buildContactSection(resume.contactInfo));
+  const contactParas = buildContactSection(resume.contactInfo, { Paragraph, TextRun, AlignmentType });
+  sections.push(...contactParas);
 
   // Summary
   if (resume.summary) {
-    sections.push(sectionHeading('PROFESSIONAL SUMMARY'));
+    sections.push(makeSectionHeading('PROFESSIONAL SUMMARY', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
     sections.push(new Paragraph({ children: [new TextRun({ text: resume.summary, size: 22 })], spacing: { after: 200 } }));
   }
 
   // Experience
   if (resume.experience.length > 0) {
-    sections.push(sectionHeading('EXPERIENCE'));
+    sections.push(makeSectionHeading('EXPERIENCE', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
     for (const exp of resume.experience) {
       sections.push(new Paragraph({
         children: [
@@ -72,7 +53,7 @@ function buildDocument(resume: ResumeData): Document {
 
   // Education
   if (resume.education.length > 0) {
-    sections.push(sectionHeading('EDUCATION'));
+    sections.push(makeSectionHeading('EDUCATION', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
     for (const edu of resume.education) {
       sections.push(new Paragraph({
         children: [
@@ -93,7 +74,7 @@ function buildDocument(resume: ResumeData): Document {
 
   // Skills
   if (resume.skills.length > 0) {
-    sections.push(sectionHeading('SKILLS'));
+    sections.push(makeSectionHeading('SKILLS', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
     sections.push(new Paragraph({
       children: [new TextRun({ text: resume.skills.join(' • '), size: 22 })],
       spacing: { after: 200 },
@@ -102,7 +83,7 @@ function buildDocument(resume: ResumeData): Document {
 
   // Certifications
   if (resume.certifications.length > 0) {
-    sections.push(sectionHeading('CERTIFICATIONS'));
+    sections.push(makeSectionHeading('CERTIFICATIONS', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
     for (const cert of resume.certifications) {
       sections.push(new Paragraph({
         children: [
@@ -115,13 +96,23 @@ function buildDocument(resume: ResumeData): Document {
     }
   }
 
-  return new Document({
-    sections: [{ children: sections }],
+  const doc = new Document({ sections: [{ children: sections }] });
+  const blob = await Packer.toBlob(doc);
+  const baseName = resume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume';
+  const result = await downloadFile({
+    blob,
+    fileName: `${baseName}_Resume.docx`,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   });
+  return result.success;
 }
 
-function buildContactSection(contact: ResumeData['contactInfo']): Paragraph[] {
-  const paras: Paragraph[] = [];
+function buildContactSection(
+  contact: ResumeData['contactInfo'],
+  deps: { Paragraph: any; TextRun: any; AlignmentType: any },
+) {
+  const { Paragraph, TextRun, AlignmentType } = deps;
+  const paras: any[] = [];
 
   if (contact.fullName) {
     paras.push(new Paragraph({
@@ -143,7 +134,11 @@ function buildContactSection(contact: ResumeData['contactInfo']): Paragraph[] {
   return paras;
 }
 
-function sectionHeading(title: string): Paragraph {
+function makeSectionHeading(
+  title: string,
+  deps: { Paragraph: any; TextRun: any; HeadingLevel: any; BorderStyle: any },
+) {
+  const { Paragraph, TextRun, HeadingLevel, BorderStyle } = deps;
   return new Paragraph({
     children: [new TextRun({ text: title, bold: true, size: 24, color: '333333' })],
     heading: HeadingLevel.HEADING_2,
