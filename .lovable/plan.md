@@ -1,36 +1,73 @@
 
-# Fix Landing Page Template Gallery
 
-## Problems
-1. The template gallery only shows 3 out of 12 available templates (Modern, Executive, Creative)
-2. The template previews are just gray skeleton placeholder bars on a dark background -- they look broken/empty as seen in the screenshot
-3. The placeholders have very low contrast (`bg-muted-foreground/8`) making them nearly invisible on the dark space theme
+# Polish Landing Page with Real Template Previews and Animations
 
-## Solution
+## What Changes
 
-### Redesign TemplateGallery.tsx with rich, visible previews
+The template gallery will show realistic, detailed mini-previews that match the actual templates (especially the Developer template with its dark terminal header and green accents). The entire landing page will get smoother animations and a more polished feel.
 
-**Show more templates:** Expand from 3 to 6 representative templates (Modern, Classic, Creative, Executive, Developer, Elegant) to better showcase the "12 Pro Templates" claim.
+## Template Gallery Overhaul
 
-**Replace skeleton placeholders with styled mini-previews:** Instead of barely-visible gray bars, render each template card with:
-- A white/light background (like a real resume page) so content is visible against the dark space theme
-- Colored accent bars and section headers matching each template's style
-- Visible placeholder text lines with proper contrast
-- Each card styled to hint at its template's unique layout (e.g., Creative shows a sidebar, Professional shows a two-column layout)
+### Rich MiniPreview designs matching real templates
 
-**Improve the carousel UX:**
-- Show template count badge ("6 of 12 templates")
-- Add a "See all templates" link that navigates to the editor
-- Better snap scrolling with proper gap and sizing
+Each of the 6 templates will get a detailed mini-preview that mirrors its actual design:
 
-### Technical Changes
+- **Developer (Terminal)**: Dark gray-900 header block with green ">" prompt, green "// SECTION" headers, a left border-line accent on content, and monospace-style text lines -- matching the real DeveloperTemplate's terminal aesthetic
+- **Modern (Voyager)**: Purple bottom border on header, clean section headers with accent color
+- **Classic (Heritage)**: Centered header with horizontal rule divider, classic layout
+- **Creative (Explorer)**: Left sidebar with avatar circle and accent background, two-column layout
+- **Executive (Commander)**: Bold full-width colored header bar with white text lines
+- **Elegant (Aurora)**: Minimal spacing, thin accent section dividers, clean typography feel
 
-**File: `src/components/landing/TemplateGallery.tsx`**
-- Expand `templates` array from 3 to 6 entries with distinct accent colors
-- Change the card inner background from `bg-card/80` (dark) to `bg-white` so it looks like an actual resume page
-- Use visible placeholder colors (`bg-gray-200`, `bg-gray-300`) instead of near-transparent ones (`bg-muted-foreground/8`)
-- Add unique layout hints per template (e.g., sidebar for Creative, two-column grid for Professional)
-- Add a "See all 12 templates" link below the dots
-- Add subtitle text: "Pick a design, customize it with AI"
+### More detailed placeholder content
 
-**No new files needed. No backend changes.**
+Instead of 2-3 thin gray bars per section, each preview will show:
+- Thicker, more varied line widths to simulate real text
+- Skill tags/pills for tech stack sections
+- Achievement bullet points (small dots + lines)
+- More sections visible (summary, skills, experience, education)
+
+## Landing Page Animation Polish
+
+### Staggered entrance animations
+- Gallery section title fades in first, then cards stagger in with 100ms delays
+- Each card slides up + fades in (using existing `animate-fade-in` with animation-delay)
+
+### Card hover/active effects
+- On hover: slight lift with shadow (`hover:-translate-y-1 hover:shadow-xl`)
+- Active card in carousel gets a subtle glow border using the template's accent color
+- Smooth transitions on all interactive elements (300ms)
+
+### Section transitions
+- Add `animate-fade-in-up` keyframe if not present (fade + translateY)
+- QuickActions cards get staggered entrance
+- "See all 12 templates" link gets a subtle arrow bounce on hover
+
+## Technical Details
+
+### File: `src/components/landing/TemplateGallery.tsx`
+
+**MiniPreview component** -- complete rewrite of all 6 layout variants:
+
+1. **Developer layout (`two-column`)** -- change to a unique `terminal` layout type:
+   - Top section: `bg-gray-900` with a green ">" and white title bar, small gray contact line
+   - Body: green `// ABOUT` header, left `border-l-2 border-gray-300` on content lines
+   - Green `// TECH_STACK` header with small colored pill tags
+   - Green `// EXPERIENCE` header with bullet lines
+   - This closely mirrors the actual DeveloperTemplate component
+
+2. **All layouts**: increase line thickness from 3px to 4px, add more content lines, use stronger gray shades (`bg-gray-300` for titles, `bg-gray-200` for body lines)
+
+3. **Card wrapper**: add `hover:-translate-y-1 transition-all duration-300` and accent-colored shadow on active
+
+4. **Update template layout types**: change Developer from `two-column` to `terminal` to give it a unique preview
+
+### File: `src/components/landing/HeroSection.tsx`
+- Add a subtle floating animation to the PlanetLogo (CSS `animate-bounce` with slower timing)
+- Ensure staggered delays work properly with `animation-fill-mode: forwards`
+
+### File: `src/components/landing/QuickActions.tsx`  
+- Add staggered `animation-delay` on each card for entrance effect
+- Add `hover:-translate-y-0.5` subtle lift on hover
+
+### No new files, no backend changes needed.
