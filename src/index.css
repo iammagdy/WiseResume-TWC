@@ -749,6 +749,52 @@
   z-index: -1;
 }
 
+/* Hero gradient blob - slow drifting mesh */
+@keyframes gradient-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.6; }
+  33% { transform: translate(30px, -50px) scale(1.1); opacity: 0.8; }
+  66% { transform: translate(-20px, 20px) scale(0.9); opacity: 0.5; }
+}
+
+/* Floating particle orbs */
+@keyframes float-particle {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(15px, -25px) scale(1.1); }
+  50% { transform: translate(-10px, -40px) scale(0.9); }
+  75% { transform: translate(20px, -15px) scale(1.05); }
+}
+
+/* Ring pulse expand + fade */
+@keyframes ring-pulse {
+  0% { transform: scale(0.8); opacity: 0; }
+  50% { opacity: 0.4; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+/* CTA button glow pulse */
+@keyframes cta-glow {
+  0%, 100% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
+  50% { box-shadow: 0 0 35px hsl(var(--primary) / 0.5), 0 0 60px hsl(var(--primary) / 0.2); }
+}
+
+.animate-gradient-blob {
+  animation: gradient-blob 20s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-particle {
+  animation: float-particle 12s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-ring-pulse {
+  animation: ring-pulse 3s ease-out infinite;
+}
+
+.animate-cta-glow {
+  animation: cta-glow 3s ease-in-out infinite;
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
