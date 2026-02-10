@@ -32,6 +32,7 @@ interface SettingsState {
   hasSeenAIIntro: boolean;
   hasSeenPreviewHint: boolean;
   hasSeenTailorHint: boolean;
+  hasSeenInterviewHint: boolean;
   
   // Integrations
   elevenlabsApiKey: string;
@@ -55,6 +56,7 @@ interface SettingsState {
   setHasSeenAIIntro: (value: boolean) => void;
   setHasSeenPreviewHint: (value: boolean) => void;
   setHasSeenTailorHint: (value: boolean) => void;
+  setHasSeenInterviewHint: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
   
   // AI Provider Actions
@@ -84,6 +86,7 @@ const defaultSettings = {
   hasSeenAIIntro: false,
   hasSeenPreviewHint: false,
   hasSeenTailorHint: false,
+  hasSeenInterviewHint: false,
   elevenlabsApiKey: '',
   // AI Provider defaults
   aiProvider: 'lovable' as AIProvider,
@@ -117,6 +120,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenAIIntro: (value) => set({ hasSeenAIIntro: value }),
       setHasSeenPreviewHint: (value) => set({ hasSeenPreviewHint: value }),
       setHasSeenTailorHint: (value) => set({ hasSeenTailorHint: value }),
+      setHasSeenInterviewHint: (value) => set({ hasSeenInterviewHint: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       
       // AI Provider Actions

@@ -16,6 +16,7 @@ import { OnboardingCarousel } from '@/components/onboarding/OnboardingCarousel';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
+import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -277,6 +278,22 @@ export default function DashboardPage() {
               />
             </div>
           </div>
+        )}
+
+        {/* Interview Prep Banner */}
+        {resumes && resumes.length > 0 && (
+          <NextStepBanner
+            variant="interview"
+            onAction={() => {
+              const firstResume = resumes[0];
+              if (firstResume) {
+                haptics.light();
+                setCurrentResumeId(firstResume.id);
+                setCurrentResume(dbToResumeData(firstResume));
+                navigate('/interview');
+              }
+            }}
+          />
         )}
 
         {/* Content with Pull-to-Refresh */}
