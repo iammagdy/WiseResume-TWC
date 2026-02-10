@@ -585,12 +585,17 @@ export interface PDFDimensions {
  * Returns a number 1-100 representing the percentage (e.g., 67 means 67% scale).
  */
 export function estimateOnePageScale(templateElement: HTMLElement): number {
-  const { totalHeight, globalScaleFactor } = calculatePDFDimensions(templateElement);
-  const pdfContentHeight = totalHeight * globalScaleFactor;
-  const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
-    ? PRINTABLE_HEIGHT / pdfContentHeight
-    : 1;
-  return Math.round(fitScale * 100);
+  const cleanup = prepareForCapture(templateElement);
+  try {
+    const { totalHeight, globalScaleFactor } = calculatePDFDimensions(templateElement);
+    const pdfContentHeight = totalHeight * globalScaleFactor;
+    const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
+      ? PRINTABLE_HEIGHT / pdfContentHeight
+      : 1;
+    return Math.round(fitScale * 100);
+  } finally {
+    cleanup();
+  }
 }
 
 export function calculatePDFDimensions(sourceElement: HTMLElement): PDFDimensions {
