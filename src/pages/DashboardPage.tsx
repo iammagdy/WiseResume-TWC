@@ -428,7 +428,6 @@ export default function DashboardPage() {
                         onDelete={handleDelete}
                         onRename={handleRename}
                         onInterview={handleInterview}
-                        delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
                         showTailoredBadge
                         healthScore={healthScores[resume.id]}
                         isScoring={scoringId === resume.id}
