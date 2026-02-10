@@ -122,8 +122,8 @@ export function HeroSection() {
 
         {/* CTA buttons */}
         <div
-          className="w-full space-y-3 glass-elevated p-5 rounded-2xl opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}
+          className="w-full space-y-3 glass-elevated p-5 rounded-2xl animate-fade-in"
+          style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}
         >
           <Button
             size="lg"
