@@ -1,70 +1,49 @@
 
 
-# Fix iOS Compatibility and Improve PDF Import Parsing
+# Show Profile Avatar When Signed In on Landing Page
 
-## Issue 1: Auth State Stuck (Causes Infinite Loading)
+## Current Behavior
+The landing page hero section always shows a "Sign In" button in the top-right corner, even when the user is already signed in. There is no visual indicator of auth state.
 
-### Root Cause
-The `markResolved` function with a `resolved` flag in `AuthContext.tsx` was introduced to fix the timeout issue, but it has a critical side effect: after the first resolution, `onAuthStateChange` is completely ignored. This means:
-- Signing out does not update the UI (user stays "logged in")
-- Token refreshes are ignored
-- Signing in on another tab is not reflected
+## Desired Behavior
+- **Signed out**: Show the current "Sign In" button (LogIn icon + text)
+- **Signed in**: Show the user's profile avatar (photo or initials fallback) that navigates to `/dashboard` on tap
 
-### Fix (`src/contexts/AuthContext.tsx`)
-- Keep the `resolved` flag ONLY for the initial loading state (to stop showing skeletons)
-- After initial resolution, let `onAuthStateChange` continue updating user/session state normally
-- Keep the 5-second safety timeout and `.catch()` for the initial load
-- The timeout should only control `loading: false`, not block future auth events
+## Changes
 
-```text
-Before: markResolved() blocks ALL future auth state changes
-After:  resolved flag only controls initial loading=false, onAuthStateChange always updates user/session
+### File: `src/components/landing/HeroSection.tsx`
+
+1. Import `useAuth` from `@/hooks/useAuth` and `useProfile` from `@/hooks/useProfile`
+2. Import `Avatar`, `AvatarImage`, `AvatarFallback` from `@/components/ui/avatar`
+3. Get `user`, `isAuthenticated` from `useAuth()`
+4. Get `profile` from `useProfile(user?.id, user)`
+5. Replace the static "Sign In" button with a conditional render:
+
+**When signed out** (current behavior):
+```
+<button onClick={() => navigate('/auth')}>
+  <LogIn /> Sign In
+</button>
 ```
 
-## Issue 2: PDF Parsing - Wrong Name / Missing Data
+**When signed in** (new):
+```
+<button onClick={() => navigate('/dashboard')}>
+  <Avatar className="h-9 w-9 border-2 border-primary/30">
+    <AvatarImage src={profile?.avatarUrl} />
+    <AvatarFallback>
+      {initials from profile?.fullName or user email}
+    </AvatarFallback>
+  </Avatar>
+</button>
+```
 
-### Root Cause
-The client-side `pdfjs-dist` text extraction works well for digital PDFs but has issues with:
-1. PDFs where text items lack proper transforms (two-column/creative layouts)
-2. Text ordering issues in sidebar-style resumes where the name appears in a sidebar
-3. The quality threshold (50 chars minimum) is too low -- some PDFs extract garbage text that passes the check but confuses the AI
+The initials will be derived from `profile?.fullName` (first letter of first and last name), falling back to the first letter of the user's email, falling back to a generic User icon.
 
-### Fix (`src/lib/pdf/textExtractor.ts`)
-- Increase the quality check threshold: require at least 3 letter-words (not just any letters) to confirm good extraction
-- Add a secondary quality signal: check if extracted text has reasonable word count (at least 10 words)
-- Log the first 200 chars of extracted text for debugging
-
-### Fix (`supabase/functions/parse-resume/index.ts`)
-- Strengthen the system prompt name detection rules with additional guidance:
-  - The name is almost always on the FIRST LINE of the extracted text
-  - If the first line contains "Contact" or similar headers, skip it and look at line 2-3
-  - Never use email addresses, phone numbers, or URLs as names
-- Add a post-processing validation: if `fullName` looks like a section header or contains "@", clear it and try to extract from the first few lines of the raw text
-
-## Issue 3: iOS-Specific Compatibility
-
-### Current State (Already Good)
-- `viewport-fit=cover` is set
-- Safe area insets are applied via CSS `env(safe-area-inset-*)`
-- `apple-mobile-web-app-capable` and `black-translucent` status bar are configured
-- `100dvh` is used for dynamic viewport height
-
-### Remaining iOS Fix (`src/lib/pdf/ocrExtractor.ts`)
-- On iOS Safari, large canvas rendering can crash or produce blank results due to memory limits
-- Cap canvas dimensions to 2048x2048 for OCR (iOS WebKit limit is ~4096px but 2048 is safer)
-- Add `willReadFrequently: true` to `getContext('2d')` for better iOS performance
-
-### Fix (`src/index.css`)
-- Ensure `-webkit-overflow-scrolling: touch` is applied for smooth scrolling on iOS
-- Add `overscroll-behavior: none` on the body to prevent iOS rubber-band bounce interfering with the app
-
-## Files Changed
+### Files Modified
 
 | File | Change |
 |------|--------|
-| `src/contexts/AuthContext.tsx` | Fix `resolved` flag to only control initial loading, not block future auth events |
-| `src/lib/pdf/textExtractor.ts` | Improve extraction quality check with word-count validation and debug logging |
-| `supabase/functions/parse-resume/index.ts` | Strengthen name detection in AI prompt and add post-processing name validation |
-| `src/lib/pdf/ocrExtractor.ts` | Cap canvas size for iOS, add `willReadFrequently` hint |
-| `src/index.css` | Add iOS scrolling fixes (`-webkit-overflow-scrolling`, `overscroll-behavior`) |
+| `src/components/landing/HeroSection.tsx` | Add auth/profile hooks, conditionally render avatar or sign-in button |
 
+Single file change. No new components or dependencies needed -- all imports already exist in the project.
