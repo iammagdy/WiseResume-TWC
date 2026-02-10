@@ -1,47 +1,62 @@
 
-# Add "Save to Files" Button for iOS Users
 
-## What Changes
+# Improve App Flow and Feature Discoverability
 
-On iOS devices, the bottom action bar on the Preview page will show a dedicated "Save to Files" button next to the main Download button. This gives iOS users a direct way to save their PDF without going through the full share sheet.
+## Current Problems
 
-## How It Works
+The app has a confusing user journey with several discoverability issues:
 
-- Detect iOS using the existing user-agent check
-- Show a "Save to Files" button (with a folder icon) only on iOS devices, next to the existing Download button
-- Tapping "Save to Files" generates the PDF, then opens `navigator.share` pre-configured with just the file -- iOS will show the share sheet where "Save to Files" is a prominent option
-- The main "Download" button continues to work as before (also uses `navigator.share` on iOS)
+1. **Landing page is overwhelming** -- The space-themed landing page (Hero, SocialProof, HowItWorks, FeatureGrid, TemplateGallery, BottomCTA) has a lot of marketing content but doesn't clearly guide users to take action. The rotating job titles add visual noise without helping users understand what to do.
 
-Since iOS Safari has no direct "save to filesystem" API, the best UX is to present `navigator.share` but with a clear label so users know to pick "Save to Files" from the share sheet. The toast will say "Choose 'Save to Files' from the menu" to guide them.
+2. **"Launch Your Resume" goes straight to a blank editor** -- New users click the main CTA and land on an empty editor with no guidance. They don't know what to fill in first or that AI features exist.
+
+3. **Onboarding only shows after sign-up** -- The 3-step onboarding carousel (Upload, AI Tailor, Export) only appears on the Dashboard for authenticated users. Guest users never see it.
+
+4. **Feature discovery is hidden** -- AI features like Tailor, Recruiter Sim, AI Detector, Career Path, etc. are buried behind the AI Assistant Bar at the bottom of the editor. The AI Intro Tooltip helps, but users must already be in the editor to see it.
+
+5. **No clear "what to do next" guidance** -- After creating a resume, users don't know to go to Preview, or that they can tailor it, or practice interviews.
+
+## Proposed Changes
+
+### 1. Simplify the Landing Page Hero (HeroSection.tsx)
+- Replace the rotating job titles animation with a clear, static value proposition
+- Simplify the CTAs to two clear paths: "Create New Resume" and "Upload Resume"
+- Add a small "Sign In" link for returning users instead of the avatar button
+- Remove the floating testimonial badges (they're hidden on mobile anyway)
+
+### 2. Add a Quick Feature Tour for First-Time Visitors (new component)
+- Create a `FeatureSpotlight` component -- a simple horizontal scroll of 4 cards shown on the landing page between the hero and the rest
+- Each card is a clear action: "Create from Scratch", "Upload Existing", "AI Tailor to a Job", "Practice Interview"
+- Tapping a card navigates directly to the relevant page
+
+### 3. Add Contextual "Next Step" Prompts in the Editor (EditorPage.tsx)
+- When a user has filled in at least contact info + 1 experience, show a subtle banner: "Ready to preview? Tap Preview to see your resume"
+- When in Preview, show a prompt: "Want to tailor this for a specific job? Try AI Tailor"
+- These are dismissible and stored in settings store
+
+### 4. Improve the Empty Editor State
+- When the editor loads with a blank resume, show inline placeholder hints in each section (e.g., "Start by adding your name and contact info" in the contact section header)
+- Auto-focus the first field (full name)
+
+### 5. Add a "How It Works" Mini-Guide on Dashboard Empty State (EmptyState.tsx)
+- When a user has zero resumes, show 3 simple steps with icons directly in the empty state instead of just a "Create" button
+- Steps: "1. Create or Upload", "2. AI enhances it", "3. Download PDF"
 
 ## Technical Details
 
-### File: `src/pages/PreviewPage.tsx`
+### Files to modify:
+- `src/components/landing/HeroSection.tsx` -- Simplify hero, remove rotating titles, clearer CTAs
+- `src/components/dashboard/EmptyState.tsx` -- Add mini how-it-works steps
+- `src/pages/EditorPage.tsx` -- Add "next step" contextual banner when resume is sufficiently filled
+- `src/store/settingsStore.ts` -- Add `hasSeenNextStepHint` flag
 
-1. Add a new `handleSaveToFiles` function that:
-   - Generates the PDF (reuses existing logic)
-   - Creates a `File` object
-   - Calls `navigator.share({ files: [file] })` 
-   - Shows a guiding toast: "Choose 'Save to Files' from the menu"
-   - Handles `AbortError` gracefully
+### New files to create:
+- `src/components/landing/QuickActions.tsx` -- 4-card horizontal scroll with clear action paths
+- `src/components/editor/NextStepBanner.tsx` -- Dismissible contextual prompt for next actions
 
-2. Add an `isIOS` constant at the component level (move from inside `handleExport`)
+### Files with minor updates:
+- `src/pages/Index.tsx` -- Add QuickActions between Hero and SocialProof
+- `src/pages/PreviewPage.tsx` -- Add "Try AI Tailor" prompt for first-time users
 
-3. In the bottom action bar, add a conditional button for iOS:
-   ```
-   [  Download (full width)  ] [ v ]
-   [ Edit ] [ Save to Files ] [ Interview ] [ Share ]
-   ```
-   The "Save to Files" button replaces the Interview button's position on iOS only, keeping the layout clean. Actually, to avoid removing functionality, it will be added as an additional button in the second row.
+### No database or backend changes needed -- all state is stored client-side in the settings store.
 
-### Layout adjustment (iOS only, second button row):
-```
-[ Edit ] [ Save to Files ] [ Interview ] [ Share ]
-```
-On non-iOS devices, the row stays as-is:
-```
-[ Edit ] [ Interview ] [ Share ]
-```
-
-### Icon
-Use `FolderDown` from lucide-react for the "Save to Files" button to clearly convey saving to local storage.
