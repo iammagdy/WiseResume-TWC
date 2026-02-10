@@ -18,8 +18,8 @@
     --popover: 240 15% 8%;
     --popover-foreground: 0 0% 98%;
 
-    /* Primary - Electric Purple */
-    --primary: 270 100% 65%;
+    /* Primary - Vibrant Red */
+    --primary: 355 90% 60%;
     --primary-foreground: 0 0% 100%;
 
     /* Secondary - Cyan Accent */
@@ -38,8 +38,7 @@
 
     --border: 240 15% 18%;
     --input: 240 15% 12%;
-    --ring: 270 100% 65%;
-
+    --ring: 355 90% 60%;
     --radius: 1rem;
 
     /* Success - Lime Green */
