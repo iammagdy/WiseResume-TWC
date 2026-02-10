@@ -29,6 +29,8 @@ import { DatabaseResume } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { ScoreRing } from './ScoreRing';
+import { ResumeHealthScore } from '@/hooks/useResumeScore';
 
 interface ResumeListCardProps {
   resume: DatabaseResume;
