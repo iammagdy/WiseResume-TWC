@@ -29,7 +29,7 @@ const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWiza
 import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF, getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { downloadFile } from '@/lib/downloadUtils';
-import { generateAndDownloadDOCX } from '@/lib/docxGenerator';
+// docxGenerator is dynamically imported when needed to avoid Vite pre-bundle issues
 import { useExportProgress } from '@/hooks/useExportProgress';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -192,6 +192,7 @@ export default function PreviewPage() {
         if (type === 'docx') {
           onProgress('preparing', 10);
           onProgress('finalizing', 50);
+          const { generateAndDownloadDOCX } = await import('@/lib/docxGenerator');
           const success = await generateAndDownloadDOCX(currentResume);
           onProgress('downloading', 100);
           if (success) {
