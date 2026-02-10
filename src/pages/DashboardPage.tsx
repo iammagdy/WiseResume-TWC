@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
+import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { PageTransition } from '@/components/layout/PageTransition';
 
 // Lazy-loaded dialogs
