@@ -1,77 +1,59 @@
 
 
-# Production Readiness and Code Cleanup
+# Full Security Audit -- Findings and Fix Plan
 
-## Overview
-Based on your uploaded implementation plan, here is what we can action within Lovable Cloud, adapted to respect platform constraints (auto-generated files, Cloud infrastructure).
+## Audit Summary
 
----
-
-## Phase 1: Branding and Config Cleanup
-
-### 1.1 `capacitor.config.ts` -- Update app ID and remove remote server URL
-- Change `appId` from `'app.lovable.c36…'` to `'com.wiseresume.app'`
-- Remove the `server.url` pointing to `lovableproject.com` so the APK loads from the local `dist/` bundle
-- Keep all `android`, `ios`, and `plugins` config intact
-
-### 1.2 `index.html` -- Remove stale preconnects and placeholder images
-- Remove the `<link rel="preconnect" href="https://cdn.gpteng.co" />` line (unused GPTEngineer CDN)
-- Replace placeholder OG/Twitter image URLs (`placehold.co`) with the app favicon or remove them
-
-### 1.3 `package.json` -- Version bump and dependency cleanup
-- Set `"version": "1.0.0"`
-- Move `@testing-library/dom` from `dependencies` to `devDependencies`
-- Add Capacitor convenience scripts: `"cap:sync"`, `"cap:build"`, `"cap:open"`
-- **Note**: `@lovable.dev/cloud-auth-js` is actively used for Google OAuth on the Auth page -- it must stay. `lovable-tagger` is used in `vite.config.ts` for dev mode -- it stays in devDependencies.
-
-### 1.4 Remove temporary toast test panel
-- Remove the floating test buttons added to `src/pages/DashboardPage.tsx` (no longer needed after visual verification)
+Reviewed all 17 edge functions, 3 database tables, and 10 RLS policies. Here are the findings:
 
 ---
 
-## Phase 2: Console Log Cleanup
+## Finding 1: THREE Edge Functions Missing Authentication (HIGH)
 
-Only 4 `console.log` statements exist in frontend code (all in PDF parsing). Approximately 230 exist across 17 edge functions.
+The following backend functions can be called by **anyone on the internet** without logging in, consuming your AI credits:
 
-### 2.1 Frontend (`src/lib/`) -- Wrap debug logs
-- In `src/lib/pdfParser.ts`: wrap 3 `console.log` calls behind `import.meta.env.DEV`
-- In `src/lib/pdf/textExtractor.ts`: wrap 1 `console.log` call behind `import.meta.env.DEV`
-- Keep all `console.error` and `console.warn` statements (needed for production debugging)
+| Function | Risk |
+|----------|------|
+| `explain-gap` | Unauthenticated users can generate gap explanations (AI credit abuse) |
+| `detect-and-humanize` | Unauthenticated users can run AI detection/humanization (AI credit abuse) |
+| `one-page-optimizer` | Unauthenticated users can run one-page optimization (AI credit abuse) |
 
-### 2.2 Edge Functions -- No changes
-- Edge function `console.log` statements are server-side only and do not leak to users. They are useful for backend debugging via Cloud logs. Recommend leaving them as-is.
+**All other 14 functions** already have proper authentication.
 
----
+### Fix
+Add the standard authentication block to each of these 3 functions:
+- Import `createClient` from Supabase
+- Extract the `Authorization` header
+- Verify the token with `supabase.auth.getUser(token)`
+- Return 401 if unauthorized
+- Add input size validation (consistent with the other functions)
 
-## Phase 3: Stale Lock File Removal
-
-- Delete `bun.lockb` (stale, project uses npm)
-- Delete `pnpm-lock.yaml` (stale, project uses npm)
-- Keep `package-lock.json` as the single source of truth
-
----
-
-## What Cannot Be Done in Lovable Cloud
-
-The following items from your plan require local CLI tools and cannot be executed here:
-
-- Generating the `android/` directory (`npx cap add android`) -- must be done locally
-- Running `npm prune` -- requires local terminal
-- Deleting the `.lovable/` directory -- this is a platform-managed directory
-- Editing auto-generated files (`supabase/config.toml`, `.env`, `src/integrations/supabase/client.ts`, `src/integrations/supabase/types.ts`)
+No frontend changes needed -- all 3 functions are already called via `supabase.functions.invoke()`, which automatically sends the user's auth token.
 
 ---
 
-## Summary of File Changes
+## Finding 2: RLS Scanner False Positives (NO ACTION)
+
+The scanner flagged `profiles`, `resumes`, and `ai_usage_logs` as "publicly readable." This is a **false positive**. All 3 tables have RESTRICTIVE policies with `auth.uid() = user_id`, which correctly restricts access to the row owner only. Unauthenticated requests return zero rows because `auth.uid()` evaluates to NULL. These scanner findings will be dismissed.
+
+---
+
+## Finding 3: Leaked Password Protection (MANUAL)
+
+This requires toggling a setting in Cloud UI (cannot be fixed via code). Already discussed in previous message.
+
+---
+
+## Files Modified (3 edge functions)
 
 | File | Change |
 |------|--------|
-| `capacitor.config.ts` | Update appId, remove remote server.url |
-| `index.html` | Remove gpteng.co preconnect, fix OG image URLs |
-| `package.json` | Version 1.0.0, move test dep, add cap scripts |
-| `src/pages/DashboardPage.tsx` | Remove temporary toast test panel |
-| `src/lib/pdfParser.ts` | Wrap 3 console.log in DEV guard |
-| `src/lib/pdf/textExtractor.ts` | Wrap 1 console.log in DEV guard |
-| `bun.lockb` | Delete |
-| `pnpm-lock.yaml` | Delete |
+| `supabase/functions/explain-gap/index.ts` | Add auth check + input size validation |
+| `supabase/functions/detect-and-humanize/index.ts` | Add auth check + input size validation |
+| `supabase/functions/one-page-optimizer/index.ts` | Add auth check + input size validation |
+
+## Security Findings Management
+
+- **Dismiss** the 3 false-positive "publicly readable" findings from the scanner
+- **Delete** findings after fixing the 3 unauthenticated edge functions
 
