@@ -147,8 +147,8 @@ export function HeroSection() {
 
         {/* Trust text */}
         <p
-          className="text-sm text-muted-foreground mt-8 flex items-center gap-2 opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+          className="text-sm text-muted-foreground mt-8 flex items-center gap-2 animate-fade-in"
+          style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}
         >
           <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
           Free · No credit card · 5 minutes

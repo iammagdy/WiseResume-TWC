@@ -21,8 +21,8 @@ export const StepperNav = memo(function StepperNav({
   const activeIndex = steps.findIndex(s => s.id === activeStep);
 
   return (
-    <div className="px-6 py-4">
-      <div className="flex items-center justify-between relative">
+    <div className="px-4 sm:px-6 py-4">
+      <div className="flex items-center justify-between relative overflow-x-auto scrollbar-hide">
         {/* Connecting line */}
         <div className="absolute top-5 left-[10%] right-[10%] h-[2px] bg-border/40" />
         <motion.div
@@ -62,7 +62,7 @@ export const StepperNav = memo(function StepperNav({
                     '0 0 0 0px hsl(355 90% 60% / 0)',
                   ],
                 } : { scale: 1 }}
-                transition={{ duration: 2, repeat: Infinity }}
+                transition={{ duration: 2, repeat: 2 }}
               >
                 {isCompleted ? (
                   <Check className="w-4 h-4 text-success" />
@@ -74,7 +74,7 @@ export const StepperNav = memo(function StepperNav({
                 )}
               </motion.div>
               <span className={cn(
-                'text-[10px] font-medium transition-colors',
+                'text-[11px] font-medium transition-colors',
                 isActive ? 'text-primary' : isCompleted ? 'text-success' : 'text-muted-foreground'
               )}>
                 {step.label}
