@@ -268,73 +268,47 @@ export default function EditorPage() {
           </div>
         </div>
 
-        {/* Editor Tabs */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="shrink-0 mt-3 overflow-x-auto scrollbar-hide">
-            <TabsList className="w-max inline-flex h-auto p-1 gap-1 mx-4">
-              <TabsTrigger
-                ref={(el) => (tabRefs.current[0] = el)} 
-                value="contact" 
-                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
-              >
-                <User className="w-4 h-4" />
-                Contact
-                {sectionStatus.contact && <Check className="w-3.5 h-3.5 text-success" />}
-              </TabsTrigger>
-              <TabsTrigger 
-                ref={(el) => (tabRefs.current[1] = el)} 
-                value="summary" 
-                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
-              >
-                <AlignLeft className="w-4 h-4" />
-                Summary
-                {sectionStatus.summary && <Check className="w-3.5 h-3.5 text-success" />}
-              </TabsTrigger>
-              <TabsTrigger 
-                ref={(el) => (tabRefs.current[2] = el)} 
-                value="experience" 
-                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
-              >
-                <Briefcase className="w-4 h-4" />
-                Work
-                {sectionStatus.experience && <Check className="w-3.5 h-3.5 text-success" />}
-              </TabsTrigger>
-              <TabsTrigger 
-                ref={(el) => (tabRefs.current[3] = el)} 
-                value="education" 
-                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
-              >
-                <GraduationCap className="w-4 h-4" />
-                Education
-                {sectionStatus.education && <Check className="w-3.5 h-3.5 text-success" />}
-              </TabsTrigger>
-              <TabsTrigger 
-                ref={(el) => (tabRefs.current[4] = el)} 
-                value="skills" 
-                className="text-sm py-2.5 px-4 min-h-[44px] flex-shrink-0 gap-1.5"
-              >
-                <Wrench className="w-4 h-4" />
-                Skills
-                {sectionStatus.skills && <Check className="w-3.5 h-3.5 text-success" />}
-              </TabsTrigger>
-            </TabsList>
-          </div>
+        {/* Stepper Nav */}
+        <StepperNav
+          steps={[
+            { id: 'contact', label: 'Contact' },
+            { id: 'summary', label: 'Summary' },
+            { id: 'experience', label: 'Work' },
+            { id: 'education', label: 'Education' },
+            { id: 'skills', label: 'Skills' },
+          ]}
+          activeStep={activeTab}
+          completedSteps={sectionStatus}
+          onStepClick={handleTabChange}
+        />
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-4">
+        {/* Editor Tabs (hidden tab list, content driven by stepper) */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0">
             <TabsContent value="contact" className="mt-0" forceMount hidden={activeTab !== 'contact'}>
-              <ContactSection />
+              <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'}>
+                <ContactSection />
+              </SectionCard>
             </TabsContent>
             <TabsContent value="summary" className="mt-0" forceMount hidden={activeTab !== 'summary'}>
-              <SummarySection />
+              <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'}>
+                <SummarySection />
+              </SectionCard>
             </TabsContent>
             <TabsContent value="experience" className="mt-0" forceMount hidden={activeTab !== 'experience'}>
-              <ExperienceSection />
+              <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'}>
+                <ExperienceSection />
+              </SectionCard>
             </TabsContent>
             <TabsContent value="education" className="mt-0" forceMount hidden={activeTab !== 'education'}>
-              <EducationSection />
+              <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'}>
+                <EducationSection />
+              </SectionCard>
             </TabsContent>
             <TabsContent value="skills" className="mt-0" forceMount hidden={activeTab !== 'skills'}>
-              <SkillsSection />
+              <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'}>
+                <SkillsSection />
+              </SectionCard>
             </TabsContent>
           </div>
         </Tabs>
