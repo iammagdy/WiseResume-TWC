@@ -30,6 +30,8 @@ interface SettingsState {
   
   // Onboarding
   hasSeenAIIntro: boolean;
+  hasSeenPreviewHint: boolean;
+  hasSeenTailorHint: boolean;
   
   // Integrations
   elevenlabsApiKey: string;
@@ -51,6 +53,8 @@ interface SettingsState {
   setDefaultTemplate: (template: TemplateId) => void;
   setPdfDefaults: (defaults: Partial<PDFOptions>) => void;
   setHasSeenAIIntro: (value: boolean) => void;
+  setHasSeenPreviewHint: (value: boolean) => void;
+  setHasSeenTailorHint: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
   
   // AI Provider Actions
@@ -78,6 +82,8 @@ const defaultSettings = {
     showBranding: true,
   },
   hasSeenAIIntro: false,
+  hasSeenPreviewHint: false,
+  hasSeenTailorHint: false,
   elevenlabsApiKey: '',
   // AI Provider defaults
   aiProvider: 'lovable' as AIProvider,
@@ -109,6 +115,8 @@ export const useSettingsStore = create<SettingsState>()(
           pdfDefaults: { ...state.pdfDefaults, ...defaults },
         })),
       setHasSeenAIIntro: (value) => set({ hasSeenAIIntro: value }),
+      setHasSeenPreviewHint: (value) => set({ hasSeenPreviewHint: value }),
+      setHasSeenTailorHint: (value) => set({ hasSeenTailorHint: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       
       // AI Provider Actions

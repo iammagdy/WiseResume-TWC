@@ -26,6 +26,7 @@ import { LinkedInOptimizerSheet } from '@/components/editor/ai/LinkedInOptimizer
 import { OnePageWizardSheet } from '@/components/editor/ai/OnePageWizardSheet';
 import { AgenticChatSheet } from '@/components/editor/AgenticChatSheet';
 import { CareerPathSheet } from '@/components/editor/CareerPathSheet';
+import { NextStepBanner } from '@/components/editor/NextStepBanner';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -318,6 +319,11 @@ export default function EditorPage() {
             </TabsContent>
           </div>
         </Tabs>
+
+        {/* Next Step Banner */}
+        {sectionStatus.contact && sectionStatus.experience && (
+          <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
+        )}
 
         {/* Bottom Fixed Section - AI Studio Bar + Action Button */}
         <div className="shrink-0 glass border-t border-border z-30">
