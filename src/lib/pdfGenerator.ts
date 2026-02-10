@@ -580,6 +580,19 @@ export interface PDFDimensions {
  * Calculates layout dimensions for PDF generation.
  * Uses offsetWidth/scrollHeight which are NOT affected by CSS transforms (unlike getBoundingClientRect).
  */
+/**
+ * Estimates the scale percentage for one-page PDF export without generating a PDF.
+ * Returns a number 1-100 representing the percentage (e.g., 67 means 67% scale).
+ */
+export function estimateOnePageScale(templateElement: HTMLElement): number {
+  const { totalHeight, globalScaleFactor } = calculatePDFDimensions(templateElement);
+  const pdfContentHeight = totalHeight * globalScaleFactor;
+  const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
+    ? PRINTABLE_HEIGHT / pdfContentHeight
+    : 1;
+  return Math.round(fitScale * 100);
+}
+
 export function calculatePDFDimensions(sourceElement: HTMLElement): PDFDimensions {
   // Use offsetWidth (transform-agnostic) instead of getBoundingClientRect which returns scaled values on iOS
   const sourceWidth = Math.max(
