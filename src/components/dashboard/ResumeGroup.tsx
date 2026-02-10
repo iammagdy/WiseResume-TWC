@@ -29,6 +29,7 @@ export function ResumeGroup({
   onEdit,
   onDuplicate,
   onDelete,
+  onRename,
   onInterview,
   onCreateTailored,
   delay = 0,
