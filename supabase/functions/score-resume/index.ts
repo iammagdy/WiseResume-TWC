@@ -122,6 +122,9 @@ Scoring guide:
       topImprovement: "Add more detail to all sections",
     };
 
+    // Record usage for rate limiting
+    await recordUsage(user.id, 'score');
+
     return new Response(
       JSON.stringify(result),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
