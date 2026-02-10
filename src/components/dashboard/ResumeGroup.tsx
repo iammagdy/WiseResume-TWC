@@ -79,6 +79,8 @@ export function ResumeGroup({
             onInterview={onInterview}
             delay={0}
             showMasterBadge={hasTailored}
+            healthScore={healthScores[masterResume.id]}
+            isScoring={scoringId === masterResume.id}
           />
           
           {/* Tailored count badge */}
