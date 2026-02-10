@@ -315,6 +315,9 @@ export default function DashboardPage() {
           <QuickActionChips onCreateNew={() => setShowCreateDialog(true)} />
         )}
 
+        {/* Daily Tip */}
+        <DailyTipCard />
+
         {/* Search pill */}
         {resumes && resumes.length > 0 && (
           <div className="px-4 pb-3">
