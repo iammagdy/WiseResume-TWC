@@ -1,9 +1,39 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Award, TrendingUp } from 'lucide-react';
+import { FileText, Award, Flame } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { cn } from '@/lib/utils';
 import { ScoreRing } from './ScoreRing';
+
+function useLoginStreak() {
+  const [streak, setStreak] = useState(1);
+
+  useEffect(() => {
+    const key = 'wise_resume_streak';
+    const lastKey = 'wise_resume_last_login';
+    const today = new Date().toDateString();
+    const lastLogin = localStorage.getItem(lastKey);
+
+    if (lastLogin === today) {
+      setStreak(parseInt(localStorage.getItem(key) || '1', 10));
+      return;
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    let newStreak = 1;
+    if (lastLogin === yesterday.toDateString()) {
+      newStreak = parseInt(localStorage.getItem(key) || '0', 10) + 1;
+    }
+
+    localStorage.setItem(key, String(newStreak));
+    localStorage.setItem(lastKey, today);
+    setStreak(newStreak);
+  }, []);
+
+  return streak;
+}
 
 interface DashboardStatsProps {
   totalResumes: number;
