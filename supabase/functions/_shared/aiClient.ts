@@ -291,3 +291,38 @@ function createAIError(type: AIError['type'], message: string, status: number): 
 export function isAIError(error: unknown): error is AIError {
   return error instanceof Error && 'type' in error && 'status' in error;
 }
+
+/**
+ * Robust JSON extraction from AI response text.
+ * Tries direct parse first, then regex extraction.
+ */
+export function parseAIJSON<T = unknown>(text: string): T | null {
+  // Try direct parse first (most reliable)
+  try {
+    return JSON.parse(text.trim()) as T;
+  } catch {
+    // Fall through
+  }
+
+  // Try extracting from markdown code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (codeBlockMatch) {
+    try {
+      return JSON.parse(codeBlockMatch[1].trim()) as T;
+    } catch {
+      // Fall through
+    }
+  }
+
+  // Last resort: find the outermost {...} or [...]
+  const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (jsonMatch) {
+    try {
+      return JSON.parse(jsonMatch[1]) as T;
+    } catch {
+      // Fall through
+    }
+  }
+
+  return null;
+}
