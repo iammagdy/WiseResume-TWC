@@ -1,10 +1,12 @@
 import { motion } from 'framer-motion';
-import { History, RotateCcw, Trash2, Calendar, TrendingUp } from 'lucide-react';
+import { History, RotateCcw, Trash2, Calendar, TrendingUp, Download } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TailorHistory } from '@/types/resume';
 import { cn } from '@/lib/utils';
+import { exportTailorHistory } from '@/lib/dataExport';
+import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
 
 interface TailorHistorySheetProps {
@@ -135,10 +137,21 @@ export function TailorHistorySheet({
 
         {/* Footer */}
         {history.length > 0 && (
-          <div className="sticky bottom-0 pt-4 pb-safe border-t border-border bg-background">
+          <div className="sticky bottom-0 pt-4 pb-safe border-t border-border bg-background flex gap-3">
             <Button
               variant="outline"
-              className="w-full text-destructive hover:text-destructive"
+              className="flex-1 text-primary hover:text-primary"
+              onClick={() => {
+                exportTailorHistory(history);
+                toast.success('Tailor history exported');
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Report
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 text-destructive hover:text-destructive"
               onClick={onClear}
             >
               <Trash2 className="w-4 h-4 mr-2" />
