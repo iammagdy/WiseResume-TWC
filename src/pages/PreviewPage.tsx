@@ -25,7 +25,7 @@ const PageBreakSheet = lazy(() => import('@/components/editor/PageBreakSheet').t
 const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsSheet').then(m => ({ default: m.ExportOptionsSheet })));
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then(m => ({ default: m.ResumePhotoSheet })));
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
-import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
+import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF, getSectionsInDOMOrder } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -238,6 +238,16 @@ export default function PreviewPage() {
             pdfOptions
           );
           fileName = `${baseName}_Application_Package.pdf`;
+          break;
+
+        case 'one-page':
+          pdfBlob = await generateOnePagePDF(
+            currentResume,
+            selectedTemplate,
+            resumeRef.current,
+            pdfOptions
+          );
+          fileName = `${baseName}_Resume_OnePage.pdf`;
           break;
 
         case 'resume':
