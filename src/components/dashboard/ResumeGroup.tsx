@@ -31,6 +31,8 @@ export function ResumeGroup({
   onInterview,
   onCreateTailored,
   delay = 0,
+  healthScores = {},
+  scoringId = null,
 }: ResumeGroupProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const hasTailored = tailoredVersions.length > 0;
