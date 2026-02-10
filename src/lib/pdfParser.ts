@@ -43,7 +43,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
   const timeoutId = setTimeout(() => controller.abort(), PARSE_TIMEOUT);
 
   try {
-    console.log('Calling AI to parse resume text...');
+    if (import.meta.env.DEV) console.log('Calling AI to parse resume text...');
     
     // Get the user's access token from the session
     const { data: { session } } = await supabase.auth.getSession();
@@ -69,7 +69,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     }
 
     const data = await response.json();
-    console.log('AI parsing successful');
+    if (import.meta.env.DEV) console.log('AI parsing successful');
     return regenerateResumeIds(data);
   } catch (error) {
     // Handle timeout specifically
@@ -87,7 +87,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
     }
     
     // Fall back to local regex parsing for network errors
-    console.log('Using fallback local parser...');
+    if (import.meta.env.DEV) console.log('Using fallback local parser...');
     return parseResumeText(text);
   } finally {
     clearTimeout(timeoutId);
