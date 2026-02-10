@@ -44,7 +44,7 @@ export function FeatureGrid() {
         </h2>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 max-w-lg mx-auto">
+      <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 max-w-lg mx-auto">
         {features.map((feature, index) => (
           <div
             key={feature.title}

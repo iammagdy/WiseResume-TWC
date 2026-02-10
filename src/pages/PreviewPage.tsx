@@ -597,7 +597,7 @@ export default function PreviewPage() {
               onClick={() => navigate('/editor')}
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-              <span className="text-sm sm:text-base">Edit</span>
+              <span className="hidden xs:inline text-sm sm:text-base">Edit</span>
             </Button>
             {isIOS && (
               <Button
@@ -608,7 +608,7 @@ export default function PreviewPage() {
                 disabled={isGenerating}
               >
                 <FolderDown className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                <span className="text-sm sm:text-base">Save</span>
+                <span className="hidden xs:inline text-sm sm:text-base">Save</span>
               </Button>
             )}
             <Button
@@ -618,7 +618,7 @@ export default function PreviewPage() {
               onClick={() => navigate('/interview')}
             >
               <Mic className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-              <span className="text-sm sm:text-base">Interview</span>
+              <span className="hidden xs:inline text-sm sm:text-base">Interview</span>
             </Button>
             <Button
               variant="outline"

@@ -58,7 +58,7 @@ export function HeroSection() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button
-              className="absolute top-6 right-4 z-20 opacity-0 animate-fade-in"
+              className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 opacity-0 animate-fade-in"
               style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
             >
               <Avatar className="h-9 w-9 border-2 border-primary/30">
@@ -91,7 +91,7 @@ export function HeroSection() {
       ) : (
         <button
           onClick={() => { triggerHaptic.light(); navigate('/auth'); }}
-          className="absolute top-6 right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors opacity-0 animate-fade-in"
+          className="absolute top-[max(1.5rem,env(safe-area-inset-top))] right-4 z-20 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors opacity-0 animate-fade-in"
           style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
         >
           <LogIn className="w-4 h-4" />
