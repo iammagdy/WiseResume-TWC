@@ -1,9 +1,39 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FileText, Award, TrendingUp } from 'lucide-react';
+import { FileText, Award, Flame } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { cn } from '@/lib/utils';
 import { ScoreRing } from './ScoreRing';
+
+function useLoginStreak() {
+  const [streak, setStreak] = useState(1);
+
+  useEffect(() => {
+    const key = 'wise_resume_streak';
+    const lastKey = 'wise_resume_last_login';
+    const today = new Date().toDateString();
+    const lastLogin = localStorage.getItem(lastKey);
+
+    if (lastLogin === today) {
+      setStreak(parseInt(localStorage.getItem(key) || '1', 10));
+      return;
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    let newStreak = 1;
+    if (lastLogin === yesterday.toDateString()) {
+      newStreak = parseInt(localStorage.getItem(key) || '0', 10) + 1;
+    }
+
+    localStorage.setItem(key, String(newStreak));
+    localStorage.setItem(lastKey, today);
+    setStreak(newStreak);
+  }, []);
+
+  return streak;
+}
 
 interface DashboardStatsProps {
   totalResumes: number;
@@ -12,6 +42,8 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ totalResumes, healthScores, userName }: DashboardStatsProps) {
+  const streak = useLoginStreak();
+
   const { avgScore, bestScore } = useMemo(() => {
     const scores = Object.values(healthScores).map(s => s.overallScore);
     if (scores.length === 0) return { avgScore: 0, bestScore: 0 };
@@ -57,10 +89,22 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
         {/* Content */}
         <div className="relative z-10">
           {/* Greeting */}
-          <h1 className="text-2xl font-bold mb-1">
-            {greeting}{firstName ? `, ${firstName}` : ''}{' '}
-            <span className="inline-block animate-pulse">👋</span>
-          </h1>
+          <div className="flex items-center justify-between mb-1">
+            <h1 className="text-2xl font-bold">
+              {greeting}{firstName ? `, ${firstName}` : ''}{' '}
+              <span className="inline-block animate-pulse">👋</span>
+            </h1>
+            {streak > 1 && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20"
+              >
+                <Flame className="w-3.5 h-3.5 text-warning" />
+                <span className="text-xs font-bold text-warning">{streak}</span>
+              </motion.div>
+            )}
+          </div>
           <p className="text-sm text-muted-foreground mb-4">
             {totalResumes === 0
               ? 'Ready to build your first resume?'

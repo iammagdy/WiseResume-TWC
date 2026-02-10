@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Sparkles } from 'lucide-react';
+import { Plus, Search, Sparkles, User } from 'lucide-react';
 import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,8 +13,10 @@ import { EmptyState } from '@/components/dashboard/EmptyState';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
+import { DailyTipCard } from '@/components/dashboard/DailyTipCard';
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { PageTransition } from '@/components/layout/PageTransition';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -260,7 +262,7 @@ export default function DashboardPage() {
     <PageTransition className="min-h-full flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between glass-header">
-          <AppLogo size="sm" />
+          <AppLogo size="sm" showTagline={false} />
           <div className="flex items-center gap-2">
             <motion.button
               onClick={() => {
@@ -279,6 +281,25 @@ export default function DashboardPage() {
               <span className="relative z-10 text-foreground">Explore</span>
             </motion.button>
             <ThemeDropdown />
+            <motion.button
+              onClick={() => {
+                haptics.light();
+                navigate('/settings');
+              }}
+              className="touch-manipulation"
+              whileTap={{ scale: 0.9 }}
+            >
+              <Avatar className="w-9 h-9 border-2 border-primary/20">
+                {profile?.avatarUrl && (
+                  <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
+                )}
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                  {profile?.fullName
+                    ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                    : <User className="w-4 h-4" />}
+                </AvatarFallback>
+              </Avatar>
+            </motion.button>
           </div>
         </header>
 
@@ -293,6 +314,9 @@ export default function DashboardPage() {
         {resumes && resumes.length > 0 && (
           <QuickActionChips onCreateNew={() => setShowCreateDialog(true)} />
         )}
+
+        {/* Daily Tip */}
+        <DailyTipCard />
 
         {/* Search pill */}
         {resumes && resumes.length > 0 && (
