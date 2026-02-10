@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, ComponentType } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -24,18 +24,34 @@ import {
 } from "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 
+// Retry-capable lazy loader to prevent infinite skeleton on chunk failures
+function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  return lazy(() =>
+    factory().catch(() => {
+      // Retry once after 1s
+      return new Promise<{ default: T }>((resolve, reject) =>
+        setTimeout(() => factory().then(resolve).catch(reject), 1000)
+      ).catch(() => {
+        // Final fallback: reload to bust stale SW cache
+        window.location.reload();
+        return { default: (() => null) as unknown as T };
+      });
+    })
+  );
+}
+
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
 
-// Lazy load other pages to reduce initial bundle size
-const UploadPage = lazy(() => import("./pages/UploadPage"));
-const EditorPage = lazy(() => import("./pages/EditorPage"));
-const PreviewPage = lazy(() => import("./pages/PreviewPage"));
-const AuthPage = lazy(() => import("./pages/AuthPage"));
-const DashboardPage = lazy(() => import("./pages/DashboardPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const InterviewPage = lazy(() => import("./pages/InterviewPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
+// Lazy load other pages with retry
+const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
+const EditorPage = lazyWithRetry(() => import("./pages/EditorPage"));
+const PreviewPage = lazyWithRetry(() => import("./pages/PreviewPage"));
+const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
+const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
+const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
+const InterviewPage = lazyWithRetry(() => import("./pages/InterviewPage"));
+const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
