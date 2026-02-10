@@ -13,25 +13,19 @@ const actions = [
     icon: FileText,
     label: 'New Resume',
     action: 'create',
-    bg: 'bg-primary/10',
     iconColor: 'text-primary',
-    borderColor: 'border-primary/20',
   },
   {
     icon: Upload,
     label: 'Upload PDF',
     action: 'upload',
-    bg: 'bg-secondary/10',
     iconColor: 'text-secondary',
-    borderColor: 'border-secondary/20',
   },
   {
     icon: Mic,
     label: 'Interview',
     action: 'interview',
-    bg: 'bg-success/10',
     iconColor: 'text-success',
-    borderColor: 'border-success/20',
   },
 ];
 
@@ -55,7 +49,7 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
 
   return (
     <div className="px-4 pb-3">
-      <div className="flex gap-2 overflow-x-auto scrollbar-hide scroll-fade-x -mx-1 px-1">
+      <div className="flex gap-2">
         {actions.map((item, i) => (
           <motion.button
             key={item.label}
@@ -64,18 +58,14 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
             transition={{ delay: 0.2 + i * 0.06 }}
             onClick={() => handleAction(item.action)}
             className={cn(
-              'flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl',
-              'border whitespace-nowrap',
-              item.bg, item.borderColor,
+              'flex-1 flex flex-col items-center gap-2 py-3 rounded-2xl',
+              'glass-surface border-glow',
               'touch-manipulation active:scale-95 transition-transform',
-              'min-h-[64px] min-w-[80px] flex-shrink-0'
+              'min-h-[72px]'
             )}
             whileTap={{ scale: 0.93 }}
           >
-            <div className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center',
-              item.bg,
-            )}>
+            <div className="w-11 h-11 rounded-xl glass-elevated flex items-center justify-center">
               <item.icon className={cn('w-5 h-5', item.iconColor)} />
             </div>
             <span className="text-[11px] font-medium text-foreground">{item.label}</span>
