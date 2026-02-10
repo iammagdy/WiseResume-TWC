@@ -386,6 +386,8 @@ export default function DashboardPage() {
                             onInterview={handleInterview}
                             onCreateTailored={handleCreateTailored}
                             delay={index * 0.05}
+                            healthScores={healthScores}
+                            scoringId={scoringId}
                           />
                         );
                       }
