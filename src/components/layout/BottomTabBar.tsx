@@ -72,8 +72,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
         'shadow-[0_-4px_32px_-4px_hsl(var(--background)/0.8)]',
         className
       )}
+      aria-label="Main navigation"
     >
-      <div className="flex items-center justify-around h-16 relative">
+      <div
+        className="flex items-center justify-around h-16 relative"
+        role="tablist"
+      >
         {tabs.map((tab) => {
           const active = isActive(tab);
           const Icon = tab.icon;
@@ -81,11 +85,15 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
           return (
             <button
               key={tab.path}
+              role="tab"
+              aria-selected={active}
+              aria-label={tab.label}
+              tabIndex={0}
               onClick={() => handleTabPress(tab)}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 h-full',
                 'touch-manipulation active:scale-95 transition-all',
-                'min-w-[52px] relative'
+                'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
               )}
             >
               {/* Floating pill indicator */}
@@ -93,8 +101,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 <motion.div
                   layoutId="tab-pill"
                   initial={false}
-                  style={{ background: 'hsl(var(--primary) / 0.06)' }}
-                  className="absolute inset-x-3 top-1 bottom-1 rounded-2xl border border-primary/10"
+                  className="absolute inset-x-3 top-1 bottom-1 rounded-2xl border border-primary/10 bg-primary/5"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
@@ -109,6 +116,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       'w-5 h-5 transition-colors duration-200',
                       active ? 'text-primary' : 'text-muted-foreground'
                     )}
+                    aria-hidden="true"
                   />
                 </motion.div>
               </div>

@@ -381,10 +381,16 @@ export default function PreviewPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
         >
-          <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide snap-x snap-mandatory">
+          <div
+            className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide snap-x snap-mandatory"
+            role="radiogroup"
+            aria-label="Resume Templates"
+          >
             {templates.map((template) => (
               <button
                 key={template.id}
+                role="radio"
+                aria-checked={selectedTemplate === template.id}
                 className={cn(
                   'flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all snap-center touch-manipulation',
                   selectedTemplate === template.id
@@ -477,12 +483,9 @@ export default function PreviewPage() {
           <div className="flex gap-2">
             <Button
               size="lg"
-              className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-semibold gradient-primary touch-manipulation"
+              className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-semibold gradient-primary touch-manipulation shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
               onClick={handleQuickDownload}
               disabled={isGenerating}
-              style={{
-                boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
-              }}
             >
               {isGenerating ? (
                 <>
