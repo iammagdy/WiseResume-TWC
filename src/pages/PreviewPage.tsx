@@ -25,6 +25,7 @@ import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, getSectionsIn
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { TemplateId, SectionId, ExportType } from '@/types/resume';
 import { useRateApp } from '@/hooks/useRateApp';
 import { useAuth } from '@/hooks/useAuth';
@@ -500,6 +501,9 @@ export default function PreviewPage() {
             )}
           </button>
         </div>
+
+        {/* AI Tailor Hint Banner */}
+        <NextStepBanner variant="tailor" onAction={() => navigate('/editor?openTailor=1')} />
 
         {/* Preview area */}
         <div className="flex-1 overflow-auto p-2 sm:p-4 bg-muted/30">
