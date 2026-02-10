@@ -92,7 +92,9 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               {active && (
                 <motion.div
                   layoutId="tab-pill"
-                  className="absolute inset-x-3 top-1 bottom-1 rounded-2xl gradient-primary opacity-[0.06] border border-primary/10"
+                  initial={false}
+                  style={{ background: 'hsl(var(--primary) / 0.06)' }}
+                  className="absolute inset-x-3 top-1 bottom-1 rounded-2xl border border-primary/10"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
