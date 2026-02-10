@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion } from 'framer-motion'; // kept for bottom button animation
 import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
@@ -286,59 +286,39 @@ export default function EditorPage() {
             ref={scrollContainerRef}
           >
             <TabsContent value="contact" className="mt-0">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'}>
                   <ContactSection />
                 </SectionCard>
-              </motion.div>
+              </div>
             </TabsContent>
             <TabsContent value="summary" className="mt-0">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'}>
                   <SummarySection />
                 </SectionCard>
-              </motion.div>
+              </div>
             </TabsContent>
             <TabsContent value="experience" className="mt-0">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'}>
                   <ExperienceSection />
                 </SectionCard>
-              </motion.div>
+              </div>
             </TabsContent>
             <TabsContent value="education" className="mt-0">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'}>
                   <EducationSection />
                 </SectionCard>
-              </motion.div>
+              </div>
             </TabsContent>
             <TabsContent value="skills" className="mt-0">
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-              >
+              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'}>
                   <SkillsSection />
                 </SectionCard>
-              </motion.div>
+              </div>
             </TabsContent>
           </div>
         </Tabs>

@@ -3,7 +3,7 @@ import { BottomTabBar } from './BottomTabBar';
 import { OfflineBanner } from './OfflineBanner';
 import { GuestSaveBanner } from './GuestSaveBanner';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
+
 
 // Routes that show bottom nav
 const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview'];
@@ -22,15 +22,9 @@ export function AppShell() {
       <OfflineBanner />
       {showGuestBanner && <GuestSaveBanner />}
       <main className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}>
-        <motion.div
-          key={location.pathname}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.15 }}
-          className="flex-1 flex flex-col min-h-0 w-full h-full"
-        >
+        <div className="flex-1 flex flex-col min-h-0 w-full h-full">
           {currentOutlet}
-        </motion.div>
+        </div>
       </main>
       {showBottomNav && <BottomTabBar />}
     </div>
