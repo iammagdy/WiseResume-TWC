@@ -396,7 +396,6 @@ export default function DashboardPage() {
                             onRename={handleRename}
                             onInterview={handleInterview}
                             onCreateTailored={handleCreateTailored}
-                            delay={index * 0.05}
                             healthScores={healthScores}
                             scoringId={scoringId}
                           />
@@ -413,7 +412,6 @@ export default function DashboardPage() {
                           onDelete={handleDelete}
                           onRename={handleRename}
                           onInterview={handleInterview}
-                          delay={index * 0.05}
                           healthScore={healthScores[masterResume.id]}
                           isScoring={scoringId === masterResume.id}
                         />
@@ -430,7 +428,6 @@ export default function DashboardPage() {
                         onDelete={handleDelete}
                         onRename={handleRename}
                         onInterview={handleInterview}
-                        delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
                         showTailoredBadge
                         healthScore={healthScores[resume.id]}
                         isScoring={scoringId === resume.id}

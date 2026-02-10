@@ -18,7 +18,6 @@ interface ResumeGroupProps {
   onRename?: (id: string, newTitle: string) => void;
   onInterview?: (id: string) => void;
   onCreateTailored: (parentId: string) => void;
-  delay?: number;
   healthScores?: Record<string, ResumeHealthScore>;
   scoringId?: string | null;
 }
@@ -32,7 +31,6 @@ export function ResumeGroup({
   onRename,
   onInterview,
   onCreateTailored,
-  delay = 0,
   healthScores = {},
   scoringId = null,
 }: ResumeGroupProps) {
@@ -46,12 +44,7 @@ export function ResumeGroup({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.3 }}
-      className="space-y-2"
-    >
+    <div className="space-y-2">
       {/* Master Resume Card */}
       <div className="relative">
         {hasTailored && (
@@ -80,7 +73,6 @@ export function ResumeGroup({
             onDelete={onDelete}
             onRename={onRename}
             onInterview={onInterview}
-            delay={0}
             showMasterBadge={hasTailored}
             healthScore={healthScores[masterResume.id]}
             isScoring={scoringId === masterResume.id}
@@ -130,7 +122,6 @@ export function ResumeGroup({
                   onDelete={onDelete}
                   onRename={onRename}
                   onInterview={onInterview}
-                  delay={0}
                   showTailoredBadge
                   healthScore={healthScores[resume.id]}
                   isScoring={scoringId === resume.id}
@@ -162,7 +153,7 @@ export function ResumeGroup({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 

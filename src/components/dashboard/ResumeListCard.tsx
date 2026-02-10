@@ -40,7 +40,6 @@ interface ResumeListCardProps {
   onDelete: (id: string) => void;
   onRename?: (id: string, newTitle: string) => void;
   onInterview?: (id: string) => void;
-  delay?: number;
   showMasterBadge?: boolean;
   showTailoredBadge?: boolean;
   healthScore?: ResumeHealthScore | null;
