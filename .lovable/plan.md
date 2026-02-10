@@ -1,23 +1,46 @@
 
 
-# Fix: Maximum Update Depth Exceeded on Editor Page
+# Fix: Maximum Update Depth Exceeded (Root Cause)
 
-## Root Cause
-The `AnimatePresence` in `AppShell.tsx` keeps the old route component mounted briefly during transitions. When the Editor page (which uses Radix `TabsContent` with its internal `Presence` component) is involved in a transition, the overlapping mount/unmount causes Radix's ref-based setState to trigger infinitely.
+## Problem
+The previous fix (removing `AnimatePresence`) was incomplete. The real conflict is between:
+1. **Radix TabsContent** -- uses an internal `Presence` component that manages visibility via refs and setState
+2. **framer-motion `motion.div`** -- wraps each TabsContent's children and also manages refs for animation state
 
-The `motion.div` inside `AnimatePresence` has no `exit` prop defined, so the old route component lingers without actually animating out -- this creates the conflict window where Radix's Presence detaches and reattaches refs in a loop.
+When React mounts/remounts these components, Radix's composed refs (`@radix-ui/react-compose-refs`) call setState on the Presence component, which triggers a re-render, which detaches/reattaches refs, creating an infinite loop.
 
-## Solution
-Remove `AnimatePresence` from `AppShell.tsx` entirely. Since there is no `exit` animation defined on the `motion.div`, `AnimatePresence` provides no visual benefit -- it only causes route overlap. The `initial`/`animate` fade-in on the `motion.div` still works without `AnimatePresence`.
+The `key={location.pathname}` on AppShell's `motion.div` forces a full remount of the editor tree on every navigation, triggering this conflict.
 
-## Changes
+## Solution (Two Changes)
 
-### `src/components/layout/AppShell.tsx`
-- Remove `AnimatePresence` wrapper around the `motion.div`
-- Remove the `AnimatePresence` import from framer-motion
-- Keep the `motion.div` with its fade-in animation (this works standalone)
+### 1. `src/components/layout/AppShell.tsx` -- Remove the keyed remount
+Remove `key={location.pathname}` from the `motion.div`. This prevents forced full-tree remounting when navigating to/from the editor. The outlet already handles route changes naturally via React Router.
+
+### 2. `src/pages/EditorPage.tsx` -- Replace motion.div with CSS animations inside TabsContent
+Replace the `motion.div` wrappers inside each `TabsContent` with plain `div` elements using a CSS `animate-in` class. This eliminates the ref conflict between framer-motion and Radix Presence entirely while preserving the fade-in visual effect.
+
+**Before (each tab):**
+```tsx
+<TabsContent value="contact">
+  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+    <SectionCard>...</SectionCard>
+  </motion.div>
+</TabsContent>
+```
+
+**After (each tab):**
+```tsx
+<TabsContent value="contact">
+  <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+    <SectionCard>...</SectionCard>
+  </div>
+</TabsContent>
+```
+
+## Summary
 
 | File | Change |
 |------|--------|
-| `src/components/layout/AppShell.tsx` | Remove `AnimatePresence` wrapper to prevent route overlap that triggers Radix Presence infinite loop |
+| `src/components/layout/AppShell.tsx` | Remove `key={location.pathname}` to prevent forced remount |
+| `src/pages/EditorPage.tsx` | Replace `motion.div` inside TabsContent with CSS-animated divs; remove unused motion import if possible |
 
