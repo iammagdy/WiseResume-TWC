@@ -427,6 +427,7 @@ export default function DashboardPage() {
                         onEdit={handleEdit}
                         onDuplicate={handleDuplicate}
                         onDelete={handleDelete}
+                        onRename={handleRename}
                         onInterview={handleInterview}
                         delay={(resumeHierarchy.masterResumes.length + index) * 0.05}
                         showTailoredBadge
