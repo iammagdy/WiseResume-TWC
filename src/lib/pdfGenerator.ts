@@ -640,11 +640,12 @@ export function calculatePDFDimensions(sourceElement: HTMLElement): PDFDimension
 export async function captureTemplateAsCanvas(
   sourceElement: HTMLElement,
   width: number,
-  height: number
+  height: number,
+  scale: number = SCALE
 ): Promise<HTMLCanvasElement> {
   // Capture the element directly (don't clone - preserves all styles including Tailwind)
   const canvas = await html2canvas(sourceElement, {
-    scale: SCALE,
+    scale,
     useCORS: true,
     allowTaint: true,
     backgroundColor: '#ffffff',
@@ -865,11 +866,6 @@ export async function generateOnePagePDF(
   try {
     const { sourceWidth, totalHeight, globalScaleFactor } = calculatePDFDimensions(sourceElement);
 
-    onProgress?.('capturing', 20);
-    const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight);
-
-    const pdfDoc = await PDFDocument.create();
-
     // Calculate the full content height in PDF points
     const pdfContentHeight = totalHeight * globalScaleFactor;
 
@@ -877,6 +873,17 @@ export async function generateOnePagePDF(
     const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
       ? PRINTABLE_HEIGHT / pdfContentHeight
       : 1;
+
+    // Dynamically increase capture scale if we need to shrink significantly
+    // This ensures high resolution even when content is scaled down
+    const dynamicScale = fitScale < 1
+      ? Math.min(5, SCALE / fitScale)
+      : SCALE;
+
+    onProgress?.('capturing', 20);
+    const canvas = await captureTemplateAsCanvas(sourceElement, sourceWidth, totalHeight, dynamicScale);
+
+    const pdfDoc = await PDFDocument.create();
 
     const finalWidth = PAGE_WIDTH * fitScale;
     const finalHeight = pdfContentHeight * fitScale;
