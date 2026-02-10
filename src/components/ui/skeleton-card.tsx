@@ -19,7 +19,7 @@ export function SkeletonCard({ className, delay = 0 }: SkeletonCardProps) {
     >
       <div className="flex items-start gap-3">
         {/* Icon skeleton */}
-        <div className="w-12 h-12 rounded-lg bg-muted animate-pulse" />
+        <div className="w-12 h-12 rounded-lg bg-muted relative overflow-hidden before:absolute before:inset-0 before:-translate-x-full before:animate-[shimmer_2s_infinite] before:bg-gradient-to-r before:from-transparent before:via-foreground/5 before:to-transparent" />
         
         {/* Content skeleton */}
         <div className="flex-1 space-y-2">
