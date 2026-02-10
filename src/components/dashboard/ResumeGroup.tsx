@@ -18,6 +18,8 @@ interface ResumeGroupProps {
   onInterview?: (id: string) => void;
   onCreateTailored: (parentId: string) => void;
   delay?: number;
+  healthScores?: Record<string, ResumeHealthScore>;
+  scoringId?: string | null;
 }
 
 export function ResumeGroup({
