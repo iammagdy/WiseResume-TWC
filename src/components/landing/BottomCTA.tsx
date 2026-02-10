@@ -37,7 +37,7 @@ export function BottomCTA() {
           onClick={handleLaunch}
         >
           <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
-          Create Your Resume
+          Get Started Free
         </Button>
       </div>
     </section>

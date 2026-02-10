@@ -119,28 +119,18 @@ export function HeroSection() {
           AI-powered resumes that land interviews
         </p>
 
-        {/* CTA buttons */}
+        {/* CTA button */}
         <div
-          className="w-full space-y-3 glass-elevated p-5 rounded-2xl animate-fade-in"
+          className="w-full animate-fade-in"
           style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}
         >
           <Button
             size="lg"
             className="w-full h-14 text-lg font-semibold gap-3 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
-            onClick={handleLaunch}
+            onClick={handleGetStarted}
           >
             <Rocket className="w-5 h-5" />
-            Create New Resume
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="lg"
-            className="w-full h-12 text-muted-foreground hover:text-foreground gap-2 border border-border/50 hover:border-primary/50 hover:bg-primary/5"
-            onClick={handleUpload}
-          >
-            <FileText className="w-5 h-5" />
-            Upload Existing Resume
+            {isAuthenticated ? 'Go to Dashboard' : 'Get Started'}
           </Button>
         </div>
 
