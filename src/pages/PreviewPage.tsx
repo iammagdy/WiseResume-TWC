@@ -654,6 +654,7 @@ export default function PreviewPage() {
             onExport={handleExport}
             isExporting={isGenerating}
             onOnePageWizard={() => setShowOnePageWizard(true)}
+            templateElement={resumeRef.current}
           />
         )}
         {showOnePageWizard && (

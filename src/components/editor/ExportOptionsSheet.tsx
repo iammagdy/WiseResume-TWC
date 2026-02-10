@@ -5,8 +5,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { ExportType, CoverLetterContext } from '@/types/resume';
 import { useSettingsStore } from '@/store/settingsStore';
+import { estimateOnePageScale } from '@/lib/pdfGenerator';
 import { cn } from '@/lib/utils';
 
 interface ExportOptionsSheetProps {
@@ -17,6 +19,7 @@ interface ExportOptionsSheetProps {
   onExport: (type: ExportType, showPageNumbers: boolean, showBranding: boolean) => void;
   isExporting: boolean;
   onOnePageWizard?: () => void;
+  templateElement?: HTMLElement | null;
 }
 
 export function ExportOptionsSheet({
@@ -27,20 +30,31 @@ export function ExportOptionsSheet({
   onExport,
   isExporting,
   onOnePageWizard,
+  templateElement,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
   
   const [selectedType, setSelectedType] = useState<ExportType>('resume');
   const [showPageNumbers, setShowPageNumbers] = useState(pdfDefaults.showPageNumbers ?? true);
   const [showBranding, setShowBranding] = useState(pdfDefaults.showBranding ?? true);
+  const [onePageScale, setOnePageScale] = useState<number | null>(null);
 
-  // Sync with defaults when sheet opens
+  // Sync with defaults when sheet opens & estimate scale
   useEffect(() => {
     if (open) {
       setShowPageNumbers(pdfDefaults.showPageNumbers ?? true);
       setShowBranding(pdfDefaults.showBranding ?? true);
+      
+      if (templateElement) {
+        try {
+          const scale = estimateOnePageScale(templateElement);
+          setOnePageScale(scale);
+        } catch {
+          setOnePageScale(null);
+        }
+      }
     }
-  }, [open, pdfDefaults]);
+  }, [open, pdfDefaults, templateElement]);
 
   const exportOptions = [
     {
@@ -128,6 +142,21 @@ export function ExportOptionsSheet({
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {option.description}
                     </p>
+                    {option.id === 'one-page' && onePageScale !== null && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'mt-1 text-[10px] px-1.5 py-0',
+                          onePageScale >= 100
+                            ? 'border-green-500/50 text-green-600 dark:text-green-400'
+                            : onePageScale >= 70
+                              ? 'border-amber-500/50 text-amber-600 dark:text-amber-400'
+                              : 'border-destructive/50 text-destructive'
+                        )}
+                      >
+                        {onePageScale >= 100 ? 'No scaling needed' : `${onePageScale}% scale`}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </motion.button>
