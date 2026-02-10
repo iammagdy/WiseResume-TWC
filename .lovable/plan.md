@@ -1,30 +1,23 @@
 
 
-# Add Interview Prep Banner on Dashboard Page
+# Add Preview Prompt Banner on Editor Page
 
 ## What It Does
-Shows a dismissable "Try Interview Prep" banner on the Dashboard page for first-time users who have at least one resume. Once dismissed, it never appears again (persisted in settings store).
+Shows the existing "Looking good! Tap Preview to see your resume." banner on the Editor page for first-time users who have completed their contact and experience sections. Once dismissed, it never appears again (persisted via the existing `hasSeenPreviewHint` flag).
 
 ## Implementation
 
-### 1. Settings Store (`src/store/settingsStore.ts`)
-- Add `hasSeenInterviewHint: boolean` to the state interface (default: `false`)
-- Add `setHasSeenInterviewHint` action
-- Add to `defaultSettings`
+### File: `src/pages/EditorPage.tsx`
+This is already implemented! The Editor page already includes the `NextStepBanner` with variant `"preview"` at line ~230:
 
-### 2. NextStepBanner Component (`src/components/editor/NextStepBanner.tsx`)
-- Add `'interview'` to the variant union type
-- Add interview config entry:
-  - Icon: `Mic` (from lucide-react)
-  - Text: "Ready to practice? Try AI Interview Prep."
-  - Action label: "Interview"
-  - Settings key: `hasSeenInterviewHint`
-- Add dismiss handler for the new settings key
+```tsx
+{sectionStatus.contact && sectionStatus.experience && (
+  <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
+)}
+```
 
-### 3. Dashboard Page (`src/pages/DashboardPage.tsx`)
-- Import `NextStepBanner`
-- Place the banner between the search bar and the content area (before the resume list)
-- Only show when user has at least one resume
-- `onAction` navigates to the interview page using the first available resume (loads it into the store, then navigates to `/interview`)
+The banner appears when both the contact and experience sections are filled in, and navigates to `/preview` on action. The `hasSeenPreviewHint` flag in the settings store handles persistence.
 
-### No new files. No backend changes.
+### No changes needed
+Everything is already in place -- the `NextStepBanner` component supports the `"preview"` variant, the settings store has `hasSeenPreviewHint`, and the Editor page renders it conditionally.
+
