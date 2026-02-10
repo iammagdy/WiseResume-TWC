@@ -1,7 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { Rocket, FileText, LogIn, User } from 'lucide-react';
+import { Rocket, FileText, LogIn, User, LayoutDashboard, Settings, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { PlanetLogo } from './PlanetLogo';
 import triggerHaptic from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
@@ -20,7 +21,7 @@ const particles = [
 export function HeroSection() {
   const navigate = useNavigate();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, signOut } = useAuth();
   const { profile } = useProfile(user?.id, user);
 
   const getInitials = () => {
@@ -63,18 +64,39 @@ export function HeroSection() {
     <section className="relative min-h-[85vh] flex flex-col items-center justify-center px-4 sm:px-6 py-12 overflow-hidden">
       {/* Sign in / Avatar */}
       {isAuthenticated ? (
-        <button
-          onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}
-          className="absolute top-6 right-4 z-20 opacity-0 animate-fade-in"
-          style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
-        >
-          <Avatar className="h-9 w-9 border-2 border-primary/30">
-            <AvatarImage src={profile?.avatarUrl ?? undefined} />
-            <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
-              {getInitials() ?? <User className="w-4 h-4" />}
-            </AvatarFallback>
-          </Avatar>
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="absolute top-6 right-4 z-20 opacity-0 animate-fade-in"
+              style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+            >
+              <Avatar className="h-9 w-9 border-2 border-primary/30">
+                <AvatarImage src={profile?.avatarUrl ?? undefined} />
+                <AvatarFallback className="text-xs font-semibold bg-primary/10 text-primary">
+                  {getInitials() ?? <User className="w-4 h-4" />}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/dashboard'); }}>
+              <LayoutDashboard className="w-4 h-4 mr-2" />
+              Dashboard
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => { triggerHaptic.light(); navigate('/settings'); }}>
+              <Settings className="w-4 h-4 mr-2" />
+              Settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={async () => { triggerHaptic.medium(); await signOut(); navigate('/'); }}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : (
         <button
           onClick={() => { triggerHaptic.light(); navigate('/auth'); }}
