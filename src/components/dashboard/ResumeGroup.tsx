@@ -128,6 +128,8 @@ export function ResumeGroup({
                   onInterview={onInterview}
                   delay={0}
                   showTailoredBadge
+                  healthScore={healthScores[resume.id]}
+                  isScoring={scoringId === resume.id}
                 />
               </motion.div>
             ))}
