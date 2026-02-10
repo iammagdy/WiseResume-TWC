@@ -39,6 +39,15 @@ serve(async (req) => {
       );
     }
 
+    // Server-side rate limiting
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 30, windowSeconds: 60, actionType: 'score' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { resume, userGeminiKey } = await req.json();
 
     if (!resume || typeof resume !== 'object') {
