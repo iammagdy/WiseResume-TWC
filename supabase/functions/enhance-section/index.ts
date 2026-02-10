@@ -92,6 +92,15 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Authenticated user:', userId);
 
+    // Server-side rate limiting
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'enhance' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: 'rate_limit', message: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { section, action, currentContent, context, userGeminiKey, fixInstruction } = await req.json() as EnhanceRequest;
 
     // ============= SECURITY: Input validation =============
