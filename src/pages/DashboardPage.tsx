@@ -412,7 +412,6 @@ export default function DashboardPage() {
                           onDelete={handleDelete}
                           onRename={handleRename}
                           onInterview={handleInterview}
-                          delay={index * 0.05}
                           healthScore={healthScores[masterResume.id]}
                           isScoring={scoringId === masterResume.id}
                         />
