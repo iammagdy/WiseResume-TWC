@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText, Mic } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText, Mic, FolderDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { ModernTemplate } from '@/components/templates/ModernTemplate';
@@ -68,6 +68,7 @@ export default function PreviewPage() {
   const [showOnePageWizard, setShowOnePageWizard] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
@@ -349,6 +350,38 @@ export default function PreviewPage() {
     await handleExport('resume', true);
   };
 
+  const handleSaveToFiles = async () => {
+    setIsGenerating(true);
+    try {
+      const pdfBlob = await generatePDF(
+        currentResume,
+        selectedTemplate,
+        resumeRef.current,
+        manualBreakSections,
+        { showPageNumbers: true }
+      );
+      const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      if (navigator.canShare?.({ files: [file] })) {
+        toast.info('Choose "Save to Files" from the menu', { duration: 5000 });
+        await navigator.share({ files: [file], title: fileName });
+        toast.success('Resume saved!');
+      } else {
+        toast.error('Save to Files is not supported on this device');
+      }
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        toast.info('Cancelled. Tap again to save.');
+      } else {
+        console.error('Save to Files error:', err);
+        toast.error('Failed to save. Try downloading instead.');
+      }
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const handleShare = async () => {
     if (navigator.share) {
       try {
@@ -545,6 +578,18 @@ export default function PreviewPage() {
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
               <span className="text-sm sm:text-base">Edit</span>
             </Button>
+            {isIOS && (
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 h-11 sm:h-12 touch-manipulation"
+                onClick={handleSaveToFiles}
+                disabled={isGenerating}
+              >
+                <FolderDown className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+                <span className="text-sm sm:text-base">Save</span>
+              </Button>
+            )}
             <Button
               variant="outline"
               size="lg"
