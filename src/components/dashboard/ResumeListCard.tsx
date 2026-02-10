@@ -301,14 +301,16 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </span>
               </div>
               {/* AI Improvement Nudge */}
-              {healthScore && healthScore.topImprovement && (
+              {healthScore && healthScore.topImprovement ? (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
                   <span className="text-xs text-muted-foreground truncate italic">
                     {healthScore.topImprovement}
                   </span>
                 </div>
-              )}
+              ) : !healthScore ? (
+                <div className="mt-1.5 h-4 w-3/4 rounded bg-muted animate-pulse" />
+              ) : null}
             </div>
           </div>
 
