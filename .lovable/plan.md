@@ -1,81 +1,62 @@
 
 
-# Fix Slow Tab/Page Navigation
+# Fix One-Page Wizard to Produce a True Single-Page PDF
 
 ## Problem
-When navigating between tabs (Dashboard, Editor, Preview, Settings, etc.), pages take a long time to load because each page eagerly imports many heavy dependencies at the module level, even though most aren't needed immediately.
+The One-Page Wizard currently only condenses text via AI, but doesn't guarantee the result fits on one page. After applying changes, the PDF still uses normal multi-page pagination. A 3-page CV may become 2 pages but never truly one page.
 
-## Root Causes
+## Solution
+Add a **scale-to-fit** PDF generation mode that captures the entire resume and scales it down to fit exactly one PDF page. This works regardless of how much content remains after AI condensation.
 
-1. **PreviewPage imports all 12 template components eagerly** -- every template is statically imported at the top, meaning the entire bundle for all templates loads before the page renders.
+## Technical Changes
 
-2. **EditorPage imports 9+ sheet/dialog components eagerly** -- TailorSheet, JobAnalysisSheet, RecruiterSimSheet, AIDetectorSheet, LinkedInOptimizerSheet, OnePageWizardSheet, AgenticChatSheet, CareerPathSheet, and TemplateSelector are all imported at module level but only rendered when the user opens them.
+### 1. `src/lib/pdfGenerator.ts` -- Add `generateOnePagePDF` function
 
-3. **UploadPage imports `mammoth` eagerly** -- this is a large DOCX parsing library loaded immediately even though it's only needed when a user uploads a .docx file.
+New exported function that:
+- Captures the full template at its natural height
+- Calculates a scale factor: `min(1, PAGE_HEIGHT / (totalHeight * globalScaleFactor))`
+- Draws the entire canvas onto a single PDF page, scaled to fit
+- Still adds footer (page number + branding) below content
 
-4. **SettingsPage imports many sheet components eagerly** -- EditProfileSheet, DefaultTemplateSheet, PDFDefaultsSheet, DataExportSheet, DeleteDataDialog, BiometricSetupSheet, BiometricTimeoutSheet, ElevenLabsKeySheet, AISettingsSheet are all loaded upfront.
-
-## Solution: Lazy-load heavy sub-components
-
-Convert eagerly imported sheets, dialogs, and templates to `React.lazy()` so they only load when actually needed (i.e., when the user opens them).
-
----
-
-## Technical Details
-
-### 1. `src/pages/EditorPage.tsx` -- Lazy-load all sheet components
-
-Convert these imports to lazy:
-
-```tsx
-const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
-const TemplateSelector = lazy(() => import('@/components/editor/TemplateSelector').then(m => ({ default: m.TemplateSelector })));
-const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
-const RecruiterSimSheet = lazy(() => import('@/components/editor/ai/RecruiterSimSheet').then(m => ({ default: m.RecruiterSimSheet })));
-const AIDetectorSheet = lazy(() => import('@/components/editor/ai/AIDetectorSheet').then(m => ({ default: m.AIDetectorSheet })));
-const LinkedInOptimizerSheet = lazy(() => import('@/components/editor/ai/LinkedInOptimizerSheet').then(m => ({ default: m.LinkedInOptimizerSheet })));
-const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
-const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
-const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
+```text
+Normal PDF:     One-Page PDF:
++--------+      +--------+
+| Page 1 |      | All    |
++--------+      | content|
+| Page 2 |      | scaled |
++--------+  ->  | to fit |
+| Page 3 |      | in one |
++--------+      | page   |
+                +--------+
 ```
 
-Wrap each sheet render in `<Suspense fallback={null}>` since sheets have their own loading states.
+### 2. `src/components/editor/ai/OnePageWizardSheet.tsx` -- Add direct download after applying
 
-### 2. `src/pages/PreviewPage.tsx` -- Lazy-load template components
+- After applying AI changes, offer a "Download One-Page PDF" button
+- Calls `generateOnePagePDF` directly for immediate export
+- Also keep the "Apply Changes" flow for users who just want to edit the data
 
-Convert all 12 template imports to lazy:
+### 3. `src/pages/PreviewPage.tsx` -- Wire up 'one-page' export type
 
-```tsx
-const ModernTemplate = lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate })));
-// ... same for all 12 templates
-```
+- In `handleExport`, when `type === 'one-page'`, call `generateOnePagePDF` instead of `generatePDF`
+- This means users can also export one-page directly from the export sheet without going through the wizard
 
-Also lazy-load the sheets (PageBreakSheet, ExportOptionsSheet, ResumePhotoSheet, OnePageWizardSheet).
+### 4. `src/components/editor/ExportOptionsSheet.tsx` -- Direct export for one-page
 
-### 3. `src/pages/UploadPage.tsx` -- Dynamic import for mammoth
+- Change the "one-page" option to directly export a scaled-to-fit PDF (no wizard detour needed)
+- Keep the wizard accessible from the Preview page toolbar for users who want AI condensation first
 
-Change from:
-```tsx
-import mammoth from 'mammoth';
-```
-To using dynamic import inside the handler function:
-```tsx
-const mammoth = await import('mammoth');
-```
+## How `generateOnePagePDF` Works
 
-### 4. `src/pages/SettingsPage.tsx` -- Lazy-load all sheet/dialog components
+1. Prepare element for capture (same `prepareForCapture` routine)
+2. Capture full template as canvas via `html2canvas`
+3. Calculate the content height in PDF points: `totalHeight * globalScaleFactor`
+4. If content exceeds `PRINTABLE_HEIGHT`, compute a `fitScale = PRINTABLE_HEIGHT / pdfContentHeight`
+5. Draw the full canvas image onto a single page at `width = PAGE_WIDTH * fitScale`, `height = pdfContentHeight * fitScale`, centered horizontally
+6. Add footer, save, return blob
 
-Convert EditProfileSheet, DefaultTemplateSheet, PDFDefaultsSheet, DataExportSheet, DeleteDataDialog, BiometricSetupSheet, BiometricTimeoutSheet, ElevenLabsKeySheet, AISettingsSheet to lazy imports.
-
-### 5. `src/pages/DashboardPage.tsx` -- Lazy-load dialogs
-
-Convert CreateResumeDialog and OnboardingCarousel to lazy imports.
-
----
-
-## Expected Impact
-
-- **Faster initial page render**: Each page loads only its core UI immediately; heavy sub-components load on-demand
-- **Smaller per-route chunks**: Code splitting moves sheet/template code into separate chunks
-- **No UX degradation**: Sheets and dialogs have inherent open/close transitions that mask the lazy load time
+## Expected Result
+- A 3-page CV exported as "One-Page" will render all content on a single page, scaled down proportionally
+- Content remains readable (typical scale for 3 pages would be ~33% reduction)
+- The AI condensation step in the wizard still helps -- condensing first means less scaling needed, better readability
 
