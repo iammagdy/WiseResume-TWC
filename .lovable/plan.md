@@ -1,46 +1,49 @@
 
 
-# Add Scale Percentage Preview to One-Page Export Option
+# Combine AI Condensation with Scale-to-Fit in One-Page Wizard
 
 ## What Changes
 
-When the Export Options sheet opens, the "One-Page Resume" option will show an estimated scale percentage (e.g., "67% scale" or "No scaling needed") so users know how much their content will be shrunk before downloading.
+The One-Page Wizard will gain a new combined flow: after AI condenses the resume text, the user can immediately download a scale-to-fit one-page PDF -- all from within the wizard sheet. This means the AI reduces text first (making content more readable), and then any remaining overflow is handled by scaling, resulting in larger, more readable text than scaling alone.
+
+## User Flow
+
+1. User opens One-Page Wizard from Preview page
+2. AI analyzes and condenses the resume (existing behavior)
+3. Results screen shows changes as before
+4. **New**: "Apply & Download One-Page PDF" button replaces the old "Apply All Changes" button
+5. Clicking it applies the condensed text to the resume, waits briefly for the DOM to update, then triggers `generateOnePagePDF` and downloads the result
+6. A secondary "Apply Changes Only" text button is available for users who just want to edit without downloading
 
 ## Technical Details
 
-### 1. `src/lib/pdfGenerator.ts` -- Add `estimateOnePageScale` helper
+### 1. `src/components/editor/ai/OnePageWizardSheet.tsx`
 
-Export a lightweight function that reads the template element's dimensions and calculates the scale percentage without generating a PDF:
+- Add new props: `templateElement` (HTMLElement | null), `selectedTemplate` (TemplateId), and `onExportOnePage` callback
+- Add `handleApplyAndDownload` function that:
+  1. Applies condensed text to the resume store (existing logic)
+  2. Calls `onExportOnePage()` which triggers the one-page PDF export from PreviewPage
+- Update footer buttons in the results state:
+  - Primary: "Apply & Download One-Page PDF" (calls `handleApplyAndDownload`)
+  - Secondary: "Apply Changes Only" (existing `handleApplyChanges`)
+  - Ghost: "Cancel" (existing `handleReset`)
 
-```typescript
-export function estimateOnePageScale(templateElement: HTMLElement): number {
-  const { totalHeight, globalScaleFactor } = calculatePDFDimensions(templateElement);
-  const pdfContentHeight = totalHeight * globalScaleFactor;
-  const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
-    ? PRINTABLE_HEIGHT / pdfContentHeight
-    : 1;
-  return Math.round(fitScale * 100);
-}
-```
+### 2. `src/pages/PreviewPage.tsx`
 
-### 2. `src/components/editor/ExportOptionsSheet.tsx` -- Accept template ref and show badge
+- Pass `onExportOnePage` callback to OnePageWizardSheet that:
+  1. Closes the wizard sheet
+  2. Waits 300ms for DOM to re-render with updated resume data
+  3. Calls `handleExport('one-page', true, true)` to generate and download the scaled PDF
+- Pass `templateElement={resumeRef.current}` and `selectedTemplate` to OnePageWizardSheet
 
-- Add optional `templateElement` prop (`HTMLElement | null`)
-- On sheet open, call `estimateOnePageScale` to get the percentage
-- Display it as a small badge next to the "One-Page Resume" description, e.g., "67% scale" in an amber badge, or "No scaling needed" in green if 100%
+### 3. No changes to `pdfGenerator.ts`
 
-### 3. `src/pages/PreviewPage.tsx` -- Pass `resumeRef.current` to ExportOptionsSheet
+The existing `generateOnePagePDF` function handles the scale-to-fit correctly. The wizard just needs to call it after applying text changes.
 
-Add `templateElement={resumeRef.current}` to the ExportOptionsSheet render.
+## Result
 
-## Visual Result
+A 3-page CV goes through this pipeline:
+- AI condensation reduces it (e.g., 3 pages down to ~1.5 pages)
+- Scale-to-fit handles the remaining overflow (e.g., 1.5 pages scaled at ~67% instead of 3 pages at ~33%)
+- Final output: one page with much more readable text than scaling alone
 
-The one-page option card will look like:
-
-```
-[icon] One-Page Resume              [check]
-       Scale entire resume to fit one page
-       [67% scale]  <-- small colored badge
-```
-
-If the resume already fits on one page: `[No scaling needed]` in green.
