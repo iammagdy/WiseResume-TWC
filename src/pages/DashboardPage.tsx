@@ -446,6 +446,6 @@ export default function DashboardPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-    </div>
+    </PageTransition>
   );
 }
