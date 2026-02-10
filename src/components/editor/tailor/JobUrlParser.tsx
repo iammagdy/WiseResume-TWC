@@ -29,6 +29,11 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
   const [showManual, setShowManual] = useState(false);
   const [parsedInfo, setParsedInfo] = useState<{ title: string; company: string } | null>(null);
 
+  const extractUrl = (text: string): string | null => {
+    const match = text.match(/https?:\/\/[^\s"'<>]+/i);
+    return match ? match[0] : null;
+  };
+
   const isUrl = (text: string) => {
     try {
       new URL(text);
@@ -39,14 +44,15 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
   };
 
   const handleParseUrl = async () => {
-    if (!urlInput.trim() || !isUrl(urlInput)) {
+    const url = extractUrl(urlInput) || urlInput.trim();
+    if (!url || !isUrl(url)) {
       toast.error('Please enter a valid URL');
       return;
     }
 
     setIsParsing(true);
     try {
-      const data = await parseJobUrl(urlInput);
+      const data = await parseJobUrl(url);
       onChange(data.description);
       setParsedInfo({ title: data.title, company: data.company });
       onParsed?.({ title: data.title, company: data.company });
@@ -61,9 +67,9 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
   };
 
   const handleInputChange = (text: string) => {
-    // Detect if it's a URL or regular text
-    if (isUrl(text)) {
-      setUrlInput(text);
+    const extracted = extractUrl(text);
+    if (extracted) {
+      setUrlInput(extracted);
       setShowManual(false);
     } else {
       onChange(text);
@@ -90,7 +96,11 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
             <div className="flex gap-2">
               <Input
                 value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
+              onChange={(e) => {
+                const raw = e.target.value;
+                const extracted = extractUrl(raw);
+                setUrlInput(extracted || raw);
+              }}
                 placeholder="https://linkedin.com/jobs/view/..."
                 className="flex-1"
               />
