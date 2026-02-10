@@ -187,8 +187,7 @@ export default function EditorPage() {
 
   // Resume guard - redirect to appropriate page based on auth state
   if (!currentResume) {
-    navigate(user ? '/dashboard' : '/');
-    return null;
+    return <Navigate to={user ? '/dashboard' : '/'} replace />;
   }
 
   // Calculate section completion
