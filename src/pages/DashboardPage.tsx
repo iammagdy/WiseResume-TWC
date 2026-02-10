@@ -262,7 +262,7 @@ export default function DashboardPage() {
     <PageTransition className="min-h-full flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between glass-header">
-          <AppLogo size="sm" />
+          <AppLogo size="sm" showTagline={false} />
           <div className="flex items-center gap-2">
             <motion.button
               onClick={() => {
@@ -281,6 +281,25 @@ export default function DashboardPage() {
               <span className="relative z-10 text-foreground">Explore</span>
             </motion.button>
             <ThemeDropdown />
+            <motion.button
+              onClick={() => {
+                haptics.light();
+                navigate('/settings');
+              }}
+              className="touch-manipulation"
+              whileTap={{ scale: 0.9 }}
+            >
+              <Avatar className="w-9 h-9 border-2 border-primary/20">
+                {profile?.avatarUrl && (
+                  <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
+                )}
+                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                  {profile?.fullName
+                    ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                    : <User className="w-4 h-4" />}
+                </AvatarFallback>
+              </Avatar>
+            </motion.button>
           </div>
         </header>
 
