@@ -6,7 +6,7 @@ import {
   Copy, 
   Trash2, 
   Star,
-  FileText,
+  
   Target,
   Clock,
   GitBranch,
