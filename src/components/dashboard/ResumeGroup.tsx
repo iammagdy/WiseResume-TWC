@@ -155,7 +155,7 @@ export function ResumeGroup({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   );
 }
 
