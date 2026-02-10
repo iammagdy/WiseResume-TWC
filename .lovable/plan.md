@@ -1,49 +1,32 @@
 
+# Add Avatar Dropdown Menu on Landing Page
 
-# Show Profile Avatar When Signed In on Landing Page
+## What Changes
 
-## Current Behavior
-The landing page hero section always shows a "Sign In" button in the top-right corner, even when the user is already signed in. There is no visual indicator of auth state.
+Replace the plain avatar button with a dropdown menu that appears when the user taps their profile photo. The menu will have three options:
 
-## Desired Behavior
-- **Signed out**: Show the current "Sign In" button (LogIn icon + text)
-- **Signed in**: Show the user's profile avatar (photo or initials fallback) that navigates to `/dashboard` on tap
+- **Dashboard** -- navigates to `/dashboard`
+- **Settings** -- navigates to `/settings`  
+- **Sign Out** -- calls `signOut()` from the auth context and redirects to landing
 
-## Changes
+## Implementation
 
 ### File: `src/components/landing/HeroSection.tsx`
 
-1. Import `useAuth` from `@/hooks/useAuth` and `useProfile` from `@/hooks/useProfile`
-2. Import `Avatar`, `AvatarImage`, `AvatarFallback` from `@/components/ui/avatar`
-3. Get `user`, `isAuthenticated` from `useAuth()`
-4. Get `profile` from `useProfile(user?.id, user)`
-5. Replace the static "Sign In" button with a conditional render:
+1. Import `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator` from `@/components/ui/dropdown-menu`
+2. Import `Settings, LayoutDashboard, LogOut` icons from `lucide-react`
+3. Get `signOut` from `useAuth()`
+4. Wrap the existing avatar button in a `DropdownMenu` + `DropdownMenuTrigger`, replacing the `onClick` navigation
+5. Add a `DropdownMenuContent` with three items:
+   - Dashboard (LayoutDashboard icon) -- navigates to `/dashboard`
+   - Settings (Settings icon) -- navigates to `/settings`
+   - Separator
+   - Sign Out (LogOut icon, destructive red text) -- calls `signOut()` then navigates to `/`
 
-**When signed out** (current behavior):
-```
-<button onClick={() => navigate('/auth')}>
-  <LogIn /> Sign In
-</button>
-```
+### Technical Details
 
-**When signed in** (new):
-```
-<button onClick={() => navigate('/dashboard')}>
-  <Avatar className="h-9 w-9 border-2 border-primary/30">
-    <AvatarImage src={profile?.avatarUrl} />
-    <AvatarFallback>
-      {initials from profile?.fullName or user email}
-    </AvatarFallback>
-  </Avatar>
-</button>
-```
-
-The initials will be derived from `profile?.fullName` (first letter of first and last name), falling back to the first letter of the user's email, falling back to a generic User icon.
-
-### Files Modified
+The dropdown uses the existing Radix-based `DropdownMenu` component already in the project (`src/components/ui/dropdown-menu.tsx`), which renders via a portal with `z-50` and solid `bg-popover` background. No new dependencies needed.
 
 | File | Change |
 |------|--------|
-| `src/components/landing/HeroSection.tsx` | Add auth/profile hooks, conditionally render avatar or sign-in button |
-
-Single file change. No new components or dependencies needed -- all imports already exist in the project.
+| `src/components/landing/HeroSection.tsx` | Replace avatar button with dropdown menu containing Dashboard, Settings, Sign Out |
