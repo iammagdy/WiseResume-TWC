@@ -45,7 +45,7 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
-  const { deleteResume, duplicateResume } = useResumeMutations();
+  const { deleteResume, duplicateResume, updateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
