@@ -41,6 +41,8 @@ interface ResumeListCardProps {
   delay?: number;
   showMasterBadge?: boolean;
   showTailoredBadge?: boolean;
+  healthScore?: ResumeHealthScore | null;
+  isScoring?: boolean;
 }
 
 const SWIPE_THRESHOLD = 80;
