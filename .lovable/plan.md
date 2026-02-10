@@ -1,73 +1,49 @@
 
 
-# Polish Landing Page with Real Template Previews and Animations
+# Dynamic HeroSection with Animated Gradient Background
 
 ## What Changes
 
-The template gallery will show realistic, detailed mini-previews that match the actual templates (especially the Developer template with its dark terminal header and green accents). The entire landing page will get smoother animations and a more polished feel.
+The HeroSection will get a vibrant, animated gradient mesh background that pulses and shifts colors behind the hero content, plus floating particle orbs that drift gently across the section. This creates a more dynamic, premium feel while staying performant (CSS-only, no JS animation loops).
 
-## Template Gallery Overhaul
+## Visual Enhancements
 
-### Rich MiniPreview designs matching real templates
+### 1. Animated Gradient Mesh Background
+- Add a multi-stop radial gradient mesh behind the hero content that slowly shifts position and opacity
+- Uses 3 overlapping radial gradients (purple, cyan, pink) that animate independently with different timing
+- Creates a living, breathing nebula effect that complements the existing space theme
 
-Each of the 6 templates will get a detailed mini-preview that mirrors its actual design:
+### 2. Floating Particle Orbs
+- Add 5-6 small glowing orbs (CSS-only) that float gently across the hero area
+- Each orb has a different size (4px-12px), color (primary/secondary/accent), blur amount, and animation timing
+- Uses the existing `float-slow` keyframe with varied delays and durations
 
-- **Developer (Terminal)**: Dark gray-900 header block with green ">" prompt, green "// SECTION" headers, a left border-line accent on content, and monospace-style text lines -- matching the real DeveloperTemplate's terminal aesthetic
-- **Modern (Voyager)**: Purple bottom border on header, clean section headers with accent color
-- **Classic (Heritage)**: Centered header with horizontal rule divider, classic layout
-- **Creative (Explorer)**: Left sidebar with avatar circle and accent background, two-column layout
-- **Executive (Commander)**: Bold full-width colored header bar with white text lines
-- **Elegant (Aurora)**: Minimal spacing, thin accent section dividers, clean typography feel
+### 3. Animated Ring Behind PlanetLogo
+- Add a pulsing concentric ring effect behind the planet logo
+- Two rings with different sizes and animation delays for depth
 
-### More detailed placeholder content
-
-Instead of 2-3 thin gray bars per section, each preview will show:
-- Thicker, more varied line widths to simulate real text
-- Skill tags/pills for tech stack sections
-- Achievement bullet points (small dots + lines)
-- More sections visible (summary, skills, experience, education)
-
-## Landing Page Animation Polish
-
-### Staggered entrance animations
-- Gallery section title fades in first, then cards stagger in with 100ms delays
-- Each card slides up + fades in (using existing `animate-fade-in` with animation-delay)
-
-### Card hover/active effects
-- On hover: slight lift with shadow (`hover:-translate-y-1 hover:shadow-xl`)
-- Active card in carousel gets a subtle glow border using the template's accent color
-- Smooth transitions on all interactive elements (300ms)
-
-### Section transitions
-- Add `animate-fade-in-up` keyframe if not present (fade + translateY)
-- QuickActions cards get staggered entrance
-- "See all 12 templates" link gets a subtle arrow bounce on hover
+### 4. Enhanced CTA Glass Card
+- Add a subtle rotating gradient border effect to the CTA container using the existing `.rotating-border` class
+- Add a soft glow pulse to the primary "Create New Resume" button
 
 ## Technical Details
 
-### File: `src/components/landing/TemplateGallery.tsx`
-
-**MiniPreview component** -- complete rewrite of all 6 layout variants:
-
-1. **Developer layout (`two-column`)** -- change to a unique `terminal` layout type:
-   - Top section: `bg-gray-900` with a green ">" and white title bar, small gray contact line
-   - Body: green `// ABOUT` header, left `border-l-2 border-gray-300` on content lines
-   - Green `// TECH_STACK` header with small colored pill tags
-   - Green `// EXPERIENCE` header with bullet lines
-   - This closely mirrors the actual DeveloperTemplate component
-
-2. **All layouts**: increase line thickness from 3px to 4px, add more content lines, use stronger gray shades (`bg-gray-300` for titles, `bg-gray-200` for body lines)
-
-3. **Card wrapper**: add `hover:-translate-y-1 transition-all duration-300` and accent-colored shadow on active
-
-4. **Update template layout types**: change Developer from `two-column` to `terminal` to give it a unique preview
-
 ### File: `src/components/landing/HeroSection.tsx`
-- Add a subtle floating animation to the PlanetLogo (CSS `animate-bounce` with slower timing)
-- Ensure staggered delays work properly with `animation-fill-mode: forwards`
+- Add 3 animated gradient blobs as absolutely positioned divs behind the content
+- Add 6 floating particle orbs with varied CSS animation properties
+- Add pulsing ring elements around the PlanetLogo wrapper
+- Apply `rotating-border` class to the CTA glass card for an animated border
 
-### File: `src/components/landing/QuickActions.tsx`  
-- Add staggered `animation-delay` on each card for entrance effect
-- Add `hover:-translate-y-0.5` subtle lift on hover
+### File: `src/index.css`
+- Add `@keyframes gradient-blob` -- a slow position/scale animation for the gradient mesh blobs (20s+ duration)
+- Add `@keyframes float-particle` -- gentle random-path float for orbs (10-15s duration)
+- Add `@keyframes ring-pulse` -- concentric ring expand + fade animation
+- Add corresponding utility classes: `.animate-gradient-blob`, `.animate-float-particle`, `.animate-ring-pulse`
 
-### No new files, no backend changes needed.
+### Performance Notes
+- All animations are CSS-only using `transform` and `opacity` (GPU-accelerated)
+- Respects `prefers-reduced-motion` via the existing media query that disables all animations
+- No JavaScript animation loops -- zero main-thread cost
+- Blobs use `will-change: transform` for smooth compositing
+
+### No new files needed. No backend changes.
