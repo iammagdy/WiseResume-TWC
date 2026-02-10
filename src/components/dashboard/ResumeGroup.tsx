@@ -31,7 +31,6 @@ export function ResumeGroup({
   onRename,
   onInterview,
   onCreateTailored,
-  delay = 0,
   healthScores = {},
   scoringId = null,
 }: ResumeGroupProps) {
