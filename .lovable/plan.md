@@ -1,29 +1,17 @@
 
 
-# Remove Animated Panda from Auth Page
+# Add App Logo to Auth Page Header
 
-## Changes
+## Change
 
-### 1. `src/pages/AuthPage.tsx`
-- Remove the `AuthPanda` import (line 14)
-- Remove the `<AuthPanda ... />` JSX block (lines 215-222)
-- Remove the panda-related state variables and helpers that are no longer needed:
-  - `focusedField` state (line 42)
-  - `owlShake` state (line 43)
-  - `owlSuccess` state (line 44)
-  - `blurTimeout` ref (line 45)
-  - `textLength` computation (lines 47-49)
-  - `handleFocus` function (lines 78-81)
-  - `handleBlur` function (lines 83-85)
-  - `triggerShake` function (lines 87-90)
-  - `triggerSuccess` function (lines 92-95)
-- Remove all `onFocus={handleFocus}` and `onBlur={handleBlur}` props from input fields
-- Replace `triggerShake()` calls with just the error toast (keep the toast)
-- Replace `triggerSuccess()` calls with just the success logic (keep the redirect/toast)
+Add the `AppIcon` component above the header text in `src/pages/AuthPage.tsx`, centered with a subtle drop shadow and fade-in animation.
 
-### 2. `src/components/auth/AuthPanda.tsx`
-- Delete this file entirely (no longer used)
+## File: `src/pages/AuthPage.tsx`
 
-### 3. Optional cleanup
-- Delete `src/components/auth/AuthMonkey.tsx` and `src/components/auth/AuthOwl.tsx` if they still exist (unused legacy files)
+- Import `AppIcon` from `@/components/brand/AppIcon`
+- Insert a `motion.div` containing `<AppIcon size={48} />` just above the existing header `div` (before line 181)
+- Apply a subtle purple drop shadow (`filter: drop-shadow(...)`) and a fade-in + scale-up entrance animation
+- Add `mb-4` spacing below the icon
+
+The result: a clean, centered app icon at the top of the auth card area, matching the existing branding style.
 
