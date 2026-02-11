@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, Phone } from 'lucide-react';
@@ -11,7 +11,6 @@ import { lovable } from '@/integrations/lovable/index';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { AuthPanda } from '@/components/auth/AuthPanda';
 import { AuthMethodToggle } from '@/components/auth/AuthMethodToggle';
 
 const emailSchema = z.string().email('Please enter a valid email');
@@ -37,16 +36,6 @@ export default function AuthPage() {
     phone: false,
     password: false,
   });
-
-  // Owl animation state
-  const [focusedField, setFocusedField] = useState<'email' | 'phone' | 'password' | null>(null);
-  const [owlShake, setOwlShake] = useState(false);
-  const [owlSuccess, setOwlSuccess] = useState(false);
-  const blurTimeout = useRef<ReturnType<typeof setTimeout>>();
-
-  const textLength = focusedField === 'email' ? email.length
-    : focusedField === 'phone' ? phone.length
-    : 0;
 
   // Validation
   const getEmailError = (): string | undefined => {
@@ -75,25 +64,6 @@ export default function AuthPage() {
     if (session) navigate('/dashboard', { replace: true });
   }, [session, navigate]);
 
-  const handleFocus = (field: 'email' | 'phone' | 'password') => {
-    clearTimeout(blurTimeout.current);
-    setFocusedField(field);
-  };
-
-  const handleBlur = () => {
-    blurTimeout.current = setTimeout(() => setFocusedField(null), 150);
-  };
-
-  const triggerShake = () => {
-    setOwlShake(true);
-    setTimeout(() => setOwlShake(false), 600);
-  };
-
-  const triggerSuccess = () => {
-    setOwlSuccess(true);
-    setTimeout(() => setOwlSuccess(false), 800);
-  };
-
   const validateInputs = (): boolean => {
     if (authMethod === 'email') {
       setTouched({ email: true, phone: false, password: true });
@@ -111,7 +81,7 @@ export default function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateInputs()) { triggerShake(); return; }
+    if (!validateInputs()) return;
     setIsLoading(true);
 
     try {
@@ -121,11 +91,9 @@ export default function AuthPage() {
           : { phone, password };
         const { error } = await supabase.auth.signInWithPassword(credentials);
         if (error) {
-          triggerShake();
           toast.error(error.message.includes('Invalid login credentials') ? 'Invalid credentials' : error.message);
           return;
         }
-        triggerSuccess();
         toast.success('Welcome back!');
         setTimeout(() => navigate('/dashboard'), 600);
       } else {
@@ -134,12 +102,10 @@ export default function AuthPage() {
           : { phone, password };
         const { data, error } = await supabase.auth.signUp(signUpData);
         if (error) {
-          triggerShake();
           toast.error(error.message.includes('already registered') ? 'Already registered. Please sign in.' : error.message);
           return;
         }
         if (data.session) {
-          triggerSuccess();
           toast.success('Account created!');
           setTimeout(() => navigate('/dashboard'), 600);
         } else {
@@ -148,7 +114,6 @@ export default function AuthPage() {
         }
       }
     } catch {
-      triggerShake();
       toast.error('An unexpected error occurred.');
     } finally {
       setIsLoading(false);
@@ -157,7 +122,7 @@ export default function AuthPage() {
 
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateEmail()) { triggerShake(); return; }
+    if (!validateEmail()) return;
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -212,15 +177,6 @@ export default function AuthPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {/* Animated Monkey */}
-          <AuthPanda
-            focusedField={focusedField}
-            showPassword={showPassword}
-            textLength={textLength}
-            shake={owlShake}
-            success={owlSuccess}
-          />
-
           {/* Header */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-display font-bold mb-1">
@@ -242,7 +198,7 @@ export default function AuthPage() {
                 id="reset-email" label="Email" type="email"
                 icon={<Mail className="w-4 h-4" />}
                 value={email} onChange={setEmail}
-                onBlur={() => { setTouched(prev => ({ ...prev, email: true })); handleBlur(); }}
+                onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
                 placeholder="you@example.com" autoComplete="email"
                 error={emailError} touched={touched.email} required
               />
@@ -261,7 +217,7 @@ export default function AuthPage() {
               <AuthMethodToggle value={authMethod} onChange={setAuthMethod} />
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div onFocus={() => handleFocus(authMethod)} onBlur={handleBlur}>
+                <div>
                   {authMethod === 'email' ? (
                     <InputFormField
                       id="email" label="Email" type="email"
@@ -283,10 +239,7 @@ export default function AuthPage() {
                   )}
                 </div>
 
-                <div
-                  onFocus={() => handleFocus('password')}
-                  onBlur={handleBlur}
-                >
+                <div>
                   <InputFormField
                     id="password" label="Password"
                     type={showPassword ? 'text' : 'password'}
