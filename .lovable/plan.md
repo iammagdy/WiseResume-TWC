@@ -1,86 +1,65 @@
 
 
-# Fix: App Crashing on Boot (Supabase createClient with Empty URL)
+# Fix: Bottom Tab Bar Not Visible
 
-## Root Cause
+## What's Happening
 
-The previous fix replaced our `throw` with `console.error`, but the Supabase SDK's `createClient('')` itself throws `"supabaseUrl is required."` internally. This still crashes the module at import time, preventing React from mounting.
+The app IS loading now (the previous crash fix worked), but the navigation chain redirects you:
+1. `/editor` has no resume loaded, so it redirects to `/dashboard`
+2. `/dashboard` has no authenticated user, so it redirects to `/auth`
+3. `/auth` is rendered OUTSIDE the `AppShell` component (line 102 in `App.tsx`), so there is no bottom tab bar
 
-The `.env` file keeps getting recreated during edits, temporarily losing the environment variables.
+## Fix
 
-## Fix: `src/integrations/supabase/safeClient.ts`
+### File: `src/App.tsx`
 
-Wrap the `createClient` call in a try-catch so even if the SDK throws, a fallback null-like client is provided. The app boots, shows the UI, and backend calls fail gracefully at runtime.
+Move the `/auth` route inside the `AppShell` layout so the bottom tab bar is visible even on the auth page. This lets users navigate to other pages (like Upload or Settings) without being stuck.
 
-```typescript
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from './types';
+Change:
+```text
+BEFORE:
+  <Route path="/auth" element={...}><AuthPage /></Route>   // outside AppShell
+  <Route element={<AppShell />}>
+    ...
+  </Route>
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
-
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  console.error('Missing Supabase configuration - backend features will not work');
-}
-
-let supabaseInstance: SupabaseClient<Database>;
-
-try {
-  supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    auth: {
-      storage: localStorage,
-      persistSession: true,
-      autoRefreshToken: true,
-    },
-  });
-} catch (e) {
-  console.error('Failed to create Supabase client:', e);
-  // Create a minimal proxy that won't crash the app
-  // All calls will fail gracefully at runtime
-  supabaseInstance = new Proxy({} as SupabaseClient<Database>, {
-    get(_, prop) {
-      if (prop === 'auth') {
-        return {
-          getSession: () => Promise.resolve({ data: { session: null }, error: null }),
-          onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-          signOut: () => Promise.resolve({ error: null }),
-          signInWithPassword: () => Promise.resolve({ data: { user: null, session: null }, error: { message: 'Backend not configured' } }),
-          signUp: () => Promise.resolve({ data: { user: null, session: null }, error: { message: 'Backend not configured' } }),
-        };
-      }
-      if (prop === 'from') {
-        return () => ({
-          select: () => ({ data: null, error: { message: 'Backend not configured' } }),
-          insert: () => ({ data: null, error: { message: 'Backend not configured' } }),
-          update: () => ({ data: null, error: { message: 'Backend not configured' } }),
-          delete: () => ({ data: null, error: { message: 'Backend not configured' } }),
-          upsert: () => ({ data: null, error: { message: 'Backend not configured' } }),
-        });
-      }
-      if (prop === 'functions') {
-        return { invoke: () => Promise.resolve({ data: null, error: { message: 'Backend not configured' } }) };
-      }
-      return undefined;
-    },
-  });
-}
-
-export const supabase = supabaseInstance;
-
-export const supabaseConfig = { url: SUPABASE_URL };
-export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };
+AFTER:
+  <Route element={<AppShell />}>
+    <Route path="/auth" element={...}><AuthPage /></Route>  // inside AppShell
+    ...
+  </Route>
 ```
 
-This ensures:
-- The app **always** boots and shows the UI
-- Auth context resolves with `session: null` (no infinite loading)
-- Database queries return `{ data: null, error }` (no crashes)
-- Edge function calls return errors (no crashes)
-- Once the `.env` is properly loaded on next hot-reload, everything works normally
+### File: `src/components/layout/AppShell.tsx`
 
-## Only One File Changed
+Add `/auth` to `TAB_ROUTES` so the bottom bar is shown on the auth page:
+
+```text
+BEFORE: const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview'];
+AFTER:  const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth'];
+```
+
+### File: `src/pages/DashboardPage.tsx`
+
+Remove the automatic redirect to `/auth` when not authenticated (lines 90-94). Instead, let the dashboard render for guests too -- it already has guest-friendly content. Users can sign in via the profile avatar or settings.
+
+```text
+BEFORE (lines 90-94):
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [authLoading, user, navigate]);
+
+AFTER:
+  // Remove this redirect entirely - guests can use the dashboard
+```
+
+## Summary
 
 | File | Change |
 |------|--------|
-| `src/integrations/supabase/safeClient.ts` | Wrap `createClient` in try-catch with Proxy fallback |
+| `src/App.tsx` | Move `/auth` route inside `AppShell` |
+| `src/components/layout/AppShell.tsx` | Add `/auth` to `TAB_ROUTES` |
+| `src/pages/DashboardPage.tsx` | Remove forced redirect to `/auth` for guests |
 
