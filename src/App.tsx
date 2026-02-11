@@ -99,10 +99,9 @@ const queryClient = new QueryClient({
       <Routes>
         {/* Landing and auth - no shell */}
         <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
-        
         {/* All tabbed pages share the persistent shell */}
         <Route element={<AppShell />}>
+          <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
           <Route path="/dashboard" element={
             <Suspense fallback={<DashboardSkeleton />}>
               <DashboardPage />
