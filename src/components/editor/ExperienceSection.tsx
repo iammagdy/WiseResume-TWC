@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -166,29 +166,20 @@ export function ExperienceSection() {
         onDismiss={() => nudge && dismissNudge(nudge.trigger)}
       />
 
-      <AnimatePresence>
-        {currentResume.experience.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-6 rounded-xl border border-dashed border-border text-center"
-          >
+      {currentResume.experience.length === 0 ? (
+          <div className="p-6 rounded-xl border border-dashed border-border text-center animate-in fade-in-0 duration-200">
             <Briefcase className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground text-sm">No work experience added yet</p>
             <Button variant="link" size="sm" onClick={addExperience} className="mt-2">
               Add your first position
             </Button>
-          </motion.div>
+          </div>
         ) : (
           <div className="space-y-3">
             {currentResume.experience.map((exp, index) => (
-              <motion.div
+              <div
                 key={exp.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="rounded-xl border border-border overflow-hidden"
+                className="rounded-xl border border-border overflow-hidden transition-all duration-200"
               >
                 {/* Header - Always visible */}
                 <button
@@ -227,13 +218,8 @@ export function ExperienceSection() {
                 </button>
 
                 {/* Expanded content */}
-                <AnimatePresence>
-                  {expandedId === exp.id && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
+                {expandedId === exp.id && (
+                    <div className="animate-in fade-in-0 duration-200"
                     >
                       <div className="p-4 pt-0 space-y-4 border-t border-border">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -327,14 +313,13 @@ export function ExperienceSection() {
                           Delete Experience
                         </Button>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
-      </AnimatePresence>
+      
 
       {/* AI Enhancement Dialog */}
       {/* AI Enhancement Dialog */}

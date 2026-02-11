@@ -1,4 +1,3 @@
-import { motion, AnimatePresence } from 'framer-motion';
 import { Lightbulb, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
@@ -28,16 +27,10 @@ export function AIContextualNudge({
     onDismiss();
   };
 
+  if (!show) return null;
+
   return (
-    <AnimatePresence>
-      {show && (
-        <motion.div
-          initial={{ opacity: 0, y: 10, height: 0, marginTop: 0 }}
-          animate={{ opacity: 1, y: 0, height: 'auto', marginTop: 16 }}
-          exit={{ opacity: 0, y: -10, height: 0, marginTop: 0 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="overflow-hidden"
-        >
+        <div className="mt-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
           <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
             <div className="flex items-start gap-2">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -71,8 +64,6 @@ export function AIContextualNudge({
               </button>
             </div>
           </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+        </div>
   );
 }

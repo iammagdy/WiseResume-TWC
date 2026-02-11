@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar, Wand2, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -115,29 +115,20 @@ export function EducationSection() {
         onDismiss={() => nudge && dismissNudge(nudge.trigger)}
       />
 
-      <AnimatePresence>
-        {currentResume.education.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="p-6 rounded-xl border border-dashed border-border text-center"
-          >
+      {currentResume.education.length === 0 ? (
+          <div className="p-6 rounded-xl border border-dashed border-border text-center animate-in fade-in-0 duration-200">
             <GraduationCap className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground text-sm">No education added yet</p>
             <Button variant="link" size="sm" onClick={addEducation} className="mt-2">
               Add your education
             </Button>
-          </motion.div>
+          </div>
         ) : (
           <div className="space-y-3">
             {currentResume.education.map((edu, index) => (
-              <motion.div
+              <div
                 key={edu.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="rounded-xl border border-border overflow-hidden"
+                className="rounded-xl border border-border overflow-hidden transition-all duration-200"
               >
                 <button
                   onClick={() => setExpandedId(expandedId === edu.id ? null : edu.id)}
@@ -160,13 +151,8 @@ export function EducationSection() {
                   </div>
                 </button>
 
-                <AnimatePresence>
-                  {expandedId === edu.id && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      className="overflow-hidden"
+                {expandedId === edu.id && (
+                    <div className="animate-in fade-in-0 duration-200"
                     >
                       <div className="p-4 pt-0 space-y-4 border-t border-border">
                         <div>
@@ -250,14 +236,13 @@ export function EducationSection() {
                           Delete Education
                         </Button>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
-              </motion.div>
+              </div>
             ))}
           </div>
         )}
-      </AnimatePresence>
+      
     </div>
   );
 }

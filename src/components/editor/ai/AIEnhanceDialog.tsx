@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { Check, X, Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -28,19 +28,12 @@ export function AIEnhanceDialog({
   if (!isOpen) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4"
+    <div
+        className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in-0 duration-200"
         onClick={onDiscard}
       >
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          className="w-full max-w-lg max-h-[85vh] bg-card rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col"
+        <div
+          className="w-full max-w-lg max-h-[85vh] bg-card rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col animate-in fade-in-0 slide-in-from-bottom-4 duration-300"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -129,8 +122,7 @@ export function AIEnhanceDialog({
               Apply Changes
             </Button>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>
+        </div>
+      </div>
   );
 }

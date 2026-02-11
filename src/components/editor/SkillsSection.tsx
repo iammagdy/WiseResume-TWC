@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { Plus, X, Zap, Wand2, Layers, Target } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -127,15 +127,8 @@ export function SkillsSection() {
 
       {/* Current skills */}
       <div className="flex flex-wrap gap-2">
-        <AnimatePresence>
-          {currentResume.skills.map((skill) => (
-            <motion.div
-              key={skill}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              layout
-            >
+        {currentResume.skills.map((skill) => (
+            <div key={skill} className="transition-all duration-200">
               <Badge
                 variant="secondary"
                 className="h-10 px-4 gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-sm"
@@ -144,9 +137,8 @@ export function SkillsSection() {
                 {skill}
                 <X className="w-4 h-4" />
               </Badge>
-            </motion.div>
+            </div>
           ))}
-        </AnimatePresence>
       </div>
 
       {currentResume.skills.length === 0 && (
@@ -157,10 +149,7 @@ export function SkillsSection() {
 
       {/* Suggested skills from gap analysis */}
       {gapAnalysis && gapAnalysis.missingSkills.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 rounded-xl bg-secondary/10 border border-secondary/30"
+        <div className="p-4 rounded-xl bg-secondary/10 border border-secondary/30 animate-in fade-in-0 slide-in-from-bottom-2 duration-200"
         >
           <div className="flex items-center gap-2 mb-3">
             <Zap className="w-4 h-4 text-secondary" />
@@ -185,7 +174,7 @@ export function SkillsSection() {
                 </Badge>
               ))}
           </div>
-        </motion.div>
+        </div>
       )}
 
       {/* Quick add common skills */}
