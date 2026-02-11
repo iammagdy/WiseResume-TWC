@@ -1,46 +1,26 @@
 
 
-# Fix: Maximum Update Depth Exceeded (Root Cause)
+# Fix: Remove framer-motion from components inside Radix TabsContent
 
-## Problem
-The previous fix (removing `AnimatePresence`) was incomplete. The real conflict is between:
-1. **Radix TabsContent** -- uses an internal `Presence` component that manages visibility via refs and setState
-2. **framer-motion `motion.div`** -- wraps each TabsContent's children and also manages refs for animation state
+## Root Cause
 
-When React mounts/remounts these components, Radix's composed refs (`@radix-ui/react-compose-refs`) call setState on the Presence component, which triggers a re-render, which detaches/reattaches refs, creating an infinite loop.
+The `SectionCard` component uses `motion.div` from framer-motion and is rendered **inside** Radix `TabsContent`. Radix's `TabsContent` uses an internal `Presence` component that manages visibility through composed refs and `setState`. When framer-motion's `motion.div` is a child, both systems fight over ref management, creating an infinite `setState` loop.
 
-The `key={location.pathname}` on AppShell's `motion.div` forces a full remount of the editor tree on every navigation, triggering this conflict.
+The `NextStepBanner` also uses `AnimatePresence` + `motion.div` which can trigger the same conflict.
 
-## Solution (Two Changes)
+## Changes
 
-### 1. `src/components/layout/AppShell.tsx` -- Remove the keyed remount
-Remove `key={location.pathname}` from the `motion.div`. This prevents forced full-tree remounting when navigating to/from the editor. The outlet already handles route changes naturally via React Router.
+### 1. `src/components/editor/SectionCard.tsx`
+- Replace `motion.div` with a plain `div`
+- Add CSS animation class (`animate-in fade-in-0 slide-in-from-bottom-2 duration-300`) to preserve the fade-in effect
+- Remove the `framer-motion` import
 
-### 2. `src/pages/EditorPage.tsx` -- Replace motion.div with CSS animations inside TabsContent
-Replace the `motion.div` wrappers inside each `TabsContent` with plain `div` elements using a CSS `animate-in` class. This eliminates the ref conflict between framer-motion and Radix Presence entirely while preserving the fade-in visual effect.
-
-**Before (each tab):**
-```tsx
-<TabsContent value="contact">
-  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-    <SectionCard>...</SectionCard>
-  </motion.div>
-</TabsContent>
-```
-
-**After (each tab):**
-```tsx
-<TabsContent value="contact">
-  <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-    <SectionCard>...</SectionCard>
-  </div>
-</TabsContent>
-```
-
-## Summary
+### 2. `src/components/editor/NextStepBanner.tsx`
+- Replace `AnimatePresence` + `motion.div` with a plain `div`
+- Add CSS animation class for the fade-in effect
+- Remove the `framer-motion` import
 
 | File | Change |
 |------|--------|
-| `src/components/layout/AppShell.tsx` | Remove `key={location.pathname}` to prevent forced remount |
-| `src/pages/EditorPage.tsx` | Replace `motion.div` inside TabsContent with CSS-animated divs; remove unused motion import if possible |
-
+| `src/components/editor/SectionCard.tsx` | Replace `motion.div` with CSS-animated `div` |
+| `src/components/editor/NextStepBanner.tsx` | Replace `AnimatePresence`/`motion.div` with CSS-animated `div` |
