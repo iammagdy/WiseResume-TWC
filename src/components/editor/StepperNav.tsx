@@ -20,7 +20,7 @@ export const StepperNav = memo(function StepperNav({
   const activeIndex = steps.findIndex(s => s.id === activeStep);
 
   return (
-    <div className="px-4 sm:px-6 py-4">
+    <div className="px-2 xs:px-4 sm:px-6 py-4">
       <div className="flex items-center justify-between relative overflow-x-auto scrollbar-hide">
         {/* Connecting line */}
         <div className="absolute top-5 left-[10%] right-[10%] h-[2px] bg-border/40" />
@@ -62,7 +62,7 @@ export const StepperNav = memo(function StepperNav({
                 )}
               </div>
               <span className={cn(
-                'text-[11px] font-medium transition-colors',
+                'hidden xs:block text-[11px] font-medium transition-colors',
                 isActive ? 'text-primary' : isCompleted ? 'text-success' : 'text-muted-foreground'
               )}>
                 {step.label}

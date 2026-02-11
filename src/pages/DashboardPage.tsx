@@ -281,6 +281,7 @@ export default function DashboardPage() {
               }}
               className="relative flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 hover:border-primary/40 transition-colors touch-manipulation overflow-hidden min-h-[44px]"
               whileTap={{ scale: 0.95 }}
+              aria-label="Explore"
             >
               <motion.div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent"
@@ -298,6 +299,7 @@ export default function DashboardPage() {
               }}
               className="touch-manipulation"
               whileTap={{ scale: 0.9 }}
+              aria-label="Profile"
             >
               <Avatar className="w-9 h-9 border-2 border-primary/20">
                 {profile?.avatarUrl && (

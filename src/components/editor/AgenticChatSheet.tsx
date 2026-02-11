@@ -373,6 +373,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
               className="w-11 h-11 rounded-full gradient-primary shrink-0"
               onClick={handleSend}
               disabled={!input.trim() || isThinking}
+              aria-label="Send message"
             >
               <Send className="w-4 h-4" />
             </Button>
