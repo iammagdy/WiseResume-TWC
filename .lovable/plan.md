@@ -1,59 +1,48 @@
 
 
-# Fix: Remove Radix Tabs from Editor Page Entirely
+# Fix: Remove framer-motion from ALL Editor Sub-Components
 
-## Root Cause (definitive)
-The crash originates from `@radix-ui/react-compose-refs` (chunk-SBXSPTCP in the stack trace), which is used internally by Radix's `TabsContent` `Presence` component. During mount/unmount cycles, `Presence` calls `setState` inside a ref callback, which triggers React to re-commit, which detaches refs, which calls `setState` again -- infinite loop.
+## Problem
+The editor page still freezes because three key child components use `framer-motion` extensively. Even though we removed Radix Tabs and framer-motion from EditorPage itself, the child components still create the same infinite setState loop through framer-motion's internal ref management interacting with React 18's concurrent rendering.
 
-Previous fixes removed framer-motion from children, but the Radix `TabsContent` component **itself** is the source. The `Tabs` component is unnecessary here since:
-- There is no visible `TabsList` (the custom `StepperNav` handles navigation)
-- Tab switching is driven by `activeTab` state
-- The `Tabs` wrapper adds overhead with zero benefit
-
-## Solution
-Replace `Tabs`/`TabsContent` with simple conditional rendering (`activeTab === 'contact'`). This completely removes Radix from the editor's rendering pipeline.
+The offending components:
+- **StepperNav** -- `motion.div` with `animate` on every step circle + animated progress line
+- **ProgressBar** -- `motion.div` wrapper + `motion.div` for each dot with staggered animations
+- **AIAssistantBar** -- `motion.div` with `layout` prop (worst offender), `AnimatePresence`, stagger variants throughout
+- **AIIntroTooltip** -- `AnimatePresence` + nested `motion.div` elements
 
 ## Changes
 
-### `src/pages/EditorPage.tsx`
-- Remove `Tabs` and `TabsContent` imports
-- Replace the `<Tabs>` wrapper with a plain `<div>`
-- Replace each `<TabsContent value="X">` with `{activeTab === 'X' && (...)}`
-- Keep everything else (StepperNav, SectionCard, AIAssistantBar, etc.) unchanged
+### 1. `src/components/editor/StepperNav.tsx`
+- Replace `motion.div` for progress line with a plain `div` using CSS `transition-all` for width changes
+- Replace `motion.div` for step circles with plain `div` using CSS transitions
+- Remove `framer-motion` import
 
-**Before:**
-```tsx
-<Tabs value={activeTab} onValueChange={handleTabChange} className="...">
-  <div className="flex-1 overflow-y-auto ..." ref={scrollContainerRef}>
-    <TabsContent value="contact" className="mt-0">
-      <div className="animate-in ...">
-        <SectionCard ...><ContactSection /></SectionCard>
-      </div>
-    </TabsContent>
-    ...
-  </div>
-</Tabs>
-```
+### 2. `src/components/editor/ProgressBar.tsx`
+- Replace `motion.div` wrapper with a plain `div`
+- Replace `motion.div` dots with plain `div` elements
+- Replace `motion.circle` SVG with a plain `circle` using CSS transition for stroke
+- Remove `framer-motion` import
 
-**After:**
-```tsx
-<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-  <div className="flex-1 overflow-y-auto ..." ref={scrollContainerRef}>
-    {activeTab === 'contact' && (
-      <div className="animate-in ...">
-        <SectionCard ...><ContactSection /></SectionCard>
-      </div>
-    )}
-    ...
-  </div>
-</div>
-```
+### 3. `src/components/editor/AIAssistantBar.tsx`
+- Remove the `layout` prop from the outer `motion.div` (this is the most likely crash trigger)
+- Replace `AnimatePresence` + `motion.div` for expanded content with CSS-based show/hide
+- Replace all `motion.div` stagger variants with plain `div` elements
+- Replace chevron `motion.div` rotation with CSS `transform` + `transition`
+- Remove `framer-motion` import
 
-### Also in `src/pages/EditorPage.tsx`
-- Replace the remaining `motion.div` (Preview & Export button wrapper at bottom) with a plain `div` using CSS animation
-- Remove the `framer-motion` import entirely from EditorPage
+### 4. `src/components/editor/AIIntroTooltip.tsx`
+- Replace `AnimatePresence` + `motion.div` overlay with a plain conditional `div`
+- Use CSS animations (`animate-in fade-in-0`) for the card entrance
+- Remove `framer-motion` import
+
+## Summary
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Remove Radix Tabs entirely; use conditional rendering; remove framer-motion import |
+| `src/components/editor/StepperNav.tsx` | Replace all motion elements with CSS-transitioned divs |
+| `src/components/editor/ProgressBar.tsx` | Replace motion elements with plain divs |
+| `src/components/editor/AIAssistantBar.tsx` | Remove `layout` prop, replace AnimatePresence/motion with CSS |
+| `src/components/editor/AIIntroTooltip.tsx` | Replace AnimatePresence/motion with CSS animations |
 
+This comprehensively removes framer-motion from the entire editor rendering tree, eliminating the root cause of the infinite loop.
