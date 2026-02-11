@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { X, Eye, Target, Mic } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
 
@@ -27,15 +28,18 @@ const config = {
   },
 };
 
-export function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
-  const settings = useSettingsStore();
+export const NextStepBanner = memo(function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
+  const dismissed = useSettingsStore(state => state[config[variant].settingsKey]);
+  const setHasSeenPreviewHint = useSettingsStore(state => state.setHasSeenPreviewHint);
+  const setHasSeenTailorHint = useSettingsStore(state => state.setHasSeenTailorHint);
+  const setHasSeenInterviewHint = useSettingsStore(state => state.setHasSeenInterviewHint);
+  
   const { icon: Icon, text, actionLabel, settingsKey } = config[variant];
 
-  const dismissed = settings[settingsKey];
   const dismiss = () => {
-    if (settingsKey === 'hasSeenPreviewHint') settings.setHasSeenPreviewHint(true);
-    if (settingsKey === 'hasSeenTailorHint') settings.setHasSeenTailorHint(true);
-    if (settingsKey === 'hasSeenInterviewHint') settings.setHasSeenInterviewHint(true);
+    if (settingsKey === 'hasSeenPreviewHint') setHasSeenPreviewHint(true);
+    if (settingsKey === 'hasSeenTailorHint') setHasSeenTailorHint(true);
+    if (settingsKey === 'hasSeenInterviewHint') setHasSeenInterviewHint(true);
   };
 
   if (dismissed) return null;
@@ -61,4 +65,4 @@ export function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
         </button>
       </div>
   );
-}
+});

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
-import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar, Wand2, BookOpen } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,11 +13,13 @@ import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 
-export function EducationSection() {
-  const { currentResume, updateResume } = useResumeStore();
+export const EducationSection = memo(function EducationSection() {
+  const education = useResumeStore(state => state.currentResume?.education);
+  const updateResume = useResumeStore(state => state.updateResume);
+  const currentResume = useResumeStore(state => state.currentResume);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const { enhance, isEnhancing, currentAction } = useAIEnhance({
+  const { enhance, isEnhancing } = useAIEnhance({
     section: 'education',
     onApply: () => {},
   });
@@ -26,7 +28,7 @@ export function EducationSection() {
     resume: currentResume,
   });
 
-  if (!currentResume) return null;
+  if (!currentResume || !education) return null;
 
   const nudge = getNudgeForSection('education');
 
@@ -40,14 +42,14 @@ export function EducationSection() {
       endDate: '',
     };
     updateResume({
-      education: [...currentResume.education, newEdu],
+      education: [...education, newEdu],
     });
     setExpandedId(newEdu.id);
   };
 
   const updateEducation = (id: string, updates: Partial<Education>) => {
     updateResume({
-      education: currentResume.education.map((edu) =>
+      education: education.map((edu) =>
         edu.id === id ? { ...edu, ...updates } : edu
       ),
     });
@@ -55,14 +57,14 @@ export function EducationSection() {
 
   const deleteEducation = (id: string) => {
     updateResume({
-      education: currentResume.education.filter((edu) => edu.id !== id),
+      education: education.filter((edu) => edu.id !== id),
     });
   };
 
   const handleAIAction = async (actionId: string) => {
     const result = await enhance(
       actionId as ActionType,
-      currentResume.education,
+      education,
       currentResume
     );
     
@@ -79,7 +81,7 @@ export function EducationSection() {
 
   const handleNudgeAction = () => {
     if (nudge) {
-      if (currentResume.education.length === 0) {
+      if (education.length === 0) {
         addEducation();
       } else {
         handleAIAction(nudge.action);
@@ -97,7 +99,7 @@ export function EducationSection() {
             section="education"
             onAction={handleAIAction}
             isLoading={isEnhancing}
-            disabled={currentResume.education.length === 0}
+            disabled={education.length === 0}
           />
         </div>
         <Button variant="outline" size="sm" onClick={addEducation} className="gap-2">
@@ -115,7 +117,7 @@ export function EducationSection() {
         onDismiss={() => nudge && dismissNudge(nudge.trigger)}
       />
 
-      {currentResume.education.length === 0 ? (
+      {education.length === 0 ? (
           <div className="p-6 rounded-xl border border-dashed border-border text-center animate-in fade-in-0 duration-200">
             <GraduationCap className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground text-sm">No education added yet</p>
@@ -125,7 +127,7 @@ export function EducationSection() {
           </div>
         ) : (
           <div className="space-y-3">
-            {currentResume.education.map((edu, index) => (
+            {education.map((edu, index) => (
               <div
                 key={edu.id}
                 className="rounded-xl border border-border overflow-hidden transition-all duration-200"
@@ -245,4 +247,4 @@ export function EducationSection() {
       
     </div>
   );
-}
+});

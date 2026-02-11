@@ -1,5 +1,5 @@
-import { useState } from 'react';
- import { TextareaFormField } from '@/components/ui/form-field';
+import { useState, memo } from 'react';
+import { TextareaFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
 import { FileText } from 'lucide-react';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
@@ -8,12 +8,14 @@ import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 
-export function SummarySection() {
-  const { currentResume, updateResume } = useResumeStore();
+export const SummarySection = memo(function SummarySection() {
+  const summary = useResumeStore(state => state.currentResume?.summary);
+  const updateResume = useResumeStore(state => state.updateResume);
+  const currentResume = useResumeStore(state => state.currentResume);
   const [showDialog, setShowDialog] = useState(false);
-   const [touched, setTouched] = useState(false);
+  const [touched, setTouched] = useState(false);
   
-  const { enhance, isEnhancing, currentAction, result, apply, discard } = useAIEnhance({
+  const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'summary',
     onApply: (content) => {
       updateResume({ summary: content as string });
@@ -25,24 +27,23 @@ export function SummarySection() {
     resume: currentResume,
   });
 
-  if (!currentResume) return null;
+  if (!currentResume || summary === undefined) return null;
 
   const nudge = getNudgeForSection('summary');
- 
-   // Validation
-   const getSummaryError = (): string | undefined => {
-     const summary = currentResume.summary;
-     if (!summary || summary.trim() === '') return 'Professional summary is required';
-     if (summary.length < 50) return 'Summary should be at least 50 characters';
-     return undefined;
-   };
- 
-   const summaryError = getSummaryError();
+
+  // Validation
+  const getSummaryError = (): string | undefined => {
+    if (!summary || summary.trim() === '') return 'Professional summary is required';
+    if (summary.length < 50) return 'Summary should be at least 50 characters';
+    return undefined;
+  };
+
+  const summaryError = getSummaryError();
 
   const handleAction = async (actionId: string) => {
     const enhanceResult = await enhance(
       actionId as ActionType,
-      currentResume.summary,
+      summary,
       currentResume
     );
     
@@ -78,26 +79,26 @@ export function SummarySection() {
         onDismiss={() => nudge && dismissNudge(nudge.trigger)}
       />
       
-       <TextareaFormField
-         id="summary"
-         label="Summary"
-         icon={<FileText className="w-4 h-4" />}
-         value={currentResume.summary}
-         onChange={(value) => updateResume({ summary: value })}
-         onBlur={() => setTouched(true)}
-         placeholder="Write a brief professional summary highlighting your key qualifications, experience, and career goals..."
-         rows={8}
-         maxLength={500}
-         showCount
-         error={summaryError}
-         touched={touched}
-         required
-       />
+      <TextareaFormField
+        id="summary"
+        label="Summary"
+        icon={<FileText className="w-4 h-4" />}
+        value={summary}
+        onChange={(value) => updateResume({ summary: value })}
+        onBlur={() => setTouched(true)}
+        placeholder="Write a brief professional summary highlighting your key qualifications, experience, and career goals..."
+        rows={8}
+        maxLength={500}
+        showCount
+        error={summaryError}
+        touched={touched}
+        required
+      />
 
       {/* AI Enhancement Dialog */}
       <AIEnhanceDialog
         isOpen={showDialog}
-        original={currentResume.summary}
+        original={summary}
         improved={result?.improved as string || ''}
         changes={result?.changes || []}
         suggestions={result?.suggestions}
@@ -123,4 +124,4 @@ export function SummarySection() {
       </div>
     </div>
   );
-}
+});

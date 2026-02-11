@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
-import { Plus, X, Zap, Wand2, Layers, Target } from 'lucide-react';
+import { Plus, X, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -11,16 +11,20 @@ import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 
-export function SkillsSection() {
-  const { currentResume, updateResume, gapAnalysis, jobDescription } = useResumeStore();
+export const SkillsSection = memo(function SkillsSection() {
+  const skills = useResumeStore(state => state.currentResume?.skills);
+  const gapAnalysis = useResumeStore(state => state.gapAnalysis);
+  const jobDescription = useResumeStore(state => state.jobDescription);
+  const updateResume = useResumeStore(state => state.updateResume);
+  const currentResume = useResumeStore(state => state.currentResume);
   const [newSkill, setNewSkill] = useState('');
   
-  const { enhance, isEnhancing, currentAction } = useAIEnhance({
+  const { enhance, isEnhancing } = useAIEnhance({
     section: 'skills',
     onApply: (content) => {
-      const skills = content as string[];
-      if (Array.isArray(skills)) {
-        updateResume({ skills });
+      const updatedSkills = content as string[];
+      if (Array.isArray(updatedSkills)) {
+        updateResume({ skills: updatedSkills });
         toast.success('Skills updated!');
       }
     },
@@ -34,30 +38,30 @@ export function SkillsSection() {
     hasMissingSkills,
   });
 
-  if (!currentResume) return null;
+  if (!currentResume || !skills) return null;
 
   const nudge = getNudgeForSection('skills');
 
   const addSkill = () => {
     if (!newSkill.trim()) return;
-    if (currentResume.skills.includes(newSkill.trim())) return;
+    if (skills.includes(newSkill.trim())) return;
 
     updateResume({
-      skills: [...currentResume.skills, newSkill.trim()],
+      skills: [...skills, newSkill.trim()],
     });
     setNewSkill('');
   };
 
   const removeSkill = (skill: string) => {
     updateResume({
-      skills: currentResume.skills.filter((s) => s !== skill),
+      skills: skills.filter((s) => s !== skill),
     });
   };
 
   const addSuggestedSkill = (skill: string) => {
-    if (currentResume.skills.includes(skill)) return;
+    if (skills.includes(skill)) return;
     updateResume({
-      skills: [...currentResume.skills, skill],
+      skills: [...skills, skill],
     });
   };
 
@@ -71,14 +75,14 @@ export function SkillsSection() {
   const handleAIAction = async (actionId: string) => {
     const result = await enhance(
       actionId as ActionType,
-      currentResume.skills,
+      skills,
       currentResume
     );
     
     if (result?.improved) {
-      const skills = result.improved as string[];
-      if (Array.isArray(skills)) {
-        updateResume({ skills });
+      const updatedSkills = result.improved as string[];
+      if (Array.isArray(updatedSkills)) {
+        updateResume({ skills: updatedSkills });
         toast.success(`${result.changes?.join(', ') || 'Skills enhanced!'}`);
       }
     }
@@ -127,7 +131,7 @@ export function SkillsSection() {
 
       {/* Current skills */}
       <div className="flex flex-wrap gap-2">
-        {currentResume.skills.map((skill) => (
+        {skills.map((skill) => (
             <div key={skill} className="transition-all duration-200">
               <Badge
                 variant="secondary"
@@ -141,7 +145,7 @@ export function SkillsSection() {
           ))}
       </div>
 
-      {currentResume.skills.length === 0 && (
+      {skills.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-4">
           No skills added yet. Start typing to add skills.
         </p>
@@ -160,7 +164,7 @@ export function SkillsSection() {
           </p>
           <div className="flex flex-wrap gap-2">
             {gapAnalysis.missingSkills
-              .filter((skill) => !currentResume.skills.includes(skill))
+              .filter((skill) => !skills.includes(skill))
               .slice(0, 10)
               .map((skill) => (
                 <Badge
@@ -182,7 +186,7 @@ export function SkillsSection() {
         <h4 className="font-semibold text-sm mb-3">Common Skills</h4>
         <div className="flex flex-wrap gap-2">
           {['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'AWS', 'Git', 'Agile', 'Leadership', 'Communication']
-            .filter((skill) => !currentResume.skills.includes(skill))
+            .filter((skill) => !skills.includes(skill))
             .slice(0, 6)
             .map((skill) => (
               <Badge
@@ -198,4 +202,4 @@ export function SkillsSection() {
       </div>
     </div>
   );
-}
+});

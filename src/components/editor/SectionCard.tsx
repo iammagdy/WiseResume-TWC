@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, memo } from 'react';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
 
@@ -10,7 +10,7 @@ interface SectionCardProps {
   children: ReactNode;
 }
 
-export function SectionCard({ icon: Icon, title, tip, status, children }: SectionCardProps) {
+export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, status, children }: SectionCardProps) {
   return (
     <div
       className={cn(
@@ -52,4 +52,4 @@ export function SectionCard({ icon: Icon, title, tip, status, children }: Sectio
       </div>
     </div>
   );
-}
+});
