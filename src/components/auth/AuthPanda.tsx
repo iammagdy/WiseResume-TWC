@@ -33,21 +33,24 @@ export function AuthPanda({ focusedField, showPassword, textLength, shake, succe
   const isPassword = focusedField === 'password';
   const isTyping = focusedField === 'email' || focusedField === 'phone';
 
-  const pupilOffsetX = isTyping ? Math.min(Math.max((textLength - 10) * 0.5, -5), 5) : 0;
-  const pupilOffsetY = isTyping ? 3 : 0;
+  const pupilOffsetX = isTyping ? Math.min(Math.max((textLength - 10) * 0.4, -3), 3) : 0;
+  const pupilOffsetY = isTyping ? 2 : 0;
 
-  const handY = isPassword && !showPassword ? -45 : 0;
-  const leftHandY = isPassword && showPassword ? -35 : handY;
+  const handY = isPassword && !showPassword ? -50 : 0;
+  const leftHandY = isPassword && showPassword ? -38 : handY;
   const rightHandY = handY;
 
   const eyesClosed = isPassword && !showPassword;
   const leftEyeScaleY = isPassword && showPassword ? 0.3 : 1;
 
+  const C = '#1A3A2A'; // dark forest green
+  const C2 = '#254A36'; // slightly lighter green for pads
+
   const smilePath = success
-    ? 'M88 112 Q100 126 112 112'
+    ? 'M90 106 Q100 118 110 106'
     : shake
-    ? 'M92 112 Q100 116 108 112'
-    : 'M90 112 Q100 122 110 112';
+    ? 'M94 104 Q100 108 106 104'
+    : 'M92 104 Q100 114 108 104';
 
   return (
     <motion.div animate={controls} className="flex justify-center mb-4">
@@ -60,26 +63,23 @@ export function AuthPanda({ focusedField, showPassword, textLength, shake, succe
         transition={{ duration: 0.5 }}
       >
         {/* === BODY === */}
-        <ellipse cx="100" cy="172" rx="38" ry="32" fill="white" stroke="#1A1A2E" strokeWidth="2" />
-        {/* Black side patches on body */}
-        <path d="M62 168 Q64 148 78 142 Q68 155 66 170 Q64 180 68 190 Q58 185 62 168Z" fill="#1A1A2E" />
-        <path d="M138 168 Q136 148 122 142 Q132 155 134 170 Q136 180 132 190 Q142 185 138 168Z" fill="#1A1A2E" />
+        <ellipse cx="100" cy="170" rx="42" ry="34" fill={C} />
         {/* White belly */}
-        <ellipse cx="100" cy="176" rx="22" ry="20" fill="white" />
+        <ellipse cx="100" cy="174" rx="26" ry="24" fill="white" />
 
-        {/* === FEET === */}
+        {/* === FEET (splayed outward) === */}
         {/* Left foot */}
-        <ellipse cx="80" cy="200" rx="16" ry="10" fill="#1A1A2E" />
-        <ellipse cx="80" cy="202" rx="10" ry="6" fill="#2D2D44" />
-        <circle cx="74" cy="198" r="2" fill="#2D2D44" />
-        <circle cx="80" cy="196" r="2" fill="#2D2D44" />
-        <circle cx="86" cy="198" r="2" fill="#2D2D44" />
+        <ellipse cx="72" cy="200" rx="18" ry="11" fill={C} transform="rotate(-15 72 200)" />
+        <ellipse cx="72" cy="202" rx="10" ry="6" fill={C2} transform="rotate(-15 72 202)" />
+        <circle cx="64" cy="196" r="2.5" fill={C2} />
+        <circle cx="70" cy="193" r="2.5" fill={C2} />
+        <circle cx="77" cy="194" r="2.5" fill={C2} />
         {/* Right foot */}
-        <ellipse cx="120" cy="200" rx="16" ry="10" fill="#1A1A2E" />
-        <ellipse cx="120" cy="202" rx="10" ry="6" fill="#2D2D44" />
-        <circle cx="114" cy="198" r="2" fill="#2D2D44" />
-        <circle cx="120" cy="196" r="2" fill="#2D2D44" />
-        <circle cx="126" cy="198" r="2" fill="#2D2D44" />
+        <ellipse cx="128" cy="200" rx="18" ry="11" fill={C} transform="rotate(15 128 200)" />
+        <ellipse cx="128" cy="202" rx="10" ry="6" fill={C2} transform="rotate(15 128 202)" />
+        <circle cx="123" cy="194" r="2.5" fill={C2} />
+        <circle cx="130" cy="193" r="2.5" fill={C2} />
+        <circle cx="136" cy="196" r="2.5" fill={C2} />
 
         {/* === LEFT ARM/PAW === */}
         <motion.g
@@ -87,15 +87,14 @@ export function AuthPanda({ focusedField, showPassword, textLength, shake, succe
           transition={{ type: 'spring', stiffness: 220, damping: 18 }}
         >
           <path
-            d="M62 160 Q46 148 42 130 Q40 118 46 114 Q52 112 54 124 Q56 140 62 152 Z"
-            fill="#1A1A2E"
+            d="M58 158 Q42 148 38 128 Q36 116 42 112 Q48 110 50 122 Q52 138 58 150 Z"
+            fill={C}
           />
-          <ellipse cx="44" cy="112" rx="10" ry="8" fill="#1A1A2E" />
-          {/* Paw pad */}
-          <ellipse cx="44" cy="113" rx="6" ry="5" fill="#2D2D44" />
-          <circle cx="39" cy="108" r="2" fill="#2D2D44" />
-          <circle cx="44" cy="106" r="2" fill="#2D2D44" />
-          <circle cx="49" cy="108" r="2" fill="#2D2D44" />
+          <ellipse cx="40" cy="110" rx="10" ry="8" fill={C} />
+          <ellipse cx="40" cy="111" rx="6" ry="5" fill={C2} />
+          <circle cx="34" cy="106" r="2" fill={C2} />
+          <circle cx="40" cy="104" r="2" fill={C2} />
+          <circle cx="46" cy="106" r="2" fill={C2} />
         </motion.g>
 
         {/* === RIGHT ARM/PAW === */}
@@ -104,118 +103,112 @@ export function AuthPanda({ focusedField, showPassword, textLength, shake, succe
           transition={{ type: 'spring', stiffness: 220, damping: 18 }}
         >
           <path
-            d="M138 160 Q154 148 158 130 Q160 118 154 114 Q148 112 146 124 Q144 140 138 152 Z"
-            fill="#1A1A2E"
+            d="M142 158 Q158 148 162 128 Q164 116 158 112 Q152 110 150 122 Q148 138 142 150 Z"
+            fill={C}
           />
-          <ellipse cx="156" cy="112" rx="10" ry="8" fill="#1A1A2E" />
-          {/* Paw pad */}
-          <ellipse cx="156" cy="113" rx="6" ry="5" fill="#2D2D44" />
-          <circle cx="151" cy="108" r="2" fill="#2D2D44" />
-          <circle cx="156" cy="106" r="2" fill="#2D2D44" />
-          <circle cx="161" cy="108" r="2" fill="#2D2D44" />
+          <ellipse cx="160" cy="110" rx="10" ry="8" fill={C} />
+          <ellipse cx="160" cy="111" rx="6" ry="5" fill={C2} />
+          <circle cx="154" cy="106" r="2" fill={C2} />
+          <circle cx="160" cy="104" r="2" fill={C2} />
+          <circle cx="166" cy="106" r="2" fill={C2} />
         </motion.g>
 
         {/* === HEAD === */}
-        <circle cx="100" cy="78" r="48" fill="white" stroke="#1A1A2E" strokeWidth="2" />
+        <circle cx="100" cy="76" r="50" fill="white" stroke={C} strokeWidth="2.5" />
 
         {/* === EARS === */}
-        <circle cx="58" cy="42" r="18" fill="#1A1A2E" />
-        <circle cx="58" cy="42" r="9" fill="#2D2D44" />
-        <circle cx="142" cy="42" r="18" fill="#1A1A2E" />
-        <circle cx="142" cy="42" r="9" fill="#2D2D44" />
+        <circle cx="56" cy="38" r="20" fill={C} />
+        <circle cx="56" cy="38" r="9" fill={C2} />
+        <circle cx="144" cy="38" r="20" fill={C} />
+        <circle cx="144" cy="38" r="9" fill={C2} />
 
-        {/* === HAIR TUFT === */}
-        <path
-          d="M92 32 Q96 18 100 28 Q104 16 108 28 Q112 20 110 32"
-          stroke="#1A1A2E"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          fill="none"
-        />
+        {/* === LEAF SPRIGS on ears === */}
+        <g>
+          <path d="M56 16 Q54 8 48 6 Q54 10 54 16" fill="#4CAF50" stroke="#388E3C" strokeWidth="0.8" />
+          <line x1="56" y1="18" x2="54" y2="10" stroke="#388E3C" strokeWidth="0.8" />
+        </g>
+        <g>
+          <path d="M144 16 Q146 8 152 6 Q146 10 146 16" fill="#4CAF50" stroke="#388E3C" strokeWidth="0.8" />
+          <line x1="144" y1="18" x2="146" y2="10" stroke="#388E3C" strokeWidth="0.8" />
+        </g>
 
-        {/* === EYE PATCHES === */}
-        <ellipse cx="80" cy="82" rx="16" ry="14" fill="#1A1A2E"
-          transform="rotate(-8 80 82)"
-        />
-        <ellipse cx="120" cy="82" rx="16" ry="14" fill="#1A1A2E"
-          transform="rotate(8 120 82)"
-        />
+        {/* === EYE PATCHES (large, tilted inward) === */}
+        <ellipse cx="78" cy="80" rx="18" ry="16" fill={C} transform="rotate(-10 78 80)" />
+        <ellipse cx="122" cy="80" rx="18" ry="16" fill={C} transform="rotate(10 122 80)" />
 
-        {/* === EYE WHITES === */}
+        {/* === EYES (small dots, not bug eyes) === */}
         <motion.ellipse
-          cx="80"
-          cy="82"
-          rx="8"
-          ry="9"
+          cx="78"
+          cy="80"
+          rx="4"
+          ry="5"
           fill="white"
           animate={{ scaleY: eyesClosed ? 0.08 : leftEyeScaleY }}
-          style={{ transformOrigin: '80px 82px' }}
+          style={{ transformOrigin: '78px 80px' }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         />
         <motion.ellipse
-          cx="120"
-          cy="82"
-          rx="8"
-          ry="9"
+          cx="122"
+          cy="80"
+          rx="4"
+          ry="5"
           fill="white"
           animate={{ scaleY: eyesClosed ? 0.08 : 1 }}
-          style={{ transformOrigin: '120px 82px' }}
+          style={{ transformOrigin: '122px 80px' }}
           transition={{ type: 'spring', stiffness: 300, damping: 20 }}
         />
 
-        {/* === PUPILS === */}
+        {/* === PUPILS (tiny dots) === */}
         <motion.g
           animate={{ opacity: eyesClosed ? 0 : 1 }}
           transition={{ duration: 0.12 }}
         >
-          {/* Left pupil */}
           <motion.g
             animate={{ scaleY: leftEyeScaleY }}
-            style={{ transformOrigin: '80px 82px' }}
+            style={{ transformOrigin: '78px 80px' }}
           >
-            <motion.circle
-              cx={80}
-              cy={82}
-              r="3.5"
-              fill="#1A1A2E"
-              animate={{ cx: 80 + pupilOffsetX, cy: 82 + pupilOffsetY }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            />
             <motion.circle
               cx={78}
               cy={80}
-              r="1.5"
+              r="2"
+              fill={C}
+              animate={{ cx: 78 + pupilOffsetX, cy: 80 + pupilOffsetY }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+            />
+            <motion.circle
+              cx={77}
+              cy={79}
+              r="0.8"
               fill="white"
-              animate={{ cx: 78 + pupilOffsetX * 0.5, cy: 80 + pupilOffsetY * 0.5 }}
+              animate={{ cx: 77 + pupilOffsetX * 0.5, cy: 79 + pupilOffsetY * 0.5 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
             />
           </motion.g>
-          {/* Right pupil */}
           <motion.circle
-            cx={120}
-            cy={82}
-            r="3.5"
-            fill="#1A1A2E"
-            animate={{ cx: 120 + pupilOffsetX, cy: 82 + pupilOffsetY }}
+            cx={122}
+            cy={80}
+            r="2"
+            fill={C}
+            animate={{ cx: 122 + pupilOffsetX, cy: 80 + pupilOffsetY }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           />
           <motion.circle
-            cx={118}
-            cy={80}
-            r="1.5"
+            cx={121}
+            cy={79}
+            r="0.8"
             fill="white"
-            animate={{ cx: 118 + pupilOffsetX * 0.5, cy: 80 + pupilOffsetY * 0.5 }}
+            animate={{ cx: 121 + pupilOffsetX * 0.5, cy: 79 + pupilOffsetY * 0.5 }}
             transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           />
         </motion.g>
 
         {/* === NOSE === */}
-        <ellipse cx="100" cy="98" rx="5" ry="3.5" fill="#1A1A2E" />
+        <ellipse cx="100" cy="94" rx="4" ry="3" fill={C} />
 
         {/* === MOUTH === */}
         <motion.path
           d={smilePath}
-          stroke="#1A1A2E"
+          stroke={C}
           strokeWidth="2"
           strokeLinecap="round"
           fill="none"
@@ -224,8 +217,8 @@ export function AuthPanda({ focusedField, showPassword, textLength, shake, succe
         />
 
         {/* === CHEEK BLUSH === */}
-        <circle cx="64" cy="94" r="6" fill="#FFB7C5" opacity="0.4" />
-        <circle cx="136" cy="94" r="6" fill="#FFB7C5" opacity="0.4" />
+        <circle cx="62" cy="92" r="6" fill="#FFB7C5" opacity="0.35" />
+        <circle cx="138" cy="92" r="6" fill="#FFB7C5" opacity="0.35" />
 
         {/* === SUCCESS SPARKLES === */}
         {success && (
