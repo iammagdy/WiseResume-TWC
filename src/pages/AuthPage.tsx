@@ -12,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { AuthMethodToggle } from '@/components/auth/AuthMethodToggle';
+import { AppIcon } from '@/components/brand/AppIcon';
 
 const emailSchema = z.string().email('Please enter a valid email');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
@@ -177,6 +178,16 @@ export default function AuthPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
+          {/* App Icon */}
+          <motion.div
+            className="flex justify-center mb-4"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+          >
+            <AppIcon size={48} className="drop-shadow-[0_0_8px_rgba(139,92,246,0.35)]" />
+          </motion.div>
+
           {/* Header */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-display font-bold mb-1">
