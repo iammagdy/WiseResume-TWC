@@ -303,12 +303,14 @@ export default function EditorPage() {
         </div>
 
         {/* Stepper Nav */}
+        <div className="shrink-0">
         <StepperNav
           steps={steps}
           activeStep={activeTab}
           completedSteps={sectionStatus}
           onStepClick={handleTabChange}
         />
+        </div>
 
         {/* Editor Tabs (hidden tab list, content driven by stepper) */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -398,8 +400,8 @@ export default function EditorPage() {
           <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
         )}
 
-        {/* Bottom Fixed Section - AI Studio Bar + Action Button */}
-        <div className="shrink-0 glass border-t border-border z-30">
+        {/* Bottom Fixed Section - AI Studio Bar */}
+        <div className="sticky bottom-0 z-30 glass border-t border-border shrink-0">
           {/* AI Studio Bar */}
           <AIAssistantBar
             matchScore={matchScore}

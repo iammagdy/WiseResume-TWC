@@ -22,7 +22,7 @@ export function AppShell() {
       <OfflineBanner />
       {showGuestBanner && <GuestSaveBanner />}
       <main className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}>
-        <div className="flex-1 flex flex-col min-h-0 w-full h-full">
+        <div className="flex-1 flex flex-col min-h-0 w-full">
           {currentOutlet}
         </div>
       </main>
