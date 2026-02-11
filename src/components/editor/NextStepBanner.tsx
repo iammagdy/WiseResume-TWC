@@ -1,6 +1,5 @@
 import { X, Eye, Target, Mic } from 'lucide-react';
 import { useSettingsStore } from '@/store/settingsStore';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface NextStepBannerProps {
   variant: 'preview' | 'tailor' | 'interview';
@@ -42,12 +41,8 @@ export function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
   if (dismissed) return null;
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        className="mx-4 mb-2 flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5"
+      <div
+        className="mx-4 mb-2 flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5 animate-in fade-in-0 slide-in-from-top-2 duration-200"
       >
         <Icon className="w-4 h-4 text-primary flex-shrink-0" />
         <span className="text-sm text-foreground flex-1">{text}</span>
@@ -64,7 +59,6 @@ export function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
         >
           <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
-      </motion.div>
-    </AnimatePresence>
+      </div>
   );
 }
