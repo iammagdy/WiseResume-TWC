@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { History, RotateCcw, Trash2, Calendar, TrendingUp, Download } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -24,7 +23,6 @@ export function TailorHistorySheet({
   onRestore,
   onClear,
 }: TailorHistorySheetProps) {
-  // Group history by date
   const groupedHistory = history.reduce((acc, entry) => {
     const date = new Date(entry.createdAt);
     const today = new Date();
@@ -71,12 +69,10 @@ export function TailorHistorySheet({
                 </h4>
                 <div className="space-y-3">
                   {entries.map((entry, index) => (
-                    <motion.div
+                    <div
                       key={entry.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
+                      className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all duration-300 animate-fade-in"
+                      style={{ animationDelay: `${index * 50}ms` }}
                     >
                       <div className="flex items-start justify-between gap-3 mb-3">
                         <div className="min-w-0">
@@ -127,7 +123,7 @@ export function TailorHistorySheet({
                           Restore
                         </Button>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               </div>

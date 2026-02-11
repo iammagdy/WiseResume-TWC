@@ -1,6 +1,5 @@
-import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 import { TrendingUp, Target, Zap, FileSearch, Award } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { SectionScores } from '@/types/resume';
 import { cn } from '@/lib/utils';
 
@@ -13,14 +12,29 @@ interface ScoreComparisonProps {
 
 function AnimatedNumber({ value }: { value: number }) {
   const [displayValue, setDisplayValue] = useState(0);
+  const rafRef = useRef<number>();
+  const startTimeRef = useRef<number>();
 
   useEffect(() => {
-    const controls = animate(0, value, {
-      duration: 1.2,
-      ease: 'easeOut',
-      onUpdate: (v) => setDisplayValue(Math.round(v)),
-    });
-    return () => controls.stop();
+    startTimeRef.current = undefined;
+    const duration = 1200;
+
+    const step = (timestamp: number) => {
+      if (!startTimeRef.current) startTimeRef.current = timestamp;
+      const elapsed = timestamp - startTimeRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayValue(Math.round(eased * value));
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, [value]);
 
   return <span>{displayValue}</span>;
@@ -40,20 +54,48 @@ function ScoreCircle({ score, label, size = 'lg' }: { score: number; label: stri
     return 'Needs Work';
   };
 
+  const dimension = size === 'lg' ? 96 : 64;
+  const strokeWidth = size === 'lg' ? 6 : 4;
+  const radius = (dimension - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+
+  const strokeColor =
+    score >= 85 ? 'hsl(var(--success))' :
+    score >= 70 ? 'hsl(38, 92%, 50%)' :
+    'hsl(var(--destructive))';
+
   return (
     <div className="text-center">
-      <div className={cn(
-        'rounded-2xl border-4 flex flex-col items-center justify-center mx-auto mb-2',
-        size === 'lg' ? 'w-24 h-24' : 'w-16 h-16',
-        getScoreColor(score),
-        score >= 85 ? 'border-success/30 bg-success/10' :
-        score >= 70 ? 'border-amber-500/30 bg-amber-500/10' :
-        'border-destructive/30 bg-destructive/10'
-      )}>
-        <span className={cn('font-bold', size === 'lg' ? 'text-3xl' : 'text-xl')}>
-          <AnimatedNumber value={score} />
-        </span>
-        <span className={cn('font-medium', size === 'lg' ? 'text-sm' : 'text-xs')}>%</span>
+      <div className="relative mx-auto mb-2" style={{ width: dimension, height: dimension }}>
+        <svg width={dimension} height={dimension} className="-rotate-90">
+          <circle
+            cx={dimension / 2}
+            cy={dimension / 2}
+            r={radius}
+            fill="none"
+            stroke="hsl(var(--muted))"
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            cx={dimension / 2}
+            cy={dimension / 2}
+            r={radius}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            className="transition-[stroke-dashoffset] duration-[1.2s] ease-out"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className={cn('font-bold', getScoreColor(score), size === 'lg' ? 'text-2xl' : 'text-lg')}>
+            <AnimatedNumber value={score} />
+          </span>
+          <span className={cn('font-medium text-muted-foreground', size === 'lg' ? 'text-[10px]' : 'text-[9px]')}>%</span>
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className={cn('text-xs font-medium', getScoreColor(score))}>
@@ -77,17 +119,19 @@ export function ScoreComparison({
   selectedSections,
 }: ScoreComparisonProps) {
   const improvement = afterScore - beforeScore;
-
-  // Calculate effective after score based on selected sections
   const effectiveAfterScore = Math.round(
     beforeScore + (improvement * selectedSections.length / 4)
   );
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className="p-5 rounded-2xl bg-gradient-to-br from-card via-card to-muted/30 border border-border"
+    <div
+      className={cn(
+        'p-5 rounded-2xl bg-gradient-to-br from-card via-card to-muted/30 border border-border transition-all duration-500',
+        mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+      )}
     >
       <h4 className="font-semibold text-sm mb-4 flex items-center gap-2">
         <TrendingUp className="w-4 h-4 text-primary" />
@@ -98,12 +142,10 @@ export function ScoreComparison({
       <div className="flex items-center justify-center gap-6 mb-6">
         <ScoreCircle score={beforeScore} label="Before" />
         
-        <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.3, type: 'spring' }}
-          className="flex flex-col items-center"
-        >
+        <div className={cn(
+          'flex flex-col items-center transition-all duration-500 delay-300',
+          mounted ? 'opacity-100 scale-100' : 'opacity-0 scale-0'
+        )}>
           <div className="text-2xl">→</div>
           <span className={cn(
             'text-xs font-bold px-2 py-0.5 rounded-full',
@@ -111,7 +153,7 @@ export function ScoreComparison({
           )}>
             +{improvement}
           </span>
-        </motion.div>
+        </div>
 
         <ScoreCircle score={effectiveAfterScore} label="After" />
       </div>
@@ -125,15 +167,14 @@ export function ScoreComparison({
           const isSelected = selectedSections.includes(id);
 
           return (
-            <motion.div
+            <div
               key={id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.4 + index * 0.1 }}
               className={cn(
-                'flex items-center justify-between text-sm p-2 rounded-lg transition-colors',
-                isSelected ? 'bg-primary/5' : 'opacity-50'
+                'flex items-center justify-between text-sm p-2 rounded-lg transition-all duration-300',
+                isSelected ? 'bg-primary/5' : 'opacity-50',
+                mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2'
               )}
+              style={{ transitionDelay: `${400 + index * 100}ms` }}
             >
               <div className="flex items-center gap-2">
                 <Icon className="w-4 h-4 text-muted-foreground" />
@@ -152,10 +193,10 @@ export function ScoreComparison({
                   <span className="text-xs text-success font-medium">(+{change})</span>
                 )}
               </div>
-            </motion.div>
+            </div>
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -1,6 +1,5 @@
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 import { Check, Circle, Loader2, Sparkles, TrendingUp } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
 import { TailorProgress as TailorProgressType, TailorStep, EnhancedTailorProgress, EnhancedTailorStep } from '@/types/resume';
 import { cn } from '@/lib/utils';
 
@@ -33,19 +32,14 @@ const FUN_FACTS = [
   "✨ Action verbs increase resume effectiveness by 140%",
   "🔑 Including metrics makes achievements 40% more compelling",
   "🏆 Top resumes use 11-14 unique skills on average",
+  "📈 Quantified achievements get 40% more callbacks",
+  "🚀 Keywords from job descriptions boost ATS scores by 60%",
 ];
 
-const getStepIndex = (step: TailorStep | EnhancedTailorStep): number => {
-  const index = STEPS.findIndex(s => s.id === step);
-  return index === -1 ? STEPS.length : index;
-};
-
 const getVisibleSteps = (currentStep: TailorStep | EnhancedTailorStep) => {
-  // Filter to show relevant steps based on current flow
   const enhancedSteps = ['analyzing_requirements', 'detecting_industry', 'matching_experience', 'transforming_bullets', 'calculating_ats', 'generating_interview_prep', 'finalizing'];
   const legacySteps = ['analyzing', 'matching', 'rewriting_summary', 'optimizing_skills', 'enhancing_experience', 'generating_recs'];
   
-  // Determine which flow we're in
   const isEnhanced = enhancedSteps.includes(currentStep);
   
   if (isEnhanced) {
@@ -58,19 +52,44 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
   const isComplete = progress.step === 'complete';
   const visibleSteps = getVisibleSteps(progress.step);
   const currentIndex = visibleSteps.findIndex(s => s.id === progress.step);
-  const funFact = (progress as EnhancedTailorProgress).funFact || FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
+
+  // Rotating fun facts
+  const [funFactIndex, setFunFactIndex] = useState(0);
+  const [funFactVisible, setFunFactVisible] = useState(true);
+
+  useEffect(() => {
+    if (isComplete) return;
+    const interval = setInterval(() => {
+      setFunFactVisible(false);
+      setTimeout(() => {
+        setFunFactIndex(prev => (prev + 1) % FUN_FACTS.length);
+        setFunFactVisible(true);
+      }, 300);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isComplete]);
+
+  // Show/hide state for mount animation
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="p-5 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20"
+    <div
+      className={cn(
+        'p-5 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20 transition-all duration-500',
+        mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
+      )}
     >
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+        <div className={cn(
+          'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300',
+          isComplete
+            ? 'bg-success/20 shadow-[0_0_16px_-4px_hsl(var(--success)/0.5)]'
+            : 'bg-primary/20 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.4)] animate-pulse'
+        )}>
           {isComplete ? (
-            <Sparkles className="w-5 h-5 text-primary animate-pulse" />
+            <Sparkles className="w-5 h-5 text-success" />
           ) : (
             <Loader2 className="w-5 h-5 text-primary animate-spin" />
           )}
@@ -83,24 +102,33 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Shimmer Progress Bar */}
       <div className="mb-5">
-        <Progress value={progress.progress} className="h-2" />
+        <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-secondary/30 backdrop-blur-sm">
+          <div
+            className="h-full rounded-full gradient-primary transition-all duration-700 ease-out relative overflow-hidden"
+            style={{ width: `${progress.progress}%` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
+          </div>
+        </div>
         <p className="text-xs text-muted-foreground text-right mt-1">
           {Math.round(progress.progress)}%
         </p>
       </div>
 
-      {/* Fun Fact */}
+      {/* Rotating Fun Fact */}
       {!isComplete && (
-        <motion.div
-          key={funFact}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20"
-        >
-          <p className="text-xs text-amber-700 dark:text-amber-400">{funFact}</p>
-        </motion.div>
+        <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 min-h-[44px] flex items-center">
+          <p
+            className={cn(
+              'text-xs text-amber-700 dark:text-amber-400 transition-opacity duration-300',
+              funFactVisible ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            {FUN_FACTS[funFactIndex]}
+          </p>
+        </div>
       )}
 
       {/* Step List */}
@@ -111,20 +139,20 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
           const isFutureStep = index > currentIndex && !isComplete;
 
           return (
-            <motion.div
+            <div
               key={step.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
               className={cn(
-                'flex items-center gap-3 text-sm py-1.5 px-2 rounded-lg transition-colors',
+                'flex items-center gap-3 text-sm py-1.5 px-2 rounded-lg transition-all duration-300',
                 isCurrentStep && 'bg-primary/10',
-                isPastStep && 'opacity-60'
+                isPastStep && 'opacity-60',
+                // Stagger appearance
+                mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2',
               )}
+              style={{ transitionDelay: `${index * 50}ms` }}
             >
               <div className={cn(
-                'w-5 h-5 rounded-full flex items-center justify-center shrink-0',
-                isPastStep || isComplete ? 'bg-primary text-primary-foreground' : 
+                'w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300',
+                isPastStep || isComplete ? 'bg-primary text-primary-foreground scale-100' :
                 isCurrentStep ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
               )}>
                 {isPastStep || isComplete ? (
@@ -145,38 +173,31 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
               {isPastStep && !isComplete && (
                 <span className="text-xs text-success">✓</span>
               )}
-            </motion.div>
+            </div>
           );
         })}
       </div>
 
       {/* Stats Preview */}
-      <AnimatePresence>
-        {(projectedScore || matchingKeywords) && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="pt-4 border-t border-primary/20 space-y-2"
-          >
-            {matchingKeywords && matchingKeywords > 0 && (
-              <div className="flex items-center gap-2 text-sm">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Found <strong>{matchingKeywords}</strong> skill gaps to address</span>
-              </div>
-            )}
-            {projectedScore && (
-              <div className="flex items-center gap-2 text-sm">
-                <TrendingUp className="w-4 h-4 text-success" />
-                <span>
-                  Projected score: <strong>{projectedScore.before}%</strong> → <strong className="text-success">{projectedScore.after}%</strong>
-                  <span className="text-xs text-success ml-1">(+{projectedScore.after - projectedScore.before}%)</span>
-                </span>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+      {(projectedScore || (matchingKeywords && matchingKeywords > 0)) && (
+        <div className="pt-4 border-t border-primary/20 space-y-2">
+          {matchingKeywords && matchingKeywords > 0 && (
+            <div className="flex items-center gap-2 text-sm">
+              <Sparkles className="w-4 h-4 text-amber-500" />
+              <span>Found <strong>{matchingKeywords}</strong> skill gaps to address</span>
+            </div>
+          )}
+          {projectedScore && (
+            <div className="flex items-center gap-2 text-sm">
+              <TrendingUp className="w-4 h-4 text-success" />
+              <span>
+                Projected score: <strong>{projectedScore.before}%</strong> → <strong className="text-success">{projectedScore.after}%</strong>
+                <span className="text-xs text-success ml-1">(+{projectedScore.after - projectedScore.before}%)</span>
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
