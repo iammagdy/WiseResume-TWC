@@ -1,86 +1,55 @@
 
 
-# Redesign Editor User Flow and Fix Button Positioning
+# Fix Bottom Bar Not Showing on Editor Page
 
-## Issues Found
+## Problem
 
-### User Flow Problems
+The editor page's bottom AI Studio bar disappears on some devices due to fragile flex layout nesting. The layout chain is:
 
-1. **Duplicate section titles** -- Each section renders its own `<h3>` title (e.g., "Contact Information", "Work Experience") inside the section component, AND `SectionCard` also renders a title with an icon. The user sees the section name twice stacked on top of each other.
+```text
+AppShell (min-h-[100dvh], flex-col)
+  main (flex-1, overflow-hidden)
+    div (flex-1, min-h-0, h-full)
+      EditorPage root (flex-1, flex-col, min-h-0, overflow-hidden)
+        header (shrink-0)
+        progress bar (shrink-0)
+        StepperNav (NO shrink-0)
+        content wrapper (flex-1, overflow-hidden)
+          scrollable area (flex-1, overflow-y-auto)
+        bottom bar (shrink-0, glass)
+```
 
-2. **No "Next" navigation between sections** -- Users must manually tap the stepper circles to move between sections. There is no obvious forward/backward button to guide them through the flow sequentially. This makes the editing experience feel disconnected rather than guided.
+The bottom bar relies on every ancestor in this 4-level-deep flex chain calculating heights correctly. On devices with unusual viewport behavior (dynamic toolbars, notch insets, etc.), the flex container can miscalculate available height, pushing the bottom bar below the visible area.
 
-3. **AI Studio bar is overwhelming for first-time users** -- The bottom area stacks the AI Studio collapsible bar AND a large "Preview & Export" button, taking up significant screen space and creating visual noise. Users editing their first resume are presented with 7+ AI tools before they have even finished filling in basic information.
+Additionally, StepperNav has no `shrink-0`, allowing it to potentially collapse or behave unpredictably under space pressure.
 
-4. **NextStepBanner appears too early** -- The preview banner shows as soon as Contact + Experience are filled, but Summary, Education, and Skills may still be empty. This can mislead users into thinking they are done.
+## Root Causes
 
-### Button Positioning Problems
+1. **Flex-only positioning is fragile for persistent bottom UI** -- The bottom bar depends on correct height propagation through 4 nested flex containers. Any miscalculation hides it.
+2. **StepperNav missing `shrink-0`** -- Under tight space, the stepper could shrink, destabilizing the layout.
+3. **AppShell inner div has `h-full`** -- This can conflict with `flex-1` on some browsers, creating height ambiguity.
 
-5. **"Add" button placement inconsistency** -- In Experience and Education sections, the "Add" button is in the header row next to the title. But in Skills, there is no "Add" button in the header -- the add functionality is inline with an input field. Contact and Summary have no add button at all (correct, since they are single-entry). This inconsistency is fine functionally but could be cleaner.
+## Solution
 
-6. **Delete buttons are full-width and destructive-red** -- In Experience and Education expanded cards, the delete button is `w-full` with `variant="destructive"` and `size="lg"`. This makes it very prominent and easy to accidentally tap on mobile. A subtler placement (e.g., small icon button in the card header) would be safer.
-
-7. **InlineAIButton position varies** -- In Contact and Summary, the AI button is on the right side of the section header. In Experience and Education, it is on the left side next to the title. This inconsistency creates confusion about where AI actions live.
-
-8. **Experience section has TWO InlineAIButtons** -- One in the section header (line 137-142) and one inside each expanded experience entry (line 293-298). This is redundant and confusing -- users do not know which one to tap.
+Make the bottom bar use `sticky bottom-0` positioning instead of relying solely on flex layout. This guarantees visibility regardless of content height or flex chain behavior. Also add `shrink-0` to the StepperNav and clean up the inner content wrapper.
 
 ## Changes
 
-### 1. Remove duplicate section titles from section components
+### 1. `src/pages/EditorPage.tsx`
 
-**Files:** `ContactSection.tsx`, `SummarySection.tsx`, `ExperienceSection.tsx`, `EducationSection.tsx`, `SkillsSection.tsx`
+- **StepperNav wrapper**: Add `shrink-0` class to prevent it from collapsing.
+- **Bottom bar**: Change from `shrink-0 glass border-t` to `sticky bottom-0 z-30 glass border-t`. This anchors it to the bottom of the scroll ancestor, ensuring it is always visible even if flex height calculations fail.
+- **Content area padding**: Add `pb-2` to the scrollable content area to ensure section navigation buttons don't overlap with the sticky bottom bar.
 
-Remove the `<h3>` title + `InlineAIButton` header row from each section component. The `SectionCard` wrapper already provides the title, icon, and status. This will eliminate the double-title issue.
+### 2. `src/components/layout/AppShell.tsx`
 
-Move the `InlineAIButton` into the `SectionCard` header area instead (passed as a prop or rendered alongside the title).
+- Remove `h-full` from the inner div wrapping `{currentOutlet}` -- this conflicts with `flex-1` on some mobile browsers and can cause the flex container to either over-expand or under-expand.
 
-### 2. Add SectionCard AI action slot
+## Technical Details
 
-**File:** `SectionCard.tsx`
-
-Add an optional `action` prop to `SectionCard` that renders a slot in the header row (right side). This is where the `InlineAIButton` will live for each section, providing consistent placement.
-
-### 3. Add Next/Previous section navigation
-
-**File:** `EditorPage.tsx`
-
-Add "Next" and "Previous" buttons at the bottom of each section's content area. The "Next" button advances to the next stepper step, and "Previous" goes back. On the last step (Skills), the "Next" button becomes "Preview & Export". This provides a clear guided flow.
-
-### 4. Make delete buttons subtler
-
-**Files:** `ExperienceSection.tsx`, `EducationSection.tsx`
-
-Replace the full-width destructive delete button with a small icon button (`Trash2` icon) positioned in the top-right of the expanded card content area. Add a confirmation step (or at minimum make it less prominent with `variant="ghost"` and `text-destructive`).
-
-### 5. Standardize InlineAIButton position
-
-**Files:** `ExperienceSection.tsx`
-
-Remove the duplicate header-level `InlineAIButton` from Experience section. Keep only the per-entry AI button inside expanded cards (since each entry has different content to enhance). For the section-level AI action, use the `SectionCard` action slot.
-
-### 6. Improve NextStepBanner trigger logic
-
-**File:** `EditorPage.tsx`
-
-Change the banner condition from `contact && experience` to showing when ALL 5 sections are complete (or at least 4 out of 5). This prevents premature "you're done" signals.
-
-### 7. Simplify the bottom footer area
-
-**File:** `EditorPage.tsx`
-
-Move the "Preview & Export" button into the section navigation (it becomes the final "Next" action on the Skills tab). Remove the always-visible large button from the bottom. Keep only the AI Studio bar in the bottom fixed area, making it less cluttered.
-
-Alternatively, reduce the Preview button to a smaller, secondary style when sections are incomplete, and make it prominent only when progress is 80%+.
-
-## Summary of File Changes
-
-| File | Changes |
-|------|---------|
-| `src/components/editor/SectionCard.tsx` | Add optional `action` prop for AI button slot |
-| `src/components/editor/ContactSection.tsx` | Remove duplicate `<h3>` title and header row |
-| `src/components/editor/SummarySection.tsx` | Remove duplicate `<h3>` title and header row |
-| `src/components/editor/ExperienceSection.tsx` | Remove duplicate title, remove header AI button, make delete button subtler |
-| `src/components/editor/EducationSection.tsx` | Remove duplicate title, make delete button subtler |
-| `src/components/editor/SkillsSection.tsx` | Remove duplicate `<h3>` title and header row |
-| `src/pages/EditorPage.tsx` | Add Next/Previous navigation, update NextStepBanner logic, pass AI actions to SectionCard, simplify footer |
+The sticky approach is more resilient because:
+- It doesn't depend on all parent flex containers calculating height correctly
+- It works with both `overflow-hidden` and `overflow-auto` ancestors
+- It gracefully handles dynamic viewport changes (iOS Safari toolbar, keyboard, etc.)
+- The BottomTabBar already uses `fixed` positioning for the same reason -- persistent bottom UI should never rely on flex-only layout
 
