@@ -1,49 +1,72 @@
 
-# Enhanced AI Tailor: Loading, Results, and Auto-Save Tailored CVs
+# Enhanced Cover Letter Generator: Smart Contact Info, History, and Premium UI
 
 ## Overview
 
-This plan enhances three areas of the AI Tailor experience: (1) a premium loading/progress screen, (2) a polished results screen with better visual hierarchy, and (3) automatic creation of a new tailored CV in the database while keeping the original untouched.
+Three major enhancements: (1) auto-inject real contact info so no more placeholder text like `[Your Phone Number]`, (2) cover letter history system matching the tailor history design, and (3) premium results screen with PDF download and edit/view toggle.
 
 ---
 
-## Part 1: Enhanced Tailoring Progress Screen
+## Part 1: Auto-Inject Contact Info
 
-The current progress screen is functional but flat. Enhancements:
+**Problem:** The screenshot shows `[Your Phone Number] | [Your Email Address]` and `[Your LinkedIn Profile URL]` -- the AI generates placeholders because the prompt doesn't include actual contact details.
 
-- **Animated gradient progress bar** with a shimmer effect instead of the plain bar
-- **Step icons** that animate from a spinning loader to a green checkmark with a subtle scale pop
-- **Live stats preview** that appears mid-progress: "Found 12 keyword matches", "Projected score: +38"
-- **Rotating fun facts** that cycle every 3 seconds instead of showing a single static one
-- **Pulsing header icon** with a glow effect for the "Supercharging" title
-- **Remove framer-motion** from `TailorProgress.tsx` and `ScoreComparison.tsx` (both still use `motion.div` and `AnimatePresence` which could cause the same crash)
+**Backend fix** (`supabase/functions/generate-cover-letter/index.ts`):
+- Add contact info (phone, email, LinkedIn) to the AI user prompt so the model uses real values
+- Add instruction: "Use the candidate's actual contact details. Do NOT use placeholder brackets."
 
----
-
-## Part 2: Enhanced Results Screen
-
-Based on the reference screenshot, the results screen should feel more premium:
-
-- **Score circles with animated ring strokes** using SVG `stroke-dasharray` and CSS transitions (replacing framer-motion's `AnimatedNumber`)
-- **Section change cards** with a colored left accent border (red/green) and a point-impact badge ("+55pts")
-- **Remove framer-motion** from `SectionChangeCard.tsx` (uses `motion.div`)
-- **Confetti/celebration effect** on the success header using CSS keyframes
-- **Tabbed results** already exist -- keep as-is but ensure Radix Tabs here don't cause the same crash (wrap in error boundary or replace with manual tabs if needed)
+**Frontend safety net** (`CoverLetterGenerator.tsx`):
+- After receiving the AI response, run a regex replacement to swap any remaining `[Your Phone Number]`, `[Your Email Address]`, `[Your LinkedIn Profile URL]` with actual values from `resume.contactInfo`
 
 ---
 
-## Part 3: Auto-Create Tailored CV in Database
+## Part 2: Cover Letter History
 
-When the user clicks "Apply Changes", the system will:
+**New type** in `src/types/resume.ts`:
+```
+CoverLetterHistory {
+  id: string;
+  jobTitle: string;
+  company: string;
+  tone: string;
+  coverLetter: string;
+  createdAt: string;
+}
+```
 
-1. **Create a new resume** in the database with `parent_resume_id` set to the original resume's ID
-2. **Title format**: `"{Original Title} - Tailored for {Job Title} @ {Company}"`
-3. **Set `target_job_title` and `target_company`** on the new resume
-4. **Set `job_match_score`** to the after-score
-5. **Navigate to the new resume** in the editor (or stay and show success)
-6. **Original resume stays untouched** -- no changes applied to it
+**Store changes** in `src/store/resumeStore.ts`:
+- Add `coverLetterHistory: CoverLetterHistory[]` (persisted, max 20 entries)
+- Add `addCoverLetterHistory(entry)`, `deleteCoverLetterHistoryEntry(id)`, `clearCoverLetterHistory()` actions
 
-The dashboard already has `ResumeGroup` and `organizeResumeHierarchy` which groups tailored versions under their parent using `parent_resume_id`. So the new tailored CV will automatically appear grouped under the original on the dashboard.
+**New component** `src/components/editor/tailor/CoverLetterHistorySheet.tsx`:
+- Same visual structure as `TailorHistorySheet.tsx` -- grouped by date, cards with role/company, tone badge, timestamp
+- Actions per card: View (loads into generator), Copy, Delete
+- Footer: Clear All button
+
+**Integration:**
+- History button in the CoverLetterGenerator header
+- Auto-save to history on successful generation
+
+---
+
+## Part 3: Enhanced Results Screen and Downloads
+
+**Remove framer-motion** from `CoverLetterGenerator.tsx` (currently uses `motion.div` on line 155) to prevent the infinite loop crash consistent with all other editor fixes.
+
+**Premium layout:**
+- Success header with green checkmark badge and a celebration shimmer CSS animation
+- Job context card showing target role and company with tone badge
+- Read mode: styled paper-like card with proper typography instead of raw textarea
+- Edit mode: toggle to textarea when user taps "Edit", back to styled view on "Done"
+
+**Download options:**
+- "Download PDF" button using `generateCoverLetterPDF` from `src/lib/pdfGenerator.ts` (already exists) combined with `downloadFile` from `src/lib/downloadUtils.ts`
+- "Download TXT" kept as secondary option
+- "Copy to Clipboard" remains prominent
+
+**Redesigned action buttons:**
+- Primary row: Copy to Clipboard (gradient), Download PDF (outline)
+- Secondary row: Regenerate (outline), History (outline)
 
 ---
 
@@ -53,32 +76,49 @@ The dashboard already has `ResumeGroup` and `organizeResumeHierarchy` which grou
 
 | File | Changes |
 |------|---------|
-| `src/components/editor/tailor/TailorProgress.tsx` | Remove framer-motion, add CSS animations, rotating fun facts timer, live stats preview |
-| `src/components/editor/tailor/ScoreComparison.tsx` | Remove framer-motion, use SVG stroke-dasharray with CSS transitions for score circles |
-| `src/components/editor/tailor/SectionChangeCard.tsx` | Remove framer-motion, add colored accent border, enhanced impact badge |
-| `src/components/editor/TailorSheet.tsx` | Remove framer-motion (AnimatePresence, motion.div), update `handleApplyChanges` to create new DB resume instead of modifying original, add Radix Tabs crash guard |
-| `src/components/editor/tailor/TailorHistorySheet.tsx` | Remove framer-motion from history entry cards |
+| `supabase/functions/generate-cover-letter/index.ts` | Add phone/email/LinkedIn to AI prompt; instruct no placeholders |
+| `src/types/resume.ts` | Add `CoverLetterHistory` interface |
+| `src/store/resumeStore.ts` | Add `coverLetterHistory` state and CRUD actions |
+| `src/components/editor/tailor/CoverLetterGenerator.tsx` | Remove framer-motion; enhance UI with read/edit toggle, PDF download, placeholder replacement, history integration |
+| `src/components/editor/tailor/CoverLetterHistorySheet.tsx` | New file -- history sheet matching TailorHistorySheet design |
 
-### Apply Changes Flow (updated):
+### Contact Info in AI Prompt (Edge Function):
 
-```text
-User clicks "Apply" -->
-  1. Create new resume in DB via createResume mutation
-     - parent_resume_id = currentResume.id
-     - title = "{name} - Tailored for {jobTitle} @ {company}"
-     - content = merged tailored sections
-     - target_job_title, target_company, job_match_score set
-  2. Save to tailor history (existing logic)
-  3. Toast: "Tailored resume created! Original preserved."
-  4. Navigate to new resume in editor OR close sheet
-  5. Original resume remains unchanged
+Add to the user prompt before the job description:
+```
+CANDIDATE CONTACT INFO:
+Phone: {resume.contactInfo.phone}
+Email: {resume.contactInfo.email}
+LinkedIn: {resume.contactInfo.linkedin}
+
+Include these actual contact details in the letter header. Do NOT use placeholder brackets like [Your Phone Number].
 ```
 
-### Tabs Safety:
-The results screen uses Radix `Tabs` which could trigger the same infinite loop. The plan is to replace them with a manual tab implementation using `useState` and `div` buttons, consistent with the pattern used to fix `InlineAIButton`.
+### Placeholder Replacement (Frontend Safety Net):
 
-### Fun Facts Rotation:
-Add a `useEffect` with `setInterval` (every 4s) to cycle through fun facts during the progress phase, instead of picking one randomly at render time.
+```typescript
+function injectContactInfo(letter: string, contactInfo: ContactInfo): string {
+  return letter
+    .replace(/\[Your Phone Number\]/gi, contactInfo.phone || '')
+    .replace(/\[Your Email Address\]/gi, contactInfo.email || '')
+    .replace(/\[Your LinkedIn Profile URL\]/gi, contactInfo.linkedin || '')
+    .replace(/\[Your LinkedIn\]/gi, contactInfo.linkedin || '');
+}
+```
 
-### Score Circle Enhancement:
-Replace the framer-motion `AnimatedNumber` with a `useEffect` + `requestAnimationFrame` counter that animates from 0 to the target value over ~1.2s. SVG circles will use `stroke-dashoffset` with CSS `transition: stroke-dashoffset 1.2s ease-out`.
+### PDF Download:
+
+Uses the existing `generateCoverLetterPDF` function from `src/lib/pdfGenerator.ts` which already formats cover letters on A4 pages with proper typography, combined with the cross-platform `downloadFile` utility.
+
+### History Entry Shape:
+
+```typescript
+{
+  id: "uuid",
+  jobTitle: "Account Supervisor",
+  company: "Loynova",
+  tone: "professional",
+  coverLetter: "Full letter text...",
+  createdAt: "2026-02-11T..."
+}
+```
