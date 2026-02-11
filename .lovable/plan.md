@@ -1,65 +1,84 @@
 
+# Enhanced AI Tailor: Loading, Results, and Auto-Save Tailored CVs
 
-# Fix: Two Root Causes of Editor Page Crash
+## Overview
 
-## Issue 1: InlineAIButton's Radix DropdownMenu (Primary Crash)
+This plan enhances three areas of the AI Tailor experience: (1) a premium loading/progress screen, (2) a polished results screen with better visual hierarchy, and (3) automatic creation of a new tailored CV in the database while keeping the original untouched.
 
-The console stack trace explicitly points to `InlineAIButton` -> `DropdownMenu` -> `Popper` as the source of the "Maximum update depth exceeded" error. Radix's `Popper` component (used internally by DropdownMenu) has the same ref-management conflict with React 18 that caused the previous Tabs crashes.
+---
 
-`InlineAIButton` is rendered inside every section (Contact, Summary, Experience, Education, Skills), so it fires on every tab.
+## Part 1: Enhanced Tailoring Progress Screen
 
-**Fix:** Replace Radix `DropdownMenu` in `InlineAIButton.tsx` with a simple state-controlled popover using a plain `div` + `useState` for open/close. This eliminates Radix's Popper from the editor tree entirely.
+The current progress screen is functional but flat. Enhancements:
 
-## Issue 2: Save-on-Unmount Infinite Loop (Secondary Crash)
+- **Animated gradient progress bar** with a shimmer effect instead of the plain bar
+- **Step icons** that animate from a spinning loader to a green checkmark with a subtle scale pop
+- **Live stats preview** that appears mid-progress: "Found 12 keyword matches", "Projected score: +38"
+- **Rotating fun facts** that cycle every 3 seconds instead of showing a single static one
+- **Pulsing header icon** with a glow effect for the "Supercharging" title
+- **Remove framer-motion** from `TailorProgress.tsx` and `ScoreComparison.tsx` (both still use `motion.div` and `AnimatePresence` which could cause the same crash)
 
-The runtime error stack trace shows:
-```
-setIsSaving (resumeStore.ts:45:32)
-  at EditorPage.tsx:179:9
-```
+---
 
-In `EditorPage.tsx` lines 170-181, the "save on unmount" effect calls `saveToCloud()`, which calls `setIsSaving(true)`. This updates the zustand store, triggering a re-render, which re-runs effect cleanup, which calls `saveToCloud()` again -- infinite loop.
+## Part 2: Enhanced Results Screen
 
-**Fix:** In the unmount effect, call `updateResume.mutateAsync()` directly as a fire-and-forget without updating `isSaving` state. Alternatively, use a ref to track saving status instead of zustand state in the unmount path.
+Based on the reference screenshot, the results screen should feel more premium:
 
-## Changes
+- **Score circles with animated ring strokes** using SVG `stroke-dasharray` and CSS transitions (replacing framer-motion's `AnimatedNumber`)
+- **Section change cards** with a colored left accent border (red/green) and a point-impact badge ("+55pts")
+- **Remove framer-motion** from `SectionChangeCard.tsx` (uses `motion.div`)
+- **Confetti/celebration effect** on the success header using CSS keyframes
+- **Tabbed results** already exist -- keep as-is but ensure Radix Tabs here don't cause the same crash (wrap in error boundary or replace with manual tabs if needed)
 
-### File 1: `src/components/editor/InlineAIButton.tsx`
-- Remove Radix `DropdownMenu`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuTrigger` imports
-- Add `useState` and `useRef`/`useEffect` for click-outside handling
-- Replace with a button that toggles a positioned `div` dropdown
-- Keep the same visual appearance and action items
-- Keep `AIProviderFooter` at the bottom of the menu
+---
 
-### File 2: `src/pages/EditorPage.tsx`
-- Remove the save-on-unmount effect (lines 170-181) that calls `saveToCloud()` during cleanup
-- Replace with a simpler unmount handler that directly calls the mutation without `setIsSaving`:
+## Part 3: Auto-Create Tailored CV in Database
+
+When the user clicks "Apply Changes", the system will:
+
+1. **Create a new resume** in the database with `parent_resume_id` set to the original resume's ID
+2. **Title format**: `"{Original Title} - Tailored for {Job Title} @ {Company}"`
+3. **Set `target_job_title` and `target_company`** on the new resume
+4. **Set `job_match_score`** to the after-score
+5. **Navigate to the new resume** in the editor (or stay and show success)
+6. **Original resume stays untouched** -- no changes applied to it
+
+The dashboard already has `ResumeGroup` and `organizeResumeHierarchy` which groups tailored versions under their parent using `parent_resume_id`. So the new tailored CV will automatically appear grouped under the original on the dashboard.
+
+---
+
+## Technical Details
+
+### Files to modify:
+
+| File | Changes |
+|------|---------|
+| `src/components/editor/tailor/TailorProgress.tsx` | Remove framer-motion, add CSS animations, rotating fun facts timer, live stats preview |
+| `src/components/editor/tailor/ScoreComparison.tsx` | Remove framer-motion, use SVG stroke-dasharray with CSS transitions for score circles |
+| `src/components/editor/tailor/SectionChangeCard.tsx` | Remove framer-motion, add colored accent border, enhanced impact badge |
+| `src/components/editor/TailorSheet.tsx` | Remove framer-motion (AnimatePresence, motion.div), update `handleApplyChanges` to create new DB resume instead of modifying original, add Radix Tabs crash guard |
+| `src/components/editor/tailor/TailorHistorySheet.tsx` | Remove framer-motion from history entry cards |
+
+### Apply Changes Flow (updated):
 
 ```text
-BEFORE (lines 170-181):
-  useEffect(() => {
-    return () => {
-      clearTimeout(...)
-      if (user && currentResumeId && currentResume) {
-        saveToCloud();  // <-- calls setIsSaving, triggers infinite loop
-      }
-    };
-  }, [user, currentResumeId, currentResume, saveToCloud]);
-
-AFTER:
-  useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    };
-  }, []);
-  // Save-on-unmount removed -- the 2s debounce already covers normal edits
-  // and calling setIsSaving in cleanup triggers the infinite loop
+User clicks "Apply" -->
+  1. Create new resume in DB via createResume mutation
+     - parent_resume_id = currentResume.id
+     - title = "{name} - Tailored for {jobTitle} @ {company}"
+     - content = merged tailored sections
+     - target_job_title, target_company, job_match_score set
+  2. Save to tailor history (existing logic)
+  3. Toast: "Tailored resume created! Original preserved."
+  4. Navigate to new resume in editor OR close sheet
+  5. Original resume remains unchanged
 ```
 
-## Summary
+### Tabs Safety:
+The results screen uses Radix `Tabs` which could trigger the same infinite loop. The plan is to replace them with a manual tab implementation using `useState` and `div` buttons, consistent with the pattern used to fix `InlineAIButton`.
 
-| File | Change | Fixes |
-|------|--------|-------|
-| `src/components/editor/InlineAIButton.tsx` | Replace Radix DropdownMenu with plain div dropdown | Primary crash: DropdownMenu Popper infinite setState |
-| `src/pages/EditorPage.tsx` | Remove save-on-unmount effect that calls setIsSaving | Secondary crash: zustand setState in cleanup loop |
+### Fun Facts Rotation:
+Add a `useEffect` with `setInterval` (every 4s) to cycle through fun facts during the progress phase, instead of picking one randomly at render time.
 
+### Score Circle Enhancement:
+Replace the framer-motion `AnimatedNumber` with a `useEffect` + `requestAnimationFrame` counter that animates from 0 to the target value over ~1.2s. SVG circles will use `stroke-dashoffset` with CSS `transition: stroke-dashoffset 1.2s ease-out`.
