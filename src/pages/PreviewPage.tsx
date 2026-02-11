@@ -316,8 +316,8 @@ export default function PreviewPage() {
       } else {
         toast.error('Save to Files is not supported on this device');
       }
-    } catch (err: any) {
-      if (err?.name === 'AbortError') {
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
         toast.info('Cancelled. Tap again to save.');
       } else {
         console.error('Save to Files error:', err);
