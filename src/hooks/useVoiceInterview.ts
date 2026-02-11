@@ -301,9 +301,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           addEntry('interviewer', reply);
           await speak(reply);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('AI call error:', err);
-        setError(err.message || 'Failed to get AI response');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to get AI response';
+        setError(errorMessage);
         setStatus('idle');
       }
     },
@@ -382,9 +383,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       if (data?.roleAnalysis) {
         setRoleAnalysis(data.roleAnalysis);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Role analysis error:', err);
-      setError(err.message || 'Failed to analyze role');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to analyze role';
+      setError(errorMessage);
     } finally {
       setIsAnalyzingRole(false);
     }

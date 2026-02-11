@@ -95,9 +95,10 @@ export function DataExportSheet({
       toast.success(`Imported ${count} resume${count !== 1 ? 's' : ''} successfully`);
       haptics.success();
       onImportComplete?.();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Import failed:', error);
-      toast.error(error?.message || 'Failed to import backup');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to import backup';
+      toast.error(errorMessage);
       haptics.error();
     } finally {
       setIsImporting(false);

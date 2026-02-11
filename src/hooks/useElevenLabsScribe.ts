@@ -69,8 +69,9 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
       };
 
       return data.token;
-    } catch (err: any) {
-      optionsRef.current.onError?.(err.message || 'Failed to get scribe token');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to get scribe token';
+      optionsRef.current.onError?.(errorMessage);
       return null;
     }
   }, []);
@@ -164,12 +165,12 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
         setIsConnected(false);
         setAudioLevel(0);
       };
-    } catch (err: any) {
-      const msg = err.message || 'Failed to connect to speech recognition';
-      if (msg.includes('Permission denied') || msg.includes('NotAllowedError')) {
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to connect to speech recognition';
+      if (errorMessage.includes('Permission denied') || errorMessage.includes('NotAllowedError')) {
         optionsRef.current.onError?.('Microphone access denied. Please allow microphone access and try again.');
       } else {
-        optionsRef.current.onError?.(msg);
+        optionsRef.current.onError?.(errorMessage);
       }
       cleanup();
     }

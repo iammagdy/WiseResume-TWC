@@ -56,8 +56,8 @@ async function downloadIOS(
       try {
         await navigator.share({ files: [file], title: fileName });
         return { success: true, method: 'share' };
-      } catch (err: any) {
-        if (err?.name === 'AbortError') {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') {
           return { success: false, cancelled: true, method: 'share' };
         }
         if (attempt < maxRetries) continue;

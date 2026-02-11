@@ -72,14 +72,17 @@ export async function extractTextFromPDF(file: File): Promise<ExtractionResult> 
   let pdf;
   try {
     pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-  } catch (error: any) {
-    if (error?.name === 'PasswordException') {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : '';
+    const errorName = error instanceof Error ? error.name : '';
+
+    if (errorName === 'PasswordException') {
       throw new PDFParseError(
         'This PDF is password protected. Please provide an unprotected version.',
         'PASSWORD_PROTECTED'
       );
     }
-    if (error?.message?.includes('Invalid PDF')) {
+    if (errorMessage.includes('Invalid PDF')) {
       throw new PDFParseError(
         'This PDF appears to be corrupted or invalid.',
         'CORRUPTED'
