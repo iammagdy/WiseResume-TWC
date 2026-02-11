@@ -57,25 +57,54 @@ function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
   return premiumVoice || englishVoices[0];
 }
 
+let sharedAudioContext: AudioContext | null = null;
+
 function playBeep(): Promise<void> {
   return new Promise((resolve) => {
     try {
-      const ctx = new AudioContext();
-      const oscillator = ctx.createOscillator();
-      const gain = ctx.createGain();
-      oscillator.connect(gain);
-      gain.connect(ctx.destination);
-      oscillator.frequency.value = 660;
-      oscillator.type = 'sine';
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.2);
-      setTimeout(() => {
-        ctx.close();
+      if (!sharedAudioContext) {
+        const ContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (ContextClass) {
+          sharedAudioContext = new ContextClass();
+        }
+      }
+
+      const ctx = sharedAudioContext;
+      if (!ctx) {
         resolve();
-      }, 250);
-    } catch {
+        return;
+      }
+
+      const play = () => {
+        const oscillator = ctx.createOscillator();
+        const gain = ctx.createGain();
+        oscillator.connect(gain);
+        gain.connect(ctx.destination);
+        oscillator.frequency.value = 660;
+        oscillator.type = 'sine';
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.2);
+
+        setTimeout(() => {
+          // Clean up nodes to prevent memory accumulation
+          oscillator.disconnect();
+          gain.disconnect();
+          resolve();
+        }, 250);
+      };
+
+      if (ctx.state === 'suspended') {
+        ctx.resume().then(play).catch((err) => {
+          console.error('Failed to resume AudioContext:', err);
+          resolve();
+        });
+      } else {
+        play();
+      }
+    } catch (error) {
+      console.error('Error playing beep:', error);
       resolve();
     }
   });
