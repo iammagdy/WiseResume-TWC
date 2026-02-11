@@ -19,6 +19,7 @@ import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
+import { useShallow } from 'zustand/react/shallow';
 
 // Lazy-loaded sheet components (only loaded when opened)
 const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
@@ -36,6 +37,8 @@ export default function EditorPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
+
+  // Use shallow selector to prevent unnecessary re-renders when unrelated store parts change
   const { 
     currentResume, 
     currentResumeId,
@@ -46,7 +49,17 @@ export default function EditorPage() {
     setIsSaving,
     setLastSavedAt,
     setCurrentResumeId,
-  } = useResumeStore();
+  } = useResumeStore(useShallow(state => ({
+    currentResume: state.currentResume,
+    currentResumeId: state.currentResumeId,
+    matchScore: state.matchScore,
+    jobDescription: state.jobDescription,
+    selectedTemplate: state.selectedTemplate,
+    isSaving: state.isSaving,
+    setIsSaving: state.setIsSaving,
+    setLastSavedAt: state.setLastSavedAt,
+    setCurrentResumeId: state.setCurrentResumeId,
+  })));
   
   // Validate that the resume ID exists in the database
   const { data: resumeFromDb, isLoading: isValidating, error: resumeError } = useResume(currentResumeId);
@@ -97,19 +110,19 @@ export default function EditorPage() {
 
   // Show AI intro for first-time users after resume loads
   useEffect(() => {
-    if (currentResume && !hasSeenAIIntro) {
+    if (currentResumeId && !hasSeenAIIntro) {
       // Small delay to let the editor render first
       const timer = setTimeout(() => {
         setShowAIIntro(true);
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [currentResume, hasSeenAIIntro]);
+  }, [currentResumeId, hasSeenAIIntro]);
 
-  const handleDismissAIIntro = () => {
+  const handleDismissAIIntro = useCallback(() => {
     setShowAIIntro(false);
     setHasSeenAIIntro(true);
-  };
+  }, [setHasSeenAIIntro]);
 
   // Auto-save for authenticated users
   const saveToCloud = useCallback(async () => {
@@ -188,27 +201,42 @@ export default function EditorPage() {
     return <Navigate to={user ? '/dashboard' : '/'} replace />;
   }
 
-  // Calculate section completion
-  const sectionStatus = {
+  // Calculate section completion - memoized to prevent unstable object reference
+  const sectionStatus = useMemo(() => ({
     contact: Boolean(currentResume.contactInfo.fullName && currentResume.contactInfo.email),
     summary: currentResume.summary.length > 30,
     experience: currentResume.experience.length > 0,
     education: currentResume.education.length > 0,
     skills: currentResume.skills.length > 0,
-  };
+  }), [
+    Boolean(currentResume.contactInfo.fullName && currentResume.contactInfo.email),
+    currentResume.summary.length > 30,
+    currentResume.experience.length > 0,
+    currentResume.education.length > 0,
+    currentResume.skills.length > 0
+  ]);
 
-  const handleImproveSection = () => {
+  const handleImproveSection = useCallback(() => {
     // For now, open tailor sheet - could be enhanced to improve specific section
     setShowTailor(true);
-  };
+  }, []);
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (user) {
       navigate('/dashboard');
     } else {
       navigate('/');
     }
-  };
+  }, [user, navigate]);
+
+  const handleChangeTemplate = useCallback(() => setShowTemplates(true), []);
+  const handleTailor = useCallback(() => setShowTailor(true), []);
+  const handleAnalyze = useCallback(() => setShowJobSheet(true), []);
+  const handleRecruiterSim = useCallback(() => setShowRecruiterSim(true), []);
+  const handleAIDetector = useCallback(() => setShowAIDetector(true), []);
+  const handleLinkedIn = useCallback(() => setShowLinkedIn(true), []);
+  const handleOnePage = useCallback(() => setShowOnePage(true), []);
+  const handleCareerPath = useCallback(() => setShowCareerPath(true), []);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -333,15 +361,15 @@ export default function EditorPage() {
             matchScore={matchScore}
             jobDescription={jobDescription}
             currentTemplate={selectedTemplate}
-            onChangeTemplate={() => setShowTemplates(true)}
-            onTailor={() => setShowTailor(true)}
-            onAnalyze={() => setShowJobSheet(true)}
+            onChangeTemplate={handleChangeTemplate}
+            onTailor={handleTailor}
+            onAnalyze={handleAnalyze}
             onImprove={handleImproveSection}
-            onRecruiterSim={() => setShowRecruiterSim(true)}
-            onAIDetector={() => setShowAIDetector(true)}
-            onLinkedIn={() => setShowLinkedIn(true)}
-            onOnePage={() => setShowOnePage(true)}
-            onCareerPath={() => setShowCareerPath(true)}
+            onRecruiterSim={handleRecruiterSim}
+            onAIDetector={handleAIDetector}
+            onLinkedIn={handleLinkedIn}
+            onOnePage={handleOnePage}
+            onCareerPath={handleCareerPath}
             className="pt-3"
           />
 

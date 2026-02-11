@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
@@ -37,6 +37,7 @@ import {
   EnhancedTailorProgress
 } from '@/types/resume';
 import { cn } from '@/lib/utils';
+import { useShallow } from 'zustand/react/shallow';
 
 interface TailorSheetProps {
   open: boolean;
@@ -50,7 +51,7 @@ const SECTION_LABELS: Record<TailorSectionId, string> = {
   education: 'Education',
 };
 
-export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
+export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
   const { 
     currentResume, 
     jobDescription, 
@@ -63,7 +64,19 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
     currentComparison,
     startNewComparison,
     addJobToComparison,
-  } = useResumeStore();
+  } = useResumeStore(useShallow(state => ({
+    currentResume: state.currentResume,
+    jobDescription: state.jobDescription,
+    setJobDescription: state.setJobDescription,
+    updateResume: state.updateResume,
+    tailorHistory: state.tailorHistory,
+    addTailorHistory: state.addTailorHistory,
+    clearTailorHistory: state.clearTailorHistory,
+    restoreTailorVersion: state.restoreTailorVersion,
+    currentComparison: state.currentComparison,
+    startNewComparison: state.startNewComparison,
+    addJobToComparison: state.addJobToComparison,
+  })));
 
   const [isTailoring, setIsTailoring] = useState(false);
   const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
@@ -764,4 +777,4 @@ export function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
       />
     </Sheet>
   );
-}
+});
