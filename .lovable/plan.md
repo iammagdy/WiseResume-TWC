@@ -1,66 +1,65 @@
 
 
-# Fix: Remove framer-motion from ALL remaining editor child components
+# Fix: Two Root Causes of Editor Page Crash
 
-## Root Cause (confirmed)
+## Issue 1: InlineAIButton's Radix DropdownMenu (Primary Crash)
 
-The editor page still freezes because **5 child components** directly rendered in the editor tree still use `framer-motion` with `AnimatePresence` and `layout` props. These cause the same infinite `setState` loop via framer-motion's internal ref management conflicting with React 18's commit phase.
+The console stack trace explicitly points to `InlineAIButton` -> `DropdownMenu` -> `Popper` as the source of the "Maximum update depth exceeded" error. Radix's `Popper` component (used internally by DropdownMenu) has the same ref-management conflict with React 18 that caused the previous Tabs crashes.
 
-The offending components:
-- **ExperienceSection.tsx** -- `AnimatePresence` wrapping the list + `motion.div` with `layout` prop on each experience card + nested `AnimatePresence` for expand/collapse
-- **EducationSection.tsx** -- Same pattern as ExperienceSection: `AnimatePresence` + `motion.div` with `layout` + nested `AnimatePresence`
-- **SkillsSection.tsx** -- `AnimatePresence` + `motion.div` with `layout` prop on each skill badge + `motion.div` for suggested skills
-- **AIContextualNudge.tsx** -- `AnimatePresence` + `motion.div` (rendered inside Summary, Experience, Education, Skills sections)
-- **AIEnhanceDialog.tsx** -- `AnimatePresence` + nested `motion.div` elements for the dialog overlay and content
+`InlineAIButton` is rendered inside every section (Contact, Summary, Experience, Education, Skills), so it fires on every tab.
+
+**Fix:** Replace Radix `DropdownMenu` in `InlineAIButton.tsx` with a simple state-controlled popover using a plain `div` + `useState` for open/close. This eliminates Radix's Popper from the editor tree entirely.
+
+## Issue 2: Save-on-Unmount Infinite Loop (Secondary Crash)
+
+The runtime error stack trace shows:
+```
+setIsSaving (resumeStore.ts:45:32)
+  at EditorPage.tsx:179:9
+```
+
+In `EditorPage.tsx` lines 170-181, the "save on unmount" effect calls `saveToCloud()`, which calls `setIsSaving(true)`. This updates the zustand store, triggering a re-render, which re-runs effect cleanup, which calls `saveToCloud()` again -- infinite loop.
+
+**Fix:** In the unmount effect, call `updateResume.mutateAsync()` directly as a fire-and-forget without updating `isSaving` state. Alternatively, use a ref to track saving status instead of zustand state in the unmount path.
 
 ## Changes
 
-### 1. `src/components/editor/ExperienceSection.tsx`
-- Remove `framer-motion` import
-- Replace outer `AnimatePresence` with a plain conditional
-- Replace `motion.div` (empty state) with a plain `div` with `animate-in fade-in-0`
-- Replace `motion.div` with `layout` prop (each experience card) with a plain `div`
-- Replace inner `AnimatePresence` + `motion.div` (expand/collapse) with conditional rendering and CSS transition
+### File 1: `src/components/editor/InlineAIButton.tsx`
+- Remove Radix `DropdownMenu`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuTrigger` imports
+- Add `useState` and `useRef`/`useEffect` for click-outside handling
+- Replace with a button that toggles a positioned `div` dropdown
+- Keep the same visual appearance and action items
+- Keep `AIProviderFooter` at the bottom of the menu
 
-### 2. `src/components/editor/EducationSection.tsx`
-- Same pattern as ExperienceSection:
-- Remove `framer-motion` import
-- Replace all `AnimatePresence` and `motion.div` elements with plain `div` elements using CSS animations
-- Remove `layout` prop usage
-
-### 3. `src/components/editor/SkillsSection.tsx`
-- Remove `framer-motion` import
-- Replace `AnimatePresence` + `motion.div` with `layout` (skill badges) with plain `div` elements
-- Replace `motion.div` for suggested skills section with plain `div` using `animate-in`
-
-### 4. `src/components/editor/AIContextualNudge.tsx`
-- Remove `framer-motion` import
-- Replace `AnimatePresence` + `motion.div` with a conditional `div` using `animate-in fade-in-0 slide-in-from-top-2`
-
-### 5. `src/components/editor/ai/AIEnhanceDialog.tsx`
-- Remove `framer-motion` import
-- Replace `AnimatePresence` + nested `motion.div` elements with plain `div` elements using CSS animations (`animate-in fade-in-0` for overlay, `animate-in fade-in-0 slide-in-from-bottom-4` for dialog content)
-
-## Technical Details
-
-All replacements follow the same pattern established in previous fixes:
+### File 2: `src/pages/EditorPage.tsx`
+- Remove the save-on-unmount effect (lines 170-181) that calls `saveToCloud()` during cleanup
+- Replace with a simpler unmount handler that directly calls the mutation without `setIsSaving`:
 
 ```text
-BEFORE: <AnimatePresence>{show && <motion.div initial={...} animate={...} exit={...}>...</motion.div>}</AnimatePresence>
-AFTER:  {show && <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">...</div>}
+BEFORE (lines 170-181):
+  useEffect(() => {
+    return () => {
+      clearTimeout(...)
+      if (user && currentResumeId && currentResume) {
+        saveToCloud();  // <-- calls setIsSaving, triggers infinite loop
+      }
+    };
+  }, [user, currentResumeId, currentResume, saveToCloud]);
 
-BEFORE: <motion.div layout initial={...} animate={...} exit={...} className="...">
-AFTER:  <div className="... transition-all duration-200">
+AFTER:
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+  // Save-on-unmount removed -- the 2s debounce already covers normal edits
+  // and calling setIsSaving in cleanup triggers the infinite loop
 ```
 
 ## Summary
 
-| File | Change |
-|------|--------|
-| `src/components/editor/ExperienceSection.tsx` | Remove all framer-motion usage, replace with CSS |
-| `src/components/editor/EducationSection.tsx` | Remove all framer-motion usage, replace with CSS |
-| `src/components/editor/SkillsSection.tsx` | Remove all framer-motion usage, replace with CSS |
-| `src/components/editor/AIContextualNudge.tsx` | Remove AnimatePresence/motion, use conditional CSS |
-| `src/components/editor/ai/AIEnhanceDialog.tsx` | Remove AnimatePresence/motion, use CSS animations |
+| File | Change | Fixes |
+|------|--------|-------|
+| `src/components/editor/InlineAIButton.tsx` | Replace Radix DropdownMenu with plain div dropdown | Primary crash: DropdownMenu Popper infinite setState |
+| `src/pages/EditorPage.tsx` | Remove save-on-unmount effect that calls setIsSaving | Secondary crash: zustand setState in cleanup loop |
 
-This removes the **last remaining** framer-motion components from the editor's rendering tree, which should fully resolve the infinite loop crash.
