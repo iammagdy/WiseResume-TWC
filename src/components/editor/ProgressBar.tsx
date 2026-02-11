@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { cn } from '@/lib/utils';
 
@@ -7,7 +8,7 @@ interface ProgressBarProps {
   variant?: 'bar' | 'ring';
 }
 
-export function ProgressBar({ resume, className, variant = 'bar' }: ProgressBarProps) {
+export const ProgressBar = memo(function ProgressBar({ resume, className, variant = 'bar' }: ProgressBarProps) {
   const sections = [
     { name: 'Contact', complete: Boolean(resume.contactInfo.fullName && resume.contactInfo.email) },
     { name: 'Summary', complete: resume.summary.length > 30 },
@@ -49,7 +50,7 @@ export function ProgressBar({ resume, className, variant = 'bar' }: ProgressBarP
       </span>
     </div>
   );
-}
+});
 
 interface ProgressRingProps {
   progress: number;

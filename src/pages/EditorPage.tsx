@@ -124,18 +124,23 @@ export default function EditorPage() {
     setHasSeenAIIntro(true);
   }, [setHasSeenAIIntro]);
 
-  // Auto-save for authenticated users
+  // Use ref to decouple saveToCloud from currentResume dependency
+  const resumeRef = useRef(currentResume);
+  resumeRef.current = currentResume;
+
+  // Auto-save for authenticated users (stable callback - no currentResume dep)
   const saveToCloud = useCallback(async () => {
-    if (!user || !currentResumeId || !currentResume) return;
+    const resume = resumeRef.current;
+    if (!user || !currentResumeId || !resume) return;
     
-    const currentResumeJson = JSON.stringify(currentResume);
+    const currentResumeJson = JSON.stringify(resume);
     if (currentResumeJson === lastSavedResumeRef.current) return;
     
     setIsSaving(true);
     try {
       await updateResume.mutateAsync({
         resumeId: currentResumeId,
-        updates: currentResume,
+        updates: resume,
       });
       lastSavedResumeRef.current = currentResumeJson;
       setLastSavedAt(new Date());
@@ -144,7 +149,7 @@ export default function EditorPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResumeId, currentResume, updateResume, setIsSaving, setLastSavedAt]);
+  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt]);
 
   // Debounced auto-save effect
   useEffect(() => {
@@ -158,7 +163,7 @@ export default function EditorPage() {
     // Set new timeout for debounced save
     saveTimeoutRef.current = setTimeout(() => {
       saveToCloud();
-    }, 2000); // 2 second debounce
+    }, 3000); // 3 second debounce
     
     return () => {
       if (saveTimeoutRef.current) {
@@ -191,6 +196,15 @@ export default function EditorPage() {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [user, currentResume]);
+
+  // Memoize steps array to prevent StepperNav re-renders
+  const steps = useMemo(() => [
+    { id: 'contact', label: 'Contact' },
+    { id: 'summary', label: 'Summary' },
+    { id: 'experience', label: 'Work' },
+    { id: 'education', label: 'Education' },
+    { id: 'skills', label: 'Skills' },
+  ], []);
 
   // Resume guard - redirect to appropriate page based on auth state
   if (!currentResume) {
@@ -289,13 +303,7 @@ export default function EditorPage() {
 
         {/* Stepper Nav */}
         <StepperNav
-          steps={[
-            { id: 'contact', label: 'Contact' },
-            { id: 'summary', label: 'Summary' },
-            { id: 'experience', label: 'Work' },
-            { id: 'education', label: 'Education' },
-            { id: 'skills', label: 'Skills' },
-          ]}
+          steps={steps}
           activeStep={activeTab}
           completedSteps={sectionStatus}
           onStepClick={handleTabChange}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 
 import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,14 +18,17 @@ import { ExperienceTimeline } from './ExperienceTimeline';
 import { GapExplainerSheet } from './GapExplainerSheet';
 import { formatDateRange, calculateDuration, GapInfo } from '@/lib/dateUtils';
 
-export function ExperienceSection() {
-  const { currentResume, updateResume } = useResumeStore();
+export const ExperienceSection = memo(function ExperienceSection() {
+  const experience = useResumeStore(state => state.currentResume?.experience);
+  const summary = useResumeStore(state => state.currentResume?.summary);
+  const updateResume = useResumeStore(state => state.updateResume);
+  const currentResume = useResumeStore(state => state.currentResume);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [enhancingExpId, setEnhancingExpId] = useState<string | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [originalDescription, setOriginalDescription] = useState('');
 
-  const { enhance, isEnhancing, currentAction, result, apply, discard } = useAIEnhance({
+  const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'experience',
     onApply: (content) => {
       if (enhancingExpId && content) {
@@ -55,7 +58,7 @@ export function ExperienceSection() {
   const [showGapSheet, setShowGapSheet] = useState(false);
   const [selectedGap, setSelectedGap] = useState<GapInfo | null>(null);
 
-  if (!currentResume) return null;
+  if (!currentResume || !experience) return null;
 
   const nudge = getNudgeForSection('experience');
 
@@ -71,14 +74,14 @@ export function ExperienceSection() {
       achievements: [],
     };
     updateResume({
-      experience: [...currentResume.experience, newExp],
+      experience: [...experience, newExp],
     });
     setExpandedId(newExp.id);
   };
 
   const updateExperience = (id: string, updates: Partial<Experience>) => {
     updateResume({
-      experience: currentResume.experience.map((exp) =>
+      experience: experience.map((exp) =>
         exp.id === id ? { ...exp, ...updates } : exp
       ),
     });
@@ -86,7 +89,7 @@ export function ExperienceSection() {
 
   const deleteExperience = (id: string) => {
     updateResume({
-      experience: currentResume.experience.filter((exp) => exp.id !== id),
+      experience: experience.filter((exp) => exp.id !== id),
     });
   };
 
@@ -106,9 +109,8 @@ export function ExperienceSection() {
   };
 
   const handleHeaderAction = async (actionId: string) => {
-    // Handle action for the first experience or show add prompt
-    if (currentResume.experience.length > 0) {
-      const firstExp = currentResume.experience[0];
+    if (experience.length > 0) {
+      const firstExp = experience[0];
       await handleAIAction(actionId, firstExp);
     } else {
       addExperience();
@@ -117,10 +119,10 @@ export function ExperienceSection() {
 
   const handleNudgeAction = () => {
     if (nudge) {
-      if (currentResume.experience.length === 0) {
+      if (experience.length === 0) {
         addExperience();
       } else {
-        const firstExp = currentResume.experience[0];
+        const firstExp = experience[0];
         handleAIAction(nudge.action, firstExp);
       }
       dismissNudge(nudge.trigger);
@@ -136,7 +138,7 @@ export function ExperienceSection() {
             section="experience"
             onAction={handleHeaderAction}
             isLoading={isEnhancing}
-            disabled={currentResume.experience.length === 0}
+            disabled={experience.length === 0}
           />
         </div>
         <Button variant="outline" size="sm" onClick={addExperience} className="gap-2">
@@ -146,9 +148,9 @@ export function ExperienceSection() {
       </div>
 
       {/* Visual Timeline */}
-      {showTimeline && currentResume.experience.length >= 2 && (
+      {showTimeline && experience.length >= 2 && (
         <ExperienceTimeline
-          experiences={currentResume.experience}
+          experiences={experience}
           onDismiss={() => setShowTimeline(false)}
           onExplainGap={(gap) => {
             setSelectedGap(gap);
@@ -166,7 +168,7 @@ export function ExperienceSection() {
         onDismiss={() => nudge && dismissNudge(nudge.trigger)}
       />
 
-      {currentResume.experience.length === 0 ? (
+      {experience.length === 0 ? (
           <div className="p-6 rounded-xl border border-dashed border-border text-center animate-in fade-in-0 duration-200">
             <Briefcase className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground text-sm">No work experience added yet</p>
@@ -176,7 +178,7 @@ export function ExperienceSection() {
           </div>
         ) : (
           <div className="space-y-3">
-            {currentResume.experience.map((exp, index) => (
+            {experience.map((exp, index) => (
               <div
                 key={exp.id}
                 className="rounded-xl border border-border overflow-hidden transition-all duration-200"
@@ -322,7 +324,6 @@ export function ExperienceSection() {
       
 
       {/* AI Enhancement Dialog */}
-      {/* AI Enhancement Dialog */}
       <AIEnhanceDialog
         isOpen={showDialog}
         original={originalDescription}
@@ -348,9 +349,9 @@ export function ExperienceSection() {
           setSelectedGap(null);
         }}
         gap={selectedGap}
-        experiences={currentResume.experience}
+        experiences={experience}
         onAddToSummary={(explanation) => {
-          const currentSummary = currentResume.summary || '';
+          const currentSummary = summary || '';
           const newSummary = currentSummary 
             ? `${currentSummary}\n\nCareer Note: ${explanation}`
             : `Career Note: ${explanation}`;
@@ -359,4 +360,4 @@ export function ExperienceSection() {
       />
     </div>
   );
-}
+});
