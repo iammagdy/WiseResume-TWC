@@ -11,7 +11,7 @@ import { lovable } from '@/integrations/lovable/index';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { AuthOwl } from '@/components/auth/AuthOwl';
+import { AuthMonkey } from '@/components/auth/AuthMonkey';
 import { AuthMethodToggle } from '@/components/auth/AuthMethodToggle';
 
 const emailSchema = z.string().email('Please enter a valid email');
@@ -212,8 +212,8 @@ export default function AuthPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          {/* Animated Owl */}
-          <AuthOwl
+          {/* Animated Monkey */}
+          <AuthMonkey
             focusedField={focusedField}
             showPassword={showPassword}
             textLength={textLength}
