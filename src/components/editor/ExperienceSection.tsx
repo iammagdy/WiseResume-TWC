@@ -131,16 +131,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <h3 className="font-display font-semibold text-lg">Work Experience</h3>
-          <InlineAIButton
-            section="experience"
-            onAction={handleHeaderAction}
-            isLoading={isEnhancing}
-            disabled={experience.length === 0}
-          />
-        </div>
+      <div className="flex items-center justify-end">
         <Button variant="outline" size="sm" onClick={addExperience} className="gap-2">
           <Plus className="w-4 h-4" />
           Add
@@ -305,15 +296,17 @@ export const ExperienceSection = memo(function ExperienceSection() {
                           />
                         </div>
 
-                        <Button
-                          variant="destructive"
-                          size="lg"
-                          onClick={() => deleteExperience(exp.id)}
-                          className="w-full gap-2"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                          Delete Experience
-                        </Button>
+                        <div className="flex justify-end pt-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => deleteExperience(exp.id)}
+                            className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Remove
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   )}

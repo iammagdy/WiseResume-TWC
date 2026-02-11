@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
@@ -16,6 +16,7 @@ import { ExperienceSection } from '@/components/editor/ExperienceSection';
 import { EducationSection } from '@/components/editor/EducationSection';
 import { SkillsSection } from '@/components/editor/SkillsSection';
 import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
+import { InlineAIButton } from '@/components/editor/InlineAIButton';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
@@ -350,17 +351,56 @@ export default function EditorPage() {
                 </SectionCard>
               </div>
             )}
+
+            {/* Section Navigation */}
+            <div className="flex items-center gap-3 pt-6 pb-2">
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 h-12"
+                onClick={() => {
+                  const currentIndex = steps.findIndex(s => s.id === activeTab);
+                  if (currentIndex > 0) handleTabChange(steps[currentIndex - 1].id);
+                }}
+                disabled={activeTab === steps[0].id}
+              >
+                <ChevronLeft className="w-4 h-4 mr-1.5" />
+                Previous
+              </Button>
+              {activeTab === steps[steps.length - 1].id ? (
+                <Button
+                  size="lg"
+                  className="flex-1 h-12 gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+                  onClick={() => navigate('/preview')}
+                >
+                  <Download className="w-4 h-4 mr-1.5" />
+                  Preview & Export
+                </Button>
+              ) : (
+                <Button
+                  size="lg"
+                  className="flex-1 h-12"
+                  onClick={() => {
+                    const currentIndex = steps.findIndex(s => s.id === activeTab);
+                    if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
+                  }}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1.5" />
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Next Step Banner */}
-        {sectionStatus.contact && sectionStatus.experience && (
+        {/* Next Step Banner - only show when most sections complete */}
+        {sectionStatus.contact && sectionStatus.experience && sectionStatus.summary && sectionStatus.skills && (
           <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
         )}
 
         {/* Bottom Fixed Section - AI Studio Bar + Action Button */}
         <div className="shrink-0 glass border-t border-border z-30">
-          {/* AI Studio Bar - now relative positioned */}
+          {/* AI Studio Bar */}
           <AIAssistantBar
             matchScore={matchScore}
             jobDescription={jobDescription}
@@ -374,21 +414,8 @@ export default function EditorPage() {
             onLinkedIn={handleLinkedIn}
             onOnePage={handleOnePage}
             onCareerPath={handleCareerPath}
-            className="pt-3"
+            className="pt-3 pb-3"
           />
-
-          {/* Preview & Export Button */}
-          <div className="px-4 pb-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
-            <Button
-              size="lg"
-              className="w-full h-14 text-lg font-semibold gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
-              onClick={() => navigate('/preview')}
-            >
-              <Download className="w-5 h-5 mr-2" />
-              Preview & Export
-              <ChevronRight className="w-5 h-5 ml-2" />
-            </Button>
-          </div>
         </div>
 
       {/* AI Intro Tooltip for First-Time Users */}

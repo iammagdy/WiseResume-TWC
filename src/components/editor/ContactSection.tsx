@@ -128,16 +128,6 @@ export const ContactSection = memo(function ContactSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display font-semibold text-lg">Contact Information</h3>
-        <InlineAIButton
-          section="contact"
-          onAction={handleAIAction}
-          isLoading={isEnhancing}
-        />
-      </div>
-      
-      <div className="space-y-4">
         <InputFormField
           id="fullName"
           label="Full Name"
@@ -217,7 +207,6 @@ export const ContactSection = memo(function ContactSection() {
           error={getPortfolioError()}
           touched={touched.portfolio}
         />
-      </div>
     </div>
   );
 });
