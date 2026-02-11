@@ -1,5 +1,4 @@
 import { ReactNode } from 'react';
-import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
 
@@ -13,11 +12,9 @@ interface SectionCardProps {
 
 export function SectionCard({ icon: Icon, title, tip, status, children }: SectionCardProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+    <div
       className={cn(
+        'animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
         'glass-card rounded-2xl overflow-hidden relative',
         // Left accent stripe
         'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:rounded-l-2xl',
@@ -53,6 +50,6 @@ export function SectionCard({ icon: Icon, title, tip, status, children }: Sectio
       <div className="px-4 pb-4">
         {children}
       </div>
-    </motion.div>
+    </div>
   );
 }
