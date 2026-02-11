@@ -1,6 +1,5 @@
 import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, 
   ChevronUp, 
@@ -15,7 +14,6 @@ import {
   Linkedin,
   FileText,
   Mic,
-  MessageSquare,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -38,20 +36,6 @@ const TEMPLATE_NAMES: Record<TemplateId, string> = {
   elegant: 'Elegant',
 };
 
-// Stagger animation variants
-const containerVariants = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.05 }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 8 },
-  show: { opacity: 1, y: 0 }
-};
-
 interface AIAssistantBarProps {
   matchScore?: JobMatchScore | null;
   jobDescription?: string;
@@ -68,7 +52,6 @@ interface AIAssistantBarProps {
   className?: string;
 }
 
-// Secondary tool definitions for cleaner icon grid
 const secondaryTools = [
   { id: 'enhance', icon: Sparkles, label: 'Enhance', color: 'text-cyan-500' },
   { id: 'interview', icon: Mic, label: 'Interview', color: 'text-orange-500' },
@@ -124,7 +107,6 @@ export const AIAssistantBar = memo(function AIAssistantBar({
     }
   };
 
-  // Filter available secondary tools based on props
   const availableSecondaryTools = secondaryTools.filter(tool => {
     switch (tool.id) {
       case 'career': return !!onCareerPath;
@@ -153,15 +135,9 @@ export const AIAssistantBar = memo(function AIAssistantBar({
     : 'bg-muted/50';
 
   return (
-    <div
-      className={cn(
-        'mx-4 mb-2',
-        className
-      )}
-    >
-      <motion.div
+    <div className={cn('mx-4 mb-2', className)}>
+      <div
         className="glass-elevated rounded-2xl overflow-hidden"
-        layout
         style={{
           boxShadow: '0 -4px 32px -4px hsl(var(--primary) / 0.15), 0 0 0 1px hsl(var(--border) / 0.2)',
         }}
@@ -179,7 +155,6 @@ export const AIAssistantBar = memo(function AIAssistantBar({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Template Chip */}
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -193,7 +168,6 @@ export const AIAssistantBar = memo(function AIAssistantBar({
               <ChevronDown className="w-3 h-3" />
             </button>
 
-            {/* Match Score Badge */}
             {matchScore ? (
               <div className={cn('flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm font-semibold', scoreBg, scoreColor)}>
                 <TrendingUp className="w-3.5 h-3.5" />
@@ -205,128 +179,95 @@ export const AIAssistantBar = memo(function AIAssistantBar({
               </span>
             )}
 
-            <motion.div
-              animate={{ rotate: isExpanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
+            <div
+              className="transition-transform duration-200"
+              style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
             >
               <ChevronUp className="w-5 h-5 text-muted-foreground" />
-            </motion.div>
+            </div>
           </div>
         </button>
 
         {/* Expanded Content */}
-        <AnimatePresence>
-          {isExpanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden"
-            >
-              <motion.div
-                variants={containerVariants}
-                initial="hidden"
-                animate="show"
-                className="px-4 pb-4 space-y-4"
-              >
-                {/* AI Engine Badge */}
-                <motion.div variants={itemVariants}>
-                  <AIEngineBadge showSettingsLink />
-                </motion.div>
+        {isExpanded && (
+          <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+            <div className="px-4 pb-4 space-y-4">
+              <AIEngineBadge showSettingsLink />
 
-                {/* Primary Actions - Tailor & Analyze */}
-                <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
-                  <PrimaryActionButton
-                    icon={<Wand2 className="w-5 h-5" />}
-                    label="Tailor"
-                    description="Adapt to job"
-                    onClick={() => handleAction(onTailor)}
-                    colorClass="text-primary"
-                    bgClass="bg-primary/10"
-                  />
-                  <PrimaryActionButton
-                    icon={<Target className="w-5 h-5" />}
-                    label="Analyze"
-                    description="Check ATS fit"
-                    onClick={() => handleAction(onAnalyze)}
-                    colorClass="text-primary"
-                    bgClass="bg-primary/10"
-                  />
-                </motion.div>
+              <div className="grid grid-cols-2 gap-3">
+                <PrimaryActionButton
+                  icon={<Wand2 className="w-5 h-5" />}
+                  label="Tailor"
+                  description="Adapt to job"
+                  onClick={() => handleAction(onTailor)}
+                  colorClass="text-primary"
+                  bgClass="bg-primary/10"
+                />
+                <PrimaryActionButton
+                  icon={<Target className="w-5 h-5" />}
+                  label="Analyze"
+                  description="Check ATS fit"
+                  onClick={() => handleAction(onAnalyze)}
+                  colorClass="text-primary"
+                  bgClass="bg-primary/10"
+                />
+              </div>
 
-                {/* More Tools - Collapsible */}
-                <motion.div variants={itemVariants}>
-                  <Collapsible open={moreToolsOpen} onOpenChange={setMoreToolsOpen}>
-                    <CollapsibleTrigger asChild>
-                      <button 
-                        className="w-full flex items-center justify-between py-2 px-1 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
-                        onClick={() => haptics.light()}
-                      >
-                        <span className="font-medium">More AI Tools</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground/70">{availableSecondaryTools.length} tools</span>
-                          <motion.div
-                            animate={{ rotate: moreToolsOpen ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <ChevronDown className="w-4 h-4" />
-                          </motion.div>
-                        </div>
-                      </button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="grid grid-cols-4 gap-2 pt-2"
-                      >
-                        {availableSecondaryTools.map((tool) => (
-                          <SecondaryToolButton
-                            key={tool.id}
-                            icon={<tool.icon className={cn("w-5 h-5", tool.color)} />}
-                            label={tool.label}
-                            onClick={() => handleSecondaryAction(tool.id)}
-                          />
-                        ))}
-                      </motion.div>
-                    </CollapsibleContent>
-                  </Collapsible>
-                </motion.div>
-
-                {/* Tip */}
-                {!jobDescription && (
-                  <motion.div 
-                    variants={itemVariants}
-                    className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10"
+              <Collapsible open={moreToolsOpen} onOpenChange={setMoreToolsOpen}>
+                <CollapsibleTrigger asChild>
+                  <button 
+                    className="w-full flex items-center justify-between py-2 px-1 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+                    onClick={() => haptics.light()}
                   >
-                    <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <p className="text-xs text-muted-foreground">
-                      <span className="text-foreground font-medium">Pro tip:</span> Paste a job URL or description to get a personalized match score and tailoring suggestions.
-                    </p>
-                  </motion.div>
-                )}
+                    <span className="font-medium">More AI Tools</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground/70">{availableSecondaryTools.length} tools</span>
+                      <div
+                        className="transition-transform duration-200"
+                        style={{ transform: moreToolsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                      >
+                        <ChevronDown className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="grid grid-cols-4 gap-2 pt-2">
+                    {availableSecondaryTools.map((tool) => (
+                      <SecondaryToolButton
+                        key={tool.id}
+                        icon={<tool.icon className={cn("w-5 h-5", tool.color)} />}
+                        label={tool.label}
+                        onClick={() => handleSecondaryAction(tool.id)}
+                      />
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
-                {/* Current Job Summary */}
-                {jobDescription && (
-                  <motion.div 
-                    variants={itemVariants}
-                    className="p-3 rounded-xl bg-muted/30 border border-border"
-                  >
-                    <p className="text-xs text-muted-foreground mb-1">Target Job</p>
-                    <p className="text-sm line-clamp-2">{jobDescription}</p>
-                  </motion.div>
-                )}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+              {!jobDescription && (
+                <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
+                  <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    <span className="text-foreground font-medium">Pro tip:</span> Paste a job URL or description to get a personalized match score and tailoring suggestions.
+                  </p>
+                </div>
+              )}
+
+              {jobDescription && (
+                <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                  <p className="text-xs text-muted-foreground mb-1">Target Job</p>
+                  <p className="text-sm line-clamp-2">{jobDescription}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 });
 
-// Primary action button - large, prominent
 interface PrimaryActionButtonProps {
   icon: React.ReactNode;
   label: string;
@@ -337,12 +278,7 @@ interface PrimaryActionButtonProps {
 }
 
 const PrimaryActionButton = memo(function PrimaryActionButton({
-  icon,
-  label,
-  description,
-  onClick,
-  colorClass,
-  bgClass,
+  icon, label, description, onClick, colorClass, bgClass,
 }: PrimaryActionButtonProps) {
   return (
     <button
@@ -360,7 +296,6 @@ const PrimaryActionButton = memo(function PrimaryActionButton({
   );
 });
 
-// Secondary tool button - compact icon-only style
 interface SecondaryToolButtonProps {
   icon: React.ReactNode;
   label: string;
@@ -368,9 +303,7 @@ interface SecondaryToolButtonProps {
 }
 
 const SecondaryToolButton = memo(function SecondaryToolButton({
-  icon,
-  label,
-  onClick,
+  icon, label, onClick,
 }: SecondaryToolButtonProps) {
   return (
     <button
