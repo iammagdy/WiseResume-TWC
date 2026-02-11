@@ -325,6 +325,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   e.stopPropagation();
                   haptics.light();
                 }}
+                aria-label="More options"
               >
                 <MoreVertical className="h-5 w-5" />
               </Button>
