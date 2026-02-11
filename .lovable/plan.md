@@ -1,70 +1,73 @@
 
 
-# Replace Monkey with Animated Panda Character
+# Replace Current Panda with Reference-Matching Design
 
-## Overview
+## What Changes
 
-Replace the current monkey mascot with a cute panda character matching the reference images -- clean black and white design, round body, sitting pose with visible paw pads, and the same interactive animations.
+Completely rewrite `src/components/auth/AuthPanda.tsx` to match the exact panda design from your reference images.
 
-## Panda Design (based on reference images)
+## Design (matching your images exactly)
 
-The panda from the references has these key features:
-- **Round white head** with black ear circles on top
-- **Black eye patches** (teardrop/oval shapes) with white eyes and dark pupils inside
-- **Small black nose** with a cute smile below
-- **White body** with black arms/sides wrapping around
-- **White belly patch** visible in the center
-- **Feet** showing outward with oval paw pads and toe dots
-- **Hair tuft** -- small spiky lines on top of the head
-- Simple, clean lines -- minimal detail, maximum cuteness
+The panda from your references has a very specific style:
+- **Dark green/black** color scheme (not pure black -- it's `#1A3A2A` dark forest green)
+- **Clean outlines** with minimal detail -- clipart/sticker style
+- **Large round head** with white face
+- **Round ears** sitting directly on top of the head with small leaf/sprig detail
+- **Large oval eye patches** -- tilted inward, cute not scary
+- **Simple dot eyes** with small highlight -- NOT big bug eyes
+- **Small nose** with a gentle smile line
+- **Sitting body** with white belly showing
+- **Feet splayed outward** showing round paw pads with 3 toe dots each
+- **Short stubby arms** on the sides
 
-## Animation Behaviors (same as before)
+The second image shows the "covering eyes" pose -- paws come up to the face with fingers slightly spread, which is the password-focused state.
 
-| State | Panda Action |
+## Animation Behaviors (same interactions)
+
+| State | What Happens |
 |-------|-------------|
-| Idle | Looks at user, friendly smile |
-| Email/Phone focused | Pupils look down, tracking text length |
-| Password focused | Paws come up to cover eyes (like the 3rd reference image -- panda covering face) |
+| Idle | Panda sits looking at user, eyes open, gentle smile |
+| Email/Phone focused | Eyes look slightly downward, pupils track text |
+| Password focused | Paws come up to cover eyes (matching second reference image) |
 | Show password | One paw drops, peeks with one eye |
 | Error | Head shakes side-to-side |
 | Success | Happy bounce with sparkles |
 
-## File Changes
+## Files Changed
 
 | File | Change |
 |------|--------|
-| `src/components/auth/AuthMonkey.tsx` | Complete SVG rewrite to panda design. Same props interface. Renamed component to `AuthPanda`. |
-| `src/pages/AuthPage.tsx` | Update import and JSX from `AuthMonkey` to `AuthPanda` |
+| `src/components/auth/AuthPanda.tsx` | Complete SVG rewrite to match reference images exactly. Same props interface. |
+
+No changes to `AuthPage.tsx` since the component interface stays identical.
 
 ## Technical Details
 
+### Color Palette (from reference images)
+- Main body color: `#1A3A2A` (dark forest green, matching the clipart)
+- Face/belly: `white`
+- Paw pads: `#1A3A2A` with slightly lighter inner pads
+- Outlines: `#1A3A2A`
+- Eye highlights: `white`
+
 ### SVG Structure (200x220 viewBox)
+1. Body -- rounded shape with dark sides and white belly center
+2. Feet -- oval paws splayed outward with pad details and 3 toe dots
+3. Arms/Paws -- dark paths that animate upward to cover face on password
+4. Head -- large white circle with dark outline
+5. Ears -- dark circles on top of head with small leaf sprigs
+6. Eye patches -- large tilted dark ovals (matching clipart proportions)
+7. Eyes -- small white circles with tiny dark pupils (NOT big bug eyes)
+8. Nose -- small inverted triangle/oval
+9. Mouth -- simple curved smile line
+10. Success sparkles -- conditional
 
-Back to front layer order:
-1. **Body** -- white ellipse with black side patches
-2. **Feet** -- two ovals at bottom with paw pad details (dark circles for toes)
-3. **Arms/Paws** -- black paths that animate Y upward to cover eyes on password focus
-4. **Head** -- large white circle
-5. **Ears** -- two black circles overlapping the top of head
-6. **Eye patches** -- dark teardrop/oval shapes on the face
-7. **Eyes** -- white circles inside patches with animated dark pupils
-8. **Nose** -- small black oval
-9. **Mouth** -- animated smile path
-10. **Hair tuft** -- small spiky strokes on top
-11. **Success sparkles** -- conditional animated circles
+### Key Design Differences from Current
+- Uses dark green (`#1A3A2A`) instead of near-black (`#1A1A2E`)
+- Eyes are MUCH smaller -- just small dots inside the patches, not large circles
+- Eye patches are larger and more rounded, tilted inward slightly
+- Body is wider and rounder with visible white belly
+- Feet are more prominent, splayed outward
+- Overall simpler, cleaner lines -- clipart style, not detailed SVG
+- Hair tuft replaced with small leaf/sprig on top (matching reference)
 
-### Color Palette
-- Body/Head: `white` (#FFFFFF)
-- Ears, eye patches, arms, nose: `#1A1A2E` (near-black, slightly warm)
-- Paw pads: `#2D2D44` (dark)
-- Pupils: `#1A1A2E`
-- Mouth: `#1A1A2E` stroke
-- Cheek blush: `#FFB7C5` (soft pink, subtle)
-
-### Animation Logic (unchanged interface)
-- Same props: `focusedField`, `showPassword`, `textLength`, `shake`, `success`
-- Same `pupilOffsetX/Y` tracking for eye movement
-- Same `handY` / `leftHandY` spring animations for paws covering eyes
-- Same `eyesClosed` / `leftEyeScaleY` for peeking
-- Same `smilePath` for expression changes
-- Same shake and bounce via `controls`
