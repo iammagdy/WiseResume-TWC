@@ -16,7 +16,7 @@ import { ExperienceSection } from '@/components/editor/ExperienceSection';
 import { EducationSection } from '@/components/editor/EducationSection';
 import { SkillsSection } from '@/components/editor/SkillsSection';
 import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
-import { InlineAIButton } from '@/components/editor/InlineAIButton';
+import { SectionAIAction } from '@/components/editor/SectionAIAction';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
@@ -320,35 +320,35 @@ export default function EditorPage() {
           >
             {activeTab === 'contact' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'}>
+                <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'} action={<SectionAIAction section="contact" />}>
                   <ContactSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'summary' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'}>
+                <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'} action={<SectionAIAction section="summary" />}>
                   <SummarySection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'experience' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'}>
+                <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'} action={<SectionAIAction section="experience" />}>
                   <ExperienceSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'education' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'}>
+                <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'} action={<SectionAIAction section="education" />}>
                   <EducationSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'skills' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'}>
+                <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'} action={<SectionAIAction section="skills" />}>
                   <SkillsSection />
                 </SectionCard>
               </div>
