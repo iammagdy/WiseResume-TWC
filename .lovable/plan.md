@@ -1,124 +1,94 @@
 
-# Enhanced Cover Letter Generator: Smart Contact Info, History, and Premium UI
 
-## Overview
+# Fix: Infinite Dashboard Loading and Bottom Tab Bar Issues
 
-Three major enhancements: (1) auto-inject real contact info so no more placeholder text like `[Your Phone Number]`, (2) cover letter history system matching the tailor history design, and (3) premium results screen with PDF download and edit/view toggle.
+## Issue 1: Dashboard Infinite Loading After Back Navigation
+
+**Root Cause Found**: In `DashboardPage.tsx` line 253, the loading gate is:
+```
+if (authLoading || !profileLoaded) { show skeleton }
+```
+
+The `profileLoaded` state starts as `false` (line 59) and is only set to `true` inside the `checkOnboardingStatus` effect (line 75) -- but ONLY when `user` is truthy. Two failure paths cause infinite loading:
+
+1. **No error handling**: If the Supabase `profiles` query fails/throws, `setProfileLoaded(true)` is never reached, so the skeleton shows forever.
+2. **Race condition**: If `user` is briefly null during re-render (auth state change), the effect exits early without setting `profileLoaded`.
+
+**Fix**: Add a `finally` or try-catch around the query, and ensure `profileLoaded` is set to `true` in all code paths including when `user` is null.
+
+```text
+BEFORE (lines 62-80):
+  const checkOnboardingStatus = async () => {
+    if (user) {
+      const { data } = await supabase.from('profiles')...
+      if (data && !data.onboarding_completed) {
+        setShowOnboarding(true);
+      }
+      setProfileLoaded(true);   // only reached if user exists AND query succeeds
+    }
+  };
+
+AFTER:
+  const checkOnboardingStatus = async () => {
+    if (!user) {
+      setProfileLoaded(true);  // guest users skip onboarding check
+      return;
+    }
+    try {
+      const { data } = await supabase.from('profiles')...
+      if (data && !data.onboarding_completed) {
+        setShowOnboarding(true);
+      }
+    } catch (err) {
+      console.error('Failed to check onboarding:', err);
+    } finally {
+      setProfileLoaded(true);  // always resolves, never hangs
+    }
+  };
+```
 
 ---
 
-## Part 1: Auto-Inject Contact Info
+## Issue 2: Bottom Tab Bar Not Feeling Correct
 
-**Problem:** The screenshot shows `[Your Phone Number] | [Your Email Address]` and `[Your LinkedIn Profile URL]` -- the AI generates placeholders because the prompt doesn't include actual contact details.
+After analyzing `BottomTabBar.tsx`, there are several issues:
 
-**Backend fix** (`supabase/functions/generate-cover-letter/index.ts`):
-- Add contact info (phone, email, LinkedIn) to the AI user prompt so the model uses real values
-- Add instruction: "Use the candidate's actual contact details. Do NOT use placeholder brackets."
+### Problem A: framer-motion risk
+The tab bar uses `AnimatePresence` with `mode="wait"` (line 123) and `motion.div` with `layoutId` (line 101). While this hasn't crashed yet, `AnimatePresence mode="wait"` is known to cause transition deadlocks, and `layoutId` animations can cause visual jitter on rapid tab switching. This matches the project memory that says to avoid these patterns.
 
-**Frontend safety net** (`CoverLetterGenerator.tsx`):
-- After receiving the AI response, run a regex replacement to swap any remaining `[Your Phone Number]`, `[Your Email Address]`, `[Your LinkedIn Profile URL]` with actual values from `resume.contactInfo`
+### Problem B: Editor tab navigates to broken state
+Clicking the "Editor" tab navigates to `/editor`, but if no resume is loaded, `EditorPage` immediately redirects to `/dashboard` (line 196-198), creating a confusing bounce.
 
----
+### Problem C: Tab bar hidden on editor/preview
+`AppShell.tsx` line 9 only shows the tab bar on `['/dashboard', '/upload', '/settings', '/interview']` -- so the editor tab exists in the config but the bar is never visible when on `/editor`. This means the Editor tab's active state is never seen by the user.
 
-## Part 2: Cover Letter History
-
-**New type** in `src/types/resume.ts`:
-```
-CoverLetterHistory {
-  id: string;
-  jobTitle: string;
-  company: string;
-  tone: string;
-  coverLetter: string;
-  createdAt: string;
-}
-```
-
-**Store changes** in `src/store/resumeStore.ts`:
-- Add `coverLetterHistory: CoverLetterHistory[]` (persisted, max 20 entries)
-- Add `addCoverLetterHistory(entry)`, `deleteCoverLetterHistoryEntry(id)`, `clearCoverLetterHistory()` actions
-
-**New component** `src/components/editor/tailor/CoverLetterHistorySheet.tsx`:
-- Same visual structure as `TailorHistorySheet.tsx` -- grouped by date, cards with role/company, tone badge, timestamp
-- Actions per card: View (loads into generator), Copy, Delete
-- Footer: Clear All button
-
-**Integration:**
-- History button in the CoverLetterGenerator header
-- Auto-save to history on successful generation
+**Fix**:
+1. Replace `framer-motion` in `BottomTabBar.tsx` with CSS transitions (matching the pattern used to fix InlineAIButton and other editor components)
+2. Guard the Editor tab click -- if no `currentResumeId` exists, show a toast instead of navigating to a page that immediately redirects
+3. Keep the tab configuration as-is since it provides correct navigation targets
 
 ---
 
-## Part 3: Enhanced Results Screen and Downloads
+## Changes
 
-**Remove framer-motion** from `CoverLetterGenerator.tsx` (currently uses `motion.div` on line 155) to prevent the infinite loop crash consistent with all other editor fixes.
+### File 1: `src/pages/DashboardPage.tsx`
+- Wrap `checkOnboardingStatus` in try/catch/finally
+- Call `setProfileLoaded(true)` when `user` is null (guest path)
+- This ensures the loading skeleton always resolves
 
-**Premium layout:**
-- Success header with green checkmark badge and a celebration shimmer CSS animation
-- Job context card showing target role and company with tone badge
-- Read mode: styled paper-like card with proper typography instead of raw textarea
-- Edit mode: toggle to textarea when user taps "Edit", back to styled view on "Done"
-
-**Download options:**
-- "Download PDF" button using `generateCoverLetterPDF` from `src/lib/pdfGenerator.ts` (already exists) combined with `downloadFile` from `src/lib/downloadUtils.ts`
-- "Download TXT" kept as secondary option
-- "Copy to Clipboard" remains prominent
-
-**Redesigned action buttons:**
-- Primary row: Copy to Clipboard (gradient), Download PDF (outline)
-- Secondary row: Regenerate (outline), History (outline)
+### File 2: `src/components/layout/BottomTabBar.tsx`
+- Remove `framer-motion` imports (`motion`, `AnimatePresence`)
+- Replace `motion.div` pill indicator with a plain `div` using CSS `transition-all`
+- Replace `AnimatePresence` + `motion.span` label with a regular `span` and CSS transitions
+- Replace icon bounce `motion.div` with CSS transform transition
+- Add resume guard for Editor tab: check `useResumeStore().currentResumeId` before navigating, show toast if no resume selected
 
 ---
 
-## Technical Details
+## Summary
 
-### Files to modify:
+| File | Change | Fixes |
+|------|--------|-------|
+| `src/pages/DashboardPage.tsx` | Add try/catch/finally to onboarding check; handle null user | Infinite loading skeleton on back navigation |
+| `src/components/layout/BottomTabBar.tsx` | Remove framer-motion; add CSS transitions; guard Editor tab | Tab animations and Editor bounce-redirect |
 
-| File | Changes |
-|------|---------|
-| `supabase/functions/generate-cover-letter/index.ts` | Add phone/email/LinkedIn to AI prompt; instruct no placeholders |
-| `src/types/resume.ts` | Add `CoverLetterHistory` interface |
-| `src/store/resumeStore.ts` | Add `coverLetterHistory` state and CRUD actions |
-| `src/components/editor/tailor/CoverLetterGenerator.tsx` | Remove framer-motion; enhance UI with read/edit toggle, PDF download, placeholder replacement, history integration |
-| `src/components/editor/tailor/CoverLetterHistorySheet.tsx` | New file -- history sheet matching TailorHistorySheet design |
-
-### Contact Info in AI Prompt (Edge Function):
-
-Add to the user prompt before the job description:
-```
-CANDIDATE CONTACT INFO:
-Phone: {resume.contactInfo.phone}
-Email: {resume.contactInfo.email}
-LinkedIn: {resume.contactInfo.linkedin}
-
-Include these actual contact details in the letter header. Do NOT use placeholder brackets like [Your Phone Number].
-```
-
-### Placeholder Replacement (Frontend Safety Net):
-
-```typescript
-function injectContactInfo(letter: string, contactInfo: ContactInfo): string {
-  return letter
-    .replace(/\[Your Phone Number\]/gi, contactInfo.phone || '')
-    .replace(/\[Your Email Address\]/gi, contactInfo.email || '')
-    .replace(/\[Your LinkedIn Profile URL\]/gi, contactInfo.linkedin || '')
-    .replace(/\[Your LinkedIn\]/gi, contactInfo.linkedin || '');
-}
-```
-
-### PDF Download:
-
-Uses the existing `generateCoverLetterPDF` function from `src/lib/pdfGenerator.ts` which already formats cover letters on A4 pages with proper typography, combined with the cross-platform `downloadFile` utility.
-
-### History Entry Shape:
-
-```typescript
-{
-  id: "uuid",
-  jobTitle: "Account Supervisor",
-  company: "Loynova",
-  tone: "professional",
-  coverLetter: "Full letter text...",
-  createdAt: "2026-02-11T..."
-}
-```
