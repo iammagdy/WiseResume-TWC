@@ -86,12 +86,7 @@ export default function DashboardPage() {
     checkOnboardingStatus();
   }, [user]);
 
-  // Redirect if not authenticated
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/auth');
-    }
-  }, [authLoading, user, navigate]);
+  // Guests can use the dashboard - no forced redirect to /auth
 
   // Auto-score resumes in background (one at a time, debounced)
   useEffect(() => {
