@@ -167,18 +167,14 @@ export default function EditorPage() {
     };
   }, [currentResume, user, currentResumeId, saveToCloud]);
 
-  // Save on unmount
+  // Clean up save timeout on unmount (save-on-unmount removed to prevent setState infinite loop)
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      // Trigger immediate save on unmount
-      if (user && currentResumeId && currentResume) {
-        saveToCloud();
-      }
     };
-  }, [user, currentResumeId, currentResume, saveToCloud]);
+  }, []);
 
   // Warn guests about unsaved data loss (H6)
   useEffect(() => {

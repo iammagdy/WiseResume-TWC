@@ -1,12 +1,6 @@
+import { useState, useRef, useEffect } from 'react';
 import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { haptics } from '@/lib/haptics';
 import { AIProviderFooter } from '@/components/editor/ai/AIProviderBadge';
 
@@ -58,44 +52,60 @@ export function InlineAIButton({
   isLoading = false,
   disabled = false,
 }: InlineAIButtonProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const actions = sectionActions[section];
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   const handleAction = (actionId: string) => {
     haptics.light();
+    setIsOpen(false);
     onAction(actionId);
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 px-2.5 gap-1.5 text-primary hover:bg-primary/10 transition-colors"
-          disabled={disabled || isLoading}
-        >
-          {isLoading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="w-3.5 h-3.5" />
-          )}
-          <span className="text-xs font-medium">AI</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[160px]">
-        {actions.map((action) => (
-          <DropdownMenuItem
-            key={action.id}
-            onClick={() => handleAction(action.id)}
-            className="gap-2 cursor-pointer"
-          >
-            {action.icon}
-            <span>{action.label}</span>
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <AIProviderFooter />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="relative" ref={menuRef}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-2.5 gap-1.5 text-primary hover:bg-primary/10 transition-colors"
+        disabled={disabled || isLoading}
+        onClick={() => setIsOpen((prev) => !prev)}
+      >
+        {isLoading ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <Sparkles className="w-3.5 h-3.5" />
+        )}
+        <span className="text-xs font-medium">AI</span>
+      </Button>
+
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl bg-popover border border-border p-1 shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.12)] animate-in fade-in-0 zoom-in-95 duration-150">
+          {actions.map((action) => (
+            <button
+              key={action.id}
+              onClick={() => handleAction(action.id)}
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground outline-none cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              {action.icon}
+              <span>{action.label}</span>
+            </button>
+          ))}
+          <div className="-mx-1 my-1 h-px bg-muted" />
+          <AIProviderFooter />
+        </div>
+      )}
+    </div>
   );
 }
