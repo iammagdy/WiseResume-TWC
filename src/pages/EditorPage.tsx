@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { motion } from 'framer-motion'; // kept for bottom button animation
 import { Download, ChevronRight, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { useResumeStore } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -280,48 +278,48 @@ export default function EditorPage() {
         />
 
         {/* Editor Tabs (hidden tab list, content driven by stepper) */}
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div
             className="flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
             ref={scrollContainerRef}
           >
-            <TabsContent value="contact" className="mt-0">
+            {activeTab === 'contact' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'}>
                   <ContactSection />
                 </SectionCard>
               </div>
-            </TabsContent>
-            <TabsContent value="summary" className="mt-0">
+            )}
+            {activeTab === 'summary' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'}>
                   <SummarySection />
                 </SectionCard>
               </div>
-            </TabsContent>
-            <TabsContent value="experience" className="mt-0">
+            )}
+            {activeTab === 'experience' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'}>
                   <ExperienceSection />
                 </SectionCard>
               </div>
-            </TabsContent>
-            <TabsContent value="education" className="mt-0">
+            )}
+            {activeTab === 'education' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'}>
                   <EducationSection />
                 </SectionCard>
               </div>
-            </TabsContent>
-            <TabsContent value="skills" className="mt-0">
+            )}
+            {activeTab === 'skills' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
                 <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'}>
                   <SkillsSection />
                 </SectionCard>
               </div>
-            </TabsContent>
+            )}
           </div>
-        </Tabs>
+        </div>
 
         {/* Next Step Banner */}
         {sectionStatus.contact && sectionStatus.experience && (
@@ -348,11 +346,7 @@ export default function EditorPage() {
           />
 
           {/* Preview & Export Button */}
-          <motion.div
-            className="px-4 pb-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <div className="px-4 pb-4 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
             <Button
               size="lg"
               className="w-full h-14 text-lg font-semibold gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
@@ -362,7 +356,7 @@ export default function EditorPage() {
               Preview & Export
               <ChevronRight className="w-5 h-5 ml-2" />
             </Button>
-          </motion.div>
+          </div>
         </div>
 
       {/* AI Intro Tooltip for First-Time Users */}
