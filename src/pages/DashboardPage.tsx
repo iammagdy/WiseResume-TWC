@@ -62,7 +62,11 @@ export default function DashboardPage() {
   // Check onboarding status when user is authenticated
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      if (user) {
+      if (!user) {
+        setProfileLoaded(true);
+        return;
+      }
+      try {
         const { data } = await supabase
           .from('profiles')
           .select('onboarding_completed')
@@ -72,6 +76,9 @@ export default function DashboardPage() {
         if (data && !data.onboarding_completed) {
           setShowOnboarding(true);
         }
+      } catch (err) {
+        console.error('Failed to check onboarding:', err);
+      } finally {
         setProfileLoaded(true);
       }
     };
