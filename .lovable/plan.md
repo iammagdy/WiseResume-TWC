@@ -1,48 +1,66 @@
 
 
-# Fix: Remove framer-motion from ALL Editor Sub-Components
+# Fix: Remove framer-motion from ALL remaining editor child components
 
-## Problem
-The editor page still freezes because three key child components use `framer-motion` extensively. Even though we removed Radix Tabs and framer-motion from EditorPage itself, the child components still create the same infinite setState loop through framer-motion's internal ref management interacting with React 18's concurrent rendering.
+## Root Cause (confirmed)
+
+The editor page still freezes because **5 child components** directly rendered in the editor tree still use `framer-motion` with `AnimatePresence` and `layout` props. These cause the same infinite `setState` loop via framer-motion's internal ref management conflicting with React 18's commit phase.
 
 The offending components:
-- **StepperNav** -- `motion.div` with `animate` on every step circle + animated progress line
-- **ProgressBar** -- `motion.div` wrapper + `motion.div` for each dot with staggered animations
-- **AIAssistantBar** -- `motion.div` with `layout` prop (worst offender), `AnimatePresence`, stagger variants throughout
-- **AIIntroTooltip** -- `AnimatePresence` + nested `motion.div` elements
+- **ExperienceSection.tsx** -- `AnimatePresence` wrapping the list + `motion.div` with `layout` prop on each experience card + nested `AnimatePresence` for expand/collapse
+- **EducationSection.tsx** -- Same pattern as ExperienceSection: `AnimatePresence` + `motion.div` with `layout` + nested `AnimatePresence`
+- **SkillsSection.tsx** -- `AnimatePresence` + `motion.div` with `layout` prop on each skill badge + `motion.div` for suggested skills
+- **AIContextualNudge.tsx** -- `AnimatePresence` + `motion.div` (rendered inside Summary, Experience, Education, Skills sections)
+- **AIEnhanceDialog.tsx** -- `AnimatePresence` + nested `motion.div` elements for the dialog overlay and content
 
 ## Changes
 
-### 1. `src/components/editor/StepperNav.tsx`
-- Replace `motion.div` for progress line with a plain `div` using CSS `transition-all` for width changes
-- Replace `motion.div` for step circles with plain `div` using CSS transitions
+### 1. `src/components/editor/ExperienceSection.tsx`
 - Remove `framer-motion` import
+- Replace outer `AnimatePresence` with a plain conditional
+- Replace `motion.div` (empty state) with a plain `div` with `animate-in fade-in-0`
+- Replace `motion.div` with `layout` prop (each experience card) with a plain `div`
+- Replace inner `AnimatePresence` + `motion.div` (expand/collapse) with conditional rendering and CSS transition
 
-### 2. `src/components/editor/ProgressBar.tsx`
-- Replace `motion.div` wrapper with a plain `div`
-- Replace `motion.div` dots with plain `div` elements
-- Replace `motion.circle` SVG with a plain `circle` using CSS transition for stroke
+### 2. `src/components/editor/EducationSection.tsx`
+- Same pattern as ExperienceSection:
 - Remove `framer-motion` import
+- Replace all `AnimatePresence` and `motion.div` elements with plain `div` elements using CSS animations
+- Remove `layout` prop usage
 
-### 3. `src/components/editor/AIAssistantBar.tsx`
-- Remove the `layout` prop from the outer `motion.div` (this is the most likely crash trigger)
-- Replace `AnimatePresence` + `motion.div` for expanded content with CSS-based show/hide
-- Replace all `motion.div` stagger variants with plain `div` elements
-- Replace chevron `motion.div` rotation with CSS `transform` + `transition`
+### 3. `src/components/editor/SkillsSection.tsx`
 - Remove `framer-motion` import
+- Replace `AnimatePresence` + `motion.div` with `layout` (skill badges) with plain `div` elements
+- Replace `motion.div` for suggested skills section with plain `div` using `animate-in`
 
-### 4. `src/components/editor/AIIntroTooltip.tsx`
-- Replace `AnimatePresence` + `motion.div` overlay with a plain conditional `div`
-- Use CSS animations (`animate-in fade-in-0`) for the card entrance
+### 4. `src/components/editor/AIContextualNudge.tsx`
 - Remove `framer-motion` import
+- Replace `AnimatePresence` + `motion.div` with a conditional `div` using `animate-in fade-in-0 slide-in-from-top-2`
+
+### 5. `src/components/editor/ai/AIEnhanceDialog.tsx`
+- Remove `framer-motion` import
+- Replace `AnimatePresence` + nested `motion.div` elements with plain `div` elements using CSS animations (`animate-in fade-in-0` for overlay, `animate-in fade-in-0 slide-in-from-bottom-4` for dialog content)
+
+## Technical Details
+
+All replacements follow the same pattern established in previous fixes:
+
+```text
+BEFORE: <AnimatePresence>{show && <motion.div initial={...} animate={...} exit={...}>...</motion.div>}</AnimatePresence>
+AFTER:  {show && <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">...</div>}
+
+BEFORE: <motion.div layout initial={...} animate={...} exit={...} className="...">
+AFTER:  <div className="... transition-all duration-200">
+```
 
 ## Summary
 
 | File | Change |
 |------|--------|
-| `src/components/editor/StepperNav.tsx` | Replace all motion elements with CSS-transitioned divs |
-| `src/components/editor/ProgressBar.tsx` | Replace motion elements with plain divs |
-| `src/components/editor/AIAssistantBar.tsx` | Remove `layout` prop, replace AnimatePresence/motion with CSS |
-| `src/components/editor/AIIntroTooltip.tsx` | Replace AnimatePresence/motion with CSS animations |
+| `src/components/editor/ExperienceSection.tsx` | Remove all framer-motion usage, replace with CSS |
+| `src/components/editor/EducationSection.tsx` | Remove all framer-motion usage, replace with CSS |
+| `src/components/editor/SkillsSection.tsx` | Remove all framer-motion usage, replace with CSS |
+| `src/components/editor/AIContextualNudge.tsx` | Remove AnimatePresence/motion, use conditional CSS |
+| `src/components/editor/ai/AIEnhanceDialog.tsx` | Remove AnimatePresence/motion, use CSS animations |
 
-This comprehensively removes framer-motion from the entire editor rendering tree, eliminating the root cause of the infinite loop.
+This removes the **last remaining** framer-motion components from the editor's rendering tree, which should fully resolve the infinite loop crash.
