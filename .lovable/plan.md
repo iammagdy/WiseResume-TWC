@@ -1,61 +1,70 @@
 
 
-# Fix the Ugly Monkey -- Complete SVG Redesign
+# Replace Monkey with Animated Panda Character
 
-## The Problem
+## Overview
 
-The current monkey looks bad because:
-- Eyes are oversized and bug-eyed (looks startled/creepy)
-- Ears are floating far from the head, disconnected
-- Body is a tiny disconnected ellipse below a giant head
-- Arms look like weird floating tendrils
-- No neck connecting head to body
-- Overall proportions feel like a flat alien face, not a cute monkey
+Replace the current monkey mascot with a cute panda character matching the reference images -- clean black and white design, round body, sitting pose with visible paw pads, and the same interactive animations.
 
-## The Fix
+## Panda Design (based on reference images)
 
-Complete rewrite of the SVG paths in `src/components/auth/AuthMonkey.tsx` while keeping the exact same props interface and animation logic. The new design will be:
+The panda from the references has these key features:
+- **Round white head** with black ear circles on top
+- **Black eye patches** (teardrop/oval shapes) with white eyes and dark pupils inside
+- **Small black nose** with a cute smile below
+- **White body** with black arms/sides wrapping around
+- **White belly patch** visible in the center
+- **Feet** showing outward with oval paw pads and toe dots
+- **Hair tuft** -- small spiky lines on top of the head
+- Simple, clean lines -- minimal detail, maximum cuteness
 
-### New Proportions (200x220 viewBox for more room)
-- **Bigger body** with a visible belly and rounded shape
-- **Smaller, rounder head** properly proportioned (not 80% of the character)
-- **Ears attached to the head** -- overlapping the head circle, not floating in space
-- **Smaller, cuter eyes** -- round but not giant, with proper eyelids
-- **Visible neck/shoulders** connecting head to body
-- **Stubbier, cuter arms** that look like actual monkey arms
-- **Hands with simple round paw shapes** instead of weird finger circles
-- **A tuft of hair on top** for personality
-- **Tail curling out from behind** for monkey identity
+## Animation Behaviors (same as before)
 
-### Design Reference
-Think of a chibi-style cartoon monkey -- big head relative to body (but not 90%), round features, warm friendly expression. Similar to emoji monkeys or children's book illustrations.
+| State | Panda Action |
+|-------|-------------|
+| Idle | Looks at user, friendly smile |
+| Email/Phone focused | Pupils look down, tracking text length |
+| Password focused | Paws come up to cover eyes (like the 3rd reference image -- panda covering face) |
+| Show password | One paw drops, peeks with one eye |
+| Error | Head shakes side-to-side |
+| Success | Happy bounce with sparkles |
 
-### Key SVG Improvements
-- Head radius reduced from 42 to ~35, centered higher
-- Ears: semicircles overlapping the head edge (not 50px away)
-- Eyes: rx=8, ry=9 instead of rx=11, ry=12 -- much less bug-eyed
-- Pupils: r=3.5 instead of r=5
-- Body: proper rounded rectangle/ellipse with visible belly patch
-- Arms: curved paths that start from the body/shoulders, not from thin air
-- Hands: simple oval paws
-- Add a cute curly tail on one side
-- Add hair tuft (3 small arcs on top of head)
-
-### Animation Logic (unchanged)
-All the existing animation logic stays exactly the same:
-- `pupilOffsetX/Y` for eye tracking
-- `handY`/`leftHandY`/`rightHandY` for covering eyes
-- `eyesClosed` and `leftEyeScaleY` for peeking
-- `smilePath` for expressions
-- Shake and success animations via `controls`
-
-Only the SVG drawing coordinates and shapes change.
-
-## Files Changed
+## File Changes
 
 | File | Change |
 |------|--------|
-| `src/components/auth/AuthMonkey.tsx` | Complete rewrite of SVG paths and shapes. Same component interface, same animation logic, new better-looking monkey design. |
+| `src/components/auth/AuthMonkey.tsx` | Complete SVG rewrite to panda design. Same props interface. Renamed component to `AuthPanda`. |
+| `src/pages/AuthPage.tsx` | Update import and JSX from `AuthMonkey` to `AuthPanda` |
 
-No other files need changes since the props interface remains identical.
+## Technical Details
 
+### SVG Structure (200x220 viewBox)
+
+Back to front layer order:
+1. **Body** -- white ellipse with black side patches
+2. **Feet** -- two ovals at bottom with paw pad details (dark circles for toes)
+3. **Arms/Paws** -- black paths that animate Y upward to cover eyes on password focus
+4. **Head** -- large white circle
+5. **Ears** -- two black circles overlapping the top of head
+6. **Eye patches** -- dark teardrop/oval shapes on the face
+7. **Eyes** -- white circles inside patches with animated dark pupils
+8. **Nose** -- small black oval
+9. **Mouth** -- animated smile path
+10. **Hair tuft** -- small spiky strokes on top
+11. **Success sparkles** -- conditional animated circles
+
+### Color Palette
+- Body/Head: `white` (#FFFFFF)
+- Ears, eye patches, arms, nose: `#1A1A2E` (near-black, slightly warm)
+- Paw pads: `#2D2D44` (dark)
+- Pupils: `#1A1A2E`
+- Mouth: `#1A1A2E` stroke
+- Cheek blush: `#FFB7C5` (soft pink, subtle)
+
+### Animation Logic (unchanged interface)
+- Same props: `focusedField`, `showPassword`, `textLength`, `shake`, `success`
+- Same `pupilOffsetX/Y` tracking for eye movement
+- Same `handY` / `leftHandY` spring animations for paws covering eyes
+- Same `eyesClosed` / `leftEyeScaleY` for peeking
+- Same `smilePath` for expression changes
+- Same shake and bounce via `controls`
