@@ -97,15 +97,6 @@ export const SkillsSection = memo(function SkillsSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display font-semibold text-lg">Skills</h3>
-        <InlineAIButton
-          section="skills"
-          onAction={handleAIAction}
-          isLoading={isEnhancing}
-        />
-      </div>
-
       {/* Contextual Nudge */}
       <AIContextualNudge
         show={!!nudge}

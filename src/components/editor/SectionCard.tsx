@@ -7,10 +7,11 @@ interface SectionCardProps {
   title: string;
   tip?: string;
   status: 'empty' | 'partial' | 'complete';
+  action?: ReactNode;
   children: ReactNode;
 }
 
-export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, status, children }: SectionCardProps) {
+export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, status, action, children }: SectionCardProps) {
   return (
     <div
       className={cn(
@@ -35,6 +36,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
           )} />
         </div>
         <h3 className="text-sm font-semibold flex-1">{title}</h3>
+        {action && <div className="shrink-0">{action}</div>}
       </div>
 
       {/* Tip pill */}
