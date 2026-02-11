@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult } from '@/types/resume';
+import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 
 interface ResumeState {
@@ -18,6 +18,7 @@ interface ResumeState {
   tailorHistoryByResume: Record<string, TailorHistory[]>;
   generatedCoverLetter: string | null;
   coverLetterJobContext: CoverLetterContext | null;
+  coverLetterHistory: CoverLetterHistory[];
   
   // Multi-job comparison
   currentComparison: MultiJobComparison | null;
@@ -38,6 +39,9 @@ interface ResumeState {
   getTailorHistoryForResume: (resumeId: string) => TailorHistory[];
   restoreTailorVersion: (id: string) => void;
   setGeneratedCoverLetter: (letter: string | null, context?: CoverLetterContext) => void;
+  addCoverLetterHistory: (entry: Omit<CoverLetterHistory, 'id' | 'createdAt'>) => void;
+  deleteCoverLetterHistoryEntry: (id: string) => void;
+  clearCoverLetterHistory: () => void;
   
   // Multi-job comparison actions
   startNewComparison: (resumeId: string, firstJob: Omit<JobComparisonEntry, 'id' | 'createdAt'>) => void;
@@ -84,6 +88,7 @@ export const useResumeStore = create<ResumeState>()(
       tailorHistoryByResume: {},
       generatedCoverLetter: null,
       coverLetterJobContext: null,
+      coverLetterHistory: [],
       currentComparison: null,
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
@@ -149,6 +154,23 @@ export const useResumeStore = create<ResumeState>()(
         generatedCoverLetter: letter,
         coverLetterJobContext: context || null,
       }),
+      
+      addCoverLetterHistory: (entry) => set((state) => {
+        const newEntry: CoverLetterHistory = {
+          ...entry,
+          id: uuidv4(),
+          createdAt: new Date().toISOString(),
+        };
+        return {
+          coverLetterHistory: [newEntry, ...state.coverLetterHistory.slice(0, 19)],
+        };
+      }),
+      
+      deleteCoverLetterHistoryEntry: (id) => set((state) => ({
+        coverLetterHistory: state.coverLetterHistory.filter(e => e.id !== id),
+      })),
+      
+      clearCoverLetterHistory: () => set({ coverLetterHistory: [] }),
       
       startNewComparison: (resumeId, firstJob) => set({
         currentComparison: {
@@ -251,6 +273,7 @@ export const useResumeStore = create<ResumeState>()(
         tailorHistoryByResume: {},
         generatedCoverLetter: null,
         coverLetterJobContext: null,
+        coverLetterHistory: [],
         currentComparison: null,
       }),
     }),

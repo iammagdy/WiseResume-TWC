@@ -180,6 +180,15 @@ export interface PDFOptions {
 
 export type ExportType = 'resume' | 'cover-letter' | 'combined' | 'one-page' | 'docx';
 
+export interface CoverLetterHistory {
+  id: string;
+  jobTitle: string;
+  company: string;
+  tone: string;
+  coverLetter: string;
+  createdAt: string;
+}
+
 export interface CoverLetterContext {
   title: string;
   company: string;

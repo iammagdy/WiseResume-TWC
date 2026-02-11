@@ -110,10 +110,21 @@ serve(async (req) => {
 
 Do not use generic phrases like "I am writing to apply for". Be specific and impactful.`;
 
+    const candidatePhone = resume.contactInfo?.phone || '';
+    const candidateEmail = resume.contactInfo?.email || '';
+    const candidateLinkedIn = resume.contactInfo?.linkedin || '';
+
     const userPrompt = `Write a cover letter for this job application:
 
-CANDIDATE RESUME:
+CANDIDATE CONTACT INFO:
 Name: ${resume.contactInfo?.fullName || 'Candidate'}
+Phone: ${candidatePhone}
+Email: ${candidateEmail}
+LinkedIn: ${candidateLinkedIn}
+
+Use these ACTUAL contact details in the letter header. Do NOT use placeholder brackets like [Your Phone Number] or [Your Email Address] or [Your LinkedIn Profile URL]. If a contact detail is empty, simply omit it.
+
+CANDIDATE RESUME:
 Current Role: ${resume.experience?.[0]?.position || 'Professional'} at ${resume.experience?.[0]?.company || 'Previous Company'}
 
 Summary: ${resume.summary || 'Experienced professional'}
@@ -131,7 +142,7 @@ Education: ${resume.education?.[0]?.degree || ''} in ${resume.education?.[0]?.fi
 JOB DESCRIPTION:
 ${jobDescription}
 
-Write a ${validTone} cover letter. Start directly with an engaging opening paragraph. Include 2-3 body paragraphs highlighting relevant experience. End with a confident call to action.`;
+Write a ${validTone} cover letter. Start with a professional header containing the candidate's actual name, phone, email, and LinkedIn. Then write an engaging opening paragraph. Include 2-3 body paragraphs highlighting relevant experience. End with a confident call to action.`;
 
     const response = await fetch(apiUrl, {
       method: "POST",

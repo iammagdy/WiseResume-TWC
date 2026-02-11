@@ -1085,3 +1085,31 @@
     padding: 14px 16px !important;
   }
 }
+
+/* Cover Letter Generator */
+.cover-letter-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--success) / 0.08),
+    transparent
+  );
+  animation: cl-shimmer 2s ease-in-out;
+}
+
+@keyframes cl-shimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.cover-letter-paper {
+  background: hsl(var(--card));
+  box-shadow: 0 1px 3px hsl(var(--border) / 0.3);
+  font-family: 'Georgia', serif;
+  letter-spacing: 0.01em;
+}
