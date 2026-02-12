@@ -1,55 +1,64 @@
 
 
-## Enhance StepperNav: Larger Circles, Swipeable Carousel, Labels
+## Enhanced Progress Bar: Taller, Color-Shifting, Confetti
 
 ### Changes
 
-**File: `src/components/editor/StepperNav.tsx`**
+**File: `src/components/editor/ProgressBar.tsx`**
 
-**1. Enlarge step circles (~20% larger)**
-- Increase circle from `w-10 h-10` (40px) to `w-12 h-12` (48px) -- meets 48px touch target and is 20% larger
-- Increase icons from `w-4 h-4` to `w-5 h-5`
-- Increase check icon similarly
-- Update the outer glow ring offset from `4px` to `5px`
-- Update connecting line `top-5` to `top-6` to stay centered with larger circles
+**1. Increase bar height**
+- Change track from `h-2` (8px) to `h-3` (12px) for more visual prominence
+- The bar fill stays `h-full` inside it
 
-**2. Always show section labels (not just xs+)**
-- Remove `hidden xs:block` from the label `<span>` so labels are always visible
-- Keep `text-[11px]` size for compactness
+**2. Dynamic color based on progress**
+- Replace the static `gradient-primary` class with an inline `background` style that shifts through a color range:
+  - 0-33%: Red (`hsl(0, 80%, 55%)`)
+  - 34-66%: Amber/Yellow (`hsl(40, 90%, 50%)`)
+  - 67-99%: Green (`hsl(140, 70%, 45%)`)
+  - 100%: Keep existing `bg-success`
+- Use a helper function `getProgressColor(progress)` that returns the appropriate HSL value
+- Add a subtle inner shadow/glow matching the current color
 
-**3. Convert to horizontal scrollable carousel on mobile**
-- Wrap the step buttons in a horizontally scrollable container with `overflow-x-auto scrollbar-hide snap-x snap-mandatory`
-- Each step gets `snap-center` so swiping snaps to steps
-- Add horizontal padding so the active step can be centered
-- Use a `useEffect` to auto-scroll the active step into view on mount and when `activeStep` changes via `scrollIntoView({ inline: 'center', behavior: 'smooth' })`
-- Each step button gets a `ref` callback to track elements for scrolling
+**3. Percentage label update**
+- Keep the existing "Resume XX% Complete" text label next to the bar
+- Make it slightly bolder and color-match it to the bar color for visual cohesion
 
-**4. Scroll/swipe indicators**
-- Add subtle left/right fade gradients (via pseudo-elements or overlay divs) on the scroll container edges to hint at more content
-- Use `pointer-events-none` gradient overlays: left overlay fades from `bg-background` to transparent, right overlay fades from transparent to `bg-background`
-- These only render when there's overflow content in that direction (tracked via scroll position state)
+**4. Smooth animation**
+- Keep the existing `transition: 'width 0.7s ease-out'` for the fill
+- Add `transition: 'background-color 0.5s ease'` so color changes animate smoothly
 
-**5. Update touch targets**
-- The circle itself is now 48x48px
-- The overall button `min-w-[48px]` stays, but add `min-h-[48px]` to ensure the tap area meets minimum standards
-- Add `p-1` around each button for comfortable spacing between steps
+**5. Confetti burst at 100%**
+- Add a `useEffect` + `useRef` to detect when progress transitions to 100 (track previous value)
+- When hitting 100%, render 8-10 confetti particles using CSS keyframe animations (similar pattern to StepperNav's `stepper-confetti-burst`)
+- Particles burst outward from the bar center, fade out after ~1s, then unmount
+- Add a `<style>` block with the confetti keyframe (or reuse existing one)
+- Also trigger a brief scale pulse on the percentage text
 
-**6. Update connecting line positioning**
-- Adjust `top` value from `top-5` to `top-6` to center with the new 48px circles
-- Adjust confetti particle distance from `20px` to `24px` to match larger circles
+**6. ProgressRing variant**
+- Apply the same color logic to the ring stroke so both variants are consistent
+
+### Helper function
+
+```typescript
+function getProgressColor(progress: number): string {
+  if (progress >= 100) return 'hsl(var(--success))';
+  if (progress >= 67) return 'hsl(140, 70%, 45%)';
+  if (progress >= 34) return 'hsl(40, 90%, 50%)';
+  return 'hsl(0, 80%, 55%)';
+}
+```
 
 ### Visual Result
 
 ```text
-Mobile (swipeable, 3 visible at a time):
-  <fade>  [Contact] [Summary] [Work]  <fade>
-              ^active (centered)
-          swipe left/right for more
+Before:
+Resume 45% Complete [====------] (thin, single color)
 
-Labels always visible below each circle.
-Circles: 48x48px with centered icons.
+After:
+Resume 45% Complete [======--------] (taller, amber fill, smooth transition)
+Resume 100% Complete [==============] (green + confetti burst!)
 ```
 
 ### Files Modified
-- `src/components/editor/StepperNav.tsx` -- all changes in this single file
+- `src/components/editor/ProgressBar.tsx` -- all changes in this single file
 
