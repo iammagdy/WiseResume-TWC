@@ -16,6 +16,7 @@ interface ApplyPromptDialogProps {
   jobTitle: string;
   company: string;
   resumeId?: string;
+  jobUrl?: string;
 }
 
 export function ApplyPromptDialog({
@@ -24,6 +25,7 @@ export function ApplyPromptDialog({
   jobTitle,
   company,
   resumeId,
+  jobUrl,
 }: ApplyPromptDialogProps) {
   const { createApplication } = useJobApplicationMutations();
 
@@ -34,6 +36,7 @@ export function ApplyPromptDialog({
       company,
       status: 'applied',
       resume_id: resumeId,
+      url: jobUrl,
     });
     onOpenChange(false);
   };
@@ -45,6 +48,7 @@ export function ApplyPromptDialog({
       company,
       status: 'saved',
       resume_id: resumeId,
+      url: jobUrl,
     });
     onOpenChange(false);
   };
@@ -57,6 +61,7 @@ export function ApplyPromptDialog({
       company,
       status: 'saved',
       resume_id: resumeId,
+      url: jobUrl,
       remind_at: remindAt,
     });
     onOpenChange(false);
