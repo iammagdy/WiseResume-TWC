@@ -66,7 +66,7 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
             transition={{ duration: 0.25 }}
             className="mx-4 mt-2 mb-1 overflow-hidden"
           >
-            <div className="glass-surface border-glow rounded-xl px-3 py-2 flex items-center gap-2.5">
+            <div className="glass-surface border-glow rounded-xl p-4 flex items-center gap-2.5">
               <div className="w-6 h-6 rounded-md bg-warning/10 flex items-center justify-center flex-shrink-0">
                 <Lightbulb className="w-3.5 h-3.5 text-warning" />
               </div>

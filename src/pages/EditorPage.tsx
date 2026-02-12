@@ -410,7 +410,7 @@ export default function EditorPage() {
 
         {/* Guest Info Banner */}
         {!user && !guestBannerDismissed && (
-          <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2">
+          <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2 flex-1 min-w-0">
                 <Info className="w-4 h-4 text-blue-500 shrink-0" />

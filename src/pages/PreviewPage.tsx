@@ -493,7 +493,7 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-          className="shrink-0 p-3 sm:p-4 glass border-t border-border space-y-2 sm:space-y-3 pb-safe"
+          className="shrink-0 p-4 glass border-t border-border space-y-2 sm:space-y-3 pb-safe"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
