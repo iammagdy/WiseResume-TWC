@@ -1,55 +1,52 @@
 
 
-# Fix Bottom Bar Not Showing on Editor Page
+# Fix Stale Chunk Import Errors
 
 ## Problem
 
-The editor page's bottom AI Studio bar disappears on some devices due to fragile flex layout nesting. The layout chain is:
+After code deployments, the browser's service worker or cache may still reference old JavaScript chunk filenames (e.g., `HowItWorks-Br6zRkRb.js`). When these chunks are requested, they return 404 errors, causing the app to crash and show the "Something went wrong" error screen.
 
-```text
-AppShell (min-h-[100dvh], flex-col)
-  main (flex-1, overflow-hidden)
-    div (flex-1, min-h-0, h-full)
-      EditorPage root (flex-1, flex-col, min-h-0, overflow-hidden)
-        header (shrink-0)
-        progress bar (shrink-0)
-        StepperNav (NO shrink-0)
-        content wrapper (flex-1, overflow-hidden)
-          scrollable area (flex-1, overflow-y-auto)
-        bottom bar (shrink-0, glass)
-```
+Two gaps exist:
 
-The bottom bar relies on every ancestor in this 4-level-deep flex chain calculating heights correctly. On devices with unusual viewport behavior (dynamic toolbars, notch insets, etc.), the flex container can miscalculate available height, pushing the bottom bar below the visible area.
+1. **Landing page lazy imports bypass the retry logic** -- `src/pages/Index.tsx` uses raw `lazy()` instead of `lazyWithRetry()`, so stale chunk failures on the landing page are not retried or recovered.
 
-Additionally, StepperNav has no `shrink-0`, allowing it to potentially collapse or behave unpredictably under space pressure.
-
-## Root Causes
-
-1. **Flex-only positioning is fragile for persistent bottom UI** -- The bottom bar depends on correct height propagation through 4 nested flex containers. Any miscalculation hides it.
-2. **StepperNav missing `shrink-0`** -- Under tight space, the stepper could shrink, destabilizing the layout.
-3. **AppShell inner div has `h-full`** -- This can conflict with `flex-1` on some browsers, creating height ambiguity.
-
-## Solution
-
-Make the bottom bar use `sticky bottom-0` positioning instead of relying solely on flex layout. This guarantees visibility regardless of content height or flex chain behavior. Also add `shrink-0` to the StepperNav and clean up the inner content wrapper.
+2. **ErrorBoundary "Try Again" doesn't reload** -- The "Try Again" button resets React state but re-attempts the same stale import URL, which fails again immediately. For chunk loading errors specifically, a full page reload is needed to fetch the updated manifest.
 
 ## Changes
 
-### 1. `src/pages/EditorPage.tsx`
+### 1. `src/components/ErrorBoundary.tsx`
+- Detect chunk loading errors in `handleRetry` (check if error message contains "dynamically imported module" or "Failed to fetch")
+- When a chunk error is detected, call `window.location.reload()` instead of just resetting state
+- This busts the stale cache and fetches the new asset manifest
 
-- **StepperNav wrapper**: Add `shrink-0` class to prevent it from collapsing.
-- **Bottom bar**: Change from `shrink-0 glass border-t` to `sticky bottom-0 z-30 glass border-t`. This anchors it to the bottom of the scroll ancestor, ensuring it is always visible even if flex height calculations fail.
-- **Content area padding**: Add `pb-2` to the scrollable content area to ensure section navigation buttons don't overlap with the sticky bottom bar.
+### 2. `src/pages/Index.tsx`
+- Replace all `lazy()` calls with `lazyWithRetry()` (imported from or duplicated from `App.tsx`)
+- This adds automatic retry + reload behavior for all landing page lazy-loaded sections (SocialProofBar, WhyWiseResume, HowItWorks, FeatureGrid, TemplateGallery, BottomCTA)
 
-### 2. `src/components/layout/AppShell.tsx`
-
-- Remove `h-full` from the inner div wrapping `{currentOutlet}` -- this conflicts with `flex-1` on some mobile browsers and can cause the flex container to either over-expand or under-expand.
+### 3. `src/lib/lazyWithRetry.ts` (new file)
+- Extract the `lazyWithRetry` utility from `App.tsx` into its own shared module so both `App.tsx` and `Index.tsx` (and any future lazy imports) can reuse it
+- Update `App.tsx` to import from this new shared module instead of defining it inline
 
 ## Technical Details
 
-The sticky approach is more resilient because:
-- It doesn't depend on all parent flex containers calculating height correctly
-- It works with both `overflow-hidden` and `overflow-auto` ancestors
-- It gracefully handles dynamic viewport changes (iOS Safari toolbar, keyboard, etc.)
-- The BottomTabBar already uses `fixed` positioning for the same reason -- persistent bottom UI should never rely on flex-only layout
+The chunk error detection in ErrorBoundary:
+
+```typescript
+private handleRetry = () => {
+  const isChunkError = this.state.error?.message &&
+    (this.state.error.message.includes('dynamically imported module') ||
+     this.state.error.message.includes('Failed to fetch') ||
+     this.state.error.message.includes('Loading chunk'));
+
+  if (isChunkError) {
+    window.location.reload();
+    return;
+  }
+
+  this.props.onReset?.();
+  this.setState({ hasError: false, error: null, errorInfo: null });
+};
+```
+
+This is a targeted fix -- chunk errors trigger a reload, while other errors continue with the existing reset behavior.
 
