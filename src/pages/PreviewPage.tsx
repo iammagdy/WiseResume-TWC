@@ -79,6 +79,7 @@ export default function PreviewPage() {
   const [domSections, setDomSections] = useState<SectionId[]>([]);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const { exportProgress, onProgress, reset: resetProgress } = useExportProgress();
+  const guestPreviewHintShown = useRef(false);
   
   // Get template configuration for the selected template
   const templateConfig = useMemo(() => getTemplateConfig(selectedTemplate), [selectedTemplate]);
@@ -98,6 +99,20 @@ export default function PreviewPage() {
       }
     }
   }, [selectedTemplate, currentResume?.id]);
+
+  // Guest preview hint toast
+  useEffect(() => {
+    if (user || guestPreviewHintShown.current || sessionStorage.getItem('wr-preview-signin-hint') === '1') return;
+    guestPreviewHintShown.current = true;
+    const timer = setTimeout(() => {
+      sessionStorage.setItem('wr-preview-signin-hint', '1');
+      toast('Sign in to save and download in multiple formats', {
+        action: { label: 'Sign Up', onClick: () => window.location.href = '/auth?mode=signup' },
+        duration: 5000,
+      });
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [user]);
 
   // Update section ordering based on actual DOM layout after render
   useEffect(() => {

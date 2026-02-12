@@ -6,11 +6,18 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeStore } from '@/store/resumeStore';
 
+const DISMISS_KEY = 'wr-guest-banner-dismissed';
+
 export function GuestSaveBanner() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentResume } = useResumeStore();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    sessionStorage.setItem(DISMISS_KEY, '1');
+  };
 
   // Only show for guests with a resume in progress
   if (user || !currentResume || dismissed) {
@@ -35,11 +42,11 @@ export function GuestSaveBanner() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
-        className="bg-primary/10 border-b border-primary/20 px-4 py-2.5"
+        className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2.5"
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <Cloud className="w-4 h-4 text-primary shrink-0" />
+            <Cloud className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <p className="text-sm text-foreground truncate">
               <span className="font-medium">Your work is saved locally.</span>
               <span className="text-muted-foreground hidden sm:inline"> Sign up to save it to the cloud.</span>
@@ -55,7 +62,7 @@ export function GuestSaveBanner() {
               Sign Up
             </Button>
             <button
-              onClick={() => setDismissed(true)}
+              onClick={handleDismiss}
               className="p-1 rounded-full hover:bg-muted transition-colors"
               aria-label="Dismiss"
             >

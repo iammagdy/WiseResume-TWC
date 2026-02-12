@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock } from 'lucide-react';
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -83,6 +84,9 @@ export default function EditorPage() {
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  const [signInPromptContext, setSignInPromptContext] = useState<{ title: string; description: string } | null>(null);
+  const signInPromptShownRef = useRef(false);
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -257,7 +261,21 @@ export default function EditorPage() {
       }
       prev[id] = nowComplete;
     }
-  }, [sectionScores, TOAST_MESSAGES, currentResume]);
+
+    // Strategic sign-in prompt for guests after completing 2 sections
+    if (!user && !signInPromptShownRef.current && sessionStorage.getItem('wr-signin-prompt-shown') !== '1') {
+      const completedCount = sectionIds.filter(id => sectionScores[id] >= 100).length;
+      if (completedCount >= 2) {
+        signInPromptShownRef.current = true;
+        sessionStorage.setItem('wr-signin-prompt-shown', '1');
+        setSignInPromptContext({
+          title: "You're making great progress! 🎉",
+          description: 'Sign in to save your work and continue on any device.',
+        });
+        setShowSignInPrompt(true);
+      }
+    }
+  }, [sectionScores, TOAST_MESSAGES, currentResume, user]);
 
   // Resume guard - redirect to appropriate page based on auth state
   if (!currentResume) {
@@ -278,7 +296,17 @@ export default function EditorPage() {
   }, [user, navigate]);
 
   const handleChangeTemplate = useCallback(() => setShowTemplates(true), []);
-  const handleTailor = useCallback(() => setShowTailor(true), []);
+  const handleTailor = useCallback(() => {
+    if (!user) {
+      setSignInPromptContext({
+        title: 'Unlock AI-Tailored Resumes',
+        description: 'Sign in to tailor your resume for specific job postings.',
+      });
+      setShowSignInPrompt(true);
+      return;
+    }
+    setShowTailor(true);
+  }, [user]);
   const handleAnalyze = useCallback(() => setShowJobSheet(true), []);
   const handleRecruiterSim = useCallback(() => setShowRecruiterSim(true), []);
   const handleAIDetector = useCallback(() => setShowAIDetector(true), []);
@@ -497,6 +525,20 @@ export default function EditorPage() {
               company={lastAppliedJobInfo.company}
               resumeId={lastAppliedJobInfo.resumeId}
               jobUrl={lastAppliedJobInfo.jobUrl}
+            />
+          )}
+          {showSignInPrompt && signInPromptContext && (
+            <SignInPromptDialog
+              open={showSignInPrompt}
+              onOpenChange={setShowSignInPrompt}
+              title={signInPromptContext.title}
+              description={signInPromptContext.description}
+              benefits={[
+                'Access your resume anywhere',
+                'Tailor to unlimited jobs',
+                'Generate AI cover letters',
+                'Track your applications',
+              ]}
             />
           )}
         </Suspense>
