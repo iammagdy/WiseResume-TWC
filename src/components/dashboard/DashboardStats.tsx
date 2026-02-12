@@ -70,7 +70,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
       className="px-4 pt-4 pb-3"
     >
       {/* Glass Hero Card */}
-      <div className="glass-elevated rounded-2xl p-5 relative overflow-hidden">
+      <div className="glass-elevated rounded-2xl p-4 relative overflow-hidden">
         {/* Animated gradient border */}
         <div className="absolute inset-0 rounded-2xl p-[1px] pointer-events-none">
           <div
@@ -113,7 +113,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
 
           {/* Stats Row with Score Ring */}
 {totalResumes > 0 && (
-            <div className="flex items-center gap-5">
+            <div className="flex items-center gap-4">
               {/* Large Score Ring */}
               <div className="flex flex-col items-center gap-1">
                 <ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={avgScore === 0} />

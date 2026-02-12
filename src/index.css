@@ -222,6 +222,12 @@
     @apply text-xs font-medium;
     line-height: 1.25;
   }
+
+  /* ── Semantic Spacing System ── */
+  .px-edge { @apply px-4; }           /* 16px screen edges */
+  .space-section { @apply mb-6; }     /* 24px between sections */
+  .p-card { @apply p-4; }             /* 16px inside cards */
+
   .gradient-primary {
     background: linear-gradient(
       135deg,
