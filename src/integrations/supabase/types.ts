@@ -52,6 +52,100 @@ export type Database = {
           },
         ]
       }
+      cover_letters: {
+        Row: {
+          company: string | null
+          content: string
+          created_at: string | null
+          id: string
+          job_title: string
+          resume_id: string | null
+          tone: string | null
+          user_id: string
+        }
+        Insert: {
+          company?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          job_title: string
+          resume_id?: string | null
+          tone?: string | null
+          user_id: string
+        }
+        Update: {
+          company?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          job_title?: string
+          resume_id?: string | null
+          tone?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cover_letters_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_sessions: {
+        Row: {
+          created_at: string | null
+          duration_seconds: number | null
+          id: string
+          improvements: Json | null
+          interview_type: string | null
+          job_description: string | null
+          job_title: string | null
+          messages: Json | null
+          overall_score: number | null
+          resume_id: string | null
+          strengths: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          improvements?: Json | null
+          interview_type?: string | null
+          job_description?: string | null
+          job_title?: string | null
+          messages?: Json | null
+          overall_score?: number | null
+          resume_id?: string | null
+          strengths?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_seconds?: number | null
+          id?: string
+          improvements?: Json | null
+          interview_type?: string | null
+          job_description?: string | null
+          job_title?: string | null
+          messages?: Json | null
+          overall_score?: number | null
+          resume_id?: string | null
+          strengths?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_sessions_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -167,6 +261,92 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tailor_history: {
+        Row: {
+          applied_sections: Json | null
+          company: string | null
+          created_at: string | null
+          id: string
+          job_description: string | null
+          job_title: string
+          resume_id: string | null
+          score_after: number | null
+          score_before: number | null
+          tailor_result: Json
+          user_id: string
+        }
+        Insert: {
+          applied_sections?: Json | null
+          company?: string | null
+          created_at?: string | null
+          id?: string
+          job_description?: string | null
+          job_title: string
+          resume_id?: string | null
+          score_after?: number | null
+          score_before?: number | null
+          tailor_result?: Json
+          user_id: string
+        }
+        Update: {
+          applied_sections?: Json | null
+          company?: string | null
+          created_at?: string | null
+          id?: string
+          job_description?: string | null
+          job_title?: string
+          resume_id?: string | null
+          score_after?: number | null
+          score_before?: number | null
+          tailor_result?: Json
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tailor_history_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_preferences: {
+        Row: {
+          ai_provider: string | null
+          biometric_enabled: boolean | null
+          biometric_timeout: number | null
+          default_template: string | null
+          id: string
+          onboarding_flags: Json | null
+          pdf_defaults: Json | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_provider?: string | null
+          biometric_enabled?: boolean | null
+          biometric_timeout?: number | null
+          default_template?: string | null
+          id?: string
+          onboarding_flags?: Json | null
+          pdf_defaults?: Json | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_provider?: string | null
+          biometric_enabled?: boolean | null
+          biometric_timeout?: number | null
+          default_template?: string | null
+          id?: string
+          onboarding_flags?: Json | null
+          pdf_defaults?: Json | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {
