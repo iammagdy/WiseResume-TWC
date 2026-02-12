@@ -1,8 +1,9 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Briefcase } from 'lucide-react';
+import { FileText, Settings, Home, Briefcase, Lock } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface TabItem {
@@ -49,6 +50,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const currentResumeId = useResumeStore((s) => s.currentResumeId);
+  const { user } = useAuth();
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -57,10 +59,17 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     return location.pathname === tab.path;
   };
 
+  const isEditorDisabled = !currentResumeId;
+  const isJobsLocked = !user;
+
   const handleTabPress = (tab: TabItem) => {
     haptics.selection();
-    if (tab.guarded && !currentResumeId) {
-      toast.info('Open or create a resume first');
+    if (tab.guarded && isEditorDisabled) {
+      toast.info('Create a resume first to access the editor');
+      return;
+    }
+    if (tab.path === '/applications' && isJobsLocked) {
+      toast.info('Sign in to track job applications');
       return;
     }
     navigate(tab.path);
@@ -83,22 +92,25 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
         {tabs.map((tab) => {
           const active = isActive(tab);
           const Icon = tab.icon;
+          const disabled = (tab.guarded && isEditorDisabled) || (tab.path === '/applications' && isJobsLocked);
           
           return (
             <button
               key={tab.path}
               role="tab"
               aria-selected={active}
+              aria-disabled={disabled || undefined}
               aria-label={tab.label}
               tabIndex={0}
               onClick={() => handleTabPress(tab)}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 h-full',
                 'touch-manipulation active:scale-95 transition-all duration-200',
-                'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
+                'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
+                tab.guarded && isEditorDisabled && 'opacity-50'
               )}
             >
-              {/* Pill indicator – pure CSS */}
+              {/* Pill indicator */}
               <div
                 className={cn(
                   'absolute inset-x-3 top-1 bottom-1 rounded-2xl border transition-all duration-300',
@@ -123,6 +135,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                     aria-hidden="true"
                   />
                 </div>
+                {/* Lock overlay for Jobs tab when not signed in */}
+                {tab.path === '/applications' && isJobsLocked && (
+                  <div className="absolute -top-1 -right-2">
+                    <Lock className="w-3 h-3 text-muted-foreground" />
+                  </div>
+                )}
               </div>
               <span
                 className={cn(
