@@ -1,54 +1,104 @@
 
 
-# Fix: Show Resume Activity in Timeline + Make Stats Clickable
+# Settings Tab Overhaul: Auth Provider Fix + Premium Redesign
 
-## Problem
-1. **Empty Timeline**: The "Recent Activity" section shows nothing because it only queries `tailor_history`, `job_applications`, and `cover_letters` (all empty). It ignores the `resumes` table, which has 8 entries including created and tailored resumes.
-2. **Dead Stat Tiles**: The 4 stat cards (Resumes Created, Tailored Versions, etc.) are not tappable. The user expects to tap "Tailored Versions" and see the tailored resumes.
+## Issue 1: Auth Provider Confusion
 
-## Solution
+**Root Cause**: The profile card in Settings shows your email address as the subtitle (e.g., `magdyysaber@gmail.com`), which looks identical whether you signed in with Google or with email/password. There is no visual indicator of HOW you signed in. The app has the data (`user.app_metadata.provider` = "google"), but it never displays it.
 
-### 1. Add Resume Events to ActivityTimeline (`ActivityTimeline.tsx`)
-- Add a new type `'resume_created' | 'resume_tailored'` to the `TimelineEntry` union
-- Query the `resumes` table alongside the existing queries
-- For each resume: if `parent_resume_id` is null, it's a "Created" event; if present, it's a "Tailored" event
-- For tailored resumes, show the `target_job_title` and `target_company` as the job context
-- Add new icons: FileText for created, Scissors for tailored
-- Show "Created 6 days ago", "Tailored 1 day ago", etc.
+**Fix**: Add a small badge/chip below your name in the profile card showing the sign-in method:
+- "Signed in with Google" (with Google icon)
+- "Signed in with Apple" (with Apple icon)  
+- "Signed in with Email" (with mail icon)
 
-### 2. Make Stat Tiles Clickable (`JobActivityStats.tsx`)
-Each tile navigates to a relevant detail view when tapped:
-- **Resumes Created** -- navigates to `/dashboard` (where original resumes live)
-- **Tailored Versions** -- navigates to `/dashboard` with a query param like `?filter=tailored` (or simply scrolls to tailored group)
-- **Jobs Analyzed** -- scrolls down to the activity timeline (since job analysis entries show there)
-- **Cover Letters** -- scrolls to timeline filtered to cover letters
+This is read from `user.app_metadata.provider` which is already available on the auth user object. The profile subtitle will also be cleaned up to show your job title or "Tap to complete your profile" instead of just the raw email.
 
-Add `onClick` handlers with `useNavigate`, subtle press animation (`active:scale-95`), and cursor pointer styling to make them feel interactive.
+## Issue 2: Settings Cleanup + Premium Feel
 
-### 3. Visual Polish
-- Add a subtle chevron-right icon or arrow indicator on each stat tile to hint they're tappable
-- Add `transition-transform active:scale-[0.97]` to tiles for tactile press feedback
+### Remove/Merge These Items
 
-## Files to Modify
+| Item | Reason |
+|------|--------|
+| **Default Template** (Editor Preferences) | Rarely used -- users pick templates when creating/editing a resume, not in settings. Remove the entire row and its sheet. |
+| **Reset Onboarding** (Account) | Developer/debug tool, not useful for real users. Remove it. |
+| **Local-Only Mode** (Privacy) | Confusing for most users and not functionally meaningful in this cloud-backed app. Remove it. |
+| **Analytics toggle** (Privacy) | No real analytics system behind it. Remove it. |
 
-**`src/components/applications/ActivityTimeline.tsx`**
-- Add `resumes` query to the `Promise.all`
-- Map original resumes as `type: 'resume_created'` entries
-- Map tailored resumes as `type: 'resume_tailored'` entries with job title/company from `target_job_title`/`target_company`
-- Add icons and label text for the new types
-- Tapping a resume entry navigates to `/editor?id={resumeId}`
+### Keep These (They're Useful)
 
-**`src/components/applications/JobActivityStats.tsx`**
-- Accept `useNavigate` and add `onClick` to each tile
-- "Resumes Created" and "Tailored Versions" navigate to `/dashboard`
-- "Jobs Analyzed" and "Cover Letters" smooth-scroll to the timeline section on the same page
-- Add press feedback animation and chevron hint
+- Appearance (theme toggle)
+- PDF Export Settings
+- AI Provider
+- ElevenLabs API Key
+- Auto-save Toasts
+- AI Enhancement Tips
+- Export Resumes
+- Biometric Lock
+- Delete All Data
+- Sign Out
+- Developer Credit Card
 
-**`src/pages/ApplicationsPage.tsx`**
-- Add an `id="activity-timeline"` anchor on the timeline section so stat tiles can scroll to it
+### Add These New Premium Options
+
+1. **"Signed in as" info row** -- Shows auth provider (Google/Apple/Email) with icon, non-editable, informational. Placed in the profile card area.
+
+2. **"Language" setting** (Account section) -- A selector for app language (English only for now, but shows the app is ready for i18n). Displays "English" with a globe icon. Tapping shows a sheet with English selected and "More coming soon" note.
+
+3. **"Resume Count" info row** (Data section) -- Shows "X resumes created" as a subtle informational stat next to Export. Makes the data section feel richer.
+
+4. **"Rate WiseResume"** (About section) -- A row with a star icon that opens the app store rating link. Premium apps always have this.
+
+5. **"Share WiseResume"** (About section) -- A row with a share icon that triggers the native share API with the app link.
+
+### New Section Order (Top to Bottom)
+
+1. **Profile Card** -- Avatar, name, job title, auth provider badge, completion progress
+2. **Appearance** -- Theme toggle (unchanged)
+3. **Editor Preferences** -- PDF Export Settings only (template row removed)
+4. **AI & Voice** -- AI Provider, ElevenLabs Key (unchanged)
+5. **Notifications** -- Auto-save Toasts, AI Enhancement Tips (unchanged)
+6. **Data & Export** -- Export Resumes (with resume count inline)
+7. **Privacy & Security** -- Biometric Lock only (removed Local-Only and Analytics)
+8. **Account** -- Language, Delete All Data, Sign Out
+9. **About** -- Developer Card, Rate WiseResume, Share WiseResume, Version info
+
+## Technical Details
+
+### Files to Modify
+
+**`src/pages/SettingsPage.tsx`**
+- Import `Globe, Star, Share2` from lucide-react
+- Remove imports for `RotateCcw, CloudOff, BarChart3`
+- Remove `DefaultTemplateSheet` lazy import and its state/rendering
+- Remove `handleResetOnboarding` function
+- Add auth provider detection: `const authProvider = user?.app_metadata?.provider || 'email'`
+- Add provider badge JSX in the profile card (below display name)
+- Remove the "Default Template" `SettingsRow`
+- Remove "Reset Onboarding", "Local-Only Mode", "Analytics" rows
+- Add "Language" row (shows "English", taps to show toast "More languages coming soon")
+- Add "Rate WiseResume" row (opens external link or triggers `useRateApp`)
+- Add "Share WiseResume" row (triggers `navigator.share()` or copies link)
+- Show resume count inline on the Export row description
+
+**`src/store/settingsStore.ts`**
+- No changes needed (the removed settings stay in the store for backward compat, they just won't render in UI)
+
+**`src/components/settings/DefaultTemplateSheet.tsx`**
+- No deletion needed (keep the file for potential future use elsewhere), just stop importing/rendering it from SettingsPage
+
+### Auth Provider Badge Logic
+```
+const providerLabel = {
+  google: 'Google',
+  apple: 'Apple',
+  email: 'Email',
+}[authProvider] || 'Email';
+```
+Display as a small chip with the provider icon next to the email/subtitle text.
 
 ## Result
-- The timeline will immediately show all 8 resume events (7 created + 1 tailored for "Account Supervisor @ Loynova")
-- Each entry shows relative time ("1 day ago", "3 days ago", etc.)
-- Stat tiles feel interactive with press animation and navigation
-- The app feels intelligent -- everything the user does is automatically documented
+- Users will always see clearly HOW they signed in (Google badge vs Email badge)
+- Settings page is cleaner with 4 less rows of clutter
+- New rows (Language, Rate, Share) give a premium, polished feel
+- The page feels intentional and well-curated, not like a developer debug panel
+
