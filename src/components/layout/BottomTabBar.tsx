@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Upload, Briefcase } from 'lucide-react';
+import { FileText, Settings, Home, Briefcase } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -26,12 +26,6 @@ const tabs: TabItem[] = [
     label: 'Editor',
     matchPaths: ['/editor', '/preview'],
     guarded: true,
-  },
-  { 
-    path: '/upload', 
-    icon: Upload, 
-    label: 'Upload',
-    matchPaths: ['/upload']
   },
   { 
     path: '/applications', 
