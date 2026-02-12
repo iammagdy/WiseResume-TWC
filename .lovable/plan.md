@@ -1,36 +1,28 @@
 
-# Add Password Reset Completion Flow
 
-## Problem
-The "Forgot password?" link sends a reset email, but when the user clicks the link and returns to `/auth?reset=true`, the page just shows the normal login form. There is no way to actually set a new password.
+# Remove Upload Tab from Bottom Navigation
 
-The password show/hide icon already exists on the auth page.
+## What Changes
 
-## What Will Change
+The "Upload" tab will be removed from the bottom navigation bar, leaving a clean 4-tab layout: **Home, Editor, Jobs, Settings**. Upload functionality remains accessible via the "Upload PDF" quick action chip on the Home (Dashboard) page, which already exists.
 
-### AuthPage.tsx -- Add a "Set New Password" mode
+## Changes by File
 
-1. **Detect the reset callback**: On mount, check if the URL contains `?reset=true` or if the auth event is `PASSWORD_RECOVERY`. If so, switch to a new `reset-password` mode.
+### 1. `src/components/layout/BottomTabBar.tsx`
+- Remove the Upload tab entry from the `tabs` array (lines 30-35)
+- Remove the `Upload` icon import from lucide-react
 
-2. **New UI for setting a password**: When in `reset-password` mode, show:
-   - A heading: "Set New Password"
-   - A new password field (with show/hide eye icon)
-   - A confirm password field (with show/hide eye icon)
-   - A "Update Password" button
+### 2. `src/components/layout/AppShell.tsx`
+- Remove `'/upload'` from the `TAB_ROUTES` array so the bottom nav still shows when visiting `/upload` via the quick action chip (actually, keep it so the shell wraps the upload page -- but the tab just won't be in the bar)
 
-3. **Submit handler**: Call `supabase.auth.updateUser({ password: newPassword })` to save the new password. On success, show a toast and redirect to `/dashboard`.
+### 3. `src/lib/navigation.ts`
+- Update the `BACK_ROUTES` mapping: `/upload` should still navigate back to `/dashboard`
+- No other changes needed
 
-4. **Validation**: Ensure both password fields match and meet the 6-character minimum.
+No other files need changes. The Dashboard's `QuickActionChips` component already has an "Upload PDF" button that navigates to `/upload`, so upload remains easily accessible from the home page.
 
-## Technical Details
+## Result
+- Bottom bar: **Home | Editor | Jobs | Settings** (4 tabs, consistent for all users)
+- Upload page still works when navigated to from the dashboard's quick action chip
+- The upload route remains inside `AppShell` so it gets the standard layout
 
-### File: `src/pages/AuthPage.tsx`
-
-- Add `'reset-password'` to the `AuthMode` type
-- Add state for `confirmPassword` and `showConfirmPassword`
-- Add a `useEffect` that listens for `PASSWORD_RECOVERY` event from `onAuthStateChange` and also checks for `?reset=true` in the URL search params -- if detected, set mode to `reset-password`
-- Add a `handleUpdatePassword` function that validates passwords match, then calls `supabase.auth.updateUser({ password })`
-- Add a new form section rendered when `mode === 'reset-password'` with two password fields and a submit button, both with the eye show/hide toggle
-- Clean up the URL params after detecting the reset (using `window.history.replaceState`)
-
-No new files needed. No database changes required.
