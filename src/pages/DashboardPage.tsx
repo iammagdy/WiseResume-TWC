@@ -60,6 +60,7 @@ export default function DashboardPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [tipVisible, setTipVisible] = useState(true);
 
   // Guest-gated create handler
   const handleCreateNew = useCallback(() => {
@@ -346,20 +347,15 @@ export default function DashboardPage() {
           </div>
         </header>
 
+        {/* Daily Tip - below header, auto-hides */}
+        <DailyTipCard onVisibilityChange={setTipVisible} />
+
         {/* Personalized Stats Header */}
         <DashboardStats
           totalResumes={resumes?.length || 0}
           healthScores={healthScores}
           userName={profile?.fullName}
         />
-
-        {/* Quick Action Chips */}
-        {resumes && resumes.length > 0 && (
-          <QuickActionChips onCreateNew={handleCreateNew} />
-        )}
-
-        {/* Daily Tip */}
-        <DailyTipCard />
 
         {/* Search pill */}
         {resumes && resumes.length > 0 && (
@@ -497,7 +493,7 @@ export default function DashboardPage() {
 
       {/* Floating Create Button */}
       {resumes && resumes.length > 0 && (
-        <FloatingCreateButton onClick={handleCreateNew} />
+        <FloatingCreateButton onClick={handleCreateNew} pulse={tipVisible} />
       )}
 
       {/* Sign In Prompt for guests */}
