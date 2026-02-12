@@ -1,4 +1,4 @@
-import React, { createContext, useEffect, useState } from 'react';
+import React, { createContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/safeClient';
 
@@ -58,6 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { user: null, session: null, loading: true };
   });
 
+  // Track the active user ID to prevent session hijacking from stale second sessions
+  const activeUserIdRef = useRef<string | null>(
+    getCachedSession()?.user?.id ?? null
+  );
+
   useEffect(() => {
     let initialResolved = false;
 
@@ -65,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!initialResolved) {
         initialResolved = true;
       }
+      activeUserIdRef.current = user?.id ?? null;
       setState({ user, session, loading: false });
       cacheSession(user, session);
     };
@@ -77,15 +83,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }, 5000);
 
-    // Set up auth state listener BEFORE getting session
-    // This continues to fire for sign-in, sign-out, token refresh, etc.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
+        const incomingUserId = session?.user?.id ?? null;
+
+        // Always accept these events
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'INITIAL_SESSION') {
+          resolveInitialLoad(session?.user ?? null, session);
+          return;
+        }
+
+        // For TOKEN_REFRESHED and other events, only accept if user ID matches
+        if (activeUserIdRef.current && incomingUserId && incomingUserId !== activeUserIdRef.current) {
+          console.warn('Ignored auth event from different user:', event, incomingUserId);
+          return;
+        }
+
         resolveInitialLoad(session?.user ?? null, session);
       }
     );
 
-    // Get initial session
     supabase.auth.getSession()
       .then(({ data: { session } }) => {
         resolveInitialLoad(session?.user ?? null, session);
@@ -102,7 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem(SESSION_CACHE_KEY);
+    activeUserIdRef.current = null;
+    setState({ user: null, session: null, loading: false });
+    await supabase.auth.signOut({ scope: 'local' });
   };
 
   const value = {
