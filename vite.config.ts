@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.svg", "favicon.ico", "icons/*.png"],
       manifest: false, // Use existing public/manifest.json
       workbox: {
+        navigateFallbackDenylist: [/^\/~oauth/],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         runtimeCaching: [
           {
