@@ -36,6 +36,7 @@ const AuthPage = lazyWithRetry(() => import("./pages/AuthPage"));
 const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
 const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
 const InterviewPage = lazyWithRetry(() => import("./pages/InterviewPage"));
+const ApplicationsPage = lazyWithRetry(() => import("./pages/ApplicationsPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -112,9 +113,14 @@ const queryClient = new QueryClient({
               <SettingsPage />
             </Suspense>
           } />
-          <Route path="/interview" element={
+           <Route path="/interview" element={
             <Suspense fallback={<InterviewSkeleton />}>
               <InterviewPage />
+            </Suspense>
+          } />
+           <Route path="/applications" element={
+            <Suspense fallback={<DashboardSkeleton />}>
+              <ApplicationsPage />
             </Suspense>
           } />
         </Route>

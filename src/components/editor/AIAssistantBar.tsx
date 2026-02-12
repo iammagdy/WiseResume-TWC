@@ -18,6 +18,7 @@ import {
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { AIEngineBadge } from '@/components/editor/ai/AIEngineBadge';
+import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { JobMatchScore, TemplateId } from '@/types/resume';
 
@@ -192,7 +193,10 @@ export const AIAssistantBar = memo(function AIAssistantBar({
         {isExpanded && (
           <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
             <div className="px-4 pb-4 space-y-4">
-              <AIEngineBadge showSettingsLink />
+              <div className="flex items-center justify-between">
+                <AIEngineBadge showSettingsLink />
+                <AICreditsIndicator />
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <PrimaryActionButton

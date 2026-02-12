@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
@@ -32,6 +32,7 @@ const LinkedInOptimizerSheet = lazy(() => import('@/components/editor/ai/LinkedI
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
+const VersionHistorySheet = lazy(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -75,6 +76,7 @@ export default function EditorPage() {
   const [showOnePage, setShowOnePage] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showCareerPath, setShowCareerPath] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
 
@@ -263,6 +265,15 @@ export default function EditorPage() {
               <ArrowLeft className="w-6 h-6" />
             </button>
             <h1 className="text-lg font-display font-semibold truncate">Edit Resume</h1>
+            {user && currentResumeId && (
+              <button
+                onClick={() => setShowVersionHistory(true)}
+                className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                aria-label="Version history"
+              >
+                <Clock className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
           </div>
           <button
             onClick={() => setShowChat(true)}
@@ -438,6 +449,7 @@ export default function EditorPage() {
           {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
           {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
+          {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
         </Suspense>
       </ErrorBoundary>
     </div>

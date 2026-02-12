@@ -1,0 +1,126 @@
+import { useState } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
+
+interface AddApplicationSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultValues?: {
+    job_title?: string;
+    company?: string;
+    resume_id?: string;
+  };
+}
+
+export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddApplicationSheetProps) {
+  const { createApplication } = useJobApplicationMutations();
+  const [jobTitle, setJobTitle] = useState(defaultValues?.job_title || '');
+  const [company, setCompany] = useState(defaultValues?.company || '');
+  const [status, setStatus] = useState<ApplicationStatus>('applied');
+  const [url, setUrl] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const handleSubmit = async () => {
+    if (!jobTitle.trim() || !company.trim()) return;
+
+    await createApplication.mutateAsync({
+      job_title: jobTitle.trim(),
+      company: company.trim(),
+      status,
+      url: url.trim() || undefined,
+      notes: notes.trim() || undefined,
+      resume_id: defaultValues?.resume_id,
+    });
+
+    onOpenChange(false);
+    setJobTitle('');
+    setCompany('');
+    setStatus('applied');
+    setUrl('');
+    setNotes('');
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="bottom" className="rounded-t-3xl max-h-[85dvh] flex flex-col">
+        <SheetHeader className="shrink-0">
+          <SheetTitle>Track Application</SheetTitle>
+        </SheetHeader>
+
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="job-title">Job Title *</Label>
+            <Input
+              id="job-title"
+              placeholder="e.g. Software Engineer"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="company">Company *</Label>
+            <Input
+              id="company"
+              placeholder="e.g. Google"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={(v) => setStatus(v as ApplicationStatus)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="applied">Applied</SelectItem>
+                <SelectItem value="interviewing">Interviewing</SelectItem>
+                <SelectItem value="offer">Offer</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="url">Job URL</Label>
+            <Input
+              id="url"
+              type="url"
+              placeholder="https://..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="notes">Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Any notes about this application..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <div className="shrink-0 pt-2 pb-safe">
+          <Button
+            className="w-full h-12"
+            onClick={handleSubmit}
+            disabled={!jobTitle.trim() || !company.trim() || createApplication.isPending}
+          >
+            {createApplication.isPending ? 'Saving...' : 'Track Application'}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

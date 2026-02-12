@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_credits: {
+        Row: {
+          daily_limit: number
+          daily_usage: number
+          id: string
+          total_usage: number
+          updated_at: string | null
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          daily_limit?: number
+          daily_usage?: number
+          id?: string
+          total_usage?: number
+          updated_at?: string | null
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          daily_limit?: number
+          daily_usage?: number
+          id?: string
+          total_usage?: number
+          updated_at?: string | null
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_usage_logs: {
         Row: {
           action_type: string
@@ -146,6 +176,66 @@ export type Database = {
           },
         ]
       }
+      job_applications: {
+        Row: {
+          applied_at: string | null
+          company: string
+          cover_letter_id: string | null
+          created_at: string | null
+          id: string
+          job_title: string
+          notes: string | null
+          resume_id: string | null
+          status: string
+          updated_at: string | null
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          company: string
+          cover_letter_id?: string | null
+          created_at?: string | null
+          id?: string
+          job_title: string
+          notes?: string | null
+          resume_id?: string | null
+          status?: string
+          updated_at?: string | null
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          company?: string
+          cover_letter_id?: string | null
+          created_at?: string | null
+          id?: string
+          job_title?: string
+          notes?: string | null
+          resume_id?: string | null
+          status?: string
+          updated_at?: string | null
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_cover_letter_id_fkey"
+            columns: ["cover_letter_id"]
+            isOneToOne: false
+            referencedRelation: "cover_letters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -193,6 +283,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      resume_versions: {
+        Row: {
+          change_summary: string | null
+          created_at: string | null
+          id: string
+          resume_id: string
+          snapshot: Json
+          user_id: string
+          version_number: number
+        }
+        Insert: {
+          change_summary?: string | null
+          created_at?: string | null
+          id?: string
+          resume_id: string
+          snapshot: Json
+          user_id: string
+          version_number?: number
+        }
+        Update: {
+          change_summary?: string | null
+          created_at?: string | null
+          id?: string
+          resume_id?: string
+          snapshot?: Json
+          user_id?: string
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resume_versions_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resumes: {
         Row: {

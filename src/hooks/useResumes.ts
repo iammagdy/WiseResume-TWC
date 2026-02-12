@@ -5,6 +5,7 @@ import { ResumeData, Experience, Education, Certification, ContactInfo } from '@
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
 import { useResumeStore } from '@/store/resumeStore';
+import { useResumeVersionMutations } from '@/hooks/useResumeVersions';
 
 export interface DatabaseResume {
   id: string;
@@ -140,6 +141,7 @@ export function useResume(resumeId: string | null) {
 export function useResumeMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { saveVersion } = useResumeVersionMutations();
 
   const createResume = useMutation({
     mutationFn: async ({ resume, title }: { resume: ResumeData; title?: string }) => {
@@ -201,6 +203,13 @@ export function useResumeMutations() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       queryClient.invalidateQueries({ queryKey: ['resume', data.id] });
+      // Auto-save a version snapshot (fire and forget)
+      const resumeData = dbToResumeData(data);
+      saveVersion.mutate({
+        resumeId: data.id,
+        snapshot: resumeData,
+        changeSummary: 'Auto-saved',
+      });
     },
     onError: (error: Error & { code?: string }) => {
       // Check for PGRST116 error (no rows found - stale resume ID)
