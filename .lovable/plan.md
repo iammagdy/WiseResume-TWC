@@ -1,90 +1,90 @@
 
 
-## Enhanced Dashboard Interactivity: Create Button, Tab Bar, and Empty State
+## Dashboard Polish: Daily Tip, Profile Avatar, and Transitions
 
 ### Overview
 
-Three interconnected improvements to the dashboard experience: (1) enhanced create button with loading state, (2) smarter bottom tab bar with visual disabled/locked states and preventive toasts, (3) richer empty state with template previews and secondary actions.
+Three areas of improvement: (1) enhance the daily tip banner with better touch targets, swipe-to-dismiss, and localStorage persistence, (2) make the profile avatar more interactive with a dropdown menu, incomplete-profile badge, and first-visit pulse, (3) add smooth transitions for tab navigation and editor section switching.
 
 ---
 
-### 1. Floating Create Button -- Loading Spinner and Enhanced Press Feedback
+### 1. Daily Tip Banner Enhancements
 
-**File: `src/components/dashboard/FloatingCreateButton.tsx`**
+**File: `src/components/dashboard/DailyTipCard.tsx`**
 
-- Change `whileTap` from `{ scale: 0.92 }` to `{ scale: 0.95 }` with spring transition (`type: 'spring', stiffness: 400, damping: 15`)
-- Add dynamic `boxShadow` that increases on press using framer-motion's `whileTap` style: shadow grows from `0 6px 24px` to `0 8px 32px`
-- Add `isLoading` prop (boolean) -- when true, replace the `Plus` icon with a small spinning `Loader2` icon from lucide-react (16x16, `animate-spin`)
-- Disable the button while loading (`pointer-events-none opacity-90`)
+Current issues:
+- Close button is only ~24px (p-1 + 14px icon) -- needs 44px touch target
+- Uses `sessionStorage` (resets on refresh) -- switch to `localStorage`
+- No swipe gesture -- add drag-to-dismiss via framer-motion
+- Already has collapse/expand behavior -- keep and improve animations
+
+Changes:
+- Increase close button to `w-11 h-11` (44px) with centered icon, keep icon at 16px (`w-4 h-4`)
+- Replace `sessionStorage` with `localStorage` key `wr-tip-dismissed`
+- Add `drag="x"` on the banner with `dragConstraints={{ left: 0, right: 0 }}` and `onDragEnd` handler: if drag velocity or offset exceeds threshold (e.g., deltaX > 80 or velocity > 300), trigger dismiss
+- Improve enter animation to fade+slide from top: `initial={{ opacity: 0, y: -20 }}`, `animate={{ opacity: 1, y: 0 }}`
+- Improve exit animation: `exit={{ opacity: 0, x: 200 }}` for swipe-dismiss, `exit={{ opacity: 0, height: 0 }}` for button-dismiss
+- Keep the collapsed "Tip" button with lightbulb icon as-is (already implemented)
+
+---
+
+### 2. Profile Avatar with Dropdown Menu, Badge, and Pulse
 
 **File: `src/pages/DashboardPage.tsx`**
 
-- Add `isCreating` state that's set to `true` when the create button is clicked and `false` when the create dialog opens or navigation completes
-- Pass `isLoading={isCreating}` to `FloatingCreateButton`
-- Wrap `handleCreateNew` to set `isCreating = true` briefly before showing dialog (use a short timeout or set it in the click handler and reset in `onOpenChange`)
+Current: Avatar navigates directly to `/settings` on tap. No dropdown, no badge, no first-visit indicator.
+
+Changes:
+- Replace the direct `navigate('/settings')` with a `DropdownMenu` from the existing Radix dropdown component
+- Menu items: "My Profile" (navigates to `/settings`), "Account Settings" (navigates to `/settings`), separator, "Sign Out" (calls auth signOut) -- for guests, show "Sign In" instead of "Sign Out"
+- Add `whileTap={{ scale: 0.9 }}` animation (already present -- keep)
+- Add a first-visit pulsing ring: check `localStorage` for `wr-profile-pulse-seen`. If not seen, render a pulsing ring animation around the avatar (CSS `animate-pulse` ring with `border-primary/40`). On first dropdown open, mark as seen
+- Add incomplete profile badge: use `calculateProfileCompletion(profile)` (already imported via `useProfile`). If completion < 50%, show a small red dot (8px) at top-right of avatar using absolute positioning
+- Import `calculateProfileCompletion` from `useProfile` hook
 
 ---
 
-### 2. Bottom Tab Bar -- Disabled Editor, Locked Jobs, Preventive Toasts
+### 3. Tab Navigation Fade Transitions
 
-**File: `src/components/layout/BottomTabBar.tsx`**
+**File: `src/components/layout/AppShell.tsx`**
 
-Current behavior: Editor tab checks `currentResumeId` and shows a generic toast. Jobs tab navigates freely.
-
-Changes:
-- Import `useAuth` to access `user` state
-- Import `Lock` icon from lucide-react
-- Add `useResumes` or check `currentResumeId` from the resume store (already imported) to determine if user has any resumes
-- For the **Editor tab**: when `currentResumeId` is null, apply `opacity-50` to the entire tab button. Show toast: "Create a resume first to access the editor"
-- For the **Jobs tab**: when `!user`, overlay a small `Lock` icon (12x12) positioned at the top-right of the tab icon area. On click when not signed in, show toast: "Sign in to track job applications" and prevent navigation
-- Update `handleTabPress` logic:
-  - Editor guard already exists, update toast message to be more descriptive
-  - Add Jobs guard: `if (tab.path === '/applications' && !user) { toast.info('Sign in to track job applications'); return; }`
-- Add `aria-disabled` attribute to disabled tabs for accessibility
-
----
-
-### 3. Empty State -- Template Previews, Browse Button, Clickable Steps
-
-**File: `src/components/dashboard/EmptyState.tsx`**
-
-Current: Shows floating icon, "No Resumes Yet", 3 steps, and a single CTA button.
+Current: No transition animation between routes. Uses raw `{currentOutlet}`.
 
 Changes:
-- Add new props: `onBrowseTemplates: () => void` and `onStartOnboarding: () => void`
-- **Template preview row**: Add a horizontal scrollable row of 3 mini template cards below the steps section
-  - Templates: `modern`, `classic`, `minimal` (most popular/recognizable)
-  - Each card: 100px wide, aspect-ratio 8.5/11, white background, rounded-xl, border, with a simplified placeholder visual (colored header bar + gray lines to simulate resume content -- NOT full TemplateThumbnail to avoid heavy lazy loading in empty state)
-  - Template name below each card in `text-tiny` / `text-caption` style
-  - On click: call `onCreateNew()` (or a new `onSelectTemplate(templateId)` callback)
-  - Horizontal scroll with `overflow-x-auto scrollbar-hide snap-x` and `gap-3`
-- **"Browse All Templates" button**: Add a `Button variant="outline"` below the main CTA with text "Browse All Templates" and an `ArrowRight` icon. Calls `onBrowseTemplates`
-- **Clickable steps subtitle**: Make the "Get started in 3 simple steps" text a `button` element with `underline decoration-dashed` styling. On click, call `onStartOnboarding` to replay the onboarding tour
-- Add staggered entrance animations for the template cards
-
-**File: `src/pages/DashboardPage.tsx`**
-
-- Pass new props to `EmptyState`:
-  - `onBrowseTemplates`: opens the `CreateResumeDialog` (reuse `setShowCreateDialog(true)`)
-  - `onStartOnboarding`: sets `showOnboarding = true` to replay the onboarding carousel
-- Update `EmptyState` usage: `<EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />`
+- Wrap the outlet in `AnimatePresence` with `mode="popLayout"` (avoids the "wait" deadlock issue noted in memory)
+- Add a `motion.div` wrapper with `key={location.pathname}` for route-based transitions
+- Animation: `initial={{ opacity: 0 }}`, `animate={{ opacity: 1 }}`, `exit={{ opacity: 0 }}`, `transition={{ duration: 0.2 }}`
+- Use `initial={false}` on `AnimatePresence` to skip entrance animation on first load (per memory: transition-optimization)
+- Keep it simple -- fade only, no slide (slides conflict with bottom tab navigation mental model)
 
 ---
 
 ### Technical Details
 
-**Template mini-previews**: Using simplified CSS-only placeholders (colored header strip + gray skeleton lines) instead of rendering actual `TemplateThumbnail` components. This avoids lazy-loading 3 full template components in an empty state, keeping the initial load fast.
+**Swipe-to-dismiss implementation:**
+Using framer-motion's `drag` prop with `onDragEnd`:
+```typescript
+onDragEnd={(_, info) => {
+  if (Math.abs(info.offset.x) > 80 || Math.abs(info.velocity.x) > 300) {
+    handleDismiss();
+  }
+}}
+```
 
-**Loading state on create button**: The `isCreating` state is a brief UI indicator. It's set `true` on click and reset when `showCreateDialog` becomes true (via a `useEffect` watching `showCreateDialog`). This gives visual feedback during the short delay before the dialog lazy-loads.
+**Profile completion badge:**
+Reuses the existing `calculateProfileCompletion()` function. The red dot only appears when authenticated (guests have no profile to complete).
 
-**Tab bar guards**: The Editor tab uses the existing `currentResumeId` check (no resume loaded). The Jobs tab adds an auth check. Both show descriptive toasts and prevent navigation, eliminating the current pattern where users navigate and then get blocked.
+**First-visit pulse:**
+A simple CSS ring animation that runs 3-4 times then stops, using `animate-[ping_1.5s_ease-out_4]` or a framer-motion loop with `repeat: 4`.
 
-**Haptic feedback**: All interactive elements already use haptics via the existing `haptics` utility. The tab bar uses `haptics.selection()` on press. The create button uses `haptics.medium()`. No changes needed -- haptic coverage is already comprehensive.
+**Tab transition considerations:**
+- `initial={false}` prevents the white flash on first load
+- `mode="popLayout"` avoids the deadlock issue with `mode="wait"` noted in editor stability memory
+- 200ms duration matches the bottom tab bar's own `duration-200` transitions
 
 ### Files Modified
 
-- `src/components/dashboard/FloatingCreateButton.tsx` -- add loading spinner, enhanced press animation
-- `src/components/layout/BottomTabBar.tsx` -- add disabled/locked states, descriptive toasts, Lock icon overlay
-- `src/components/dashboard/EmptyState.tsx` -- add template previews, browse button, clickable steps
-- `src/pages/DashboardPage.tsx` -- wire new props and loading state
+- `src/components/dashboard/DailyTipCard.tsx` -- 44px close button, swipe gesture, localStorage, improved animations
+- `src/pages/DashboardPage.tsx` -- profile avatar dropdown menu, completion badge, first-visit pulse
+- `src/components/layout/AppShell.tsx` -- fade transitions between tab routes
 
