@@ -1,40 +1,28 @@
 
 
-## Add Back Button to Onboarding Carousel
+## Add Guest Info Banner to Editor
 
-### What's Already Done
-The onboarding carousel already has everything you described:
-- 4 swipeable screens (Welcome, 5-Step Process, AI Showcase, Choose Starting Point)
-- Progress dots at the bottom
-- A "Next" / "Get Started" button
-- Snap-scroll swipe navigation
-
-### What Needs to Change
-The only missing piece is a **Back button** so users can navigate to the previous screen without swiping.
+### What Changes
+A subtle, dismissible blue banner will appear at the very top of the editor content area (between the header and the progress bar) for unauthenticated users. It uses `sessionStorage` so it reappears each new session.
 
 ### Implementation
 
-**File: `src/components/onboarding/OnboardingCarousel.tsx`**
+**File: `src/pages/EditorPage.tsx`**
 
-1. Add a `handleBack` function that scrolls to `activeIndex - 1`
-2. In the bottom CTA area, replace the single Next button with a row containing:
-   - A "Back" button (ghost style, with a left chevron) -- only visible when `activeIndex > 0`
-   - The existing "Next" / "Get Started" button taking remaining space
-3. On the last screen (Screen 4), show only the Back button (since the 3 choice cards serve as the CTA)
+1. Add a `guestBannerDismissed` state initialized from `sessionStorage` key `'wr-editor-guest-dismissed'`
+2. Between the `</header>` (line 385) and the Progress Bar section (line 386), insert a conditional banner block:
+   - **Condition:** `!user && !guestBannerDismissed`
+   - **UI:** A `div` with `bg-blue-500/10 border-b border-blue-500/20 px-4 py-2` containing:
+     - An `Info` icon (from lucide-react) in blue, size `w-4 h-4`
+     - Text: "Working as guest -- Sign in to save permanently"
+     - A "Sign In" small button navigating to `/auth`
+     - An `X` close button that sets the sessionStorage key and hides the banner
+3. Import `Info` from lucide-react (already importing other icons on line 4)
 
-The layout uses a `flex` row with `gap-3` so both buttons sit side by side, with the Back button taking minimal width and Next filling the rest via `flex-1`.
+### Visual Design
+- Semi-transparent blue background (`bg-blue-500/10`) so it's subtle and doesn't clash with the amber `GuestSaveBanner` in the AppShell
+- Small text (`text-sm`), compact height (`py-2`)
+- Dismissed state stored in `sessionStorage` (resets per session, persists until sign-in)
 
-### Technical Details
-
-- Import `ChevronLeft` from lucide-react
-- Add `handleBack` mirroring `handleNext` logic but decrementing
-- Bottom section becomes:
-  ```
-  <div className="flex gap-3">
-    {activeIndex > 0 && <BackButton />}
-    {!isLastScreen && <NextButton className="flex-1" />}
-  </div>
-  ```
-- Back button uses `variant="outline"` with a `ChevronLeft` icon for clear affordance
-- Haptic feedback on back navigation matches existing pattern
-
+### No Other Files Changed
+This is a self-contained addition to `EditorPage.tsx` only. No database or backend changes needed.
