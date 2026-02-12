@@ -284,6 +284,32 @@ export default function SettingsPage() {
                 icon={<Download className="w-4 h-4" />}
                 onClick={() => setPdfDefaultsSheetOpen(true)}
               />
+          </div>
+          </div>
+
+          {/* Help & Support */}
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Help & Support
+            </h2>
+            <div className="rounded-2xl glass-elevated overflow-hidden">
+              <SettingsRow
+                type="button"
+                label="Take Tour Again"
+                description="Replay the welcome onboarding"
+                icon={<RotateCcw className="w-4 h-4" />}
+                onClick={async () => {
+                  haptics.light();
+                  if (user) {
+                    await supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
+                  } else {
+                    localStorage.removeItem('wr-onboarding-seen');
+                  }
+                  toast.success('Onboarding reset — redirecting…');
+                  navigate('/dashboard');
+                }}
+              />
             </div>
           </div>
 
@@ -427,23 +453,6 @@ export default function SettingsPage() {
                 value="English"
                 icon={<Globe className="w-4 h-4" />}
                 onClick={handleLanguage}
-              />
-              <Separator className="bg-border/30" />
-              <SettingsRow
-                type="button"
-                label="Take Tour Again"
-                description="Replay the welcome onboarding"
-                icon={<RotateCcw className="w-4 h-4" />}
-                onClick={async () => {
-                  haptics.light();
-                  if (user) {
-                    await supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
-                  } else {
-                    localStorage.removeItem('wr-onboarding-seen');
-                  }
-                  toast.success('Onboarding reset — redirecting…');
-                  navigate('/dashboard');
-                }}
               />
               {user && (
                 <>
