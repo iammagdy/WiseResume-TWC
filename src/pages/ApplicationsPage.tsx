@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowLeft, Bell, BarChart3 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useJobApplications, useJobApplicationMutations, usePendingReminders } from '@/hooks/useJobApplications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,12 +11,15 @@ import { AddApplicationSheet } from '@/components/applications/AddApplicationShe
 import { ApplicationDetailSheet } from '@/components/applications/ApplicationDetailSheet';
 import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
 import { SignInPromptDialog } from '@/components/auth/SignInPromptDialog';
+import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
+import { toast } from 'sonner';
 import { JobApplication } from '@/hooks/useJobApplications';
 
 export default function ApplicationsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const stats = useJobActivityStats();
   const [showAdd, setShowAdd] = useState(false);
   const [selectedApp, setSelectedApp] = useState<JobApplication | null>(null);
@@ -23,6 +27,13 @@ export default function ApplicationsPage() {
   const { data: reminderCount = 0 } = usePendingReminders();
   const [resumeListOpen, setResumeListOpen] = useState(false);
   const [resumeListFilter, setResumeListFilter] = useState<'originals' | 'tailored'>('originals');
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
+    await queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
+    haptics.success();
+    toast.success('Activity refreshed');
+  }, [queryClient]);
 
   // Gate for guests
   if (!user) {
@@ -98,41 +109,43 @@ export default function ApplicationsPage() {
         </div>
       </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-        {/* Stats */}
-        <JobActivityStatsCard
-          stats={stats}
-          onOriginalsTap={() => {
-            setResumeListFilter('originals');
-            setResumeListOpen(true);
-          }}
-          onTailoredTap={() => {
-            setResumeListFilter('tailored');
-            setResumeListOpen(true);
-          }}
-        />
-
-        {/* Timeline */}
-        <div id="activity-timeline">
-          <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Activity</h2>
-          <ActivityTimeline />
-        </div>
-
-        {/* Add manually */}
-        <div className="flex justify-center pt-2 pb-4">
-          <button
-            onClick={() => {
-              haptics.medium();
-              setShowAdd(true);
+      {/* Content with Pull-to-Refresh */}
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-hidden">
+        <div className="px-4 py-4 space-y-6">
+          {/* Stats */}
+          <JobActivityStatsCard
+            stats={stats}
+            onOriginalsTap={() => {
+              setResumeListFilter('originals');
+              setResumeListOpen(true);
             }}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Add job manually
-          </button>
+            onTailoredTap={() => {
+              setResumeListFilter('tailored');
+              setResumeListOpen(true);
+            }}
+          />
+
+          {/* Timeline */}
+          <div id="activity-timeline">
+            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Activity</h2>
+            <ActivityTimeline />
+          </div>
+
+          {/* Add manually */}
+          <div className="flex justify-center pt-2 pb-4">
+            <button
+              onClick={() => {
+                haptics.medium();
+                setShowAdd(true);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add job manually
+            </button>
+          </div>
         </div>
-      </div>
+      </PullToRefresh>
 
       <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} />
       <ApplicationDetailSheet
