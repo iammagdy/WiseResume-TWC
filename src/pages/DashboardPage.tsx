@@ -59,10 +59,15 @@ export default function DashboardPage() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Check onboarding status when user is authenticated
+  // Check onboarding status for both authenticated and guest users
   useEffect(() => {
     const checkOnboardingStatus = async () => {
       if (!user) {
+        // Guest: check localStorage
+        const seen = localStorage.getItem('wr-onboarding-seen');
+        if (!seen) {
+          setShowOnboarding(true);
+        }
         setProfileLoaded(true);
         return;
       }
@@ -120,9 +125,21 @@ export default function DashboardPage() {
         .from('profiles')
         .update({ onboarding_completed: true })
         .eq('user_id', user.id);
+    } else {
+      localStorage.setItem('wr-onboarding-seen', 'true');
     }
     haptics.success();
     setShowOnboarding(false);
+  };
+
+  const handleOnboardingChoice = (choice: 'scratch' | 'upload' | 'template') => {
+    if (choice === 'scratch') {
+      navigate('/editor');
+    } else if (choice === 'upload') {
+      navigate('/upload');
+    } else if (choice === 'template') {
+      setShowCreateDialog(true);
+    }
   };
 
   const handleRefresh = async () => {
@@ -245,6 +262,7 @@ export default function DashboardPage() {
             <OnboardingCarousel
               onComplete={handleOnboardingComplete}
               onSkip={handleOnboardingComplete}
+              onChoice={handleOnboardingChoice}
             />
           </Suspense>
         </motion.div>

@@ -23,7 +23,8 @@ import {
   Star,
   Share2,
   Mail,
-  Chrome
+  Chrome,
+  RotateCcw
 } from 'lucide-react';
 import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -37,6 +38,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { useSettingsStore } from '@/store/settingsStore';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { useResumeStore } from '@/store/resumeStore';
 import { haptics } from '@/lib/haptics';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
@@ -394,6 +396,23 @@ export default function SettingsPage() {
                 value="English"
                 icon={<Globe className="w-4 h-4" />}
                 onClick={handleLanguage}
+              />
+              <Separator className="bg-border/30" />
+              <SettingsRow
+                type="button"
+                label="Take Tour Again"
+                description="Replay the welcome onboarding"
+                icon={<RotateCcw className="w-4 h-4" />}
+                onClick={async () => {
+                  haptics.light();
+                  if (user) {
+                    await supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
+                  } else {
+                    localStorage.removeItem('wr-onboarding-seen');
+                  }
+                  toast.success('Onboarding reset — redirecting…');
+                  navigate('/dashboard');
+                }}
               />
               <Separator className="bg-border/30" />
               <SettingsRow
