@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Upload, Mic } from 'lucide-react';
+import { FileText, Settings, Home, Upload, Briefcase } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -34,10 +34,10 @@ const tabs: TabItem[] = [
     matchPaths: ['/upload']
   },
   { 
-    path: '/interview', 
-    icon: Mic, 
-    label: 'Interview',
-    matchPaths: ['/interview']
+    path: '/applications', 
+    icon: Briefcase, 
+    label: 'Jobs',
+    matchPaths: ['/applications']
   },
   { 
     path: '/settings', 

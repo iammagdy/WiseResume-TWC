@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
+import { useAICreditsMutations } from '@/hooks/useAICredits';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact';
 export type ActionType = 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
@@ -21,6 +22,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [result, setResult] = useState<EnhanceResult | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
+  const { incrementUsage, checkCredits } = useAICreditsMutations();
 
   const enhance = useCallback(async (
     action: ActionType,
@@ -33,6 +35,14 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     setResult(null);
 
     try {
+      // Check AI credits before proceeding
+      const hasCredits = await checkCredits();
+      if (!hasCredits) {
+        setIsEnhancing(false);
+        setCurrentAction(null);
+        return null;
+      }
+
       const userGeminiKey = getUserGeminiKey();
       
       const { data, error } = await supabase.functions.invoke('enhance-section', {
@@ -66,6 +76,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       }
 
       trackGeminiUsage();
+      incrementUsage.mutate();
       setResult(data);
       return data;
 
