@@ -1,22 +1,24 @@
 
 
-# Show Bottom Tab Bar on Editor Page
+# Add Bottom Padding to Preview Page
 
 ## Problem
 
-The bottom navigation bar (Home, Editor, Upload, Interview, Settings) is not visible on the `/editor` route because it is excluded from the `TAB_ROUTES` array in `AppShell.tsx`.
+The Preview page's root container lacks `pb-20` bottom padding, so content at the bottom will be hidden behind the fixed bottom tab bar.
 
 ## Fix
 
-### `src/components/layout/AppShell.tsx`
+### `src/pages/PreviewPage.tsx` (line 363)
 
-Add `'/editor'` and `'/preview'` to the `TAB_ROUTES` array so the bottom tab bar renders on those pages:
+Add `pb-20` to the root container, matching the same fix already applied to EditorPage:
 
 ```typescript
-const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth', '/editor', '/preview'];
+// Before
+<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+
+// After
+<div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
 ```
 
-### `src/pages/EditorPage.tsx`
-
-Add `pb-20` (or equivalent bottom padding) to the editor's root container so content does not get hidden behind the fixed bottom tab bar. This needs to account for both the BottomTabBar height and the sticky AI Studio bar.
+This single-line change ensures the export buttons and bottom content on the Preview page remain visible above the bottom tab bar.
 
