@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -15,6 +15,14 @@ import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 import { DailyTipCard } from '@/components/dashboard/DailyTipCard';
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { calculateProfileCompletion } from '@/hooks/useProfile';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -312,26 +320,64 @@ export default function DashboardPage() {
         <header className="pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
           <AppLogo size="sm" showTagline={false} hideText />
           <div className="flex items-center gap-2">
-            <motion.button
-              onClick={() => {
-                haptics.light();
-                navigate('/settings');
-              }}
-              className="touch-manipulation"
-              whileTap={{ scale: 0.9 }}
-              aria-label="Profile"
-            >
-              <Avatar className="w-9 h-9 border-2 border-primary/20">
-                {profile?.avatarUrl && (
-                  <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
+            <DropdownMenu onOpenChange={(open) => {
+              if (open && !localStorage.getItem('wr-profile-pulse-seen')) {
+                localStorage.setItem('wr-profile-pulse-seen', 'true');
+              }
+            }}>
+              <DropdownMenuTrigger asChild>
+                <motion.button
+                  className="touch-manipulation relative"
+                  whileTap={{ scale: 0.9 }}
+                  aria-label="Profile menu"
+                >
+                  {/* First-visit pulse ring */}
+                  {!localStorage.getItem('wr-profile-pulse-seen') && (
+                    <span className="absolute inset-0 rounded-full border-2 border-primary/40 animate-[ping_1.5s_ease-out_4]" />
+                  )}
+                  <Avatar className="w-9 h-9 border-2 border-primary/20">
+                    {profile?.avatarUrl && (
+                      <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
+                    )}
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+                      {profile?.fullName
+                        ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                        : <User className="w-4 h-4" />}
+                    </AvatarFallback>
+                  </Avatar>
+                  {/* Incomplete profile badge */}
+                  {user && profile && calculateProfileCompletion(profile) < 50 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border border-background" />
+                  )}
+                </motion.button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => { haptics.light(); navigate('/settings'); }}>
+                  <User className="w-4 h-4 mr-2" />
+                  My Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { haptics.light(); navigate('/settings'); }}>
+                  <Settings className="w-4 h-4 mr-2" />
+                  Account Settings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {user ? (
+                  <DropdownMenuItem onClick={async () => {
+                    haptics.warning();
+                    await supabase.auth.signOut();
+                    navigate('/auth');
+                  }}>
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => { haptics.light(); navigate('/auth'); }}>
+                    <LogIn className="w-4 h-4 mr-2" />
+                    Sign In
+                  </DropdownMenuItem>
                 )}
-                <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
-                  {profile?.fullName
-                    ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
-                    : <User className="w-4 h-4" />}
-                </AvatarFallback>
-              </Avatar>
-            </motion.button>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </header>
 
