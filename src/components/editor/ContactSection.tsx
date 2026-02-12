@@ -166,6 +166,8 @@ export const ContactSection = memo(function ContactSection() {
           error={getNameError()}
           touched={touched.fullName}
           required
+          maxLength={100}
+          showCount
         />
 
         <InputFormField
