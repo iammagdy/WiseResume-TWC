@@ -17,7 +17,7 @@ export function EmptyState({ onCreateNew }: EmptyStateProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex-1 flex flex-col items-center justify-center px-6 py-12 text-center"
+      className="flex-1 flex flex-col items-center justify-center px-6 py-8 text-center"
     >
       {/* Animated Floating Icon */}
       <motion.div
@@ -27,12 +27,12 @@ export function EmptyState({ onCreateNew }: EmptyStateProps) {
           scale: { delay: 0.1, type: 'spring', stiffness: 200 },
           y: { duration: 3, repeat: Infinity, ease: 'easeInOut' }
         }}
-        className="w-20 h-20 rounded-2xl gradient-primary flex items-center justify-center mb-6 relative"
+        className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 relative"
         style={{
           boxShadow: '0 20px 40px -10px hsl(var(--primary) / 0.4)',
         }}
       >
-        <FileText className="w-10 h-10 text-primary-foreground" />
+        <FileText className="w-8 h-8 text-primary-foreground" />
         {/* Pulsing ring */}
         <div className="absolute inset-0 rounded-2xl animate-ring-pulse border-2 border-primary/40" />
       </motion.div>
@@ -65,7 +65,7 @@ export function EmptyState({ onCreateNew }: EmptyStateProps) {
       <Button
         size="lg"
         onClick={onCreateNew}
-        className="gradient-primary h-14 px-8 text-lg font-semibold"
+        className="gradient-primary h-12 px-6 text-base font-semibold"
         style={{
           boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
         }}

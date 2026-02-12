@@ -9,34 +9,22 @@ interface FloatingCreateButtonProps {
 export function FloatingCreateButton({ onClick }: FloatingCreateButtonProps) {
   return (
     <motion.button
-      className="fixed bottom-24 right-4 z-40 w-14 h-14 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center justify-center touch-manipulation"
+      className="fixed bottom-24 right-4 z-40 h-12 px-5 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center gap-2 touch-manipulation"
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.3 }}
-      whileTap={{ scale: 0.9 }}
+      whileTap={{ scale: 0.92 }}
       onClick={() => {
         haptics.medium();
         onClick();
       }}
       style={{
-        boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
+        boxShadow: '0 6px 24px -6px hsl(var(--primary) / 0.4)',
       }}
       aria-label="Create new resume"
     >
-      <Plus className="w-6 h-6 text-primary-foreground" />
-      {/* Pulse ring */}
-      <motion.span
-        className="absolute inset-0 rounded-full gradient-primary"
-        animate={{
-          scale: [1, 1.3, 1],
-          opacity: [0.4, 0, 0.4],
-        }}
-        transition={{
-          duration: 2.5,
-          repeat: Infinity,
-          ease: 'easeInOut',
-        }}
-      />
+      <Plus className="w-5 h-5 text-primary-foreground" />
+      <span className="text-sm font-semibold text-primary-foreground">New Resume</span>
     </motion.button>
   );
 }
