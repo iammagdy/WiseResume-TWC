@@ -37,6 +37,9 @@ const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet
 const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
 const VersionHistorySheet = lazy(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
+import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
+import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -70,6 +73,8 @@ export default function EditorPage() {
   // Validate that the resume ID exists in the database
   const { data: resumeFromDb, isLoading: isValidating, error: resumeError } = useResume(currentResumeId);
   const { updateResume } = useResumeMutations();
+  const { isSyncing } = useOfflineSync();
+  const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
   
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -157,12 +162,21 @@ export default function EditorPage() {
       });
       lastSavedResumeRef.current = currentResumeJson;
       setLastSavedAt(new Date());
-    } catch (error) {
-      console.error('Auto-save failed:', error);
+    } catch (error: any) {
+      const isNetworkError = !navigator.onLine ||
+        error?.message?.includes('Failed to fetch') ||
+        error?.message?.includes('NetworkError');
+
+      if (isNetworkError && currentResumeId) {
+        addPendingChange(currentResumeId, resume);
+        // Don't show error toast - OfflineIndicator handles it
+      } else {
+        console.error('Auto-save failed:', error);
+      }
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt]);
+  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange]);
 
   // Debounced auto-save effect
   useEffect(() => {
@@ -372,6 +386,7 @@ export default function EditorPage() {
               <ArrowLeft className="w-6 h-6" />
             </button>
             <h1 className="text-lg font-display font-semibold truncate">Edit Resume</h1>
+            <OfflineIndicator isSyncing={isSyncing} />
             {user && currentResumeId && (
               <button
                 onClick={() => setShowVersionHistory(true)}
