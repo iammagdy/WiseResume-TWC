@@ -1,43 +1,52 @@
 
 
-## Make Create Resume Button More Responsive
-
-### Current State
-- **FloatingCreateButton**: A 56px (w-14 h-14) circular FAB with just a `+` icon, no text label. Already has `whileTap={{ scale: 0.9 }}` and haptic feedback. Clicking it opens the `CreateResumeDialog`.
-- **EmptyState button**: A large `h-14 px-8 text-lg` button labeled "Create Your First Resume". Already triggers the same dialog.
-- **CreateResumeDialog**: Already has the 3 options (Start from Scratch, Upload PDF, Duplicate Existing) -- no need to rebuild this.
+## Revamp Daily Tip Banner: Auto-Hide + Pulsing Create Button
 
 ### What Changes
 
-**1. FloatingCreateButton (`src/components/dashboard/FloatingCreateButton.tsx`)**
-- Reduce size from `w-14 h-14` to `h-12 rounded-full` pill shape
-- Add text label: "+ New Resume"
-- Keep `whileTap={{ scale: 0.92 }}` for tactile press feedback
-- Remove the pulsing ring animation (too distracting, wastes vertical attention)
-- Reduce shadow intensity slightly
-
-**2. EmptyState (`src/components/dashboard/EmptyState.tsx`)**
-- Reduce button from `h-14 px-8 text-lg` to `h-12 px-6 text-base` (slightly smaller)
-- Keep existing "Create Your First Resume" label and `Plus` icon
-- Add `active:scale-[0.97]` for press feedback (already in Button component defaults)
-- Reduce floating icon from `w-20 h-20` to `w-16 h-16` and `mb-6` to `mb-5` to save vertical space
-
-No changes needed to `CreateResumeDialog` -- it already provides the 3-option modal (Start from Scratch, Upload PDF, Duplicate Existing) which maps to the user's requested options.
+1. **Move the DailyTipCard** from its current position (between QuickActionChips and Search) to **directly below the header**, before DashboardStats
+2. **Auto-hide after 3 seconds** with a smooth exit animation, leaving a small "tap to show tip" indicator dot
+3. **Pulsing border on FloatingCreateButton** while the banner is visible, drawing attention to the CTA
+4. **Convert DailyTipCard to accept props** so the parent (DashboardPage) can coordinate the banner visibility state with the FloatingCreateButton's pulse
 
 ### Technical Details
 
-**FloatingCreateButton changes:**
-```
-// Before: icon-only circle
-w-14 h-14 rounded-full
+**File: `src/components/dashboard/DailyTipCard.tsx`**
 
-// After: pill with label
-h-12 px-5 rounded-full gap-2
-<Plus className="w-5 h-5" />
-<span className="text-sm font-semibold">New Resume</span>
+- Add an `onVisibilityChange?: (visible: boolean) => void` prop
+- Replace manual `dismissed` state with an auto-hide timer:
+  - `useState(true)` for `visible`, starts shown
+  - `useEffect` sets a 3-second `setTimeout` to set `visible = false` and call `onVisibilityChange(false)`
+  - Still allow manual dismiss via the X button
+- After auto-hide, render a small collapsed indicator: a tiny pill with a Lightbulb icon that expands the tip again on tap
+- Use `AnimatePresence` with `exit` animation for smooth collapse
+- Track session dismissal in `sessionStorage('wr-tip-dismissed')` so it doesn't reappear after manual dismiss
+
+**File: `src/components/dashboard/FloatingCreateButton.tsx`**
+
+- Add `pulse?: boolean` prop (default `false`)
+- When `pulse` is true, render an animated ring behind the button using `motion.span` with `animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0, 0.5] }}` and `border-2 border-primary/50`
+- The ring pulses only while the banner is visible (3 seconds), then stops
+
+**File: `src/pages/DashboardPage.tsx`**
+
+- Add `tipVisible` state, defaulting to `true`
+- Move `<DailyTipCard />` from line 362 to line 348 (right after `</header>`)
+- Pass `onVisibilityChange={(v) => setTipVisible(v)}` to DailyTipCard
+- Pass `pulse={tipVisible}` to `<FloatingCreateButton />`
+
+### Visual Behavior
+
+```text
+[Header: WiseResume logo + buttons]
+[Daily Tip banner - slides in, auto-hides after 3s]  <-- NEW position
+   After hide: tiny Lightbulb dot indicator (tap to expand)
+[DashboardStats hero card]
+[QuickActionChips]
+[Search pill]
+[Resume list]
+                              [+ New Resume] <-- pulsing border while tip visible
 ```
 
-**EmptyState changes:**
-- Floating icon: `w-20 h-20` -> `w-16 h-16`, inner icon `w-10 h-10` -> `w-8 h-8`
-- CTA button: `h-14 px-8 text-lg` -> `h-12 px-6 text-base`
-- Reduce `py-12` to `py-8` on the outer container for less vertical padding
+### No Database or Backend Changes
+This is purely a frontend UI/animation change across 3 files.
