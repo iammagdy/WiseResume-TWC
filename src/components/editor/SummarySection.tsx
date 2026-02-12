@@ -1,12 +1,14 @@
 import { useState, memo } from 'react';
 import { TextareaFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
-import { FileText } from 'lucide-react';
+import { FileText, Sparkles } from 'lucide-react';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
+import { SectionEmptyState } from './SectionEmptyState';
+import { summaryExample } from '@/lib/emptyStateExamples';
 
 export const SummarySection = memo(function SummarySection() {
   const summary = useResumeStore(state => state.currentResume?.summary);
@@ -14,6 +16,7 @@ export const SummarySection = memo(function SummarySection() {
   const currentResume = useResumeStore(state => state.currentResume);
   const [showDialog, setShowDialog] = useState(false);
   const [touched, setTouched] = useState(false);
+  const [started, setStarted] = useState(false);
   
   const { enhance, isEnhancing, result, apply, discard } = useAIEnhance({
     section: 'summary',
@@ -29,16 +32,7 @@ export const SummarySection = memo(function SummarySection() {
 
   if (!currentResume || summary === undefined) return null;
 
-  const nudge = getNudgeForSection('summary');
-
-  // Validation
-  const getSummaryError = (): string | undefined => {
-    if (!summary || summary.trim() === '') return 'Professional summary is required';
-    if (summary.length < 50) return 'Summary should be at least 50 characters';
-    return undefined;
-  };
-
-  const summaryError = getSummaryError();
+  const isEmpty = !summary || summary.trim() === '';
 
   const handleAction = async (actionId: string) => {
     const enhanceResult = await enhance(
@@ -51,6 +45,33 @@ export const SummarySection = memo(function SummarySection() {
       setShowDialog(true);
     }
   };
+
+  if (isEmpty && !started) {
+    return (
+      <SectionEmptyState
+        icon={FileText}
+        title="Write your professional summary"
+        exampleContent={
+          <p className="text-sm text-muted-foreground italic">"{summaryExample}"</p>
+        }
+        actions={[
+          { label: 'Start Writing', variant: 'outline', onClick: () => setStarted(true) },
+          { label: 'Let AI Write This', variant: 'default', icon: Sparkles, onClick: () => { setStarted(true); handleAction('generate'); } },
+        ]}
+      />
+    );
+  }
+
+  const nudge = getNudgeForSection('summary');
+
+  // Validation
+  const getSummaryError = (): string | undefined => {
+    if (!summary || summary.trim() === '') return 'Professional summary is required';
+    if (summary.length < 50) return 'Summary should be at least 50 characters';
+    return undefined;
+  };
+
+  const summaryError = getSummaryError();
 
   const handleNudgeAction = () => {
     if (nudge) {
