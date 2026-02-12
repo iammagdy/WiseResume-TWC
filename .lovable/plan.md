@@ -1,147 +1,143 @@
 
 
-# Backend Growth Plan: Production-Ready Database
+# Job Applications Tracker, Resume Versions, and AI Credits
 
-## The Problem
+This plan adds three new backend features to evolve WiseResume from a resume builder into a full job search platform.
 
-Right now, WiseResume only has 3 database tables (`resumes`, `profiles`, `ai_usage_logs`). Most valuable user data lives in **localStorage only** via Zustand stores. This means:
+## What's Being Built
 
-- Reinstalling the app = all tailor history, cover letters, interview results are **gone**
-- Switching devices = starting over
-- Clearing browser/app data = everything lost
+### 1. Job Applications Tracker
+A new page where users can track job applications with statuses (applied, interviewing, offer, rejected), linked to their resumes and cover letters.
 
-For a production Android app, this is unacceptable.
+### 2. Resume Version History
+Automatic snapshots saved each time a resume is updated, allowing users to view previous versions and restore them.
 
-## What Needs to Move to the Database
+### 3. AI Credits / Usage Quota System
+Track AI feature usage per user with a free-tier daily limit and upgrade prompts when limits are reached.
 
-### Priority 1 -- Critical for Launch
+---
 
-**1. Cover Letters Table**
-Users generate cover letters but they only exist in localStorage. These should persist in the cloud.
+## New Database Tables
 
-- Fields: id, user_id, resume_id, job_title, company, tone, content, created_at
-- RLS: Users can only access their own cover letters
+### `job_applications`
+Track which jobs users applied to, with which resume and cover letter.
+- Links to `resumes` and `cover_letters` tables
+- Status field: applied, interviewing, offer, rejected
+- Notes, URL, and timestamps
 
-**2. Tailor History Table**
-Every time a user tailors their resume to a job, the result (before/after scores, changes, job details) is stored locally. This is high-value data.
+### `resume_versions`
+Automatic snapshots of resume state over time.
+- Stores full resume data as JSONB
+- Version number auto-incremented per resume
+- Change summary for quick scanning
 
-- Fields: id, user_id, resume_id, job_title, company, job_description, tailor_result (JSONB), score_before, score_after, applied_sections (JSONB), created_at
-- RLS: Users can only access their own history
+### `ai_credits`
+One row per user tracking daily and total AI usage.
+- Daily usage count with auto-reset date
+- Daily limit (default 20 for free tier)
+- Total lifetime usage counter
 
-**3. User Preferences Table**
-Settings like default template, PDF options, biometric preferences, and onboarding flags are all localStorage-only.
+All tables get Row Level Security scoped to `auth.uid() = user_id`.
 
-- Fields: id, user_id, default_template, pdf_defaults (JSONB), biometric_enabled, biometric_timeout, onboarding_flags (JSONB), ai_provider, updated_at
-- RLS: Users can only access their own preferences
+---
 
-### Priority 2 -- Important for Growth
+## New Frontend Features
 
-**4. Interview Sessions Table**
-Mock interview results (scores, transcript, feedback) are not persisted at all. Users cannot review past interviews.
+### Job Applications Page (`/applications`)
+- Kanban-style board or list view showing applications by status
+- Quick-add from the editor (after tailoring a resume)
+- Filter by status, sort by date
+- New bottom tab bar entry
 
-- Fields: id, user_id, resume_id, job_title, job_description, interview_type, messages (JSONB), overall_score, strengths (JSONB), improvements (JSONB), duration_seconds, created_at
-- RLS: Users can only access their own sessions
+### Resume Version History
+- "History" button in the editor toolbar
+- Sheet showing previous versions with timestamps
+- One-tap restore to any previous version
+- Auto-save a version snapshot on each significant edit
 
-**5. Job Applications Tracker (Future)**
-Not built yet, but a natural next feature -- let users track which jobs they applied to with which resume version.
+### AI Usage Indicator
+- Small badge in the AI Studio bar showing remaining daily credits
+- Toast warning when approaching the limit
+- Upgrade prompt sheet when limit is reached
 
-- Fields: id, user_id, resume_id, cover_letter_id, job_title, company, status (applied/interviewing/offer/rejected), applied_at, notes, url
-- RLS: Users can only access their own applications
-
-### Priority 3 -- Nice to Have
-
-**6. Feedback / App Ratings Table**
-Capture in-app feedback and ratings for product improvement.
-
-## Implementation Approach
-
-### Database Changes
-- Create 4 new tables (cover_letters, tailor_history, user_preferences, interview_sessions) with proper RLS policies
-- All tables use `user_id` referencing `auth.users(id)` with `ON DELETE CASCADE`
-- All tables have RLS enabled with policies scoped to `auth.uid() = user_id`
-
-### Frontend Changes
-- Update Zustand stores to sync with the database when user is authenticated
-- Keep localStorage as offline cache / guest mode fallback
-- Add migration logic: on first login, push any existing localStorage data to the database
-- Update hooks (`useResumes.ts` pattern) for each new table
-
-### Sync Strategy
-- **Authenticated users**: Read/write to database, cache in Zustand
-- **Guest users**: localStorage only (existing behavior)
-- **First login**: One-time migration of localStorage data to database
+---
 
 ## Technical Details
 
-```sql
--- Cover Letters
-CREATE TABLE public.cover_letters (
+### Database Migration SQL
+
+```text
+-- Job Applications
+CREATE TABLE public.job_applications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   resume_id UUID REFERENCES public.resumes(id) ON DELETE SET NULL,
+  cover_letter_id UUID REFERENCES public.cover_letters(id) ON DELETE SET NULL,
   job_title TEXT NOT NULL,
-  company TEXT,
-  tone TEXT DEFAULT 'professional',
-  content TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.cover_letters ENABLE ROW LEVEL SECURITY;
-
--- Tailor History
-CREATE TABLE public.tailor_history (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  resume_id UUID REFERENCES public.resumes(id) ON DELETE SET NULL,
-  job_title TEXT NOT NULL,
-  company TEXT,
-  job_description TEXT,
-  tailor_result JSONB NOT NULL DEFAULT '{}'::jsonb,
-  score_before INTEGER,
-  score_after INTEGER,
-  applied_sections JSONB DEFAULT '[]'::jsonb,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-ALTER TABLE public.tailor_history ENABLE ROW LEVEL SECURITY;
-
--- User Preferences
-CREATE TABLE public.user_preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  default_template TEXT DEFAULT 'modern',
-  pdf_defaults JSONB DEFAULT '{}'::jsonb,
-  biometric_enabled BOOLEAN DEFAULT false,
-  biometric_timeout INTEGER DEFAULT 30000,
-  onboarding_flags JSONB DEFAULT '{}'::jsonb,
-  ai_provider TEXT DEFAULT 'wiseresume',
+  company TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'applied',
+  applied_at TIMESTAMPTZ DEFAULT now(),
+  notes TEXT,
+  url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
-ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.job_applications ENABLE ROW LEVEL SECURITY;
 
--- Interview Sessions
-CREATE TABLE public.interview_sessions (
+-- Resume Versions
+CREATE TABLE public.resume_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  resume_id UUID NOT NULL REFERENCES public.resumes(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  resume_id UUID REFERENCES public.resumes(id) ON DELETE SET NULL,
-  job_title TEXT,
-  job_description TEXT,
-  interview_type TEXT DEFAULT 'general',
-  messages JSONB DEFAULT '[]'::jsonb,
-  overall_score INTEGER,
-  strengths JSONB DEFAULT '[]'::jsonb,
-  improvements JSONB DEFAULT '[]'::jsonb,
-  duration_seconds INTEGER,
+  version_number INTEGER NOT NULL DEFAULT 1,
+  snapshot JSONB NOT NULL,
+  change_summary TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
-ALTER TABLE public.interview_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.resume_versions ENABLE ROW LEVEL SECURITY;
+
+-- AI Credits
+CREATE TABLE public.ai_credits (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  daily_usage INTEGER DEFAULT 0,
+  daily_limit INTEGER DEFAULT 20,
+  usage_date DATE DEFAULT CURRENT_DATE,
+  total_usage INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+ALTER TABLE public.ai_credits ENABLE ROW LEVEL SECURITY;
 ```
 
-Each table gets standard RLS policies:
-- SELECT: `auth.uid() = user_id`
-- INSERT: `auth.uid() = user_id`
-- UPDATE: `auth.uid() = user_id` (where applicable)
-- DELETE: `auth.uid() = user_id`
+RLS policies: Standard `auth.uid() = user_id` for SELECT, INSERT, UPDATE, DELETE on all three tables.
 
-## Scope
+### New Files to Create
 
-This plan covers creating the 4 Priority 1 and Priority 2 tables with RLS, plus updating the frontend stores and hooks to sync with the database. The job applications tracker (Priority 3) can be added later as a new feature.
+- `src/hooks/useJobApplications.ts` -- React Query hooks for CRUD on job applications
+- `src/hooks/useResumeVersions.ts` -- Hook to save/list/restore versions
+- `src/hooks/useAICredits.ts` -- Hook to check/increment daily AI usage
+- `src/pages/ApplicationsPage.tsx` -- Job tracker page with status columns
+- `src/components/applications/ApplicationCard.tsx` -- Individual application card
+- `src/components/applications/AddApplicationSheet.tsx` -- Sheet to add/edit an application
+- `src/components/applications/StatusFilter.tsx` -- Filter chips for status
+- `src/components/editor/VersionHistorySheet.tsx` -- Sheet showing resume versions
+- `src/components/editor/ai/AICreditsIndicator.tsx` -- Badge showing remaining credits
+
+### Files to Modify
+
+- `src/App.tsx` -- Add `/applications` route
+- `src/components/layout/BottomTabBar.tsx` -- Add "Applications" tab
+- `src/hooks/useResumes.ts` -- Auto-save version on update
+- `src/components/editor/AIAssistantBar.tsx` -- Show credits indicator
+- `src/hooks/useAIEnhance.ts` -- Check credits before AI calls
+- `src/pages/EditorPage.tsx` -- Add version history button
+
+### Implementation Order
+
+1. Run database migration (create 3 tables + RLS policies)
+2. Create hooks (`useJobApplications`, `useResumeVersions`, `useAICredits`)
+3. Build the Applications page and components
+4. Add version history to the editor
+5. Wire up AI credits checking in AI hooks
+6. Update routing and navigation
 
