@@ -26,6 +26,7 @@ const PageBreakSheet = lazy(() => import('@/components/editor/PageBreakSheet').t
 const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsSheet').then(m => ({ default: m.ExportOptionsSheet })));
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then(m => ({ default: m.ResumePhotoSheet })));
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
+const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
 import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF, getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { downloadFile } from '@/lib/downloadUtils';
@@ -75,6 +76,7 @@ export default function PreviewPage() {
   const [showExportSheet, setShowExportSheet] = useState(false);
   const [showPhotoSheet, setShowPhotoSheet] = useState(false);
   const [showOnePageWizard, setShowOnePageWizard] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
   const resumeRef = useRef<HTMLDivElement>(null);
   const [domSections, setDomSections] = useState<SectionId[]>([]);
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
@@ -560,10 +562,11 @@ export default function PreviewPage() {
             <Button
               variant="outline"
               size="lg"
-              className="h-11 sm:h-12 px-3 touch-manipulation"
-              onClick={handleShare}
+              className="flex-1 h-11 sm:h-12 touch-manipulation"
+              onClick={() => setShowShareSheet(true)}
             >
-              <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <span className="hidden xs:inline text-sm sm:text-base">Share</span>
             </Button>
           </div>
         </motion.div>
@@ -617,6 +620,17 @@ export default function PreviewPage() {
             onUseProfilePhoto={handleUseProfilePhoto}
             onUploadPhoto={handleUploadPhoto}
             onKeepInitials={handleKeepInitials}
+          />
+        )}
+        {showShareSheet && currentResume && (
+          <ShareSheet
+            open={showShareSheet}
+            onOpenChange={setShowShareSheet}
+            resume={currentResume}
+            templateId={selectedTemplate}
+            templateName={templates.find(t => t.id === selectedTemplate)?.name || selectedTemplate}
+            resumeRef={resumeRef}
+            manualBreakSections={manualBreakSections}
           />
         )}
       </Suspense>
