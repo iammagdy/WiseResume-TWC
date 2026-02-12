@@ -1,117 +1,169 @@
 
-
-## Touch Target Compliance: 44px Minimum with 8px Spacing
+## Typography Standardization: Implement Size-Based Semantic System
 
 ### Overview
-
-Audit and fix all interactive elements across the app to meet mobile accessibility guidelines: 44x44px minimum touch targets (iOS HIG), 48x48px for primary actions, 56x56px for hero/floating actions, and 8px minimum spacing between tappable elements. The Button component's `sm` size (40px) is the main offender -- it appears in 27+ editor files.
+Standardize typography across the WiseResume app to follow a clear semantic hierarchy that prevents mobile zoom-on-focus issues. Currently, the app uses Tailwind's default font sizes (`text-xs`, `text-sm`, `text-base`, etc.) without a cohesive mapping to semantic roles (H1, H2, H3, body, etc.). This plan introduces semantic CSS classes that map your size specifications while maintaining mobile accessibility (16px minimum body text).
 
 ### Current State
+**What exists:**
+- Tailwind font sizes: `text-xs` (12px), `text-sm` (14px), `text-base` (16px), `text-lg` (18px), `text-xl` (20px), `text-2xl` (24px), `text-3xl` (30px), `text-4xl` (36px)
+- Display font already set to "Space Grotesk" in `src/index.css` (line 188)
+- Headings already use `font-display font-bold` pattern across components
+- No centralized semantic mapping -- raw Tailwind sizes used throughout (4480+ matches)
+- Current usage inconsistent: some H1s use `text-4xl`, some use `text-5xl`; some body text is `text-xs` (problematic on mobile)
 
-**Already compliant:**
-- Button `default` size: `h-11 min-h-[44px]` -- good
-- Button `icon` size: `h-11 w-11 min-h-[44px] min-w-[44px]` -- good
-- Button `lg` size: `h-14 min-h-[52px]` -- good
-- Back buttons across pages: `min-w-[48px] min-h-[48px]` -- good
-- BottomTabBar buttons: `min-w-[52px]` + full height -- good
-- StepperNav steps: `min-w-[48px] min-h-[48px]` -- good
-- Skill badges: `h-10` (40px) -- borderline, needs bump
+**Key Issue:**
+- Many components use `text-xs` (12px) and `text-sm` (14px) for body content, which can trigger iOS zoom-on-focus below 16px
+- No semantic distinction between a page hero, section heading, body copy, captions, and tiny labels
 
-**Non-compliant (under 44px):**
-- Button `sm` size: `h-10 min-h-[40px]` -- 4px short
-- InlineAIButton trigger: `h-8` (32px) -- 12px short
-- AI nudge action/dismiss buttons: `h-8` (32px)
-- AI nudge close X button: `p-1` only (~24px)
-- AgenticChatSheet clear button: `h-8 w-8` (32px)
-- AgenticChatSheet accept/reject buttons: `h-8` (32px)
-- ExperienceTimeline dismiss button: `h-6 w-6` (24px) -- worst offender
-- InlineAIButton dropdown items: `py-1.5 px-2` (~28px)
-- Common Skills badges: `h-9` (36px)
-- JobCompareCard remove button: `h-7 w-7` (28px)
-- AIDetectorSheet button: `h-7` (28px)
-- SkillSuggestionList buttons: `h-7` (28px)
-- TailorSheet tab buttons: no explicit min-height
+### Your Specifications
+```
+Hero/H1:        28-32px   (use text-7xl or 32px custom)
+H2:             24px      (matches text-2xl: 1.5rem)
+H3:             20px      (matches text-xl: 1.25rem)
+Body:           16px min  (matches text-base: 1rem)
+Small/Caption:  14px      (matches text-sm: 0.875rem)
+Tiny:           12px      (matches text-xs: 0.75rem -- use sparingly)
+```
 
 ### Changes
 
-**1. `src/components/ui/button.tsx` -- Fix `sm` size to meet 44px minimum**
+**1. `src/index.css` -- Add semantic typography utilities**
 
-Change `sm` variant from `h-10 min-h-[40px]` to `h-11 min-h-[44px]`. This is the single highest-impact fix since `size="sm"` is used in 27+ files across the editor.
+Add custom CSS classes in the `@layer utilities` section:
+- `.text-h1` / `.text-hero` — 28-32px, font-display, tracking-tight, bold
+- `.text-h2` — text-2xl with custom font-weight, tracking
+- `.text-h3` — text-xl with consistent line-height
+- `.text-body` — text-base with generous line-height for readability
+- `.text-caption` — text-sm with uppercase tracking for labels
+- `.text-tiny` — text-xs with explicit line-height (use cautiously)
 
-**2. `src/components/editor/InlineAIButton.tsx` -- Fix trigger and dropdown items**
+Example structure:
+```css
+@layer utilities {
+  .text-h1 {
+    @apply font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight;
+    font-size: clamp(28px, 8vw, 32px);
+    line-height: 1.2;
+  }
+  
+  .text-h2 {
+    @apply font-display text-2xl font-bold;
+    line-height: 1.3;
+  }
+  
+  .text-h3 {
+    @apply font-display text-xl font-semibold;
+    line-height: 1.35;
+  }
+  
+  .text-body {
+    @apply text-base font-normal;
+    line-height: 1.6;
+  }
+  
+  .text-caption {
+    @apply text-sm font-medium uppercase tracking-wider;
+    line-height: 1.4;
+  }
+  
+  .text-tiny {
+    @apply text-xs font-medium;
+    line-height: 1.25;
+  }
+}
+```
 
-- Trigger button: change `h-8` to `min-h-[44px]`
-- Dropdown menu items: change `py-1.5` to `py-2.5` for ~44px row height
-- Add `min-h-[44px]` to each dropdown item
+**2. Migration Plan & Audit**
 
-**3. `src/components/editor/AIContextualNudge.tsx` -- Fix action buttons and close X**
+Rather than replacing all 4480+ usages in one pass, create a **phased approach**:
 
-- Action and Dismiss buttons: remove `h-8` override (will use updated `sm` = 44px)
-- Close X button: change from `p-1` to `p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center`
+- **Phase 1 (High-impact):** Landing page, dashboard header, form labels
+- **Phase 2 (Medium-impact):** Editor section titles, card content
+- **Phase 3 (Low-impact):** Tooltips, badges, secondary text
 
-**4. `src/components/editor/AgenticChatSheet.tsx` -- Fix clear and accept/reject buttons**
+For **each file**, replace raw Tailwind size classes with semantic ones:
+- `text-4xl/text-5xl` on h1s → `.text-h1`
+- `text-2xl` on h2s → `.text-h2`
+- `text-xl` on h3s → `.text-h3`
+- `text-base` on body → use `.text-body` (adds line-height benefit)
+- `text-sm` on captions/labels → `.text-caption` (adds tracking)
+- `text-xs` on small text → `.text-tiny` (only if intentional, else bump to `text-sm`)
 
-- Clear chat button (trash icon): change `h-8 w-8` to `min-h-[44px] min-w-[44px]`
-- Accept/reject buttons: remove `h-8` override so they inherit 44px from updated `sm`
+**Key files to update first (highest visual impact):**
+1. `src/components/landing/HeroSection.tsx` — h1 hero
+2. `src/components/landing/TemplateGallery.tsx` — section titles
+3. `src/components/landing/HowItWorks.tsx` — step labels
+4. `src/components/landing/FeatureGrid.tsx` — feature titles
+5. `src/components/dashboard/DashboardStats.tsx` — greeting + stats labels
+6. `src/pages/EditorPage.tsx` — section headers
+7. `src/components/editor/SectionCard.tsx` — section titles
+8. `src/components/ui/button.tsx` — button text sizes (audit)
 
-**5. `src/components/editor/ExperienceTimeline.tsx` -- Fix dismiss X button**
+**3. Mobile Zoom Prevention**
 
-- Change `h-6 w-6 p-0` to `min-h-[44px] min-w-[44px] p-2` with flex centering
+Ensure all body text and interactive elements use **minimum 16px (text-base)**:
+- Scan for `text-xs` used on critical content
+- Bump borderline cases from `text-xs` to `text-sm` if used in body copy
+- Keep `text-xs` only for: badges, tiny icons, timestamps, accessibility-secondary content
 
-**6. `src/components/editor/SkillsSection.tsx` -- Fix common skills badges**
+**4. Line Height Consistency**
 
-- Common Skills badges: change `h-9` to `min-h-[44px]`
-- Already-added skill badges: `h-10` to `min-h-[44px]`
+Update `tailwind.config.ts` fontSize definitions to include optimal line heights:
+```typescript
+fontSize: {
+  // ... existing sizes, add line-height to each
+  "2xs": ["0.625rem", { lineHeight: "0.875rem" }], // 12px
+  xs: ["0.75rem", { lineHeight: "1rem" }],         // 14px
+  sm: ["0.875rem", { lineHeight: "1.25rem" }],     // 16px
+  base: ["1rem", { lineHeight: "1.5rem" }],        // 16px
+  // ...
+}
+```
 
-**7. `src/components/editor/tailor/JobCompareCard.tsx` -- Fix remove button**
-
-- Change `h-7 w-7` to `min-h-[44px] min-w-[44px]`
-
-**8. `src/components/editor/ai/AIDetectorSheet.tsx` -- Fix small button**
-
-- Change `h-7` to remove the override (inherits 44px from `sm`)
-
-**9. `src/components/editor/tailor/SkillSuggestionList.tsx` -- Fix action buttons**
-
-- Change `h-7` overrides to remove them (inherits 44px from `sm`)
-
-**10. `src/components/editor/TailorSheet.tsx` -- Fix tab buttons**
-
-- Add `min-h-[44px]` to the tab buttons in the manual tab strip
-
-**11. `src/components/dashboard/FloatingCreateButton.tsx` -- Upgrade to 56px (primary action)**
-
-- Change `h-12` to `h-14` for the floating primary action (56px comfortable target)
-
-### Spacing Audit
-
-Most layouts already use `gap-2` (8px) or larger between interactive elements. Key areas already compliant:
-- BottomTabBar: flex items fill full width with natural spacing
-- QuickActionChips: `gap-2` (8px) between chips
-- Skill badges: `gap-2` (8px) in flex-wrap
-
-One area to fix:
-- AgenticChatSheet accept/reject buttons: `gap-1.5` in the suggestion prompts area, needs `gap-2`
+(Already defined in tailwind.config.ts lines 37-48, so no changes needed here)
 
 ### Technical Details
 
-The `sm` button size change is the highest-leverage fix. By updating it from 40px to 44px at the component level, all 230+ usages across 27 editor files automatically become compliant without touching each file individually.
+**Semantic mapping rationale:**
+- H1 uses `clamp()` to scale between 28px (mobile) and 32px (desktop), preventing font-size jumping
+- H2-H3 map directly to existing Tailwind sizes for familiarity
+- Body defaults to 16px minimum to prevent iOS zoom
+- Caption adds uppercase + tracking for visual hierarchy without size
+- Tiny reserved for non-critical labels only
 
-For elements that override the height with explicit classes like `h-8` or `h-7`, those need individual fixes since the CSS specificity of the inline class overrides the variant.
-
-All icon-only buttons that lack explicit dimensions should use `size="icon"` (already 44x44px) rather than custom padding hacks.
+**Migration strategy:**
+1. Define utilities in `src/index.css` (non-breaking, additive)
+2. Components can co-exist using both old (Tailwind) and new (semantic) classes during transition
+3. No need to update all 4480 usages at once -- prioritize high-visibility pages first
+4. Team can gradually migrate as they touch files
 
 ### Files Modified
+- `src/index.css` -- add semantic typography utilities in `@layer utilities`
+- `src/components/landing/HeroSection.tsx` -- use `.text-h1` for hero
+- `src/components/landing/TemplateGallery.tsx` -- use `.text-h2`, `.text-caption`
+- `src/components/landing/HowItWorks.tsx` -- use `.text-h3`, `.text-body`
+- `src/components/landing/FeatureGrid.tsx` -- use `.text-h2`, `.text-h3`
+- `src/components/dashboard/DashboardStats.tsx` -- use `.text-h1`, `.text-caption`
+- `src/pages/EditorPage.tsx` -- audit and update section titles
+- `src/components/editor/SectionCard.tsx` -- use `.text-h3` for section headers
+- Additional high-impact files as identified during Phase 1 audit
 
-- `src/components/ui/button.tsx` -- bump `sm` to 44px minimum
-- `src/components/editor/InlineAIButton.tsx` -- fix trigger and dropdown item heights
-- `src/components/editor/AIContextualNudge.tsx` -- fix close X and action button heights
-- `src/components/editor/AgenticChatSheet.tsx` -- fix clear, accept/reject button heights
-- `src/components/editor/ExperienceTimeline.tsx` -- fix dismiss X button
-- `src/components/editor/SkillsSection.tsx` -- fix badge heights
-- `src/components/editor/tailor/JobCompareCard.tsx` -- fix remove button
-- `src/components/editor/ai/AIDetectorSheet.tsx` -- fix small button
-- `src/components/editor/tailor/SkillSuggestionList.tsx` -- fix action button heights
-- `src/components/editor/TailorSheet.tsx` -- fix tab button heights
-- `src/components/dashboard/FloatingCreateButton.tsx` -- upgrade to 56px
+### Rationale & Benefits
+
+1. **Accessibility**: Prevents iOS zoom-on-focus by ensuring body text ≥16px
+2. **Consistency**: Semantic naming (`text-h1` vs `text-4xl`) communicates intent
+3. **Maintainability**: Single source of truth for heading styles
+4. **Scalability**: Easy to adjust all H1s globally without find-and-replace
+5. **Responsiveness**: Uses `clamp()` for fluid scaling instead of breakpoint jumps
+6. **Legacy compatibility**: Old Tailwind classes still work during migration
+
+### Implementation Approach
+
+This will be completed in **multiple PRs/commits** rather than one massive refactor:
+1. Define utilities in `src/index.css` (1 commit)
+2. Update landing page components (1 commit)
+3. Update dashboard components (1 commit)
+4. Update editor components (1 commit)
+5. Optional: audit and catch remaining `text-xs` on body copy
 
