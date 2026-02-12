@@ -66,16 +66,11 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
             transition={{ duration: 0.25 }}
             className="mx-4 mt-2 mb-1 overflow-hidden"
           >
-            <div className="glass-surface border-glow rounded-2xl p-3.5 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Lightbulb className="w-4 h-4 text-warning" />
+            <div className="glass-surface border-glow rounded-xl px-3 py-2 flex items-center gap-2.5">
+              <div className="w-6 h-6 rounded-md bg-warning/10 flex items-center justify-center flex-shrink-0">
+                <Lightbulb className="w-3.5 h-3.5 text-warning" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
-                  Daily Tip
-                </p>
-                <p className="text-xs text-foreground leading-relaxed">{tip}</p>
-              </div>
+              <p className="text-[11px] text-foreground leading-relaxed line-clamp-1 flex-1 min-w-0">{tip}</p>
               <button
                 onClick={handleDismiss}
                 className="p-1 rounded-lg hover:bg-muted/50 text-muted-foreground touch-manipulation"
