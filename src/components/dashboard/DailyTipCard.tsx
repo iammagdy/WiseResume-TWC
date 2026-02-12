@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Lightbulb, X } from 'lucide-react';
 
 const tips = [
@@ -21,9 +21,10 @@ interface DailyTipCardProps {
 
 export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
   const [visible, setVisible] = useState(() => {
-    return !sessionStorage.getItem('wr-tip-dismissed');
+    return !localStorage.getItem('wr-tip-dismissed');
   });
   const [manualDismiss, setManualDismiss] = useState(false);
+  const [swipeDismiss, setSwipeDismiss] = useState(false);
   const tip = tips[new Date().getDate() % tips.length];
 
   // Auto-hide after 3 seconds
@@ -44,13 +45,31 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
   const handleDismiss = () => {
     setManualDismiss(true);
     setVisible(false);
-    sessionStorage.setItem('wr-tip-dismissed', 'true');
+    localStorage.setItem('wr-tip-dismissed', 'true');
     onVisibilityChange?.(false);
+  };
+
+  const handleSwipeDismiss = () => {
+    setSwipeDismiss(true);
+    setVisible(false);
+    localStorage.setItem('wr-tip-dismissed', 'true');
+    onVisibilityChange?.(false);
+    // Reset after animation completes
+    setTimeout(() => {
+      setSwipeDismiss(false);
+      setManualDismiss(true);
+    }, 300);
   };
 
   const handleExpand = () => {
     setVisible(true);
     onVisibilityChange?.(true);
+  };
+
+  const handleDragEnd = (_: any, info: PanInfo) => {
+    if (Math.abs(info.offset.x) > 80 || Math.abs(info.velocity.x) > 300) {
+      handleSwipeDismiss();
+    }
   };
 
   if (manualDismiss) return null;
@@ -60,11 +79,18 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
       <AnimatePresence>
         {visible && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={swipeDismiss
+              ? { opacity: 0, x: 200, transition: { duration: 0.2 } }
+              : { opacity: 0, height: 0, transition: { duration: 0.25 } }
+            }
             transition={{ duration: 0.25 }}
-            className="mx-4 mt-2 mb-1 overflow-hidden"
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.3}
+            onDragEnd={handleDragEnd}
+            className="mx-4 mt-2 mb-1 overflow-hidden cursor-grab active:cursor-grabbing"
           >
             <div className="glass-surface border-glow rounded-xl p-4 flex items-center gap-2.5">
               <div className="w-6 h-6 rounded-md bg-warning/10 flex items-center justify-center flex-shrink-0">
@@ -73,9 +99,10 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
               <p className="text-[11px] text-foreground leading-relaxed line-clamp-1 flex-1 min-w-0">{tip}</p>
               <button
                 onClick={handleDismiss}
-                className="p-1 rounded-lg hover:bg-muted/50 text-muted-foreground touch-manipulation"
+                className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-muted/50 text-muted-foreground touch-manipulation flex-shrink-0"
+                aria-label="Dismiss tip"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
           </motion.div>

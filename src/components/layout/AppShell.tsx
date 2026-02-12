@@ -1,8 +1,9 @@
-import { Outlet, useLocation, useOutlet } from 'react-router-dom';
+import { useLocation, useOutlet } from 'react-router-dom';
 import { BottomTabBar } from './BottomTabBar';
 import { OfflineBanner } from './OfflineBanner';
 import { GuestSaveBanner } from './GuestSaveBanner';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 
 // Routes that show bottom nav
@@ -22,9 +23,18 @@ export function AppShell() {
       <OfflineBanner />
       {showGuestBanner && <GuestSaveBanner />}
       <main className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}>
-        <div className="flex-1 flex flex-col min-h-0 w-full">
-          {currentOutlet}
-        </div>
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="flex-1 flex flex-col min-h-0 w-full"
+          >
+            {currentOutlet}
+          </motion.div>
+        </AnimatePresence>
       </main>
       {showBottomNav && <BottomTabBar />}
     </div>
