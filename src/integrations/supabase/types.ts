@@ -182,9 +182,11 @@ export type Database = {
           company: string
           cover_letter_id: string | null
           created_at: string | null
+          deadline: string | null
           id: string
           job_title: string
           notes: string | null
+          remind_at: string | null
           resume_id: string | null
           status: string
           updated_at: string | null
@@ -196,9 +198,11 @@ export type Database = {
           company: string
           cover_letter_id?: string | null
           created_at?: string | null
+          deadline?: string | null
           id?: string
           job_title: string
           notes?: string | null
+          remind_at?: string | null
           resume_id?: string | null
           status?: string
           updated_at?: string | null
@@ -210,9 +214,11 @@ export type Database = {
           company?: string
           cover_letter_id?: string | null
           created_at?: string | null
+          deadline?: string | null
           id?: string
           job_title?: string
           notes?: string | null
+          remind_at?: string | null
           resume_id?: string | null
           status?: string
           updated_at?: string | null

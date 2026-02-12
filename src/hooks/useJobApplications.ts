@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export type ApplicationStatus = 'applied' | 'interviewing' | 'offer' | 'rejected';
+export type ApplicationStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected';
 
 export interface JobApplication {
   id: string;
@@ -16,6 +16,8 @@ export interface JobApplication {
   applied_at: string;
   notes: string | null;
   url: string | null;
+  deadline: string | null;
+  remind_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +45,25 @@ export function useJobApplications(statusFilter?: ApplicationStatus) {
   });
 }
 
+export function usePendingReminders() {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['pending-reminders', user?.id],
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('id')
+        .or(`remind_at.lte.${now},status.eq.saved`);
+      if (error) throw error;
+      return (data || []).length;
+    },
+    enabled: !!user,
+    refetchInterval: 60000,
+  });
+}
+
 export function useJobApplicationMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -56,6 +77,8 @@ export function useJobApplicationMutations() {
       cover_letter_id?: string;
       notes?: string;
       url?: string;
+      deadline?: string;
+      remind_at?: string;
     }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
@@ -69,6 +92,8 @@ export function useJobApplicationMutations() {
           cover_letter_id: input.cover_letter_id || null,
           notes: input.notes || null,
           url: input.url || null,
+          deadline: input.deadline || null,
+          remind_at: input.remind_at || null,
         })
         .select()
         .single();
