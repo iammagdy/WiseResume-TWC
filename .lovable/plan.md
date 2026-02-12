@@ -1,158 +1,125 @@
 
 
-# Empty State Redesign - Transform Blank Sections into Learning Opportunities
+# Authentication Flow Improvement - Guest Mode and Strategic Prompts
 
 ## Overview
 
-Replace the current minimal empty states in each editor section with rich, instructional cards featuring real examples (using the Wise Megz persona), collapsible example panels, and prominent action buttons including AI quick-start options.
+Remove the forced auth redirect from Settings, introduce guest mode limitations (1 resume, gated advanced features), create a reusable sign-in prompt modal that appears at strategic moments, and redesign the Settings page to work for both guests and authenticated users.
 
 ## What Changes
 
-### New Reusable Component: `src/components/editor/SectionEmptyState.tsx`
+### 1. Settings Page: Remove Forced Auth Redirect
 
-A shared empty state wrapper accepting:
-- `icon` - section icon (LucideIcon)
-- `title` - section name
-- `exampleContent` - ReactNode for the example card
-- `actions` - array of `{ label, icon, onClick, variant }` button configs
-- `showExample` / `onToggleExample` - collapsible example toggle
+**Current behavior:** `SettingsPage.tsx` line 115-119 redirects unauthenticated users to `/auth`.
 
-Features:
-- Glass-surface card with dashed border
-- Collapsible "Show Example / Hide Example" toggle using Collapsible from Radix
-- Staggered entrance animation via framer-motion
-- Stored toggle preference in localStorage (`wr-show-examples`) so users who hide examples keep them hidden
+**New behavior:** Show the full Settings page to everyone. Sections that require auth (Profile card, Data Export, Delete Data, Sign Out) are replaced with a "Sign in to access" card for guests. Available-to-all sections (Appearance, Editor Preferences, AI & Voice, Notifications, Language, Take Tour Again, About) remain fully functional.
 
-### New Config File: `src/lib/emptyStateExamples.ts`
+The profile card at the top becomes a "Sign in" call-to-action card for guests, showing the AppIcon and a "Sign in to manage your account" message with a button.
 
-A pure data file containing all example content and action definitions per section. This keeps example data (Wise Megz persona content) separate from component logic and easy to update.
+### 2. New Component: `SignInPromptDialog`
 
-Contains:
-- Contact example data object
-- Summary example text
-- Experience example entries (with bullet points)
-- Education example entry
-- Skills example categories (Technical, Soft, Languages)
+A reusable modal (`src/components/auth/SignInPromptDialog.tsx`) that accepts:
+- `open` / `onOpenChange` - dialog control
+- `title` - headline (e.g., "Secure Your Progress")
+- `description` - context message
+- `benefits` - array of benefit strings to show with checkmarks
+- `onContinueAsGuest` - optional callback for dismissing
 
-### Modified: `src/components/editor/ContactSection.tsx`
+**Design:**
+- Centered modal with gradient header accent
+- Benefit list with checkmark icons
+- "Continue with Email" button (navigates to `/auth?mode=signup`)
+- "Continue with Google" button (triggers Google OAuth directly)
+- "Continue as guest" text link at the bottom
 
-When all contact fields are empty (no fullName, no email, no phone), render the `SectionEmptyState` instead of the form fields.
+### 3. Guest Mode Limitations
 
-**Example card content:**
-- Wise Megz
-- wise.megz@email.com
-- +20 123 456 7890
-- Cairo, Egypt
-- linkedin.com/in/wisemegz
+**One resume limit:**
+In `DashboardPage.tsx`, when a guest (no user) clicks "Create New" and already has a resume in the local store, show the `SignInPromptDialog` with title "Create Unlimited Resumes" instead of opening the CreateResumeDialog.
 
-**Actions:**
-- "Start Adding Your Info" (primary) - focuses the fullName input by scrolling to it and triggering a state change to show the form
-- The form always renders but is hidden behind the empty state when all fields are blank. Clicking the button sets a `started` state to true, hiding the empty state and showing the form.
+**Gated features (show prompt on click):**
+- **Tailor Sheet** (`EditorPage.tsx`): When guest clicks Tailor, show prompt with "Sign in to unlock AI-tailored resumes"
+- **Cover Letter** (inside TailorSheet): Already behind tailor, so covered
+- **Jobs tab** (`ApplicationsPage.tsx`): Show prompt when guest navigates there
+- **Export/Download** (`PreviewPage.tsx`): Allow free download (keeps value visible), but show a gentle prompt after first download encouraging sign-up
 
-### Modified: `src/components/editor/SummarySection.tsx`
+Each gated action checks `if (!user)` before proceeding and shows the `SignInPromptDialog` instead.
 
-When summary is empty or undefined, show the empty state.
+### 4. Strategic Sign-In Prompts
 
-**Example card content:**
-> "Experienced software engineer with 5+ years building scalable web applications. Specialized in React and Node.js with a track record of improving system performance by up to 40%. Passionate about clean code and mentoring junior developers."
+**After completing 2 sections** (`EditorPage.tsx`):
+Track section completion count. When a guest completes their second section (score reaches 100 for 2 sections), show the `SignInPromptDialog` once per session with:
+- Title: "You're making great progress!"
+- Benefits: "Access your resume anywhere", "Tailor to unlimited jobs", "Generate AI cover letters"
+- Store dismissal in sessionStorage so it only shows once per browser session
 
-**Actions:**
-- "Start Writing" (outline) - sets `started` to true, shows the textarea, focuses it
-- "Let AI Write This" (primary, Sparkles icon) - triggers the existing `handleAction('generate')` to invoke AI summary generation
+**On Preview page** (`PreviewPage.tsx`):
+When a guest visits Preview for the first time, show a subtle toast (not a blocking modal) after 3 seconds: "Sign in to save and download in multiple formats" with a "Sign Up" action button.
 
-### Modified: `src/components/editor/ExperienceSection.tsx`
+### 5. Improved GuestSaveBanner
 
-Replace the current minimal empty state (lines 162-169).
-
-**Example card content:**
-A formatted mock job entry:
-- **Senior Developer**
-- Tech Company | 2022 - Present
-- Three bullet points with metrics (40% performance, team of 5, 30% bug reduction)
-
-**Actions:**
-- "Add Your First Job" (outline) - calls existing `addExperience()`
-- "Import from LinkedIn" (outline, with LinkedIn icon) - navigates to `/upload` with a query param or opens the upload sheet
-- "See More Examples" (ghost) - toggles the example visibility with additional industry-specific examples
-
-### Modified: `src/components/editor/EducationSection.tsx`
-
-Replace the current minimal empty state (lines 111-118).
-
-**Example card content:**
-- Bachelor of Science in Computer Science
-- Cairo University | 2018 - 2022
-- GPA: 3.8/4.0
-- Relevant coursework: Data Structures, Algorithms, Machine Learning
-
-**Actions:**
-- "Add Education" (outline) - calls existing `addEducation()`
-- "I'm Self-Taught" (ghost) - adds a pre-configured education entry with institution "Self-Taught / Online Learning" and degree "Professional Certifications & Courses", then expands it for editing
-
-### Modified: `src/components/editor/SkillsSection.tsx`
-
-Replace the current minimal empty text (lines 139-143).
-
-**Example card content:**
-A categorized grid:
-- **Technical:** React, Node.js, Python, SQL, Git
-- **Soft Skills:** Leadership, Communication, Problem-solving, Team collaboration
-- **Languages:** English (Fluent), Arabic (Native)
-
-**Actions:**
-- "Add Your Skills" (outline) - focuses the existing skill input field
-- "AI Suggest Skills" (primary, Sparkles icon) - triggers existing `handleAIAction('generate')` to auto-suggest skills based on work experience
+Update `GuestSaveBanner.tsx`:
+- Change color from `bg-primary/10` to `bg-amber-500/10 border-amber-500/20` (gentle yellow/amber as specified)
+- Reappear each session by using `sessionStorage` instead of `useState` for dismissal (so it comes back on new sessions)
+- Keep the existing content and dismiss behavior
 
 ## Technical Details
 
-### SectionEmptyState Component Structure
-
-```
-<div className="p-6 rounded-xl border border-dashed border-border animate-in fade-in-0 duration-300">
-  <Icon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-  
-  <Collapsible open={showExample} onOpenChange={onToggleExample}>
-    <CollapsibleTrigger className="...">
-      {showExample ? 'Hide Example' : 'Show Example'}
-      <ChevronDown / ChevronUp />
-    </CollapsibleTrigger>
-    <CollapsibleContent>
-      <div className="mt-3 p-4 rounded-lg bg-muted/30 border border-border/50">
-        <p className="text-xs text-muted-foreground mb-2 font-medium">Example</p>
-        {exampleContent}
-      </div>
-    </CollapsibleContent>
-  </Collapsible>
-  
-  <div className="flex flex-col sm:flex-row gap-2 mt-4">
-    {actions.map(action => <Button ... />)}
-  </div>
-</div>
-```
-
-### Detection Logic
-
-Each section component adds a simple check:
-- **Contact**: `!contactInfo.fullName && !contactInfo.email && !contactInfo.phone`
-- **Summary**: `!summary || summary.trim() === ''`
-- **Experience**: `experience.length === 0` (already exists)
-- **Education**: `education.length === 0` (already exists)
-- **Skills**: `skills.length === 0` (already exists)
-
-A `started` state (useState boolean, default false) lets users dismiss the empty state and see the actual form/input even before adding content. This resets if content is cleared.
-
 ### Files to Create
-1. `src/components/editor/SectionEmptyState.tsx` - Reusable empty state wrapper
-2. `src/lib/emptyStateExamples.ts` - Example content and action configs
+
+1. **`src/components/auth/SignInPromptDialog.tsx`** - Reusable sign-in prompt modal
+   - Uses Dialog from Radix
+   - Accepts configurable title, description, benefits array
+   - Has "Continue with Email", "Continue with Google", and "Continue as guest" options
+   - Google sign-in uses `lovable.auth.signInWithOAuth('google', ...)`
+   - Email navigates to `/auth?mode=signup`
 
 ### Files to Modify
-1. `src/components/editor/ContactSection.tsx` - Add empty state with example card and "Start Adding" button
-2. `src/components/editor/SummarySection.tsx` - Add empty state with example and "Let AI Write This" button
-3. `src/components/editor/ExperienceSection.tsx` - Replace minimal empty state with rich example
-4. `src/components/editor/EducationSection.tsx` - Replace minimal empty state with example and "I'm Self-Taught" option
-5. `src/components/editor/SkillsSection.tsx` - Replace minimal empty text with categorized example grid and "AI Suggest Skills"
+
+2. **`src/pages/SettingsPage.tsx`**
+   - Remove the `useEffect` redirect on lines 115-119
+   - Wrap auth-only sections (Profile card, Data Export, Delete Data, Sign Out) in `{user && ...}`
+   - Add a guest profile card: glass-elevated card with AppIcon, "Sign in to manage your account", and a "Sign In" button navigating to `/auth`
+   - Guest sees: Appearance, Editor Preferences, AI & Voice, Notifications, Language, Take Tour Again, About
+   - Auth-only sections show as disabled cards with lock icon and "Sign in to access" text for guests
+
+3. **`src/components/layout/GuestSaveBanner.tsx`**
+   - Change background to amber: `bg-amber-500/10 border-amber-500/20`
+   - Change icon color to `text-amber-600 dark:text-amber-400`
+   - Use `sessionStorage` for dismissal tracking so banner reappears each new session
+   - Keep all existing logic for detecting progress
+
+4. **`src/pages/EditorPage.tsx`**
+   - Add strategic prompt: track when guest completes 2 sections
+   - Use a ref + sessionStorage flag `wr-signin-prompt-shown` to show `SignInPromptDialog` once
+   - Add state for `showSignInPrompt` and the prompt component at the bottom of the JSX
+   - Gate the Tailor button: if `!user`, show sign-in prompt instead of opening TailorSheet
+
+5. **`src/pages/DashboardPage.tsx`**
+   - Gate "Create New" for guests: if `!user && currentResume exists in store`, show sign-in prompt instead of CreateResumeDialog
+   - Add `showSignInPrompt` state and render `SignInPromptDialog`
+
+6. **`src/pages/PreviewPage.tsx`**
+   - Add a one-time toast for guests after 3 seconds on first visit (tracked via sessionStorage `wr-preview-signin-hint`)
+   - Keep downloads working for guests (no blocking)
 
 ### No Database Changes Required
 
-All changes are purely UI/client-side within existing section components.
+All guest limitations are enforced client-side. The existing local storage resume workflow for guests remains unchanged.
+
+### Sign-In Prompt Benefits (reusable constant)
+
+```
+const SIGN_IN_BENEFITS = [
+  'Save your resume permanently',
+  'Access from any device',
+  'Tailor to unlimited job postings',
+  'Generate custom cover letters',
+  'Track your applications',
+];
+```
+
+### Guest Detection Pattern
+
+All checks use the existing `useAuth` hook: `const { user } = useAuth()`. When `user` is null, the visitor is a guest.
 
