@@ -1,104 +1,112 @@
 
 
-# Settings Tab Overhaul: Auth Provider Fix + Premium Redesign
+# Stats Popups, Master CV, and Profile-CV Sync
 
-## Issue 1: Auth Provider Confusion
+## Overview
 
-**Root Cause**: The profile card in Settings shows your email address as the subtitle (e.g., `magdyysaber@gmail.com`), which looks identical whether you signed in with Google or with email/password. There is no visual indicator of HOW you signed in. The app has the data (`user.app_metadata.provider` = "google"), but it never displays it.
+Three connected features: (1) tapping stat tiles on the Jobs tab opens a popup sheet listing the actual resumes instead of navigating away, (2) introduce a "Master CV" concept where one resume is the user's primary base resume, and (3) the profile page shows CV data as collapsible sections and auto-populates profile fields from the master CV.
 
-**Fix**: Add a small badge/chip below your name in the profile card showing the sign-in method:
-- "Signed in with Google" (with Google icon)
-- "Signed in with Apple" (with Apple icon)  
-- "Signed in with Email" (with mail icon)
+## 1. Stats Tile Popups (Jobs Tab)
 
-This is read from `user.app_metadata.provider` which is already available on the auth user object. The profile subtitle will also be cleaned up to show your job title or "Tap to complete your profile" instead of just the raw email.
+**Problem**: Tapping "Resumes Created" or "Tailored Versions" navigates to the homepage, which is unhelpful.
 
-## Issue 2: Settings Cleanup + Premium Feel
+**Solution**: Create a new `ResumeListSheet` bottom sheet component. When the user taps a stat tile, the sheet opens showing the relevant resumes (filtered by original vs tailored). Each item shows the resume title, date, and target job if applicable. Tapping an item navigates to the editor.
 
-### Remove/Merge These Items
+### New Component: `ResumeListSheet.tsx`
+- Bottom sheet with a title ("Resumes Created" or "Tailored Versions")
+- Lists resumes filtered by type (original = no `parent_resume_id`, tailored = has `parent_resume_id`)
+- Each row: resume title, creation date, target job badge if tailored
+- Tapping a row navigates to `/editor?id={resumeId}`
+- Uses existing `useResumes()` hook data
 
-| Item | Reason |
-|------|--------|
-| **Default Template** (Editor Preferences) | Rarely used -- users pick templates when creating/editing a resume, not in settings. Remove the entire row and its sheet. |
-| **Reset Onboarding** (Account) | Developer/debug tool, not useful for real users. Remove it. |
-| **Local-Only Mode** (Privacy) | Confusing for most users and not functionally meaningful in this cloud-backed app. Remove it. |
-| **Analytics toggle** (Privacy) | No real analytics system behind it. Remove it. |
+### Modified: `JobActivityStats.tsx`
+- Remove navigation to `/dashboard` for the first two tiles
+- Instead, accept callbacks `onOriginalsTap` and `onTailoredTap` from the parent
+- Parent (`ApplicationsPage.tsx`) manages the sheet open state and filter
 
-### Keep These (They're Useful)
+### Modified: `ApplicationsPage.tsx`
+- Add state for the resume list sheet (open/closed, filter type)
+- Pass callbacks to `JobActivityStatsCard`
+- Render `ResumeListSheet`
 
-- Appearance (theme toggle)
-- PDF Export Settings
-- AI Provider
-- ElevenLabs API Key
-- Auto-save Toasts
-- AI Enhancement Tips
-- Export Resumes
-- Biometric Lock
-- Delete All Data
-- Sign Out
-- Developer Credit Card
+## 2. Master CV Concept
 
-### Add These New Premium Options
+**Problem**: No concept of a "primary" or "master" resume that serves as the base for everything.
 
-1. **"Signed in as" info row** -- Shows auth provider (Google/Apple/Email) with icon, non-editable, informational. Placed in the profile card area.
+**Solution**: The `is_primary` boolean column already exists on the `resumes` table (defaults to `false`). We will use it to mark one resume as the master CV.
 
-2. **"Language" setting** (Account section) -- A selector for app language (English only for now, but shows the app is ready for i18n). Displays "English" with a globe icon. Tapping shows a sheet with English selected and "More coming soon" note.
+### How it works:
+- When a user sets a resume as "Master CV," we update `is_primary = true` on that resume and `is_primary = false` on all others (via a database function or two queries)
+- The master CV gets a crown/star badge on the dashboard and in the resume list sheet
+- When creating a new tailored version, the master CV is pre-selected as the source
+- The `ResumeListSheet` will show a "Set as Master CV" action on each resume
 
-3. **"Resume Count" info row** (Data section) -- Shows "X resumes created" as a subtle informational stat next to Export. Makes the data section feel richer.
+### New: `useSetMasterCV` mutation
+- Added to `useResumes.ts` as a new mutation
+- Sets `is_primary = true` on the target, `is_primary = false` on all others
+- Invalidates the resumes query cache
 
-4. **"Rate WiseResume"** (About section) -- A row with a star icon that opens the app store rating link. Premium apps always have this.
+### Visual indicator
+- A small crown or star badge appears on the master CV card in the dashboard and in the new resume list sheet
 
-5. **"Share WiseResume"** (About section) -- A row with a share icon that triggers the native share API with the app link.
+## 3. Profile Reflects CV Data (Collapsible Sections)
 
-### New Section Order (Top to Bottom)
+**Problem**: The profile (EditProfileSheet) has basic fields but no connection to the user's actual CV content.
 
-1. **Profile Card** -- Avatar, name, job title, auth provider badge, completion progress
-2. **Appearance** -- Theme toggle (unchanged)
-3. **Editor Preferences** -- PDF Export Settings only (template row removed)
-4. **AI & Voice** -- AI Provider, ElevenLabs Key (unchanged)
-5. **Notifications** -- Auto-save Toasts, AI Enhancement Tips (unchanged)
-6. **Data & Export** -- Export Resumes (with resume count inline)
-7. **Privacy & Security** -- Biometric Lock only (removed Local-Only and Analytics)
-8. **Account** -- Language, Delete All Data, Sign Out
-9. **About** -- Developer Card, Rate WiseResume, Share WiseResume, Version info
+**Solution**: 
+- When a master CV is set (or any CV is imported), auto-populate profile fields (fullName, location, linkedinUrl) from the CV's `contactInfo` if those profile fields are empty
+- Add collapsible sections at the bottom of the EditProfileSheet showing the master CV's experience, education, and skills as read-only previews
+- These sections use the `Collapsible` component (already exists in the project)
+
+### Modified: `EditProfileSheet.tsx`
+- Fetch the master CV using `useResumes()` filtered by `is_primary === true`
+- Below the "Professional Details" section, add three collapsible sections:
+  - **Experience** -- lists job titles and companies from the master CV
+  - **Education** -- lists degrees and institutions
+  - **Skills** -- shows skill badges
+- Each section is collapsed by default, expandable with a tap
+- A subtle note: "From your Master CV" with a link to edit it in the editor
+- On first profile setup, if profile fields are empty, auto-fill from master CV contact info
+
+### Auto-sync logic (in `EditProfileSheet` or a helper):
+- When the sheet opens, check if `fullName` is empty but master CV has `contactInfo.fullName` -- pre-fill it
+- Same for `location` and `linkedinUrl`
+- Only pre-fill if the profile field is currently empty (never overwrite user edits)
 
 ## Technical Details
 
+### Files to Create
+1. `src/components/applications/ResumeListSheet.tsx` -- bottom sheet listing resumes by type
+
 ### Files to Modify
+1. `src/components/applications/JobActivityStats.tsx` -- replace navigation with callbacks
+2. `src/pages/ApplicationsPage.tsx` -- manage sheet state, render ResumeListSheet
+3. `src/hooks/useResumes.ts` -- add `setMasterCV` mutation
+4. `src/components/settings/EditProfileSheet.tsx` -- add collapsible CV sections and auto-sync logic
 
-**`src/pages/SettingsPage.tsx`**
-- Import `Globe, Star, Share2` from lucide-react
-- Remove imports for `RotateCcw, CloudOff, BarChart3`
-- Remove `DefaultTemplateSheet` lazy import and its state/rendering
-- Remove `handleResetOnboarding` function
-- Add auth provider detection: `const authProvider = user?.app_metadata?.provider || 'email'`
-- Add provider badge JSX in the profile card (below display name)
-- Remove the "Default Template" `SettingsRow`
-- Remove "Reset Onboarding", "Local-Only Mode", "Analytics" rows
-- Add "Language" row (shows "English", taps to show toast "More languages coming soon")
-- Add "Rate WiseResume" row (opens external link or triggers `useRateApp`)
-- Add "Share WiseResume" row (triggers `navigator.share()` or copies link)
-- Show resume count inline on the Export row description
+### No Database Changes Needed
+The `is_primary` column already exists on the `resumes` table with a default of `false`. No migration required.
 
-**`src/store/settingsStore.ts`**
-- No changes needed (the removed settings stay in the store for backward compat, they just won't render in UI)
+### Resume List Sheet Design
+- Bottom sheet, 70% height
+- Header shows the filter title and count
+- Each resume card: glass-surface style, shows title, date ("3 days ago"), target job badge, and a crown icon if it's the master CV
+- Long-press or a small menu button reveals "Set as Master CV" option
+- Tapping the card navigates to `/editor?id=...`
 
-**`src/components/settings/DefaultTemplateSheet.tsx`**
-- No deletion needed (keep the file for potential future use elsewhere), just stop importing/rendering it from SettingsPage
-
-### Auth Provider Badge Logic
+### Collapsible CV Sections in Profile
 ```
-const providerLabel = {
-  google: 'Google',
-  apple: 'Apple',
-  email: 'Email',
-}[authProvider] || 'Email';
-```
-Display as a small chip with the provider icon next to the email/subtitle text.
+[Experience]              [v]  (collapsed by default)
+  Senior Developer at Google
+  Junior Dev at Startup
+  
+[Education]               [v]
+  B.Sc Computer Science, MIT
 
-## Result
-- Users will always see clearly HOW they signed in (Google badge vs Email badge)
-- Settings page is cleaner with 4 less rows of clutter
-- New rows (Language, Rate, Share) give a premium, polished feel
-- The page feels intentional and well-curated, not like a developer debug panel
+[Skills]                  [v]
+  React  TypeScript  Node.js  Python
+```
+- Uses the existing `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` components
+- Read-only display -- editing happens in the resume editor
+- Shows "No master CV set" message with a prompt to set one if none exists
 
