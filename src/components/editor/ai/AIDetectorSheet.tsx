@@ -217,7 +217,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                       variant="ghost"
                       size="sm"
                       onClick={handleLoadSummary}
-                      className="h-7 text-xs"
+                      className="text-xs"
                     >
                       Load Summary
                     </Button>

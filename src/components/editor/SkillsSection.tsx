@@ -128,7 +128,7 @@ export const SkillsSection = memo(function SkillsSection() {
             <div key={skill} className="transition-all duration-200">
               <Badge
                 variant="secondary"
-                className="h-10 px-4 gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-sm"
+                className="min-h-[44px] px-4 gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-sm"
                 onClick={() => removeSkill(skill)}
               >
                 {skill}
@@ -200,7 +200,7 @@ export const SkillsSection = memo(function SkillsSection() {
               <Badge
                 key={skill}
                 variant="outline"
-                className="h-9 px-3 text-sm cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors touch-manipulation active:scale-95"
+                className="min-h-[44px] px-3 text-sm cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors touch-manipulation active:scale-95"
                 onClick={() => addSuggestedSkill(skill)}
               >
                 + {skill}

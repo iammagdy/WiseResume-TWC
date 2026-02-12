@@ -42,7 +42,7 @@ export function AIContextualNudge({
                   <Button 
                     size="sm" 
                     onClick={handleAction}
-                    className="h-8 px-3 text-xs"
+                    className="px-3 text-xs"
                   >
                     {actionLabel}
                   </Button>
@@ -50,7 +50,7 @@ export function AIContextualNudge({
                     variant="ghost" 
                     size="sm" 
                     onClick={handleDismiss}
-                    className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground"
+                    className="px-3 text-xs text-muted-foreground hover:text-foreground"
                   >
                     Dismiss
                   </Button>
@@ -58,7 +58,7 @@ export function AIContextualNudge({
               </div>
               <button
                 onClick={handleDismiss}
-                className="p-1 rounded-full hover:bg-muted transition-colors shrink-0"
+                className="p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-muted transition-colors shrink-0"
               >
                 <X className="w-4 h-4 text-muted-foreground" />
               </button>

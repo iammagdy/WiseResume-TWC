@@ -78,7 +78,7 @@ export function InlineAIButton({
       <Button
         variant="ghost"
         size="sm"
-        className="h-8 px-2.5 gap-1.5 text-primary hover:bg-primary/10 transition-colors"
+        className="min-h-[44px] px-2.5 gap-1.5 text-primary hover:bg-primary/10 transition-colors"
         disabled={disabled || isLoading}
         onClick={() => setIsOpen((prev) => !prev)}
       >
@@ -96,7 +96,7 @@ export function InlineAIButton({
             <button
               key={action.id}
               onClick={() => handleAction(action.id)}
-              className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-popover-foreground outline-none cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground"
+              className="flex w-full items-center gap-2 rounded-sm px-2 py-2.5 min-h-[44px] text-sm text-popover-foreground outline-none cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground"
             >
               {action.icon}
               <span>{action.label}</span>

@@ -166,7 +166,7 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: Exp
                 variant="ghost"
                 size="sm"
                 onClick={onDismiss}
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground shrink-0"
+                className="min-h-[44px] min-w-[44px] p-2 text-muted-foreground hover:text-foreground shrink-0"
               >
                 <X className="w-3.5 h-3.5" />
               </Button>
