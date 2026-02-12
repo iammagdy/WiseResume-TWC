@@ -114,6 +114,9 @@ export function useResumes() {
       return (data || []).map(parseDbResume);
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000, // 5 minutes - serve cached data when offline
+    gcTime: 30 * 60 * 1000, // 30 minutes - keep cache longer for offline use
+    networkMode: 'offlineFirst',
   });
 }
 

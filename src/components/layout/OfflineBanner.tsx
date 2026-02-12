@@ -1,9 +1,11 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { WifiOff, Wifi } from 'lucide-react';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
+import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 
 export function OfflineBanner() {
   const { isOnline, wasOffline } = useNetworkStatus();
+  const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
 
   return (
     <AnimatePresence>
@@ -33,7 +35,7 @@ export function OfflineBanner() {
           <div className="flex items-center justify-center gap-2 py-2 px-4">
             <Wifi className="w-4 h-4 text-success" />
             <span className="text-sm text-success font-medium">
-              Back online! Syncing changes...
+              Back online! {pendingCount > 0 ? `Syncing ${pendingCount} change${pendingCount > 1 ? 's' : ''}...` : 'All synced!'}
             </span>
           </div>
         </motion.div>
