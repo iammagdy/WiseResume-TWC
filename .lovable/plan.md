@@ -1,135 +1,158 @@
 
 
-# Progress Tracking System - Granular Completion Rules and Visual Feedback
+# Empty State Redesign - Transform Blank Sections into Learning Opportunities
 
 ## Overview
 
-Replace the current binary (complete/incomplete) section tracking with a granular percentage-based completion system. Add a visual progress bar below the header, upgrade the stepper nav circles with percentage badges, and celebrate section completions with toast notifications and animations.
+Replace the current minimal empty states in each editor section with rich, instructional cards featuring real examples (using the Wise Megz persona), collapsible example panels, and prominent action buttons including AI quick-start options.
 
-## Section Completion Rules
+## What Changes
 
-Each section gets a percentage score (0-100) based on weighted sub-criteria:
+### New Reusable Component: `src/components/editor/SectionEmptyState.tsx`
 
-### Contact (5 sub-items)
-- Full name present: 20%
-- Professional email: 20%
-- Phone number: 20%
-- Location: 20%
-- LinkedIn or Portfolio link: 20%
+A shared empty state wrapper accepting:
+- `icon` - section icon (LucideIcon)
+- `title` - section name
+- `exampleContent` - ReactNode for the example card
+- `actions` - array of `{ label, icon, onClick, variant }` button configs
+- `showExample` / `onToggleExample` - collapsible example toggle
 
-### Summary (word-count based)
-- 0 words: 0%
-- 1-19 words: 25% (too short)
-- 20-49 words: 50% (getting there)
-- 50-149 words: 75% (good length)
-- 150+ words or contains 2-4 sentences with 50+ words: 100%
+Features:
+- Glass-surface card with dashed border
+- Collapsible "Show Example / Hide Example" toggle using Collapsible from Radix
+- Staggered entrance animation via framer-motion
+- Stored toggle preference in localStorage (`wr-show-examples`) so users who hide examples keep them hidden
 
-### Work Experience (tiered)
-- 0 entries: 0%
-- 1 entry with just company+title: 25%
-- 1 entry with company+title+dates: 50%
-- 1 entry with company+title+dates+2 bullets: 75%
-- 2+ entries each with company+title+dates+2 bullets: 100%
+### New Config File: `src/lib/emptyStateExamples.ts`
 
-### Education (tiered)
-- 0 entries: 0%
-- 1 entry with just institution: 33%
-- 1 entry with institution+degree: 66%
-- 1 entry with institution+degree+end date: 100%
+A pure data file containing all example content and action definitions per section. This keeps example data (Wise Megz persona content) separate from component logic and easy to update.
 
-### Skills (count-based)
-- 0 skills: 0%
-- 1-4 skills: 40%
-- 5-9 skills: 70%
-- 10+ skills: 100%
+Contains:
+- Contact example data object
+- Summary example text
+- Experience example entries (with bullet points)
+- Education example entry
+- Skills example categories (Technical, Soft, Languages)
 
-### Overall Score
-Average of all 5 section percentages, rounded to the nearest whole number.
+### Modified: `src/components/editor/ContactSection.tsx`
 
-## New File: `src/lib/resumeCompletionRules.ts`
+When all contact fields are empty (no fullName, no email, no phone), render the `SectionEmptyState` instead of the form fields.
 
-A pure utility module exporting:
-- `calcContactScore(contact: ContactInfo): number`
-- `calcSummaryScore(summary: string): number`
-- `calcExperienceScore(experience: Experience[]): number`
-- `calcEducationScore(education: Education[]): number`
-- `calcSkillsScore(skills: string[]): number`
-- `calcOverallScore(resume: ResumeData): number`
-- `getSectionStatus(score: number): 'empty' | 'partial' | 'complete'` (0 = empty, 1-99 = partial, 100 = complete)
-- `getNextIncompleteSection(resume: ResumeData): string | null` (returns the section ID of the next incomplete section for "next step" guidance)
+**Example card content:**
+- Wise Megz
+- wise.megz@email.com
+- +20 123 456 7890
+- Cairo, Egypt
+- linkedin.com/in/wisemegz
 
-This keeps all logic testable and centralized.
+**Actions:**
+- "Start Adding Your Info" (primary) - focuses the fullName input by scrolling to it and triggering a state change to show the form
+- The form always renders but is hidden behind the empty state when all fields are blank. Clicking the button sets a `started` state to true, hiding the empty state and showing the form.
 
-## Modified: `src/components/editor/ProgressBar.tsx`
+### Modified: `src/components/editor/SummarySection.tsx`
 
-Replace the current binary dot-based progress bar with a proper horizontal bar:
-- Shows "Resume XX% Complete" text on the left
-- Animated fill bar on the right (uses the existing gradient-primary style)
-- Bar smoothly transitions width via CSS `transition: width 0.7s ease-out`
-- Uses `calcOverallScore()` from the new utility
-- When score reaches 100%, text turns green and shows a sparkle icon
+When summary is empty or undefined, show the empty state.
 
-## Modified: `src/components/editor/StepperNav.tsx`
+**Example card content:**
+> "Experienced software engineer with 5+ years building scalable web applications. Specialized in React and Node.js with a track record of improving system performance by up to 40%. Passionate about clean code and mentoring junior developers."
 
-Update the stepper circles to show granular status:
-- **Empty (0%)**: Gray circle with section icon (unchanged)
-- **In Progress (1-99%)**: Amber/warning border with section icon + small percentage badge (e.g., "40%") positioned at the bottom-right of the circle
-- **Complete (100%)**: Green circle with checkmark (unchanged, but now based on 100% not just "has content")
-- **Active**: Keep the existing red/primary ring glow for the current section
+**Actions:**
+- "Start Writing" (outline) - sets `started` to true, shows the textarea, focuses it
+- "Let AI Write This" (primary, Sparkles icon) - triggers the existing `handleAction('generate')` to invoke AI summary generation
 
-The percentage badge is a tiny pill: `absolute -bottom-0.5 -right-1 text-[9px] bg-warning text-warning-foreground rounded-full px-1`
+### Modified: `src/components/editor/ExperienceSection.tsx`
 
-## Modified: `src/pages/EditorPage.tsx`
+Replace the current minimal empty state (lines 162-169).
 
-### Updated `sectionStatus`
-Replace the current binary `sectionStatus` object with granular scores:
-```
-const sectionScores = useMemo(() => ({
-  contact: calcContactScore(currentResume.contactInfo),
-  summary: calcSummaryScore(currentResume.summary),
-  experience: calcExperienceScore(currentResume.experience),
-  education: calcEducationScore(currentResume.education),
-  skills: calcSkillsScore(currentResume.skills),
-}), [currentResume]);
-```
+**Example card content:**
+A formatted mock job entry:
+- **Senior Developer**
+- Tech Company | 2022 - Present
+- Three bullet points with metrics (40% performance, team of 5, 30% bug reduction)
 
-Derive the boolean `completedSteps` from scores for the stepper: `score >= 100`.
+**Actions:**
+- "Add Your First Job" (outline) - calls existing `addExperience()`
+- "Import from LinkedIn" (outline, with LinkedIn icon) - navigates to `/upload` with a query param or opens the upload sheet
+- "See More Examples" (ghost) - toggles the example visibility with additional industry-specific examples
 
-### Section Completion Celebrations
-Track previously completed sections in a ref. When a section score transitions from `< 100` to `100`:
-- Show a toast: "Contact section complete! Next: Add your professional summary" (with the next incomplete section as guidance)
-- The stepper circle animates with a brief scale pulse (CSS `animate-scale-in`)
+### Modified: `src/components/editor/EducationSection.tsx`
 
-### SectionCard Status
-Map the granular score to the existing 3-state SectionCard status:
-- `score === 0` -> `'empty'`
-- `score > 0 && score < 100` -> `'partial'`
-- `score >= 100` -> `'complete'`
+Replace the current minimal empty state (lines 111-118).
+
+**Example card content:**
+- Bachelor of Science in Computer Science
+- Cairo University | 2018 - 2022
+- GPA: 3.8/4.0
+- Relevant coursework: Data Structures, Algorithms, Machine Learning
+
+**Actions:**
+- "Add Education" (outline) - calls existing `addEducation()`
+- "I'm Self-Taught" (ghost) - adds a pre-configured education entry with institution "Self-Taught / Online Learning" and degree "Professional Certifications & Courses", then expands it for editing
+
+### Modified: `src/components/editor/SkillsSection.tsx`
+
+Replace the current minimal empty text (lines 139-143).
+
+**Example card content:**
+A categorized grid:
+- **Technical:** React, Node.js, Python, SQL, Git
+- **Soft Skills:** Leadership, Communication, Problem-solving, Team collaboration
+- **Languages:** English (Fluent), Arabic (Native)
+
+**Actions:**
+- "Add Your Skills" (outline) - focuses the existing skill input field
+- "AI Suggest Skills" (primary, Sparkles icon) - triggers existing `handleAIAction('generate')` to auto-suggest skills based on work experience
 
 ## Technical Details
 
+### SectionEmptyState Component Structure
+
+```
+<div className="p-6 rounded-xl border border-dashed border-border animate-in fade-in-0 duration-300">
+  <Icon className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+  
+  <Collapsible open={showExample} onOpenChange={onToggleExample}>
+    <CollapsibleTrigger className="...">
+      {showExample ? 'Hide Example' : 'Show Example'}
+      <ChevronDown / ChevronUp />
+    </CollapsibleTrigger>
+    <CollapsibleContent>
+      <div className="mt-3 p-4 rounded-lg bg-muted/30 border border-border/50">
+        <p className="text-xs text-muted-foreground mb-2 font-medium">Example</p>
+        {exampleContent}
+      </div>
+    </CollapsibleContent>
+  </Collapsible>
+  
+  <div className="flex flex-col sm:flex-row gap-2 mt-4">
+    {actions.map(action => <Button ... />)}
+  </div>
+</div>
+```
+
+### Detection Logic
+
+Each section component adds a simple check:
+- **Contact**: `!contactInfo.fullName && !contactInfo.email && !contactInfo.phone`
+- **Summary**: `!summary || summary.trim() === ''`
+- **Experience**: `experience.length === 0` (already exists)
+- **Education**: `education.length === 0` (already exists)
+- **Skills**: `skills.length === 0` (already exists)
+
+A `started` state (useState boolean, default false) lets users dismiss the empty state and see the actual form/input even before adding content. This resets if content is cleared.
+
 ### Files to Create
-1. `src/lib/resumeCompletionRules.ts` -- Pure utility with all scoring functions
+1. `src/components/editor/SectionEmptyState.tsx` - Reusable empty state wrapper
+2. `src/lib/emptyStateExamples.ts` - Example content and action configs
 
 ### Files to Modify
-1. `src/components/editor/ProgressBar.tsx` -- Replace dots with horizontal animated bar + "Resume XX% Complete" text
-2. `src/components/editor/StepperNav.tsx` -- Add percentage badges to in-progress steps, accept `sectionScores` prop
-3. `src/pages/EditorPage.tsx` -- Use granular scoring, celebration toasts on section completion, pass scores to stepper
+1. `src/components/editor/ContactSection.tsx` - Add empty state with example card and "Start Adding" button
+2. `src/components/editor/SummarySection.tsx` - Add empty state with example and "Let AI Write This" button
+3. `src/components/editor/ExperienceSection.tsx` - Replace minimal empty state with rich example
+4. `src/components/editor/EducationSection.tsx` - Replace minimal empty state with example and "I'm Self-Taught" option
+5. `src/components/editor/SkillsSection.tsx` - Replace minimal empty text with categorized example grid and "AI Suggest Skills"
 
-### No Database Changes
-All completion logic is client-side, computed from the existing `ResumeData` shape.
+### No Database Changes Required
 
-### Celebration Logic (in EditorPage)
-- Use a `useRef<Record<string, boolean>>` to track which sections were previously complete
-- On each render where scores change, compare current completion with previous
-- If a section just hit 100%, fire a toast with section name and next-step suggestion
-- Reset the ref entry if a section drops below 100% (user removed content)
-
-### Toast Messages
-- Contact: "Contact section complete! Next: Add your professional summary to stand out."
-- Summary: "Professional summary complete! Next: Add your work experience."
-- Experience: "Work experience complete! Next: Add your education details."
-- Education: "Education section complete! Next: List your key skills."
-- Skills: "Skills section complete! Your resume is looking great!"
-- All complete: "All sections complete! Your resume is ready for review."
+All changes are purely UI/client-side within existing section components.
 
