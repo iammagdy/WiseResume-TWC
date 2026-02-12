@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download, X } from 'lucide-react';
+import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download, X, ChevronDown, Crown, GraduationCap, Wrench } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -12,7 +12,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 
 import { haptics } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -26,6 +28,7 @@ import {
 import { LinkedInImportSheet } from './LinkedInImportSheet';
 import { AvatarCropSheet } from './AvatarCropSheet';
 import { useResumeStore } from '@/store/resumeStore';
+import { useResumes } from '@/hooks/useResumes';
 import { Experience, Education } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -72,19 +75,22 @@ export function EditProfileSheet({
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
 
   const { currentResume, updateResume } = useResumeStore();
+  const { data: allResumes = [] } = useResumes();
+  const masterCV = allResumes.find((r) => r.is_primary);
 
-  // Sync form state when profile changes or sheet opens
+  // Sync form state when profile changes or sheet opens + auto-fill from master CV
   useEffect(() => {
     if (open && profile) {
-      setFullName(profile.fullName || '');
+      const mcContact = masterCV?.contact_info;
+      setFullName(profile.fullName || mcContact?.fullName || '');
       setAvatarUrl(profile.avatarUrl || '');
       setJobTitle(profile.jobTitle || '');
       setIndustry(profile.industry || '');
       setCareerLevel(profile.careerLevel || '');
-      setLocation(profile.location || '');
+      setLocation(profile.location || mcContact?.location || '');
       setLinkedinUrl(profile.linkedinUrl || '');
     }
-  }, [open, profile]);
+  }, [open, profile, masterCV]);
 
   const currentFormProfile: Profile = {
     fullName: fullName.trim() || null,
@@ -522,6 +528,91 @@ export function EditProfileSheet({
                   </div>
                 </div>
               </div>
+            </div>
+
+            {/* Master CV Sections */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  From your CV
+                </h3>
+                {masterCV && (
+                  <Badge variant="glass" className="text-[10px] gap-1">
+                    <Crown className="w-3 h-3 text-warning" />
+                    Master CV
+                  </Badge>
+                )}
+              </div>
+
+              {!masterCV ? (
+                <div className="rounded-xl bg-card/50 border border-border p-4 text-center">
+                  <p className="text-sm text-muted-foreground">No master CV set yet</p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    Import or create a resume, then set it as your Master CV
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {/* Experience */}
+                  <Collapsible>
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border hover:border-border/60 transition-colors">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Briefcase className="w-4 h-4 text-primary" />
+                        Experience
+                        <Badge variant="secondary" className="text-[10px]">{masterCV.experience?.length || 0}</Badge>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 space-y-1 pl-2">
+                      {(masterCV.experience || []).map((exp: Experience, i: number) => (
+                        <div key={i} className="p-3 rounded-lg bg-muted/20 border border-border/10">
+                          <p className="text-sm font-medium">{exp.position}</p>
+                          <p className="text-xs text-muted-foreground">{exp.company}</p>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  {/* Education */}
+                  <Collapsible>
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border hover:border-border/60 transition-colors">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <GraduationCap className="w-4 h-4 text-primary" />
+                        Education
+                        <Badge variant="secondary" className="text-[10px]">{masterCV.education?.length || 0}</Badge>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 space-y-1 pl-2">
+                      {(masterCV.education || []).map((edu: Education, i: number) => (
+                        <div key={i} className="p-3 rounded-lg bg-muted/20 border border-border/10">
+                          <p className="text-sm font-medium">{edu.degree}{edu.field ? ` in ${edu.field}` : ''}</p>
+                          <p className="text-xs text-muted-foreground">{edu.institution}</p>
+                        </div>
+                      ))}
+                    </CollapsibleContent>
+                  </Collapsible>
+
+                  {/* Skills */}
+                  <Collapsible>
+                    <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-xl bg-card/50 border border-border hover:border-border/60 transition-colors">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Wrench className="w-4 h-4 text-primary" />
+                        Skills
+                        <Badge variant="secondary" className="text-[10px]">{masterCV.skills?.length || 0}</Badge>
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-180" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-1 pl-2">
+                      <div className="flex flex-wrap gap-1.5 p-3 rounded-lg bg-muted/20 border border-border/10">
+                        {(masterCV.skills || []).map((skill: string, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[11px]">{skill}</Badge>
+                        ))}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </div>
+              )}
             </div>
           </div>
         </div>

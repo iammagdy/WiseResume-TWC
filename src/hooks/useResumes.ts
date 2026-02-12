@@ -333,3 +333,35 @@ export function useResumeMutations() {
     setJobTarget,
   };
 }
+
+export function useSetMasterCV() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (resumeId: string) => {
+      if (!user) throw new Error('Not authenticated');
+
+      // Clear all others
+      await supabase
+        .from('resumes')
+        .update({ is_primary: false })
+        .eq('user_id', user.id);
+
+      // Set the target
+      const { error } = await supabase
+        .from('resumes')
+        .update({ is_primary: true })
+        .eq('id', resumeId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      toast.success('Master CV updated');
+    },
+    onError: () => {
+      toast.error('Failed to set Master CV');
+    },
+  });
+}

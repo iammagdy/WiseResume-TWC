@@ -8,6 +8,7 @@ import { JobActivityStatsCard } from '@/components/applications/JobActivityStats
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
 import { ApplicationDetailSheet } from '@/components/applications/ApplicationDetailSheet';
+import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
 import { haptics } from '@/lib/haptics';
 import { JobApplication } from '@/hooks/useJobApplications';
 
@@ -19,6 +20,8 @@ export default function ApplicationsPage() {
   const [selectedApp, setSelectedApp] = useState<JobApplication | null>(null);
   const [showRemindersOnly, setShowRemindersOnly] = useState(false);
   const { data: reminderCount = 0 } = usePendingReminders();
+  const [resumeListOpen, setResumeListOpen] = useState(false);
+  const [resumeListFilter, setResumeListFilter] = useState<'originals' | 'tailored'>('originals');
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-4">
@@ -61,7 +64,17 @@ export default function ApplicationsPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
         {/* Stats */}
-        <JobActivityStatsCard stats={stats} />
+        <JobActivityStatsCard
+          stats={stats}
+          onOriginalsTap={() => {
+            setResumeListFilter('originals');
+            setResumeListOpen(true);
+          }}
+          onTailoredTap={() => {
+            setResumeListFilter('tailored');
+            setResumeListOpen(true);
+          }}
+        />
 
         {/* Timeline */}
         <div id="activity-timeline">
@@ -89,6 +102,11 @@ export default function ApplicationsPage() {
         application={selectedApp}
         open={!!selectedApp}
         onOpenChange={(open) => !open && setSelectedApp(null)}
+      />
+      <ResumeListSheet
+        open={resumeListOpen}
+        onOpenChange={setResumeListOpen}
+        filter={resumeListFilter}
       />
     </div>
   );
