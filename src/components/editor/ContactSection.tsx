@@ -6,6 +6,8 @@ import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { toast } from 'sonner';
 import { InlineAIButton } from './InlineAIButton';
 import { z } from 'zod';
+import { SectionEmptyState } from './SectionEmptyState';
+import { contactExample } from '@/lib/emptyStateExamples';
 
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email');
@@ -17,6 +19,7 @@ export const ContactSection = memo(function ContactSection() {
   const updateResume = useResumeStore(state => state.updateResume);
   const currentResume = useResumeStore(state => state.currentResume);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [started, setStarted] = useState(false);
 
   const { enhance, isEnhancing } = useAIEnhance({
     section: 'contact',
@@ -24,6 +27,29 @@ export const ContactSection = memo(function ContactSection() {
   });
 
   if (!contactInfo || !currentResume) return null;
+
+  const isEmpty = !contactInfo.fullName && !contactInfo.email && !contactInfo.phone;
+
+  if (isEmpty && !started) {
+    return (
+      <SectionEmptyState
+        icon={User}
+        title="Add your contact information"
+        exampleContent={
+          <div className="space-y-1 text-sm">
+            <p className="font-semibold">{contactExample.fullName}</p>
+            <p className="text-muted-foreground">{contactExample.email}</p>
+            <p className="text-muted-foreground">{contactExample.phone}</p>
+            <p className="text-muted-foreground">{contactExample.location}</p>
+            <p className="text-muted-foreground">{contactExample.linkedin}</p>
+          </div>
+        }
+        actions={[
+          { label: 'Start Adding Your Info', variant: 'default', onClick: () => setStarted(true) },
+        ]}
+      />
+    );
+  }
 
   const handleChange = (field: string, value: string) => {
     updateResume({

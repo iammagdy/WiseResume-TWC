@@ -1,6 +1,6 @@
-import { useState, memo } from 'react';
+import { useState, memo, useRef } from 'react';
 
-import { Plus, X, Zap } from 'lucide-react';
+import { Plus, X, Zap, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
+import { SectionEmptyState } from './SectionEmptyState';
+import { skillsExample } from '@/lib/emptyStateExamples';
 
 export const SkillsSection = memo(function SkillsSection() {
   const skills = useResumeStore(state => state.currentResume?.skills);
@@ -137,9 +139,24 @@ export const SkillsSection = memo(function SkillsSection() {
       </div>
 
       {skills.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-4">
-          No skills added yet. Start typing to add skills.
-        </p>
+        <SectionEmptyState
+          icon={Zap}
+          title="List your key skills"
+          exampleContent={
+            <div className="text-sm space-y-2">
+              {Object.entries({ Technical: skillsExample.technical, 'Soft Skills': skillsExample.soft, Languages: skillsExample.languages }).map(([cat, items]) => (
+                <div key={cat}>
+                  <p className="font-semibold text-xs">{cat}</p>
+                  <p className="text-muted-foreground text-xs">{(items as string[]).join(', ')}</p>
+                </div>
+              ))}
+            </div>
+          }
+          actions={[
+            { label: 'Add Your Skills', variant: 'outline', icon: Plus, onClick: () => { /* focus handled by existing input */ } },
+            { label: 'AI Suggest Skills', variant: 'default', icon: Sparkles, onClick: () => handleAIAction('generate') },
+          ]}
+        />
       )}
 
       {/* Suggested skills from gap analysis */}

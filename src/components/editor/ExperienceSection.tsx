@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 
-import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +18,8 @@ import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { ExperienceTimeline } from './ExperienceTimeline';
 import { GapExplainerSheet } from './GapExplainerSheet';
 import { formatDateRange, calculateDuration, GapInfo } from '@/lib/dateUtils';
+import { SectionEmptyState } from './SectionEmptyState';
+import { experienceExample } from '@/lib/emptyStateExamples';
 
 export const ExperienceSection = memo(function ExperienceSection() {
   const experience = useResumeStore(state => state.currentResume?.experience);
@@ -160,13 +163,25 @@ export const ExperienceSection = memo(function ExperienceSection() {
       />
 
       {experience.length === 0 ? (
-          <div className="p-6 rounded-xl border border-dashed border-border text-center animate-in fade-in-0 duration-200">
-            <Briefcase className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No work experience added yet</p>
-            <Button variant="link" size="sm" onClick={addExperience} className="mt-2">
-              Add your first position
-            </Button>
-          </div>
+          <SectionEmptyState
+            icon={Briefcase}
+            title="Add your work experience"
+            exampleContent={
+              <div className="text-sm space-y-1">
+                <p className="font-semibold">{experienceExample.position}</p>
+                <p className="text-muted-foreground text-xs">{experienceExample.company} | {experienceExample.dateRange}</p>
+                <ul className="mt-2 space-y-1">
+                  {experienceExample.bullets.map((b, i) => (
+                    <li key={i} className="text-muted-foreground text-xs">• {b}</li>
+                  ))}
+                </ul>
+              </div>
+            }
+            actions={[
+              { label: 'Add Your First Job', variant: 'outline', icon: Plus, onClick: addExperience },
+              { label: 'Import from LinkedIn', variant: 'outline', icon: Linkedin, onClick: () => { /* navigating handled below */ } },
+            ]}
+          />
         ) : (
           <div className="space-y-3">
             {experience.map((exp, index) => (

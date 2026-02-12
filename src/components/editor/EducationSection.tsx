@@ -12,6 +12,8 @@ import { toast } from 'sonner';
 import { InlineAIButton } from './InlineAIButton';
 import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
+import { SectionEmptyState } from './SectionEmptyState';
+import { educationExample } from '@/lib/emptyStateExamples';
 
 export const EducationSection = memo(function EducationSection() {
   const education = useResumeStore(state => state.currentResume?.education);
@@ -109,13 +111,37 @@ export const EducationSection = memo(function EducationSection() {
       />
 
       {education.length === 0 ? (
-          <div className="p-6 rounded-xl border border-dashed border-border text-center animate-in fade-in-0 duration-200">
-            <GraduationCap className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No education added yet</p>
-            <Button variant="link" size="sm" onClick={addEducation} className="mt-2">
-              Add your education
-            </Button>
-          </div>
+          <SectionEmptyState
+            icon={GraduationCap}
+            title="Add your education"
+            exampleContent={
+              <div className="text-sm space-y-1">
+                <p className="font-semibold">{educationExample.degree}</p>
+                <p className="text-muted-foreground text-xs">{educationExample.institution} | {educationExample.dateRange}</p>
+                <p className="text-muted-foreground text-xs">GPA: {educationExample.gpa}</p>
+                <p className="text-muted-foreground text-xs">Relevant coursework: {educationExample.coursework}</p>
+              </div>
+            }
+            actions={[
+              { label: 'Add Education', variant: 'outline', icon: Plus, onClick: addEducation },
+              {
+                label: "I'm Self-Taught",
+                variant: 'ghost',
+                onClick: () => {
+                  const selfTaught: Education = {
+                    id: uuidv4(),
+                    institution: 'Self-Taught / Online Learning',
+                    degree: 'Professional Certifications & Courses',
+                    field: '',
+                    startDate: '',
+                    endDate: '',
+                  };
+                  updateResume({ education: [...education, selfTaught] });
+                  setExpandedId(selfTaught.id);
+                },
+              },
+            ]}
+          />
         ) : (
           <div className="space-y-3">
             {education.map((edu, index) => (
