@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useRef, useCallback, useState } from 'react';
 import { Check, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -14,7 +14,7 @@ interface StepperNavProps {
 const STEP_ICONS = [User, AlignLeft, Briefcase, GraduationCap, Wrench];
 
 const PARTICLE_COLORS = ['bg-success', 'bg-primary', 'bg-warning', 'bg-amber-400', 'bg-success', 'bg-primary'];
-const PARTICLE_ANGLES = [0, 60, 120, 180, 240, 300]; // 6 particles evenly spaced
+const PARTICLE_ANGLES = [0, 60, 120, 180, 240, 300];
 
 export const StepperNav = memo(function StepperNav({
   steps,
@@ -25,9 +25,46 @@ export const StepperNav = memo(function StepperNav({
   justCompletedStep,
 }: StepperNavProps) {
   const activeIndex = steps.findIndex(s => s.id === activeStep);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const stepRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const setStepRef = useCallback((id: string, el: HTMLButtonElement | null) => {
+    if (el) stepRefs.current.set(id, el);
+    else stepRefs.current.delete(id);
+  }, []);
+
+  // Auto-scroll active step into view
+  useEffect(() => {
+    const el = stepRefs.current.get(activeStep);
+    if (el) {
+      el.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' });
+    }
+  }, [activeStep]);
+
+  // Track scroll position for fade indicators
+  const updateScrollIndicators = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    setCanScrollLeft(container.scrollLeft > 4);
+    setCanScrollRight(container.scrollLeft < container.scrollWidth - container.clientWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    updateScrollIndicators();
+    container.addEventListener('scroll', updateScrollIndicators, { passive: true });
+    window.addEventListener('resize', updateScrollIndicators);
+    return () => {
+      container.removeEventListener('scroll', updateScrollIndicators);
+      window.removeEventListener('resize', updateScrollIndicators);
+    };
+  }, [updateScrollIndicators]);
 
   return (
-    <div className="px-2 xs:px-4 sm:px-6 py-4">
+    <div className="px-2 py-3 relative">
       {/* Confetti keyframes */}
       <style>{`
         @keyframes stepper-confetti-burst {
@@ -40,11 +77,23 @@ export const StepperNav = memo(function StepperNav({
           100% { transform: scale(1); }
         }
       `}</style>
-      <div className="flex items-center justify-between relative overflow-x-auto scrollbar-hide">
+
+      {/* Fade indicators */}
+      {canScrollLeft && (
+        <div className="absolute left-0 top-0 bottom-0 w-8 z-20 pointer-events-none bg-gradient-to-r from-background to-transparent" />
+      )}
+      {canScrollRight && (
+        <div className="absolute right-0 top-0 bottom-0 w-8 z-20 pointer-events-none bg-gradient-to-l from-background to-transparent" />
+      )}
+
+      <div
+        ref={scrollRef}
+        className="flex items-center gap-1 relative overflow-x-auto scrollbar-hide snap-x snap-mandatory px-[30%]"
+      >
         {/* Connecting line */}
-        <div className="absolute top-5 left-[10%] right-[10%] h-[2px] bg-border/40" />
+        <div className="absolute top-6 left-[10%] right-[10%] h-[2px] bg-border/40" />
         <div
-          className="absolute top-5 left-[10%] h-[2px] gradient-primary transition-all duration-400 ease-out"
+          className="absolute top-6 left-[10%] h-[2px] gradient-primary transition-all duration-400 ease-out"
           style={{
             width: `${activeIndex > 0 ? (activeIndex / (steps.length - 1)) * 80 : 0}%`,
           }}
@@ -62,14 +111,15 @@ export const StepperNav = memo(function StepperNav({
           return (
             <button
               key={step.id}
+              ref={(el) => setStepRef(step.id, el)}
               onClick={() => onStepClick(step.id)}
-              className="flex flex-col items-center gap-1.5 relative z-10 touch-manipulation min-w-[48px]"
+              className="flex flex-col items-center gap-1.5 relative z-10 touch-manipulation min-w-[48px] min-h-[48px] p-1 snap-center shrink-0"
             >
               <div className="relative">
                 <div
                   className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200',
-                    isActive && 'border-primary bg-primary/15 shadow-[0_0_0_4px_hsl(355_90%_60%/0.15)]',
+                    'w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-200',
+                    isActive && 'border-primary bg-primary/15 shadow-[0_0_0_5px_hsl(355_90%_60%/0.15)]',
                     isCompleted && !isActive && 'border-success bg-success/15',
                     isInProgress && !isActive && !isCompleted && 'border-warning bg-warning/15',
                     !isActive && !isCompleted && !isInProgress && isPast && 'border-primary/40 bg-primary/5',
@@ -78,10 +128,10 @@ export const StepperNav = memo(function StepperNav({
                   style={showConfetti ? { animation: 'stepper-icon-pulse 400ms ease-out' } : undefined}
                 >
                   {isCompleted ? (
-                    <Check className="w-4 h-4 text-success" />
+                    <Check className="w-5 h-5 text-success" />
                   ) : (
                     <Icon className={cn(
-                      'w-4 h-4',
+                      'w-5 h-5',
                       isActive ? 'text-primary' : isInProgress ? 'text-warning' : 'text-muted-foreground'
                     )} />
                   )}
@@ -89,7 +139,7 @@ export const StepperNav = memo(function StepperNav({
                 {/* Confetti particles */}
                 {showConfetti && PARTICLE_ANGLES.map((angle, pi) => {
                   const rad = (angle * Math.PI) / 180;
-                  const dist = 20; // px distance
+                  const dist = 24;
                   return (
                     <span
                       key={pi}
@@ -112,7 +162,7 @@ export const StepperNav = memo(function StepperNav({
                 )}
               </div>
               <span className={cn(
-                'hidden xs:block text-[11px] font-medium transition-colors',
+                'text-[11px] font-medium transition-colors whitespace-nowrap',
                 isActive ? 'text-primary' : isCompleted ? 'text-success' : isInProgress ? 'text-warning' : 'text-muted-foreground'
               )}>
                 {step.label}
