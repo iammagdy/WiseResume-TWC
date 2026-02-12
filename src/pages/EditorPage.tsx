@@ -250,7 +250,7 @@ export default function EditorPage() {
   const handleCareerPath = useCallback(() => setShowCareerPath(true), []);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
       {/* Header */}
       <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center justify-between">
