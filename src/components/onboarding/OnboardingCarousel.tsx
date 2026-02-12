@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Upload, Sparkles, ChevronRight, FilePlus, Layout,
+  Upload, Sparkles, ChevronRight, ChevronLeft, FilePlus, Layout,
   Contact, FileText, Briefcase, GraduationCap, Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,13 @@ export function OnboardingCarousel({ onComplete, onSkip, onChoice }: OnboardingC
     haptics.light();
     if (activeIndex < totalScreens - 1) {
       scrollToIndex(activeIndex + 1);
+    }
+  };
+
+  const handleBack = () => {
+    haptics.light();
+    if (activeIndex > 0) {
+      scrollToIndex(activeIndex - 1);
     }
   };
 
@@ -228,18 +235,30 @@ export function OnboardingCarousel({ onComplete, onSkip, onChoice }: OnboardingC
           ))}
         </div>
 
-        {/* CTA - hidden on last screen since choices act as CTA */}
-        {!isLastScreen && (
-          <Button
-            size="lg"
-            onClick={handleNext}
-            className="w-full h-14 text-lg font-semibold gradient-primary"
-            style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
-          >
-            {activeIndex === 0 ? 'Get Started' : 'Next'}
-            <ChevronRight className="w-5 h-5 ml-2" />
-          </Button>
-        )}
+        {/* CTA row with Back + Next */}
+        <div className="flex gap-3">
+          {activeIndex > 0 && (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={handleBack}
+              className="h-14"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+          )}
+          {!isLastScreen && (
+            <Button
+              size="lg"
+              onClick={handleNext}
+              className="flex-1 h-14 text-lg font-semibold gradient-primary"
+              style={{ boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)' }}
+            >
+              {activeIndex === 0 ? 'Get Started' : 'Next'}
+              <ChevronRight className="w-5 h-5 ml-2" />
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
