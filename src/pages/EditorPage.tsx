@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X } from 'lucide-react';
@@ -40,6 +40,7 @@ import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
+import haptics from '@/lib/haptics';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -439,7 +440,19 @@ export default function EditorPage() {
 
         {/* Progress Bar with Save Status */}
         <div className="shrink-0 px-4 py-3 border-b border-border">
-          <div className="flex items-center justify-between mb-2">
+          <style>{`
+            @keyframes spring-enter {
+              0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+              60% { opacity: 1; transform: translateY(-2px) scale(1.005); }
+              100% { opacity: 1; transform: translateY(0) scale(1); }
+            }
+            @keyframes save-check-pop {
+              0% { transform: scale(0); }
+              60% { transform: scale(1.2); }
+              100% { transform: scale(1); }
+            }
+          `}</style>
+          <div className="flex items-center justify-between mb-1">
             <ProgressBar resume={currentResume} />
             {user && currentResumeId && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
@@ -450,7 +463,7 @@ export default function EditorPage() {
                   </>
                 ) : (
                   <>
-                    <Cloud className="w-3.5 h-3.5 text-success" />
+                    <Check className="w-3.5 h-3.5 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
                     <span>Saved</span>
                   </>
                 )}
@@ -463,6 +476,9 @@ export default function EditorPage() {
               </div>
             )}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {Object.values(sectionStatus).filter(Boolean).length} of {Object.keys(sectionStatus).length} sections completed
+          </p>
         </div>
 
         {/* Stepper Nav */}
@@ -484,35 +500,35 @@ export default function EditorPage() {
             ref={scrollContainerRef}
           >
             {activeTab === 'contact' && (
-              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+              <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
                 <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
                   <ContactSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'summary' && (
-              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+              <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
                 <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
                   <SummarySection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'experience' && (
-              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+              <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
                 <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
                   <ExperienceSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'education' && (
-              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+              <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
                 <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
                   <EducationSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'skills' && (
-              <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
+              <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
                 <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
                   <SkillsSection />
                 </SectionCard>
@@ -526,6 +542,7 @@ export default function EditorPage() {
                 size="lg"
                 className="flex-1 h-12"
                 onClick={() => {
+                  haptics.light();
                   const currentIndex = steps.findIndex(s => s.id === activeTab);
                   if (currentIndex > 0) handleTabChange(steps[currentIndex - 1].id);
                 }}
@@ -538,7 +555,10 @@ export default function EditorPage() {
                 <Button
                   size="lg"
                   className="flex-1 h-12 gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
-                  onClick={() => navigate('/preview')}
+                  onClick={() => {
+                    haptics.success();
+                    navigate('/preview');
+                  }}
                 >
                   <Download className="w-4 h-4 mr-1.5" />
                   Preview & Export
@@ -548,6 +568,7 @@ export default function EditorPage() {
                   size="lg"
                   className="flex-1 h-12"
                   onClick={() => {
+                    haptics.medium();
                     const currentIndex = steps.findIndex(s => s.id === activeTab);
                     if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
                   }}

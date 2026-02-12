@@ -94,7 +94,15 @@ export function HomeHeroSection({ userName }: HomeHeroSectionProps) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
       >
-        {userName ? `${greeting}, ${userName}!` : `${greeting}!`}
+        {userName ? `${greeting}, ${userName}` : greeting}
+        {' '}
+        <motion.span
+          style={{ display: 'inline-block', transformOrigin: '70% 70%' }}
+          animate={{ rotate: [-10, 20, -10, 20, -10, 0] }}
+          transition={{ duration: 1.5, ease: 'easeInOut', times: [0, 0.2, 0.4, 0.6, 0.8, 1] }}
+        >
+          👋
+        </motion.span>
       </motion.p>
     </header>
   );
