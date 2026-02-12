@@ -1,41 +1,57 @@
 
 
-# Fix: "Backend not configured" Auth Error
+# Fix: App Crash from Supabase Client Initialization
 
 ## Problem
-The entire app imports the Supabase client from `safeClient.ts`, which has a try/catch wrapper around `createClient`. When initialization fails (likely due to environment variable timing), it silently falls back to a **proxy object** that returns `{ error: { message: 'Backend not configured' } }` for every call -- including sign-in.
+The auto-generated `client.ts` calls `createClient(VITE_SUPABASE_URL, ...)` at module load time. When the environment variable is undefined (timing issue in preview/build), it throws `"supabaseUrl is required"` which crashes the entire app -- showing only a stuck "Loading..." spinner.
 
-The auto-generated `client.ts` (managed by Lovable Cloud) works correctly but is never used.
+The current `safeClient.ts` does `export { supabase } from './client'`, which means the crash in `client.ts` propagates with no recovery.
 
 ## Solution
-Update `safeClient.ts` to import and re-export from the auto-generated `client.ts` instead of creating its own Supabase client. This keeps all 33+ existing import paths stable while using the properly managed client.
+Revert `safeClient.ts` to create its own Supabase client with a try-catch guard. If initialization fails, use a placeholder URL so the app boots and API calls fail gracefully (returning errors) instead of crashing the whole page.
 
 ## Technical Details
 
-### File to modify: `src/integrations/supabase/safeClient.ts`
+### File: `src/integrations/supabase/safeClient.ts`
 
-Replace the entire file contents with:
+Replace with:
 
 ```typescript
-// Re-export from the auto-generated client managed by Lovable Cloud
-export { supabase } from './client';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from './types';
 
-// Re-export env vars for any code that needs them
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || '';
 
+let supabaseInstance: SupabaseClient<Database>;
+
+try {
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error('Missing env vars');
+  }
+  supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: { storage: localStorage, persistSession: true, autoRefreshToken: true },
+  });
+} catch (e) {
+  console.error('Supabase init failed, using fallback:', e);
+  supabaseInstance = createClient<Database>(
+    'https://placeholder.supabase.co',
+    'placeholder',
+    { auth: { storage: localStorage, persistSession: true, autoRefreshToken: true } }
+  );
+}
+
+export const supabase = supabaseInstance;
 export const supabaseConfig = { url: SUPABASE_URL };
 export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };
 ```
 
-This is a single-file change. No other files need modification since they all import from `safeClient.ts` already.
-
 ### Why This Works
-- The auto-generated `client.ts` is kept in sync by Lovable Cloud with correct credentials
-- All 33+ files that import from `safeClient` continue to work without changes
-- The broken proxy fallback pattern is removed entirely
-- Google, Apple, email, and phone sign-in will all start working
+- The app always boots -- no crash on missing env vars
+- When env vars are present (normal case), the real client is used
+- When env vars are missing (edge case), a placeholder client is created that lets the app render but API calls return network errors
+- No proxy pattern -- uses a real Supabase client instance in both paths
+- All 33+ imports from `safeClient` continue working unchanged
 
-### Risk
-- The proxy fallback previously prevented crashes if env vars were missing. With this change, if env vars are truly absent, the app would throw at startup. However, since this project uses Lovable Cloud, the env vars are always provided automatically, making the fallback unnecessary.
+### Single file change -- no other files affected.
 
