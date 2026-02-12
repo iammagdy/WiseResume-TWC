@@ -1,81 +1,54 @@
 
 
-# Redesign Jobs Tab: Activity Dashboard
+# Fix: Show Resume Activity in Timeline + Make Stats Clickable
 
-## Overview
+## Problem
+1. **Empty Timeline**: The "Recent Activity" section shows nothing because it only queries `tailor_history`, `job_applications`, and `cover_letters` (all empty). It ignores the `resumes` table, which has 8 entries including created and tailored resumes.
+2. **Dead Stat Tiles**: The 4 stat cards (Resumes Created, Tailored Versions, etc.) are not tappable. The user expects to tap "Tailored Versions" and see the tailored resumes.
 
-Transform the Jobs tab from a manual "tracker" into an **automatic activity dashboard** that intelligently aggregates the user's resume-building activity. No manual tracking -- the app pulls data from existing database tables (`resumes`, `tailor_history`, `cover_letters`, `job_applications`) to show the user a smart summary of everything they've done.
+## Solution
 
-## What the User Will See
+### 1. Add Resume Events to ActivityTimeline (`ActivityTimeline.tsx`)
+- Add a new type `'resume_created' | 'resume_tailored'` to the `TimelineEntry` union
+- Query the `resumes` table alongside the existing queries
+- For each resume: if `parent_resume_id` is null, it's a "Created" event; if present, it's a "Tailored" event
+- For tailored resumes, show the `target_job_title` and `target_company` as the job context
+- Add new icons: FileText for created, Scissors for tailored
+- Show "Created 6 days ago", "Tailored 1 day ago", etc.
 
-### Top Section: Stats Hero Card (glass card, matching dashboard style)
-Four stat tiles in a 2x2 grid:
-- **Resumes Created** -- count of resumes where `parent_resume_id IS NULL` (original CVs only)
-- **Tailored Versions** -- count of resumes where `parent_resume_id IS NOT NULL`
-- **Jobs Analyzed** -- count of unique entries in `tailor_history` (jobs the user pasted links for)
-- **Cover Letters** -- count from `cover_letters` table
+### 2. Make Stat Tiles Clickable (`JobActivityStats.tsx`)
+Each tile navigates to a relevant detail view when tapped:
+- **Resumes Created** -- navigates to `/dashboard` (where original resumes live)
+- **Tailored Versions** -- navigates to `/dashboard` with a query param like `?filter=tailored` (or simply scrolls to tailored group)
+- **Jobs Analyzed** -- scrolls down to the activity timeline (since job analysis entries show there)
+- **Cover Letters** -- scrolls to timeline filtered to cover letters
 
-### Middle Section: Recent Activity Timeline
-A scrollable list showing the user's recent activity, auto-populated from the database:
-- Each entry shows: job title, company, date, and what was done (tailored, cover letter generated, applied)
-- Entries link to the resume used and show the job URL (tappable to open)
-- Deadline shown if available, with color-coded countdown
-- Status badge (Applied / Not Yet / Saved)
+Add `onClick` handlers with `useNavigate`, subtle press animation (`active:scale-95`), and cursor pointer styling to make them feel interactive.
 
-This replaces the old empty state ("No applications yet / Track first application") with real data from `tailor_history` and `job_applications`.
+### 3. Visual Polish
+- Add a subtle chevron-right icon or arrow indicator on each stat tile to hint they're tappable
+- Add `transition-transform active:scale-[0.97]` to tiles for tactile press feedback
 
-### Bottom: "Add Manually" Button (secondary, subtle)
-Keep the ability to manually add a job, but make it secondary -- a small text button at the bottom, not the primary action.
+## Files to Modify
 
-## Technical Details
+**`src/components/applications/ActivityTimeline.tsx`**
+- Add `resumes` query to the `Promise.all`
+- Map original resumes as `type: 'resume_created'` entries
+- Map tailored resumes as `type: 'resume_tailored'` entries with job title/company from `target_job_title`/`target_company`
+- Add icons and label text for the new types
+- Tapping a resume entry navigates to `/editor?id={resumeId}`
 
-### New Hook: `useJobActivityStats`
-Create a hook in `src/hooks/useJobActivityStats.ts` that queries:
-```
-- resumes: COUNT(*) WHERE parent_resume_id IS NULL  (originals)
-- resumes: COUNT(*) WHERE parent_resume_id IS NOT NULL  (tailored)
-- tailor_history: COUNT(DISTINCT job_title || company)  (jobs analyzed)
-- cover_letters: COUNT(*)
-```
-Returns `{ originals, tailored, jobsAnalyzed, coverLetters, isLoading }`.
+**`src/components/applications/JobActivityStats.tsx`**
+- Accept `useNavigate` and add `onClick` to each tile
+- "Resumes Created" and "Tailored Versions" navigate to `/dashboard`
+- "Jobs Analyzed" and "Cover Letters" smooth-scroll to the timeline section on the same page
+- Add press feedback animation and chevron hint
 
-### New Component: `JobActivityStats.tsx`
-Renders the 2x2 glass stat cards. Uses the same glass-surface styling as the existing dashboard stats row.
-
-### New Component: `ActivityTimeline.tsx`
-Merges data from `tailor_history` and `job_applications` into a unified timeline sorted by date. Each entry shows:
-- Icon (scissors for tailor, envelope for cover letter, check for applied)
-- Job title + company
-- Time ago (using date-fns `formatDistanceToNow`)
-- Resume name (fetched via resume ID)
-- Status badge + deadline if present
-
-### Modified: `ApplicationsPage.tsx`
-Complete rewrite of the page layout:
-1. Header: rename from "Applications" to "My Activity" or keep "Jobs"
-2. Remove the old stats row (Saved/Applied/Interview/Offers/Rejected counts)
-3. Remove the StatusFilter bar
-4. Add `JobActivityStats` component at top
-5. Add `ActivityTimeline` component below
-6. Change empty state to: "Your job search activity will appear here as you create resumes and tailor them for jobs" (no "Track first" button as primary)
-7. Keep `AddApplicationSheet` accessible via a subtle "Add manually" link
-8. Keep `ApplicationDetailSheet` for tapping on timeline entries
-9. Keep the reminder bell -- still useful for "I Will" reminders
-
-### Modified: `useJobApplications.ts`
-No changes to the hook itself -- it stays as-is since the `job_applications` table is still used. The page just queries additional tables now.
-
-### Files to Create
-1. `src/hooks/useJobActivityStats.ts` -- stats aggregation hook
-2. `src/components/applications/JobActivityStats.tsx` -- 2x2 stat cards
-3. `src/components/applications/ActivityTimeline.tsx` -- unified timeline
-
-### Files to Modify
-1. `src/pages/ApplicationsPage.tsx` -- replace tracker UI with dashboard layout
+**`src/pages/ApplicationsPage.tsx`**
+- Add an `id="activity-timeline"` anchor on the timeline section so stat tiles can scroll to it
 
 ## Result
-- The Jobs tab always has content (stats show even if all zeros)
-- No "Track first application" empty state -- the app feels smart
-- Activity auto-populates as the user tailors resumes and generates cover letters
-- Manual adding is still possible but not the primary experience
-
+- The timeline will immediately show all 8 resume events (7 created + 1 tailored for "Account Supervisor @ Loynova")
+- Each entry shows relative time ("1 day ago", "3 days ago", etc.)
+- Stat tiles feel interactive with press animation and navigation
+- The app feels intelligent -- everything the user does is automatically documented
