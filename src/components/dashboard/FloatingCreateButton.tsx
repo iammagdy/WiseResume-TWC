@@ -1,20 +1,25 @@
 import { motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
 
 interface FloatingCreateButtonProps {
   onClick: () => void;
   pulse?: boolean;
+  isLoading?: boolean;
 }
 
-export function FloatingCreateButton({ onClick, pulse = false }: FloatingCreateButtonProps) {
+export function FloatingCreateButton({ onClick, pulse = false, isLoading = false }: FloatingCreateButtonProps) {
   return (
     <motion.button
-      className="fixed bottom-24 right-4 z-40 h-14 px-5 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center gap-2 touch-manipulation"
+      className={cn(
+        'fixed bottom-24 right-4 z-40 h-14 px-5 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center gap-2 touch-manipulation',
+        isLoading && 'pointer-events-none opacity-90'
+      )}
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.3 }}
-      whileTap={{ scale: 0.92 }}
+      whileTap={{ scale: 0.95 }}
       onClick={() => {
         haptics.medium();
         onClick();
@@ -24,15 +29,21 @@ export function FloatingCreateButton({ onClick, pulse = false }: FloatingCreateB
       }}
       aria-label="Create new resume"
     >
-      {pulse && (
+      {pulse && !isLoading && (
         <motion.span
           className="absolute inset-0 rounded-full border-2 border-primary/50"
           animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0, 0.5] }}
           transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
         />
       )}
-      <Plus className="w-5 h-5 text-primary-foreground relative z-10" />
-      <span className="text-sm font-semibold text-primary-foreground relative z-10">New Resume</span>
+      {isLoading ? (
+        <Loader2 className="w-5 h-5 text-primary-foreground relative z-10 animate-spin" />
+      ) : (
+        <Plus className="w-5 h-5 text-primary-foreground relative z-10" />
+      )}
+      <span className="text-sm font-semibold text-primary-foreground relative z-10">
+        {isLoading ? 'Creating…' : 'New Resume'}
+      </span>
     </motion.button>
   );
 }

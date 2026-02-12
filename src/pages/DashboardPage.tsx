@@ -60,6 +60,12 @@ export default function DashboardPage() {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tipVisible, setTipVisible] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+
+  // Reset loading state when dialog opens
+  useEffect(() => {
+    if (showCreateDialog) setIsCreating(false);
+  }, [showCreateDialog]);
 
   // Guest-gated create handler
   const handleCreateNew = useCallback(() => {
@@ -67,6 +73,7 @@ export default function DashboardPage() {
       setShowSignInPrompt(true);
       return;
     }
+    setIsCreating(true);
     setShowCreateDialog(true);
   }, [user, resumes]);
 
@@ -359,7 +366,7 @@ export default function DashboardPage() {
             <SkeletonCardList count={3} />
           </div>
         ) : !resumes || resumes.length === 0 ? (
-          <EmptyState onCreateNew={handleCreateNew} />
+          <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
         ) : !hasResumes ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <motion.div
@@ -474,7 +481,7 @@ export default function DashboardPage() {
 
       {/* Floating Create Button */}
       {resumes && resumes.length > 0 && (
-        <FloatingCreateButton onClick={handleCreateNew} pulse={tipVisible} />
+        <FloatingCreateButton onClick={handleCreateNew} pulse={tipVisible} isLoading={isCreating} />
       )}
 
       {/* Sign In Prompt for guests */}
