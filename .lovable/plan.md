@@ -1,36 +1,81 @@
 
-# Fix: Auto-Create Job Application After Tailoring
 
-## Problem
-After tailoring a resume for a job, the application does NOT appear on the Jobs page. The "Did you apply?" dialog is never shown because it's rendered inside the TailorSheet, which closes immediately after applying changes -- unmounting the dialog before the user sees it. Additionally, the job URL from the tailor flow is never passed through to the job application record.
+# Redesign Jobs Tab: Activity Dashboard
 
-## Fix (2 files)
+## Overview
 
-### 1. Move ApplyPromptDialog out of TailorSheet
+Transform the Jobs tab from a manual "tracker" into an **automatic activity dashboard** that intelligently aggregates the user's resume-building activity. No manual tracking -- the app pulls data from existing database tables (`resumes`, `tailor_history`, `cover_letters`, `job_applications`) to show the user a smart summary of everything they've done.
 
-**File: `src/components/editor/TailorSheet.tsx`**
-- Remove `ApplyPromptDialog` rendering from inside the `<Sheet>` component (lines 830-839)
-- Remove the `showApplyPrompt` and `lastAppliedJobInfo` state variables
-- Instead, after applying changes, call a new callback prop `onApplied` that passes the job info (title, company, resumeId, jobUrl) up to the parent
+## What the User Will See
 
-**File: `src/pages/EditorPage.tsx`** (the parent that renders TailorSheet)
-- Add `showApplyPrompt` and `lastAppliedJobInfo` state here
-- Render `ApplyPromptDialog` at the EditorPage level (outside the sheet)
-- Pass an `onApplied` callback to TailorSheet that sets these states
-- This way the dialog stays mounted even after the sheet closes
+### Top Section: Stats Hero Card (glass card, matching dashboard style)
+Four stat tiles in a 2x2 grid:
+- **Resumes Created** -- count of resumes where `parent_resume_id IS NULL` (original CVs only)
+- **Tailored Versions** -- count of resumes where `parent_resume_id IS NOT NULL`
+- **Jobs Analyzed** -- count of unique entries in `tailor_history` (jobs the user pasted links for)
+- **Cover Letters** -- count from `cover_letters` table
 
-### 2. Pass the job URL through the flow
+### Middle Section: Recent Activity Timeline
+A scrollable list showing the user's recent activity, auto-populated from the database:
+- Each entry shows: job title, company, date, and what was done (tailored, cover letter generated, applied)
+- Entries link to the resume used and show the job URL (tappable to open)
+- Deadline shown if available, with color-coded countdown
+- Status badge (Applied / Not Yet / Saved)
 
-**File: `src/components/editor/TailorSheet.tsx`**
-- Extract the job URL from the `JobUrlParser` input (the URL the user pasted)
-- Include it in the `onApplied` callback data
+This replaces the old empty state ("No applications yet / Track first application") with real data from `tailor_history` and `job_applications`.
 
-**File: `src/components/applications/ApplyPromptDialog.tsx`**
-- Add an optional `jobUrl` prop
-- Pass `url: jobUrl` to `createApplication.mutateAsync()` so the job link is saved in the database
+### Bottom: "Add Manually" Button (secondary, subtle)
+Keep the ability to manually add a job, but make it secondary -- a small text button at the bottom, not the primary action.
+
+## Technical Details
+
+### New Hook: `useJobActivityStats`
+Create a hook in `src/hooks/useJobActivityStats.ts` that queries:
+```
+- resumes: COUNT(*) WHERE parent_resume_id IS NULL  (originals)
+- resumes: COUNT(*) WHERE parent_resume_id IS NOT NULL  (tailored)
+- tailor_history: COUNT(DISTINCT job_title || company)  (jobs analyzed)
+- cover_letters: COUNT(*)
+```
+Returns `{ originals, tailored, jobsAnalyzed, coverLetters, isLoading }`.
+
+### New Component: `JobActivityStats.tsx`
+Renders the 2x2 glass stat cards. Uses the same glass-surface styling as the existing dashboard stats row.
+
+### New Component: `ActivityTimeline.tsx`
+Merges data from `tailor_history` and `job_applications` into a unified timeline sorted by date. Each entry shows:
+- Icon (scissors for tailor, envelope for cover letter, check for applied)
+- Job title + company
+- Time ago (using date-fns `formatDistanceToNow`)
+- Resume name (fetched via resume ID)
+- Status badge + deadline if present
+
+### Modified: `ApplicationsPage.tsx`
+Complete rewrite of the page layout:
+1. Header: rename from "Applications" to "My Activity" or keep "Jobs"
+2. Remove the old stats row (Saved/Applied/Interview/Offers/Rejected counts)
+3. Remove the StatusFilter bar
+4. Add `JobActivityStats` component at top
+5. Add `ActivityTimeline` component below
+6. Change empty state to: "Your job search activity will appear here as you create resumes and tailor them for jobs" (no "Track first" button as primary)
+7. Keep `AddApplicationSheet` accessible via a subtle "Add manually" link
+8. Keep `ApplicationDetailSheet` for tapping on timeline entries
+9. Keep the reminder bell -- still useful for "I Will" reminders
+
+### Modified: `useJobApplications.ts`
+No changes to the hook itself -- it stays as-is since the `job_applications` table is still used. The page just queries additional tables now.
+
+### Files to Create
+1. `src/hooks/useJobActivityStats.ts` -- stats aggregation hook
+2. `src/components/applications/JobActivityStats.tsx` -- 2x2 stat cards
+3. `src/components/applications/ActivityTimeline.tsx` -- unified timeline
+
+### Files to Modify
+1. `src/pages/ApplicationsPage.tsx` -- replace tracker UI with dashboard layout
 
 ## Result
-- After tailoring, the "Did you apply?" dialog appears reliably
-- Choosing "Yes", "No", or "I Will" creates a job application entry that appears on the Jobs page
-- The job URL, resume link, title, and company are all captured automatically
-- The app feels smart -- the user doesn't need to manually add anything to the Jobs tab
+- The Jobs tab always has content (stats show even if all zeros)
+- No "Track first application" empty state -- the app feels smart
+- Activity auto-populates as the user tailors resumes and generates cover letters
+- Manual adding is still possible but not the primary experience
+
