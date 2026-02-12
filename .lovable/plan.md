@@ -1,70 +1,128 @@
 
 
-## Enhanced Form Inputs: Clear Buttons, Save Indicator, Zoom Prevention
+## Keyboard-Aware Editor: Toolbar, Auto-Hide Nav, Draft Save
 
 ### Overview
 
-Upgrade the shared `InputFormField` and `TextareaFormField` components with better mobile UX: clear buttons, a "Saved" indicator on blur, and zoom prevention. These changes cascade to all editor sections (Contact, Summary, etc.) automatically.
+Enhance the keyboard experience in the editor by adding a floating toolbar above the keyboard with "Done" and "Next" buttons, hiding the bottom tab bar when the keyboard is open, compacting the header, and triggering a draft save when the keyboard closes.
 
 ### Changes
 
-**1. `src/components/ui/input.tsx` -- Prevent iOS zoom on focus**
-- Change `text-base` to `text-[16px]` to ensure the font size is always at least 16px, which prevents Safari from zooming into focused inputs on iOS
+**1. `src/hooks/useKeyboardAwareScroll.ts` -- Expand to expose keyboard state**
 
-**2. `src/components/ui/textarea.tsx` -- Prevent iOS zoom on focus**
-- Replace `text-base md:text-sm` with `text-[16px]` so the textarea also avoids the iOS auto-zoom behavior
+- Return `isKeyboardOpen` boolean (true when `keyboardHeight > 100`)
+- Change `scrollIntoView` block to `'nearest'` instead of `'center'` so the field scrolls just enough to be visible (closer to top of visible area)
+- Set a CSS class `keyboard-open` on `document.documentElement` when keyboard is detected, remove it when closed
+- Dispatch a custom `keyboard-close` event when keyboard height transitions from >100 to 0 (for draft save trigger)
 
-**3. `src/components/ui/form-field.tsx` -- Major enhancements to both field components**
+**2. `src/components/editor/KeyboardToolbar.tsx` -- New file**
 
-**InputFormField changes:**
-- Add a clear (X) button: when the input has a value, show an `X` icon button on the right side that clears the field on tap. Uses a 48px touch target. Only visible when the field has content and is not showing the validation checkmark
-- Add a "Saved" indicator: track a `saved` state via `useRef` timer. On blur, if the value is non-empty, briefly show "Saved" with a green checkmark next to the label for ~2 seconds, then fade it out
-- Add `maxLength` and `showCount` optional props (matching TextareaFormField) to allow character counters on input fields too
-- Ensure the input `min-h-[48px]` (already `h-12` = 48px, so this is already met)
+A fixed toolbar that appears above the keyboard with:
+- **"Previous" button** (ChevronUp icon) -- focuses the previous focusable input/textarea in the form
+- **"Next" button** (ChevronDown icon) -- focuses the next focusable input/textarea in the form
+- **"Done" button** (text) -- blurs the active element to dismiss the keyboard
+- Haptic feedback on each button press
+- Positioned using `bottom: var(--keyboard-height)` so it sits right above the keyboard
+- Only rendered when keyboard is open (uses the `keyboard-open` class or a context)
+- Uses `position: fixed; z-index: 60` to sit above everything
 
-**TextareaFormField changes:**
-- Add a clear (X) button in the top-right corner of the textarea wrapper, visible when there's content
-- Add the same "Saved" indicator behavior on blur
-- Textarea already has `showCount` and `maxLength` -- no change needed there
+Logic for Previous/Next:
+```
+- Query all input/textarea elements within the editor scroll container
+- Find current activeElement index
+- Focus the previous/next element in the list
+```
 
-**4. `src/components/editor/ContactSection.tsx` -- Add save indicator support**
-- The `onBlur` handler already calls `handleBlur(field)` which sets touched state. The auto-save already happens via zustand persist on every `updateResume` call, so the "Saved" indicator in the form-field component just needs to show on blur -- no additional logic needed here
-- Add `maxLength` to name field (100) to show counter
+**3. `src/components/layout/BottomTabBar.tsx` -- Hide when keyboard is open**
 
-**5. `src/components/editor/SummarySection.tsx` -- No changes needed**
-- Already uses `TextareaFormField` with `maxLength={500}` and `showCount`. The enhancements to the shared component will apply automatically
+- Add CSS rule: `.keyboard-open .bottom-tab-bar { display: none }` (or use a class/data attribute)
+- Add `bottom-tab-bar` className to the nav element for targeting
+- This reclaims ~64px of space when typing
+
+**4. `src/pages/EditorPage.tsx` -- Header compaction and keyboard toolbar**
+
+- Import and render `KeyboardToolbar` inside the editor
+- Add a CSS rule for the header: `.keyboard-open .editor-header { py-1 }` -- reduce vertical padding from `py-3` to `py-1` when keyboard is open, saving ~16px
+- Hide the version history button and AI chat button when keyboard is open (via CSS `keyboard-open` class)
+- Listen for the `keyboard-close` custom event to trigger `saveToCloud()` immediately (draft save on keyboard dismiss)
+
+**5. `src/index.css` -- Keyboard utility styles**
+
+Add global styles:
+```css
+/* Hide bottom nav when keyboard is open */
+.keyboard-open .bottom-tab-bar {
+  display: none !important;
+}
+
+/* Compact editor header when keyboard is open */
+.keyboard-open .editor-header {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.keyboard-open .editor-header .keyboard-hide {
+  display: none;
+}
+```
 
 ### Technical Details
 
-**Clear button implementation (in form-field.tsx):**
-```
-- Import X from lucide-react
-- Show X button when value is non-empty, positioned absolute right-3
-- On click: call onChange(''), then focus the input
-- Touch target: min-w-[48px] min-h-[48px] with flex centering
-- Hide when validation checkmark is showing
+**Keyboard detection (useKeyboardAwareScroll.ts):**
+```typescript
+const handleResize = () => {
+  const keyboardHeight = window.innerHeight - vv.height;
+  const isOpen = keyboardHeight > 100;
+
+  // Toggle class on document for CSS-driven hiding
+  document.documentElement.classList.toggle('keyboard-open', isOpen);
+
+  // Detect keyboard close for draft save
+  if (!isOpen && prevOpen.current) {
+    window.dispatchEvent(new CustomEvent('keyboard-close'));
+  }
+  prevOpen.current = isOpen;
+
+  // Scroll focused input into view
+  const active = document.activeElement as HTMLElement;
+  if (active && isOpen && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
+    setTimeout(() => {
+      active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 100);
+  }
+};
 ```
 
-**Save indicator implementation (in form-field.tsx):**
+**KeyboardToolbar component structure:**
 ```
-- useState<boolean> for showSaved
-- useRef<NodeJS.Timeout> for save timer
-- On blur: if value is truthy, set showSaved=true, start 2s timer to hide
-- Render "Saved" text with CheckCircle2 icon next to label, animated with fade-in/fade-out
-- Green color matching success theme
+[fixed bar at bottom: var(--keyboard-height)]
+  [Previous (chevron-up)] [Next (chevron-down)] --- [Done]
 ```
 
-**Zoom prevention:**
+**Next/Previous field logic:**
+```typescript
+const focusables = Array.from(
+  document.querySelectorAll<HTMLElement>(
+    '.editor-scroll-container input, .editor-scroll-container textarea'
+  )
+);
+const idx = focusables.indexOf(document.activeElement as HTMLElement);
+// Next: focus focusables[idx + 1], Previous: focus focusables[idx - 1]
 ```
-- iOS Safari zooms when input font-size < 16px
-- text-[16px] ensures minimum 16px on all breakpoints
-- Previously text-base (16px) on mobile but md:text-sm (14px) on desktop for textarea
-- New: text-[16px] everywhere for inputs, keeping readability
+
+**Draft save on keyboard close (EditorPage.tsx):**
+```typescript
+useEffect(() => {
+  const handleKbClose = () => saveToCloud();
+  window.addEventListener('keyboard-close', handleKbClose);
+  return () => window.removeEventListener('keyboard-close', handleKbClose);
+}, [saveToCloud]);
 ```
 
 ### Files Modified
-- `src/components/ui/input.tsx` -- font-size fix for zoom prevention
-- `src/components/ui/textarea.tsx` -- font-size fix for zoom prevention
-- `src/components/ui/form-field.tsx` -- clear buttons, save indicator, character counter for inputs
-- `src/components/editor/ContactSection.tsx` -- add maxLength to name field
+- `src/hooks/useKeyboardAwareScroll.ts` -- add keyboard-open class toggle, keyboard-close event
+- `src/components/editor/KeyboardToolbar.tsx` -- new component (Done/Next/Previous toolbar)
+- `src/components/layout/BottomTabBar.tsx` -- add `bottom-tab-bar` class for CSS targeting
+- `src/pages/EditorPage.tsx` -- render KeyboardToolbar, add `editor-header` class, listen for keyboard-close to save draft
+- `src/index.css` -- keyboard-open utility styles for hiding nav and compacting header
 
