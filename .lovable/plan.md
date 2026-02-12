@@ -1,98 +1,90 @@
 
 
-# Fix: Authentication Completely Broken (Google + Email)
+# 3D Holographic Developer Credit Card
 
-## Root Cause
+## What Changes
+The developer credit card will get a dramatic 3D floating effect applied to the card itself (not the buttons or other elements). The card will appear to hover above the page with depth, perspective tilt, and ambient lighting effects.
 
-There are **two separate issues** preventing sign-in:
+## Visual Effects (Card Only)
 
-### Issue 1: Supabase Client Connecting to `placeholder.supabase.co`
-The network logs prove it -- all auth requests go to `https://placeholder.supabase.co` with `apikey: placeholder`. This means the environment variables `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` are evaluating to empty strings at module load time, triggering the fallback.
+- **3D Perspective Tilt**: The card will have a continuous slow auto-tilt animation that rotates the card on the X and Y axes, making it look like it's floating in 3D space
+- **Elevated Shadow**: A large, colored drop shadow beneath the card that shifts with the tilt to sell the 3D illusion
+- **Holographic Light Sweep**: A reflective light beam that sweeps across the card surface, simulating a holographic foil effect
+- **Depth Layers**: The card background gets a layered gradient that shifts with the tilt to create parallax depth
+- **Glow Underlight**: A soft colored glow underneath the card that pulses, making it look like it's lit from below
 
-Previous edits in this conversation accidentally "created .env" twice, which likely overwrote the auto-managed environment file. Since env vars are now empty, the safe client falls back to a placeholder that can never authenticate anyone.
+## What Stays the Same
+- Contact button styling (no 3D on buttons)
+- Website link below the card
+- Avatar with orbit ring
+- Name shimmer and sparkle effects
+- All existing content layout
 
-**Fix**: Use the known project credentials (which are public/publishable, not secrets) as hardcoded fallback values in `safeClient.ts`. The anon key is designed to be embedded in client-side code -- it is not a secret.
+## Technical Details
 
-### Issue 2: PWA Service Worker Intercepting OAuth Redirect
-Google OAuth redirects back to `/~oauth` after authentication. The current PWA config has no `navigateFallbackDenylist`, so the service worker can intercept and cache this route instead of letting it reach the network. This breaks Google sign-in.
+### Files Modified
 
-**Fix**: Add `navigateFallbackDenylist: [/^\/~oauth/]` to the VitePWA config.
+**`src/components/settings/DeveloperCreditCard.css`** -- Add 3D card effects:
 
-## Changes
+- Add `perspective: 800px` on `.dev-card-wrapper` to enable 3D context
+- Add `transform-style: preserve-3d` on `.dev-card`
+- New `dev-3d-tilt` keyframe animation: slow continuous rotation on X/Y axes (subtle, around 3-5 degrees)
+- New `dev-holographic-sweep` overlay: a diagonal light beam that sweeps across the card every few seconds
+- Enhanced box-shadow that animates in sync with the tilt for realistic depth
+- A `::after` pseudo-element on `.dev-card` for the holographic light reflection
+- Animated underside glow shadow using `filter: drop-shadow`
 
-### File 1: `src/integrations/supabase/safeClient.ts`
+**`src/components/settings/DeveloperCreditCard.tsx`** -- Add a holographic sweep overlay div inside `.dev-card`:
 
-Replace with a version that uses the project's known credentials as fallback values:
+- Add a new `<div className="dev-holo-sweep" />` element inside the card for the light sweep effect
+- No changes to buttons or links
 
-```typescript
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import type { Database } from './types';
+### Key CSS Additions
 
-// Use env vars with hardcoded fallbacks from project config
-// (anon key is a publishable key, not a secret)
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-  || 'https://hjnnamwgztlhzkeuufln.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY
-  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso';
-
-let supabaseInstance: SupabaseClient<Database>;
-
-try {
-  supabaseInstance = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    auth: { storage: localStorage, persistSession: true, autoRefreshToken: true },
-  });
-} catch (e) {
-  console.error('Supabase init failed:', e);
-  supabaseInstance = createClient<Database>(
-    'https://hjnnamwgztlhzkeuufln.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhqbm5hbXdnenRsaHprZXV1ZmxuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAzNTE4MTcsImV4cCI6MjA4NTkyNzgxN30.cupd_dz6KHSJaBnUPQzJmQcYc38RTDVIMU5RP25xCso',
-    { auth: { storage: localStorage, persistSession: true, autoRefreshToken: true } }
-  );
+```css
+/* 3D perspective context */
+.dev-card-wrapper {
+  perspective: 800px;
 }
 
-export const supabase = supabaseInstance;
-export const supabaseConfig = { url: SUPABASE_URL };
-export { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY };
+/* 3D card with auto-tilt */
+.dev-card {
+  transform-style: preserve-3d;
+  animation: dev-3d-tilt 8s ease-in-out infinite;
+}
+
+/* Slow floating 3D tilt */
+@keyframes dev-3d-tilt {
+  0%   { transform: rotateX(2deg) rotateY(-2deg) translateZ(0); }
+  25%  { transform: rotateX(-3deg) rotateY(3deg) translateZ(10px); }
+  50%  { transform: rotateX(2deg) rotateY(2deg) translateZ(5px); }
+  75%  { transform: rotateX(-2deg) rotateY(-3deg) translateZ(10px); }
+  100% { transform: rotateX(2deg) rotateY(-2deg) translateZ(0); }
+}
+
+/* Holographic light sweep across card */
+.dev-holo-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255,255,255,0.12) 45%,
+    rgba(255,255,255,0.06) 55%,
+    transparent 60%
+  );
+  background-size: 250% 100%;
+  animation: dev-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Animated depth shadow synced with tilt */
+.dev-card {
+  box-shadow:
+    0 20px 60px -15px hsl(var(--primary) / 0.3),
+    0 10px 30px -10px rgba(0,0,0,0.4);
+}
 ```
 
-This guarantees the client always connects to the real backend regardless of whether env vars are injected.
-
-### File 2: `vite.config.ts`
-
-Add `navigateFallbackDenylist` to the VitePWA config so OAuth redirects are never intercepted by the service worker:
-
-```typescript
-VitePWA({
-  // ... existing config ...
-  workbox: {
-    navigateFallbackDenylist: [/^\/~oauth/],
-    globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-    // ... rest of runtimeCaching stays the same
-  },
-}),
-```
-
-### File 3: `src/integrations/supabase/safeClient.test.ts`
-
-Update the test to match the new behavior (the client no longer throws on missing env vars since it has hardcoded fallbacks):
-
-```typescript
-it("should use fallback URL when env vars are missing", async () => {
-  vi.stubEnv("VITE_SUPABASE_URL", undefined);
-  vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", undefined);
-
-  const { supabaseConfig } = await import("./safeClient");
-  expect(supabaseConfig.url).toContain("supabase.co");
-});
-```
-
-## Summary
-
-| What | Why |
-|------|-----|
-| Hardcoded fallback credentials | Env vars are empty due to previous .env file corruption |
-| PWA denylist for `/~oauth` | Service worker can block Google OAuth redirect |
-| Updated test | Reflects new fallback behavior |
-
-These 3 file changes will fix both Google and email/password sign-in.
-
+This creates a premium, eye-catching 3D holographic card that floats and reflects light -- all purely CSS, no JavaScript mouse tracking needed, works great on mobile.
