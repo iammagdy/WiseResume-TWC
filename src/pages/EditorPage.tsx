@@ -36,6 +36,7 @@ const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWiza
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
 const VersionHistorySheet = lazy(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
+import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -192,6 +193,13 @@ export default function EditorPage() {
       }
     };
   }, []);
+
+  // Draft save on keyboard close
+  useEffect(() => {
+    const handleKbClose = () => saveToCloud();
+    window.addEventListener('keyboard-close', handleKbClose);
+    return () => window.removeEventListener('keyboard-close', handleKbClose);
+  }, [saveToCloud]);
 
   // Warn guests about unsaved data loss (H6)
   useEffect(() => {
@@ -353,7 +361,7 @@ export default function EditorPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
       {/* Header */}
-      <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+      <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button 
@@ -367,7 +375,7 @@ export default function EditorPage() {
             {user && currentResumeId && (
               <button
                 onClick={() => setShowVersionHistory(true)}
-                className="p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation"
                 aria-label="Version history"
               >
                 <Clock className="w-4 h-4 text-muted-foreground" />
@@ -376,7 +384,7 @@ export default function EditorPage() {
           </div>
           <button
             onClick={() => setShowChat(true)}
-            className="p-3 -mr-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center relative"
+            className="keyboard-hide p-3 -mr-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center relative"
             aria-label="Open Wise AI"
           >
             <MessageCircle className="w-5 h-5" />
@@ -457,7 +465,7 @@ export default function EditorPage() {
         {/* Editor Tabs (hidden tab list, content driven by stepper) */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           <div
-            className="flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
+            className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
             ref={scrollContainerRef}
           >
             {activeTab === 'contact' && (
@@ -561,6 +569,9 @@ export default function EditorPage() {
             className="pt-3 pb-3"
           />
         </div>
+
+      {/* Keyboard Toolbar - floats above keyboard */}
+      <KeyboardToolbar />
 
       {/* AI Intro Tooltip for First-Time Users */}
       <AIIntroTooltip
