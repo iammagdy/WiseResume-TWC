@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock } from 'lucide-react';
+import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
@@ -212,25 +213,56 @@ export default function EditorPage() {
     { id: 'skills', label: 'Skills' },
   ], []);
 
+  // Granular section scores
+  const sectionScores = useMemo(() => {
+    if (!currentResume) return { contact: 0, summary: 0, experience: 0, education: 0, skills: 0 };
+    return {
+      contact: calcContactScore(currentResume.contactInfo),
+      summary: calcSummaryScore(currentResume.summary),
+      experience: calcExperienceScore(currentResume.experience),
+      education: calcEducationScore(currentResume.education),
+      skills: calcSkillsScore(currentResume.skills),
+    };
+  }, [currentResume]);
+
+  // Derive boolean completedSteps for StepperNav
+  const sectionStatus = useMemo(() => ({
+    contact: sectionScores.contact >= 100,
+    summary: sectionScores.summary >= 100,
+    experience: sectionScores.experience >= 100,
+    education: sectionScores.education >= 100,
+    skills: sectionScores.skills >= 100,
+  }), [sectionScores]);
+
+  // Section completion celebrations
+  const prevCompletedRef = useRef<Record<string, boolean>>({});
+  
+  const TOAST_MESSAGES: Record<string, string> = useMemo(() => ({
+    contact: 'Contact section complete! Next: Add your professional summary to stand out.',
+    summary: 'Professional summary complete! Next: Add your work experience.',
+    experience: 'Work experience complete! Next: Add your education details.',
+    education: 'Education section complete! Next: List your key skills.',
+    skills: 'Skills section complete! Your resume is looking great!',
+  }), []);
+
+  useEffect(() => {
+    if (!currentResume) return;
+    const prev = prevCompletedRef.current;
+    const sectionIds = ['contact', 'summary', 'experience', 'education', 'skills'] as const;
+    
+    for (const id of sectionIds) {
+      const nowComplete = sectionScores[id] >= 100;
+      if (nowComplete && prev[id] === false) {
+        toast.success(TOAST_MESSAGES[id], { duration: 4000 });
+      }
+      prev[id] = nowComplete;
+    }
+  }, [sectionScores, TOAST_MESSAGES, currentResume]);
+
   // Resume guard - redirect to appropriate page based on auth state
   if (!currentResume) {
     return <Navigate to={user ? '/dashboard' : '/'} replace />;
   }
-
-  // Calculate section completion - memoized to prevent unstable object reference
-  const sectionStatus = useMemo(() => ({
-    contact: Boolean(currentResume.contactInfo.fullName && currentResume.contactInfo.email),
-    summary: currentResume.summary.length > 30,
-    experience: currentResume.experience.length > 0,
-    education: currentResume.education.length > 0,
-    skills: currentResume.skills.length > 0,
-  }), [
-    Boolean(currentResume.contactInfo.fullName && currentResume.contactInfo.email),
-    currentResume.summary.length > 30,
-    currentResume.experience.length > 0,
-    currentResume.education.length > 0,
-    currentResume.skills.length > 0
-  ]);
 
   const handleImproveSection = useCallback(() => {
     // For now, open tailor sheet - could be enhanced to improve specific section
@@ -325,6 +357,7 @@ export default function EditorPage() {
           steps={steps}
           activeStep={activeTab}
           completedSteps={sectionStatus}
+          sectionScores={sectionScores}
           onStepClick={handleTabChange}
         />
         </div>
@@ -337,35 +370,35 @@ export default function EditorPage() {
           >
             {activeTab === 'contact' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={sectionStatus.contact ? 'complete' : 'empty'} action={<SectionAIAction section="contact" />}>
+                <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
                   <ContactSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'summary' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={sectionStatus.summary ? 'complete' : 'partial'} action={<SectionAIAction section="summary" />}>
+                <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
                   <SummarySection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'experience' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={sectionStatus.experience ? 'complete' : 'empty'} action={<SectionAIAction section="experience" />}>
+                <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
                   <ExperienceSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'education' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={sectionStatus.education ? 'complete' : 'empty'} action={<SectionAIAction section="education" />}>
+                <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
                   <EducationSection />
                 </SectionCard>
               </div>
             )}
             {activeTab === 'skills' && (
               <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-200">
-                <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={sectionStatus.skills ? 'complete' : 'empty'} action={<SectionAIAction section="skills" />}>
+                <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
                   <SkillsSection />
                 </SectionCard>
               </div>
