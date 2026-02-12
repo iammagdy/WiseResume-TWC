@@ -1,52 +1,37 @@
 
 
-## Revamp Daily Tip Banner: Auto-Hide + Pulsing Create Button
+## Compact Daily Tip Card
 
-### What Changes
-
-1. **Move the DailyTipCard** from its current position (between QuickActionChips and Search) to **directly below the header**, before DashboardStats
-2. **Auto-hide after 3 seconds** with a smooth exit animation, leaving a small "tap to show tip" indicator dot
-3. **Pulsing border on FloatingCreateButton** while the banner is visible, drawing attention to the CTA
-4. **Convert DailyTipCard to accept props** so the parent (DashboardPage) can coordinate the banner visibility state with the FloatingCreateButton's pulse
-
-### Technical Details
+### Changes
 
 **File: `src/components/dashboard/DailyTipCard.tsx`**
 
-- Add an `onVisibilityChange?: (visible: boolean) => void` prop
-- Replace manual `dismissed` state with an auto-hide timer:
-  - `useState(true)` for `visible`, starts shown
-  - `useEffect` sets a 3-second `setTimeout` to set `visible = false` and call `onVisibilityChange(false)`
-  - Still allow manual dismiss via the X button
-- After auto-hide, render a small collapsed indicator: a tiny pill with a Lightbulb icon that expands the tip again on tap
-- Use `AnimatePresence` with `exit` animation for smooth collapse
-- Track session dismissal in `sessionStorage('wr-tip-dismissed')` so it doesn't reappear after manual dismiss
+Make the expanded card a single-line horizontal strip instead of a multi-line card:
 
-**File: `src/components/dashboard/FloatingCreateButton.tsx`**
+- **Remove** the "Daily Tip" label row entirely -- saves the most vertical space
+- **Flatten layout** to a single horizontal row: `items-center` instead of `items-start`, remove the icon container's extra sizing
+- **Reduce padding** from `p-3.5` to `px-3 py-2`
+- **Reduce rounding** from `rounded-2xl` to `rounded-xl`
+- **Shrink icon** container from `w-8 h-8 rounded-lg` to `w-6 h-6 rounded-md`; icon from `w-4 h-4` to `w-3.5 h-3.5`
+- **Tip text**: change from `text-xs` to `text-[11px]`, add `line-clamp-1` so it truncates to one line by default
+- **Dismiss button**: keep as-is (already compact)
 
-- Add `pulse?: boolean` prop (default `false`)
-- When `pulse` is true, render an animated ring behind the button using `motion.span` with `animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0, 0.5] }}` and `border-2 border-primary/50`
-- The ring pulses only while the banner is visible (3 seconds), then stops
+Result: card goes from ~56px tall to ~34px -- roughly 40% reduction.
 
-**File: `src/pages/DashboardPage.tsx`**
+**No changes to `DashboardPage.tsx` or `FloatingCreateButton.tsx`** -- position and pulse logic stay the same.
 
-- Add `tipVisible` state, defaulting to `true`
-- Move `<DailyTipCard />` from line 362 to line 348 (right after `</header>`)
-- Pass `onVisibilityChange={(v) => setTipVisible(v)}` to DailyTipCard
-- Pass `pulse={tipVisible}` to `<FloatingCreateButton />`
-
-### Visual Behavior
+### Before vs After (approximate)
 
 ```text
-[Header: WiseResume logo + buttons]
-[Daily Tip banner - slides in, auto-hides after 3s]  <-- NEW position
-   After hide: tiny Lightbulb dot indicator (tap to expand)
-[DashboardStats hero card]
-[QuickActionChips]
-[Search pill]
-[Resume list]
-                              [+ New Resume] <-- pulsing border while tip visible
+Before (~56px):
++------------------------------------------+
+| [icon]  DAILY TIP                    [X] |
+|         Tailoring your resume to...      |
++------------------------------------------+
+
+After (~34px):
++------------------------------------------+
+| [o] Tailoring your resume to each... [X] |
++------------------------------------------+
 ```
 
-### No Database or Backend Changes
-This is purely a frontend UI/animation change across 3 files.
