@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X } from 'lucide-react';
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
@@ -87,6 +87,7 @@ export default function EditorPage() {
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [signInPromptContext, setSignInPromptContext] = useState<{ title: string; description: string } | null>(null);
   const signInPromptShownRef = useRef(false);
+  const [guestBannerDismissed, setGuestBannerDismissed] = useState(() => sessionStorage.getItem('wr-editor-guest-dismissed') === 'true');
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -383,6 +384,36 @@ export default function EditorPage() {
           </button>
         </div>
       </header>
+
+        {/* Guest Info Banner */}
+        {!user && !guestBannerDismissed && (
+          <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Info className="w-4 h-4 text-blue-500 shrink-0" />
+                <p className="text-sm text-foreground truncate">
+                  Working as guest — <span className="text-muted-foreground">Sign in to save permanently</span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button size="sm" className="h-7 text-xs px-3" onClick={() => navigate('/auth')}>
+                  Sign In
+                </Button>
+                <button
+                  onClick={() => {
+                    setGuestBannerDismissed(true);
+                    sessionStorage.setItem('wr-editor-guest-dismissed', 'true');
+                  }}
+                  className="p-1 rounded-full hover:bg-muted transition-colors"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Progress Bar with Save Status */}
         <div className="shrink-0 px-4 py-3 border-b border-border">
           <div className="flex items-center justify-between mb-2">
