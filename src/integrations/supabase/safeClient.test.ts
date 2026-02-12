@@ -9,13 +9,12 @@ describe("safeClient", () => {
     vi.unstubAllEnvs();
   });
 
-  it("should throw an error when env vars are missing", async () => {
+  it("should use fallback URL when env vars are missing", async () => {
     vi.stubEnv("VITE_SUPABASE_URL", undefined);
     vi.stubEnv("VITE_SUPABASE_PUBLISHABLE_KEY", undefined);
 
-    await expect(() => import("./safeClient")).rejects.toThrowError(
-      /Missing Supabase configuration/
-    );
+    const { supabaseConfig } = await import("./safeClient");
+    expect(supabaseConfig.url).toContain("supabase.co");
   });
 
   it("should initialize supabase client when env vars are present", async () => {
