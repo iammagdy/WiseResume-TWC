@@ -1,64 +1,70 @@
 
 
-## Enhanced Progress Bar: Taller, Color-Shifting, Confetti
+## Enhanced Form Inputs: Clear Buttons, Save Indicator, Zoom Prevention
+
+### Overview
+
+Upgrade the shared `InputFormField` and `TextareaFormField` components with better mobile UX: clear buttons, a "Saved" indicator on blur, and zoom prevention. These changes cascade to all editor sections (Contact, Summary, etc.) automatically.
 
 ### Changes
 
-**File: `src/components/editor/ProgressBar.tsx`**
+**1. `src/components/ui/input.tsx` -- Prevent iOS zoom on focus**
+- Change `text-base` to `text-[16px]` to ensure the font size is always at least 16px, which prevents Safari from zooming into focused inputs on iOS
 
-**1. Increase bar height**
-- Change track from `h-2` (8px) to `h-3` (12px) for more visual prominence
-- The bar fill stays `h-full` inside it
+**2. `src/components/ui/textarea.tsx` -- Prevent iOS zoom on focus**
+- Replace `text-base md:text-sm` with `text-[16px]` so the textarea also avoids the iOS auto-zoom behavior
 
-**2. Dynamic color based on progress**
-- Replace the static `gradient-primary` class with an inline `background` style that shifts through a color range:
-  - 0-33%: Red (`hsl(0, 80%, 55%)`)
-  - 34-66%: Amber/Yellow (`hsl(40, 90%, 50%)`)
-  - 67-99%: Green (`hsl(140, 70%, 45%)`)
-  - 100%: Keep existing `bg-success`
-- Use a helper function `getProgressColor(progress)` that returns the appropriate HSL value
-- Add a subtle inner shadow/glow matching the current color
+**3. `src/components/ui/form-field.tsx` -- Major enhancements to both field components**
 
-**3. Percentage label update**
-- Keep the existing "Resume XX% Complete" text label next to the bar
-- Make it slightly bolder and color-match it to the bar color for visual cohesion
+**InputFormField changes:**
+- Add a clear (X) button: when the input has a value, show an `X` icon button on the right side that clears the field on tap. Uses a 48px touch target. Only visible when the field has content and is not showing the validation checkmark
+- Add a "Saved" indicator: track a `saved` state via `useRef` timer. On blur, if the value is non-empty, briefly show "Saved" with a green checkmark next to the label for ~2 seconds, then fade it out
+- Add `maxLength` and `showCount` optional props (matching TextareaFormField) to allow character counters on input fields too
+- Ensure the input `min-h-[48px]` (already `h-12` = 48px, so this is already met)
 
-**4. Smooth animation**
-- Keep the existing `transition: 'width 0.7s ease-out'` for the fill
-- Add `transition: 'background-color 0.5s ease'` so color changes animate smoothly
+**TextareaFormField changes:**
+- Add a clear (X) button in the top-right corner of the textarea wrapper, visible when there's content
+- Add the same "Saved" indicator behavior on blur
+- Textarea already has `showCount` and `maxLength` -- no change needed there
 
-**5. Confetti burst at 100%**
-- Add a `useEffect` + `useRef` to detect when progress transitions to 100 (track previous value)
-- When hitting 100%, render 8-10 confetti particles using CSS keyframe animations (similar pattern to StepperNav's `stepper-confetti-burst`)
-- Particles burst outward from the bar center, fade out after ~1s, then unmount
-- Add a `<style>` block with the confetti keyframe (or reuse existing one)
-- Also trigger a brief scale pulse on the percentage text
+**4. `src/components/editor/ContactSection.tsx` -- Add save indicator support**
+- The `onBlur` handler already calls `handleBlur(field)` which sets touched state. The auto-save already happens via zustand persist on every `updateResume` call, so the "Saved" indicator in the form-field component just needs to show on blur -- no additional logic needed here
+- Add `maxLength` to name field (100) to show counter
 
-**6. ProgressRing variant**
-- Apply the same color logic to the ring stroke so both variants are consistent
+**5. `src/components/editor/SummarySection.tsx` -- No changes needed**
+- Already uses `TextareaFormField` with `maxLength={500}` and `showCount`. The enhancements to the shared component will apply automatically
 
-### Helper function
+### Technical Details
 
-```typescript
-function getProgressColor(progress: number): string {
-  if (progress >= 100) return 'hsl(var(--success))';
-  if (progress >= 67) return 'hsl(140, 70%, 45%)';
-  if (progress >= 34) return 'hsl(40, 90%, 50%)';
-  return 'hsl(0, 80%, 55%)';
-}
+**Clear button implementation (in form-field.tsx):**
+```
+- Import X from lucide-react
+- Show X button when value is non-empty, positioned absolute right-3
+- On click: call onChange(''), then focus the input
+- Touch target: min-w-[48px] min-h-[48px] with flex centering
+- Hide when validation checkmark is showing
 ```
 
-### Visual Result
+**Save indicator implementation (in form-field.tsx):**
+```
+- useState<boolean> for showSaved
+- useRef<NodeJS.Timeout> for save timer
+- On blur: if value is truthy, set showSaved=true, start 2s timer to hide
+- Render "Saved" text with CheckCircle2 icon next to label, animated with fade-in/fade-out
+- Green color matching success theme
+```
 
-```text
-Before:
-Resume 45% Complete [====------] (thin, single color)
-
-After:
-Resume 45% Complete [======--------] (taller, amber fill, smooth transition)
-Resume 100% Complete [==============] (green + confetti burst!)
+**Zoom prevention:**
+```
+- iOS Safari zooms when input font-size < 16px
+- text-[16px] ensures minimum 16px on all breakpoints
+- Previously text-base (16px) on mobile but md:text-sm (14px) on desktop for textarea
+- New: text-[16px] everywhere for inputs, keeping readability
 ```
 
 ### Files Modified
-- `src/components/editor/ProgressBar.tsx` -- all changes in this single file
+- `src/components/ui/input.tsx` -- font-size fix for zoom prevention
+- `src/components/ui/textarea.tsx` -- font-size fix for zoom prevention
+- `src/components/ui/form-field.tsx` -- clear buttons, save indicator, character counter for inputs
+- `src/components/editor/ContactSection.tsx` -- add maxLength to name field
 
