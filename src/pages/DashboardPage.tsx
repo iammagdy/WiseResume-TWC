@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, Sparkles, User } from 'lucide-react';
-import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
+import { Plus, Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -303,27 +302,9 @@ export default function DashboardPage() {
   return (
     <div className="min-h-full flex flex-col">
         {/* Header */}
-        <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between glass-header">
-          <AppLogo size="sm" showTagline={false} />
+        <header className="pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
+          <AppLogo size="sm" showTagline={false} hideText />
           <div className="flex items-center gap-2">
-            <motion.button
-              onClick={() => {
-                haptics.light();
-                navigate('/');
-              }}
-              className="relative flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 hover:border-primary/40 transition-colors touch-manipulation overflow-hidden min-h-[44px]"
-              whileTap={{ scale: 0.95 }}
-              aria-label="Explore"
-            >
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent"
-                animate={{ x: ['-100%', '100%'] }}
-                transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-              />
-              <Sparkles className="w-3.5 h-3.5 text-primary relative z-10" />
-              <span className="relative z-10 text-foreground">Explore</span>
-            </motion.button>
-            <ThemeDropdown />
             <motion.button
               onClick={() => {
                 haptics.light();
