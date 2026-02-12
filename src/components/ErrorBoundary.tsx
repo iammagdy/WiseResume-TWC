@@ -30,10 +30,20 @@ interface State {
      this.setState({ errorInfo });
    }
  
-   private handleRetry = () => {
-     this.props.onReset?.();
-     this.setState({ hasError: false, error: null, errorInfo: null });
-   };
+  private handleRetry = () => {
+    const isChunkError = this.state.error?.message &&
+      (this.state.error.message.includes('dynamically imported module') ||
+       this.state.error.message.includes('Failed to fetch') ||
+       this.state.error.message.includes('Loading chunk'));
+
+    if (isChunkError) {
+      window.location.reload();
+      return;
+    }
+
+    this.props.onReset?.();
+    this.setState({ hasError: false, error: null, errorInfo: null });
+  };
  
    private handleGoHome = () => {
      window.location.href = '/dashboard';

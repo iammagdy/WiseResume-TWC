@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react';
 import { 
   SocialProofSkeleton,
   HowItWorksSkeleton,
@@ -9,12 +8,14 @@ import {
 import { LazySection } from '@/components/landing/LazySection';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { HeroSection } from '@/components/landing/HeroSection';
-const SocialProofBar = lazy(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.SocialProofBar })));
-const WhyWiseResume = lazy(() => import('@/components/landing/WhyWiseResume').then(m => ({ default: m.WhyWiseResume })));
-const HowItWorks = lazy(() => import('@/components/landing/HowItWorks').then(m => ({ default: m.HowItWorks })));
-const FeatureGrid = lazy(() => import('@/components/landing/FeatureGrid').then(m => ({ default: m.FeatureGrid })));
-const TemplateGallery = lazy(() => import('@/components/landing/TemplateGallery').then(m => ({ default: m.TemplateGallery })));
-const BottomCTA = lazy(() => import('@/components/landing/BottomCTA').then(m => ({ default: m.BottomCTA })));
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+
+const SocialProofBar = lazyWithRetry(() => import('@/components/landing/SocialProofBar').then(m => ({ default: m.SocialProofBar })));
+const WhyWiseResume = lazyWithRetry(() => import('@/components/landing/WhyWiseResume').then(m => ({ default: m.WhyWiseResume })));
+const HowItWorks = lazyWithRetry(() => import('@/components/landing/HowItWorks').then(m => ({ default: m.HowItWorks })));
+const FeatureGrid = lazyWithRetry(() => import('@/components/landing/FeatureGrid').then(m => ({ default: m.FeatureGrid })));
+const TemplateGallery = lazyWithRetry(() => import('@/components/landing/TemplateGallery').then(m => ({ default: m.TemplateGallery })));
+const BottomCTA = lazyWithRetry(() => import('@/components/landing/BottomCTA').then(m => ({ default: m.BottomCTA })));
 
 const Index = () => {
   return (

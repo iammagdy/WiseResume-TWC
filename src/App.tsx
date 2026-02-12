@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, ComponentType } from "react";
+import { Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -23,22 +23,7 @@ import {
   AuthSkeleton,
 } from "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
-
-// Retry-capable lazy loader to prevent infinite skeleton on chunk failures
-function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
-  return lazy(() =>
-    factory().catch(() => {
-      // Retry once after 1s
-      return new Promise<{ default: T }>((resolve, reject) =>
-        setTimeout(() => factory().then(resolve).catch(reject), 1000)
-      ).catch(() => {
-        // Final fallback: reload to bust stale SW cache
-        window.location.reload();
-        return { default: (() => null) as unknown as T };
-      });
-    })
-  );
-}
+import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
 // Eagerly load Index for LCP
 import Index from "./pages/Index";
