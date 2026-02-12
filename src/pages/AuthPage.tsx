@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, Phone } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
@@ -18,24 +18,28 @@ const emailSchema = z.string().email('Please enter a valid email');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
 const phoneSchema = z.string().regex(/^\+?[1-9]\d{6,14}$/, 'Enter a valid phone number (e.g. +1234567890)');
 
-type AuthMode = 'login' | 'signup' | 'forgot-password';
+type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
 type AuthMethod = 'email' | 'phone';
 
 export default function AuthPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { session } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
   const [authMethod, setAuthMethod] = useState<AuthMethod>('email');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
-  const [touched, setTouched] = useState<{ email: boolean; phone: boolean; password: boolean }>({
+  const [touched, setTouched] = useState<{ email: boolean; phone: boolean; password: boolean; confirmPassword: boolean }>({
     email: false,
     phone: false,
     password: false,
+    confirmPassword: false,
   });
 
   // Validation
@@ -61,16 +65,32 @@ export default function AuthPage() {
   const phoneError = getPhoneError();
   const passwordError = getPasswordError();
 
+  // Detect password reset callback
   useEffect(() => {
-    if (session) navigate('/dashboard', { replace: true });
-  }, [session, navigate]);
+    if (searchParams.get('reset') === 'true') {
+      setMode('reset-password');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setMode('reset-password');
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (session && mode !== 'reset-password') navigate('/dashboard', { replace: true });
+  }, [session, navigate, mode]);
 
   const validateInputs = (): boolean => {
     if (authMethod === 'email') {
-      setTouched({ email: true, phone: false, password: true });
+      setTouched({ email: true, phone: false, password: true, confirmPassword: false });
       return !emailError && !passwordError;
     } else {
-      setTouched({ email: false, phone: true, password: true });
+      setTouched({ email: false, phone: true, password: true, confirmPassword: false });
       return !phoneError && !passwordError;
     }
   };
@@ -139,6 +159,27 @@ export default function AuthPage() {
     }
   };
 
+  const handleUpdatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setTouched(prev => ({ ...prev, password: true, confirmPassword: true }));
+    if (passwordError) return;
+    if (password !== confirmPassword) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) { toast.error(error.message); return; }
+      toast.success('Password updated successfully!');
+      setTimeout(() => navigate('/dashboard'), 600);
+    } catch {
+      toast.error('An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setSocialLoading('google');
     try {
@@ -159,6 +200,7 @@ export default function AuthPage() {
 
   const isLogin = mode === 'login';
   const isForgotPassword = mode === 'forgot-password';
+  const isResetPassword = mode === 'reset-password';
 
   return (
     <MobileLayout>
@@ -191,10 +233,12 @@ export default function AuthPage() {
           {/* Header */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-display font-bold mb-1">
-              {isForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back' : 'Create Account'}
+              {isResetPassword ? 'Set New Password' : isForgotPassword ? 'Reset Password' : isLogin ? 'Welcome Back' : 'Create Account'}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isForgotPassword
+              {isResetPassword
+                ? 'Enter your new password below'
+                : isForgotPassword
                 ? "We'll send you a reset link"
                 : isLogin
                 ? 'Sign in to access your resumes'
@@ -202,8 +246,47 @@ export default function AuthPage() {
             </p>
           </div>
 
-          {/* Forgot Password */}
-          {isForgotPassword ? (
+          {/* Reset Password */}
+          {isResetPassword ? (
+            <form onSubmit={handleUpdatePassword} className="space-y-4">
+              <InputFormField
+                id="new-password" label="New Password"
+                type={showPassword ? 'text' : 'password'}
+                icon={<Lock className="w-4 h-4" />}
+                value={password} onChange={setPassword}
+                onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
+                placeholder="••••••••" autoComplete="new-password"
+                error={passwordError} touched={touched.password} required
+                rightElement={
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                }
+              />
+              <InputFormField
+                id="confirm-password" label="Confirm Password"
+                type={showConfirmPassword ? 'text' : 'password'}
+                icon={<Lock className="w-4 h-4" />}
+                value={confirmPassword} onChange={setConfirmPassword}
+                onBlur={() => setTouched(prev => ({ ...prev, confirmPassword: true }))}
+                placeholder="••••••••" autoComplete="new-password"
+                error={touched.confirmPassword && confirmPassword && password !== confirmPassword ? 'Passwords do not match' : undefined}
+                touched={touched.confirmPassword} required
+                rightElement={
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-2 min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}>
+                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                }
+              />
+              <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold gradient-primary glow-primary" disabled={isLoading}>
+                {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Updating...</> : 'Update Password'}
+              </Button>
+            </form>
+          ) : isForgotPassword ? (
             <form onSubmit={handlePasswordReset} className="space-y-4">
               <InputFormField
                 id="reset-email" label="Email" type="email"
