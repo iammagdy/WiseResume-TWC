@@ -9,6 +9,7 @@ import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
 import { ApplicationDetailSheet } from '@/components/applications/ApplicationDetailSheet';
 import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
+import { SignInPromptDialog } from '@/components/auth/SignInPromptDialog';
 import { haptics } from '@/lib/haptics';
 import { JobApplication } from '@/hooks/useJobApplications';
 
@@ -22,6 +23,42 @@ export default function ApplicationsPage() {
   const { data: reminderCount = 0 } = usePendingReminders();
   const [resumeListOpen, setResumeListOpen] = useState(false);
   const [resumeListFilter, setResumeListFilter] = useState<'originals' | 'tailored'>('originals');
+
+  // Gate for guests
+  if (!user) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-4">
+        <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-6 h-6" />
+            </button>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              <h1 className="text-lg font-display font-semibold">My Activity</h1>
+            </div>
+          </div>
+        </header>
+        <SignInPromptDialog
+          open={true}
+          onOpenChange={(open) => { if (!open) navigate('/dashboard'); }}
+          title="Track Your Job Applications"
+          description="Sign in to unlock job tracking and activity insights."
+          benefits={[
+            'Track application status',
+            'Set follow-up reminders',
+            'View activity insights',
+            'Manage all jobs in one place',
+          ]}
+          onContinueAsGuest={() => navigate('/dashboard')}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-4">

@@ -24,7 +24,8 @@ import {
   Share2,
   Mail,
   Chrome,
-  RotateCcw
+  RotateCcw,
+  Lock
 } from 'lucide-react';
 import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -34,6 +35,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
@@ -43,6 +45,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { haptics } from '@/lib/haptics';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
+import { AppIcon } from '@/components/brand/AppIcon';
 
 // Lazy-loaded sheets
 const EditProfileSheet = lazy(() => import('@/components/settings/EditProfileSheet').then(m => ({ default: m.EditProfileSheet })));
@@ -112,11 +115,7 @@ export default function SettingsPage() {
     return success;
   };
 
-  useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
-  }, [loading, user, navigate]);
+  // No forced redirect - guests can access settings
 
   const handleSignOut = async () => {
     haptics.medium();
@@ -156,7 +155,6 @@ export default function SettingsPage() {
   const handleRateApp = () => {
     haptics.light();
     toast.success('Thanks for your support! ⭐');
-    // In a real native app, this would open the app store page
   };
 
   const handleLanguage = () => {
@@ -204,48 +202,63 @@ export default function SettingsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Profile Section */}
-          <button
-            onClick={handleOpenEditProfile}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
-          >
-            <Avatar className="h-14 w-14">
-              <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
-              <AvatarFallback className="bg-primary text-primary-foreground">
-                {getInitials()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="font-medium truncate">{displayName}</p>
-              {profile?.jobTitle ? (
-                <p className="text-sm text-muted-foreground truncate">{profile.jobTitle}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground truncate">
-                  Tap to complete your profile
-                </p>
-              )}
-              {/* Auth provider badge */}
-              <div className="mt-1.5 flex items-center gap-1.5">
-                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1 font-normal">
-                  <ProviderIcon className="w-3 h-3" />
-                  {providerLabel}
-                </Badge>
+          {/* Profile Section - Auth vs Guest */}
+          {user ? (
+            <button
+              onClick={handleOpenEditProfile}
+              className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
+            >
+              <Avatar className="h-14 w-14">
+                <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
+                <AvatarFallback className="bg-primary text-primary-foreground">
+                  {getInitials()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{displayName}</p>
+                {profile?.jobTitle ? (
+                  <p className="text-sm text-muted-foreground truncate">{profile.jobTitle}</p>
+                ) : (
+                  <p className="text-sm text-muted-foreground truncate">
+                    Tap to complete your profile
+                  </p>
+                )}
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1 font-normal">
+                    <ProviderIcon className="w-3 h-3" />
+                    {providerLabel}
+                  </Badge>
+                </div>
+                {profileCompletion < 100 && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Progress value={profileCompletion} className="h-1.5 flex-1" />
+                    <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
+                  </div>
+                )}
+                {profileCompletion === 100 && (
+                  <div className="mt-1 flex items-center gap-1 text-xs text-primary">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>Profile complete</span>
+                  </div>
+                )}
               </div>
-              {profileCompletion < 100 && (
-                <div className="mt-2 flex items-center gap-2">
-                  <Progress value={profileCompletion} className="h-1.5 flex-1" />
-                  <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
-                </div>
-              )}
-              {profileCompletion === 100 && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-primary">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Profile complete</span>
-                </div>
-              )}
+              <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+            </button>
+          ) : (
+            /* Guest CTA card */
+            <div className="flex items-center gap-4 p-4 rounded-2xl glass-elevated border-glow">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <AppIcon size={32} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">Welcome, Guest</p>
+                <p className="text-sm text-muted-foreground">Sign in to manage your account</p>
+              </div>
+              <Button size="sm" onClick={() => navigate('/auth')} className="shrink-0">
+                Sign In
+              </Button>
             </div>
-            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-          </button>
+          )}
 
           {/* Appearance */}
           <div>
@@ -327,22 +340,40 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Data & Export */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-              Data & Export
-            </h2>
-            <div className="rounded-2xl glass-elevated overflow-hidden">
-              <SettingsRow
-                type="navigation"
-                label="Export Resumes"
-                description={`${resumes.length} resume${resumes.length !== 1 ? 's' : ''} created`}
-                icon={<Database className="w-4 h-4" />}
-                onClick={() => setDataExportSheetOpen(true)}
-              />
+          {/* Data & Export - auth only */}
+          {user ? (
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+                <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+                Data & Export
+              </h2>
+              <div className="rounded-2xl glass-elevated overflow-hidden">
+                <SettingsRow
+                  type="navigation"
+                  label="Export Resumes"
+                  description={`${resumes.length} resume${resumes.length !== 1 ? 's' : ''} created`}
+                  icon={<Database className="w-4 h-4" />}
+                  onClick={() => setDataExportSheetOpen(true)}
+                />
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+                <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+                Data & Export
+              </h2>
+              <div className="rounded-2xl glass-elevated overflow-hidden opacity-60">
+                <SettingsRow
+                  type="navigation"
+                  label="Export Resumes"
+                  description="Sign in to access"
+                  icon={<Lock className="w-4 h-4" />}
+                  onClick={() => navigate('/auth')}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Privacy & Security */}
           <div>
@@ -414,22 +445,26 @@ export default function SettingsPage() {
                   navigate('/dashboard');
                 }}
               />
-              <Separator className="bg-border/30" />
-              <SettingsRow
-                type="button"
-                label="Delete All Data"
-                icon={<Trash2 className="w-4 h-4" />}
-                onClick={() => setDeleteDialogOpen(true)}
-                destructive
-              />
-              <Separator className="bg-border/30" />
-              <SettingsRow
-                type="button"
-                label="Sign Out"
-                icon={<LogOut className="w-4 h-4" />}
-                onClick={handleSignOut}
-                destructive
-              />
+              {user && (
+                <>
+                  <Separator className="bg-border/30" />
+                  <SettingsRow
+                    type="button"
+                    label="Delete All Data"
+                    icon={<Trash2 className="w-4 h-4" />}
+                    onClick={() => setDeleteDialogOpen(true)}
+                    destructive
+                  />
+                  <Separator className="bg-border/30" />
+                  <SettingsRow
+                    type="button"
+                    label="Sign Out"
+                    icon={<LogOut className="w-4 h-4" />}
+                    onClick={handleSignOut}
+                    destructive
+                  />
+                </>
+              )}
             </div>
           </div>
 
@@ -482,7 +517,7 @@ export default function SettingsPage() {
 
       {/* Sheets and Dialogs */}
       <Suspense fallback={null}>
-        {editProfileOpen && (
+        {editProfileOpen && user && (
           <EditProfileSheet
             open={editProfileOpen}
             onOpenChange={setEditProfileOpen}

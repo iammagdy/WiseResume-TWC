@@ -20,6 +20,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
 const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
+const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
@@ -57,7 +58,17 @@ export default function DashboardPage() {
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Guest-gated create handler
+  const handleCreateNew = useCallback(() => {
+    if (!user && resumes && resumes.length > 0) {
+      setShowSignInPrompt(true);
+      return;
+    }
+    setShowCreateDialog(true);
+  }, [user, resumes]);
 
   // Check onboarding status for both authenticated and guest users
   useEffect(() => {
@@ -344,7 +355,7 @@ export default function DashboardPage() {
 
         {/* Quick Action Chips */}
         {resumes && resumes.length > 0 && (
-          <QuickActionChips onCreateNew={() => setShowCreateDialog(true)} />
+          <QuickActionChips onCreateNew={handleCreateNew} />
         )}
 
         {/* Daily Tip */}
@@ -371,7 +382,7 @@ export default function DashboardPage() {
             <SkeletonCardList count={3} />
           </div>
         ) : !resumes || resumes.length === 0 ? (
-          <EmptyState onCreateNew={() => setShowCreateDialog(true)} />
+          <EmptyState onCreateNew={handleCreateNew} />
         ) : !hasResumes ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <motion.div
@@ -486,8 +497,20 @@ export default function DashboardPage() {
 
       {/* Floating Create Button */}
       {resumes && resumes.length > 0 && (
-        <FloatingCreateButton onClick={() => setShowCreateDialog(true)} />
+        <FloatingCreateButton onClick={handleCreateNew} />
       )}
+
+      {/* Sign In Prompt for guests */}
+      <Suspense fallback={null}>
+        {showSignInPrompt && (
+          <SignInPromptDialog
+            open={showSignInPrompt}
+            onOpenChange={setShowSignInPrompt}
+            title="Create Unlimited Resumes"
+            description="Sign in to create and manage multiple resumes."
+          />
+        )}
+      </Suspense>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>
