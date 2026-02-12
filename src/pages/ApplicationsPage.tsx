@@ -64,7 +64,7 @@ export default function ApplicationsPage() {
         <JobActivityStatsCard stats={stats} />
 
         {/* Timeline */}
-        <div>
+        <div id="activity-timeline">
           <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Activity</h2>
           <ActivityTimeline />
         </div>
