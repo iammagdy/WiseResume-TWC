@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Monitor } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { createPortal } from 'react-dom';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -125,39 +124,6 @@ function ThemeIcon({ theme }: { theme: Theme }) {
   );
 }
 
-/* ── Ripple Overlay ─────────────────────────────────────────── */
-
-function RippleOverlay({
-  originX,
-  originY,
-  color,
-  onComplete,
-}: {
-  originX: number;
-  originY: number;
-  color: string;
-  onComplete: () => void;
-}) {
-  return createPortal(
-    <motion.div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 9999,
-        pointerEvents: 'none',
-        backgroundColor: color,
-        clipPath: `circle(0% at ${originX}px ${originY}px)`,
-      }}
-      animate={{
-        clipPath: `circle(150% at ${originX}px ${originY}px)`,
-      }}
-      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-      onAnimationComplete={onComplete}
-    />,
-    document.body
-  );
-}
-
 /* ── Theme Toggle Component ─────────────────────────────────── */
 
 interface ThemeToggleProps {
@@ -170,10 +136,6 @@ const glowMap: Record<Theme, string> = {
   system: '0 0 12px hsl(210 100% 55% / 0.4)',
 };
 
-const rippleColorMap: Record<string, string> = {
-  light: 'hsl(0, 0%, 100%)',
-  dark: 'hsl(240, 20%, 4%)',
-};
 
 export function ThemeToggle({ className }: ThemeToggleProps) {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -185,14 +147,11 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'system') {
-      const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      root.classList.remove('light', 'dark');
-      root.classList.add(sys);
-    } else {
-      root.classList.remove('light', 'dark');
-      root.classList.add(theme);
-    }
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    const other = resolved === 'dark' ? 'light' : 'dark';
+    root.classList.replace(other, resolved) || root.classList.add(resolved);
     localStorage.setItem('theme', theme);
   }, [theme]);
 

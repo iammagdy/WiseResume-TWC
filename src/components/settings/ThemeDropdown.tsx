@@ -19,18 +19,11 @@ export function ThemeDropdown() {
 
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-      root.classList.remove('light', 'dark');
-      root.classList.add(systemTheme);
-    } else {
-      root.classList.remove('light', 'dark');
-      root.classList.add(theme);
-    }
-    
+    const resolved = theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : theme;
+    const other = resolved === 'dark' ? 'light' : 'dark';
+    root.classList.replace(other, resolved) || root.classList.add(resolved);
     localStorage.setItem('theme', theme);
   }, [theme]);
 
