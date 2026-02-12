@@ -1,27 +1,28 @@
-import { useNavigate } from 'react-router-dom';
 import { FileText, Scissors, Search, Mail, ChevronRight } from 'lucide-react';
 import { JobActivityStats as Stats } from '@/hooks/useJobActivityStats';
 import { haptics } from '@/lib/haptics';
 
 interface Props {
   stats: Stats;
+  onOriginalsTap?: () => void;
+  onTailoredTap?: () => void;
 }
 
 const tiles = [
-  { key: 'originals', label: 'Resumes Created', icon: FileText, color: 'text-primary', action: 'navigate', to: '/dashboard' },
-  { key: 'tailored', label: 'Tailored Versions', icon: Scissors, color: 'text-accent-foreground', action: 'navigate', to: '/dashboard' },
+  { key: 'originals', label: 'Resumes Created', icon: FileText, color: 'text-primary', action: 'callback' },
+  { key: 'tailored', label: 'Tailored Versions', icon: Scissors, color: 'text-accent-foreground', action: 'callback' },
   { key: 'jobsAnalyzed', label: 'Jobs Analyzed', icon: Search, color: 'text-warning', action: 'scroll', to: '#activity-timeline' },
   { key: 'coverLetters', label: 'Cover Letters', icon: Mail, color: 'text-success', action: 'scroll', to: '#activity-timeline' },
 ] as const;
 
-export function JobActivityStatsCard({ stats }: Props) {
-  const navigate = useNavigate();
-
+export function JobActivityStatsCard({ stats, onOriginalsTap, onTailoredTap }: Props) {
   const handleTap = (tile: typeof tiles[number]) => {
     haptics.selection();
-    if (tile.action === 'navigate') {
-      navigate(tile.to);
-    } else {
+    if (tile.key === 'originals' && onOriginalsTap) {
+      onOriginalsTap();
+    } else if (tile.key === 'tailored' && onTailoredTap) {
+      onTailoredTap();
+    } else if (tile.action === 'scroll' && 'to' in tile) {
       document.querySelector(tile.to)?.scrollIntoView({ behavior: 'smooth' });
     }
   };
