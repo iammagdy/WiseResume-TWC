@@ -1,128 +1,131 @@
 
 
-## Keyboard-Aware Editor: Toolbar, Auto-Hide Nav, Draft Save
+## Offline-First Resume Editing: Change Queue and Sync
 
 ### Overview
 
-Enhance the keyboard experience in the editor by adding a floating toolbar above the keyboard with "Done" and "Next" buttons, hiding the bottom tab bar when the keyboard is open, compacting the header, and triggering a draft save when the keyboard closes.
+Enable full offline editing during commutes by adding a change queue that captures failed cloud saves, automatically syncs when the connection returns, and provides clear visual feedback throughout. The resume data is already cached locally via zustand persist -- this plan adds the missing sync layer.
+
+### What Already Exists
+
+- **Local cache**: `useResumeStore` uses zustand `persist` middleware, so resume data is always in localStorage and survives page reloads
+- **Offline banner**: `OfflineBanner` component shows "You're offline" / "Back online" messages
+- **Network hook**: `useNetworkStatus` tracks `isOnline` and `wasOffline`
+- **Auto-save**: `EditorPage` debounces saves to cloud every 3 seconds via `saveToCloud()`
+
+### What's Missing
+
+1. When `saveToCloud()` fails due to network issues, changes are lost (no retry)
+2. No queued sync when coming back online
+3. Dashboard doesn't show cached resumes when offline
+4. No "Working Offline" indicator in the editor itself
 
 ### Changes
 
-**1. `src/hooks/useKeyboardAwareScroll.ts` -- Expand to expose keyboard state**
+**1. `src/store/offlineSyncStore.ts` -- New file: Offline change queue**
 
-- Return `isKeyboardOpen` boolean (true when `keyboardHeight > 100`)
-- Change `scrollIntoView` block to `'nearest'` instead of `'center'` so the field scrolls just enough to be visible (closer to top of visible area)
-- Set a CSS class `keyboard-open` on `document.documentElement` when keyboard is detected, remove it when closed
-- Dispatch a custom `keyboard-close` event when keyboard height transitions from >100 to 0 (for draft save trigger)
+A small zustand store (persisted to localStorage) that tracks pending changes:
+- `pendingChanges`: array of `{ resumeId, updates, timestamp }` entries
+- `addPendingChange(resumeId, updates)`: pushes a new entry, deduplicates by resumeId (keeps latest)
+- `removePendingChange(resumeId)`: clears after successful sync
+- `getPendingCount()`: returns number of queued items
+- `clearAll()`: wipe queue
 
-**2. `src/components/editor/KeyboardToolbar.tsx` -- New file**
+This store persists so even if the user closes the browser during a commute, changes are still queued when they reopen.
 
-A fixed toolbar that appears above the keyboard with:
-- **"Previous" button** (ChevronUp icon) -- focuses the previous focusable input/textarea in the form
-- **"Next" button** (ChevronDown icon) -- focuses the next focusable input/textarea in the form
-- **"Done" button** (text) -- blurs the active element to dismiss the keyboard
-- Haptic feedback on each button press
-- Positioned using `bottom: var(--keyboard-height)` so it sits right above the keyboard
-- Only rendered when keyboard is open (uses the `keyboard-open` class or a context)
-- Uses `position: fixed; z-index: 60` to sit above everything
+**2. `src/hooks/useOfflineSync.ts` -- New file: Sync engine**
 
-Logic for Previous/Next:
-```
-- Query all input/textarea elements within the editor scroll container
-- Find current activeElement index
-- Focus the previous/next element in the list
-```
+A hook that:
+- Subscribes to `useNetworkStatus` for `isOnline`
+- When `isOnline` transitions from false to true, processes all pending changes from the queue
+- Calls `updateResume.mutateAsync()` for each pending entry
+- Shows a toast: "Syncing 2 offline changes..." then "All changes synced" on completion
+- Provides haptic feedback on successful sync
+- Returns `{ pendingCount, isSyncing }` for UI indicators
 
-**3. `src/components/layout/BottomTabBar.tsx` -- Hide when keyboard is open**
+**3. `src/pages/EditorPage.tsx` -- Integrate offline queue into save flow**
 
-- Add CSS rule: `.keyboard-open .bottom-tab-bar { display: none }` (or use a class/data attribute)
-- Add `bottom-tab-bar` className to the nav element for targeting
-- This reclaims ~64px of space when typing
+Modify `saveToCloud()`:
+- Wrap the existing try/catch: on network error, instead of just logging, call `addPendingChange(currentResumeId, resume)` from the offline sync store
+- Show a subtle toast: "Saved locally -- will sync when online"
+- Skip showing the generic "Failed to save" error for network failures
 
-**4. `src/pages/EditorPage.tsx` -- Header compaction and keyboard toolbar**
+Add the `useOfflineSync` hook so syncing happens automatically when the editor is open and connection returns.
 
-- Import and render `KeyboardToolbar` inside the editor
-- Add a CSS rule for the header: `.keyboard-open .editor-header { py-1 }` -- reduce vertical padding from `py-3` to `py-1` when keyboard is open, saving ~16px
-- Hide the version history button and AI chat button when keyboard is open (via CSS `keyboard-open` class)
-- Listen for the `keyboard-close` custom event to trigger `saveToCloud()` immediately (draft save on keyboard dismiss)
+**4. `src/components/editor/OfflineIndicator.tsx` -- New file: Editor status chip**
 
-**5. `src/index.css` -- Keyboard utility styles**
+A small component shown in the editor header area:
+- When offline: amber chip with "Working Offline" and a cloud-off icon
+- When syncing: blue chip with "Syncing..." and a spinning loader
+- When online with pending changes: shows count "2 changes pending"
+- Fades out when fully synced and online
 
-Add global styles:
-```css
-/* Hide bottom nav when keyboard is open */
-.keyboard-open .bottom-tab-bar {
-  display: none !important;
-}
+**5. `src/pages/EditorPage.tsx` -- Render OfflineIndicator in header**
 
-/* Compact editor header when keyboard is open */
-.keyboard-open .editor-header {
-  padding-top: 0.25rem;
-  padding-bottom: 0.25rem;
-}
+Place the `OfflineIndicator` next to the existing save status area (near the Cloud/CloudOff icons that are already imported).
 
-.keyboard-open .editor-header .keyboard-hide {
-  display: none;
-}
-```
+**6. `src/pages/DashboardPage.tsx` -- Show cached resumes when offline**
+
+Currently `useResumes()` is disabled when there's no user, and fails when offline. Add:
+- Use react-query's `staleTime` and `gcTime` (cache time) so previously fetched resumes remain available
+- When offline and query fails, show the stale/cached data with a subtle "(offline)" badge
+- The zustand store already has `currentResume` cached -- for the full resume list, rely on react-query's built-in cache
+
+**7. `src/components/layout/OfflineBanner.tsx` -- Add pending count**
+
+When showing "Back online! Syncing changes...", include the count from the offline sync store (e.g., "Back online! Syncing 3 changes...").
 
 ### Technical Details
 
-**Keyboard detection (useKeyboardAwareScroll.ts):**
-```typescript
-const handleResize = () => {
-  const keyboardHeight = window.innerHeight - vv.height;
-  const isOpen = keyboardHeight > 100;
+**Offline sync store structure:**
+```
+pendingChanges: [
+  { resumeId: "abc-123", updates: { ...resumeData }, timestamp: 1234567890 }
+]
+```
 
-  // Toggle class on document for CSS-driven hiding
-  document.documentElement.classList.toggle('keyboard-open', isOpen);
+Deduplication: if a change for the same resumeId already exists in the queue, replace it with the newer version (last-write-wins).
 
-  // Detect keyboard close for draft save
-  if (!isOpen && prevOpen.current) {
-    window.dispatchEvent(new CustomEvent('keyboard-close'));
+**Network error detection in saveToCloud:**
+```
+catch (error) {
+  const isNetworkError = !navigator.onLine || 
+    error?.message?.includes('Failed to fetch') ||
+    error?.message?.includes('NetworkError');
+    
+  if (isNetworkError) {
+    addPendingChange(currentResumeId, resume);
+    // Don't show error toast -- save indicator handles it
+  } else {
+    // Existing error handling for non-network errors
   }
-  prevOpen.current = isOpen;
-
-  // Scroll focused input into view
-  const active = document.activeElement as HTMLElement;
-  if (active && isOpen && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) {
-    setTimeout(() => {
-      active.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }, 100);
-  }
-};
+}
 ```
 
-**KeyboardToolbar component structure:**
+**Sync on reconnect flow:**
 ```
-[fixed bar at bottom: var(--keyboard-height)]
-  [Previous (chevron-up)] [Next (chevron-down)] --- [Done]
-```
-
-**Next/Previous field logic:**
-```typescript
-const focusables = Array.from(
-  document.querySelectorAll<HTMLElement>(
-    '.editor-scroll-container input, .editor-scroll-container textarea'
-  )
-);
-const idx = focusables.indexOf(document.activeElement as HTMLElement);
-// Next: focus focusables[idx + 1], Previous: focus focusables[idx - 1]
+1. useNetworkStatus detects isOnline = true
+2. useOfflineSync reads pendingChanges from store
+3. For each entry, call updateResume.mutateAsync()
+4. On success: removePendingChange(resumeId), invalidate queries
+5. On failure: leave in queue for next retry
+6. Show summary toast when all done
 ```
 
-**Draft save on keyboard close (EditorPage.tsx):**
-```typescript
-useEffect(() => {
-  const handleKbClose = () => saveToCloud();
-  window.addEventListener('keyboard-close', handleKbClose);
-  return () => window.removeEventListener('keyboard-close', handleKbClose);
-}, [saveToCloud]);
+**React Query offline resilience (useResumes):**
+```
+- Add staleTime: 5 * 60 * 1000 (5 minutes)
+- Add gcTime: 30 * 60 * 1000 (30 minutes) 
+- Add networkMode: 'offlineFirst'
+These settings let react-query serve cached data when offline
 ```
 
 ### Files Modified
-- `src/hooks/useKeyboardAwareScroll.ts` -- add keyboard-open class toggle, keyboard-close event
-- `src/components/editor/KeyboardToolbar.tsx` -- new component (Done/Next/Previous toolbar)
-- `src/components/layout/BottomTabBar.tsx` -- add `bottom-tab-bar` class for CSS targeting
-- `src/pages/EditorPage.tsx` -- render KeyboardToolbar, add `editor-header` class, listen for keyboard-close to save draft
-- `src/index.css` -- keyboard-open utility styles for hiding nav and compacting header
+- `src/store/offlineSyncStore.ts` -- new: pending change queue (persisted)
+- `src/hooks/useOfflineSync.ts` -- new: sync engine hook
+- `src/components/editor/OfflineIndicator.tsx` -- new: editor status chip
+- `src/pages/EditorPage.tsx` -- integrate offline queue in saveToCloud, render OfflineIndicator
+- `src/pages/DashboardPage.tsx` -- react-query cache settings for offline viewing
+- `src/hooks/useResumes.ts` -- add staleTime/gcTime/networkMode for offline resilience
+- `src/components/layout/OfflineBanner.tsx` -- show pending count during sync
 
