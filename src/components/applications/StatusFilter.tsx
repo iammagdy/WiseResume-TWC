@@ -4,6 +4,7 @@ import { ApplicationStatus } from '@/hooks/useJobApplications';
 
 const STATUSES: { value: ApplicationStatus | 'all'; label: string; color: string }[] = [
   { value: 'all', label: 'All', color: 'bg-muted text-foreground' },
+  { value: 'saved', label: 'Saved', color: 'bg-secondary/15 text-secondary-foreground' },
   { value: 'applied', label: 'Applied', color: 'bg-primary/15 text-primary' },
   { value: 'interviewing', label: 'Interviewing', color: 'bg-warning/15 text-warning' },
   { value: 'offer', label: 'Offer', color: 'bg-success/15 text-success' },

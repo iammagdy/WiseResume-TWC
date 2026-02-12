@@ -26,6 +26,7 @@ import { SmartSkillSuggestions } from './tailor/SmartSkillSuggestions';
 import { MultiJobCompareSheet } from './tailor/MultiJobCompareSheet';
 import { KeywordHeatmap } from './tailor/KeywordHeatmap';
 import { QuickActions } from './tailor/QuickActions';
+import { ApplyPromptDialog } from '@/components/applications/ApplyPromptDialog';
 import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -107,6 +108,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const [isAddingToComparison, setIsAddingToComparison] = useState(false);
   const [intensity, setIntensity] = useState<TailorIntensity>('moderate');
   const [isApplying, setIsApplying] = useState(false);
+  const [showApplyPrompt, setShowApplyPrompt] = useState(false);
+  const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string } | null>(null);
   const autoTailorTriggered = useRef(false);
 
   // Section toggles
@@ -264,6 +267,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
       }, currentResumeId || undefined);
 
       toast.success('🎉 Tailored resume created! Original preserved.', { duration: 4000 });
+
+      // Show apply prompt
+      const jt = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
+      const co = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
+      setLastAppliedJobInfo({ title: jt, company: co, resumeId: newResume?.id });
+      setShowApplyPrompt(true);
+
       setTailorResult(null);
       onOpenChange(false);
     } catch (error) {
@@ -816,6 +826,17 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
           toast.info('Full details view coming soon');
         }}
       />
+
+      {/* Apply Prompt Dialog */}
+      {lastAppliedJobInfo && (
+        <ApplyPromptDialog
+          open={showApplyPrompt}
+          onOpenChange={setShowApplyPrompt}
+          jobTitle={lastAppliedJobInfo.title}
+          company={lastAppliedJobInfo.company}
+          resumeId={lastAppliedJobInfo.resumeId}
+        />
+      )}
     </Sheet>
   );
 });
