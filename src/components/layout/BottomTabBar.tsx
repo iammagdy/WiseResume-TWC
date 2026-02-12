@@ -69,7 +69,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   return (
     <nav
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-50',
+        'fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar',
         'glass-surface border-t border-border/30 pb-safe',
         'shadow-[0_-4px_32px_-4px_hsl(var(--background)/0.8)]',
         className
