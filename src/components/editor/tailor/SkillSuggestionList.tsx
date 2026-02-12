@@ -54,7 +54,7 @@ export function SkillSuggestionList({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 shrink-0 bg-success/10 text-success border-success/30 hover:bg-success/20"
+                    className="px-2 shrink-0 bg-success/10 text-success border-success/30 hover:bg-success/20"
                     onClick={() => onAddSkill(suggestion.skill)}
                   >
                     <Plus className="w-3 h-3 mr-1" />
@@ -90,7 +90,7 @@ export function SkillSuggestionList({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 shrink-0 bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                    className="px-2 shrink-0 bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
                     onClick={() => onBoostSkill(suggestion.skill)}
                   >
                     <TrendingUp className="w-3 h-3 mr-1" />

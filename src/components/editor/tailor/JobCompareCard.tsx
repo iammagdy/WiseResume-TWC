@@ -69,7 +69,7 @@
          <Button
            variant="ghost"
            size="icon"
-           className="absolute top-3 left-3 h-7 w-7 rounded-full bg-muted/80"
+           className="absolute top-3 left-3 min-h-[44px] min-w-[44px] rounded-full bg-muted/80"
            onClick={handleRemove}
          >
            <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />

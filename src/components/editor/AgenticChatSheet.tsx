@@ -125,11 +125,11 @@ function SuggestionCard({
       <p className="text-xs text-muted-foreground italic">{proposal.explanation}</p>
 
       {!isResolved && (
-        <div className="flex gap-2 pt-1">
+        <div className="flex gap-2 pt-1" style={{ gap: '8px' }}>
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 h-8 text-xs border-success/30 text-success hover:bg-success/10"
+            className="flex-1 text-xs border-success/30 text-success hover:bg-success/10"
             onClick={() => {
               haptics.success();
               onAction(messageId, index, 'accepted');
@@ -141,7 +141,7 @@ function SuggestionCard({
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 h-8 text-xs"
+            className="flex-1 text-xs"
             onClick={() => {
               haptics.light();
               onAction(messageId, index, 'rejected');
@@ -219,7 +219,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                 variant="ghost"
                 size="icon"
                 onClick={clearChat}
-                className="text-muted-foreground h-8 w-8"
+                className="text-muted-foreground"
               >
                 <Trash2 className="w-4 h-4" />
               </Button>

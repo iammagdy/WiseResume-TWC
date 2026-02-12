@@ -430,7 +430,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                     key={id}
                     onClick={() => setActiveTab(id)}
                     className={cn(
-                      'flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-md text-xs font-medium transition-all duration-200',
+                      'flex-1 flex items-center justify-center gap-1 py-2 px-2 rounded-md text-xs font-medium transition-all duration-200 min-h-[44px]',
                       activeTab === id
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground'
