@@ -26,7 +26,7 @@ import { SmartSkillSuggestions } from './tailor/SmartSkillSuggestions';
 import { MultiJobCompareSheet } from './tailor/MultiJobCompareSheet';
 import { KeywordHeatmap } from './tailor/KeywordHeatmap';
 import { QuickActions } from './tailor/QuickActions';
-import { ApplyPromptDialog } from '@/components/applications/ApplyPromptDialog';
+
 import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -45,6 +45,7 @@ import { Json } from '@/integrations/supabase/types';
 interface TailorSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onApplied?: (info: { title: string; company: string; resumeId?: string; jobUrl?: string }) => void;
 }
 
 const SECTION_LABELS: Record<TailorSectionId, string> = {
@@ -61,7 +62,7 @@ const TAB_CONFIG = [
   { id: 'interview', label: 'Prep', icon: Sparkles },
 ] as const;
 
-export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: TailorSheetProps) {
+export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApplied }: TailorSheetProps) {
   const { user } = useAuth();
   const { 
     currentResume, 
@@ -108,8 +109,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   const [isAddingToComparison, setIsAddingToComparison] = useState(false);
   const [intensity, setIntensity] = useState<TailorIntensity>('moderate');
   const [isApplying, setIsApplying] = useState(false);
-  const [showApplyPrompt, setShowApplyPrompt] = useState(false);
-  const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string } | null>(null);
+  const [jobUrl, setJobUrl] = useState<string | undefined>(undefined);
   const autoTailorTriggered = useRef(false);
 
   // Section toggles
@@ -169,8 +169,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
   }, [jobDescription, currentResume, intensity]);
 
   // Auto-tailor when a URL is parsed
-  const handleParsedJobInfo = useCallback((info: { title: string; company: string } | null) => {
+  const handleParsedJobInfo = useCallback((info: { title: string; company: string; url?: string } | null) => {
     setParsedJobInfo(info);
+    if (info?.url) setJobUrl(info.url);
     if (info && jobDescription.trim() && currentResume && !autoTailorTriggered.current) {
       autoTailorTriggered.current = true;
       toast.info('Auto-tailoring your resume...', { duration: 2000 });
@@ -268,11 +269,10 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
 
       toast.success('🎉 Tailored resume created! Original preserved.', { duration: 4000 });
 
-      // Show apply prompt
+      // Notify parent to show apply prompt
       const jt = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const co = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
-      setLastAppliedJobInfo({ title: jt, company: co, resumeId: newResume?.id });
-      setShowApplyPrompt(true);
+      onApplied?.({ title: jt, company: co, resumeId: newResume?.id, jobUrl });
 
       setTailorResult(null);
       onOpenChange(false);
@@ -827,16 +827,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange }: Tai
         }}
       />
 
-      {/* Apply Prompt Dialog */}
-      {lastAppliedJobInfo && (
-        <ApplyPromptDialog
-          open={showApplyPrompt}
-          onOpenChange={setShowApplyPrompt}
-          jobTitle={lastAppliedJobInfo.title}
-          company={lastAppliedJobInfo.company}
-          resumeId={lastAppliedJobInfo.resumeId}
-        />
-      )}
     </Sheet>
   );
 });

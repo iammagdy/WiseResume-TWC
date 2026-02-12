@@ -21,6 +21,7 @@ import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useShallow } from 'zustand/react/shallow';
+const ApplyPromptDialog = lazy(() => import('@/components/applications/ApplyPromptDialog').then(m => ({ default: m.ApplyPromptDialog })));
 
 // Lazy-loaded sheet components (only loaded when opened)
 const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
@@ -79,6 +80,8 @@ export default function EditorPage() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
+  const [showApplyPrompt, setShowApplyPrompt] = useState(false);
+  const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -250,7 +253,10 @@ export default function EditorPage() {
   const handleLinkedIn = useCallback(() => setShowLinkedIn(true), []);
   const handleOnePage = useCallback(() => setShowOnePage(true), []);
   const handleCareerPath = useCallback(() => setShowCareerPath(true), []);
-
+  const handleTailorApplied = useCallback((info: { title: string; company: string; resumeId?: string; jobUrl?: string }) => {
+    setLastAppliedJobInfo(info);
+    setShowApplyPrompt(true);
+  }, []);
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
       {/* Header */}
@@ -442,7 +448,7 @@ export default function EditorPage() {
         <Suspense fallback={null}>
           {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
           {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
-          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} />}
+          {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} onApplied={handleTailorApplied} />}
           {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
           {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
           {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
@@ -450,6 +456,16 @@ export default function EditorPage() {
           {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
           {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
+          {lastAppliedJobInfo && (
+            <ApplyPromptDialog
+              open={showApplyPrompt}
+              onOpenChange={setShowApplyPrompt}
+              jobTitle={lastAppliedJobInfo.title}
+              company={lastAppliedJobInfo.company}
+              resumeId={lastAppliedJobInfo.resumeId}
+              jobUrl={lastAppliedJobInfo.jobUrl}
+            />
+          )}
         </Suspense>
       </ErrorBoundary>
     </div>

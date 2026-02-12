@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 interface JobUrlParserProps {
   value: string;
   onChange: (value: string) => void;
-  onParsed?: (data: { title: string; company: string }) => void;
+  onParsed?: (data: { title: string; company: string; url?: string }) => void;
 }
 
 const SUPPORTED_SITES = [
@@ -55,7 +55,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
       const data = await parseJobUrl(url);
       onChange(data.description);
       setParsedInfo({ title: data.title, company: data.company });
-      onParsed?.({ title: data.title, company: data.company });
+      onParsed?.({ title: data.title, company: data.company, url });
       toast.success('Job posting parsed successfully!');
     } catch (error) {
       console.error('Parse error:', error);
