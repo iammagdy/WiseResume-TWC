@@ -8,9 +8,13 @@ interface StepperNavProps {
   completedSteps: Record<string, boolean>;
   sectionScores?: Record<string, number>;
   onStepClick: (stepId: string) => void;
+  justCompletedStep?: string | null;
 }
 
 const STEP_ICONS = [User, AlignLeft, Briefcase, GraduationCap, Wrench];
+
+const PARTICLE_COLORS = ['bg-success', 'bg-primary', 'bg-warning', 'bg-amber-400', 'bg-success', 'bg-primary'];
+const PARTICLE_ANGLES = [0, 60, 120, 180, 240, 300]; // 6 particles evenly spaced
 
 export const StepperNav = memo(function StepperNav({
   steps,
@@ -18,11 +22,24 @@ export const StepperNav = memo(function StepperNav({
   completedSteps,
   sectionScores,
   onStepClick,
+  justCompletedStep,
 }: StepperNavProps) {
   const activeIndex = steps.findIndex(s => s.id === activeStep);
 
   return (
     <div className="px-2 xs:px-4 sm:px-6 py-4">
+      {/* Confetti keyframes */}
+      <style>{`
+        @keyframes stepper-confetti-burst {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+          100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
+        }
+        @keyframes stepper-icon-pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.3); }
+          100% { transform: scale(1); }
+        }
+      `}</style>
       <div className="flex items-center justify-between relative overflow-x-auto scrollbar-hide">
         {/* Connecting line */}
         <div className="absolute top-5 left-[10%] right-[10%] h-[2px] bg-border/40" />
@@ -40,6 +57,7 @@ export const StepperNav = memo(function StepperNav({
           const isPast = i < activeIndex;
           const score = sectionScores?.[step.id] ?? (isCompleted ? 100 : 0);
           const isInProgress = score > 0 && score < 100;
+          const showConfetti = step.id === justCompletedStep;
 
           return (
             <button
@@ -57,6 +75,7 @@ export const StepperNav = memo(function StepperNav({
                     !isActive && !isCompleted && !isInProgress && isPast && 'border-primary/40 bg-primary/5',
                     !isActive && !isCompleted && !isInProgress && !isPast && 'border-border bg-card/50',
                   )}
+                  style={showConfetti ? { animation: 'stepper-icon-pulse 400ms ease-out' } : undefined}
                 >
                   {isCompleted ? (
                     <Check className="w-4 h-4 text-success" />
@@ -67,6 +86,24 @@ export const StepperNav = memo(function StepperNav({
                     )} />
                   )}
                 </div>
+                {/* Confetti particles */}
+                {showConfetti && PARTICLE_ANGLES.map((angle, pi) => {
+                  const rad = (angle * Math.PI) / 180;
+                  const dist = 20; // px distance
+                  return (
+                    <span
+                      key={pi}
+                      className={cn('absolute w-1.5 h-1.5 rounded-full pointer-events-none', PARTICLE_COLORS[pi])}
+                      style={{
+                        top: '50%',
+                        left: '50%',
+                        '--tx': `${Math.cos(rad) * dist}px`,
+                        '--ty': `${Math.sin(rad) * dist}px`,
+                        animation: 'stepper-confetti-burst 800ms ease-out forwards',
+                      } as React.CSSProperties}
+                    />
+                  );
+                })}
                 {/* Percentage badge for in-progress */}
                 {isInProgress && !isCompleted && (
                   <span className="absolute -bottom-0.5 -right-1 text-[9px] font-bold bg-warning text-warning-foreground rounded-full px-1 leading-tight">

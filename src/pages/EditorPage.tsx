@@ -241,13 +241,32 @@ export default function EditorPage() {
   // Section completion celebrations
   const prevCompletedRef = useRef<Record<string, boolean>>({});
   
-  const TOAST_MESSAGES: Record<string, string> = useMemo(() => ({
-    contact: 'Contact section complete! Next: Add your professional summary to stand out.',
-    summary: 'Professional summary complete! Next: Add your work experience.',
-    experience: 'Work experience complete! Next: Add your education details.',
-    education: 'Education section complete! Next: List your key skills.',
-    skills: 'Skills section complete! Your resume is looking great!',
+  const CELEBRATION_MESSAGES: Record<string, string> = useMemo(() => ({
+    contact: 'Excellent! Contact section complete 🎉',
+    summary: 'Summary nailed! 🎉',
+    experience: 'Work experience locked in! 🎉',
+    education: 'Education section complete! 🎉',
+    skills: 'Skills section complete! Your resume is looking great! 🎉',
   }), []);
+
+  const NEXT_STEP_MESSAGES: Record<string, string> = useMemo(() => ({
+    contact: 'Next: Write your professional summary →',
+    summary: 'Next: Add your work experience →',
+    experience: 'Next: Add your education details →',
+    education: 'Next: List your key skills →',
+  }), []);
+
+  const [justCompletedStep, setJustCompletedStep] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confettiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+      if (confettiTimeoutRef.current) clearTimeout(confettiTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentResume) return;
@@ -257,7 +276,20 @@ export default function EditorPage() {
     for (const id of sectionIds) {
       const nowComplete = sectionScores[id] >= 100;
       if (nowComplete && prev[id] === false) {
-        toast.success(TOAST_MESSAGES[id], { duration: 4000 });
+        // Celebration toast immediately
+        toast.success(CELEBRATION_MESSAGES[id], { duration: 3000 });
+
+        // Confetti animation on stepper icon
+        setJustCompletedStep(id);
+        confettiTimeoutRef.current = setTimeout(() => setJustCompletedStep(null), 1500);
+
+        // Delayed next-step toast
+        const nextMsg = NEXT_STEP_MESSAGES[id];
+        if (nextMsg) {
+          toastTimeoutRef.current = setTimeout(() => {
+            toast(nextMsg, { duration: 4000, icon: '→' });
+          }, 2000);
+        }
       }
       prev[id] = nowComplete;
     }
@@ -275,7 +307,7 @@ export default function EditorPage() {
         setShowSignInPrompt(true);
       }
     }
-  }, [sectionScores, TOAST_MESSAGES, currentResume, user]);
+  }, [sectionScores, CELEBRATION_MESSAGES, NEXT_STEP_MESSAGES, currentResume, user]);
 
   // Resume guard - redirect to appropriate page based on auth state
   if (!currentResume) {
@@ -387,6 +419,7 @@ export default function EditorPage() {
           completedSteps={sectionStatus}
           sectionScores={sectionScores}
           onStepClick={handleTabChange}
+          justCompletedStep={justCompletedStep}
         />
         </div>
 
