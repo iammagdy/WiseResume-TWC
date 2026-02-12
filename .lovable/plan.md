@@ -1,93 +1,90 @@
 
 
-## Spacing Standardization: 16px Edges, 24px Between Sections, 16px Inside Cards
+## Enhanced Dashboard Interactivity: Create Button, Tab Bar, and Empty State
 
 ### Overview
 
-Audit and fix spacing across the app to follow a consistent system:
-- **Screen edges**: 16px minimum (Tailwind `px-4`)
-- **Between sections**: 24px (Tailwind `space-y-6` or `gap-6` or `mb-6`)
-- **Inside cards**: 16px (Tailwind `p-4`)
+Three interconnected improvements to the dashboard experience: (1) enhanced create button with loading state, (2) smarter bottom tab bar with visual disabled/locked states and preventive toasts, (3) richer empty state with template previews and secondary actions.
 
-### Current State Audit
+---
 
-**Already compliant (no changes needed):**
-- Dashboard header: `px-4` -- correct (16px edge)
-- Dashboard search: `px-4 pb-3` -- correct edge
-- DashboardStats: `px-4 pt-4 pb-3` -- correct edge
-- QuickActionChips: `px-4 pb-3` -- correct edge
-- Settings page content: `px-4 py-4 space-y-6` -- correct (16px edge, 24px between sections)
-- Settings cards: `p-4 rounded-2xl` -- correct (16px inside)
-- SectionCard: `px-4 pt-4 pb-2` header, `px-4 pb-4` content -- correct
-- ApplicationsPage content: `px-4 py-4 space-y-6` -- correct
-- Editor content area: `px-4 py-4` -- correct
-- Landing HeroSection: `px-4 sm:px-6` -- correct
-- Landing BottomCTA: `px-4 sm:px-6` -- correct
+### 1. Floating Create Button -- Loading Spinner and Enhanced Press Feedback
 
-**Non-compliant (needs fixing):**
+**File: `src/components/dashboard/FloatingCreateButton.tsx`**
 
-| File | Current | Issue | Fix |
-|------|---------|-------|-----|
-| `DashboardStats.tsx` | Card uses `p-5` | 20px inside card, should be 16px | Change to `p-4` |
-| `DashboardStats.tsx` | Stats grid `gap-5` | 20px gap, inconsistent | Change to `gap-4` |
-| `DashboardStats.tsx` | Stats items `gap-2.5` | 10px, slightly inconsistent | Keep (tight pairing is intentional) |
-| `EditorPage.tsx` | Section nav `pt-6 pb-2` | Top padding 24px is fine, bottom 8px OK |  Keep |
-| `EditorPage.tsx` | Guest banner `px-4 py-2` | 8px vertical inside banner, too tight | Change to `py-3` |
-| `EditorPage.tsx` | Progress area `px-4 py-3` | Correct | Keep |
-| `ResumeListCard.tsx` | Card internal padding varies | Audit needed | Standardize to `p-4` |
-| `DailyTipCard.tsx` | May have inconsistent padding | Audit needed | Standardize |
-| `PreviewPage.tsx` | Bottom actions `p-3 sm:p-4` | 12px on mobile, should be 16px | Change to `p-4` |
-| `InterviewPage.tsx` | Various spacing | Audit needed | Standardize |
+- Change `whileTap` from `{ scale: 0.92 }` to `{ scale: 0.95 }` with spring transition (`type: 'spring', stiffness: 400, damping: 15`)
+- Add dynamic `boxShadow` that increases on press using framer-motion's `whileTap` style: shadow grows from `0 6px 24px` to `0 8px 32px`
+- Add `isLoading` prop (boolean) -- when true, replace the `Plus` icon with a small spinning `Loader2` icon from lucide-react (16x16, `animate-spin`)
+- Disable the button while loading (`pointer-events-none opacity-90`)
 
-### Changes
+**File: `src/pages/DashboardPage.tsx`**
 
-**1. `src/components/dashboard/DashboardStats.tsx`**
-- Glass Hero Card: change `p-5` to `p-4` (20px to 16px inside card)
-- Stats row beside ring: change `gap-5` to `gap-4`
-- Section spacing `mb-4` is correct, keep
+- Add `isCreating` state that's set to `true` when the create button is clicked and `false` when the create dialog opens or navigation completes
+- Pass `isLoading={isCreating}` to `FloatingCreateButton`
+- Wrap `handleCreateNew` to set `isCreating = true` briefly before showing dialog (use a short timeout or set it in the click handler and reset in `onOpenChange`)
 
-**2. `src/pages/EditorPage.tsx`**
-- Guest banner: change `py-2` to `py-3` for more comfortable vertical padding
-- Editor scroll container `space-y-0` is correct (SectionCard handles own spacing)
+---
 
-**3. `src/pages/PreviewPage.tsx`**
-- Bottom action container: change `p-3 sm:p-4` to `p-4` (consistent 16px on all sizes)
+### 2. Bottom Tab Bar -- Disabled Editor, Locked Jobs, Preventive Toasts
 
-**4. `src/components/dashboard/ResumeListCard.tsx`**
-- Verify card internal padding is `p-4`; fix if using `p-3` or inconsistent values
+**File: `src/components/layout/BottomTabBar.tsx`**
 
-**5. `src/components/dashboard/DailyTipCard.tsx`**
-- Verify and standardize internal padding to `p-4`
+Current behavior: Editor tab checks `currentResumeId` and shows a generic toast. Jobs tab navigates freely.
 
-**6. `src/pages/InterviewPage.tsx`**
-- Audit screen edge padding (should be `px-4`) and section spacing (should use `space-y-6`)
+Changes:
+- Import `useAuth` to access `user` state
+- Import `Lock` icon from lucide-react
+- Add `useResumes` or check `currentResumeId` from the resume store (already imported) to determine if user has any resumes
+- For the **Editor tab**: when `currentResumeId` is null, apply `opacity-50` to the entire tab button. Show toast: "Create a resume first to access the editor"
+- For the **Jobs tab**: when `!user`, overlay a small `Lock` icon (12x12) positioned at the top-right of the tab icon area. On click when not signed in, show toast: "Sign in to track job applications" and prevent navigation
+- Update `handleTabPress` logic:
+  - Editor guard already exists, update toast message to be more descriptive
+  - Add Jobs guard: `if (tab.path === '/applications' && !user) { toast.info('Sign in to track job applications'); return; }`
+- Add `aria-disabled` attribute to disabled tabs for accessibility
 
-**7. `src/components/editor/SectionCard.tsx`**
-- Already uses `px-4 pt-4 pb-2` for header and `px-4 pb-4` for content -- compliant, no change
+---
 
-**8. `src/index.css`**
-- Add spacing utility classes for documentation and reuse:
-  - `.space-section` = `margin-bottom: 24px` (between sections)
-  - `.p-card` = `padding: 16px` (inside cards)
-  - `.px-edge` = `padding-left: 16px; padding-right: 16px` (screen edges)
+### 3. Empty State -- Template Previews, Browse Button, Clickable Steps
+
+**File: `src/components/dashboard/EmptyState.tsx`**
+
+Current: Shows floating icon, "No Resumes Yet", 3 steps, and a single CTA button.
+
+Changes:
+- Add new props: `onBrowseTemplates: () => void` and `onStartOnboarding: () => void`
+- **Template preview row**: Add a horizontal scrollable row of 3 mini template cards below the steps section
+  - Templates: `modern`, `classic`, `minimal` (most popular/recognizable)
+  - Each card: 100px wide, aspect-ratio 8.5/11, white background, rounded-xl, border, with a simplified placeholder visual (colored header bar + gray lines to simulate resume content -- NOT full TemplateThumbnail to avoid heavy lazy loading in empty state)
+  - Template name below each card in `text-tiny` / `text-caption` style
+  - On click: call `onCreateNew()` (or a new `onSelectTemplate(templateId)` callback)
+  - Horizontal scroll with `overflow-x-auto scrollbar-hide snap-x` and `gap-3`
+- **"Browse All Templates" button**: Add a `Button variant="outline"` below the main CTA with text "Browse All Templates" and an `ArrowRight` icon. Calls `onBrowseTemplates`
+- **Clickable steps subtitle**: Make the "Get started in 3 simple steps" text a `button` element with `underline decoration-dashed` styling. On click, call `onStartOnboarding` to replay the onboarding tour
+- Add staggered entrance animations for the template cards
+
+**File: `src/pages/DashboardPage.tsx`**
+
+- Pass new props to `EmptyState`:
+  - `onBrowseTemplates`: opens the `CreateResumeDialog` (reuse `setShowCreateDialog(true)`)
+  - `onStartOnboarding`: sets `showOnboarding = true` to replay the onboarding carousel
+- Update `EmptyState` usage: `<EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />`
+
+---
 
 ### Technical Details
 
-The spacing system maps to Tailwind's 4px base:
-- 16px = `4` in Tailwind scale (`px-4`, `p-4`, `gap-4`)
-- 24px = `6` in Tailwind scale (`space-y-6`, `gap-6`, `mb-6`)
+**Template mini-previews**: Using simplified CSS-only placeholders (colored header strip + gray skeleton lines) instead of rendering actual `TemplateThumbnail` components. This avoids lazy-loading 3 full template components in an empty state, keeping the initial load fast.
 
-Most of the app already follows `px-4` for edges and `space-y-6` for section gaps. The main fixes are:
-1. DashboardStats hero card using `p-5` (20px) instead of `p-4` (16px)
-2. PreviewPage bottom actions using `p-3` on mobile instead of `p-4`
-3. Guest banner in editor being too tight vertically
+**Loading state on create button**: The `isCreating` state is a brief UI indicator. It's set `true` on click and reset when `showCreateDialog` becomes true (via a `useEffect` watching `showCreateDialog`). This gives visual feedback during the short delay before the dialog lazy-loads.
+
+**Tab bar guards**: The Editor tab uses the existing `currentResumeId` check (no resume loaded). The Jobs tab adds an auth check. Both show descriptive toasts and prevent navigation, eliminating the current pattern where users navigate and then get blocked.
+
+**Haptic feedback**: All interactive elements already use haptics via the existing `haptics` utility. The tab bar uses `haptics.selection()` on press. The create button uses `haptics.medium()`. No changes needed -- haptic coverage is already comprehensive.
 
 ### Files Modified
-- `src/index.css` -- add spacing utility classes
-- `src/components/dashboard/DashboardStats.tsx` -- fix card padding from p-5 to p-4
-- `src/pages/EditorPage.tsx` -- fix guest banner padding
-- `src/pages/PreviewPage.tsx` -- fix bottom action padding
-- `src/components/dashboard/ResumeListCard.tsx` -- audit and fix card padding
-- `src/components/dashboard/DailyTipCard.tsx` -- audit and fix card padding
-- `src/pages/InterviewPage.tsx` -- audit and fix edge/section spacing
+
+- `src/components/dashboard/FloatingCreateButton.tsx` -- add loading spinner, enhanced press animation
+- `src/components/layout/BottomTabBar.tsx` -- add disabled/locked states, descriptive toasts, Lock icon overlay
+- `src/components/dashboard/EmptyState.tsx` -- add template previews, browse button, clickable steps
+- `src/pages/DashboardPage.tsx` -- wire new props and loading state
 
