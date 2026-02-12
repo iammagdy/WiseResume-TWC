@@ -68,10 +68,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
       toast.info('Create a resume first to access the editor');
       return;
     }
-    if (tab.path === '/applications' && isJobsLocked) {
-      toast.info('Sign in to track job applications');
-      return;
-    }
+    // Allow navigation to /applications even for guests (teaser screen handles gate)
     navigate(tab.path);
   };
 
@@ -92,7 +89,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
         {tabs.map((tab) => {
           const active = isActive(tab);
           const Icon = tab.icon;
-          const disabled = (tab.guarded && isEditorDisabled) || (tab.path === '/applications' && isJobsLocked);
+          const disabled = (tab.guarded && isEditorDisabled);
           
           return (
             <button
@@ -105,7 +102,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               onClick={() => handleTabPress(tab)}
               className={cn(
                 'flex flex-col items-center justify-center gap-0.5 flex-1 h-full',
-                'touch-manipulation active:scale-95 transition-all duration-200',
+                'touch-manipulation active:scale-95 transition-all duration-200 touch-ripple',
                 'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
                 tab.guarded && isEditorDisabled && 'opacity-50'
               )}

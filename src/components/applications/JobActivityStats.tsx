@@ -35,7 +35,7 @@ export function JobActivityStatsCard({ stats, onOriginalsTap, onTailoredTap }: P
           <button
             key={tile.key}
             onClick={() => handleTap(tile)}
-            className="glass-surface rounded-2xl p-4 border border-border/20 flex flex-col items-center gap-2 relative cursor-pointer transition-transform active:scale-[0.97] hover:border-border/40"
+            className="glass-surface rounded-2xl p-4 min-h-[48px] border border-border/20 flex flex-col items-center gap-2 relative cursor-pointer transition-transform active:scale-[0.97] hover:border-border/40 touch-ripple"
           >
             <ChevronRight className="absolute top-3 right-3 w-3.5 h-3.5 text-muted-foreground/40" />
             <div className={`w-10 h-10 rounded-xl bg-muted/30 flex items-center justify-center ${tile.color}`}>
