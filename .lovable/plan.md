@@ -1,69 +1,43 @@
 
-## Add "Help & Support" Section to Settings Page
 
-### Current State Analysis
+## Make Create Resume Button More Responsive
 
-The Settings page already has a "Take Tour Again" button in the **Account** section (lines 432-447 in `SettingsPage.tsx`). This button:
-- Resets the onboarding flag for both authenticated users (`onboarding_completed: false` in profiles table) and guests (`localStorage.removeItem('wr-onboarding-seen')`)
-- Shows a toast: "Onboarding reset — redirecting…"
-- Navigates to `/dashboard`
+### Current State
+- **FloatingCreateButton**: A 56px (w-14 h-14) circular FAB with just a `+` icon, no text label. Already has `whileTap={{ scale: 0.9 }}` and haptic feedback. Clicking it opens the `CreateResumeDialog`.
+- **EmptyState button**: A large `h-14 px-8 text-lg` button labeled "Create Your First Resume". Already triggers the same dialog.
+- **CreateResumeDialog**: Already has the 3 options (Start from Scratch, Upload PDF, Duplicate Existing) -- no need to rebuild this.
 
-The structure follows this pattern:
-1. **Section header** with "text-xs font-semibold uppercase tracking-wider"
-2. **Container** with "rounded-2xl glass-elevated overflow-hidden"
-3. **SettingsRow components** separated by `<Separator>`
+### What Changes
 
-### What Needs to Change
+**1. FloatingCreateButton (`src/components/dashboard/FloatingCreateButton.tsx`)**
+- Reduce size from `w-14 h-14` to `h-12 rounded-full` pill shape
+- Add text label: "+ New Resume"
+- Keep `whileTap={{ scale: 0.92 }}` for tactile press feedback
+- Remove the pulsing ring animation (too distracting, wastes vertical attention)
+- Reduce shadow intensity slightly
 
-**Move and reorganize** the "Take Tour Again" button:
-1. Create a new section called **"Help & Support"** positioned **between "Editor Preferences" (line 288) and "AI & Voice" (line 290)**
-2. Move the existing "Take Tour Again" `SettingsRow` from the Account section (lines 432-447) into this new Help & Support section
-3. Remove the duplicated `SettingsRow` and its preceding `<Separator>` from the Account section to keep it clean
-4. Maintain the same functionality - no logic changes needed
+**2. EmptyState (`src/components/dashboard/EmptyState.tsx`)**
+- Reduce button from `h-14 px-8 text-lg` to `h-12 px-6 text-base` (slightly smaller)
+- Keep existing "Create Your First Resume" label and `Plus` icon
+- Add `active:scale-[0.97]` for press feedback (already in Button component defaults)
+- Reduce floating icon from `w-20 h-20` to `w-16 h-16` and `mb-6` to `mb-5` to save vertical space
+
+No changes needed to `CreateResumeDialog` -- it already provides the 3-option modal (Start from Scratch, Upload PDF, Duplicate Existing) which maps to the user's requested options.
 
 ### Technical Details
 
-**File: `src/pages/SettingsPage.tsx`**
-
-#### Step 1: Insert new Help & Support section after Editor Preferences (after line 288)
+**FloatingCreateButton changes:**
 ```
-/* Help & Support */
-<div>
-  <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-    <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-    Help & Support
-  </h2>
-  <div className="rounded-2xl glass-elevated overflow-hidden">
-    <SettingsRow
-      type="button"
-      label="Take Tour Again"
-      description="Replay the welcome onboarding"
-      icon={<RotateCcw className="w-4 h-4" />}
-      onClick={async () => {
-        haptics.light();
-        if (user) {
-          await supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
-        } else {
-          localStorage.removeItem('wr-onboarding-seen');
-        }
-        toast.success('Onboarding reset — redirecting…');
-        navigate('/dashboard');
-      }}
-    />
-  </div>
-</div>
+// Before: icon-only circle
+w-14 h-14 rounded-full
+
+// After: pill with label
+h-12 px-5 rounded-full gap-2
+<Plus className="w-5 h-5" />
+<span className="text-sm font-semibold">New Resume</span>
 ```
 
-#### Step 2: Remove from Account section
-- Delete the existing "Take Tour Again" `SettingsRow` (currently lines 432-447)
-- Delete the `<Separator>` immediately before it
-- This keeps the Account section clean with just Language, Delete All Data, and Sign Out
-
-### Why This Approach
-
-- **Better UX**: "Replay Welcome Tour" logically belongs in Help & Support rather than Account settings
-- **Clear organization**: Separates user account actions from feature help/support actions
-- **No logic changes**: Reuses existing working code, just relocates it
-- **Minimal changes**: Only adding a section and moving a row - no new imports or complex refactoring needed
-- `RotateCcw` icon is already imported (line 27)
-- All dependencies (`haptics`, `toast`, `navigate`, `supabase`, `user`) are already available in scope
+**EmptyState changes:**
+- Floating icon: `w-20 h-20` -> `w-16 h-16`, inner icon `w-10 h-10` -> `w-8 h-8`
+- CTA button: `h-14 px-8 text-lg` -> `h-12 px-6 text-base`
+- Reduce `py-12` to `py-8` on the outer container for less vertical padding
