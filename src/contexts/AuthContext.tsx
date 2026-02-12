@@ -71,8 +71,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         initialResolved = true;
       }
       activeUserIdRef.current = user?.id ?? null;
-      setState({ user, session, loading: false });
       cacheSession(user, session);
+      setState(prev => {
+        if (prev.user?.id === user?.id && !prev.loading) {
+          return prev;
+        }
+        return { user, session, loading: false };
+      });
     };
 
     // Safety timeout: force loading=false after 5s
