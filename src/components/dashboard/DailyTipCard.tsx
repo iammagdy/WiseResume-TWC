@@ -117,7 +117,7 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
             onClick={handleExpand}
-            className="mx-4 mt-1.5 mb-1 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20 touch-manipulation w-fit"
+            className="mx-4 mt-1.5 mb-1 flex items-center gap-1.5 px-3 py-2 min-h-[44px] min-w-[44px] rounded-full bg-warning/10 border border-warning/20 touch-manipulation w-fit"
             aria-label="Show daily tip"
           >
             <Lightbulb className="w-3 h-3 text-warning" />

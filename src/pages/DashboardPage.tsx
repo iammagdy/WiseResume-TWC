@@ -327,7 +327,7 @@ export default function DashboardPage() {
             }}>
               <DropdownMenuTrigger asChild>
                 <motion.button
-                  className="touch-manipulation relative"
+                  className="touch-manipulation relative touch-ripple min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full"
                   whileTap={{ scale: 0.9 }}
                   aria-label="Profile menu"
                 >
