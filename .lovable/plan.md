@@ -1,37 +1,43 @@
 
 
-## Compact Daily Tip Card
+## Slim Down Dashboard Header (Mobile)
 
 ### Changes
 
-**File: `src/components/dashboard/DailyTipCard.tsx`**
+**1. `src/components/brand/AppLogo.tsx`** - Add `hideText` prop
 
-Make the expanded card a single-line horizontal strip instead of a multi-line card:
+- Add optional `hideText?: boolean` prop
+- When `hideText` is true, skip rendering the "WiseResume" `h1` entirely, show only the icon
+- Change the flex direction from `flex-col items-center` to just the icon when `hideText` is true
 
-- **Remove** the "Daily Tip" label row entirely -- saves the most vertical space
-- **Flatten layout** to a single horizontal row: `items-center` instead of `items-start`, remove the icon container's extra sizing
-- **Reduce padding** from `p-3.5` to `px-3 py-2`
-- **Reduce rounding** from `rounded-2xl` to `rounded-xl`
-- **Shrink icon** container from `w-8 h-8 rounded-lg` to `w-6 h-6 rounded-md`; icon from `w-4 h-4` to `w-3.5 h-3.5`
-- **Tip text**: change from `text-xs` to `text-[11px]`, add `line-clamp-1` so it truncates to one line by default
-- **Dismiss button**: keep as-is (already compact)
+**2. `src/pages/DashboardPage.tsx`** - Simplify header
 
-Result: card goes from ~56px tall to ~34px -- roughly 40% reduction.
+- Pass `hideText` to `AppLogo` on mobile: `<AppLogo size="sm" showTagline={false} hideText />`
+- **Remove** the Explore button entirely from the header (lines 309-325)
+- **Remove** the `<ThemeDropdown />` from the header (line 326)
+- **Remove** the `Sparkles` import (no longer needed here)
+- **Remove** the `ThemeDropdown` import
+- Header becomes: `[AppIcon] ---- [Avatar]`
+- Reduce header padding from `pt-4 pb-3` to `pt-3 pb-2` for additional space savings
 
-**No changes to `DashboardPage.tsx` or `FloatingCreateButton.tsx`** -- position and pulse logic stay the same.
+**3. `src/pages/SettingsPage.tsx`** - Ensure theme toggle is accessible there
 
-### Before vs After (approximate)
+- The Settings page already has a theme/appearance section, so no changes needed -- the `ThemeDropdown` removal from the dashboard header is safe
+
+**4. Landing page Explore access** - The Explore/landing page is already accessible via the Home tab in the bottom navigation bar (it navigates to `/`), so removing the Explore button from the dashboard header loses no functionality.
+
+### Result
 
 ```text
 Before (~56px):
-+------------------------------------------+
-| [icon]  DAILY TIP                    [X] |
-|         Tailoring your resume to...      |
-+------------------------------------------+
+[Icon+WiseResume]  [Explore] [Theme] [Avatar]
 
-After (~34px):
-+------------------------------------------+
-| [o] Tailoring your resume to each... [X] |
-+------------------------------------------+
+After (~40px):
+[Icon]                              [Avatar]
 ```
 
+Saves ~16px from reduced padding + removing the text, and declutters the header significantly on mobile.
+
+### Files Modified
+- `src/components/brand/AppLogo.tsx` -- add `hideText` prop
+- `src/pages/DashboardPage.tsx` -- strip header to logo icon + avatar only
