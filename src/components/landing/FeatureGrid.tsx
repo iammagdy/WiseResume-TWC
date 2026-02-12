@@ -36,10 +36,10 @@ export function FeatureGrid() {
   return (
     <section className="py-12 sm:py-16 px-4 sm:px-6">
       <div className="text-center mb-8 sm:mb-10 animate-fade-in-up">
-        <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
+        <p className="text-caption text-secondary mb-2">
           AI-Powered Features
         </p>
-        <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
+        <h2 className="text-h2 text-foreground">
           Everything You Need to Land the Job
         </h2>
       </div>
@@ -71,7 +71,7 @@ export function FeatureGrid() {
                   <feature.icon className={`w-5 h-5 sm:w-6 sm:h-6 ${feature.iconColor}`} />
                 </div>
 
-                <h3 className="font-display font-semibold text-sm sm:text-base text-foreground mb-1">
+                <h3 className="text-h3 !text-sm sm:!text-base text-foreground mb-1">
                   {feature.title}
                 </h3>
 

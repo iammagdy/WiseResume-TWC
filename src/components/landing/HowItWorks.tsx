@@ -10,10 +10,10 @@ export function HowItWorks() {
   return (
     <section className="py-12 sm:py-16 px-4 sm:px-6">
       <div className="text-center mb-8 sm:mb-10 animate-fade-in-up">
-        <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
+        <p className="text-caption text-secondary mb-2">
           Your Journey
         </p>
-        <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
+        <h2 className="text-h2 text-foreground">
           Mission Control
         </h2>
       </div>
@@ -48,11 +48,11 @@ export function HowItWorks() {
               )}
             </div>
 
-            <span className="text-xs font-medium text-secondary mb-1 px-2 py-0.5 rounded-full bg-secondary/10">
+            <span className="text-tiny text-secondary mb-1 px-2 py-0.5 rounded-full bg-secondary/10">
               Step {step.number}
             </span>
-            <h3 className="font-display font-semibold text-foreground text-sm mb-1">{step.title}</h3>
-            <p className="text-xs text-muted-foreground">{step.description}</p>
+            <h3 className="text-h3 text-foreground !text-sm mb-1">{step.title}</h3>
+            <p className="text-tiny text-muted-foreground">{step.description}</p>
           </div>
         ))}
       </div>

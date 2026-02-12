@@ -90,7 +90,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
         <div className="relative z-10">
           {/* Greeting */}
           <div className="flex items-center justify-between mb-1">
-            <h1 className="text-2xl font-bold">
+             <h1 className="text-h1">
               {greeting}{firstName ? `, ${firstName}` : ''}{' '}
               <span className="inline-block animate-pulse">👋</span>
             </h1>
@@ -117,7 +117,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
               {/* Large Score Ring */}
               <div className="flex flex-col items-center gap-1">
                 <ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={avgScore === 0} />
-                <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Avg</span>
+                <span className="text-tiny text-muted-foreground uppercase tracking-widest">Avg</span>
               </div>
 
               {/* Stats beside ring */}
@@ -128,7 +128,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
                   </div>
                   <div>
                     <p className="text-lg font-bold leading-tight">{totalResumes}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Resumes</p>
+                    <p className="text-tiny text-muted-foreground uppercase tracking-wider">Resumes</p>
                   </div>
                 </div>
 
@@ -138,7 +138,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
                   </div>
                   <div>
                     <p className="text-lg font-bold leading-tight">{bestScore > 0 ? bestScore : '—'}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Best</p>
+                    <p className="text-tiny text-muted-foreground uppercase tracking-wider">Best</p>
                   </div>
                 </div>
               </div>

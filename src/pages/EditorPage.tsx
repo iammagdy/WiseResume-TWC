@@ -385,7 +385,7 @@ export default function EditorPage() {
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            <h1 className="text-lg font-display font-semibold truncate">Edit Resume</h1>
+            <h1 className="text-h3 truncate">Edit Resume</h1>
             <OfflineIndicator isSyncing={isSyncing} />
             {user && currentResumeId && (
               <button

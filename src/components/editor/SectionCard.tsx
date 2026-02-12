@@ -35,14 +35,14 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
             status === 'complete' ? 'text-success' : 'text-primary'
           )} />
         </div>
-        <h3 className="text-sm font-semibold flex-1">{title}</h3>
+        <h3 className="text-h3 !text-sm flex-1">{title}</h3>
         {action && <div className="shrink-0">{action}</div>}
       </div>
 
       {/* Tip pill */}
       {tip && (
         <div className="px-4 pb-2">
-          <span className="inline-block text-[11px] text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
+          <span className="inline-block text-tiny text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
             💡 {tip}
           </span>
         </div>
