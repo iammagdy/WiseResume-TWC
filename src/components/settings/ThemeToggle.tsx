@@ -181,12 +181,6 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     return (localStorage.getItem('theme') as Theme) || 'dark';
   });
 
-  const [ripple, setRipple] = useState<{
-    x: number;
-    y: number;
-    color: string;
-  } | null>(null);
-
   const toggleRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -206,29 +200,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
     (newTheme: Theme, e: React.MouseEvent) => {
       if (newTheme === theme) return;
       haptics.selection();
-
-      // Determine resolved target theme for ripple color
-      const resolvedTarget =
-        newTheme === 'system'
-          ? window.matchMedia('(prefers-color-scheme: dark)').matches
-            ? 'dark'
-            : 'light'
-          : newTheme;
-
-      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-
-      setRipple({
-        x,
-        y,
-        color: rippleColorMap[resolvedTarget] || rippleColorMap.dark,
-      });
-
-      // Small delay so ripple starts before colors swap
-      requestAnimationFrame(() => {
-        setTheme(newTheme);
-      });
+      setTheme(newTheme);
     },
     [theme]
   );
@@ -284,15 +256,6 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
         })}
       </div>
 
-      {/* Ripple overlay */}
-      {ripple && (
-        <RippleOverlay
-          originX={ripple.x}
-          originY={ripple.y}
-          color={ripple.color}
-          onComplete={() => setRipple(null)}
-        />
-      )}
     </>
   );
 }
