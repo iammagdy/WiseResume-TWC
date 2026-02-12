@@ -45,6 +45,8 @@ export function DeveloperCreditCard({
       
       {/* Glass card with breathing effect */}
       <div className="dev-card">
+        {/* Holographic light sweep */}
+        <div className="dev-holo-sweep" />
         {/* Enhanced floating particles */}
         <div className="dev-particles">
           <span />

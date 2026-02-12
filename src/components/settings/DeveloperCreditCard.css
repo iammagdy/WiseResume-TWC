@@ -7,14 +7,10 @@
   flex-direction: column;
   align-items: center;
   gap: 1rem;
-  animation: dev-breathe 4s ease-in-out infinite;
+  perspective: 800px;
 }
 
-/* Card breathing animation */
-@keyframes dev-breathe {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.01); }
-}
+/* Remove old breathe, replaced by 3D tilt */
 
 /* Animated gradient border */
 .dev-card-border {
@@ -126,7 +122,7 @@
   }
 }
 
-/* Main glass card */
+/* Main glass card with 3D tilt */
 .dev-card {
   position: relative;
   width: 100%;
@@ -141,6 +137,42 @@
   -webkit-backdrop-filter: blur(24px);
   border: 1px solid hsl(var(--border) / 0.3);
   overflow: hidden;
+  transform-style: preserve-3d;
+  animation: dev-3d-tilt 8s ease-in-out infinite;
+  box-shadow:
+    0 20px 60px -15px hsl(var(--primary) / 0.3),
+    0 10px 30px -10px rgba(0,0,0,0.4);
+}
+
+/* 3D floating tilt */
+@keyframes dev-3d-tilt {
+  0%, 100% { transform: rotateX(2deg) rotateY(-2deg) translateZ(0); }
+  25%  { transform: rotateX(-3deg) rotateY(3deg) translateZ(10px); }
+  50%  { transform: rotateX(2deg) rotateY(2deg) translateZ(5px); }
+  75%  { transform: rotateX(-2deg) rotateY(-3deg) translateZ(10px); }
+}
+
+/* Holographic light sweep */
+.dev-holo-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255,255,255,0.12) 45%,
+    rgba(255,255,255,0.06) 55%,
+    transparent 60%
+  );
+  background-size: 250% 100%;
+  animation: dev-sweep 5s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 2;
+}
+
+@keyframes dev-sweep {
+  0%, 100% { background-position: 200% center; }
+  50% { background-position: -50% center; }
 }
 
 /* Enhanced floating particles */
