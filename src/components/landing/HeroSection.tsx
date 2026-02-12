@@ -106,14 +106,14 @@ export function HeroSection() {
         </div>
 
         <h1
-          className="font-display text-4xl sm:text-5xl font-bold mb-4 animate-fade-in"
+          className="text-h1 mb-4 animate-fade-in"
           style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}
         >
           <span className="text-shimmer">WiseResume</span>
         </h1>
 
         <p
-          className="text-muted-foreground text-lg mb-10 leading-relaxed animate-fade-in max-w-sm"
+          className="text-muted-foreground text-body mb-10 animate-fade-in max-w-sm"
           style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}
         >
           AI-powered resumes that land interviews

@@ -259,13 +259,13 @@ export function TemplateGallery() {
   return (
     <section className="py-12 sm:py-16">
       <div className="text-center mb-8 sm:mb-10 px-4 sm:px-6 opacity-0 animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}>
-        <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
+        <p className="text-caption text-secondary mb-2">
           12 Pro Templates
         </p>
-        <h2 className="font-display text-xl sm:text-2xl font-bold text-foreground">
+        <h2 className="text-h2 text-foreground">
           Choose Your Flight Suit
         </h2>
-        <p className="text-muted-foreground text-sm mt-1">Pick a design, customize it with AI</p>
+        <p className="text-muted-foreground text-body mt-1">Pick a design, customize it with AI</p>
       </div>
 
       <div
