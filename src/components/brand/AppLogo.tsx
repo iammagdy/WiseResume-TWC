@@ -5,9 +5,10 @@ import { AppIcon } from './AppIcon';
 interface AppLogoProps {
   showTagline?: boolean;
   size?: 'sm' | 'md' | 'lg';
+  hideText?: boolean;
 }
 
-export function AppLogo({ showTagline = true, size = 'lg' }: AppLogoProps) {
+export function AppLogo({ showTagline = true, size = 'lg', hideText = false }: AppLogoProps) {
   const sizeClasses = {
     sm: {
       icon: 'w-10 h-10',
@@ -54,22 +55,24 @@ export function AppLogo({ showTagline = true, size = 'lg' }: AppLogoProps) {
       </motion.div>
 
       {/* App Name */}
-      <div className="text-center">
-        <h1 className={`${s.name} font-display font-bold gradient-text`}>
-          WiseResume
-        </h1>
-        
-        {showTagline && (
-          <motion.p
-            className={`${s.tagline} text-muted-foreground mt-1`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            Your AI Career Partner
-          </motion.p>
-        )}
-      </div>
+      {!hideText && (
+        <div className="text-center">
+          <h1 className={`${s.name} font-display font-bold gradient-text`}>
+            WiseResume
+          </h1>
+          
+          {showTagline && (
+            <motion.p
+              className={`${s.tagline} text-muted-foreground mt-1`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              Your AI Career Partner
+            </motion.p>
+          )}
+        </div>
+      )}
     </motion.div>
   );
 }
