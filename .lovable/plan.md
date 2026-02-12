@@ -1,43 +1,55 @@
 
 
-## Slim Down Dashboard Header (Mobile)
+## Enhance StepperNav: Larger Circles, Swipeable Carousel, Labels
 
 ### Changes
 
-**1. `src/components/brand/AppLogo.tsx`** - Add `hideText` prop
+**File: `src/components/editor/StepperNav.tsx`**
 
-- Add optional `hideText?: boolean` prop
-- When `hideText` is true, skip rendering the "WiseResume" `h1` entirely, show only the icon
-- Change the flex direction from `flex-col items-center` to just the icon when `hideText` is true
+**1. Enlarge step circles (~20% larger)**
+- Increase circle from `w-10 h-10` (40px) to `w-12 h-12` (48px) -- meets 48px touch target and is 20% larger
+- Increase icons from `w-4 h-4` to `w-5 h-5`
+- Increase check icon similarly
+- Update the outer glow ring offset from `4px` to `5px`
+- Update connecting line `top-5` to `top-6` to stay centered with larger circles
 
-**2. `src/pages/DashboardPage.tsx`** - Simplify header
+**2. Always show section labels (not just xs+)**
+- Remove `hidden xs:block` from the label `<span>` so labels are always visible
+- Keep `text-[11px]` size for compactness
 
-- Pass `hideText` to `AppLogo` on mobile: `<AppLogo size="sm" showTagline={false} hideText />`
-- **Remove** the Explore button entirely from the header (lines 309-325)
-- **Remove** the `<ThemeDropdown />` from the header (line 326)
-- **Remove** the `Sparkles` import (no longer needed here)
-- **Remove** the `ThemeDropdown` import
-- Header becomes: `[AppIcon] ---- [Avatar]`
-- Reduce header padding from `pt-4 pb-3` to `pt-3 pb-2` for additional space savings
+**3. Convert to horizontal scrollable carousel on mobile**
+- Wrap the step buttons in a horizontally scrollable container with `overflow-x-auto scrollbar-hide snap-x snap-mandatory`
+- Each step gets `snap-center` so swiping snaps to steps
+- Add horizontal padding so the active step can be centered
+- Use a `useEffect` to auto-scroll the active step into view on mount and when `activeStep` changes via `scrollIntoView({ inline: 'center', behavior: 'smooth' })`
+- Each step button gets a `ref` callback to track elements for scrolling
 
-**3. `src/pages/SettingsPage.tsx`** - Ensure theme toggle is accessible there
+**4. Scroll/swipe indicators**
+- Add subtle left/right fade gradients (via pseudo-elements or overlay divs) on the scroll container edges to hint at more content
+- Use `pointer-events-none` gradient overlays: left overlay fades from `bg-background` to transparent, right overlay fades from transparent to `bg-background`
+- These only render when there's overflow content in that direction (tracked via scroll position state)
 
-- The Settings page already has a theme/appearance section, so no changes needed -- the `ThemeDropdown` removal from the dashboard header is safe
+**5. Update touch targets**
+- The circle itself is now 48x48px
+- The overall button `min-w-[48px]` stays, but add `min-h-[48px]` to ensure the tap area meets minimum standards
+- Add `p-1` around each button for comfortable spacing between steps
 
-**4. Landing page Explore access** - The Explore/landing page is already accessible via the Home tab in the bottom navigation bar (it navigates to `/`), so removing the Explore button from the dashboard header loses no functionality.
+**6. Update connecting line positioning**
+- Adjust `top` value from `top-5` to `top-6` to center with the new 48px circles
+- Adjust confetti particle distance from `20px` to `24px` to match larger circles
 
-### Result
+### Visual Result
 
 ```text
-Before (~56px):
-[Icon+WiseResume]  [Explore] [Theme] [Avatar]
+Mobile (swipeable, 3 visible at a time):
+  <fade>  [Contact] [Summary] [Work]  <fade>
+              ^active (centered)
+          swipe left/right for more
 
-After (~40px):
-[Icon]                              [Avatar]
+Labels always visible below each circle.
+Circles: 48x48px with centered icons.
 ```
 
-Saves ~16px from reduced padding + removing the text, and declutters the header significantly on mobile.
-
 ### Files Modified
-- `src/components/brand/AppLogo.tsx` -- add `hideText` prop
-- `src/pages/DashboardPage.tsx` -- strip header to logo icon + avatar only
+- `src/components/editor/StepperNav.tsx` -- all changes in this single file
+
