@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 
 
 // Routes that show bottom nav
-const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth'];
+const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth', '/editor', '/preview'];
 
 // Routes that show guest save banner
 const GUEST_BANNER_ROUTES = ['/editor', '/preview'];
