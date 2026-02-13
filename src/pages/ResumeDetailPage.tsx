@@ -22,6 +22,7 @@ import { templates } from '@/lib/templateData';
 import { formatDistanceToNow, format } from 'date-fns';
 import { generatePDF } from '@/lib/pdfGenerator';
 import { downloadFile } from '@/lib/downloadUtils';
+import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
 
@@ -32,6 +33,7 @@ export default function ResumeDetailPage() {
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
+  const { createShare } = useResumeShareMutations();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -101,7 +103,15 @@ export default function ResumeDetailPage() {
     { icon: Edit2, label: 'Edit', onClick: handleEdit },
     { icon: Eye, label: 'Preview', onClick: handlePreview },
     { icon: Download, label: 'Download', onClick: handleDownload, loading: isDownloading },
-    { icon: Share2, label: 'Share', onClick: () => toast.info('Share coming soon') },
+    { icon: Share2, label: 'Share', onClick: () => {
+      createShare.mutate({ resumeId: dbResume.id }, {
+        onSuccess: (data) => {
+          const url = `${window.location.origin}/share/${data.token}`;
+          navigator.clipboard.writeText(url);
+          toast.success('Share link copied to clipboard!');
+        },
+      });
+    }},
     { icon: Copy, label: 'Duplicate', onClick: handleDuplicate },
     { icon: Trash2, label: 'Delete', onClick: () => setDeleteOpen(true), destructive: true },
   ];
