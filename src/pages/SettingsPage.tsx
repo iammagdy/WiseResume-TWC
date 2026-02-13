@@ -336,19 +336,56 @@ export default function SettingsPage() {
               <SettingsRow
                 type="navigation"
                 label="AI Provider"
+                description="Powers analysis, tailoring, and enhancements"
                 value={aiProvider === 'wiseresume' ? 'WiseResume AI' : 'Gemini'}
                 icon={<Brain className="w-4 h-4" />}
                 onClick={() => setAISettingsOpen(true)}
               />
               <Separator className="bg-border/30" />
-              <SettingsRow
-                type="navigation"
-                label="ElevenLabs API Key"
-                description="For voice interviews"
-                value={elevenlabsApiKey ? '••••••' : 'Not set'}
-                icon={<Mic className="w-4 h-4" />}
-                onClick={() => setElevenLabsKeyOpen(true)}
-              />
+
+              {elevenlabsApiKey ? (
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <Mic className="w-4 h-4 text-emerald-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">ElevenLabs Connected</p>
+                    <p className="text-xs text-muted-foreground">
+                      Used for speech-to-text in mock interviews
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setElevenLabsKeyOpen(true)}
+                    className="text-xs"
+                  >
+                    Manage
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 px-4 py-4">
+                  <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                    <Mic className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      ElevenLabs Voice
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Connect to enable realistic voice interviews
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setElevenLabsKeyOpen(true)}
+                    className="shrink-0"
+                  >
+                    Connect
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
