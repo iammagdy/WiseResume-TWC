@@ -497,6 +497,17 @@ export default function SettingsPage() {
                 </>
               )}
             </div>
+            <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
+              Your resumes are stored securely and never sold to third parties.{' '}
+              <a
+                href="https://magdysaber.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline underline-offset-2"
+              >
+                Privacy Policy
+              </a>
+            </p>
           </div>
 
           {/* 7. Account - Auth only */}
@@ -543,6 +554,25 @@ export default function SettingsPage() {
               onContactClick={() => window.open('mailto:contact@magdysaber.com')}
             />
 
+            <div className="flex items-center justify-center gap-4 mt-2">
+              <a
+                href="mailto:contact@magdysaber.com"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              >
+                <Mail className="w-3 h-3" />
+                contact@magdysaber.com
+              </a>
+              <a
+                href="https://magdysaber.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              >
+                <Globe className="w-3 h-3" />
+                magdysaber.com
+              </a>
+            </div>
+
             <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
               <SettingsRow
                 type="button"
@@ -564,7 +594,7 @@ export default function SettingsPage() {
               <SettingsRow
                 type="button"
                 label="Rate WiseResume"
-                description="Help us grow ⭐"
+                description="Love WiseResume? Leave a rating to help others find it"
                 icon={<Star className="w-4 h-4" />}
                 onClick={handleRateApp}
               />
@@ -572,7 +602,7 @@ export default function SettingsPage() {
               <SettingsRow
                 type="button"
                 label="Share WiseResume"
-                description="Tell your friends"
+                description="Send a link to a friend or colleague"
                 icon={<Share2 className="w-4 h-4" />}
                 onClick={handleShareApp}
               />
