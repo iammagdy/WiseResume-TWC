@@ -1,74 +1,73 @@
 
 
-## About & Help Footer Enhancement
+## Show Privacy & Security Section with "Mobile Only" Indicator
 
-### Overview
-Enhance the Settings footer with a tappable version number showing a changelog, legal/policy links, social media icons, and Egyptian flag branding.
+### Problem
+The Privacy & Security section is completely hidden when biometric hardware isn't detected (desktop/web browsers). Users don't know the feature exists.
 
-### Changes (all in `src/pages/SettingsPage.tsx`)
+### Solution
+Always render the section, but when biometrics are unavailable, show it in a collapsed/disabled state with a tooltip and badge explaining it's a mobile-only feature.
 
-#### 1. Tappable Version Number with Changelog Dialog
+### Changes to `src/pages/SettingsPage.tsx`
 
-Replace the plain `WiseResume v1.0.0` text (line 673) with a tappable button that opens a simple changelog dialog.
+#### 1. Remove the `biometricAvailable` conditional wrapper (line 528)
 
-- Add state: `const [changelogOpen, setChangelogOpen] = useState(false)`
-- Version text becomes a button with `underline-offset-2` styling and `text-primary` on hover
-- Clicking opens a `Dialog` with a hardcoded changelog:
-  - **v1.0.0** -- Initial release: AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep
-- Import `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription` (already likely imported or available)
+Instead of `{biometricAvailable && (<>...</>)}`, always render the section. The `<Separator>` and `<div className="glass-surface-alt">` wrapper are always shown.
 
-#### 2. Legal Links Row
+#### 2. Add "Mobile only" badge to the section header
 
-Below the version number, add a row of plain-text links separated by centered dots:
+Next to the "Privacy & Security" heading text, add a small badge when biometrics are unavailable:
 
-```
-Privacy · Terms · Changelog
-```
-
-- "Privacy" links to `https://magdysaber.com/privacy` (opens in new tab)
-- "Terms" links to `https://magdysaber.com/terms` (opens in new tab)
-- "Changelog" opens the same changelog dialog
-- Styled as `text-xs text-muted-foreground hover:text-primary transition-colors`
-
-#### 3. Social Media Icons Row
-
-Add a row of 3 social icon buttons between the links and the "Made in" line:
-
-- Twitter/X icon -- links to `https://x.com/magdysaber`
-- LinkedIn icon -- links to `https://linkedin.com/in/magdysaber`
-- GitHub icon -- links to `https://github.com/magdysaber`
-
-Each icon is a 36x36px ghost button with `hover:bg-muted/50` and opens in a new tab. Icons sourced from lucide-react: use `Globe` as fallback for X/Twitter (lucide has `Twitter` but it may be the old bird), `Linkedin` from lucide (if available -- will verify), and `Github` from lucide.
-
-#### 4. Egyptian Flag Emoji
-
-Change line 674 from:
-```
-Made with ❤️ in Egypt
-```
-to:
-```
-Made in 🇪🇬
+```tsx
+<h2 className="... flex items-center gap-2">
+  <Shield className="w-4 h-4 text-primary/60" />
+  Privacy & Security
+  {!biometricAvailable && (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge variant="outline" className="text-[10px] px-2 py-0.5 ml-1 cursor-help">
+          Mobile only
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent>
+        Biometric lock requires a device with fingerprint or face recognition
+      </TooltipContent>
+    </Tooltip>
+  )}
+</h2>
 ```
 
-### Footer Layout (top to bottom)
+#### 3. Show disabled card when biometrics unavailable
 
-```text
-[Developer Credit Card]
+When `!biometricAvailable`, render the card with reduced opacity and a brief explanation instead of the toggle:
 
-        WiseResume v1.0.0  (tappable)
-      Privacy · Terms · Changelog
-        [X] [LinkedIn] [GitHub]
-           Made in flag-EG
+```tsx
+{biometricAvailable ? (
+  {/* existing Biometric Lock toggle + timeout row */}
+) : (
+  <div className="rounded-2xl glass-elevated overflow-hidden opacity-50 pointer-events-none">
+    <div className="flex items-center gap-3 py-3.5 px-4 min-h-[56px]">
+      <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
+        <Fingerprint className="w-4 h-4" />
+      </div>
+      <div>
+        <p className="font-medium">Biometric Lock</p>
+        <p className="text-xs text-muted-foreground">Available on mobile devices with biometrics</p>
+      </div>
+    </div>
+  </div>
+)}
 ```
 
-### Technical Details
+The privacy reassurance text and Privacy Policy link remain visible in both states.
 
-| Area | Detail |
+#### 4. Add imports
+
+Import `Tooltip`, `TooltipTrigger`, `TooltipContent` from `@/components/ui/tooltip` and wrap the section area with the existing `TooltipProvider` (check if one already wraps the page; if not, add it).
+
+### Summary
+
+| File | Change |
 |------|--------|
-| New state | `changelogOpen` boolean |
-| New imports | `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` (from `@/components/ui/dialog`); `Github`, `Linkedin`, `Twitter` from `lucide-react` |
-| Lines modified | ~672-675 (footer section) |
-| New component | Inline changelog dialog rendered in the Sheets/Dialogs section |
-| File | Only `src/pages/SettingsPage.tsx` |
+| `src/pages/SettingsPage.tsx` | Remove `biometricAvailable` guard; always render section; add "Mobile only" badge with tooltip when unavailable; show disabled card placeholder |
 
