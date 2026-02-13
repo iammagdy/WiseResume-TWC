@@ -13,7 +13,7 @@ export function FloatingCreateButton({ onClick, pulse = false, isLoading = false
   return (
     <motion.button
       className={cn(
-        'fixed bottom-24 right-4 z-40 h-14 px-5 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center gap-2 touch-manipulation',
+        'fixed bottom-20 right-4 pr-safe z-50 h-14 px-5 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center gap-2 touch-manipulation',
         isLoading && 'pointer-events-none opacity-90'
       )}
       initial={{ scale: 0, opacity: 0 }}
