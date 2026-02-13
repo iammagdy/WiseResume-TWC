@@ -26,7 +26,8 @@ import {
   Chrome,
   RotateCcw,
   Lock,
-  Check
+  Check,
+  X
 } from 'lucide-react';
 import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -92,6 +93,12 @@ export default function SettingsPage() {
   const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
   const [elevenLabsKeyOpen, setElevenLabsKeyOpen] = useState(false);
   const [aiSettingsOpen, setAISettingsOpen] = useState(false);
+  const [guestBannerDismissed, setGuestBannerDismissed] = useState(() => sessionStorage.getItem('wr-settings-guest-banner-dismissed') === '1');
+
+  const dismissGuestBanner = () => {
+    sessionStorage.setItem('wr-settings-guest-banner-dismissed', '1');
+    setGuestBannerDismissed(true);
+  };
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -201,6 +208,24 @@ export default function SettingsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* Guest Banner */}
+          {!user && !guestBannerDismissed && (
+            <div className="flex items-center gap-3 rounded-xl bg-primary/5 border border-primary/20 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm">
+                  You're using WiseResume as a guest.{' '}
+                  <span className="text-muted-foreground">Create a free account to save and sync your resumes.</span>
+                </p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => navigate('/auth')} className="shrink-0">
+                Sign Up
+              </Button>
+              <button onClick={dismissGuestBanner} className="p-1 rounded-full hover:bg-muted" aria-label="Dismiss">
+                <X className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          )}
+
           {/* 1. Profile Section - Auth vs Guest */}
           {user ? (
             <button
@@ -351,14 +376,18 @@ export default function SettingsPage() {
                   onClick={() => setDataExportSheetOpen(true)}
                 />
               ) : (
-                <SettingsRow
-                  type="navigation"
-                  label="Export Resumes"
-                  description="Sign in to backup your data"
-                  icon={<Lock className="w-4 h-4" />}
-                  onClick={() => navigate('/auth')}
-                  requiresAccount
-                />
+              <div className="flex items-center gap-3 px-4 py-3.5">
+                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">Export Resumes</p>
+                  <p className="text-xs text-muted-foreground">Sign in to backup your data</p>
+                </div>
+                <Button size="sm" variant="default" onClick={() => navigate('/auth')} className="shrink-0 text-xs h-7">
+                  Sign in
+                </Button>
+              </div>
               )}
             </div>
           </div>
