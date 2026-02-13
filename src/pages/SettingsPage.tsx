@@ -25,7 +25,8 @@ import {
   Mail,
   Chrome,
   RotateCcw,
-  Lock
+  Lock,
+  Check
 } from 'lucide-react';
 import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -115,8 +116,6 @@ export default function SettingsPage() {
     return success;
   };
 
-  // No forced redirect - guests can access settings
-
   const handleSignOut = async () => {
     haptics.medium();
     await signOut();
@@ -202,7 +201,7 @@ export default function SettingsPage() {
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Profile Section - Auth vs Guest */}
+          {/* 1. Profile Section - Auth vs Guest */}
           {user ? (
             <button
               onClick={handleOpenEditProfile}
@@ -245,75 +244,62 @@ export default function SettingsPage() {
               <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             </button>
           ) : (
-            /* Guest CTA card */
-            <div className="flex items-center gap-4 p-4 rounded-2xl glass-elevated border-glow">
-              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                <AppIcon size={32} />
+            /* Enhanced Guest CTA card */
+            <div className="rounded-2xl glass-elevated border-glow overflow-hidden">
+              <div className="h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
+              <div className="p-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <AppIcon size={32} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium">Welcome, Guest</p>
+                    <p className="text-sm text-muted-foreground">Create a free account to unlock:</p>
+                  </div>
+                </div>
+                <ul className="mt-3 space-y-1.5 ml-1">
+                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                    Sync across devices
+                  </li>
+                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                    Export & backup resumes
+                  </li>
+                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                    AI-powered enhancements
+                  </li>
+                </ul>
+                <Button size="sm" onClick={() => navigate('/auth')} className="w-full mt-4">
+                  Get Started Free
+                </Button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium">Welcome, Guest</p>
-                <p className="text-sm text-muted-foreground">Sign in to manage your account</p>
-              </div>
-              <Button size="sm" onClick={() => navigate('/auth')} className="shrink-0">
-                Sign In
-              </Button>
             </div>
           )}
 
-          {/* Appearance */}
+          {/* 2. Appearance & Language */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               Appearance
             </h2>
-            <div className="p-4 rounded-2xl glass-elevated">
-              <ThemeToggle className="w-full justify-center" />
-            </div>
-          </div>
-
-          {/* Editor Preferences */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-              Editor Preferences
-            </h2>
             <div className="rounded-2xl glass-elevated overflow-hidden">
+              <div className="p-4">
+                <ThemeToggle className="w-full justify-center" />
+              </div>
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="navigation"
-                label="PDF Export Settings"
-                icon={<Download className="w-4 h-4" />}
-                onClick={() => setPdfDefaultsSheetOpen(true)}
-              />
-          </div>
-          </div>
-
-          {/* Help & Support */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-              Help & Support
-            </h2>
-            <div className="rounded-2xl glass-elevated overflow-hidden">
-              <SettingsRow
-                type="button"
-                label="Take Tour Again"
-                description="Replay the welcome onboarding"
-                icon={<RotateCcw className="w-4 h-4" />}
-                onClick={async () => {
-                  haptics.light();
-                  if (user) {
-                    await supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
-                  } else {
-                    localStorage.removeItem('wr-onboarding-seen');
-                  }
-                  toast.success('Onboarding reset — redirecting…');
-                  navigate('/dashboard');
-                }}
+                label="Language"
+                value="English"
+                icon={<Globe className="w-4 h-4" />}
+                onClick={handleLanguage}
               />
             </div>
           </div>
 
-          {/* AI & Voice */}
+          {/* 3. AI & Voice */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
@@ -339,7 +325,43 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Notifications */}
+          {/* 4. Editor & Export */}
+          <div>
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              Editor & Export
+            </h2>
+            <div className="rounded-2xl glass-elevated overflow-hidden">
+              <SettingsRow
+                type="navigation"
+                label="PDF Export Settings"
+                icon={<Download className="w-4 h-4" />}
+                onClick={() => setPdfDefaultsSheetOpen(true)}
+              />
+              <Separator className="bg-border/30" />
+              {user ? (
+                <SettingsRow
+                  type="navigation"
+                  label="Export Resumes"
+                  description={`${resumes.length} resume${resumes.length !== 1 ? 's' : ''} created`}
+                  icon={<Database className="w-4 h-4" />}
+                  onClick={() => setDataExportSheetOpen(true)}
+                />
+              ) : (
+                <div className="opacity-60">
+                  <SettingsRow
+                    type="navigation"
+                    label="Export Resumes"
+                    description="Sign in to backup your data"
+                    icon={<Lock className="w-4 h-4" />}
+                    onClick={() => navigate('/auth')}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* 5. Notifications */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
@@ -366,42 +388,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Data & Export - auth only */}
-          {user ? (
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-                <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-                Data & Export
-              </h2>
-              <div className="rounded-2xl glass-elevated overflow-hidden">
-                <SettingsRow
-                  type="navigation"
-                  label="Export Resumes"
-                  description={`${resumes.length} resume${resumes.length !== 1 ? 's' : ''} created`}
-                  icon={<Database className="w-4 h-4" />}
-                  onClick={() => setDataExportSheetOpen(true)}
-                />
-              </div>
-            </div>
-          ) : (
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-                <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-                Data & Export
-              </h2>
-              <div className="rounded-2xl glass-elevated overflow-hidden opacity-60">
-                <SettingsRow
-                  type="navigation"
-                  label="Export Resumes"
-                  description="Sign in to access"
-                  icon={<Lock className="w-4 h-4" />}
-                  onClick={() => navigate('/auth')}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* Privacy & Security */}
+          {/* 6. Privacy & Security */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
@@ -440,48 +427,38 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Account */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-              Account
-            </h2>
-            <div className="rounded-2xl glass-elevated overflow-hidden">
-              <SettingsRow
-                type="navigation"
-                label="Language"
-                value="English"
-                icon={<Globe className="w-4 h-4" />}
-                onClick={handleLanguage}
-              />
-              {user && (
-                <>
-                  <Separator className="bg-border/30" />
-                  <SettingsRow
-                    type="button"
-                    label="Delete All Data"
-                    icon={<Trash2 className="w-4 h-4" />}
-                    onClick={() => setDeleteDialogOpen(true)}
-                    destructive
-                  />
-                  <Separator className="bg-border/30" />
-                  <SettingsRow
-                    type="button"
-                    label="Sign Out"
-                    icon={<LogOut className="w-4 h-4" />}
-                    onClick={handleSignOut}
-                    destructive
-                  />
-                </>
-              )}
+          {/* 7. Account - Auth only */}
+          {user && (
+            <div>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+                <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+                Account
+              </h2>
+              <div className="rounded-2xl glass-elevated overflow-hidden">
+                <SettingsRow
+                  type="button"
+                  label="Delete All Data"
+                  icon={<Trash2 className="w-4 h-4" />}
+                  onClick={() => setDeleteDialogOpen(true)}
+                  destructive
+                />
+                <Separator className="bg-border/30" />
+                <SettingsRow
+                  type="button"
+                  label="Sign Out"
+                  icon={<LogOut className="w-4 h-4" />}
+                  onClick={handleSignOut}
+                  destructive
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* About */}
+          {/* 8. About & Help */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-              About
+              About & Help
             </h2>
             
             <DeveloperCreditCard
@@ -493,6 +470,23 @@ export default function SettingsPage() {
             />
 
             <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
+              <SettingsRow
+                type="button"
+                label="Take Tour Again"
+                description="Replay the welcome onboarding"
+                icon={<RotateCcw className="w-4 h-4" />}
+                onClick={async () => {
+                  haptics.light();
+                  if (user) {
+                    await supabase.from('profiles').update({ onboarding_completed: false }).eq('user_id', user.id);
+                  } else {
+                    localStorage.removeItem('wr-onboarding-seen');
+                  }
+                  toast.success('Onboarding reset — redirecting…');
+                  navigate('/dashboard');
+                }}
+              />
+              <Separator className="bg-border/30" />
               <SettingsRow
                 type="button"
                 label="Rate WiseResume"
