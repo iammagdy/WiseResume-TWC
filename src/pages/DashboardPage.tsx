@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, LogIn } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, LogIn, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -318,7 +318,9 @@ export default function DashboardPage() {
     <div className="min-h-full flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
-          <AppLogo size="sm" showTagline={false} hideText />
+          <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
+            <AppLogo size="sm" showTagline={false} hideText />
+          </button>
           <div className="flex items-center gap-2">
             <DropdownMenu onOpenChange={(open) => {
               if (open && !localStorage.getItem('wr-profile-pulse-seen')) {
@@ -359,6 +361,10 @@ export default function DashboardPage() {
                 <DropdownMenuItem onClick={() => { haptics.light(); navigate('/settings'); }}>
                   <Settings className="w-4 h-4 mr-2" />
                   Account Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { haptics.light(); navigate('/'); }}>
+                  <Home className="w-4 h-4 mr-2" />
+                  About WiseResume
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 {user ? (
