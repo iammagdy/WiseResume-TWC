@@ -1,125 +1,61 @@
 
 
-## Comprehensive Mobile Responsiveness Fixes
+## Fix Dashboard Stats - Show Real Scores, Add Tooltips, Compact Layout
 
-### Overview
-This plan addresses 8 specific layout and overflow issues across the app to ensure all UI elements are fully visible and usable on screens from 320px to 1280px.
+### Root Cause
 
----
+The primary issue is on line 153 of `DashboardStats.tsx`:
+```
+<ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={avgScore === 0} />
+```
 
-### Issue 1: "New Resume" FAB Button Overflow
+`isLoading` is `true` whenever `avgScore === 0`, which happens both when scores haven't loaded yet AND when no scores exist. The ScoreRing's loading state shows "---" with a pulse animation. Similarly, line 174 shows "---" for bestScore when it's 0.
 
-**File: `src/components/dashboard/FloatingCreateButton.tsx`**
+The `healthScores` object is populated asynchronously by the background scoring loop in `DashboardPage.tsx` (lines 137-160), which calls the `score-resume` edge function for each resume. Until those calls complete, the scores map is empty, so avgScore/bestScore remain 0, triggering the perpetual loading state.
 
-The FAB is positioned `fixed bottom-24 right-4` which can cause it to be cut off on small screens or overlap with the bottom tab bar inconsistently.
+### Changes
 
-- Change to `fixed bottom-20 right-4 z-50` (aligns with `pb-20` content padding used for bottom nav)
-- Add `pr-safe` for right safe-area on notched devices
-- Ensure z-index is `z-50` (currently `z-40`, which can sit behind the bottom nav at `z-50`)
+#### 1. DashboardStats.tsx - Core Fixes
 
----
+**Distinguish "loading" from "no scores yet":**
+- Accept a new prop `isScoring: boolean` (passed from DashboardPage based on `scoringId !== null` or `Object.keys(healthScores).length < resumes.length`)
+- Use `isScoring` for the ScoreRing's `isLoading` prop instead of `avgScore === 0`
+- When not scoring and avgScore is 0, show `0` (not "---")
 
-### Issue 2: Skills Section Tag Overflow
+**Replace "BEST" with "Top Score":**
+- Change label from "Best" to "Top Score" with a Trophy icon (already using Award, keep it)
+- Show `bestScore` value always (show `0` not "---")
 
-**File: `src/components/editor/SkillsSection.tsx`**
+**Add tooltips to all three stats:**
+- Wrap AVG ring label in a Tooltip: "Average ATS score across all your resumes"
+- Wrap Resumes stat in a Tooltip: "Total resumes in your library"  
+- Wrap Best stat in a Tooltip: "Your highest resume score"
+- Import `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider` from UI
 
-The skills tags container uses `flex flex-wrap gap-2` which is correct. However, the outer section may be constrained. Verify that the parent `SectionCard` and editor scroll container don't clip overflow.
+**Compact the greeting:**
+- Change `text-h1` to `text-lg font-semibold` for the greeting
+- Reduce emoji to `text-base` (not pulsing, just a wave)
+- Remove the redundant "You have X resumes in your library" subtitle entirely (the stats row already shows the count)
 
-- Add `overflow-hidden` on the tags container to prevent any horizontal bleed
-- The existing `flex-wrap` already handles wrapping -- no scroll needed
-- Ensure the "Add skill" input row stays sticky/visible
+**Show score as percentage:**
+- Display `{avgScore}%` in the ScoreRing center and beside stats
+- Display `{bestScore}%` for the top score
 
----
+#### 2. ScoreRing.tsx - Show Percentage Symbol
 
-### Issue 3: Dashboard Resume Cards Stacking
+- Add `%` suffix to the score display (line 78): `{score}%`
+- Reduce font size slightly to fit: `text-[10px]` instead of `text-xs` for the 72px ring
 
-**File: `src/pages/DashboardPage.tsx` (line 490)**
+#### 3. DashboardPage.tsx - Pass Scoring State
 
-Currently uses `space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0`. This is already responsive but missing `lg:grid-cols-3` for wider screens.
+- Compute `isScoring` boolean: `scoringId !== null || (resumes && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)`
+- Pass `isScoring` to `DashboardStats`
 
-- Add `lg:grid-cols-3` for desktop breakpoint
-- Ensure cards have `min-w-0` to prevent overflow in grid cells
+### Files Modified
 
----
-
-### Issue 4: Editor Header Elements Overflow
-
-**File: `src/pages/EditorPage.tsx` (lines 381-439)**
-
-The header has back button, title "Edit Resume", offline indicator, version history button, and Wise AI button all in one row. On narrow screens this can overflow.
-
-- Add `min-w-0` to the left `flex items-center gap-3` div so the title can truncate
-- Reduce gap from `gap-3` to `gap-2` on the left side
-- The title already has `truncate` -- just needs the parent to allow shrinking
-- Hide version history icon on very small screens: add `hidden sm:inline-flex`
-
----
-
-### Issue 5: Bottom Tab Navigation Safe Area
-
-**File: `src/components/layout/BottomTabBar.tsx`**
-
-Already has `pb-safe` class. Verify the tab buttons meet touch targets.
-
-- The nav already has `pb-safe` and `h-16`
-- Tab buttons have `flex-1 h-full` which is correct
-- Ensure the min-height of each tab button is explicitly `min-h-[48px]` (currently relies on parent `h-16`)
-- Labels are already `text-[11px]` -- change to `text-[10px]` with `whitespace-nowrap` to prevent wrapping
-
----
-
-### Issue 6: Progress Bar and Stats Overflow
-
-**File: `src/components/editor/ProgressBar.tsx`**
-
-The progress bar text "Resume XX% Complete" uses `whitespace-nowrap` already. The bar uses `flex-1` which is correct.
-
-- Add `min-w-0` to the flex container to prevent the text from pushing the bar off-screen
-- Shorten label on small screens: use responsive text or abbreviate to "XX% Complete" without "Resume" prefix on `< sm`
-
-**File: `src/components/dashboard/DashboardStats.tsx`**
-
-The stats row uses `flex items-center gap-4`. On very narrow screens the Score Ring (72px) + two stat blocks can overflow.
-
-- Reduce gap from `gap-4` to `gap-3`
-- Make the grid `grid-cols-2 gap-2` instead of `gap-3`
-- Add `min-w-0` to the flex container
-
----
-
-### Issue 7: Editor Page Content Width
-
-**File: `src/pages/EditorPage.tsx`**
-
-The main content area needs proper horizontal padding and max-width constraints.
-
-- The scroll container already uses `px-4` padding
-- Add `max-w-screen-lg mx-auto w-full` to the inner content wrapper for centering on large screens
-- Ensure section cards are `w-full`
-
----
-
-### Issue 8: StepperNav Verification
-
-**File: `src/components/editor/StepperNav.tsx`**
-
-Already fixed with `flex-1 min-w-0`, `w-10 h-10` circles, and `text-[10px]` labels. The opaque backgrounds are applied. This should work on 320px screens.
-
-- Verify by reducing outer `px-2` to `px-1` if still tight on 320px
-- No other changes expected
-
----
-
-### Summary of File Changes
-
-| File | Changes |
-|------|---------|
-| `FloatingCreateButton.tsx` | z-50, bottom-20, pr-safe |
-| `SkillsSection.tsx` | Minor overflow guard on tag container |
-| `DashboardPage.tsx` | Add lg:grid-cols-3, min-w-0 on grid items |
-| `EditorPage.tsx` | Header gap reduction, min-w-0, hide version history on xs, max-w on content |
-| `BottomTabBar.tsx` | min-h-[48px] on buttons, text-[10px] whitespace-nowrap on labels |
-| `ProgressBar.tsx` | min-w-0 on flex container |
-| `DashboardStats.tsx` | Reduce gaps, add min-w-0 |
-| `StepperNav.tsx` | Verify only -- already fixed |
+| File | Change |
+|------|--------|
+| `src/components/dashboard/DashboardStats.tsx` | Add tooltips, compact greeting, remove subtitle, fix loading logic, rename "Best" to "Top Score", show percentages |
+| `src/components/dashboard/ScoreRing.tsx` | Add `%` suffix to score display, adjust font size |
+| `src/pages/DashboardPage.tsx` | Compute and pass `isScoring` prop |
 
