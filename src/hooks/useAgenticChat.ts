@@ -7,7 +7,6 @@ import { haptics } from '@/lib/haptics';
 export function useAgenticChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
-  const [thinkingMode, setThinkingMode] = useState(false);
   const { currentResume, updateResume } = useResumeStore();
 
   const executeFunctionCall = useCallback(
@@ -187,7 +186,7 @@ export function useAgenticChat() {
       setIsThinking(true);
 
       try {
-        const response = await sendChatMessage(text.trim(), messages, currentResume, { thinkingMode });
+        const response = await sendChatMessage(text.trim(), messages, currentResume);
 
         if (response.type === 'function_call') {
           // Execute function locally
@@ -212,8 +211,7 @@ export function useAgenticChat() {
               text.trim(),
               [...messages, userMsg, initialMsg],
               currentResume,
-              functionResult,
-              thinkingMode
+              functionResult
             );
 
             if (feedbackResponse.type === 'text') {
@@ -263,24 +261,18 @@ export function useAgenticChat() {
         setIsThinking(false);
       }
     },
-    [isThinking, messages, currentResume, thinkingMode, executeFunctionCall]
+    [isThinking, messages, currentResume, executeFunctionCall]
   );
 
   const clearChat = useCallback(() => {
     setMessages([]);
   }, []);
 
-  const toggleThinkingMode = useCallback(() => {
-    setThinkingMode((prev) => !prev);
-  }, []);
-
   return {
     messages,
     isThinking,
-    thinkingMode,
     sendMessage,
     clearChat,
-    toggleThinkingMode,
     updateSuggestionStatus,
   };
 }
