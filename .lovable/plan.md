@@ -1,51 +1,27 @@
 
-## Fix Template Preview Cards - Remove Heavy Borders
 
-### Overview
-The template preview cards on the landing page currently use `border border-border/30 bg-white` which creates heavy black frames/borders, especially visible in the dark theme. The cards should have subtle depth and look like floating cards, not framed pictures.
+## Fix Black Lines on Template Preview Cards
 
-### Root Cause Analysis
-- **Current styling** (line 197): `className="aspect-[612/792] rounded-lg overflow-hidden border border-border/30 bg-white mb-1.5 transition-shadow hover:shadow-lg"`
-- **Issue**: 
-  - `bg-white` creates a harsh contrast in dark mode
-  - `border border-border/30` creates a visible frame effect
-  - The combination makes cards look clipped or heavily framed
-  - No shadow on non-hover state creates flat appearance
+### Root Cause
+Lines 184-185 in `src/pages/Index.tsx` render two gradient overlay divs meant to create a "fade to edge" scroll effect. In dark mode, `from-background` resolves to a near-black color, producing visible dark vertical strips on the left and right edges of the template row. These are the "weird black lines" visible in the screenshot.
 
-### Solution Approach
-Replace heavy borders with subtle shadow and transparency styling that matches the design system.
+### Solution
+Remove the gradient fade overlays entirely. They add visual noise on a short row of only 3 small cards that already fit on screen without needing scroll-fade hints.
 
 ### File Changes
 
-**File: `src/pages/Index.tsx` (line 197)**
+**File: `src/pages/Index.tsx`**
 
-**Current:**
-```typescript
-<div className="aspect-[612/792] rounded-lg overflow-hidden border border-border/30 bg-white mb-1.5 transition-shadow hover:shadow-lg">
+**Delete lines 184-185** (the two gradient overlay divs):
+```
+<div className="absolute left-0 top-0 bottom-2 w-6 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+<div className="absolute right-0 top-0 bottom-2 w-6 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
 ```
 
-**Updated:**
-```typescript
-<div className="aspect-[612/792] rounded-lg overflow-hidden bg-white/90 shadow-md mb-1.5 transition-all hover:shadow-xl hover:scale-105">
-```
+These two elements are the sole cause of the dark vertical bars flanking the template cards. Removing them eliminates the issue without affecting any other functionality.
 
 ### Technical Details
-
-**Changes:**
-1. **Remove border**: Remove `border border-border/30` - eliminates the heavy frame effect
-2. **Adjust background**: Change `bg-white` to `bg-white/90` - adds subtle transparency so the card blends better while maintaining white preview content
-3. **Add shadow**: Add `shadow-md` for subtle depth at rest state
-4. **Enhance hover**: Change `hover:shadow-lg` to `hover:shadow-xl` for more pronounced depth on interaction
-5. **Add scale animation**: Change `transition-shadow` to `transition-all` and leverage the existing `whileHover={{ scale: 1.05 }}` framer-motion hook (already on parent)
-
-### Why This Works
-- **No borders**: Removes the "framed picture" aesthetic
-- **Transparency**: `bg-white/90` ensures the card is readable while appearing lighter and less heavy
-- **Shadow depth**: Shadows create floating effect rather than frames
-- **Consistency**: Matches the design system's "cosmic glass UI" approach with subtle depth
-- **Accessibility**: Better contrast without looking harsh
-- **Performance**: Only uses CSS transforms (GPU-accelerated), no DOM changes
-
-### Result
-Cards will appear as floating, lightweight elements with subtle depth and smooth hover interactions. The preview content remains clear and readable while the overall appearance feels modern and clean.
+- The overlays were intended as scroll-fade hints for horizontal scrolling, but with only 3 narrow cards (w-28 each) the row rarely scrolls, making these unnecessary
+- No other files or components are affected
+- The `relative` wrapper on line 182 can remain (harmless) or be simplified to a plain div
 
