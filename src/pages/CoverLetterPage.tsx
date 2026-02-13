@@ -73,14 +73,60 @@ export default function CoverLetterPage() {
     toast.success('Copied to clipboard');
   };
 
-  const handleDownload = () => {
-    const blob = new Blob([result], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cover-letter-${jobTitle || 'untitled'}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async () => {
+    try {
+      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
+      const pdfDoc = await PDFDocument.create();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontSize = 11;
+      const margin = 72;
+      const pageWidth = 612;
+      const pageHeight = 792;
+      const maxWidth = pageWidth - margin * 2;
+      const lineHeight = fontSize * 1.5;
+
+      const lines: string[] = [];
+      for (const paragraph of result.split('\n')) {
+        if (!paragraph.trim()) { lines.push(''); continue; }
+        const words = paragraph.split(/\s+/);
+        let currentLine = '';
+        for (const word of words) {
+          const test = currentLine ? `${currentLine} ${word}` : word;
+          if (font.widthOfTextAtSize(test, fontSize) > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = test;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+      }
+
+      let page = pdfDoc.addPage([pageWidth, pageHeight]);
+      let y = pageHeight - margin;
+      for (const line of lines) {
+        if (y < margin) {
+          page = pdfDoc.addPage([pageWidth, pageHeight]);
+          y = pageHeight - margin;
+        }
+        if (line) {
+          page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) });
+        }
+        y -= lineHeight;
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cover-letter-${jobTitle || 'untitled'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('PDF downloaded!');
+    } catch {
+      toast.error('Failed to generate PDF');
+    }
   };
 
   const viewedLetter = letters?.find(l => l.id === viewingLetter);
@@ -184,7 +230,7 @@ export default function CoverLetterPage() {
                 )}
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" className="gap-1" onClick={handleCopy}><Copy className="w-3 h-3" /> Copy</Button>
-                  <Button size="sm" variant="outline" className="gap-1" onClick={handleDownload}><Download className="w-3 h-3" /> TXT</Button>
+                  <Button size="sm" variant="outline" className="gap-1" onClick={handleDownload}><Download className="w-3 h-3" /> PDF</Button>
                   <Button size="sm" className="gap-1 ml-auto" onClick={handleSave} disabled={saveCoverLetter.isPending}>Save</Button>
                 </div>
               </div>

@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowLeft, Bell, BarChart3, Lock, Briefcase, Layers, FileText, Scissors, Search, Mail, MapPin, Building2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useJobApplications, useJobApplicationMutations, usePendingReminders } from '@/hooks/useJobApplications';
+import { useJobApplications, useJobApplicationMutations } from '@/hooks/useJobApplications';
 import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';

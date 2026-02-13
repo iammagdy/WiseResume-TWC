@@ -41,25 +41,14 @@ export function usePublicResume(token: string | null) {
   return useQuery({
     queryKey: ['public-resume', token],
     queryFn: async () => {
-      // First get the share record
-      const { data: share, error: shareError } = await supabase
-        .from('resume_shares')
-        .select('resume_id, is_active, expires_at, password')
-        .eq('token', token!)
-        .maybeSingle();
-      if (shareError) throw shareError;
-      if (!share) throw new Error('Share link not found');
+      // Use security definer function to bypass RLS
+      const { data, error } = await supabase.rpc('get_shared_resume', {
+        share_token: token!,
+      });
+      if (error) throw error;
+      if (!data) throw new Error('Share link not found or expired');
 
-      // Fetch the resume
-      const { data: resume, error: resumeError } = await supabase
-        .from('resumes')
-        .select('*')
-        .eq('id', share.resume_id)
-        .maybeSingle();
-      if (resumeError) throw resumeError;
-      if (!resume) throw new Error('Resume not found');
-
-      return { share, resume };
+      return data as { share: { resume_id: string; is_active: boolean; expires_at: string | null; password: string | null; view_count: number }; resume: any };
     },
     enabled: !!token,
   });

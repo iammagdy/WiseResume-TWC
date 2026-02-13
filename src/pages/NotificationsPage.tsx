@@ -5,16 +5,31 @@ import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { useNotifications, useNotificationMutations, Notification } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { useQueryClient } from '@tanstack/react-query';
 
 type FilterTab = 'all' | 'unread' | 'applications' | 'system';
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const { data: notifications = [] } = useNotifications();
   const { markAsRead, markAllAsRead, clearAll } = useNotificationMutations();
   const [filter, setFilter] = useState<FilterTab>('all');
+
+  // Realtime subscription for notifications
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, () => {
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, queryClient]);
 
   const filtered = notifications.filter(n => {
     if (filter === 'all') return true;
