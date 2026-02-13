@@ -1,46 +1,27 @@
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/safeClient';
-import { Download, Sparkles } from 'lucide-react';
+import { Sparkles, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
-import { ResumeData, ContactInfo, Experience, Education, Certification } from '@/types/resume';
-import { Json } from '@/integrations/supabase/types';
-
-function parsePublicResume(data: any): { resumeData: ResumeData; title: string; templateId: string } {
-  return {
-    title: data.title,
-    templateId: data.template_id || 'modern',
-    resumeData: {
-      id: data.id,
-      contactInfo: (data.contact_info as unknown as ContactInfo) || { fullName: '', email: '', phone: '', location: '' },
-      summary: data.summary || '',
-      experience: (data.experience as unknown as Experience[]) || [],
-      education: (data.education as unknown as Education[]) || [],
-      skills: (data.skills as unknown as string[]) || [],
-      certifications: (data.certifications as unknown as Certification[]) || [],
-      templateId: data.template_id || 'modern',
-    },
-  };
-}
+import { usePublicResume, useResumeShareMutations } from '@/hooks/useResumeShares';
+import { ContactInfo, Experience, Education, Certification } from '@/types/resume';
 
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
+  const { data, isLoading, error } = usePublicResume(token || null);
+  const { incrementViewCount } = useResumeShareMutations();
+  const [password, setPassword] = useState('');
+  const [unlocked, setUnlocked] = useState(false);
+  const [viewCounted, setViewCounted] = useState(false);
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['public-resume', token],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('resumes')
-        .select('*')
-        .eq('id', token!)
-        .eq('is_public', true)
-        .single();
-      if (error) throw error;
-      return parsePublicResume(data);
-    },
-    enabled: !!token,
-  });
+  // Increment view count once on mount
+  useEffect(() => {
+    if (token && data && !viewCounted) {
+      incrementViewCount.mutate(token);
+      setViewCounted(true);
+    }
+  }, [token, data, viewCounted]);
 
   if (isLoading) return <PageLoadingSpinner />;
 
@@ -54,36 +35,72 @@ export default function SharePage() {
     );
   }
 
-  const { resumeData, title } = data;
+  const { share, resume } = data;
+
+  // Password gate
+  if (share.password && !unlocked) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground">
+        <div className="glass-card rounded-2xl p-6 max-w-sm w-full space-y-4">
+          <div className="flex items-center gap-2 justify-center">
+            <Lock className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-bold">Password Required</h2>
+          </div>
+          <p className="text-sm text-muted-foreground text-center">This resume is password protected.</p>
+          <Input
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            className="text-[16px]"
+          />
+          <Button
+            className="w-full"
+            onClick={() => {
+              if (password === share.password) setUnlocked(true);
+              else alert('Incorrect password');
+            }}
+          >
+            Unlock
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const contactInfo = (resume.contact_info as unknown as ContactInfo) || { fullName: '', email: '', phone: '', location: '' };
+  const summary = resume.summary || '';
+  const experience = (resume.experience as unknown as Experience[]) || [];
+  const education = (resume.education as unknown as Education[]) || [];
+  const skills = (resume.skills as unknown as string[]) || [];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* Resume Content */}
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">{resumeData.contactInfo.fullName || title}</h1>
+          <h1 className="text-2xl font-bold">{contactInfo.fullName || resume.title}</h1>
           <div className="flex flex-wrap gap-2 mt-2 text-sm text-muted-foreground">
-            {resumeData.contactInfo.email && <span>{resumeData.contactInfo.email}</span>}
-            {resumeData.contactInfo.phone && <span>· {resumeData.contactInfo.phone}</span>}
-            {resumeData.contactInfo.location && <span>· {resumeData.contactInfo.location}</span>}
+            {contactInfo.email && <span>{contactInfo.email}</span>}
+            {contactInfo.phone && <span>· {contactInfo.phone}</span>}
+            {contactInfo.location && <span>· {contactInfo.location}</span>}
           </div>
         </div>
 
         {/* Summary */}
-        {resumeData.summary && (
+        {summary && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-2">Summary</h2>
-            <p className="text-sm leading-relaxed">{resumeData.summary}</p>
+            <p className="text-sm leading-relaxed">{summary}</p>
           </section>
         )}
 
         {/* Experience */}
-        {resumeData.experience.length > 0 && (
+        {experience.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Experience</h2>
             <div className="space-y-4">
-              {resumeData.experience.map(exp => (
+              {experience.map(exp => (
                 <div key={exp.id}>
                   <div className="flex justify-between items-start">
                     <div>
@@ -106,10 +123,10 @@ export default function SharePage() {
         )}
 
         {/* Education */}
-        {resumeData.education.length > 0 && (
+        {education.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Education</h2>
-            {resumeData.education.map(edu => (
+            {education.map(edu => (
               <div key={edu.id} className="flex justify-between items-start mb-2">
                 <div>
                   <h3 className="font-semibold text-sm">{edu.degree} in {edu.field}</h3>
@@ -122,11 +139,11 @@ export default function SharePage() {
         )}
 
         {/* Skills */}
-        {resumeData.skills.length > 0 && (
+        {skills.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-2">Skills</h2>
             <div className="flex flex-wrap gap-1.5">
-              {resumeData.skills.map((s, i) => (
+              {skills.map((s, i) => (
                 <span key={i} className="px-2 py-0.5 bg-muted rounded-full text-xs">{s}</span>
               ))}
             </div>

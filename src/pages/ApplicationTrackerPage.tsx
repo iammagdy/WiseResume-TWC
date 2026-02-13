@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useJobApplication, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
+import { useCoverLetter } from '@/hooks/useCoverLetters';
 import { useResumes } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -16,11 +17,12 @@ import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 const STAGES: { key: ApplicationStatus; label: string }[] = [
   { key: 'saved', label: 'Saved' },
   { key: 'applied', label: 'Applied' },
+  { key: 'screening', label: 'Screening' },
   { key: 'interviewing', label: 'Interviewing' },
   { key: 'offer', label: 'Offer' },
 ];
 
-const STAGE_ORDER: Record<string, number> = { saved: 0, applied: 1, interviewing: 2, offer: 3, rejected: -1 };
+const STAGE_ORDER: Record<string, number> = { saved: 0, applied: 1, screening: 2, interviewing: 3, offer: 4, rejected: -1 };
 
 export default function ApplicationTrackerPage() {
   const { id } = useParams<{ id: string }>();
@@ -28,7 +30,8 @@ export default function ApplicationTrackerPage() {
   const { user } = useAuth();
   const { data: app, isLoading } = useJobApplication(id || null);
   const { data: resumes } = useResumes();
-  const { updateApplication } = useJobApplicationMutations();
+  const { updateApplication, deleteApplication } = useJobApplicationMutations();
+  const { data: coverLetter } = useCoverLetter(app?.cover_letter_id || null);
   const [notes, setNotes] = useState<string | null>(null);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
@@ -61,6 +64,10 @@ export default function ApplicationTrackerPage() {
 
   const handleStatusChange = (status: ApplicationStatus) => {
     updateApplication.mutate({ id: app.id, status });
+  };
+
+  const handleDelete = () => {
+    deleteApplication.mutate(app.id, { onSuccess: () => navigate('/applications') });
   };
 
   return (
@@ -143,6 +150,20 @@ export default function ApplicationTrackerPage() {
           </button>
         )}
 
+        {/* Linked Cover Letter */}
+        {coverLetter && (
+          <button
+            onClick={() => navigate('/cover-letter')}
+            className="glass-card rounded-2xl p-4 flex items-center gap-3 w-full text-left hover:bg-muted/30 transition-colors"
+          >
+            <Mail className="w-5 h-5 text-primary" />
+            <div>
+              <p className="text-sm font-medium">{coverLetter.title || coverLetter.job_title}</p>
+              <p className="text-xs text-muted-foreground">Linked cover letter</p>
+            </div>
+          </button>
+        )}
+
         {/* Notes */}
         <div className="glass-card rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -198,6 +219,16 @@ export default function ApplicationTrackerPage() {
             ))}
           </div>
         </div>
+
+        {/* Delete */}
+        <Button
+          variant="outline"
+          className="w-full gap-2 text-destructive hover:text-destructive border-destructive/30"
+          onClick={handleDelete}
+          disabled={deleteApplication.isPending}
+        >
+          <Trash2 className="w-4 h-4" /> Delete Application
+        </Button>
       </div>
     </motion.div>
   );
