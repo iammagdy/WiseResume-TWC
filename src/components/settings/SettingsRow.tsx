@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 
@@ -15,13 +16,16 @@ interface SettingsRowNavigationProps extends SettingsRowBaseProps {
   type: 'navigation';
   value?: string;
   onClick: () => void;
+  requiresAccount?: boolean;
 }
 
 interface SettingsRowToggleProps extends SettingsRowBaseProps {
   type: 'toggle';
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
-   disabled?: boolean;
+  disabled?: boolean;
+  showStateLabel?: boolean;
+  stateLabel?: { on: string; off: string };
 }
 
 interface SettingsRowButtonProps extends SettingsRowBaseProps {
@@ -61,14 +65,23 @@ export function SettingsRow(props: SettingsRowProps) {
             )}
           </div>
         </div>
-        <Switch
-          checked={props.checked}
-           disabled={props.disabled}
-          onCheckedChange={(checked) => {
-            haptics.light();
-            props.onCheckedChange(checked);
-          }}
-        />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {(props.showStateLabel !== false) && (
+            <span className="text-xs text-muted-foreground min-w-[20px] text-right">
+              {props.checked
+                ? (props.stateLabel?.on ?? 'On')
+                : (props.stateLabel?.off ?? 'Off')}
+            </span>
+          )}
+          <Switch
+            checked={props.checked}
+            disabled={props.disabled}
+            onCheckedChange={(checked) => {
+              haptics.light();
+              props.onCheckedChange(checked);
+            }}
+          />
+        </div>
       </div>
     );
   }
@@ -102,12 +115,19 @@ export function SettingsRow(props: SettingsRowProps) {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {props.requiresAccount && (
+            <Badge variant="outline" className="text-[10px] px-2 py-0.5">
+              Requires account
+            </Badge>
+          )}
           {props.value && (
             <span className="text-sm text-muted-foreground">
               {props.value}
             </span>
           )}
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          {!props.requiresAccount && (
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          )}
         </div>
       </button>
     );
