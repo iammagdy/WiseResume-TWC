@@ -27,13 +27,10 @@ import {
   RotateCcw,
   Lock,
   Check,
-  X,
   BookOpen,
   Users,
   Palette
 } from 'lucide-react';
-import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
-import developerPhoto from '@/assets/developer-photo.png';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -61,6 +58,7 @@ const BiometricSetupSheet = lazy(() => import('@/components/settings/BiometricSe
 const BiometricTimeoutSheet = lazy(() => import('@/components/settings/BiometricTimeoutSheet').then(m => ({ default: m.BiometricTimeoutSheet })));
 const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKeySheet').then(m => ({ default: m.ElevenLabsKeySheet })));
 const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then(m => ({ default: m.AISettingsSheet })));
+const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then(m => ({ default: m.HelpSheet })));
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -96,12 +94,7 @@ export default function SettingsPage() {
   const [biometricTimeoutOpen, setBiometricTimeoutOpen] = useState(false);
   const [elevenLabsKeyOpen, setElevenLabsKeyOpen] = useState(false);
   const [aiSettingsOpen, setAISettingsOpen] = useState(false);
-  const [guestBannerDismissed, setGuestBannerDismissed] = useState(() => sessionStorage.getItem('wr-settings-guest-banner-dismissed') === '1');
-
-  const dismissGuestBanner = () => {
-    sessionStorage.setItem('wr-settings-guest-banner-dismissed', '1');
-    setGuestBannerDismissed(true);
-  };
+  const [helpSheetOpen, setHelpSheetOpen] = useState(false);
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -210,25 +203,7 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
-          {/* Guest Banner */}
-          {!user && !guestBannerDismissed && (
-            <div className="flex items-center gap-3 rounded-xl bg-primary/5 border border-primary/20 px-4 py-3">
-              <div className="flex-1 min-w-0">
-                <p className="text-sm">
-                  You're using WiseResume as a guest.{' '}
-                  <span className="text-muted-foreground">Create a free account to save and sync your resumes.</span>
-                </p>
-              </div>
-              <Button size="sm" variant="outline" onClick={() => navigate('/auth')} className="shrink-0">
-                Sign Up
-              </Button>
-              <button onClick={dismissGuestBanner} className="p-1 rounded-full hover:bg-muted" aria-label="Dismiss">
-                <X className="w-3.5 h-3.5 text-muted-foreground" />
-              </button>
-            </div>
-          )}
-
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-8">
           {/* 1. Profile Section - Auth vs Guest */}
           {user ? (
             <button
@@ -306,10 +281,12 @@ export default function SettingsPage() {
             </div>
           )}
 
+          <Separator />
+
           {/* 2. Appearance & Language */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <Palette className="w-3.5 h-3.5 text-primary/60" />
+              <Palette className="w-4 h-4 text-primary/60" />
               Appearance
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Theme, language, and display preferences</p>
@@ -328,10 +305,12 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <Separator />
+
           {/* 3. AI & Voice */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <Brain className="w-3.5 h-3.5 text-primary/60" />
+              <Brain className="w-4 h-4 text-primary/60" />
               AI & Voice
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Choose your AI engine and voice settings</p>
@@ -381,7 +360,7 @@ export default function SettingsPage() {
                   </div>
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="default"
                     onClick={() => setElevenLabsKeyOpen(true)}
                     className="shrink-0"
                   >
@@ -392,10 +371,12 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <Separator />
+
           {/* 4. Editor & Export */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <Download className="w-3.5 h-3.5 text-primary/60" />
+              <Download className="w-4 h-4 text-primary/60" />
               Editor & Export
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">PDF output and resume backup options</p>
@@ -432,10 +413,12 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <Separator />
+
           {/* 5. Notifications */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <Bell className="w-3.5 h-3.5 text-primary/60" />
+              <Bell className="w-4 h-4 text-primary/60" />
               Notifications
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Control alerts and suggestion prompts</p>
@@ -460,41 +443,42 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          <Separator />
+
           {/* 6. Privacy & Security */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <Shield className="w-3.5 h-3.5 text-primary/60" />
+              <Shield className="w-4 h-4 text-primary/60" />
               Privacy & Security
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
-              <SettingsRow
-                type="toggle"
-                label="Biometric Lock"
-                description={
-                  biometricAvailable 
-                    ? "Protect your resumes" 
-                    : "Available on mobile app"
-                }
-                icon={<Fingerprint className="w-4 h-4" />}
-                checked={biometricLockEnabled}
-                onCheckedChange={handleBiometricToggle}
-                disabled={!biometricAvailable}
-              />
-              {biometricLockEnabled && biometricAvailable && (
+              {biometricAvailable && (
                 <>
-                  <Separator className="bg-border/30" />
                   <SettingsRow
-                    type="navigation"
-                    label="Require Authentication After"
-                    value={
-                      biometricLockTimeout === 0 ? 'Immediately' :
-                      biometricLockTimeout === 30000 ? '30 seconds' :
-                      biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
-                    }
-                    icon={<Clock className="w-4 h-4" />}
-                    onClick={() => setBiometricTimeoutOpen(true)}
+                    type="toggle"
+                    label="Biometric Lock"
+                    description="Protect your resumes"
+                    icon={<Fingerprint className="w-4 h-4" />}
+                    checked={biometricLockEnabled}
+                    onCheckedChange={handleBiometricToggle}
                   />
+                  {biometricLockEnabled && (
+                    <>
+                      <Separator className="bg-border/30" />
+                      <SettingsRow
+                        type="navigation"
+                        label="Require Authentication After"
+                        value={
+                          biometricLockTimeout === 0 ? 'Immediately' :
+                          biometricLockTimeout === 30000 ? '30 seconds' :
+                          biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
+                        }
+                        icon={<Clock className="w-4 h-4" />}
+                        onClick={() => setBiometricTimeoutOpen(true)}
+                      />
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -511,67 +495,69 @@ export default function SettingsPage() {
             </p>
           </div>
 
+          <Separator />
+
           {/* 7. Account - Auth only */}
           {user && (
-            <div>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-                <LogOut className="w-3.5 h-3.5 text-primary/60" />
-                Account
-              </h2>
-              <p className="text-xs text-muted-foreground mb-3 px-1">Sign out or delete your data</p>
-              <div className="rounded-2xl glass-elevated overflow-hidden">
-                <SettingsRow
-                  type="button"
-                  label="Delete All Data"
-                  icon={<Trash2 className="w-4 h-4" />}
-                  onClick={() => setDeleteDialogOpen(true)}
-                  destructive
-                />
-                <Separator className="bg-border/30" />
-                <SettingsRow
-                  type="button"
-                  label="Sign Out"
-                  icon={<LogOut className="w-4 h-4" />}
-                  onClick={handleSignOut}
-                  destructive
-                />
+            <>
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+                  <LogOut className="w-4 h-4 text-primary/60" />
+                  Account
+                </h2>
+                <p className="text-xs text-muted-foreground mb-3 px-1">Sign out or delete your data</p>
+                <div className="rounded-2xl glass-elevated overflow-hidden">
+                  <SettingsRow
+                    type="button"
+                    label="Delete All Data"
+                    icon={<Trash2 className="w-4 h-4" />}
+                    onClick={() => setDeleteDialogOpen(true)}
+                    destructive
+                  />
+                  <Separator className="bg-border/30" />
+                  <SettingsRow
+                    type="button"
+                    label="Sign Out"
+                    icon={<LogOut className="w-4 h-4" />}
+                    onClick={handleSignOut}
+                    destructive
+                  />
+                </div>
               </div>
-            </div>
+              <Separator />
+            </>
           )}
 
           {/* 8. About & Help */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <Info className="w-3.5 h-3.5 text-primary/60" />
+              <Info className="w-4 h-4 text-primary/60" />
               About & Help
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">App info, onboarding, and sharing</p>
-            
-            <DeveloperCreditCard
-              name="Magdy Saber"
-              title="Creator & Developer"
-              avatarUrl={developerPhoto}
-              websiteUrl="https://magdysaber.com"
-              onContactClick={() => window.open('mailto:contact@magdysaber.com')}
-            />
 
-            <div className="flex items-center justify-center gap-4 mt-2">
-              <a
-                href="mailto:contact@magdysaber.com"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-              >
-                <Mail className="w-3 h-3" />
-                contact@magdysaber.com
-              </a>
-              <a
-                href="https://magdysaber.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-              >
-                <Globe className="w-3 h-3" />
-                magdysaber.com
-              </a>
+            <div className="rounded-2xl glass-elevated overflow-hidden">
+              <SettingsRow
+                type="navigation"
+                label="Created by Magdy Saber"
+                description="Creator & Developer"
+                icon={
+                  <img 
+                    src="/icons/icon-48x48.png" 
+                    alt="Developer" 
+                    className="w-5 h-5 rounded-full object-cover"
+                  />
+                }
+                onClick={() => window.open('https://magdysaber.com', '_blank', 'noopener,noreferrer')}
+              />
+              <Separator className="bg-border/30" />
+              <SettingsRow
+                type="navigation"
+                label="Get Help"
+                description="Docs, email support, and community"
+                icon={<BookOpen className="w-4 h-4" />}
+                onClick={() => setHelpSheetOpen(true)}
+              />
             </div>
 
             <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
@@ -608,54 +594,12 @@ export default function SettingsPage() {
                 onClick={handleShareApp}
               />
             </div>
+          </div>
 
-            <div className="p-4 rounded-2xl glass-elevated mt-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
-                  <Info className="w-4 h-4" />
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  WiseResume v1.0.0
-                </span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
-              <div className="px-4 py-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                  Need help?
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs gap-1.5"
-                    onClick={() => window.open('https://docs.lovable.dev', '_blank')}
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    Docs
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs gap-1.5"
-                    onClick={() => window.open('mailto:contact@magdysaber.com')}
-                  >
-                    <Mail className="w-3.5 h-3.5" />
-                    Email Support
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-xs gap-1.5"
-                    onClick={() => window.open('https://discord.gg/lovable-dev', '_blank')}
-                  >
-                    <Users className="w-3.5 h-3.5" />
-                    Community
-                  </Button>
-                </div>
-              </div>
-            </div>
+          {/* Footer */}
+          <div className="text-center pb-8 pt-2">
+            <p className="text-xs text-muted-foreground">WiseResume v1.0.0</p>
+            <p className="text-xs text-muted-foreground mt-1">Made with ❤️ in Egypt</p>
           </div>
         </div>
       </div>
@@ -727,6 +671,12 @@ export default function SettingsPage() {
           <AISettingsSheet
             open={aiSettingsOpen}
             onOpenChange={setAISettingsOpen}
+          />
+        )}
+        {helpSheetOpen && (
+          <HelpSheet
+            open={helpSheetOpen}
+            onOpenChange={setHelpSheetOpen}
           />
         )}
       </Suspense>
