@@ -120,13 +120,13 @@ export default function EditorPage() {
 
   // Detect and handle stale resume IDs
   useEffect(() => {
-    if (currentResumeId && !isValidating && !resumeFromDb && resumeError) {
+    if (user && currentResumeId && !isValidating && !resumeFromDb && resumeError) {
       console.warn('Stale resume ID detected, clearing...', currentResumeId);
       setCurrentResumeId(null);
       toast.error('Resume not found. Please select a resume from the dashboard.');
       navigate('/dashboard');
     }
-  }, [currentResumeId, isValidating, resumeFromDb, resumeError, setCurrentResumeId, navigate]);
+  }, [user, currentResumeId, isValidating, resumeFromDb, resumeError, setCurrentResumeId, navigate]);
 
   // Show AI intro for first-time users after resume loads
   useEffect(() => {
