@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, LogIn, Home } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, LogIn, Home, FileText as FileTextIcon, Upload, Briefcase, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -9,6 +9,7 @@ import { AppLogo } from '@/components/brand/AppLogo';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { ResumeGroup, organizeResumeHierarchy } from '@/components/dashboard/ResumeGroup';
 import { EmptyState } from '@/components/dashboard/EmptyState';
+import { ActionCard } from '@/components/home/ActionCard';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
@@ -118,6 +119,19 @@ export default function DashboardPage() {
   }, [user]);
 
   // Guests can use the dashboard - no forced redirect to /auth
+
+  // Keyboard shortcuts for empty state
+  useEffect(() => {
+    if (resumes && resumes.length > 0) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key.toLowerCase() === 'n') handleCreateNew();
+      if (e.key.toLowerCase() === 'i') navigate('/upload');
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [resumes, handleCreateNew, navigate]);
 
   // Auto-score resumes in background (one at a time, debounced)
   useEffect(() => {
@@ -418,7 +432,40 @@ export default function DashboardPage() {
             <SkeletonCardList count={3} />
           </div>
         ) : !resumes || resumes.length === 0 ? (
-          <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
+          <>
+            {/* Quick Actions Grid */}
+            <div className="grid grid-cols-2 gap-3 px-6 mb-4">
+              <ActionCard
+                icon={FileTextIcon}
+                title="New Resume"
+                description="Start from scratch"
+                onClick={handleCreateNew}
+                aria-label="Create new resume"
+              />
+              <ActionCard
+                icon={Upload}
+                title="Import PDF"
+                description="Upload existing resume"
+                onClick={() => navigate('/upload')}
+                aria-label="Import PDF resume"
+              />
+              <ActionCard
+                icon={Briefcase}
+                title="Browse Jobs"
+                description="Find opportunities"
+                onClick={() => navigate('/applications')}
+                aria-label="Browse job listings"
+              />
+              <ActionCard
+                icon={Sparkles}
+                title="AI Writer"
+                description="AI-powered creation"
+                onClick={handleCreateNew}
+                aria-label="Create resume with AI"
+              />
+            </div>
+            <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
+          </>
         ) : !hasResumes ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <motion.div
