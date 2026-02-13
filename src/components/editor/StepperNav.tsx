@@ -88,7 +88,7 @@ export const StepperNav = memo(function StepperNav({
 
       <div
         ref={scrollRef}
-        className="flex items-center gap-1 relative overflow-x-auto scrollbar-hide snap-x snap-mandatory px-[30%]"
+        className="flex items-center justify-between relative overflow-x-auto scrollbar-hide w-full px-2"
       >
         {/* Connecting line */}
         <div className="absolute top-6 left-[10%] right-[10%] h-[2px] bg-border/40" />
@@ -113,7 +113,7 @@ export const StepperNav = memo(function StepperNav({
               key={step.id}
               ref={(el) => setStepRef(step.id, el)}
               onClick={() => onStepClick(step.id)}
-              className="flex flex-col items-center gap-1.5 relative z-10 touch-manipulation min-w-[48px] min-h-[48px] p-1 snap-center shrink-0"
+              className="flex flex-col items-center gap-1.5 relative z-10 touch-manipulation min-w-[48px] min-h-[48px] p-1"
             >
               <div className="relative">
                 <div
