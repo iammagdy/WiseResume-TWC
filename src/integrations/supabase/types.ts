@@ -643,6 +643,7 @@ export type Database = {
             Args: { password_attempt?: string; share_token: string }
             Returns: Json
           }
+      increment_ai_usage: { Args: { p_user_id: string }; Returns: undefined }
       increment_share_view_count: {
         Args: { share_token: string }
         Returns: undefined
