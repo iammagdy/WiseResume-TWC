@@ -267,13 +267,16 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
-        <SheetHeader className="px-4 pt-4 pb-3 shrink-0 border-b border-border space-y-2">
+        <SheetHeader className="px-4 pt-4 pb-3 shrink-0 border-b border-border">
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
               <span className="font-semibold">Wise AI</span>
+              {isAuthenticated && (
+                <AIProviderBadge size="xs" showSettingsLink />
+              )}
             </SheetTitle>
             
             {isAuthenticated && messages.length > 0 && (
@@ -287,12 +290,6 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
               </Button>
             )}
           </div>
-          
-          {isAuthenticated && (
-            <div className="flex items-center">
-              <AIProviderBadge size="xs" showSettingsLink />
-            </div>
-          )}
         </SheetHeader>
 
         {!isAuthenticated ? (
@@ -301,12 +298,8 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
           <>
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
               {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mb-4 opacity-80">
-                    <Sparkles className="w-8 h-8 text-primary-foreground" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-1">Wise AI</h3>
-                  <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
+              <div className="flex flex-col items-center h-full text-center pt-6">
+                  <p className="text-sm text-muted-foreground max-w-[260px] mb-8">
                     I can edit your resume directly. Just tell me what to change.
                   </p>
 
@@ -319,9 +312,10 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                       <button
                         key={s}
                         onClick={() => handleSuggestion(s)}
-                        className="w-full text-left text-sm px-3 py-2.5 rounded-xl glass-surface hover:bg-muted/50 active:scale-[0.98] transition-all touch-manipulation"
+                        className="w-full text-left text-sm px-4 py-3 rounded-xl border border-border/50 bg-card/50 hover:bg-primary/5 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-3"
                       >
-                        {s}
+                        <Sparkles className="w-3.5 h-3.5 text-primary/50 shrink-0" />
+                        <span>{s}</span>
                       </button>
                     ))}
                   </div>
@@ -427,13 +421,6 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
-              <Button 
-                variant="ghost" 
-                className="w-full h-10 text-muted-foreground" 
-                onClick={() => onOpenChange(false)}
-              >
-                Close
-              </Button>
             </div>
           </>
         )}
