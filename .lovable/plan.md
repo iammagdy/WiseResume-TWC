@@ -1,39 +1,59 @@
 
 
-## Restore Developer Credit Card at Bottom of Settings
+## Fix Privacy Section Empty Card and Move Footer Below Developer Card
 
-### Overview
-Restore the original holographic `DeveloperCreditCard` component in the Settings page, replacing the compact `SettingsRow` that was added in the previous refactor. Place it at the very bottom of the page, after the footer text.
+### Changes to `src/pages/SettingsPage.tsx`
 
-### Changes
+#### 1. Fix Empty Privacy & Security Card
+The `<div className="rounded-2xl glass-elevated overflow-hidden">` (line 457) renders as an empty visible box when biometric is not available on web. Wrap the entire glass card in the same `biometricAvailable` condition so it only renders when there's content inside it.
 
-**File: `src/pages/SettingsPage.tsx`**
-
-#### 1. Re-add imports
-- Add back `import developerPhoto from '@/assets/developer-photo.png';`
-- Add back lazy import for `DeveloperCreditCard`:
-  ```
-  const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then(m => ({ default: m.DeveloperCreditCard })));
-  ```
-
-#### 2. Replace compact developer SettingsRow (lines 540-552)
-- Remove the "Created by Magdy Saber" `SettingsRow` and its `<Separator>` from the About section card
-- The "Get Help" row remains as the first item in that card
-
-#### 3. Move DeveloperCreditCard to very bottom (after line 603)
-- After the footer text ("WiseResume v1.0.0" / "Made with love in Egypt"), add:
-  ```tsx
-  <Suspense fallback={null}>
-    <DeveloperCreditCard
-      name="Magdy Saber"
-      title="Creator & Developer"
-      avatarUrl={developerPhoto}
-      websiteUrl="https://magdysaber.com"
-      onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+**Lines 457-486** -- move the `biometricAvailable` condition to wrap the glass card div itself:
+```tsx
+{biometricAvailable && (
+  <div className="rounded-2xl glass-elevated overflow-hidden">
+    <SettingsRow
+      type="toggle"
+      label="Biometric Lock"
+      description="Protect your resumes"
+      icon={<Fingerprint className="w-4 h-4" />}
+      checked={biometricLockEnabled}
+      onCheckedChange={handleBiometricToggle}
     />
-  </Suspense>
-  ```
-- Add bottom padding (`pb-10`) to ensure spacing below the card
+    {biometricLockEnabled && (
+      <>
+        <Separator className="bg-border/30" />
+        <SettingsRow
+          type="navigation"
+          label="Require Authentication After"
+          ...
+        />
+      </>
+    )}
+  </div>
+)}
+```
+
+#### 2. Move Footer Below Developer Card
+Swap the order so the developer card comes first, then the version/tagline footer, then the bottom padding.
+
+Current order: Footer text -> Developer Card -> padding
+New order: Developer Card -> Footer text -> padding
+
+**Lines 587-604** become:
+```tsx
+{/* Developer Credit Card */}
+<Suspense fallback={null}>
+  <DeveloperCreditCard ... />
+</Suspense>
+
+{/* Footer */}
+<div className="text-center pt-2 pb-10">
+  <p className="text-xs text-muted-foreground">WiseResume v1.0.0</p>
+  <p className="text-xs text-muted-foreground mt-1">Made with ❤️ in Egypt</p>
+</div>
+```
+
+Remove the separate `<div className="pb-10" />` and merge the padding into the footer div.
 
 ### Files Modified
-1. `src/pages/SettingsPage.tsx` -- restore developer card import and render at bottom
+1. `src/pages/SettingsPage.tsx`
