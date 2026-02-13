@@ -1,138 +1,202 @@
 
 
-## Add Critical Pages to WiseResume Architecture
+## Add 5 Critical Pages to WiseResume
 
 ### Overview
-Add 4 new pages to complete the app's navigation architecture. The existing 404 page already meets the requirements, so it will be skipped.
+Add five new pages to complete the job application workflow: Job Detail, Application Tracker, Notification Center, Cover Letter standalone page, and Public Resume Share view.
 
 ---
 
-### 1. `/onboarding` -- Dedicated Onboarding Page
+### 1. `/job/:id` -- Job Detail Page
 
-**New file:** `src/pages/OnboardingPage.tsx`
+**New file:** `src/pages/JobDetailPage.tsx`
 
-A multi-step flow with 5 screens managed by a `step` state (0-4), distinct from the existing `OnboardingCarousel` (which remains for first-visit dashboard use).
-
-| Step | Screen | Content |
-|------|--------|---------|
-| 0 | Welcome | AppIcon + "Welcome to WiseResume" greeting, animated entrance |
-| 1 | Select Goal | 3 choice cards: "Land a new job", "Update my resume", "Explore templates" -- stored in localStorage as `wr-onboarding-goal` |
-| 2 | Pick Template | Grid of 6 popular templates (reuse `TemplateThumbnail` component), selected template stored in localStorage as `wr-onboarding-template` |
-| 3 | Notifications | Optional push notification prompt (informational only -- no actual push setup), skip-friendly |
-| 4 | Done | Confetti-like sparkle animation, "You're all set!" message, "Get Started" CTA navigating to `/dashboard` |
-
-- Progress indicator: horizontal progress bar at the top using the existing `Progress` component
-- Skip button in top-right corner on all steps
-- Back/Next navigation buttons at bottom
-- Marks `wr-onboarding-completed` in localStorage on finish
-- If already completed, redirect to `/dashboard`
-
-**Route registration:** Add to `App.tsx` inside `AppShell` with lazy loading.
-
----
-
-### 2. `/profile` -- User Profile Page
-
-**New file:** `src/pages/ProfilePage.tsx`
-
-Requires authentication -- redirects to `/auth` if not logged in.
+This page shows details of a job application entry (since the app doesn't have a separate "jobs" database -- jobs are tracked via `job_applications`). It pulls the application by ID and displays it as a job detail view.
 
 **Layout (top to bottom):**
-- Header with back arrow + "My Profile" title
-- Avatar (large, 80px) + full name + job title
-- Profile completion progress bar (reuse `calculateProfileCompletion`)
-- "Edit Profile" button (opens existing `EditProfileSheet`)
-- Stats row: glass cards showing resume count and application count
-- Resume portfolio section: grid/list of user's resumes (reuse `ResumeListCard`)
-- "Share Profile" button (uses `navigator.share` or copies a formatted text summary)
+- Header: back arrow to `/applications` + job title
+- Company card: glass-elevated card with company name, job title (large), status badge
+- Details section: URL link (external), applied date, deadline with countdown, reminder status
+- Notes section: display existing notes with inline edit (Textarea + Save button, using `updateApplication` mutation)
+- "Apply with Resume" dropdown: if status is `saved`, show a `Select` to pick a resume from `useResumes()`, then update the application's `resume_id`
+- "Share Job" button: uses `navigator.share` with the job URL or copies to clipboard
+- "Update Status" section: status chip buttons (reuse pattern from `ApplicationDetailSheet`)
 
-**Data sources:** `useProfile` hook for profile data, `useResumes` hook for resume list, `useJobApplications` for application count.
+**Data:** `useJobApplications` to fetch by ID (add a new `useJobApplication(id)` query to `useJobApplications.ts`), `useResumes` for resume picker.
 
-**Route registration:** Add to `App.tsx` inside `AppShell`.
+**New hook addition in `src/hooks/useJobApplications.ts`:**
+```typescript
+export function useJobApplication(id: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['job-application', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('*')
+        .eq('id', id!)
+        .single();
+      if (error) throw error;
+      return data as unknown as JobApplication;
+    },
+    enabled: !!user && !!id,
+  });
+}
+```
 
 ---
 
-### 3. `/templates` -- Template Browser Page
+### 2. `/application/:id` -- Application Tracker Page
 
-**New file:** `src/pages/TemplatesPage.tsx`
+**New file:** `src/pages/ApplicationTrackerPage.tsx`
 
-A full-page template gallery accessible to all users (no auth required).
+A full-page view of a single application with a visual status timeline.
 
 **Layout:**
-- Header with back arrow + "Templates" title
-- Filter chips: "All", "Professional", "Creative", "Tech", "ATS-Optimized" (derived from existing template categories)
-- Grid of template cards (3 columns on tablet, 2 on mobile) using `TemplateThumbnail`
-- Each card shows: template name, ATS badge (High/Medium), category tag
-- Tap a card to open a preview sheet (`Sheet`) showing a larger thumbnail + description + "Use Template" button
-- "Use Template" navigates to `/editor` after setting the template in the resume store (or creates a new resume with that template)
+- Header: back arrow to `/applications` + "Application Details"
+- Status timeline: vertical stepper showing stages (Saved, Applied, Screening, Interviewing, Offer/Rejected) with the current status highlighted and completed stages checked
+- Job summary card: job title, company, applied date, deadline
+- Linked resume: if `resume_id` exists, show resume title as a tappable link navigating to `/resume/:id`
+- Notes section: editable Textarea with Save button (updates `notes` via `updateApplication`)
+- "Set Reminder" button: opens a date/time picker and calls `updateApplication` with `remind_at`
+- "Update Status" button row: status pill buttons to change status
 
-**Data source:** Reuse the `templates` array from `TemplateSelector.tsx` -- extract it to a shared constant file or import directly.
-
-**Route registration:** Add to `App.tsx` inside `AppShell`.
+**Data:** Reuse `useJobApplication(id)` hook, `useJobApplicationMutations` for updates.
 
 ---
 
-### 4. `/resume/:id` -- Resume Detail Page
+### 3. `/notifications` -- Notification Center
 
-**New file:** `src/pages/ResumeDetailPage.tsx`
+**New file:** `src/pages/NotificationsPage.tsx`
 
-Shows a single resume's details with action buttons.
+Client-side notification center. Since there's no `notifications` database table, this will aggregate activity data locally and show application reminders.
 
 **Layout:**
-- Header with back arrow + resume title (editable inline)
-- Template thumbnail preview (large, centered)
-- Metadata section: created date, last edited, template name
-- Action buttons grid (2x3): Edit, Preview, Download PDF, Share, Duplicate, Delete
-  - Edit navigates to `/editor` with resume loaded
-  - Preview navigates to `/preview`
-  - Download triggers PDF generation (reuse `pdfGenerator`)
-  - Share opens `ShareSheet`
-  - Duplicate calls `createResume` mutation with cloned data
-  - Delete shows confirmation dialog then calls `deleteResume` mutation
-- Health score ring (if score data exists, reuse `ScoreRing`)
+- Header: back arrow + "Notifications" title + "Clear All" button
+- Filter tabs: All | Applications | System (using inline pill buttons)
+- Notification list: each item shows icon, message text, relative timestamp, and unread dot
+- Notification sources:
+  - Application reminders (from `job_applications` where `remind_at` has passed)
+  - System messages (stored in localStorage as `wr-notifications`)
+- Empty state: Bell icon + "No notifications yet" message
+- "Mark as read" swipe or tap action per item
 
-**Data source:** `useResumes` to fetch by ID from URL param, `useResumeScore` for health data.
+**Storage:** `localStorage` key `wr-notifications` stores an array of `{ id, type, message, timestamp, read }`. Application reminders are computed live from the database.
 
-**Route registration:** Add to `App.tsx` inside `AppShell` as `<Route path="/resume/:id" ...>`.
+**No new database table needed** -- keeps it simple with localStorage + computed reminders.
 
 ---
 
-### 5. 404 Page -- Already Complete
+### 4. `/cover-letter` -- Standalone Cover Letter Page
 
-The existing `NotFound.tsx` already has centered layout, illustration (AlertCircle icon), "Page Not Found" heading, message text, and "Return to Home" CTA. No changes needed.
+**New file:** `src/pages/CoverLetterPage.tsx`
+
+A standalone page wrapping the existing `CoverLetterGenerator` component with additional context selection.
+
+**Layout:**
+- Header: back arrow + "Cover Letters" title
+- Two sections via tabs: "Create New" | "Saved Letters"
+- **Create New tab:**
+  - Resume selector: `Select` dropdown populated from `useResumes()`
+  - Job description input: `Textarea` for pasting job description
+  - OR: select from saved job applications via a picker
+  - Tone selector (Professional / Enthusiastic / Conversational)
+  - "Generate" button triggers AI generation via existing `generateCoverLetter()` from `src/lib/aiTailor.ts`
+  - Result area: read/edit toggle, copy, download PDF/TXT buttons (reuse logic from `CoverLetterGenerator`)
+- **Saved Letters tab:**
+  - Query `cover_letters` table for the user's saved letters
+  - List with job title, company, date, tone badge
+  - Tap to view full letter with copy/download options
+  - Swipe to delete
+
+**Data:** `useResumes`, new `useCoverLetters` hook querying the `cover_letters` table, `generateCoverLetter` from `aiTailor.ts`.
+
+**New hook in `src/hooks/useCoverLetters.ts`:**
+```typescript
+export function useCoverLetters() { /* query cover_letters table */ }
+export function useCoverLetterMutations() { /* save, delete */ }
+```
+
+**Auth required** -- redirects to `/auth` if not logged in.
 
 ---
 
-### Route & Navigation Updates
+### 5. `/share/:token` -- Public Resume View
+
+**New file:** `src/pages/SharePage.tsx`
+
+A public page (no auth required) that displays a resume in read-only mode.
+
+**How sharing works:**
+- The `token` is simply the resume ID
+- The page fetches the resume using a public-facing query (requires an RLS policy allowing public read on resumes with a specific flag)
+- **Database change:** Add a `is_public` boolean column (default false) to the `resumes` table, and an RLS policy allowing anonymous SELECT when `is_public = true`
+- When a user clicks "Share" on `/resume/:id`, it sets `is_public = true` and generates the `/share/:token` URL
+
+**Layout:**
+- No app chrome (no bottom nav, no header)
+- Clean white/dark background
+- Resume rendered using the template component (same as PreviewPage)
+- Bottom bar: "Download PDF" button + "Create Your Own Resume" CTA linking to `/`
+- Footer: "Created with WiseResume" branding
+
+**Route:** This page lives OUTSIDE the `AppShell` route group (no bottom tab bar).
+
+---
+
+### Database Migration
+
+Add `is_public` column to `resumes`:
+```sql
+ALTER TABLE public.resumes ADD COLUMN is_public boolean NOT NULL DEFAULT false;
+
+-- Allow anonymous users to read public resumes
+CREATE POLICY "Public resumes are viewable by anyone"
+  ON public.resumes FOR SELECT
+  USING (is_public = true);
+```
+
+---
+
+### Navigation & Routing Updates
 
 **`src/App.tsx`:**
-- Add 4 new lazy-loaded page imports
-- Add routes inside `AppShell`: `/onboarding`, `/profile`, `/templates`, `/resume/:id`
+- Add 5 new lazy-loaded imports
+- Routes inside `AppShell`: `/job/:id`, `/application/:id`, `/notifications`, `/cover-letter`
+- Route OUTSIDE `AppShell` (alongside `/` landing): `/share/:token`
 
 **`src/components/layout/AppShell.tsx`:**
-- Add new routes to `TAB_ROUTES` array so bottom nav remains visible
+- Add `/job`, `/application`, `/notifications`, `/cover-letter` to `TAB_ROUTES`
 
 **`src/lib/navigation.ts`:**
-- Add back routes: `/onboarding` -> `/dashboard`, `/profile` -> `/dashboard`, `/templates` -> `/dashboard`, `/resume/:id` -> `/dashboard` (pattern match)
+- Add back routes:
+  - `/job` -> `/applications`
+  - `/application` -> `/applications`
+  - `/notifications` -> `/dashboard`
+  - `/cover-letter` -> `/dashboard`
+
+**`src/hooks/useJobApplications.ts`:**
+- Add `useJobApplication(id)` single-item query hook
+
+**New file: `src/hooks/useCoverLetters.ts`:**
+- `useCoverLetters()` -- list user's saved cover letters
+- `useCoverLetterMutations()` -- save new, delete
 
 ---
 
-### Shared Template Data Extraction
+### File Summary
 
-**New file:** `src/lib/templateData.ts`
-
-Extract the `templates: TemplateInfo[]` array currently defined inside `TemplateSelector.tsx` into a shared module so both `TemplateSelector`, `TemplatesPage`, and `EmptyState` can import it without duplication.
-
----
-
-### Technical Summary
-
-| Item | Detail |
-|------|--------|
-| New files | `OnboardingPage.tsx`, `ProfilePage.tsx`, `TemplatesPage.tsx`, `ResumeDetailPage.tsx`, `templateData.ts` |
-| Modified files | `App.tsx` (routes), `AppShell.tsx` (TAB_ROUTES), `navigation.ts` (back routes), `TemplateSelector.tsx` (import from shared data) |
-| Reused components | `TemplateThumbnail`, `ResumeListCard`, `ScoreRing`, `EditProfileSheet`, `ShareSheet`, `Progress`, `AppIcon` |
-| Reused hooks | `useProfile`, `useResumes`, `useResumeScore`, `useJobApplications`, `useAuth` |
-| Auth requirements | `/profile` requires auth; others are public |
-| Storage | Onboarding progress in localStorage (`wr-onboarding-goal`, `wr-onboarding-template`, `wr-onboarding-completed`) |
+| Action | File |
+|--------|------|
+| Create | `src/pages/JobDetailPage.tsx` |
+| Create | `src/pages/ApplicationTrackerPage.tsx` |
+| Create | `src/pages/NotificationsPage.tsx` |
+| Create | `src/pages/CoverLetterPage.tsx` |
+| Create | `src/pages/SharePage.tsx` |
+| Create | `src/hooks/useCoverLetters.ts` |
+| Edit | `src/hooks/useJobApplications.ts` (add `useJobApplication`) |
+| Edit | `src/App.tsx` (add routes) |
+| Edit | `src/components/layout/AppShell.tsx` (add TAB_ROUTES) |
+| Edit | `src/lib/navigation.ts` (add back routes) |
+| Migration | Add `is_public` column to `resumes` + RLS policy |
 
