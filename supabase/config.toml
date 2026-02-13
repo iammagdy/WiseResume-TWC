@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.score-resume]
 verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
