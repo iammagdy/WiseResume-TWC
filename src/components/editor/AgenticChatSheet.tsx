@@ -12,6 +12,10 @@ import {
   Brain,
   Check,
   X,
+  MessageSquare,
+  GitCompareArrows,
+  Shield,
+  LogIn,
 } from 'lucide-react';
 import {
   Sheet,
@@ -26,6 +30,8 @@ import { useAgenticChat } from '@/hooks/useAgenticChat';
 import { haptics } from '@/lib/haptics';
 import { AIProviderBadge } from '@/components/editor/ai/AIProviderBadge';
 import { SuggestionProposal } from '@/lib/agenticChat';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 interface AgenticChatSheetProps {
   open: boolean;
@@ -38,6 +44,14 @@ const SUGGESTIONS = [
   'Proofread my resume',
   'Add skills for a React developer',
   'What can I improve?',
+];
+
+const CAPABILITIES = [
+  { icon: MessageSquare, title: 'Edit by Chatting', desc: '"Update my summary" or "Add React to skills" — changes apply instantly' },
+  { icon: Wrench, title: 'Auto-Apply Changes', desc: 'Wise AI edits your resume directly, no copy-pasting needed' },
+  { icon: GitCompareArrows, title: 'Review Suggestions', desc: 'See before/after diffs and accept or reject each change' },
+  { icon: Brain, title: 'Thinking Mode', desc: 'Complex career reasoning with deeper analysis' },
+  { icon: Shield, title: 'Private & Secure', desc: 'Your data stays yours' },
 ];
 
 function FunctionCallBadge({ name }: { name: string }) {
@@ -156,7 +170,53 @@ function SuggestionCard({
   );
 }
 
+function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: () => void }) {
+  return (
+    <>
+      <div className="flex-1 overflow-y-auto px-4 py-6 min-h-0">
+        <div className="flex flex-col items-center text-center">
+          <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mb-4 opacity-80">
+            <Sparkles className="w-8 h-8 text-primary-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold mb-1">Your AI Resume Assistant</h3>
+          <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
+            Edit your resume effortlessly just by chatting with Wise AI.
+          </p>
+
+          <div className="w-full space-y-3 mb-6">
+            <p className="text-xs text-muted-foreground font-medium text-left">What Wise AI can do:</p>
+            {CAPABILITIES.map((cap) => (
+              <div key={cap.title} className="flex items-start gap-3 p-3 rounded-xl glass-surface text-left">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <cap.icon className="w-4 h-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{cap.title}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{cap.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <Button className="w-full gradient-primary" onClick={onSignIn}>
+            <LogIn className="w-4 h-4 mr-2" />
+            Sign In to Start Chatting
+          </Button>
+          <p className="text-xs text-muted-foreground mt-2">Free to use after signing in</p>
+        </div>
+      </div>
+      <div className="shrink-0 border-t border-border p-3 pb-safe">
+        <Button variant="ghost" className="w-full h-10 text-muted-foreground" onClick={onClose}>
+          Close
+        </Button>
+      </div>
+    </>
+  );
+}
+
 export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const {
     messages,
     isThinking,
@@ -177,10 +237,10 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
   }, [messages, isThinking]);
 
   useEffect(() => {
-    if (open && messages.length === 0) {
+    if (open && messages.length === 0 && isAuthenticated) {
       setTimeout(() => inputRef.current?.focus(), 300);
     }
-  }, [open, messages.length]);
+  }, [open, messages.length, isAuthenticated]);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -201,11 +261,15 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
     }
   };
 
+  const handleSignIn = () => {
+    onOpenChange(false);
+    navigate('/auth');
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0">
         <SheetHeader className="px-4 pt-4 pb-3 shrink-0 border-b border-border space-y-2">
-          {/* Row 1: Title and Clear action */}
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
@@ -214,7 +278,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
               <span className="font-semibold">Wise AI</span>
             </SheetTitle>
             
-            {messages.length > 0 && (
+            {isAuthenticated && messages.length > 0 && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -226,167 +290,173 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
             )}
           </div>
           
-          {/* Row 2: Badge and Thinking Mode */}
-          <div className="flex items-center justify-between">
-            <AIProviderBadge size="xs" showSettingsLink />
-            <div className="flex items-center gap-1.5">
-              <Brain
-                className={cn(
-                  'w-4 h-4 transition-colors',
-                  thinkingMode ? 'text-primary' : 'text-muted-foreground'
-                )}
-              />
-              <Switch
-                checked={thinkingMode}
-                onCheckedChange={toggleThinkingMode}
-                className="scale-90"
-              />
-              <span className="text-xs text-muted-foreground">Pro</span>
-            </div>
-          </div>
-        </SheetHeader>
-
-        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mb-4 opacity-80">
-                <Sparkles className="w-8 h-8 text-primary-foreground" />
+          {isAuthenticated && (
+            <div className="flex items-center justify-between">
+              <AIProviderBadge size="xs" showSettingsLink />
+              <div className="flex items-center gap-1.5">
+                <Brain
+                  className={cn(
+                    'w-4 h-4 transition-colors',
+                    thinkingMode ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                />
+                <Switch
+                  checked={thinkingMode}
+                  onCheckedChange={toggleThinkingMode}
+                  className="scale-90"
+                />
+                <span className="text-xs text-muted-foreground">Pro</span>
               </div>
-              <h3 className="text-lg font-semibold mb-1">Wise AI</h3>
-              <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
-                I can edit your resume directly. Just tell me what to change.
-              </p>
-
-              <div className="w-full space-y-2">
-                <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
-                  <Lightbulb className="w-3 h-3" />
-                  Try saying:
-                </p>
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => handleSuggestion(s)}
-                    className="w-full text-left text-sm px-3 py-2.5 rounded-xl glass-surface hover:bg-muted/50 active:scale-[0.98] transition-all touch-manipulation"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <AnimatePresence initial={false}>
-                {messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className={cn(
-                      'flex gap-2',
-                      msg.role === 'user' ? 'justify-end' : 'justify-start'
-                    )}
-                  >
-                    {msg.role === 'assistant' && (
-                      <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center shrink-0 mt-0.5">
-                        <Bot className="w-3.5 h-3.5 text-primary-foreground" />
-                      </div>
-                    )}
-                    <div
-                      className={cn(
-                        'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
-                        msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'glass-surface rounded-bl-md'
-                      )}
-                    >
-                      {msg.functionCall && (
-                        <div className="mb-1.5">
-                          <FunctionCallBadge name={msg.functionCall.name} />
-                        </div>
-                      )}
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
-                      </div>
-                      {msg.suggestion && msg.suggestion.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          {msg.suggestion.map((proposal, idx) => (
-                            <SuggestionCard
-                              key={idx}
-                              proposal={proposal}
-                              index={idx}
-                              messageId={msg.id}
-                              onAction={updateSuggestionStatus}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    {msg.role === 'user' && (
-                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                        <User className="w-3.5 h-3.5" />
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-
-              {isThinking && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex gap-2 items-start"
-                >
-                  <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center shrink-0">
-                    <Bot className="w-3.5 h-3.5 text-primary-foreground" />
-                  </div>
-                  <div className="glass-surface rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
-                      <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
             </div>
           )}
-        </div>
+        </SheetHeader>
 
-        <div className="shrink-0 border-t border-border p-3 space-y-2 pb-safe">
-          <div className="flex items-center gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                thinkingMode
-                  ? 'Ask Wise AI (Pro mode - complex reasoning)...'
-                  : 'Ask Wise AI to edit your resume...'
-              }
-              className="flex-1 h-11 px-4 rounded-full glass-input text-sm placeholder:text-muted-foreground/60 focus:outline-none"
-              disabled={isThinking}
-            />
-            <Button
-              size="icon"
-              className="w-11 h-11 rounded-full gradient-primary shrink-0"
-              onClick={handleSend}
-              disabled={!input.trim() || isThinking}
-              aria-label="Send message"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-          {/* Explicit Close Button for Mobile */}
-          <Button 
-            variant="ghost" 
-            className="w-full h-10 text-muted-foreground" 
-            onClick={() => onOpenChange(false)}
-          >
-            Close
-          </Button>
-        </div>
+        {!isAuthenticated ? (
+          <GuestShowcase onClose={() => onOpenChange(false)} onSignIn={handleSignIn} />
+        ) : (
+          <>
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 min-h-0">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mb-4 opacity-80">
+                    <Sparkles className="w-8 h-8 text-primary-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-1">Wise AI</h3>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
+                    I can edit your resume directly. Just tell me what to change.
+                  </p>
+
+                  <div className="w-full space-y-2">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
+                      <Lightbulb className="w-3 h-3" />
+                      Try saying:
+                    </p>
+                    {SUGGESTIONS.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => handleSuggestion(s)}
+                        className="w-full text-left text-sm px-3 py-2.5 rounded-xl glass-surface hover:bg-muted/50 active:scale-[0.98] transition-all touch-manipulation"
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <AnimatePresence initial={false}>
+                    {messages.map((msg) => (
+                      <motion.div
+                        key={msg.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={cn(
+                          'flex gap-2',
+                          msg.role === 'user' ? 'justify-end' : 'justify-start'
+                        )}
+                      >
+                        {msg.role === 'assistant' && (
+                          <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center shrink-0 mt-0.5">
+                            <Bot className="w-3.5 h-3.5 text-primary-foreground" />
+                          </div>
+                        )}
+                        <div
+                          className={cn(
+                            'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
+                            msg.role === 'user'
+                              ? 'bg-primary text-primary-foreground rounded-br-md'
+                              : 'glass-surface rounded-bl-md'
+                          )}
+                        >
+                          {msg.functionCall && (
+                            <div className="mb-1.5">
+                              <FunctionCallBadge name={msg.functionCall.name} />
+                            </div>
+                          )}
+                          <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
+                            <ReactMarkdown>{msg.content}</ReactMarkdown>
+                          </div>
+                          {msg.suggestion && msg.suggestion.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                              {msg.suggestion.map((proposal, idx) => (
+                                <SuggestionCard
+                                  key={idx}
+                                  proposal={proposal}
+                                  index={idx}
+                                  messageId={msg.id}
+                                  onAction={updateSuggestionStatus}
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {msg.role === 'user' && (
+                          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+
+                  {isThinking && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex gap-2 items-start"
+                    >
+                      <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center shrink-0">
+                        <Bot className="w-3.5 h-3.5 text-primary-foreground" />
+                      </div>
+                      <div className="glass-surface rounded-2xl rounded-bl-md px-4 py-3">
+                        <div className="flex gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
+                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:150ms]" />
+                          <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:300ms]" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="shrink-0 border-t border-border p-3 space-y-2 pb-safe">
+              <div className="flex items-center gap-2">
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder={
+                    thinkingMode
+                      ? 'Ask Wise AI (Pro mode - complex reasoning)...'
+                      : 'Ask Wise AI to edit your resume...'
+                  }
+                  className="flex-1 h-11 px-4 rounded-full glass-input text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+                  disabled={isThinking}
+                />
+                <Button
+                  size="icon"
+                  className="w-11 h-11 rounded-full gradient-primary shrink-0"
+                  onClick={handleSend}
+                  disabled={!input.trim() || isThinking}
+                  aria-label="Send message"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              <Button 
+                variant="ghost" 
+                className="w-full h-10 text-muted-foreground" 
+                onClick={() => onOpenChange(false)}
+              >
+                Close
+              </Button>
+            </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );
