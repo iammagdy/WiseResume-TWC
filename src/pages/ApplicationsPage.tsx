@@ -2,23 +2,21 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, ArrowLeft, Bell, BarChart3, Lock, Briefcase, Layers, FileText, Scissors, Search, Mail, MapPin, Building2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useJobApplications, useJobApplicationMutations } from '@/hooks/useJobApplications';
-import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
+import { useJobApplications } from '@/hooks/useJobApplications';
+import { useJobs, Job } from '@/hooks/useJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
 import { JobActivityStatsCard } from '@/components/applications/JobActivityStats';
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
-import { ApplicationDetailSheet } from '@/components/applications/ApplicationDetailSheet';
 import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { JobApplication } from '@/hooks/useJobApplications';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 type TabKey = 'applications' | 'jobs';
 
@@ -62,7 +60,6 @@ export default function ApplicationsPage() {
   const stats = useJobActivityStats();
   const [activeTab, setActiveTab] = useState<TabKey>('applications');
   const [showAdd, setShowAdd] = useState(false);
-  const [selectedApp, setSelectedApp] = useState<JobApplication | null>(null);
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: jobs = [] } = useJobs();
   const { data: applications = [] } = useJobApplications();
@@ -319,11 +316,6 @@ export default function ApplicationsPage() {
       </PullToRefresh>
 
       <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} />
-      <ApplicationDetailSheet
-        application={selectedApp}
-        open={!!selectedApp}
-        onOpenChange={(open) => !open && setSelectedApp(null)}
-      />
       <ResumeListSheet
         open={resumeListOpen}
         onOpenChange={setResumeListOpen}

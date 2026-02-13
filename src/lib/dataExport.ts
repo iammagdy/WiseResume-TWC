@@ -148,10 +148,10 @@ export async function exportTailorHistory(history: TailorHistory[]): Promise<voi
  */
 export async function importResumes(file: File, userId: string): Promise<number> {
   const text = await file.text();
-  let data: any;
+  let data: Record<string, unknown>;
   
   try {
-    data = JSON.parse(text);
+    data = JSON.parse(text) as Record<string, unknown>;
   } catch {
     throw new Error('Invalid JSON file. Please select a valid WiseResume backup.');
   }
