@@ -1,35 +1,75 @@
 
 
-## Fix Editor Tab Navigation Overflow
+## Guest-Friendly Wise AI Chat
 
 ### Problem
-The `StepperNav` component uses `px-[30%]` padding on the scroll container (line 91), which pushes tabs off-screen and forces horizontal scrolling. With only 5 tabs, they should all fit on screen without scrolling on most devices.
+When unauthenticated users open the Wise AI chat and send a message, they get a 401 error because the edge function requires authentication. There's no indication that sign-in is required.
 
 ### Solution
+Add an auth check to the `AgenticChatSheet`. When the user is not signed in, replace the chat interface with a **showcase screen** that highlights Wise AI's capabilities and prompts sign-in.
 
-**File: `src/components/editor/StepperNav.tsx`**
+### Changes
 
-1. **Remove excessive horizontal padding** -- change `px-[30%]` to `px-2` so the tabs can spread across the full width
-2. **Change layout to distribute tabs evenly** -- add `justify-between w-full` so all 5 tabs share the available space equally instead of being left-aligned with scroll
-3. **Remove snap scrolling classes** -- since all tabs will be visible, `snap-x snap-mandatory` and `overflow-x-auto` become unnecessary; change to `overflow-x-hidden`
-4. **Keep fade indicators and auto-scroll logic** as fallback for very narrow screens (under ~320px)
+**File: `src/components/editor/AgenticChatSheet.tsx`**
 
-### Specific Change (line 91)
+1. **Import `useAuth`** from `@/hooks/useAuth` and `LogIn` icon from lucide-react
 
-Before:
+2. **Add auth check** at the top of the component:
+   ```tsx
+   const { isAuthenticated } = useAuth();
+   ```
+
+3. **Replace the empty-state / chat area** with a guest showcase when not authenticated. Instead of showing the chat input and suggestion buttons, render:
+
+   - The Wise AI icon and title (same branding)
+   - A headline: "Your AI Resume Assistant"
+   - A **capabilities showcase** with 4-5 feature cards showing what Wise AI can do:
+     - "Edit your resume by chatting" -- describe, update summary, add experience
+     - "Smart proofreading" -- fix grammar and improve wording automatically
+     - "Add skills intelligently" -- suggest and merge relevant skills
+     - "Before/After suggestions" -- review AI proposals before applying
+     - "Thinking Mode" -- complex career reasoning with Pro mode
+   - Each card has an icon and a short description
+   - A prominent **"Sign In to Start Chatting"** button that navigates to `/auth`
+   - A subtle note: "Free to use after signing in"
+
+4. **Disable the input area for guests** -- hide the text input and send button entirely when not authenticated, so they can't trigger the 401
+
+### Layout of Guest View
+
 ```
-className="flex items-center gap-1 relative overflow-x-auto scrollbar-hide snap-x snap-mandatory px-[30%]"
+[Bot Icon]
+Wise AI - Your Resume Assistant
+
+What Wise AI can do:
+
+[MessageSquare] Edit by Chatting
+  "Update my summary" or "Add React to skills"
+  -- changes apply instantly
+
+[Wrench] Auto-Apply Changes  
+  Wise AI edits your resume directly,
+  no copy-pasting needed
+
+[GitCompare] Review Suggestions
+  See before/after diffs and accept
+  or reject each change
+
+[Brain] Thinking Mode
+  Complex career reasoning with
+  deeper analysis
+
+[Shield] Private & Secure
+  Your data stays yours
+
+[ Sign In to Start Chatting ] (button)
+"Free to use after signing in"
 ```
 
-After:
-```
-className="flex items-center justify-between relative overflow-x-auto scrollbar-hide w-full px-2"
-```
+### Technical Details
 
-Also update the step button (line 116) to remove `snap-center shrink-0` so tabs can flex naturally:
-```
-className="flex flex-col items-center gap-1.5 relative z-10 touch-manipulation min-w-[48px] min-h-[48px] p-1"
-```
-
-### Files Modified
-- `src/components/editor/StepperNav.tsx` -- 2 line changes to fix tab layout
+- Uses `useAuth()` hook already available in the project
+- Navigation to `/auth` via `useNavigate()` from react-router-dom
+- No new components or files needed -- all changes within `AgenticChatSheet.tsx`
+- The sheet header still shows (with title/branding) but the Thinking Mode toggle and Clear button are hidden for guests
+- Icons used: `MessageSquare`, `Wrench`, `GitCompareArrows` (or `GitCompare`), `Brain`, `Shield`, `LogIn` from lucide-react
