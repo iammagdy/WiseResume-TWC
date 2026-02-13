@@ -1,53 +1,35 @@
 
 
-## Visual & UX Polish Pass
+## Fix Editor Tab Navigation Overflow
 
-### What Changes
+### Problem
+The `StepperNav` component uses `px-[30%]` padding on the scroll container (line 91), which pushes tabs off-screen and forces horizontal scrolling. With only 5 tabs, they should all fit on screen without scrolling on most devices.
 
-**File: `src/pages/SettingsPage.tsx`**
+### Solution
 
-All section headers currently use a gradient line decoration but no icons. This pass adds a small icon to each section header for improved scanability, and ensures consistent capitalization and spacing.
+**File: `src/components/editor/StepperNav.tsx`**
 
-### Section Header Icon Mapping
+1. **Remove excessive horizontal padding** -- change `px-[30%]` to `px-2` so the tabs can spread across the full width
+2. **Change layout to distribute tabs evenly** -- add `justify-between w-full` so all 5 tabs share the available space equally instead of being left-aligned with scroll
+3. **Remove snap scrolling classes** -- since all tabs will be visible, `snap-x snap-mandatory` and `overflow-x-auto` become unnecessary; change to `overflow-x-hidden`
+4. **Keep fade indicators and auto-scroll logic** as fallback for very narrow screens (under ~320px)
 
-Each `<h2>` section header gets a small icon inserted after the gradient line:
-
-| Section | Icon | Import Status |
-|---------|------|---------------|
-| Appearance | `Palette` | New import needed |
-| AI & Voice | `Brain` | Already imported |
-| Editor & Export | `Download` | Already imported |
-| Notifications | `Bell` | Already imported |
-| Privacy & Security | `Shield` | Already imported |
-| Account | `LogOut` | Already imported |
-| About & Help | `Info` | Already imported |
-
-### Example Change (repeated for each section)
+### Specific Change (line 91)
 
 Before:
-```tsx
-<h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-  <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
-  Appearance
-</h2>
+```
+className="flex items-center gap-1 relative overflow-x-auto scrollbar-hide snap-x snap-mandatory px-[30%]"
 ```
 
 After:
-```tsx
-<h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-  <Palette className="w-3.5 h-3.5 text-primary/60" />
-  Appearance
-</h2>
+```
+className="flex items-center justify-between relative overflow-x-auto scrollbar-hide w-full px-2"
 ```
 
-This replaces the gradient line span with a small themed icon for each section, improving scanability while keeping the layout clean.
-
-### Additional Polish
-
-- Add `Palette` to the lucide-react import (line 4-33)
-- Remove the gradient `<span>` from all 7 section headers (they become redundant with icons)
-- Consistent subtitle pattern already in place -- no changes needed there
+Also update the step button (line 116) to remove `snap-center shrink-0` so tabs can flex naturally:
+```
+className="flex flex-col items-center gap-1.5 relative z-10 touch-manipulation min-w-[48px] min-h-[48px] p-1"
+```
 
 ### Files Modified
-- `src/pages/SettingsPage.tsx` -- add `Palette` import, replace gradient spans with icons on all 7 section headers
-
+- `src/components/editor/StepperNav.tsx` -- 2 line changes to fix tab layout
