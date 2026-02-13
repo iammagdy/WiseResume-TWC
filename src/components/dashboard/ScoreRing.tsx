@@ -72,10 +72,10 @@ export const ScoreRing = memo(function ScoreRing({
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span className={cn(
-          'text-xs font-bold',
+          'text-[10px] font-bold',
           score >= 80 ? 'text-success' : score >= 60 ? 'text-warning' : 'text-destructive'
         )}>
-          {score}
+          {score}%
         </span>
       </div>
     </div>

@@ -4,6 +4,12 @@ import { FileText, Award, Flame } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { cn } from '@/lib/utils';
 import { ScoreRing } from './ScoreRing';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from '@/components/ui/tooltip';
 
 function useLoginStreak() {
   const [streak, setStreak] = useState(1);
@@ -46,9 +52,10 @@ interface DashboardStatsProps {
   totalResumes: number;
   healthScores: Record<string, ResumeHealthScore>;
   userName?: string | null;
+  isScoring?: boolean;
 }
 
-export function DashboardStats({ totalResumes, healthScores, userName }: DashboardStatsProps) {
+export function DashboardStats({ totalResumes, healthScores, userName, isScoring = false }: DashboardStatsProps) {
   const streak = useLoginStreak();
   const [subtitleIndex, setSubtitleIndex] = useState(0);
 
@@ -105,12 +112,12 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
 
         {/* Content */}
         <div className="relative z-10">
-          {/* Greeting */}
+          {/* Greeting - compact */}
           <div className="flex items-center justify-between mb-1">
-             <h1 className="text-h1">
+            <h2 className="text-lg font-semibold">
               {greeting}{firstName ? `, ${firstName}` : ''}{' '}
-              <span className="inline-block animate-pulse">👋</span>
-            </h1>
+              <span className="text-base">👋</span>
+            </h2>
             {streak > 1 && (
               <motion.div
                 initial={{ scale: 0 }}
@@ -123,8 +130,8 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
             )}
           </div>
 
-          {/* Rotating motivational subtitle for empty state */}
-          {totalResumes === 0 ? (
+          {/* Rotating motivational subtitle for empty state only */}
+          {totalResumes === 0 && (
             <div className="h-6 mb-4 overflow-hidden">
               <AnimatePresence mode="wait">
                 <motion.p
@@ -139,44 +146,57 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
                 </motion.p>
               </AnimatePresence>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground mb-4">
-              {`You have ${totalResumes} resume${totalResumes !== 1 ? 's' : ''} in your library`}
-            </p>
           )}
 
           {/* Stats Row with Score Ring */}
           {totalResumes > 0 && (
-            <div className="flex items-center gap-3 min-w-0">
-              {/* Large Score Ring */}
-              <div className="flex flex-col items-center gap-1">
-                <ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={avgScore === 0} />
-                <span className="text-tiny text-muted-foreground uppercase tracking-widest">Avg</span>
-              </div>
+            <TooltipProvider delayDuration={300}>
+              <div className="flex items-center gap-3 min-w-0 mt-2">
+                {/* Large Score Ring */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex flex-col items-center gap-1 cursor-default">
+                      <ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={isScoring} />
+                      <span className="text-tiny text-muted-foreground uppercase tracking-widest">Avg</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>Average ATS score across all your resumes</TooltipContent>
+                </Tooltip>
 
-              {/* Stats beside ring */}
-              <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <FileText className="w-4.5 h-4.5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold leading-tight">{totalResumes}</p>
-                    <p className="text-tiny text-muted-foreground uppercase tracking-wider">Resumes</p>
-                  </div>
-                </div>
+                {/* Stats beside ring */}
+                <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2.5 cursor-default">
+                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <FileText className="w-4.5 h-4.5 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold leading-tight">{totalResumes}</p>
+                          <p className="text-tiny text-muted-foreground uppercase tracking-wider">Resumes</p>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Total resumes in your library</TooltipContent>
+                  </Tooltip>
 
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center">
-                    <Award className="w-4.5 h-4.5 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold leading-tight">{bestScore > 0 ? bestScore : '—'}</p>
-                    <p className="text-tiny text-muted-foreground uppercase tracking-wider">Best</p>
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2.5 cursor-default">
+                        <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center">
+                          <Award className="w-4.5 h-4.5 text-success" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold leading-tight">{bestScore}%</p>
+                          <p className="text-tiny text-muted-foreground uppercase tracking-wider">Top Score</p>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>Your highest resume score</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
-            </div>
+            </TooltipProvider>
           )}
         </div>
       </div>
