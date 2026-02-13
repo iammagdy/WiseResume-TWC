@@ -351,15 +351,14 @@ export default function SettingsPage() {
                   onClick={() => setDataExportSheetOpen(true)}
                 />
               ) : (
-                <div className="opacity-60">
-                  <SettingsRow
-                    type="navigation"
-                    label="Export Resumes"
-                    description="Sign in to backup your data"
-                    icon={<Lock className="w-4 h-4" />}
-                    onClick={() => navigate('/auth')}
-                  />
-                </div>
+                <SettingsRow
+                  type="navigation"
+                  label="Export Resumes"
+                  description="Sign in to backup your data"
+                  icon={<Lock className="w-4 h-4" />}
+                  onClick={() => navigate('/auth')}
+                  requiresAccount
+                />
               )}
             </div>
           </div>
