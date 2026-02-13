@@ -1,75 +1,70 @@
 
+## Remove Thinking Mode from Wise AI Chat
 
-## Guest-Friendly Wise AI Chat
+### Current State Analysis
+The Thinking Mode feature is currently implemented in three places:
 
-### Problem
-When unauthenticated users open the Wise AI chat and send a message, they get a 401 error because the edge function requires authentication. There's no indication that sign-in is required.
+1. **UI Component** (`src/components/editor/AgenticChatSheet.tsx`):
+   - Brain icon with toggle switch in the header (lines 296-311)
+   - Conditional placeholder text in input field (lines 432-435)
+   - Listed as a capability in the CAPABILITIES array (line 53)
 
-### Solution
-Add an auth check to the `AgenticChatSheet`. When the user is not signed in, replace the chat interface with a **showcase screen** that highlights Wise AI's capabilities and prompts sign-in.
+2. **Hook** (`src/hooks/useAgenticChat.ts`):
+   - `thinkingMode` state (line 10)
+   - `toggleThinkingMode` function (lines 273-275)
+   - Passed to `sendChatMessage` and `sendFunctionFeedback` (lines 190, 216)
+   - Exported in return object (line 281)
 
-### Changes
+3. **Backend Function** (`supabase/functions/agentic-chat/index.ts`):
+   - Reads `thinkingMode` from request (line 19, 278)
+   - Selects Pro model when enabled (lines 318-322)
+   - Increases temperature and max_tokens (lines 354-355)
+   - Adds thinking budget for Pro model (lines 358-365)
 
-**File: `src/components/editor/AgenticChatSheet.tsx`**
+### Why It's Redundant
+- The Pro model is used with identical tools and system prompt as Flash
+- Without enhanced instructions, it just costs more and runs slower
+- No specialized behavior or output format differentiates it
+- Users see no meaningful difference in results
 
-1. **Import `useAuth`** from `@/hooks/useAuth` and `LogIn` icon from lucide-react
+### Solution: Complete Removal
 
-2. **Add auth check** at the top of the component:
-   ```tsx
-   const { isAuthenticated } = useAuth();
-   ```
+**File Changes:**
 
-3. **Replace the empty-state / chat area** with a guest showcase when not authenticated. Instead of showing the chat input and suggestion buttons, render:
+1. **`src/components/editor/AgenticChatSheet.tsx`**
+   - Remove `thinkingMode` and `toggleThinkingMode` from hook destructuring (line 223-226)
+   - Remove the toggle switch UI block (lines 293-311)
+   - Remove "Thinking Mode" from CAPABILITIES array (line 53)
+   - Remove conditional placeholder text logic (lines 432-435) → always use standard prompt
+   - Simplify placeholder to: `'Ask Wise AI to edit your resume...'`
 
-   - The Wise AI icon and title (same branding)
-   - A headline: "Your AI Resume Assistant"
-   - A **capabilities showcase** with 4-5 feature cards showing what Wise AI can do:
-     - "Edit your resume by chatting" -- describe, update summary, add experience
-     - "Smart proofreading" -- fix grammar and improve wording automatically
-     - "Add skills intelligently" -- suggest and merge relevant skills
-     - "Before/After suggestions" -- review AI proposals before applying
-     - "Thinking Mode" -- complex career reasoning with Pro mode
-   - Each card has an icon and a short description
-   - A prominent **"Sign In to Start Chatting"** button that navigates to `/auth`
-   - A subtle note: "Free to use after signing in"
+2. **`src/hooks/useAgenticChat.ts`**
+   - Remove `thinkingMode` state (line 10)
+   - Remove `toggleThinkingMode` function (lines 273-275)
+   - Remove `thinkingMode` parameter from `sendChatMessage` call (line 190)
+   - Remove `thinkingMode` parameter from `sendFunctionFeedback` call (line 216)
+   - Remove `toggleThinkingMode` from return object (line 283)
 
-4. **Disable the input area for guests** -- hide the text input and send button entirely when not authenticated, so they can't trigger the 401
+3. **`supabase/functions/agentic-chat/index.ts`**
+   - Remove `thinkingMode?: boolean` from ChatRequest interface (line 19)
+   - Remove `thinkingMode` destructuring (line 278)
+   - Remove model selection logic (lines 317-322) → always use Flash
+   - Replace with: `const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";`
+   - Simplify temperature to: `temperature: 0.7` (remove ternary on line 354)
+   - Simplify max_tokens to: `max_tokens: 2000` (remove ternary on line 355)
+   - Remove thinking budget block (lines 358-365)
 
-### Layout of Guest View
+### Benefits
+✓ Simplified UI with one less toggle to manage
+✓ Always-consistent model (Flash) reduces confusion
+✓ Faster response times
+✓ Lower AI costs
+✓ Cleaner, more maintainable code
 
-```
-[Bot Icon]
-Wise AI - Your Resume Assistant
-
-What Wise AI can do:
-
-[MessageSquare] Edit by Chatting
-  "Update my summary" or "Add React to skills"
-  -- changes apply instantly
-
-[Wrench] Auto-Apply Changes  
-  Wise AI edits your resume directly,
-  no copy-pasting needed
-
-[GitCompare] Review Suggestions
-  See before/after diffs and accept
-  or reject each change
-
-[Brain] Thinking Mode
-  Complex career reasoning with
-  deeper analysis
-
-[Shield] Private & Secure
-  Your data stays yours
-
-[ Sign In to Start Chatting ] (button)
-"Free to use after signing in"
-```
-
-### Technical Details
-
-- Uses `useAuth()` hook already available in the project
-- Navigation to `/auth` via `useNavigate()` from react-router-dom
-- No new components or files needed -- all changes within `AgenticChatSheet.tsx`
-- The sheet header still shows (with title/branding) but the Thinking Mode toggle and Clear button are hidden for guests
-- Icons used: `MessageSquare`, `Wrench`, `GitCompareArrows` (or `GitCompare`), `Brain`, `Shield`, `LogIn` from lucide-react
+### Testing
+After removal, verify:
+1. The "Pro" toggle and Brain icon no longer appear in the header
+2. Wise AI chat still works with standard messages
+3. All tool calls (add_skills, update_summary, etc.) still function
+4. The input placeholder shows consistent text
+5. Suggestion cards and function call badges still display correctly
