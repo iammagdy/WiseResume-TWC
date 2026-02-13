@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, Circle, Loader2, Sparkles, TrendingUp } from 'lucide-react';
+import { Check, Circle, Loader2, Sparkles, TrendingUp, Clock } from 'lucide-react';
 import { TailorProgress as TailorProgressType, TailorStep, EnhancedTailorProgress, EnhancedTailorStep } from '@/types/resume';
 import { cn } from '@/lib/utils';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TailorProgressProps {
   progress: TailorProgressType | EnhancedTailorProgress;
@@ -48,10 +49,52 @@ const getVisibleSteps = (currentStep: TailorStep | EnhancedTailorStep) => {
   return STEPS.filter(s => legacySteps.includes(s.id));
 };
 
+// Smooth animated number hook
+function useAnimatedNumber(target: number, speed = 0.08) {
+  const [display, setDisplay] = useState(0);
+  const current = useRef(0);
+
+  useEffect(() => {
+    let raf: number;
+    const animate = () => {
+      const diff = target - current.current;
+      if (Math.abs(diff) > 0.5) {
+        current.current += diff * speed;
+        setDisplay(Math.round(current.current));
+        raf = requestAnimationFrame(animate);
+      } else {
+        current.current = target;
+        setDisplay(Math.round(target));
+      }
+    };
+    raf = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(raf);
+  }, [target, speed]);
+
+  return display;
+}
+
 export function TailorProgressComponent({ progress, projectedScore, matchingKeywords }: TailorProgressProps) {
   const isComplete = progress.step === 'complete';
   const visibleSteps = getVisibleSteps(progress.step);
   const currentIndex = visibleSteps.findIndex(s => s.id === progress.step);
+  const displayNum = useAnimatedNumber(progress.progress);
+
+  // Estimated time remaining
+  const [startTime] = useState(Date.now);
+  const estimatedTotal = 25; // seconds
+  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+  const remaining = Math.max(0, estimatedTotal - elapsed);
+  const [timeLeft, setTimeLeft] = useState(remaining);
+
+  useEffect(() => {
+    if (isComplete) { setTimeLeft(0); return; }
+    const interval = setInterval(() => {
+      const secs = Math.max(0, estimatedTotal - Math.floor((Date.now() - startTime) / 1000));
+      setTimeLeft(secs);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isComplete, startTime]);
 
   // Rotating fun facts
   const [funFactIndex, setFunFactIndex] = useState(0);
@@ -69,7 +112,6 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
     return () => clearInterval(interval);
   }, [isComplete]);
 
-  // Show/hide state for mount animation
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -80,49 +122,80 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
         mounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'
       )}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className={cn(
-          'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300',
-          isComplete
-            ? 'bg-success/20 shadow-[0_0_16px_-4px_hsl(var(--success)/0.5)]'
-            : 'bg-primary/20 shadow-[0_0_16px_-4px_hsl(var(--primary)/0.4)] animate-pulse'
-        )}>
-          {isComplete ? (
-            <Sparkles className="w-5 h-5 text-success" />
-          ) : (
-            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+      {/* Large Percentage Display */}
+      <div className="flex flex-col items-center mb-5">
+        <div className="relative">
+          <svg width="100" height="100" viewBox="0 0 100 100" className="-rotate-90">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
+            <circle
+              cx="50" cy="50" r="42" fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={2 * Math.PI * 42}
+              strokeDashoffset={2 * Math.PI * 42 * (1 - displayNum / 100)}
+              className="transition-all duration-300 ease-out"
+              style={{
+                filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.5))',
+              }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className={cn(
+              'text-2xl font-bold tabular-nums',
+              isComplete ? 'text-success' : 'text-primary'
+            )}>
+              {displayNum}%
+            </span>
+          </div>
+          {/* Sparkle effect */}
+          {!isComplete && (
+            <motion.div
+              className="absolute -top-1 -right-1"
+              animate={{ scale: [1, 1.3, 1], opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              <Sparkles className="w-4 h-4 text-primary" />
+            </motion.div>
           )}
         </div>
-        <div>
-          <h4 className="font-semibold text-sm">
-            {isComplete ? '🎉 Tailoring Complete!' : '✨ Supercharging Your Resume'}
-          </h4>
-          <p className="text-xs text-muted-foreground">{progress.message}</p>
-        </div>
+
+        <h4 className="font-semibold text-sm mt-3">
+          {isComplete ? '🎉 Tailoring Complete!' : '✨ Supercharging Your Resume'}
+        </h4>
+        <p className="text-xs text-muted-foreground">{progress.message}</p>
+
+        {/* Time remaining */}
+        {!isComplete && timeLeft > 0 && (
+          <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>~{timeLeft}s remaining</span>
+          </div>
+        )}
       </div>
 
-      {/* Shimmer Progress Bar */}
+      {/* Glowing Progress Bar */}
       <div className="mb-5">
-        <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-secondary/30 backdrop-blur-sm">
-          <div
-            className="h-full rounded-full gradient-primary transition-all duration-700 ease-out relative overflow-hidden"
-            style={{ width: `${progress.progress}%` }}
+        <div className="relative h-3.5 w-full overflow-hidden rounded-full bg-secondary/30 backdrop-blur-sm">
+          <motion.div
+            className="h-full rounded-full gradient-primary relative overflow-hidden"
+            style={{
+              width: `${displayNum}%`,
+              boxShadow: '0 0 12px -2px hsl(var(--primary) / 0.5)',
+            }}
+            transition={{ duration: 0.3, ease: 'easeOut' }}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
-          </div>
+          </motion.div>
         </div>
-        <p className="text-xs text-muted-foreground text-right mt-1">
-          {Math.round(progress.progress)}%
-        </p>
       </div>
 
       {/* Rotating Fun Fact */}
       {!isComplete && (
-        <div className="mb-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 min-h-[44px] flex items-center">
+        <div className="mb-4 p-3 rounded-lg bg-warning/10 border border-warning/20 min-h-[44px] flex items-center">
           <p
             className={cn(
-              'text-xs text-amber-700 dark:text-amber-400 transition-opacity duration-300',
+              'text-xs text-warning-foreground transition-opacity duration-300',
               funFactVisible ? 'opacity-100' : 'opacity-0'
             )}
           >
@@ -131,51 +204,67 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
         </div>
       )}
 
-      {/* Step List */}
-      <div className="space-y-2 mb-5">
-        {visibleSteps.map((step, index) => {
-          const isCurrentStep = step.id === progress.step;
-          const isPastStep = index < currentIndex;
-          const isFutureStep = index > currentIndex && !isComplete;
+      {/* Step List with connecting line */}
+      <div className="relative mb-5">
+        {/* Vertical connecting line */}
+        <div className="absolute left-[13px] top-3 bottom-3 w-px bg-border" />
 
-          return (
-            <div
-              key={step.id}
-              className={cn(
-                'flex items-center gap-3 text-sm py-1.5 px-2 rounded-lg transition-all duration-300',
-                isCurrentStep && 'bg-primary/10',
-                isPastStep && 'opacity-60',
-                // Stagger appearance
-                mounted ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-2',
-              )}
-              style={{ transitionDelay: `${index * 50}ms` }}
-            >
-              <div className={cn(
-                'w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-300',
-                isPastStep || isComplete ? 'bg-primary text-primary-foreground scale-100' :
-                isCurrentStep ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-              )}>
-                {isPastStep || isComplete ? (
-                  <Check className="w-3 h-3" />
-                ) : isCurrentStep ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Circle className="w-2 h-2" />
+        <div className="space-y-1">
+          {visibleSteps.map((step, index) => {
+            const isCurrentStep = step.id === progress.step;
+            const isPastStep = index < currentIndex || isComplete;
+
+            return (
+              <motion.div
+                key={step.id}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.3 }}
+                className={cn(
+                  'flex items-center gap-3 text-sm py-1.5 px-2 rounded-lg relative z-10 transition-all duration-300',
+                  isCurrentStep && 'bg-primary/10',
                 )}
-              </div>
-              <span className={cn(
-                'flex-1',
-                isCurrentStep && 'font-medium',
-                isFutureStep && 'text-muted-foreground'
-              )}>
-                {step.label}
-              </span>
-              {isPastStep && !isComplete && (
-                <span className="text-xs text-success">✓</span>
-              )}
-            </div>
-          );
-        })}
+              >
+                <div className={cn(
+                  'w-[22px] h-[22px] rounded-full flex items-center justify-center shrink-0 transition-all duration-300',
+                  isPastStep ? 'bg-primary text-primary-foreground' :
+                  isCurrentStep ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                )}>
+                  <AnimatePresence mode="wait">
+                    {isPastStep ? (
+                      <motion.div
+                        key="check"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+                      >
+                        <Check className="w-3 h-3" />
+                      </motion.div>
+                    ) : isCurrentStep ? (
+                      <motion.div
+                        key="loader"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                      >
+                        <Loader2 className="w-3 h-3" />
+                      </motion.div>
+                    ) : (
+                      <Circle className="w-2 h-2" />
+                    )}
+                  </AnimatePresence>
+                </div>
+                <span className={cn(
+                  'flex-1 text-xs',
+                  isCurrentStep && 'font-medium text-foreground',
+                  isPastStep && 'text-muted-foreground',
+                  !isCurrentStep && !isPastStep && 'text-muted-foreground/60'
+                )}>
+                  {step.label}
+                </span>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Stats Preview */}
@@ -183,7 +272,7 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
         <div className="pt-4 border-t border-primary/20 space-y-2">
           {matchingKeywords && matchingKeywords > 0 && (
             <div className="flex items-center gap-2 text-sm">
-              <Sparkles className="w-4 h-4 text-amber-500" />
+              <Sparkles className="w-4 h-4 text-warning" />
               <span>Found <strong>{matchingKeywords}</strong> skill gaps to address</span>
             </div>
           )}

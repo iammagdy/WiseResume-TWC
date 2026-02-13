@@ -59,21 +59,36 @@ export async function tailorResumeWithProgress(
   intensity: TailorIntensity = 'moderate'
 ): Promise<SuperTailorResult> {
   const userGeminiKey = getUserGeminiKey();
-  // Enhanced progress simulation with fun facts
-  let currentStepIndex = 0;
+
+  // Smooth ease-out progress: fast start, slows toward 85%
+  const startTime = Date.now();
+  const STEP_THRESHOLDS = [10, 20, 35, 50, 60, 70, 75, 80]; // percentage thresholds for step transitions
+  let lastStepIndex = -1;
+
   const progressInterval = setInterval(() => {
-    if (currentStepIndex < ENHANCED_STEPS.length - 1) {
-      const step = ENHANCED_STEPS[currentStepIndex];
-      const progressPercent = Math.min(((currentStepIndex + 1) / ENHANCED_STEPS.length) * 85, 85);
+    const elapsed = Date.now() - startTime;
+    const t = Math.min(elapsed / 30000, 1); // 30s expected max
+    const eased = 1 - Math.pow(1 - t, 3); // cubic ease-out
+    const currentProgress = Math.min(eased * 85, 85);
+
+    // Determine which step we're on based on percentage thresholds
+    let stepIndex = 0;
+    for (let i = 0; i < STEP_THRESHOLDS.length; i++) {
+      if (currentProgress >= STEP_THRESHOLDS[i]) stepIndex = i;
+    }
+    stepIndex = Math.min(stepIndex, ENHANCED_STEPS.length - 2);
+
+    if (stepIndex !== lastStepIndex || true) {
+      const step = ENHANCED_STEPS[stepIndex];
       onProgress({
         step: step.step,
-        progress: progressPercent,
+        progress: currentProgress,
         message: step.message,
         funFact: step.funFact,
       } as EnhancedTailorProgress);
-      currentStepIndex++;
+      lastStepIndex = stepIndex;
     }
-  }, 1500);
+  }, 200);
 
   try {
     const { data, error } = await supabase.functions.invoke('tailor-resume', {
