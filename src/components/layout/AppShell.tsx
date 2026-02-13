@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 
 // Routes that show bottom nav
-const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume'];
+const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letter'];
 
 // Routes that show guest save banner
 const GUEST_BANNER_ROUTES = ['/editor', '/preview'];
