@@ -1,34 +1,64 @@
 
 
-## Make Guest Welcome Card Dismissible (First-Visit Only)
+## Settings Page Visual Polish: Dividers, Spacing, and Alternating Backgrounds
 
-### Problem
-The "Welcome, Guest" CTA card in Settings is shown every time for unauthenticated users. Returning guests who already know they're not signed in don't need this large card taking up space on every visit.
+### Overview
+Refine the Settings page layout with subtler section dividers, consistent 32px vertical spacing, and alternating section tints to improve visual rhythm and scannability.
 
-### Solution
-Convert the card to a **first-visit-only** experience with a dismiss option. After dismissal, show a compact single-line "Sign in" row instead, so the CTA is still accessible but not intrusive.
+### Changes
 
-- On first visit: full card with benefits list and "Get Started Free" button
-- After dismiss: compact `SettingsRow` navigation row ("Sign in to unlock all features")
-- Dismissal persisted in `localStorage` (`wr-settings-guest-cta-dismissed`) so it survives sessions
+#### 1. Replace Heavy Separators with Subtle Dividers (`src/pages/SettingsPage.tsx`)
 
-### Changes to `src/pages/SettingsPage.tsx`
+The current `<Separator />` components between major sections are full-opacity `bg-border` lines. Replace all inter-section `<Separator />` dividers (lines 257, 281, 347, 389, 469, 498) with a styled variant:
 
-1. Add a `guestCtaDismissed` state initialized from localStorage
-2. Add a dismiss (X) button to the top-right corner of the existing guest CTA card
-3. When dismissed, store `'1'` in localStorage under `wr-settings-guest-cta-dismissed`
-4. When dismissed, render a compact replacement row:
-   ```
-   [AppIcon] Sign in to unlock all features  [ChevronRight]
-   ```
-   This row navigates to `/auth` on tap.
-5. Wrap both states in `AnimatePresence` for a smooth transition.
+```tsx
+<Separator className="opacity-10" />
+```
 
-### Technical Details
+This keeps the 1px height but drops to 10% opacity for a much subtler visual break. The intra-card separators (`<Separator className="bg-border/30" />`) remain unchanged.
 
-- **Storage key**: `wr-settings-guest-cta-dismissed` in `localStorage` (persists across sessions, unlike the editor banner which uses `sessionStorage`)
-- **No new files** -- all changes are in `SettingsPage.tsx`
-- The compact row reuses the existing `SettingsRow` component with `type="navigation"`
-- A small X button (28x28px, matching the NextStepBanner dismiss pattern) is absolutely positioned in the card's top-right corner
-- The full card gets `position: relative` to contain the dismiss button
+#### 2. Verify Vertical Spacing (already correct)
+
+The container already uses `space-y-8` (32px) on line 210, which matches the requested 32px spacing. No change needed here.
+
+#### 3. Add Alternating Section Backgrounds (`src/index.css` + `src/pages/SettingsPage.tsx`)
+
+**New CSS utility** in `src/index.css`:
+```css
+.glass-surface-alt {
+  background: hsl(var(--card) / 0.3);
+  border-radius: 1rem;
+  padding: 1rem;
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+```
+
+Apply `glass-surface-alt` to alternating section wrappers (sections 2, 4, 6, 8) in `SettingsPage.tsx`. These are the even-numbered sections:
+
+- Section 2 (Appearance) -- gets `glass-surface-alt`
+- Section 3 (AI & Voice) -- no change
+- Section 4 (Editor & Export) -- gets `glass-surface-alt`
+- Section 5 (Notifications) -- no change
+- Section 6 (Privacy & Security) -- gets `glass-surface-alt`
+- Section 7 (Account) -- no change
+- Section 8 (About & Help) -- gets `glass-surface-alt`
+
+Each alternating section `<div>` wrapping the header + card gets the class added:
+```tsx
+<div className="glass-surface-alt">
+  <h2>...</h2>
+  <p>...</p>
+  <div className="rounded-2xl glass-elevated ...">...</div>
+</div>
+```
+
+### Summary of File Changes
+
+| File | Change |
+|------|--------|
+| `src/pages/SettingsPage.tsx` | Replace 6 inter-section `<Separator />` with `<Separator className="opacity-10" />`; add `glass-surface-alt` class to alternating sections (2, 4, 6, 8) |
+| `src/index.css` | Add `.glass-surface-alt` utility class |
 
