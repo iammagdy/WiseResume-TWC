@@ -1,118 +1,75 @@
 
 
-## Transform Homepage into Mobile-First PWA Experience
+## Add Polish, Micro-Interactions, and Entrance Animations to Homepage
 
 ### Overview
-Rewrite the Index page (`src/pages/Index.tsx`) as a compact, mobile-app-style single page that replaces the current multi-section landing page. The goal: user sees value and taps "Create My Resume" within 3 seconds. Total page height capped at ~2.5x viewport.
+Add framer-motion entrance animations, hover micro-interactions, and scroll-triggered reveals to make the homepage feel alive and premium. All animations will respect `prefers-reduced-motion` and use GPU-accelerated transforms.
+
+### Approach
+Use **framer-motion** (already installed) for orchestrated entrance animations and hover states. Leverage existing Tailwind keyframes (`float`, `glow-pulse`, `slide-up`) where possible. Add a `useReducedMotion` check to disable animations for accessibility.
 
 ---
 
-### 1. New Hero Section (replaces current HeroSection + SpaceBackground)
+### File: `src/pages/Index.tsx` (complete enhancement)
 
-- **App Icon**: Use `AppIcon` component at 120px with a glowing radial gradient behind it (purple-to-pink, animated pulse)
-- **Headline**: "Build Your Dream Resume" -- 32px bold, centered
-- **Subtext**: "AI-powered . ATS-optimized . Free forever" -- 16px, muted color, dot-separated
-- **Primary CTA**: "Create My Resume" -- full-width, 56px height, gradient background. If authenticated, reads "Go to Dashboard" and navigates to `/dashboard`
-- **Secondary link**: "Already have an account? Sign In" -- text link below CTA, navigates to `/auth`. Hidden when authenticated (replaced with avatar dropdown)
-- **Trust line**: Small green dot + "Free . No credit card . 5 minutes" beneath
-- Remove the top-right Sign In button; move sign-in into the hero content area
-- Keep avatar dropdown for authenticated users (repositioned inline or top-right)
+**Imports to add:**
+- `motion` from `framer-motion`
+- No new dependencies needed
 
-### 2. Steps Row (replaces "Mission Control" / HowItWorks)
+**1. Hero Section Animations**
+- Wrap `AppIcon` in `motion.div` with `animate-float` class for continuous floating (already exists in Tailwind config: 3s ease-in-out infinite)
+- Glow div: switch from `animate-pulse` to `animate-glow-pulse` (already in config: shadow 0.3 to 0.5 opacity, 2s)
+- Headline (`h1`): `motion.h1` with `initial={{ opacity: 0, y: 20 }}`, `animate={{ opacity: 1, y: 0 }}`, `transition={{ delay: 0.1, duration: 0.6 }}`
+- Subtext (`p`): `motion.p` with same pattern, `delay: 0.2`
+- CTA Button: `motion.div` wrapper with `delay: 0.25`, plus hover `whileHover={{ scale: 1.02 }}`, `whileTap={{ scale: 0.98 }}`. Increase glow shadow on hover via className
+- Sign-in link: `motion.button` with `delay: 0.3`
+- Trust line: `motion.div` with `delay: 0.35`
 
-- Three icons in a horizontal row, no section title
-- Layout: evenly spaced, centered, with subtle connecting lines
-- Items:
-  - Pencil icon + "Create"
-  - Sparkles icon + "AI Polish"  
-  - Download icon + "Export"
-- Each item: 48px icon container + 2-word label below (14px)
-- No space/rocket language -- clean, functional labels
-- Subtle glass card background wrapping the row
+**2. Steps Row Animations**
+- Entire section: `motion.section` with `initial={{ opacity: 0, y: 20 }}`, `whileInView={{ opacity: 1, y: 0 }}`, `viewport={{ once: true, margin: '-50px' }}`
+- Each step icon: staggered via `transition={{ delay: 0.1 * i }}` inside the map
+- Connecting lines: animated width using `motion.div` with `initial={{ scaleX: 0 }}`, `whileInView={{ scaleX: 1 }}`, origin left
+- Icon hover: `whileHover={{ y: -4 }}` with drop shadow class on hover
 
-### 3. Features Section (replaces WhyWiseResume + FeatureGrid)
+**3. Feature Cards Animations**
+- Section title: `motion.h2` with `whileInView` fade-in
+- Each card: `motion.div` with staggered `whileInView` (delay `0.15 * i`), slide-up entrance
+- Hover state: `whileHover={{ y: -4, transition: { duration: 0.2 } }}` + CSS class for border glow and background brighten
+- Icon inside card: subtle `whileHover={{ rotate: 5 }}` on parent hover (or CSS `group-hover`)
 
-- Title: "Why WiseResume?" -- 24px, centered
-- Three feature cards in vertical stack (not grid):
-  - Sparkles icon + "AI Writing Assistant" + "Enhance bullets and summaries instantly"
-  - BarChart icon + "ATS Score Checker" + "See how well you match any job"
-  - LayoutGrid icon + "Professional Templates" + "12 designs for every industry"
-- Each card: horizontal layout (icon left, text right), glass background, 48px icon area
-- Remove Voice Interview and 4 AI Recruiters from homepage
-- Remove the BulletTransformCard (too tall)
+**4. Template Preview Animations**
+- Each template card: `motion.div` with staggered entrance from right (`initial={{ opacity: 0, x: 30 }}`)
+- Scroll container: add gradient fade overlays on left/right edges using pseudo-elements (CSS `mask-image` or overlay divs with `pointer-events-none`)
+- Card hover: `whileHover={{ scale: 1.05 }}` with shadow
+- "Browse All" link: CSS underline animation on hover (use existing `story-link` class or add `after:` pseudo)
 
-### 4. Template Preview (simplified from TemplateGallery)
+**5. Bottom Tab Bar Polish**
+- Add "App Preview" label above the bar (subtle, 10px text, muted)
+- Reduce overall opacity to 50-60%
+- Icons: add `animate-pulse` with custom timing (CSS `animation-delay` per icon)
 
-- Show 3 mini template previews in a horizontal scroll (reuse existing `MiniPreview` component)
-- "Browse All Templates" text link below
-- No section title beyond a subtle "Templates" label
-- Remove "Choose Your Flight Suit" and space-themed names (show real template names)
-
-### 5. Bottom CTA (simplified)
-
-- Remove entirely -- the hero CTA is sufficient. The page is short enough that users don't need a second prompt.
-
-### 6. Background
-
-- Keep `SpaceBackground` but simplify: remove star generation, keep only the gradient + nebula overlay for the dark theme aesthetic
-- Alternatively, inline a simple dark gradient background directly in Index to avoid the component overhead
-
-### 7. PWA Install Banner
-
-- Already exists (`InstallPrompt` component in `App.tsx`) and renders globally as a sticky banner at `bottom-24`
-- No changes needed -- it already appears after 3 seconds when the browser supports install
-
-### 8. Bottom Tab Bar
-
-- Already exists globally via `AppShell` for all routes inside the shell
-- The landing page (`/`) is outside `AppShell` (line 87 of App.tsx), so no bottom bar shows
-- Per the request to show an "inactive preview" of the bottom nav, add the `BottomTabBar` component to the Index page in a static/visual-only mode, or wrap the landing page inside AppShell
-- **Decision**: Keep landing page outside AppShell but render a visual-only bottom bar preview (non-functional, just showing the 4 tabs as a teaser)
+**6. Reduced Motion Support**
+- Import `useReducedMotion` from framer-motion
+- When reduced motion preferred: set all animation variants to `{ opacity: 1, y: 0, x: 0 }` immediately (no transitions)
+- Wrap in a simple check: `const shouldAnimate = !prefersReducedMotion`
 
 ---
 
 ### Technical Details
 
+**No new Tailwind keyframes needed** -- all required animations (`float`, `glow-pulse`, `slide-up`, `fade-in`) already exist in `tailwind.config.ts`.
+
+**Framer Motion patterns used:**
+- `motion.div` / `motion.h1` / `motion.p` for declarative animations
+- `whileInView` with `viewport={{ once: true }}` for scroll-triggered entrances
+- `whileHover` / `whileTap` for micro-interactions
+- Staggered children via index-based `delay`
+
+**Performance:**
+- All animations use `transform` and `opacity` only (GPU-composited)
+- `viewport={{ once: true }}` prevents re-triggering
+- No `will-change` needed for framer-motion (handles it internally)
+- Total animation budget: hero loads in 350ms, below-fold triggers on scroll
+
 **Files modified:**
-
-1. **`src/pages/Index.tsx`** -- Complete rewrite. Replace lazy-loaded multi-section layout with a single compact page:
-   - Import `AppIcon`, `useAuth`, `useProfile`, `useNavigate`, `useResumeStore`, `Button`, icons
-   - Render inline: Hero, Steps Row, Features, Template Preview, visual bottom bar
-   - No lazy loading needed (page is lightweight enough)
-   - Keep `SpaceBackground` wrapper for the dark theme
-
-2. **No other files modified** -- All existing landing components (`HeroSection`, `SocialProofBar`, `HowItWorks`, `FeatureGrid`, `WhyWiseResume`, `BottomCTA`, `TemplateGallery`) remain in the codebase but are no longer imported by Index. They can be cleaned up later.
-
-**Component structure of new Index:**
-
-```text
-SpaceBackground
-  main (max-height ~250vh)
-    HeroBlock
-      AppIcon (120px) + glow
-      "Build Your Dream Resume" (h1)
-      "AI-powered . ATS-optimized . Free forever" (p)
-      [Create My Resume] button (56px)
-      "Already have an account? Sign In" link
-      Trust line
-    StepsRow
-      Create | AI Polish | Export (3 icons)
-    FeaturesBlock
-      "Why WiseResume?" (h2)
-      3 feature cards (vertical stack)
-    TemplatePreview
-      3 mini templates (horizontal scroll)
-      "Browse All Templates" link
-    BottomSpacer (pb-24 for visual bottom bar)
-  BottomTabBar (visual-only, inactive)
-```
-
-**Mobile optimizations:**
-- All touch targets 48px minimum
-- Body text 16px minimum, secondary 14px
-- Section spacing 24px
-- Full-width CTA button
-- Momentum scrolling
-- Reduced animations (only icon glow pulse, fade-in on mount)
-- No heavy lazy loading or intersection observer for this page
-
+1. `src/pages/Index.tsx` -- Add framer-motion wrappers, hover states, scroll-triggered reveals, gradient overlays, reduced motion support
