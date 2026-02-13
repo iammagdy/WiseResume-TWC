@@ -3,6 +3,8 @@ import { persist } from 'zustand/middleware';
 import { TemplateId, PDFOptions } from '@/types/resume';
 
 export type BiometricLockTimeout = 0 | 30000 | 60000 | 300000;
+export type AutoSaveToastMode = 'always' | 'errors-only';
+export type AITipFrequency = 'daily' | 'weekly' | 'on-demand';
 
 // AI Provider types
 export type AIProvider = 'wiseresume' | 'gemini';
@@ -16,7 +18,12 @@ interface GeminiDailyUsage {
 interface SettingsState {
   // Notifications
   showAutoSaveToasts: boolean;
+  autoSaveToastMode: AutoSaveToastMode;
   showAIEnhancementTips: boolean;
+  aiTipFrequency: AITipFrequency;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string; // HH:mm
+  quietHoursEnd: string;   // HH:mm
   
   // Privacy
   localOnlyMode: boolean;
@@ -46,7 +53,12 @@ interface SettingsState {
   
   // Actions
   setShowAutoSaveToasts: (value: boolean) => void;
+  setAutoSaveToastMode: (mode: AutoSaveToastMode) => void;
   setShowAIEnhancementTips: (value: boolean) => void;
+  setAITipFrequency: (freq: AITipFrequency) => void;
+  setQuietHoursEnabled: (value: boolean) => void;
+  setQuietHoursStart: (time: string) => void;
+  setQuietHoursEnd: (time: string) => void;
   setLocalOnlyMode: (value: boolean) => void;
   setAnalyticsEnabled: (value: boolean) => void;
   setBiometricLockEnabled: (value: boolean) => void;
@@ -72,7 +84,12 @@ interface SettingsState {
 
 const defaultSettings = {
   showAutoSaveToasts: true,
+  autoSaveToastMode: 'always' as AutoSaveToastMode,
   showAIEnhancementTips: true,
+  aiTipFrequency: 'daily' as AITipFrequency,
+  quietHoursEnabled: false,
+  quietHoursStart: '22:00',
+  quietHoursEnd: '08:00',
   localOnlyMode: false,
   analyticsEnabled: true,
   biometricLockEnabled: false,
@@ -107,7 +124,12 @@ export const useSettingsStore = create<SettingsState>()(
       ...defaultSettings,
 
       setShowAutoSaveToasts: (value) => set({ showAutoSaveToasts: value }),
+      setAutoSaveToastMode: (mode) => set({ autoSaveToastMode: mode }),
       setShowAIEnhancementTips: (value) => set({ showAIEnhancementTips: value }),
+      setAITipFrequency: (freq) => set({ aiTipFrequency: freq }),
+      setQuietHoursEnabled: (value) => set({ quietHoursEnabled: value }),
+      setQuietHoursStart: (time) => set({ quietHoursStart: time }),
+      setQuietHoursEnd: (time) => set({ quietHoursEnd: time }),
       setLocalOnlyMode: (value) => set({ localOnlyMode: value }),
       setAnalyticsEnabled: (value) => set({ analyticsEnabled: value }),
       setBiometricLockEnabled: (value) => set({ biometricLockEnabled: value }),
