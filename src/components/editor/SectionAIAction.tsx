@@ -1,8 +1,11 @@
-import { memo } from 'react';
+import { memo, useState, lazy, Suspense } from 'react';
 import { InlineAIButton, SectionType } from './InlineAIButton';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { useResumeStore } from '@/store/resumeStore';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+
+const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 
 interface SectionAIActionProps {
   section: SectionType;
@@ -12,6 +15,8 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
   const currentResume = useResumeStore(state => state.currentResume);
   const updateResume = useResumeStore(state => state.updateResume);
   const jobDescription = useResumeStore(state => state.jobDescription);
+  const { isAuthenticated } = useAuth();
+  const [showSignIn, setShowSignIn] = useState(false);
 
   const { enhance, isEnhancing } = useAIEnhance({
     section,
@@ -99,10 +104,24 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
   };
 
   return (
-    <InlineAIButton
-      section={section}
-      onAction={handleAction}
-      isLoading={isEnhancing}
-    />
+    <>
+      <InlineAIButton
+        section={section}
+        onAction={handleAction}
+        isLoading={isEnhancing}
+        isAuthenticated={isAuthenticated}
+        onLockedClick={() => setShowSignIn(true)}
+      />
+      {showSignIn && (
+        <Suspense fallback={null}>
+          <SignInPromptDialog
+            open={showSignIn}
+            onOpenChange={setShowSignIn}
+            title="Unlock AI Assist"
+            description="Sign in to access AI-powered resume editing."
+          />
+        </Suspense>
+      )}
+    </>
   );
 });
