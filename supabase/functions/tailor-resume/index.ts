@@ -325,7 +325,7 @@ Analyze deeply, then return this exact JSON structure:
           { role: "user", content: userPrompt },
         ],
         temperature: 0.5,
-        max_tokens: 5000,
+        max_tokens: 8000,
       }),
       signal: controller.signal,
     });
@@ -371,17 +371,54 @@ Analyze deeply, then return this exact JSON structure:
 
     console.log("SUPERCHARGED AI response received, parsing...");
 
-    // Parse the JSON from the AI response
+    // Parse the JSON from the AI response - robust 3-tier strategy
     let tailoredResult;
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        tailoredResult = JSON.parse(jsonMatch[0]);
-      } else {
+      // Step 1: Strip markdown code fences if present
+      let cleaned = content.replace(/```(?:json)?\s*/gi, '').replace(/```\s*$/g, '').trim();
+      
+      // Step 2: Extract JSON object
+      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
         throw new Error("No JSON found in response");
       }
+      
+      let jsonStr = jsonMatch[0];
+      
+      // Step 3: Try parsing directly
+      try {
+        tailoredResult = JSON.parse(jsonStr);
+      } catch {
+        // Step 4: Attempt to fix truncated JSON by closing open braces/brackets
+        let openBraces = 0, openBrackets = 0;
+        for (const ch of jsonStr) {
+          if (ch === '{') openBraces++;
+          else if (ch === '}') openBraces--;
+          else if (ch === '[') openBrackets++;
+          else if (ch === ']') openBrackets--;
+        }
+        
+        // Remove trailing comma or incomplete value
+        jsonStr = jsonStr.replace(/,\s*$/, '');
+        // Remove incomplete key-value pairs
+        jsonStr = jsonStr.replace(/,\s*"[^"]*"\s*:\s*$/, '');
+        jsonStr = jsonStr.replace(/,\s*"[^"]*"\s*:\s*"[^"]*$/, '');
+        jsonStr = jsonStr.replace(/,\s*\{[^}]*$/, '');
+        
+        // Close open brackets and braces
+        for (let i = 0; i < openBrackets; i++) jsonStr += ']';
+        for (let i = 0; i < openBraces; i++) jsonStr += '}';
+        
+        try {
+          tailoredResult = JSON.parse(jsonStr);
+          console.log("Recovered truncated JSON successfully");
+        } catch (e2) {
+          console.error("Failed to parse AI response even after recovery:", content.slice(0, 500));
+          throw e2;
+        }
+      }
     } catch (parseError) {
-      console.error("Failed to parse AI response:", content);
+      console.error("Failed to parse AI response:", content.slice(0, 500));
       return new Response(
         JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
