@@ -1,94 +1,82 @@
 
 
-## Fix: Theme Toggle Triggering Auth Session Re-evaluation
+## Settings Page Improvements: Clarity, Organization, and Guest Conversion
 
-### Root Cause
+### Current Issues
 
-The issue has two interacting parts:
-
-**Part A -- AuthContext re-renders on every token refresh:**
-In `AuthContext.tsx`, the `onAuthStateChange` listener calls `setState({ user, session, loading: false })` for every event, including periodic `TOKEN_REFRESHED` events. Even though the user hasn't changed, React sees a new state object (the `session` contains a fresh access token) and triggers a full re-render of the entire component tree. This causes the Settings page to briefly re-evaluate its `user ? (authenticated view) : (guest view)` conditional.
-
-**Part B -- ThemeToggle classList gap:**
-The ThemeToggle's `useEffect` does `root.classList.remove('light', 'dark')` followed by `root.classList.add(theme)`. Between these two calls, there's a micro-moment with no theme class, causing CSS variable resolution to break momentarily. This visual disruption makes any coincidental auth re-render more noticeable.
-
-When these two overlap (user clicks theme toggle around the same time as a periodic token refresh), it looks like the theme toggle is "recalling a login session."
+1. **Section ordering is unintuitive** -- "Help & Support" (Take Tour) sits between "Editor Preferences" and "AI & Voice", breaking the flow. "Language" is buried inside "Account" instead of grouped with "Appearance".
+2. **Guest experience is weak** -- The guest CTA card is generic ("Sign in to manage your account"). Locked sections just show "Sign in to access" with no value proposition.
+3. **"Account" section mixes unrelated items** -- Language, Delete Data, and Sign Out are all lumped together.
+4. **Single-item sections look sparse** -- "Editor Preferences" has only one row (PDF Export Settings), "Help & Support" has only one row (Take Tour).
+5. **No visual hierarchy for most-used settings** -- Appearance and AI Provider are equally weighted despite different usage frequency.
 
 ---
 
-### Fix 1: Prevent unnecessary re-renders in AuthContext on token refresh
+### Proposed Section Reordering
 
-**File: `src/contexts/AuthContext.tsx`**
-
-In the `resolveInitialLoad` function, skip the `setState` call if the user ID hasn't changed and loading is already `false`. This prevents the entire app from re-rendering on routine token refreshes.
-
-Changes:
-- Use a functional state update that compares the incoming user ID with the current state's user ID
-- Only update `session` in the ref (for API calls) without triggering a React re-render when the user hasn't changed
-- Add a `sessionRef` to hold the latest session without causing re-renders
-- For `TOKEN_REFRESHED` events specifically: update the cached session and sessionRef, but skip `setState` if user ID matches
-
+```text
+Current Order:              New Order:
+1. Profile/Guest CTA        1. Profile/Guest CTA (enhanced)
+2. Appearance                2. Appearance & Language (merged)
+3. Editor Preferences        3. AI & Voice
+4. Help & Support            4. Editor & Export (merged)
+5. AI & Voice                5. Notifications
+6. Notifications             6. Privacy & Security
+7. Data & Export             7. Account (Sign Out, Delete - auth only)
+8. Privacy & Security        8. About & Help (merged)
+9. Account
+10. About
 ```
-// Before (causes re-render on every event):
-setState({ user, session, loading: false });
-
-// After (skip re-render if user unchanged):
-setState(prev => {
-  if (prev.user?.id === user?.id && !prev.loading) {
-    // Session refreshed but user unchanged -- don't re-render
-    return prev;
-  }
-  return { user, session, loading: false };
-});
-```
-
-- Still call `cacheSession(user, session)` so the cache stays fresh
-- Still update `activeUserIdRef` for the session integrity guard
 
 ---
 
-### Fix 2: Atomic theme class swap to eliminate the no-class gap
+### Changes by File
 
-**File: `src/components/settings/ThemeToggle.tsx`**
+**File: `src/pages/SettingsPage.tsx`**
 
-Replace the two-step remove-then-add with an atomic swap that never leaves the document without a theme class.
+**1. Enhanced Guest CTA Card**
+Replace the plain "Welcome, Guest" card with a more compelling conversion prompt:
+- Add 3 bullet points showing what signing in unlocks: "Sync across devices", "Export & backup resumes", "AI-powered enhancements"
+- Change button text from "Sign In" to "Get Started Free"
+- Add a subtle gradient accent bar at the top of the card (matching the SignInPromptDialog style)
 
-Changes in the `useEffect`:
-```
-// Before (brief gap with no class):
-root.classList.remove('light', 'dark');
-root.classList.add(theme);
+**2. Merge "Appearance" + "Language"**
+- Rename section to "Appearance"
+- Add the Language row below the ThemeToggle within the same glass card
+- Removes the orphaned Language row from the old Account section
 
-// After (atomic swap):
-const resolved = theme === 'system'
-  ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-  : theme;
-const other = resolved === 'dark' ? 'light' : 'dark';
-root.classList.replace(other, resolved) || root.classList.add(resolved);
-```
+**3. Move "AI & Voice" up (section 3)**
+- AI settings are a primary feature; they should appear higher
+- No content changes, just position
 
-`classList.replace()` is atomic -- the old class is swapped for the new one in a single operation with no gap. The fallback `|| root.classList.add(resolved)` handles the edge case where the old class doesn't exist.
+**4. Merge "Editor Preferences" + "Data & Export" into "Editor & Export"**
+- Combine PDF Export Settings and Export Resumes into one section
+- For guests: show PDF Export Settings normally, and Export Resumes with the lock icon/description
+- Removes two single-item sections in favor of one coherent group
+
+**5. Move "Help & Support" into "About" section**
+- Rename combined section to "About & Help"
+- "Take Tour Again" row moves into the About section, above Rate/Share
+- Removes the orphaned single-row "Help & Support" section
+
+**6. Clean up "Account" section**
+- Only render for authenticated users (contains only Sign Out and Delete Data)
+- Remove Language row (moved to Appearance)
+- For guests, this entire section is hidden since the Guest CTA card handles the sign-in prompt
+
+**7. Guest-locked sections get better messaging**
+- "Export Resumes" locked row: change description from "Sign in to access" to "Sign in to backup your data"
+- "Privacy & Security" biometric row: already shows "Available on mobile app" when unavailable, which is fine
 
 ---
 
-### Fix 3: Clean up dead code in ThemeToggle
+### Technical Details
 
-**File: `src/components/settings/ThemeToggle.tsx`**
+All changes are in a single file: `src/pages/SettingsPage.tsx`. No new components, hooks, or dependencies needed. The restructuring is purely JSX reordering and minor text/className updates.
 
-Remove the unused `RippleOverlay` component function, `rippleColorMap`, and `createPortal` import that were left behind from the previous ripple removal. This reduces bundle size and prevents confusion.
+The section header pattern remains consistent (gradient line + uppercase label). Glass card containers (`glass-elevated rounded-2xl`) stay the same. `SettingsRow` component is reused without modification.
 
-Remove:
-- `import { createPortal } from 'react-dom'` (line 6)
-- `rippleColorMap` constant (lines 173-176)
-- `RippleOverlay` component function (lines 130-158)
+**Guest CTA enhancement** adds ~10 lines of JSX for the bullet list inside the existing card div. Uses `Check` icon from lucide-react (already imported indirectly via other components, needs explicit import).
 
----
+**Section merges** reduce total section count from 10 to 8, making the page feel less overwhelming while keeping all functionality accessible.
 
-### Files Modified
-
-- `src/contexts/AuthContext.tsx` -- skip re-renders on TOKEN_REFRESHED when user hasn't changed
-- `src/components/settings/ThemeToggle.tsx` -- atomic class swap, remove dead code
-
-### Why This Works
-
-The combination ensures that (1) routine token refreshes no longer cascade re-renders through the entire app, and (2) theme switches happen atomically without any CSS variable resolution gaps. Together, these eliminate the perceived "login session recall" flash.
