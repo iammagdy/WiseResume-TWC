@@ -868,7 +868,7 @@ export default function SettingsPage() {
               onClick={() => setChangelogOpen(true)}
               className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors touch-manipulation"
             >
-              WiseResume v1.0.0
+              WiseResume v1.5.0
             </button>
 
             <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
@@ -990,10 +990,34 @@ export default function SettingsPage() {
             <DialogTitle>Changelog</DialogTitle>
             <DialogDescription>What's new in WiseResume</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3 pt-2">
+          <div className="max-h-[50vh] overflow-y-auto space-y-4 pt-2">
             <div>
-              <p className="text-sm font-semibold">v1.0.0</p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-sm font-semibold">v1.5.0</p>
+                <span className="text-[10px] font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Latest</span>
+              </div>
+              <ul className="space-y-2 text-xs text-muted-foreground">
+                <li>
+                  <span className="font-medium text-foreground">Polished Tailor Loading Screen</span> — Smooth real-feel progress animation with cubic ease-out curve, animated percentage counter, glowing progress bar, estimated time remaining, and fun facts carousel.
+                </li>
+                <li>
+                  <span className="font-medium text-foreground">Mobile Scroll Fixes</span> — Fixed non-scrollable pages on mobile for Job Details, Application Details, Cover Letters, and Notifications pages.
+                </li>
+                <li>
+                  <span className="font-medium text-foreground">Enhanced Tailor Step Visualization</span> — Redesigned step list with vertical connecting lines, spring-animated checkmarks, and highlighted active step with loading spinner.
+                </li>
+                <li>
+                  <span className="font-medium text-foreground">Projected Score Preview</span> — Live projected ATS score comparison (before vs. after) and skill gap count displayed during the tailoring process.
+                </li>
+                <li>
+                  <span className="font-medium text-foreground">Smart Progress Estimation</span> — Estimated time remaining countdown and percentage-based step transitions that adapt to actual backend response time.
+                </li>
+              </ul>
+            </div>
+            <Separator />
+            <div>
+              <p className="text-sm font-semibold mb-2">v1.0.0</p>
+              <p className="text-xs text-muted-foreground">
                 Initial release — AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep.
               </p>
             </div>
