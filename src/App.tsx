@@ -41,6 +41,11 @@ const OnboardingPage = lazyWithRetry(() => import("./pages/OnboardingPage"));
 const ProfilePage = lazyWithRetry(() => import("./pages/ProfilePage"));
 const TemplatesPage = lazyWithRetry(() => import("./pages/TemplatesPage"));
 const ResumeDetailPage = lazyWithRetry(() => import("./pages/ResumeDetailPage"));
+const JobDetailPage = lazyWithRetry(() => import("./pages/JobDetailPage"));
+const ApplicationTrackerPage = lazyWithRetry(() => import("./pages/ApplicationTrackerPage"));
+const NotificationsPage = lazyWithRetry(() => import("./pages/NotificationsPage"));
+const CoverLetterPage = lazyWithRetry(() => import("./pages/CoverLetterPage"));
+const SharePage = lazyWithRetry(() => import("./pages/SharePage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -147,7 +152,30 @@ const queryClient = new QueryClient({
               <ResumeDetailPage />
             </Suspense>
            } />
+           <Route path="/job/:id" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <JobDetailPage />
+            </Suspense>
+           } />
+           <Route path="/application/:id" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <ApplicationTrackerPage />
+            </Suspense>
+           } />
+           <Route path="/notifications" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <NotificationsPage />
+            </Suspense>
+           } />
+           <Route path="/cover-letter" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <CoverLetterPage />
+            </Suspense>
+           } />
          </Route>
+
+        {/* Public share page - outside AppShell */}
+        <Route path="/share/:token" element={<Suspense fallback={<PageLoadingSpinner />}><SharePage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
       </Routes>

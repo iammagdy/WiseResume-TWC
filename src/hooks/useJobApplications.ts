@@ -64,6 +64,23 @@ export function usePendingReminders() {
   });
 }
 
+export function useJobApplication(id: string | null) {
+  const { user } = useAuth();
+  return useQuery({
+    queryKey: ['job-application', id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('job_applications')
+        .select('*')
+        .eq('id', id!)
+        .single();
+      if (error) throw error;
+      return data as unknown as JobApplication;
+    },
+    enabled: !!user && !!id,
+  });
+}
+
 export function useJobApplicationMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();

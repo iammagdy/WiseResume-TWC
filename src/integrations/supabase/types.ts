@@ -337,6 +337,7 @@ export type Database = {
           experience: Json | null
           id: string
           is_primary: boolean | null
+          is_public: boolean
           job_match_score: number | null
           parent_resume_id: string | null
           skills: Json | null
@@ -356,6 +357,7 @@ export type Database = {
           experience?: Json | null
           id?: string
           is_primary?: boolean | null
+          is_public?: boolean
           job_match_score?: number | null
           parent_resume_id?: string | null
           skills?: Json | null
@@ -375,6 +377,7 @@ export type Database = {
           experience?: Json | null
           id?: string
           is_primary?: boolean | null
+          is_public?: boolean
           job_match_score?: number | null
           parent_resume_id?: string | null
           skills?: Json | null

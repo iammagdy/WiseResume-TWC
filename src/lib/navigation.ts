@@ -17,6 +17,10 @@ const BACK_ROUTES: Record<string, string> = {
   '/profile': '/dashboard',
   '/templates': '/dashboard',
   '/resume': '/dashboard',
+  '/job': '/applications',
+  '/application': '/applications',
+  '/notifications': '/dashboard',
+  '/cover-letter': '/dashboard',
 };
 
 /**
