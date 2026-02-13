@@ -412,20 +412,23 @@ export default function EditorPage() {
                       setShowSignInPrompt(true);
                     }
                   }}
-                  className={`keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[52px] min-h-[52px] flex items-center justify-center -mr-2 ${
+                  className={`keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[54px] min-h-[54px] flex flex-col items-center justify-center gap-0.5 -mr-2 ${
                     user
                       ? 'bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]'
                       : 'opacity-50 cursor-pointer hover:opacity-70 active:scale-95'
                   }`}
                   aria-label="Open Wise AI"
                 >
-                  <Sparkles className={`w-5 h-5 ${user ? 'text-primary' : 'text-muted-foreground'}`} />
-                  {user && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  )}
-                  {!user && (
-                    <Lock className="absolute -bottom-0.5 -right-0.5 w-3 h-3 text-muted-foreground bg-background rounded-full p-[1px]" />
-                  )}
+                  <span className="relative">
+                    <Sparkles className={`w-5 h-5 ${user ? 'text-primary' : 'text-muted-foreground'}`} />
+                    {user && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                    )}
+                    {!user && (
+                      <Lock className="absolute -bottom-1 -right-1.5 w-3 h-3 text-muted-foreground bg-background rounded-full p-[1px]" />
+                    )}
+                  </span>
+                  <span className={`text-[9px] font-medium leading-none ${user ? 'text-primary' : 'text-muted-foreground'}`}>Wise AI</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
