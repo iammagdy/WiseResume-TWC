@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Pencil, Sparkles, Download, BarChart3, LayoutGrid, Wand2, Target, Mic, Users, Check, X, Shield, Zap } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
+import { EditorDemo } from '@/components/landing/EditorDemo';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -163,6 +164,12 @@ const Index = () => {
               </div>
             ))}
           </div>
+        </motion.section>
+
+
+        {/* Interactive Editor Demo */}
+        <motion.section className="px-6 mb-8" {...inView(0)}>
+          <EditorDemo />
         </motion.section>
 
         {/* Social Proof Bar */}
