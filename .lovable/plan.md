@@ -1,70 +1,73 @@
 
-## Remove Thinking Mode from Wise AI Chat
 
-### Current State Analysis
-The Thinking Mode feature is currently implemented in three places:
+## Enhance Wise AI Icon and Section AI Buttons
 
-1. **UI Component** (`src/components/editor/AgenticChatSheet.tsx`):
-   - Brain icon with toggle switch in the header (lines 296-311)
-   - Conditional placeholder text in input field (lines 432-435)
-   - Listed as a capability in the CAPABILITIES array (line 53)
+### Overview
+Upgrade the visual treatment of the main Wise AI chat icon and the per-section AI buttons with glowing effects, auth-aware states, and polished interactions.
 
-2. **Hook** (`src/hooks/useAgenticChat.ts`):
-   - `thinkingMode` state (line 10)
-   - `toggleThinkingMode` function (lines 273-275)
-   - Passed to `sendChatMessage` and `sendFunctionFeedback` (lines 190, 216)
-   - Exported in return object (line 281)
+### Changes
 
-3. **Backend Function** (`supabase/functions/agentic-chat/index.ts`):
-   - Reads `thinkingMode` from request (line 19, 278)
-   - Selects Pro model when enabled (lines 318-322)
-   - Increases temperature and max_tokens (lines 354-355)
-   - Adds thinking budget for Pro model (lines 358-365)
+---
 
-### Why It's Redundant
-- The Pro model is used with identical tools and system prompt as Flash
-- Without enhanced instructions, it just costs more and runs slower
-- No specialized behavior or output format differentiates it
-- Users see no meaningful difference in results
+### 1. Main Wise AI Icon (EditorPage header)
 
-### Solution: Complete Removal
+**File: `src/pages/EditorPage.tsx` (lines 401-408)**
 
-**File Changes:**
+Current: A plain `MessageCircle` icon in a ghost button with a small pulse dot.
 
-1. **`src/components/editor/AgenticChatSheet.tsx`**
-   - Remove `thinkingMode` and `toggleThinkingMode` from hook destructuring (line 223-226)
-   - Remove the toggle switch UI block (lines 293-311)
-   - Remove "Thinking Mode" from CAPABILITIES array (line 53)
-   - Remove conditional placeholder text logic (lines 432-435) → always use standard prompt
-   - Simplify placeholder to: `'Ask Wise AI to edit your resume...'`
+Changes:
+- Replace `MessageCircle` with `Sparkles` icon (consistent AI branding)
+- Make the button larger with a gradient background and glowing box-shadow
+- **Logged in**: Pulsing glow ring animation, tooltip "Click for AI assistance"
+- **Logged out**: 50% opacity, lock badge overlay (`Lock` icon), tooltip "Sign in to unlock Wise AI". Clicking opens the sign-in prompt dialog instead of the chat sheet
+- Wrap with `Tooltip` component for hover text
 
-2. **`src/hooks/useAgenticChat.ts`**
-   - Remove `thinkingMode` state (line 10)
-   - Remove `toggleThinkingMode` function (lines 273-275)
-   - Remove `thinkingMode` parameter from `sendChatMessage` call (line 190)
-   - Remove `thinkingMode` parameter from `sendFunctionFeedback` call (line 216)
-   - Remove `toggleThinkingMode` from return object (line 283)
+### 2. Section AI Buttons (InlineAIButton)
 
-3. **`supabase/functions/agentic-chat/index.ts`**
-   - Remove `thinkingMode?: boolean` from ChatRequest interface (line 19)
-   - Remove `thinkingMode` destructuring (line 278)
-   - Remove model selection logic (lines 317-322) → always use Flash
-   - Replace with: `const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";`
-   - Simplify temperature to: `temperature: 0.7` (remove ternary on line 354)
-   - Simplify max_tokens to: `max_tokens: 2000` (remove ternary on line 355)
-   - Remove thinking budget block (lines 358-365)
+**File: `src/components/editor/InlineAIButton.tsx`**
 
-### Benefits
-✓ Simplified UI with one less toggle to manage
-✓ Always-consistent model (Flash) reduces confusion
-✓ Faster response times
-✓ Lower AI costs
-✓ Cleaner, more maintainable code
+Changes:
+- Accept new `isAuthenticated` prop
+- Change label from "AI" to "AI Assist" with sparkle emoji or icon
+- **Logged in**: Brighter primary color with subtle glow shadow, gentle pulse animation on the sparkles icon, enhanced hover state with scale and brighter glow
+- **Logged out**: Grey out with reduced opacity, replace sparkles icon with `Lock` icon, show tooltip "Sign in to use AI Assist". Clicking opens sign-in prompt instead of dropdown menu
+- Add `Tooltip` wrapper for contextual help text
 
-### Testing
-After removal, verify:
-1. The "Pro" toggle and Brain icon no longer appear in the header
-2. Wise AI chat still works with standard messages
-3. All tool calls (add_skills, update_summary, etc.) still function
-4. The input placeholder shows consistent text
-5. Suggestion cards and function call badges still display correctly
+**File: `src/components/editor/SectionAIAction.tsx`**
+
+Changes:
+- Import `useAuth` and pass `isAuthenticated` to `InlineAIButton`
+- When not authenticated, pass an `onLockedClick` callback that triggers the sign-in prompt dialog
+
+### 3. EditorPage Integration
+
+**File: `src/pages/EditorPage.tsx`**
+
+Changes:
+- Update the Wise AI header button with auth-aware rendering
+- Add a reusable `handleAILockedClick` function that opens the sign-in prompt with AI-specific messaging ("Unlock Wise AI", "Sign in to access AI-powered resume editing")
+- Pass this handler down to `SectionAIAction` components via context or prop
+
+---
+
+### Technical Details
+
+**New CSS classes (added inline or via Tailwind):**
+- Glow effect: `shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)]` on the main icon
+- Pulse glow: A keyframe animation that alternates the glow intensity
+- Lock badge: Absolute positioned small `Lock` icon (12x12) at bottom-right of the main button
+
+**Tooltip integration:**
+- Uses existing `Tooltip`, `TooltipTrigger`, `TooltipContent` from `@/components/ui/tooltip`
+- `TooltipProvider` is likely already at app level; if not, wrap locally
+
+**Auth-aware click handlers:**
+- Main icon: `onClick={() => user ? setShowChat(true) : handleAILockedClick()}`
+- Section buttons: `onClick={() => isAuthenticated ? openMenu() : onLockedClick?.()`
+
+**Files modified:**
+1. `src/pages/EditorPage.tsx` -- Main Wise AI icon upgrade with auth states, glow, tooltip
+2. `src/components/editor/InlineAIButton.tsx` -- Enhanced styling, auth-aware states, lock icon, tooltip, label change
+3. `src/components/editor/SectionAIAction.tsx` -- Pass auth state and locked click handler to InlineAIButton
+
+**No new files or dependencies needed.** All icons (`Sparkles`, `Lock`) and components (`Tooltip`) are already available.
