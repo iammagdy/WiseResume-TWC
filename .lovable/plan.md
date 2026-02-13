@@ -1,36 +1,55 @@
 
 
-## Fix: Duplicate Toasts and Premium Toast Redesign
+## Fix: Wise AI Chat Sheet Empty State UI Polish
 
-### Problem 1: Duplicate Delete Toasts
-When deleting a resume, TWO success toasts appear:
-- `useResumes.ts` hook fires `toast.success('Resume deleted')` in its `onSuccess` callback
-- `DashboardPage.tsx` fires `toast.success('"Title" deleted')` with an Undo action in its own `onSuccess`
+### Issues Identified (from screenshot)
+1. The large gradient circle + "Wise AI" title in the scrollable content **duplicates** the header, creating redundancy and visual clutter
+2. The gradient circle overlaps/bleeds into the header border area
+3. Suggestion buttons look flat and lack clear tap affordance
+4. The input area and Close button feel disconnected from the content flow
+5. Overall vertical spacing is off, causing content to feel cramped at top and cut off at bottom
 
-**Fix**: Remove the generic toast from `useResumes.ts` (line 243) since the DashboardPage provides a richer, contextual toast with the resume title and Undo action. The hook should only handle cache invalidation.
+### Changes
 
-### Problem 2: Toast Visual Design
-The current toast styling has issues visible in the screenshot:
-- Oversized icon with a glowing green circle that bleeds into the layout
-- The toast surface looks messy with conflicting glass layers and border-left treatment
-- Close button and action button styling feel inconsistent with the Cosmic Glass UI
+**File: `src/components/editor/AgenticChatSheet.tsx`**
 
-**Fix**: Redesign the toast CSS in `index.css` and update the Sonner component config in `sonner.tsx`:
+**1. Remove redundant hero block from empty state (lines 304-311)**
+Remove the large gradient circle icon and duplicate "Wise AI" heading from the scrollable content area. The header already shows the branding, so repeating it wastes valuable screen space and causes the overlap issue.
 
-**`src/components/ui/sonner.tsx` changes:**
-- Reduce icon size from `h-5 w-5` to `h-4 w-4` and remove the heavy `drop-shadow` glow
-- Clean up the `toastOptions.classNames` to remove conflicting class layers
-- Keep `richColors={false}` and `closeButton={true}`
+Replace with a compact intro paragraph:
+```tsx
+<div className="flex flex-col items-center text-center pt-6 pb-2">
+  <p className="text-sm text-muted-foreground max-w-[260px]">
+    I can edit your resume directly. Just tell me what to change.
+  </p>
+</div>
+```
 
-**`src/index.css` changes (lines 968-1161):**
-- Simplify the base `[data-sonner-toast]` styling: cleaner glass surface, tighter padding, no border-left
-- Replace the `.toast-premium` class with a cleaner design: subtle rounded card with a thin top-edge color accent instead of a thick left border
-- Refined type-specific styles (success/error/warning/info): subtle tinted background with a thin colored top border instead of a left border
-- Smaller, tighter progress bar animation
-- Remove redundant `box-shadow` layers that cause visual noise
-- Ensure mobile toast width uses full width minus safe margins
+**2. Upgrade suggestion buttons styling (lines 318-325)**
+Add subtle left accent, icon hint, and better padding for professional look:
+```tsx
+<button
+  key={s}
+  onClick={() => handleSuggestion(s)}
+  className="w-full text-left text-sm px-4 py-3 rounded-xl border border-border/50 
+             bg-card/50 hover:bg-primary/5 hover:border-primary/30 
+             active:scale-[0.98] transition-all touch-manipulation 
+             flex items-center gap-3"
+>
+  <Sparkles className="w-3.5 h-3.5 text-primary/50 shrink-0" />
+  <span>{s}</span>
+</button>
+```
 
-### Files Changed
-1. **`src/hooks/useResumes.ts`** - Remove `toast.success('Resume deleted')` from the delete mutation's `onSuccess` (line 243)
-2. **`src/components/ui/sonner.tsx`** - Smaller icons, remove drop-shadow glow, cleaner class names
-3. **`src/index.css`** - Redesigned toast CSS block (lines 968-1161): cleaner glass surface, top-accent color bar, refined shadows
+**3. Move AIProviderBadge inline with the header title (lines 291-295)**
+Instead of a separate row below the title, place the badge on the same line as the title for a tighter header. Remove the extra `space-y-2` from SheetHeader.
+
+**4. Remove the "Close" button from the bottom footer (line 430-435)**
+The sheet already has a native X close button in the header and can be dismissed by swiping down. The "Close" text button wastes vertical space and pushes the input field up unnecessarily.
+
+### Summary of visual improvements
+- No more overlapping gradient circle at the top
+- Single, clean header with title + provider badge inline
+- Professional suggestion chips with sparkle icons and border accents
+- More vertical space for content by removing redundant close button
+- Cleaner overall layout aligned with the Cosmic Glass UI system
