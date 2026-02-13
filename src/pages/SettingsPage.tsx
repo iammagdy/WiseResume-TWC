@@ -29,7 +29,8 @@ import {
   Check,
   X,
   BookOpen,
-  Users
+  Users,
+  Palette
 } from 'lucide-react';
 import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -308,7 +309,7 @@ export default function SettingsPage() {
           {/* 2. Appearance & Language */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              <Palette className="w-3.5 h-3.5 text-primary/60" />
               Appearance
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Theme, language, and display preferences</p>
@@ -330,7 +331,7 @@ export default function SettingsPage() {
           {/* 3. AI & Voice */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              <Brain className="w-3.5 h-3.5 text-primary/60" />
               AI & Voice
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Choose your AI engine and voice settings</p>
@@ -394,7 +395,7 @@ export default function SettingsPage() {
           {/* 4. Editor & Export */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              <Download className="w-3.5 h-3.5 text-primary/60" />
               Editor & Export
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">PDF output and resume backup options</p>
@@ -434,7 +435,7 @@ export default function SettingsPage() {
           {/* 5. Notifications */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              <Bell className="w-3.5 h-3.5 text-primary/60" />
               Notifications
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Control alerts and suggestion prompts</p>
@@ -462,7 +463,7 @@ export default function SettingsPage() {
           {/* 6. Privacy & Security */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              <Shield className="w-3.5 h-3.5 text-primary/60" />
               Privacy & Security
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
@@ -514,7 +515,7 @@ export default function SettingsPage() {
           {user && (
             <div>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-                <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+                <LogOut className="w-3.5 h-3.5 text-primary/60" />
                 Account
               </h2>
               <p className="text-xs text-muted-foreground mb-3 px-1">Sign out or delete your data</p>
@@ -541,7 +542,7 @@ export default function SettingsPage() {
           {/* 8. About & Help */}
           <div>
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
+              <Info className="w-3.5 h-3.5 text-primary/60" />
               About & Help
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">App info, onboarding, and sharing</p>
