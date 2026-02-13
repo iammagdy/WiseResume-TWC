@@ -454,36 +454,34 @@ export default function SettingsPage() {
               Privacy & Security
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
-            <div className="rounded-2xl glass-elevated overflow-hidden">
-              {biometricAvailable && (
-                <>
-                  <SettingsRow
-                    type="toggle"
-                    label="Biometric Lock"
-                    description="Protect your resumes"
-                    icon={<Fingerprint className="w-4 h-4" />}
-                    checked={biometricLockEnabled}
-                    onCheckedChange={handleBiometricToggle}
-                  />
-                  {biometricLockEnabled && (
-                    <>
-                      <Separator className="bg-border/30" />
-                      <SettingsRow
-                        type="navigation"
-                        label="Require Authentication After"
-                        value={
-                          biometricLockTimeout === 0 ? 'Immediately' :
-                          biometricLockTimeout === 30000 ? '30 seconds' :
-                          biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
-                        }
-                        icon={<Clock className="w-4 h-4" />}
-                        onClick={() => setBiometricTimeoutOpen(true)}
-                      />
-                    </>
-                  )}
-                </>
-              )}
-            </div>
+            {biometricAvailable && (
+              <div className="rounded-2xl glass-elevated overflow-hidden">
+                <SettingsRow
+                  type="toggle"
+                  label="Biometric Lock"
+                  description="Protect your resumes"
+                  icon={<Fingerprint className="w-4 h-4" />}
+                  checked={biometricLockEnabled}
+                  onCheckedChange={handleBiometricToggle}
+                />
+                {biometricLockEnabled && (
+                  <>
+                    <Separator className="bg-border/30" />
+                    <SettingsRow
+                      type="navigation"
+                      label="Require Authentication After"
+                      value={
+                        biometricLockTimeout === 0 ? 'Immediately' :
+                        biometricLockTimeout === 30000 ? '30 seconds' :
+                        biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
+                      }
+                      icon={<Clock className="w-4 h-4" />}
+                      onClick={() => setBiometricTimeoutOpen(true)}
+                    />
+                  </>
+                )}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
               Your resumes are stored securely and never sold to third parties.{' '}
               <a
@@ -584,12 +582,6 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Footer */}
-          <div className="text-center pt-2">
-            <p className="text-xs text-muted-foreground">WiseResume v1.0.0</p>
-            <p className="text-xs text-muted-foreground mt-1">Made with ❤️ in Egypt</p>
-          </div>
-
           {/* Developer Credit Card */}
           <Suspense fallback={null}>
             <DeveloperCreditCard
@@ -601,7 +593,11 @@ export default function SettingsPage() {
             />
           </Suspense>
 
-          <div className="pb-10" />
+          {/* Footer */}
+          <div className="text-center pt-2 pb-10">
+            <p className="text-xs text-muted-foreground">WiseResume v1.0.0</p>
+            <p className="text-xs text-muted-foreground mt-1">Made with ❤️ in Egypt</p>
+          </div>
         </div>
       </div>
 
