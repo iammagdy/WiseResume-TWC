@@ -7,8 +7,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 // ============= SECURITY: Input validation limits =============
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
 const MAX_CONTEXT_SIZE = 100 * 1024; // 100KB for context (resume data)
-const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact'];
-const VALID_ACTIONS = ['generate', 'improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error'];
+const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact', 'custom'];
+const VALID_ACTIONS = ['generate', 'improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom'];
 
 interface EnhanceRequest {
   section: 'summary' | 'experience' | 'education' | 'skills' | 'contact';
@@ -41,7 +41,8 @@ ${JSON.stringify(currentContent, null, 2)}
     expand: `Expand this content with more detail. Add context, specific achievements, technologies used, and measurable outcomes where appropriate.`,
     add_metrics: `Add quantifiable metrics and numbers to this content. Suggest specific percentages, dollar amounts, time saved, team sizes, or other measurable outcomes based on the role and industry.`,
     generate_bullets: `Convert this description into powerful bullet points. Each bullet should start with a strong action verb and include a specific achievement or responsibility.`,
-    fix_error: `Apply the following fix to the content: "${fixInstruction}". Keep the rest of the content consistent, but ensure the specific issue is resolved. Do not invent false information, but you may rephrase or restructure as needed to apply the fix effectively.`
+    fix_error: `Apply the following fix to the content: "${fixInstruction}". Keep the rest of the content consistent, but ensure the specific issue is resolved. Do not invent false information, but you may rephrase or restructure as needed to apply the fix effectively.`,
+    custom: `${fixInstruction || String(currentContent)}. Respond with valid JSON only.`
   };
 
   return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
@@ -99,7 +100,13 @@ serve(async (req) => {
       );
     }
 
-    const { section, action, currentContent, context, userGeminiKey, fixInstruction } = await req.json() as EnhanceRequest;
+    const body = await req.json() as EnhanceRequest & { content?: string; instruction?: string };
+    const section = body.section;
+    const action = body.action || (section === 'custom' ? 'custom' : undefined);
+    const currentContent = body.currentContent ?? body.content;
+    const context = body.context;
+    const userGeminiKey = body.userGeminiKey;
+    const fixInstruction = body.fixInstruction ?? body.instruction;
 
     // ============= SECURITY: Input validation =============
     if (!section || !VALID_SECTIONS.includes(section)) {
