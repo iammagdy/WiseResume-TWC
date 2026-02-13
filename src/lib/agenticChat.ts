@@ -58,7 +58,6 @@ export async function sendChatMessage(
   conversationHistory: ChatMessage[],
   currentResume: ResumeData | null,
   options?: {
-    thinkingMode?: boolean;
     functionResponse?: FunctionResult;
   }
 ): Promise<ChatResponse> {
@@ -80,7 +79,6 @@ export async function sendChatMessage(
       conversationHistory: historyForApi,
       currentResume,
       userGeminiKey,
-      thinkingMode: options?.thinkingMode ?? false,
       functionResponse: options?.functionResponse,
     },
   });
@@ -102,11 +100,9 @@ export async function sendFunctionFeedback(
   originalMessage: string,
   conversationHistory: ChatMessage[],
   currentResume: ResumeData | null,
-  functionResult: FunctionResult,
-  thinkingMode?: boolean
+  functionResult: FunctionResult
 ): Promise<ChatResponse> {
   return sendChatMessage(originalMessage, conversationHistory, currentResume, {
-    thinkingMode,
     functionResponse: functionResult,
   });
 }

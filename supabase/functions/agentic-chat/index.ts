@@ -16,7 +16,7 @@ interface ChatRequest {
   conversationHistory: ChatMessage[];
   currentResume: unknown;
   userGeminiKey?: string;
-  thinkingMode?: boolean;
+  
   functionResponse?: {
     name: string;
     result: Record<string, unknown>;
@@ -275,7 +275,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { message, conversationHistory, currentResume, userGeminiKey, thinkingMode, functionResponse } = (await req.json()) as ChatRequest;
+    const { message, conversationHistory, currentResume, userGeminiKey, functionResponse } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
       return new Response(
@@ -313,15 +313,9 @@ Deno.serve(async (req: Request) => {
 
     const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
     
-    // Use Pro model with thinking for complex tasks
-    let modelName: string;
-    if (thinkingMode) {
-      modelName = useGeminiDirect ? "gemini-2.5-pro-preview-06-05" : "google/gemini-2.5-pro";
-    } else {
-      modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
-    }
+    const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
 
-    console.log(`agentic-chat: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}, model: ${modelName}, thinking: ${thinkingMode}`);
+    console.log(`agentic-chat: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}, model: ${modelName}`);
 
     const resumeContext = currentResume
       ? `\n\nCurrent Resume:\n${JSON.stringify(currentResume, null, 2).slice(0, 4000)}`
@@ -351,18 +345,9 @@ Deno.serve(async (req: Request) => {
       model: modelName,
       messages,
       tools: TOOLS,
-      temperature: thinkingMode ? 0.9 : 0.7,
-      max_tokens: thinkingMode ? 4000 : 2000,
+      temperature: 0.7,
+      max_tokens: 2000,
     };
-
-    // Add thinking budget for Pro model
-    if (thinkingMode && !useGeminiDirect) {
-      requestBody.extra_body = {
-        thinkingConfig: {
-          thinkingBudget: 2048,
-        },
-      };
-    }
 
     const response = await fetch(apiUrl, {
       method: "POST",

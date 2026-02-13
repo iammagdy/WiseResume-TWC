@@ -9,7 +9,7 @@ import {
   Wrench,
   Trash2,
   Lightbulb,
-  Brain,
+  
   Check,
   X,
   MessageSquare,
@@ -24,7 +24,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+
 import { cn } from '@/lib/utils';
 import { useAgenticChat } from '@/hooks/useAgenticChat';
 import { haptics } from '@/lib/haptics';
@@ -50,7 +50,7 @@ const CAPABILITIES = [
   { icon: MessageSquare, title: 'Edit by Chatting', desc: '"Update my summary" or "Add React to skills" — changes apply instantly' },
   { icon: Wrench, title: 'Auto-Apply Changes', desc: 'Wise AI edits your resume directly, no copy-pasting needed' },
   { icon: GitCompareArrows, title: 'Review Suggestions', desc: 'See before/after diffs and accept or reject each change' },
-  { icon: Brain, title: 'Thinking Mode', desc: 'Complex career reasoning with deeper analysis' },
+  { icon: Sparkles, title: 'AI-Powered Insights', desc: 'Get smart suggestions based on your career goals' },
   { icon: Shield, title: 'Private & Secure', desc: 'Your data stays yours' },
 ];
 
@@ -220,10 +220,8 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
   const {
     messages,
     isThinking,
-    thinkingMode,
     sendMessage,
     clearChat,
-    toggleThinkingMode,
     updateSuggestionStatus,
   } = useAgenticChat();
   const [input, setInput] = useState('');
@@ -291,22 +289,8 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
           </div>
           
           {isAuthenticated && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center">
               <AIProviderBadge size="xs" showSettingsLink />
-              <div className="flex items-center gap-1.5">
-                <Brain
-                  className={cn(
-                    'w-4 h-4 transition-colors',
-                    thinkingMode ? 'text-primary' : 'text-muted-foreground'
-                  )}
-                />
-                <Switch
-                  checked={thinkingMode}
-                  onCheckedChange={toggleThinkingMode}
-                  className="scale-90"
-                />
-                <span className="text-xs text-muted-foreground">Pro</span>
-              </div>
             </div>
           )}
         </SheetHeader>
@@ -429,11 +413,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={
-                    thinkingMode
-                      ? 'Ask Wise AI (Pro mode - complex reasoning)...'
-                      : 'Ask Wise AI to edit your resume...'
-                  }
+                  placeholder="Ask Wise AI to edit your resume..."
                   className="flex-1 h-11 px-4 rounded-full glass-input text-sm placeholder:text-muted-foreground/60 focus:outline-none"
                   disabled={isThinking}
                 />
