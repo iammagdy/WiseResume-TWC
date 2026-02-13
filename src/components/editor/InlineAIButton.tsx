@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus } from 'lucide-react';
+import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { haptics } from '@/lib/haptics';
 import { AIProviderFooter } from '@/components/editor/ai/AIProviderBadge';
 
@@ -44,6 +45,8 @@ interface InlineAIButtonProps {
   onAction: (actionId: string) => void;
   isLoading?: boolean;
   disabled?: boolean;
+  isAuthenticated?: boolean;
+  onLockedClick?: () => void;
 }
 
 export function InlineAIButton({
@@ -51,6 +54,8 @@ export function InlineAIButton({
   onAction,
   isLoading = false,
   disabled = false,
+  isAuthenticated = true,
+  onLockedClick,
 }: InlineAIButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -73,24 +78,48 @@ export function InlineAIButton({
     onAction(actionId);
   };
 
+  const handleButtonClick = () => {
+    if (!isAuthenticated) {
+      haptics.light();
+      onLockedClick?.();
+      return;
+    }
+    setIsOpen((prev) => !prev);
+  };
+
   return (
     <div className="relative" ref={menuRef}>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="min-h-[44px] px-2.5 gap-1.5 text-primary hover:bg-primary/10 transition-colors"
-        disabled={disabled || isLoading}
-        onClick={() => setIsOpen((prev) => !prev)}
-      >
-        {isLoading ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : (
-          <Sparkles className="w-3.5 h-3.5" />
-        )}
-        <span className="text-xs font-medium">AI</span>
-      </Button>
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`min-h-[44px] px-2.5 gap-1.5 transition-all ${
+                isAuthenticated
+                  ? 'text-primary hover:bg-primary/10 shadow-[0_0_12px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_18px_-4px_hsl(var(--primary)/0.5)] hover:scale-105'
+                  : 'text-muted-foreground opacity-60 hover:opacity-80'
+              }`}
+              disabled={disabled || isLoading}
+              onClick={handleButtonClick}
+            >
+              {isLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : isAuthenticated ? (
+                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+              ) : (
+                <Lock className="w-3.5 h-3.5" />
+              )}
+              <span className="text-xs font-medium">AI Assist</span>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {isAuthenticated ? `AI actions for ${section}` : 'Sign in to use AI Assist'}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
-      {isOpen && (
+      {isOpen && isAuthenticated && (
         <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl bg-popover border border-border p-1 shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.12)] animate-in fade-in-0 zoom-in-95 duration-150">
           {actions.map((action) => (
             <button

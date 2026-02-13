@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, MessageCircle, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
@@ -398,14 +399,39 @@ export default function EditorPage() {
               </button>
             )}
           </div>
-          <button
-            onClick={() => setShowChat(true)}
-            className="keyboard-hide p-3 -mr-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center relative"
-            aria-label="Open Wise AI"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary animate-pulse" />
-          </button>
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    if (user) {
+                      setShowChat(true);
+                    } else {
+                      setSignInPromptContext({ title: 'Unlock Wise AI', description: 'Sign in to access AI-powered resume editing.' });
+                      setShowSignInPrompt(true);
+                    }
+                  }}
+                  className={`keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[52px] min-h-[52px] flex items-center justify-center -mr-2 ${
+                    user
+                      ? 'bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]'
+                      : 'opacity-50 cursor-pointer hover:opacity-70 active:scale-95'
+                  }`}
+                  aria-label="Open Wise AI"
+                >
+                  <Sparkles className={`w-5 h-5 ${user ? 'text-primary' : 'text-muted-foreground'}`} />
+                  {user && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                  )}
+                  {!user && (
+                    <Lock className="absolute -bottom-0.5 -right-0.5 w-3 h-3 text-muted-foreground bg-background rounded-full p-[1px]" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {user ? 'Click for AI assistance' : 'Sign in to unlock Wise AI'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </header>
 
