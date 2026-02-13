@@ -1,109 +1,66 @@
 
-## Revamp AI & Voice Section
 
-### Current State
-The AI & Voice section has two plain `SettingsRow` items:
-1. "AI Provider" — shows "WiseResume AI" or "Gemini", opens a sheet
-2. "ElevenLabs API Key" — shows "Not set" or masked dots, opens a key entry sheet
+## Help, Tour & Support — Enhance Descriptions and Add "Need Help?" Area
 
-Both are generic navigation rows with no explanatory context, empty states, or connected/disconnected visual feedback.
+### Changes Overview
 
-### Proposed Changes
+**File: `src/pages/SettingsPage.tsx`**
 
-**File: `src/pages/SettingsPage.tsx`** (lines ~328-353)
+Two targeted edits in the About & Help section (lines ~544-588):
 
-Replace the current two-row card with a richer layout containing two visual subsections:
+### 1. Update "Take Tour Again" description
 
-**Subsection 1 — AI Provider (keep as-is but add helper text)**
-- Keep the existing `SettingsRow` for "AI Provider"
-- Add a small `Info` icon tooltip or inline helper line: "Powers resume analysis, tailoring, and enhancements"
-- Show a green dot or "Recommended" badge next to "WiseResume AI" when that's selected
+Change the description from `"Replay the welcome onboarding"` to `"Replay the quick product tour to learn the main features."` on line 548.
 
-**Subsection 2 — ElevenLabs Voice (conditional empty/connected state)**
+### 2. Add "Need Help?" area after the version info block
 
-*If key is NOT set:*
-- Show an empty state block inside the card:
-  - Mic icon with muted styling
-  - Text: "Connect ElevenLabs to enable realistic voice interviews"
-  - A "Connect" `Button` (size="sm", variant="outline") that opens the existing `ElevenLabsKeySheet`
-
-*If key IS set:*
-- Show a connected state row:
-  - Green check icon + "ElevenLabs Connected" label
-  - Small muted text: "Used for speech-to-text in mock interviews"
-  - A "Manage" button (size="sm", variant="ghost") that opens the existing sheet
-
-### Technical Detail
-
-Replace lines ~335-352 with:
+Insert a new card below the version info block (after line 588) with a clean row of link buttons:
 
 ```tsx
-<div className="rounded-2xl glass-elevated overflow-hidden">
-  {/* AI Provider row */}
-  <SettingsRow
-    type="navigation"
-    label="AI Provider"
-    description="Powers analysis, tailoring, and enhancements"
-    value={aiProvider === 'wiseresume' ? 'WiseResume AI' : 'Gemini'}
-    icon={<Brain className="w-4 h-4" />}
-    onClick={() => setAISettingsOpen(true)}
-  />
-  <Separator className="bg-border/30" />
-
-  {/* ElevenLabs Voice subsection */}
-  {elevenlabsApiKey ? (
-    <div className="flex items-center gap-3 px-4 py-3.5">
-      <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-        <Mic className="w-4 h-4 text-emerald-500" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">ElevenLabs Connected</p>
-        <p className="text-xs text-muted-foreground">
-          Used for speech-to-text in mock interviews
-        </p>
-      </div>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => setElevenLabsKeyOpen(true)}
-        className="text-xs"
-      >
-        Manage
-      </Button>
-    </div>
-  ) : (
-    <div className="flex items-center gap-3 px-4 py-4">
-      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-        <Mic className="w-4 h-4 text-muted-foreground" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-muted-foreground">
-          ElevenLabs Voice
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Connect to enable realistic voice interviews
-        </p>
-      </div>
+<div className="rounded-2xl glass-elevated overflow-hidden mt-3">
+  <div className="px-4 py-3">
+    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+      Need help?
+    </p>
+    <div className="flex flex-wrap gap-2">
       <Button
         size="sm"
         variant="outline"
-        onClick={() => setElevenLabsKeyOpen(true)}
-        className="shrink-0"
+        className="text-xs gap-1.5"
+        onClick={() => window.open('https://docs.lovable.dev', '_blank')}
       >
-        Connect
+        <BookOpen className="w-3.5 h-3.5" />
+        Docs
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="text-xs gap-1.5"
+        onClick={() => window.open('mailto:contact@magdysaber.com')}
+      >
+        <Mail className="w-3.5 h-3.5" />
+        Email Support
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="text-xs gap-1.5"
+        onClick={() => window.open('https://discord.gg/lovable-dev', '_blank')}
+      >
+        <Users className="w-3.5 h-3.5" />
+        Community
       </Button>
     </div>
-  )}
+  </div>
 </div>
 ```
 
-### Additional Change — AI Provider description
-Add `description` prop to the existing AI Provider `SettingsRow` (the component already supports it). This gives users context on what the AI engine actually does.
+### 3. Add missing icon imports
 
-### What Stays the Same
-- The `AISettingsSheet` and `ElevenLabsKeySheet` components remain unchanged
-- The sheet open/close state logic remains unchanged
-- No new imports needed (all icons already imported)
+Add `BookOpen` and `Users` to the existing lucide-react import statement (line ~5-30). `Mail` is already imported.
 
 ### Files Modified
-- `src/pages/SettingsPage.tsx` — replace AI & Voice card content (~18 lines replaced with ~45 lines)
+- `src/pages/SettingsPage.tsx` — update tour description, add "Need help?" support links area, add icon imports
+
+### No new dependencies or components needed.
+
