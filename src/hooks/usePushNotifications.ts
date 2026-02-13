@@ -10,7 +10,7 @@ declare global {
 }
 
 // Publishable VAPID key – safe to embed in frontend
-const VAPID_PUBLIC_KEY = 'REPLACE_WITH_YOUR_VAPID_PUBLIC_KEY';
+const VAPID_PUBLIC_KEY = 'BJUSBRC5npkRn-z1die5GrM_3kl88ngw8IeikAsRiXtCXXPW2oO0IqJNiCdBpMXkc5VdP1tSOy2APxNyhIsXCWg';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
