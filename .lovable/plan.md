@@ -1,50 +1,74 @@
 
-## Merge Editor & Export into Single Expandable Card
+
+## About & Help Footer Enhancement
 
 ### Overview
-Replace the two separate navigation rows ("PDF Export Settings" and "Export Resumes") with a single expandable card containing two collapsible sub-sections. Add a cloud sync status indicator showing backup state.
+Enhance the Settings footer with a tappable version number showing a changelog, legal/policy links, social media icons, and Egyptian flag branding.
 
-### Changes to `src/pages/SettingsPage.tsx`
+### Changes (all in `src/pages/SettingsPage.tsx`)
 
-**1. Add imports**
-- Import `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` from `@/components/ui/collapsible`
-- Import `CloudCheck` (or use `Cloud` + `Check`) from `lucide-react` for the sync icon
-- Import `ChevronDown` from `lucide-react` for expand/collapse indicator
+#### 1. Tappable Version Number with Changelog Dialog
 
-**2. Replace the Editor & Export section content (lines 356-386)**
+Replace the plain `WiseResume v1.0.0` text (line 673) with a tappable button that opens a simple changelog dialog.
 
-Remove the two `SettingsRow` navigation items and the `Separator` between them. Replace with a single `glass-elevated` card containing two collapsible sections:
+- Add state: `const [changelogOpen, setChangelogOpen] = useState(false)`
+- Version text becomes a button with `underline-offset-2` styling and `text-primary` on hover
+- Clicking opens a `Dialog` with a hardcoded changelog:
+  - **v1.0.0** -- Initial release: AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep
+- Import `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription` (already likely imported or available)
 
-**Section A -- "PDF Export Settings"**
-- Use `Collapsible` with local state `pdfOpen`
-- Trigger row: icon (Download), label "PDF Export Settings", right side shows current format summary (e.g., "Full, Badge on"), plus a rotating `ChevronDown`
-- Content: inline the 3 controls currently in `PDFDefaultsSheet` (page numbers toggle, format picker, branding toggle) directly inside the collapsible content -- no more bottom sheet needed
-- Remove `pdfDefaultsSheetOpen` state and the `PDFDefaultsSheet` component render
+#### 2. Legal Links Row
 
-**Section B -- "Export Resumes"**
-- Use `Collapsible` with local state `exportOpen`
-- Trigger row: icon (Database), label "Export Resumes", right side shows cloud sync status badge
-- Cloud sync visual: when user is signed in and has resumes, show a small `Cloud` icon with a green `Check` overlay and text "Backed up" in green; when guest, show a muted "Sign in to backup" badge
-- Content: a "Manage Exports" button that opens the existing `DataExportSheet` (keep that sheet for the full import/export flow)
-- For guests: show a compact sign-in prompt inside the collapsible content instead
+Below the version number, add a row of plain-text links separated by centered dots:
 
-**3. Cloud sync status indicator**
+```
+Privacy · Terms · Changelog
+```
 
-A small inline badge next to the "Export Resumes" row:
-- Signed in + resumes synced: green `CloudCheck` icon + "Backed up" text (uses `text-[hsl(var(--success))]`)
-- Signed in + pending offline changes: amber `Cloud` icon + "Pending" text
-- Guest: muted lock icon + "Sign in"
+- "Privacy" links to `https://magdysaber.com/privacy` (opens in new tab)
+- "Terms" links to `https://magdysaber.com/terms` (opens in new tab)
+- "Changelog" opens the same changelog dialog
+- Styled as `text-xs text-muted-foreground hover:text-primary transition-colors`
+
+#### 3. Social Media Icons Row
+
+Add a row of 3 social icon buttons between the links and the "Made in" line:
+
+- Twitter/X icon -- links to `https://x.com/magdysaber`
+- LinkedIn icon -- links to `https://linkedin.com/in/magdysaber`
+- GitHub icon -- links to `https://github.com/magdysaber`
+
+Each icon is a 36x36px ghost button with `hover:bg-muted/50` and opens in a new tab. Icons sourced from lucide-react: use `Globe` as fallback for X/Twitter (lucide has `Twitter` but it may be the old bird), `Linkedin` from lucide (if available -- will verify), and `Github` from lucide.
+
+#### 4. Egyptian Flag Emoji
+
+Change line 674 from:
+```
+Made with ❤️ in Egypt
+```
+to:
+```
+Made in 🇪🇬
+```
+
+### Footer Layout (top to bottom)
+
+```text
+[Developer Credit Card]
+
+        WiseResume v1.0.0  (tappable)
+      Privacy · Terms · Changelog
+        [X] [LinkedIn] [GitHub]
+           Made in flag-EG
+```
 
 ### Technical Details
 
-- The two `Collapsible` components use independent boolean states (`pdfOpen`, `exportOpen`)
-- PDF settings controls are moved inline from `PDFDefaultsSheet` content -- the same `Switch`, format buttons, and branding toggle, using the same `pdfDefaults` state and `setPdfDefaults` from `useSettingsStore`
-- The `PDFDefaultsSheet` component and its `pdfDefaultsSheetOpen` state are removed since the controls are now inline
-- The `DataExportSheet` is kept for the full export/import workflow -- the collapsible just provides a quick-access entry point
-- The offline sync status reads from `useOfflineSyncStore` pending count to determine "Backed up" vs "Pending"
-- Collapsible animations use the built-in Radix animation (already configured in accordion styles)
-
-### Files Modified
-| File | Change |
+| Area | Detail |
 |------|--------|
-| `src/pages/SettingsPage.tsx` | Replace Editor & Export section with two collapsible sub-sections; remove `PDFDefaultsSheet` usage; add cloud sync badge; add new imports |
+| New state | `changelogOpen` boolean |
+| New imports | `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle` (from `@/components/ui/dialog`); `Github`, `Linkedin`, `Twitter` from `lucide-react` |
+| Lines modified | ~672-675 (footer section) |
+| New component | Inline changelog dialog rendered in the Sheets/Dialogs section |
+| File | Only `src/pages/SettingsPage.tsx` |
+
