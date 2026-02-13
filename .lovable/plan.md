@@ -1,331 +1,166 @@
 
 
-## WiseResume Comprehensive Codebase Audit Report
+## WiseResume Production Readiness Audit Report
 
 ---
 
-### PART 1: DATABASE SCHEMA AUDIT
+### PART 1: CODE CLEANUP
 
-| Table | Exists | RLS | Columns | Issues |
-|-------|--------|-----|---------|--------|
-| `profiles` | Yes | Yes (SELECT/INSERT/UPDATE) | Complete | No DELETE policy (intentional) |
-| `resumes` | Yes | Yes (all CRUD + public read) | Complete | None |
-| `jobs` | Yes | Yes (all CRUD) | Complete | None |
-| `job_applications` | Yes | Yes (all CRUD) | Complete | None |
-| `cover_letters` | Yes | Yes (all CRUD) | Complete | None |
-| `notifications` | Yes | Yes (all CRUD) | Complete | None |
-| `resume_shares` | Yes | Yes (owner + public read) | Complete | None |
-| `resume_versions` | Yes | Yes (SELECT/INSERT/DELETE) | Complete | No UPDATE policy (intentional) |
-| `tailor_history` | Yes | Yes (SELECT/INSERT/DELETE) | Complete | No UPDATE policy (intentional) |
-| `interview_sessions` | Yes | Yes (all CRUD) | Complete | None |
-| `ai_credits` | Yes | Yes (SELECT/INSERT/UPDATE) | Complete | No DELETE policy (intentional) |
-| `ai_usage_logs` | Yes | Yes (SELECT/INSERT/DELETE) | Complete | No UPDATE policy (intentional) |
-| `user_preferences` | Yes | Yes (SELECT/INSERT/UPDATE) | Complete | No DELETE policy (intentional) |
+#### Console Statements
+| Type | Count | Files | Action |
+|------|-------|-------|--------|
+| `console.log()` | 4 | 3 files (pdfParser, textExtractor, test file) | All guarded by `import.meta.env.DEV` -- acceptable. Remove from test file. |
+| `console.error()` | ~40 | 39 files | All in catch blocks -- keep as-is (critical error logging). |
+| `console.warn()` | ~8 | 5 files | All contextual (auth timeout, fallback) -- keep as-is. |
+| `debugger` | 0 | -- | Clean |
+| `alert()` | 1 | SharePage.tsx (line 61) | Replace with `toast.error('Incorrect password')` |
 
-**Missing tables**: None. All required tables exist.
+#### TODO/FIXME Comments
+- 1 `TODO` in `useRateApp.ts`: "Replace with actual Play Store URL" -- acceptable for pre-launch.
+- 1 commented-out iOS App Store link in same file -- can keep until iOS launch.
 
-**RLS Note**: All RLS policies use `RESTRICTIVE` mode (not permissive), which is correct but means at least one policy must match for access. This is properly implemented.
+#### Unused Imports
+- `ApplicationsPage.tsx`: `selectedApp` / `ApplicationDetailSheet` state is set but the sheet is never triggered from the new card layout (cards navigate to `/application/:id` instead). The `ApplicationDetailSheet` import and `selectedApp` state are dead code now.
+- `ApplicationsPage.tsx`: `useJobApplicationMutations` and `useJobMutations` imported in line 5-6 via the hooks but neither is destructured or used.
 
-**Foreign keys**: `resume_shares` and `resume_versions` reference `resumes(id)`. `job_applications` has nullable `job_id` referencing `jobs(id)`. No direct FK to `auth.users` (correct pattern).
+#### Type Safety (`any` usage)
+| Location | Count | Severity | Fix |
+|----------|-------|----------|-----|
+| `docxGenerator.ts` | ~6 | Low | Dynamic import types -- hard to avoid, acceptable |
+| `textExtractor.ts` | ~8 | Low | pdfjs-dist untyped API -- acceptable with type guards |
+| `pdfGenerator.test.ts` | ~12 | Low | Test mocks -- acceptable |
+| `dataExport.ts` | 1 | Medium | `let data: any` -- should type as `{ resumes: unknown[] }` |
+| `CoverLetterPage.tsx` | 1 | Medium | `catch (err: any)` -- replace with `catch (err: unknown)` |
+| `EditorPage.tsx` | 1 | Medium | `catch (error: any)` -- replace with `catch (error: unknown)` |
+| `useResumeShares.ts` | 1 | Medium | `resume: any` return type -- define proper interface |
+| `ProfilePage.tsx` | 1 | Low | `as any` template cast -- use `as TemplateId` |
+| `OnboardingPage.tsx` | 1 | Low | `as any` sample data cast -- define proper type |
+| `TemplatesPage.tsx` | 2 | Low | `as any` sample data cast -- define proper type |
 
-**Database functions**: `increment_share_view_count`, `handle_new_user`, `update_updated_at_column` -- all present and correct.
-
----
-
-### PART 2: HOOKS AUDIT
-
-#### Resume Hooks (`src/hooks/useResumes.ts`)
-| Hook | Exists | Status |
-|------|--------|--------|
-| `useResumes()` | Yes | Correct -- queryKey includes user?.id |
-| `useResume(id)` | Yes | Correct -- single resume fetch |
-| `useResumeMutations().createResume` | Yes | Correct -- invalidates, toasts |
-| `useResumeMutations().updateResume` | Yes | Correct -- auto-saves version snapshots |
-| `useResumeMutations().deleteResume` | Yes | Correct |
-| `useResumeMutations().duplicateResume` | Yes | Correct |
-| `useResumeScore()` | Yes (separate file) | Correct |
-
-#### Job Hooks (`src/hooks/useJobs.ts`)
-| Hook | Exists | Status |
-|------|--------|--------|
-| `useJobs()` | Yes | Correct |
-| `useJob(id)` | Yes | Correct -- uses `.maybeSingle()` |
-| `useJobMutations().createJob` | Yes | Correct |
-| `useJobMutations().updateJob` | Yes | Correct |
-| `useJobMutations().deleteJob` | Yes | Correct |
-
-#### Application Hooks (`src/hooks/useJobApplications.ts`)
-| Hook | Exists | Status |
-|------|--------|--------|
-| `useJobApplications()` | Yes | Correct |
-| `useJobApplication(id)` | Yes | Correct |
-| `useJobApplicationMutations().createApplication` | Yes | Correct |
-| `useJobApplicationMutations().updateApplication` | Yes | Correct |
-| `useJobApplicationMutations().deleteApplication` | Yes | Correct |
-
-#### Cover Letter Hooks (`src/hooks/useCoverLetters.ts`)
-| Hook | Exists | Status |
-|------|--------|--------|
-| `useCoverLetters()` | Yes | Correct |
-| `useCoverLetter(id)` | Yes | Correct |
-| `useCoverLetterMutations().saveCoverLetter` | Yes | Correct |
-| `useCoverLetterMutations().updateCoverLetter` | Yes | Correct |
-| `useCoverLetterMutations().deleteCoverLetter` | Yes | Correct |
-
-#### Notification Hooks (`src/hooks/useNotifications.ts`)
-| Hook | Exists | Status |
-|------|--------|--------|
-| `useNotifications()` | Yes | Correct |
-| `useUnreadNotificationCount()` | Yes | Correct |
-| `useNotificationMutations().markAsRead` | Yes | Correct |
-| `useNotificationMutations().markAllAsRead` | Yes | Correct |
-| `useNotificationMutations().deleteNotification` | Yes | Correct |
-| `useNotificationMutations().clearAll` | Yes | Correct |
-
-#### Share Hooks (`src/hooks/useResumeShares.ts`)
-| Hook | Exists | Status |
-|------|--------|--------|
-| `useResumeShares(resumeId)` | Yes | Correct |
-| `usePublicResume(token)` | Yes | Correct -- no auth required |
-| `useResumeShareMutations().createShare` | Yes | Correct |
-| `useResumeShareMutations().updateShare` | Yes | Correct |
-| `useResumeShareMutations().deleteShare` | Yes | Correct |
-| `useResumeShareMutations().incrementViewCount` | Yes | Correct -- uses RPC |
+**TypeScript strict mode**: Currently disabled (`noImplicitAny: false`, `strictNullChecks: false`). Enabling would surface hundreds of issues -- not recommended for this release cycle.
 
 ---
 
-### PART 3: PAGE-TO-HOOK CONNECTION AUDIT
+### PART 2: COMPONENT & HOOK OPTIMIZATION
 
-#### 1. `/dashboard` -- DashboardPage.tsx
-- Uses `useResumes()` -- **YES**
-- Uses `useResumeMutations()` (create, delete, duplicate, update) -- **YES**
-- Uses `useProfile()` for greeting -- **YES**
-- Uses `useResumeScore()` for health scores -- **YES**
-- Quick actions navigate correctly -- **YES**
-- Onboarding flow works -- **YES**
+#### React Performance
+- **EditorPage** (685 lines): Uses `useShallow` selectors and `React.memo` on section components -- well optimized.
+- **Auto-save**: Uses `useRef` pattern to avoid re-render churn -- correct.
+- **Lazy loading**: All routes except Index use `lazyWithRetry` -- correct.
+- **Sheet components**: Heavy editor sheets (TailorSheet, RecruiterSimSheet, etc.) are lazy-loaded within EditorPage -- good pattern.
 
-#### 2. `/editor` -- EditorPage.tsx
-- Uses `useResume(id)` for validation -- **YES**
-- Uses `useResumeMutations().updateResume` for auto-save -- **YES**
-- Resume guard redirects properly -- **YES**
-- Debounced 3-second auto-save -- **YES**
-- Version history integration -- **YES**
+#### useEffect Dependency Issues
+- **SharePage.tsx line 24**: `[token, data, viewCounted]` is missing `incrementViewCount` in deps. React exhaustive-deps would warn. However, the mutation reference is stable from useMutation, so this is safe in practice. Add `// eslint-disable-next-line` comment to be explicit.
+- **NotificationsPage.tsx line 32**: Same pattern with `queryClient` -- it's stable, but should document with eslint comment.
 
-#### 3. `/applications` -- ApplicationsPage.tsx
-- Uses `useJobs()` -- **YES**
-- Uses `useJobApplications()` -- **YES**
-- Uses `useUnreadNotificationCount()` for bell badge -- **YES**
-- Has tabs (Applications / Saved Jobs) -- **YES**
-- Job cards navigate to `/job/:id` -- **YES**
-- Application cards navigate to `/application/:id` -- **YES**
-- Guest gate with sign-in CTA -- **YES**
-
-#### 4. `/settings` -- SettingsPage.tsx
-- Uses `useProfile()` -- **YES**
-- Uses `useResumes()` -- **YES**
-- Theme toggle, biometric, AI settings -- **YES**
-- Sign out flow -- **YES**
-
-#### 5. `/onboarding` -- OnboardingPage.tsx
-- 5-step flow -- **YES**
-- Uses localStorage for persistence -- **YES**
-- Template selection -- **YES**
-- Completes and navigates to `/dashboard` -- **YES**
-- Can be skipped -- **YES**
-
-#### 6. `/profile` -- ProfilePage.tsx
-- Uses `useProfile()` -- **YES**
-- Uses `useResumes()` -- **YES**
-- Uses `useJobApplications()` for stats -- **YES**
-- Edit Profile sheet -- **YES**
-- Auth guard redirects to `/auth` -- **YES**
-
-#### 7. `/templates` -- TemplatesPage.tsx
-- Shows all templates -- **YES**
-- Filter by category -- **YES**
-- Preview sheet -- **YES**
-- "Use Template" navigates to `/editor` -- **YES**
-
-#### 8. `/resume/:id` -- ResumeDetailPage.tsx
-- Uses `useResume(id)` -- **YES**
-- Uses `useResumeScore()` for health -- **YES**
-- Edit navigates to `/editor` -- **YES**
-- Preview navigates to `/preview` -- **YES**
-- Download generates PDF -- **YES**
-- Duplicate works -- **YES**
-- Delete works -- **YES**
-- **ISSUE**: Share button shows `toast.info('Share coming soon')` instead of using `useResumeShareMutations()` -- share not wired
-
-#### 9. `/job/:id` -- JobDetailPage.tsx
-- Uses `useJob(id)` -- **YES**
-- Save/unsave via `updateJob` -- **YES**
-- Apply with resume creates application -- **YES**
-- Share uses Web Share API -- **YES**
-- Delete works -- **YES**
-
-#### 10. `/application/:id` -- ApplicationTrackerPage.tsx
-- Uses `useJobApplication(id)` -- **YES**
-- Status timeline with screening stage -- **YES**
-- Update status -- **YES**
-- Notes section -- **YES**
-- Set reminder -- **YES**
-- Linked resume display -- **YES**
-- Linked cover letter display via `useCoverLetter()` -- **YES**
-- Delete button -- **YES**
-
-#### 11. `/notifications` -- NotificationsPage.tsx
-- Uses `useNotifications()` -- **YES**
-- Filter tabs (All/Unread/Applications/System) -- **YES**
-- Mark as read on click -- **YES**
-- Clear all -- **YES**
-- **ISSUE**: No real-time Supabase subscription -- notifications require manual refresh
-- **NOTE**: No mechanism to CREATE notifications. No edge function or trigger inserts rows into the `notifications` table, so the page will always be empty unless notifications are manually inserted.
-
-#### 12. `/cover-letter` -- CoverLetterPage.tsx
-- Uses `useCoverLetters()` -- **YES**
-- Uses `useCoverLetterMutations()` -- **YES**
-- AI generation via `generateCoverLetter()` -- **YES**
-- Save, copy, download -- **YES**
-- Saved letters list with viewing -- **YES**
-- **ISSUE**: Download is plain text (.txt) only, not PDF/DOCX
-
-#### 13. `/share/:token` -- SharePage.tsx
-- Uses `usePublicResume(token)` -- **YES**
-- Password protection gate -- **YES**
-- View count increment on mount -- **YES**
-- Resume rendering -- **YES**
-- **ISSUE**: `usePublicResume` queries `resume_shares` then `resumes`, but the public RLS policy on `resumes` requires `is_public = true`. Since `usePublicResume` doesn't set `is_public`, the second query will fail with RLS denial. The resume_shares RLS allows anonymous SELECT, but the resumes table RLS only allows own rows OR `is_public = true`. Shared resumes won't load unless `is_public` is also set to true on the resume.
-
-#### 14. `/auth` -- AuthPage.tsx
-- Login works -- **YES**
-- Signup creates profile (via `handle_new_user` trigger) -- **YES**
-- Password reset works -- **YES**
-- Redirects to `/dashboard` after login -- **YES**
-- Google/Apple OAuth -- **YES**
-- **NOTE**: No redirect to `/onboarding` for new users -- they go to `/dashboard` which internally checks onboarding status
-
-#### 15. `/upload` -- UploadPage.tsx
-- PDF/Word/Image/JSON/HTML upload -- **YES**
-- Uses `useResumeMutations().createResume` -- **YES**
-- Navigates to `/editor` after upload -- **YES**
-
-#### 16. `/preview` -- PreviewPage.tsx
-- Uses resume from `useResumeStore` -- **YES**
-- Resume guard redirects -- **YES**
-- Download PDF works -- **YES**
-- Template switcher -- **YES**
-
-#### 17. `/interview` -- InterviewPage.tsx
-- Uses `useResumeStore` for resume data -- **YES**
-- Resume guard redirects -- **YES**
-- Voice interview system -- **YES**
-- Summary screen -- **YES**
-
-#### 18. `/` (Landing) -- Index.tsx
-- "Get Started" navigates appropriately -- **YES**
-- No auth required -- **YES**
+#### Missing Error States
+- **ApplicationsPage**: No error state if `useJobs()` or `useJobApplications()` fail -- just shows empty list silently.
+- **CoverLetterPage**: No error state if `useCoverLetters()` fails.
 
 ---
 
-### PART 4: ROUTING & NAVIGATION AUDIT
+### PART 3: SECURITY AUDIT
 
-All routes exist in `App.tsx`:
+#### Findings
+| Issue | Severity | Details |
+|-------|----------|---------|
+| Leaked password protection disabled | WARN | Supabase linter flagged this. Enable in auth settings. |
+| `safeClient.ts` hardcoded anon key | INFO | Anon key is publishable -- not a secret. Acceptable. |
+| `SharePage.tsx` password comparison client-side | HIGH | Password is compared in the browser (`password === share.password`). The share's password is fetched from the database and sent to the client! This exposes passwords. The `get_shared_resume` function returns the password field to the client for comparison. Should be compared server-side. |
+| `dangerouslySetInnerHTML` | LOW | Only in `chart.tsx` (shadcn/ui) with internally-generated CSS -- not user content. Safe. |
+| RLS policies | OK | All tables properly secured with RESTRICTIVE policies. |
+| `localStorage` sensitive data | LOW | Auth session cached in localStorage (standard Supabase pattern). No other sensitive data stored. |
+| Input validation | MEDIUM | `CoverLetterPage` inputs (jobTitle, company, jobDescription) have no validation/sanitization before being sent to AI edge functions. Edge functions have payload size limits, but no XSS prevention on client. |
 
-| Route | Type | Lazy | Suspense | Status |
-|-------|------|------|----------|--------|
-| `/` | Public (no AppShell) | No (eagerly loaded) | N/A | OK |
-| `/auth` | In AppShell | Yes | Yes | OK |
-| `/dashboard` | In AppShell | Yes | Yes | OK |
-| `/editor` | In AppShell | Yes | Yes | OK |
-| `/preview` | In AppShell | Yes | Yes | OK |
-| `/upload` | In AppShell | Yes | Yes | OK |
-| `/settings` | In AppShell | Yes | Yes | OK |
-| `/interview` | In AppShell | Yes | Yes | OK |
-| `/applications` | In AppShell | Yes | Yes | OK |
-| `/onboarding` | In AppShell | Yes | Yes | OK |
-| `/profile` | In AppShell | Yes | Yes | OK |
-| `/templates` | In AppShell | Yes | Yes | OK |
-| `/resume/:id` | In AppShell | Yes | Yes | OK |
-| `/job/:id` | In AppShell | Yes | Yes | OK |
-| `/application/:id` | In AppShell | Yes | Yes | OK |
-| `/notifications` | In AppShell | Yes | Yes | OK |
-| `/cover-letter` | In AppShell | Yes | Yes | OK |
-| `/share/:token` | Outside AppShell | Yes | Yes | OK |
-| `*` (404) | Outside AppShell | Yes | Yes | OK |
+#### Critical Fix: Password Comparison
+The `get_shared_resume` RPC returns the share's password to the client. The `SharePage.tsx` then compares it client-side. This means:
+1. Anyone can see the password in the network response
+2. The password check is bypassable
 
-**AppShell TAB_ROUTES**: All relevant routes included.
-
-**Bottom Tab Bar**: 4 tabs (Home, Editor, Jobs, Settings). Editor is guarded (needs resume). Jobs tab shows lock icon for guests but allows navigation (page handles guest gate).
-
-**Route Guards**:
-- Editor/Preview: Redirect to `/dashboard` or `/` if no resume loaded -- **YES**
-- Interview: Redirect to `/upload` or `/auth` if no resume -- **YES**
-- Profile: Redirect to `/auth` if not logged in -- **YES**
-- CoverLetter/JobDetail: Redirect to `/auth` if not logged in -- **YES**
-- **No global auth guard**: Routes are individually protected, not via a wrapper component. This is the intended pattern.
+**Fix**: Modify `get_shared_resume` to accept a `password_attempt` parameter and return null/error if incorrect, never exposing the actual password.
 
 ---
 
-### PART 5: CRITICAL ISSUES FOUND
+### PART 4: PWA & MOBILE READINESS
 
-#### Issue 1: SharePage Resume Fetch Fails Due to RLS (HIGH)
-`usePublicResume(token)` fetches from `resume_shares` (anonymous access OK), then tries to fetch from `resumes` table. But the `resumes` RLS only allows:
-- Owner's own rows (`auth.uid() = user_id`)
-- Public rows (`is_public = true`)
+#### PWA Configuration -- PASS
+- `manifest.json`: Complete with all required fields, icons (48-512px + maskable), standalone display, portrait orientation
+- Service worker: Configured via `vite-plugin-pwa` with proper caching strategies
+- Offline support: `useNetworkStatus` hook, `OfflineBanner` component, `useOfflineSync` for queued saves
+- Install prompt: `InstallPrompt` component with dismissal persistence
 
-Since anonymous users have no `auth.uid()`, they can only see resumes where `is_public = true`. But the sharing flow never sets `is_public = true` on the resume -- it only creates a `resume_shares` row. **This means public share links will always fail to load the resume data.**
+#### Viewport & Meta Tags -- PASS
+- viewport: `width=device-width, initial-scale=1.0, viewport-fit=cover`
+- apple-mobile-web-app-capable: yes
+- apple-mobile-web-app-status-bar-style: black-translucent
+- theme-color: set
+- apple-touch-icon: PNG referenced
 
-**Fix**: Either:
-- (a) Add an RLS policy on `resumes` that allows SELECT when the resume has an active share in `resume_shares`, OR
-- (b) Create a security definer function `get_shared_resume(token)` that bypasses RLS, OR
-- (c) Set `is_public = true` on the resume when a share is created
+#### Mobile Touch Targets -- PASS
+- 44px minimum enforced across interactive elements
+- 48px for Android-critical elements
+- 56px for primary FABs
+- Safe-area padding applied
 
-#### Issue 2: ResumeDetailPage Share Button Not Wired (MEDIUM)
-Line 104 of `ResumeDetailPage.tsx`:
-```
-{ icon: Share2, label: 'Share', onClick: () => toast.info('Share coming soon') }
-```
-Should use `useResumeShareMutations().createShare` to generate a share link and copy it to clipboard.
-
-#### Issue 3: No Notification Creation Mechanism (MEDIUM)
-The `notifications` table and hooks exist, but nothing creates notifications. There are no:
-- Database triggers to create notifications on application status changes
-- Edge functions that insert notifications
-- Client-side code that inserts notifications
-
-The notifications page will always be empty.
-
-#### Issue 4: No Real-time Subscription on Notifications (LOW)
-The plan mentioned real-time updates via Supabase subscriptions, but no realtime subscription is implemented. Notifications require manual page refresh/navigation to update.
-
-#### Issue 5: Cover Letter Download is Text-Only (LOW)
-`CoverLetterPage.tsx` downloads as `.txt`. Could use `generateCoverLetterPDF()` from `pdfGenerator.ts` which already exists.
-
-#### Issue 6: ApplicationsPage Imports Unused Hooks (LOW)
-`usePendingReminders` is imported but not used in the component.
+#### Capacitor Config -- PASS
+- `webContentsDebuggingEnabled: false` (production)
+- No `server.url` (loads from local bundle)
+- Keyboard resize configured
 
 ---
 
-### PART 6: DATA FLOW VERIFICATION
+### PART 5: DEPENDENCY AUDIT
 
-| Flow | Status | Issues |
-|------|--------|--------|
-| Login -> Dashboard | Working | None |
-| Signup -> Profile created -> Dashboard | Working | Trigger `handle_new_user` creates profile row |
-| Logout -> Landing | Working | Clears session cache |
-| New Resume -> Editor -> Save | Working | Auto-save with 3s debounce |
-| Upload PDF -> Parse -> Editor -> Save | Working | Multiple format support |
-| Template -> Editor | Working | Sets template in store |
-| Job -> Apply -> Application | Working | Creates application with `job_id` |
-| Resume -> Share -> Public URL | **BROKEN** | RLS blocks anonymous resume fetch (Issue 1) |
-| Notifications | **EMPTY** | No creation mechanism (Issue 3) |
+#### Potentially Unused Dependencies
+| Package | Used? | Action |
+|---------|-------|--------|
+| `@capacitor/app` | Used in useBackButton | Keep |
+| `@elevenlabs/react` | Used in voice interview | Keep |
+| `mammoth` | Used in UploadPage for Word parsing | Keep |
+| `tesseract.js` | Used for OCR | Keep |
+| `react-image-crop` | Used in AvatarCropSheet | Keep |
+| `react-markdown` | Used in AgenticChatSheet | Keep |
+| `next-themes` | Imported but shadcn/ui default -- NOT actually used (custom ThemeToggle/ThemeDropdown instead) | Can remove |
+
+#### Large Dependencies (bundle impact)
+- `tesseract.js`: ~5MB worker -- already lazy-loaded via dynamic import
+- `pdfjs-dist`: ~2MB -- loaded only on upload/preview
+- `framer-motion`: ~130KB -- used extensively, justified
+- `recharts`: ~500KB -- used in dashboard stats
 
 ---
 
-### RECOMMENDED FIXES (Priority Order)
+### PART 6: RECOMMENDED FIXES (Priority Order)
 
-1. **Fix SharePage RLS** -- Create a security definer function to fetch resumes by share token, bypassing the need for `is_public = true`
-2. **Wire ResumeDetailPage Share button** -- Use `useResumeShareMutations().createShare()` and copy the share URL to clipboard
-3. **Add notification triggers** -- Create database triggers or edge function logic to insert notifications when applications are created, status changes, or reminders are due
-4. **Add Supabase realtime** for notifications -- Enable realtime on the `notifications` table and subscribe in `NotificationsPage`
-5. **Clean up unused imports** in ApplicationsPage
+#### Critical (must fix before production)
+1. **Fix password exposure in SharePage**: Modify `get_shared_resume` SQL function to accept and validate password server-side, never return password to client
+2. **Replace `alert()` in SharePage**: Use `toast.error('Incorrect password')` instead
+
+#### High Priority
+3. **Remove dead code in ApplicationsPage**: Remove `selectedApp` state, `ApplicationDetailSheet` import/render, unused `useJobApplicationMutations`/`useJobMutations` imports
+4. **Fix `any` types in core hooks**: Type the `usePublicResume` return properly instead of `resume: any`
+
+#### Medium Priority
+5. **Add error states to ApplicationsPage and CoverLetterPage**: Show error UI when queries fail
+6. **Replace `catch (err: any)` patterns**: Use `catch (err: unknown)` with proper type narrowing
+7. **Add input validation to CoverLetterPage**: Validate/trim job description length before sending to AI
+
+#### Low Priority
+8. **Remove `next-themes` package**: Not used (custom theme implementation exists)
+9. **Add eslint-disable comments**: Document intentional missing deps in SharePage and NotificationsPage useEffects
+10. **Enable leaked password protection**: In Supabase auth settings
+
+---
+
+### Implementation Summary
+
+| File | Changes |
+|------|---------|
+| `supabase/migrations/new.sql` | Modify `get_shared_resume` to accept + validate password server-side |
+| `src/pages/SharePage.tsx` | Remove client-side password comparison, send password to RPC; replace `alert()` with `toast.error()` |
+| `src/pages/ApplicationsPage.tsx` | Remove `selectedApp`, `ApplicationDetailSheet`, unused mutation imports |
+| `src/pages/CoverLetterPage.tsx` | Fix `catch (err: any)` to `catch (err: unknown)`, add input length validation |
+| `src/hooks/useResumeShares.ts` | Define proper return type interface instead of `resume: any` |
+| `src/pages/EditorPage.tsx` | Fix `catch (error: any)` to `catch (error: unknown)` |
+| `package.json` | Remove `next-themes` dependency |
+
