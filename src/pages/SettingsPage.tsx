@@ -284,6 +284,7 @@ export default function SettingsPage() {
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               Appearance
             </h2>
+            <p className="text-xs text-muted-foreground mb-3 px-1">Theme, language, and display preferences</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <div className="p-4">
                 <ThemeToggle className="w-full justify-center" />
@@ -305,6 +306,7 @@ export default function SettingsPage() {
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               AI & Voice
             </h2>
+            <p className="text-xs text-muted-foreground mb-3 px-1">Choose your AI engine and voice settings</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="navigation"
@@ -331,6 +333,7 @@ export default function SettingsPage() {
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               Editor & Export
             </h2>
+            <p className="text-xs text-muted-foreground mb-3 px-1">PDF output and resume backup options</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="navigation"
@@ -367,6 +370,7 @@ export default function SettingsPage() {
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               Notifications
             </h2>
+            <p className="text-xs text-muted-foreground mb-3 px-1">Control alerts and suggestion prompts</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="toggle"
@@ -394,6 +398,7 @@ export default function SettingsPage() {
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               Privacy & Security
             </h2>
+            <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="toggle"
@@ -434,6 +439,7 @@ export default function SettingsPage() {
                 <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
                 Account
               </h2>
+              <p className="text-xs text-muted-foreground mb-3 px-1">Sign out or delete your data</p>
               <div className="rounded-2xl glass-elevated overflow-hidden">
                 <SettingsRow
                   type="button"
@@ -460,6 +466,7 @@ export default function SettingsPage() {
               <span className="w-6 h-px bg-gradient-to-r from-primary/40 to-transparent" />
               About & Help
             </h2>
+            <p className="text-xs text-muted-foreground mb-3 px-1">App info, onboarding, and sharing</p>
             
             <DeveloperCreditCard
               name="Magdy Saber"
