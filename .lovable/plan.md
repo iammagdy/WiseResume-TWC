@@ -1,64 +1,50 @@
 
-
-## Settings Page Visual Polish: Dividers, Spacing, and Alternating Backgrounds
+## Merge Editor & Export into Single Expandable Card
 
 ### Overview
-Refine the Settings page layout with subtler section dividers, consistent 32px vertical spacing, and alternating section tints to improve visual rhythm and scannability.
+Replace the two separate navigation rows ("PDF Export Settings" and "Export Resumes") with a single expandable card containing two collapsible sub-sections. Add a cloud sync status indicator showing backup state.
 
-### Changes
+### Changes to `src/pages/SettingsPage.tsx`
 
-#### 1. Replace Heavy Separators with Subtle Dividers (`src/pages/SettingsPage.tsx`)
+**1. Add imports**
+- Import `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` from `@/components/ui/collapsible`
+- Import `CloudCheck` (or use `Cloud` + `Check`) from `lucide-react` for the sync icon
+- Import `ChevronDown` from `lucide-react` for expand/collapse indicator
 
-The current `<Separator />` components between major sections are full-opacity `bg-border` lines. Replace all inter-section `<Separator />` dividers (lines 257, 281, 347, 389, 469, 498) with a styled variant:
+**2. Replace the Editor & Export section content (lines 356-386)**
 
-```tsx
-<Separator className="opacity-10" />
-```
+Remove the two `SettingsRow` navigation items and the `Separator` between them. Replace with a single `glass-elevated` card containing two collapsible sections:
 
-This keeps the 1px height but drops to 10% opacity for a much subtler visual break. The intra-card separators (`<Separator className="bg-border/30" />`) remain unchanged.
+**Section A -- "PDF Export Settings"**
+- Use `Collapsible` with local state `pdfOpen`
+- Trigger row: icon (Download), label "PDF Export Settings", right side shows current format summary (e.g., "Full, Badge on"), plus a rotating `ChevronDown`
+- Content: inline the 3 controls currently in `PDFDefaultsSheet` (page numbers toggle, format picker, branding toggle) directly inside the collapsible content -- no more bottom sheet needed
+- Remove `pdfDefaultsSheetOpen` state and the `PDFDefaultsSheet` component render
 
-#### 2. Verify Vertical Spacing (already correct)
+**Section B -- "Export Resumes"**
+- Use `Collapsible` with local state `exportOpen`
+- Trigger row: icon (Database), label "Export Resumes", right side shows cloud sync status badge
+- Cloud sync visual: when user is signed in and has resumes, show a small `Cloud` icon with a green `Check` overlay and text "Backed up" in green; when guest, show a muted "Sign in to backup" badge
+- Content: a "Manage Exports" button that opens the existing `DataExportSheet` (keep that sheet for the full import/export flow)
+- For guests: show a compact sign-in prompt inside the collapsible content instead
 
-The container already uses `space-y-8` (32px) on line 210, which matches the requested 32px spacing. No change needed here.
+**3. Cloud sync status indicator**
 
-#### 3. Add Alternating Section Backgrounds (`src/index.css` + `src/pages/SettingsPage.tsx`)
+A small inline badge next to the "Export Resumes" row:
+- Signed in + resumes synced: green `CloudCheck` icon + "Backed up" text (uses `text-[hsl(var(--success))]`)
+- Signed in + pending offline changes: amber `Cloud` icon + "Pending" text
+- Guest: muted lock icon + "Sign in"
 
-**New CSS utility** in `src/index.css`:
-```css
-.glass-surface-alt {
-  background: hsl(var(--card) / 0.3);
-  border-radius: 1rem;
-  padding: 1rem;
-  margin-left: -1rem;
-  margin-right: -1rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
-}
-```
+### Technical Details
 
-Apply `glass-surface-alt` to alternating section wrappers (sections 2, 4, 6, 8) in `SettingsPage.tsx`. These are the even-numbered sections:
+- The two `Collapsible` components use independent boolean states (`pdfOpen`, `exportOpen`)
+- PDF settings controls are moved inline from `PDFDefaultsSheet` content -- the same `Switch`, format buttons, and branding toggle, using the same `pdfDefaults` state and `setPdfDefaults` from `useSettingsStore`
+- The `PDFDefaultsSheet` component and its `pdfDefaultsSheetOpen` state are removed since the controls are now inline
+- The `DataExportSheet` is kept for the full export/import workflow -- the collapsible just provides a quick-access entry point
+- The offline sync status reads from `useOfflineSyncStore` pending count to determine "Backed up" vs "Pending"
+- Collapsible animations use the built-in Radix animation (already configured in accordion styles)
 
-- Section 2 (Appearance) -- gets `glass-surface-alt`
-- Section 3 (AI & Voice) -- no change
-- Section 4 (Editor & Export) -- gets `glass-surface-alt`
-- Section 5 (Notifications) -- no change
-- Section 6 (Privacy & Security) -- gets `glass-surface-alt`
-- Section 7 (Account) -- no change
-- Section 8 (About & Help) -- gets `glass-surface-alt`
-
-Each alternating section `<div>` wrapping the header + card gets the class added:
-```tsx
-<div className="glass-surface-alt">
-  <h2>...</h2>
-  <p>...</p>
-  <div className="rounded-2xl glass-elevated ...">...</div>
-</div>
-```
-
-### Summary of File Changes
-
+### Files Modified
 | File | Change |
 |------|--------|
-| `src/pages/SettingsPage.tsx` | Replace 6 inter-section `<Separator />` with `<Separator className="opacity-10" />`; add `glass-surface-alt` class to alternating sections (2, 4, 6, 8) |
-| `src/index.css` | Add `.glass-surface-alt` utility class |
-
+| `src/pages/SettingsPage.tsx` | Replace Editor & Export section with two collapsible sub-sections; remove `PDFDefaultsSheet` usage; add cloud sync badge; add new imports |
