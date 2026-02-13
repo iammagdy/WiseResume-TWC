@@ -1,34 +1,51 @@
 
-## Remove Bottom Navigation from Landing Page
+## Fix Template Preview Cards - Remove Heavy Borders
 
 ### Overview
-The landing page currently displays a visual-only "App Preview" bottom tab bar (lines 226-241) that shows the app's navigation UI. This should be removed since the landing page is marketing-focused, and the bottom navigation should only appear in the authenticated app (via AppShell).
+The template preview cards on the landing page currently use `border border-border/30 bg-white` which creates heavy black frames/borders, especially visible in the dark theme. The cards should have subtle depth and look like floating cards, not framed pictures.
 
-### Changes Required
+### Root Cause Analysis
+- **Current styling** (line 197): `className="aspect-[612/792] rounded-lg overflow-hidden border border-border/30 bg-white mb-1.5 transition-shadow hover:shadow-lg"`
+- **Issue**: 
+  - `bg-white` creates a harsh contrast in dark mode
+  - `border border-border/30` creates a visible frame effect
+  - The combination makes cards look clipped or heavily framed
+  - No shadow on non-hover state creates flat appearance
 
-**File: `src/pages/Index.tsx`**
+### Solution Approach
+Replace heavy borders with subtle shadow and transparency styling that matches the design system.
 
-1. **Remove the visual-only bottom tab bar**
-   - Delete lines 226-241: The `<div className="fixed bottom-0 left-0 right-0 z-40 glass-surface..."` section
-   - Remove the `bottomTabs` constant (lines 27-32) since it's no longer used
+### File Changes
 
-2. **Update main container padding**
-   - Change line 60: `className="min-h-screen pb-24"` → `className="min-h-screen pb-12"`
-   - This replaces the 96px padding (from `pb-24` which accounted for the bottom bar) with 48px (`pb-12`) to provide breathing room at the bottom
+**File: `src/pages/Index.tsx` (line 197)**
 
-3. **Remove unused imports**
-   - Remove `Briefcase` from the lucide-react imports (line 2) since it's only used in `bottomTabs`
-   - Note: `FileText`, `Settings`, and `Home` are still used in other icon references if needed, so keep them; verify if any are truly unused
+**Current:**
+```typescript
+<div className="aspect-[612/792] rounded-lg overflow-hidden border border-border/30 bg-white mb-1.5 transition-shadow hover:shadow-lg">
+```
 
-### Why These Changes
-- **Cleaner landing page**: Removes confusing UI elements that suggest the landing page is part of the app
-- **Clear separation**: Landing page is purely marketing; the bottom nav only appears once users enter the app via AppShell
-- **Better UX**: Users don't see fake/inactive UI elements; they only see real navigation when they reach the actual app
+**Updated:**
+```typescript
+<div className="aspect-[612/792] rounded-lg overflow-hidden bg-white/90 shadow-md mb-1.5 transition-all hover:shadow-xl hover:scale-105">
+```
 
 ### Technical Details
-- No breaking changes: The bottom navigation still appears on `/dashboard`, `/editor`, `/applications`, and `/settings` via the `AppShell` wrapper (AppShell logic is unaffected)
-- The bottom tabs constant and related imports are only used for the visual preview, so removing them has no side effects
-- Padding adjustment ensures the page content doesn't feel cramped at the bottom
 
-### Files Modified
-1. `src/pages/Index.tsx`
+**Changes:**
+1. **Remove border**: Remove `border border-border/30` - eliminates the heavy frame effect
+2. **Adjust background**: Change `bg-white` to `bg-white/90` - adds subtle transparency so the card blends better while maintaining white preview content
+3. **Add shadow**: Add `shadow-md` for subtle depth at rest state
+4. **Enhance hover**: Change `hover:shadow-lg` to `hover:shadow-xl` for more pronounced depth on interaction
+5. **Add scale animation**: Change `transition-shadow` to `transition-all` and leverage the existing `whileHover={{ scale: 1.05 }}` framer-motion hook (already on parent)
+
+### Why This Works
+- **No borders**: Removes the "framed picture" aesthetic
+- **Transparency**: `bg-white/90` ensures the card is readable while appearing lighter and less heavy
+- **Shadow depth**: Shadows create floating effect rather than frames
+- **Consistency**: Matches the design system's "cosmic glass UI" approach with subtle depth
+- **Accessibility**: Better contrast without looking harsh
+- **Performance**: Only uses CSS transforms (GPU-accelerated), no DOM changes
+
+### Result
+Cards will appear as floating, lightweight elements with subtle depth and smooth hover interactions. The preview content remains clear and readable while the overall appearance feels modern and clean.
+
