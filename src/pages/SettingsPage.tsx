@@ -78,6 +78,7 @@ const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKe
 const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then(m => ({ default: m.AISettingsSheet })));
 const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then(m => ({ default: m.HelpSheet })));
 const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then(m => ({ default: m.DeveloperCreditCard })));
+const PushNotificationSettings = lazy(() => import('@/components/settings/PushNotificationSettings').then(m => ({ default: m.PushNotificationSettings })));
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -589,6 +590,9 @@ export default function SettingsPage() {
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">Control alerts and suggestion prompts</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
+              <Suspense fallback={null}>
+                <PushNotificationSettings />
+              </Suspense>
               <SettingsRow
                 type="toggle"
                 label="Auto-save Toasts"
