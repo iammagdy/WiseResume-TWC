@@ -4,8 +4,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useResumeStore } from '@/store/resumeStore';
-import { TemplateId, TemplateInfo } from '@/types/resume';
+import { TemplateId } from '@/types/resume';
 import { TemplateThumbnail } from './TemplateThumbnail';
+import { templates, atsScoreDescriptions, atsScoreColors, atsScoreLabels, sampleResumeData } from '@/lib/templateData';
+import { TemplateInfo } from '@/types/resume';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, CareerLevel } from '@/hooks/useProfile';
 
@@ -14,93 +16,6 @@ interface TemplateSelectorProps {
   onOpenChange: (open: boolean) => void;
 }
 
-const templates: TemplateInfo[] = [
-  {
-    id: 'modern',
-    name: 'Modern',
-    description: 'Clean design with accent colors',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'classic',
-    name: 'Classic',
-    description: 'Traditional professional layout',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    description: 'Simple and elegant design',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'professional',
-    name: 'Professional',
-    description: 'Corporate-friendly template',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'developer',
-    name: 'Developer',
-    description: 'Code-inspired tech resume',
-    atsScore: 'high',
-    category: 'tech',
-  },
-  {
-    id: 'creative',
-    name: 'Creative',
-    description: 'Bold sidebar with accents',
-    atsScore: 'medium',
-    category: 'creative',
-  },
-  {
-    id: 'executive',
-    name: 'Executive',
-    description: 'Elegant serif typography',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'compact',
-    name: 'Compact',
-    description: 'Dense layout for entry-level',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'academic',
-    name: 'Academic',
-    description: 'Research-focused CV layout',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'healthcare',
-    name: 'Healthcare',
-    description: 'Clean medical professional',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'sales',
-    name: 'Sales',
-    description: 'Metrics-driven achievements',
-    atsScore: 'high',
-    category: 'professional',
-  },
-  {
-    id: 'elegant',
-    name: 'Elegant',
-    description: 'Refined aesthetic design',
-    atsScore: 'medium',
-    category: 'creative',
-  },
-];
-
 const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
   entry: ['compact', 'modern', 'minimal'],
   mid: ['modern', 'professional', 'sales', 'healthcare'],
@@ -108,23 +23,6 @@ const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
   executive: ['executive', 'elegant', 'academic'],
 };
 
-const atsScoreDescriptions = {
-  high: 'Optimized for automated screening – parses correctly in 95%+ of ATS systems',
-  medium: 'Some design elements may affect parsing in certain ATS systems',
-  low: 'Best for direct submissions – may have issues with automated screening',
-};
-
-const atsScoreColors = {
-  high: 'bg-success/20 text-success border-success/30',
-  medium: 'bg-warning/20 text-warning border-warning/30',
-  low: 'bg-destructive/20 text-destructive border-destructive/30',
-};
-
-const atsScoreLabels = {
-  high: 'ATS-Friendly',
-  medium: 'Moderate ATS',
-  low: 'Low ATS',
-};
 
 export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) {
   const { selectedTemplate, setSelectedTemplate, updateResume, currentResume } = useResumeStore();
@@ -152,40 +50,7 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
   };
 
   // Use sample data if no resume loaded
-  const previewResume = currentResume || {
-    contactInfo: {
-      fullName: 'Wise Megz',
-      email: 'megz@wiseuniverse.ai',
-      phone: '(555) 123-4567',
-      location: 'Wise Universe HQ',
-    },
-    summary: 'Interstellar AI Navigator specializing in quantum propulsion and autonomous spacecraft operations across multiple galaxies.',
-    experience: [
-      {
-        id: '1',
-        company: 'Wise Universe',
-        position: 'Senior AI Navigator',
-        startDate: 'Jan 2020',
-        endDate: 'Present',
-        current: true,
-        description: 'Leading interstellar AI navigation and mission control',
-        achievements: ['Reduced warp travel time by 73%', 'Commanded fleet of 12 spacecraft'],
-      },
-    ],
-    education: [
-      {
-        id: '1',
-        institution: 'Cosmic Academy',
-        degree: 'Master of Science',
-        field: 'Astro-AI Engineering',
-        startDate: '2014',
-        endDate: '2018',
-      },
-    ],
-    skills: ['Quantum Navigation', 'Neural Starship UI', 'Warp Systems', 'AI Fleet Command', 'Zero-G Ops', 'Cosmic Analytics'],
-    certifications: [],
-    templateId: 'modern',
-  };
+  const previewResume = currentResume || sampleResumeData;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

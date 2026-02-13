@@ -37,6 +37,10 @@ const DashboardPage = lazyWithRetry(() => import("./pages/DashboardPage"));
 const SettingsPage = lazyWithRetry(() => import("./pages/SettingsPage"));
 const InterviewPage = lazyWithRetry(() => import("./pages/InterviewPage"));
 const ApplicationsPage = lazyWithRetry(() => import("./pages/ApplicationsPage"));
+const OnboardingPage = lazyWithRetry(() => import("./pages/OnboardingPage"));
+const ProfilePage = lazyWithRetry(() => import("./pages/ProfilePage"));
+const TemplatesPage = lazyWithRetry(() => import("./pages/TemplatesPage"));
+const ResumeDetailPage = lazyWithRetry(() => import("./pages/ResumeDetailPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -122,8 +126,28 @@ const queryClient = new QueryClient({
             <Suspense fallback={<DashboardSkeleton />}>
               <ApplicationsPage />
             </Suspense>
-          } />
-        </Route>
+           } />
+           <Route path="/onboarding" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <OnboardingPage />
+            </Suspense>
+           } />
+           <Route path="/profile" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <ProfilePage />
+            </Suspense>
+           } />
+           <Route path="/templates" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <TemplatesPage />
+            </Suspense>
+           } />
+           <Route path="/resume/:id" element={
+            <Suspense fallback={<PageLoadingSpinner />}>
+              <ResumeDetailPage />
+            </Suspense>
+           } />
+         </Route>
         
         <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
       </Routes>
