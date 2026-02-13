@@ -1,61 +1,34 @@
 
 
-## Enhanced Toggle Switch UX
+## Make Guest Welcome Card Dismissible (First-Visit Only)
 
-### Overview
-Add micro-interaction animations to the Switch component and SettingsRow toggle for a more polished, native-app feel. Four enhancements: haptic-style bounce animation on toggle, loading spinner state, success checkmark flash, and a 10% size increase for mobile touch targets.
+### Problem
+The "Welcome, Guest" CTA card in Settings is shown every time for unauthenticated users. Returning guests who already know they're not signed in don't need this large card taking up space on every visit.
 
-### Changes
+### Solution
+Convert the card to a **first-visit-only** experience with a dismiss option. After dismissal, show a compact single-line "Sign in" row instead, so the CTA is still accessible but not intrusive.
 
-**File: `src/components/ui/switch.tsx`**
+- On first visit: full card with benefits list and "Get Started Free" button
+- After dismiss: compact `SettingsRow` navigation row ("Sign in to unlock all features")
+- Dismissal persisted in `localStorage` (`wr-settings-guest-cta-dismissed`) so it survives sessions
 
-Increase the Switch size by ~10%:
-- Root: `h-6 w-11` becomes `h-7 w-12` (28px tall, 48px wide)
-- Thumb: `h-5 w-5` becomes `h-[22px] w-[22px]`
-- Thumb translate: `translate-x-5` becomes `translate-x-[22px]`
-- Add a subtle scale bounce on state change using CSS: `transition-all duration-200` and `active:scale-95` on the root for press feedback
+### Changes to `src/pages/SettingsPage.tsx`
 
-**File: `src/components/settings/SettingsRow.tsx`**
-
-Add optional `loading` and `showSuccess` props to the toggle variant:
-
-```typescript
-interface SettingsRowToggleProps extends SettingsRowBaseProps {
-  type: 'toggle';
-  checked: boolean;
-  onCheckedChange: (checked: boolean) => void;
-  disabled?: boolean;
-  loading?: boolean;          // NEW
-  showStateLabel?: boolean;
-  stateLabel?: { on: string; off: string };
-}
-```
-
-In the toggle render:
-1. **Haptic bounce animation**: Add a brief scale animation on the toggle row when toggled. Use a local state + `setTimeout` to apply a CSS class (`scale-[1.02]` for 150ms then back to `scale-100`) for a subtle "pop" effect.
-2. **Loading state**: When `loading` is true, replace the Switch with a small spinning `Loader2` icon (from lucide-react) at the same position, and disable the row.
-3. **Success checkmark**: After loading completes (loading goes from true to false), briefly show a green `Check` icon (from lucide-react) with a fade-in scale animation for 800ms before restoring the Switch.
-
-**File: `src/index.css`** (or inline in switch.tsx)
-
-Add a keyframe for the toggle bounce:
-```css
-@keyframes toggle-bounce {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.04); }
-  100% { transform: scale(1); }
-}
-```
+1. Add a `guestCtaDismissed` state initialized from localStorage
+2. Add a dismiss (X) button to the top-right corner of the existing guest CTA card
+3. When dismissed, store `'1'` in localStorage under `wr-settings-guest-cta-dismissed`
+4. When dismissed, render a compact replacement row:
+   ```
+   [AppIcon] Sign in to unlock all features  [ChevronRight]
+   ```
+   This row navigates to `/auth` on tap.
+5. Wrap both states in `AnimatePresence` for a smooth transition.
 
 ### Technical Details
 
-- The `loading` and success states are opt-in props -- existing toggles that don't pass `loading` behave exactly as before (no breaking changes).
-- The success checkmark uses a `useEffect` watching `loading` transitions from `true` to `false` to trigger the animation.
-- The bounce animation uses `requestAnimationFrame`-friendly CSS transforms for smooth 60fps performance.
-- The Switch size increase applies globally but is subtle enough (28px vs 24px) to not disrupt layouts.
-
-### Files Modified
-1. `src/components/ui/switch.tsx` -- size increase + active press scale
-2. `src/components/settings/SettingsRow.tsx` -- loading, success, bounce animations
-3. `src/index.css` -- toggle-bounce keyframe
+- **Storage key**: `wr-settings-guest-cta-dismissed` in `localStorage` (persists across sessions, unlike the editor banner which uses `sessionStorage`)
+- **No new files** -- all changes are in `SettingsPage.tsx`
+- The compact row reuses the existing `SettingsRow` component with `type="navigation"`
+- A small X button (28x28px, matching the NextStepBanner dismiss pattern) is absolutely positioned in the card's top-right corner
+- The full card gets `position: relative` to contain the dismiss button
 
