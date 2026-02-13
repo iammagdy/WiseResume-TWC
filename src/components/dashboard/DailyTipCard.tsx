@@ -120,8 +120,10 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
             className="mx-4 mt-1.5 mb-1 flex items-center gap-1.5 px-3 py-2 min-h-[44px] min-w-[44px] rounded-full bg-warning/10 border border-warning/20 touch-manipulation w-fit"
             aria-label="Show daily tip"
           >
-            <Lightbulb className="w-3 h-3 text-warning" />
-            <span className="text-[10px] font-medium text-muted-foreground">Tip</span>
+            <span className="animate-pulse">
+              <Lightbulb className="w-3 h-3 text-warning" />
+            </span>
+            <span className="text-[10px] font-medium text-muted-foreground">Daily Tip</span>
           </motion.button>
         )}
       </AnimatePresence>

@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, Award, Flame } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,13 @@ function useLoginStreak() {
   return streak;
 }
 
+const motivationalSubtitles = [
+  "Let's create something amazing today!",
+  "Your next opportunity starts here",
+  "One great resume away from your dream job",
+  "Today is the perfect day to stand out",
+];
+
 interface DashboardStatsProps {
   totalResumes: number;
   healthScores: Record<string, ResumeHealthScore>;
@@ -43,6 +50,16 @@ interface DashboardStatsProps {
 
 export function DashboardStats({ totalResumes, healthScores, userName }: DashboardStatsProps) {
   const streak = useLoginStreak();
+  const [subtitleIndex, setSubtitleIndex] = useState(0);
+
+  // Rotate subtitles every 4 seconds when empty state
+  useEffect(() => {
+    if (totalResumes > 0) return;
+    const interval = setInterval(() => {
+      setSubtitleIndex(prev => (prev + 1) % motivationalSubtitles.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [totalResumes]);
 
   const { avgScore, bestScore } = useMemo(() => {
     const scores = Object.values(healthScores).map(s => s.overallScore);
@@ -67,7 +84,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="px-4 pt-4 pb-3"
+      className="px-4 pt-3 pb-2"
     >
       {/* Glass Hero Card */}
       <div className="glass-elevated rounded-2xl p-4 relative overflow-hidden">
@@ -105,14 +122,31 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
               </motion.div>
             )}
           </div>
-          <p className="text-sm text-muted-foreground mb-4">
-            {totalResumes === 0
-              ? 'Ready to build your first resume?'
-              : `You have ${totalResumes} resume${totalResumes !== 1 ? 's' : ''} in your library`}
-          </p>
+
+          {/* Rotating motivational subtitle for empty state */}
+          {totalResumes === 0 ? (
+            <div className="h-6 mb-4 overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={subtitleIndex}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-sm text-muted-foreground"
+                >
+                  {motivationalSubtitles[subtitleIndex]}
+                </motion.p>
+              </AnimatePresence>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground mb-4">
+              {`You have ${totalResumes} resume${totalResumes !== 1 ? 's' : ''} in your library`}
+            </p>
+          )}
 
           {/* Stats Row with Score Ring */}
-{totalResumes > 0 && (
+          {totalResumes > 0 && (
             <div className="flex items-center gap-4">
               {/* Large Score Ring */}
               <div className="flex flex-col items-center gap-1">
