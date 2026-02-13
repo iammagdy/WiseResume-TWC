@@ -254,10 +254,10 @@ export default function SettingsPage() {
             <GuestCtaCard navigate={navigate} />
           )}
 
-          <Separator />
+          <Separator className="opacity-10" />
 
           {/* 2. Appearance & Language */}
-          <div>
+          <div className="glass-surface-alt">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Palette className="w-4 h-4 text-primary/60" />
               Appearance
@@ -278,7 +278,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Separator />
+          <Separator className="opacity-10" />
 
           {/* 3. AI & Voice */}
           <div>
@@ -344,10 +344,10 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Separator />
+          <Separator className="opacity-10" />
 
           {/* 4. Editor & Export */}
-          <div>
+          <div className="glass-surface-alt">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Download className="w-4 h-4 text-primary/60" />
               Editor & Export
@@ -386,7 +386,7 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Separator />
+          <Separator className="opacity-10" />
 
           {/* 5. Notifications */}
           <div>
@@ -418,8 +418,8 @@ export default function SettingsPage() {
 
           {biometricAvailable && (
             <>
-              <Separator />
-              <div>
+              <Separator className="opacity-10" />
+              <div className="glass-surface-alt">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
                   <Shield className="w-4 h-4 text-primary/60" />
                   Privacy & Security
@@ -466,7 +466,7 @@ export default function SettingsPage() {
             </>
           )}
 
-          <Separator />
+          <Separator className="opacity-10" />
 
           {/* 7. Account - Auth only */}
           {user && (
@@ -495,12 +495,12 @@ export default function SettingsPage() {
                   />
                 </div>
               </div>
-              <Separator />
+              <Separator className="opacity-10" />
             </>
           )}
 
           {/* 8. About & Help */}
-          <div>
+          <div className="glass-surface-alt">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Info className="w-4 h-4 text-primary/60" />
               About & Help
