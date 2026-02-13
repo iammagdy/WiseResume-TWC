@@ -409,6 +409,7 @@ export default function DashboardPage() {
           totalResumes={resumes?.length || 0}
           healthScores={healthScores}
           userName={profile?.fullName}
+          isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
         />
 
         {/* Search pill */}
