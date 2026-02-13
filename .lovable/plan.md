@@ -1,33 +1,31 @@
 
 
-## Fix: Non-Scrollable Job Details and Application Details Pages
+## Update Version to v1.5.0 with 5-Feature Changelog
 
-### Root Cause
-The `AppShell` layout uses a flex column with `overflow-hidden` on the `<main>` element, and wraps page content in a `motion.div` with `min-h-0`. For scrolling to work, the page's own root element must also participate in the flex layout correctly.
+### Changes in `src/pages/SettingsPage.tsx`
 
-Both `ApplicationTrackerPage` and `JobDetailPage` use `overflow-y-auto` on their root `motion.div`, but they lack `min-h-0` and explicit height constraints. This causes the element to grow beyond the viewport rather than becoming scrollable.
+**1. Update version label (line 871)**
+Change `WiseResume v1.0.0` to `WiseResume v1.5.0`
 
-### Fix
+**2. Expand changelog dialog (lines 993-1000)**
+Replace the single v1.0.0 entry with a scrollable changelog containing:
 
-**File: `src/pages/ApplicationTrackerPage.tsx` (line 74)**
-Add `min-h-0 h-full` to the root motion.div:
-```tsx
-// Before
-<motion.div ... className="flex-1 overflow-y-auto overscroll-y-contain pb-6">
+**v1.5.0 (Latest)** with a "Latest" badge -- 5 feature entries:
 
-// After
-<motion.div ... className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
-```
+1. **Polished Tailor Loading Screen** -- Smooth real-feel progress animation with cubic ease-out curve, animated percentage counter, glowing progress bar, estimated time remaining, and fun facts carousel.
+2. **Mobile Scroll Fixes** -- Fixed non-scrollable pages on mobile for Job Details, Application Details, Cover Letters, and Notifications pages.
+3. **Enhanced Tailor Step Visualization** -- Redesigned step list with vertical connecting lines, spring-animated checkmarks, and highlighted active step with loading spinner.
+4. **Projected Score Preview** -- Live projected ATS score comparison (before vs. after) and skill gap count displayed during the tailoring process.
+5. **Smart Progress Estimation** -- Estimated time remaining countdown and percentage-based step transitions that adapt to actual backend response time.
 
-**File: `src/pages/JobDetailPage.tsx` (line 57)**
-Same fix -- add `min-h-0 h-full`:
-```tsx
-// Before
-<motion.div ... className="flex-1 overflow-y-auto overscroll-y-contain pb-6">
+**v1.0.0** (existing entry, kept as-is):
+- Initial release with all original features.
 
-// After
-<motion.div ... className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
-```
+The changelog container will use `max-h-[50vh] overflow-y-auto` for future scalability, and a separator will visually divide version sections.
 
-These two single-line class additions will enable proper scrolling on both detail pages by ensuring the flex child constrains its height instead of overflowing.
+### Technical Details
+
+Only one file changes: `src/pages/SettingsPage.tsx`
+- Line 871: version string `v1.0.0` to `v1.5.0`
+- Lines 993-1000: changelog content expanded with v1.5.0 section (5 bullet items with bold titles), a separator, and the existing v1.0.0 section
 
