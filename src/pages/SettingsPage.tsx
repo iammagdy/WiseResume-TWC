@@ -33,7 +33,10 @@ import {
   Palette,
   X,
   Cloud,
-  CloudOff
+  CloudOff,
+  Github,
+  Linkedin,
+  Twitter
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -48,6 +51,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
@@ -108,6 +112,7 @@ export default function SettingsPage() {
   const [elevenLabsKeyOpen, setElevenLabsKeyOpen] = useState(false);
   const [aiSettingsOpen, setAISettingsOpen] = useState(false);
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -669,9 +674,35 @@ export default function SettingsPage() {
           </Suspense>
 
           {/* Footer */}
-          <div className="text-center pt-2 pb-10">
-            <p className="text-xs text-muted-foreground">WiseResume v1.0.0</p>
-            <p className="text-xs text-muted-foreground mt-1">Made with ❤️ in Egypt</p>
+          <div className="text-center pt-2 pb-10 space-y-2">
+            <button
+              onClick={() => setChangelogOpen(true)}
+              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors touch-manipulation"
+            >
+              WiseResume v1.0.0
+            </button>
+
+            <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
+              <a href="https://magdysaber.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Privacy</a>
+              <span>·</span>
+              <a href="https://magdysaber.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Terms</a>
+              <span>·</span>
+              <button onClick={() => setChangelogOpen(true)} className="hover:text-primary transition-colors touch-manipulation">Changelog</button>
+            </div>
+
+            <div className="flex items-center justify-center gap-1">
+              <a href="https://x.com/magdysaber" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
+                <Twitter className="w-4 h-4" />
+              </a>
+              <a href="https://linkedin.com/in/magdysaber" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
+                <Linkedin className="w-4 h-4" />
+              </a>
+              <a href="https://github.com/magdysaber" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
+                <Github className="w-4 h-4" />
+              </a>
+            </div>
+
+            <p className="text-xs text-muted-foreground">Made in 🇪🇬</p>
           </div>
         </div>
       </div>
@@ -745,6 +776,24 @@ export default function SettingsPage() {
           />
         )}
       </Suspense>
+
+      {/* Changelog Dialog */}
+      <Dialog open={changelogOpen} onOpenChange={setChangelogOpen}>
+        <DialogContent className="max-w-sm" hideCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Changelog</DialogTitle>
+            <DialogDescription>What's new in WiseResume</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div>
+              <p className="text-sm font-semibold">v1.0.0</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Initial release — AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep.
+              </p>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
