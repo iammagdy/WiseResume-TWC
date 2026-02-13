@@ -5,6 +5,7 @@ import {
   LogOut, 
   Info, 
   ChevronRight, 
+  ChevronDown,
   Download, 
   Trash2,
   Bell,
@@ -30,7 +31,9 @@ import {
   BookOpen,
   Users,
   Palette,
-  X
+  X,
+  Cloud,
+  CloudOff
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -39,6 +42,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { useOfflineSyncStore } from '@/store/offlineSyncStore';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
@@ -91,7 +99,8 @@ export default function SettingsPage() {
 
   // Sheet states
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [pdfDefaultsSheetOpen, setPdfDefaultsSheetOpen] = useState(false);
+  const [pdfOpen, setPdfOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const [dataExportSheetOpen, setDataExportSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [biometricSetupOpen, setBiometricSetupOpen] = useState(false);
@@ -354,35 +363,130 @@ export default function SettingsPage() {
             </h2>
             <p className="text-xs text-muted-foreground mb-3 px-1">PDF output and resume backup options</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
-              <SettingsRow
-                type="navigation"
-                label="PDF Export Settings"
-                icon={<Download className="w-4 h-4" />}
-                onClick={() => setPdfDefaultsSheetOpen(true)}
-              />
+              {/* PDF Export Settings - Collapsible */}
+              <Collapsible open={pdfOpen} onOpenChange={setPdfOpen}>
+                <CollapsibleTrigger className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors touch-manipulation">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Download className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium">PDF Export Settings</p>
+                    <p className="text-xs text-muted-foreground">
+                      {pdfDefaults.pageNumberFormat === 'simple' ? 'Simple' : 'Full'}, Badge {pdfDefaults.showBranding !== false ? 'on' : 'off'}
+                    </p>
+                  </div>
+                  <ChevronDown className={cn(
+                    "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                    pdfOpen && "rotate-180"
+                  )} />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-4 pb-4 space-y-3">
+                    {/* Page numbers toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="settings-page-numbers" className="text-sm font-medium">Show Page Numbers</Label>
+                        <p className="text-xs text-muted-foreground">Display in PDF footer</p>
+                      </div>
+                      <Switch
+                        id="settings-page-numbers"
+                        checked={pdfDefaults.showPageNumbers ?? true}
+                        onCheckedChange={(checked) => {
+                          haptics.light();
+                          setPdfDefaults({ showPageNumbers: checked });
+                        }}
+                      />
+                    </div>
+                    {/* Page number format */}
+                    {pdfDefaults.showPageNumbers !== false && (
+                      <div className="p-3 rounded-xl bg-muted/50 space-y-2">
+                        <Label className="text-sm font-medium">Format</Label>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { haptics.light(); setPdfDefaults({ pageNumberFormat: 'simple' }); }}
+                            className={cn(
+                              'flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all border-2 active:scale-[0.98] touch-manipulation',
+                              pdfDefaults.pageNumberFormat === 'simple'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border bg-background hover:border-primary/50'
+                            )}
+                          >
+                            Simple (1)
+                          </button>
+                          <button
+                            onClick={() => { haptics.light(); setPdfDefaults({ pageNumberFormat: 'full' }); }}
+                            className={cn(
+                              'flex-1 py-2 px-3 rounded-lg text-xs font-medium transition-all border-2 active:scale-[0.98] touch-manipulation',
+                              (pdfDefaults.pageNumberFormat ?? 'full') === 'full'
+                                ? 'border-primary bg-primary/10 text-primary'
+                                : 'border-border bg-background hover:border-primary/50'
+                            )}
+                          >
+                            Full (1 of 3)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {/* Branding toggle */}
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
+                      <div className="space-y-0.5">
+                        <Label htmlFor="settings-branding" className="text-sm font-medium flex items-center gap-1.5">
+                          <span className="text-primary">✦</span> WiseResume Badge
+                        </Label>
+                        <p className="text-xs text-muted-foreground">Prestige stamp on exports</p>
+                      </div>
+                      <Switch
+                        id="settings-branding"
+                        checked={pdfDefaults.showBranding ?? true}
+                        onCheckedChange={(checked) => {
+                          haptics.light();
+                          setPdfDefaults({ showBranding: checked });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
               <Separator className="bg-border/30" />
-              {user ? (
-                <SettingsRow
-                  type="navigation"
-                  label="Export Resumes"
-                  description={`${resumes.length} resume${resumes.length !== 1 ? 's' : ''} created`}
-                  icon={<Database className="w-4 h-4" />}
-                  onClick={() => setDataExportSheetOpen(true)}
-                />
-              ) : (
-              <div className="flex items-center gap-3 px-4 py-3.5">
-                <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center">
-                  <Lock className="w-4 h-4 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium">Export Resumes</p>
-                  <p className="text-xs text-muted-foreground">Sign in to backup your data</p>
-                </div>
-                <Button size="sm" variant="default" onClick={() => navigate('/auth')} className="shrink-0 text-xs h-7">
-                  Sign in
-                </Button>
-              </div>
-              )}
+
+              {/* Export Resumes - Collapsible */}
+              <Collapsible open={exportOpen} onOpenChange={setExportOpen}>
+                <CollapsibleTrigger className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/30 transition-colors touch-manipulation">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Database className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0 text-left">
+                    <p className="text-sm font-medium">Export Resumes</p>
+                  </div>
+                  <CloudSyncBadge isSignedIn={!!user} />
+                  <ChevronDown className={cn(
+                    "w-4 h-4 text-muted-foreground transition-transform duration-200 ml-1",
+                    exportOpen && "rotate-180"
+                  )} />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="px-4 pb-4">
+                    {user ? (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => setDataExportSheetOpen(true)}
+                      >
+                        <Database className="w-4 h-4 mr-2" />
+                        Manage Exports
+                      </Button>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3 py-2">
+                        <p className="text-sm text-muted-foreground text-center">Sign in to backup and export your resumes</p>
+                        <Button size="sm" onClick={() => navigate('/auth')}>
+                          Sign in
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
           </div>
 
@@ -584,14 +688,7 @@ export default function SettingsPage() {
             onSave={updateProfile}
           />
         )}
-        {pdfDefaultsSheetOpen && (
-          <PDFDefaultsSheet
-            open={pdfDefaultsSheetOpen}
-            onOpenChange={setPdfDefaultsSheetOpen}
-            pdfDefaults={pdfDefaults}
-            onUpdate={setPdfDefaults}
-          />
-        )}
+        {/* PDFDefaultsSheet removed — controls are now inline */}
         {dataExportSheetOpen && (
           <DataExportSheet
             open={dataExportSheetOpen}
@@ -649,6 +746,36 @@ export default function SettingsPage() {
         )}
       </Suspense>
     </div>
+  );
+}
+
+function CloudSyncBadge({ isSignedIn }: { isSignedIn: boolean }) {
+  const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
+
+  if (!isSignedIn) {
+    return (
+      <Badge variant="outline" className="gap-1 text-[10px] px-2 py-0.5">
+        <Lock className="w-3 h-3" />
+        Sign in
+      </Badge>
+    );
+  }
+
+  if (pendingCount > 0) {
+    return (
+      <Badge variant="outline" className="gap-1 text-[10px] px-2 py-0.5 bg-warning/10 text-warning border-warning/30">
+        <Cloud className="w-3 h-3" />
+        Pending
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="gap-1 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
+      <Cloud className="w-3 h-3" />
+      <Check className="w-2.5 h-2.5 -ml-1.5" />
+      Backed up
+    </Badge>
   );
 }
 
