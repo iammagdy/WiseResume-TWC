@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react';
+import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -18,6 +18,7 @@ import {
   Clock,
   Key,
   ArrowLeft,
+  ArrowUp,
   Brain,
   Mic,
   Globe,
@@ -101,6 +102,54 @@ export default function SettingsPage() {
   } = useSettingsStore();
  
   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
+
+  // Scroll enhancements
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [activeSection, setActiveSection] = useState('section-appearance');
+
+  const SECTIONS = [
+    { id: 'section-appearance', label: 'Appearance', icon: Palette },
+    { id: 'section-ai-voice', label: 'AI & Voice', icon: Brain },
+    { id: 'section-editor-export', label: 'Editor & Export', icon: Download },
+    { id: 'section-notifications', label: 'Notifications', icon: Bell },
+    { id: 'section-privacy', label: 'Privacy & Security', icon: Shield },
+    { id: 'section-account', label: 'Account', icon: LogOut },
+    { id: 'section-about', label: 'About & Help', icon: Info },
+  ];
+
+  const handleScroll = useCallback(() => {
+    if (scrollRef.current) {
+      setShowScrollTop(scrollRef.current.scrollTop > 300);
+    }
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { root: container, threshold: 0.1, rootMargin: '-80px 0px -80% 0px' }
+    );
+
+    SECTIONS.forEach(({ id }) => {
+      const el = container.querySelector(`#${id}`);
+      if (el) observer.observe(el);
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Sheet states
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -222,7 +271,30 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-8">
+        <div ref={scrollRef} onScroll={handleScroll} style={{ scrollBehavior: 'smooth' }} className="flex-1 overflow-y-auto px-5 py-4 space-y-8">
+          {/* Sticky section indicator */}
+          <AnimatePresence mode="wait">
+            {showScrollTop && (() => {
+              const active = SECTIONS.find(s => s.id === activeSection);
+              if (!active) return null;
+              const SectionIcon = active.icon;
+              return (
+                <motion.div
+                  key={active.id}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.15 }}
+                  className="sticky top-0 z-10 -mx-5 -mt-4 mb-4 px-5 py-2 glass-header backdrop-blur-md border-b border-border/20"
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <SectionIcon className="w-3.5 h-3.5 text-primary/60" />
+                    {active.label}
+                  </div>
+                </motion.div>
+              );
+            })()}
+          </AnimatePresence>
           {/* 1. Profile Section - Auth vs Guest */}
           {user ? (
             <button
@@ -272,7 +344,7 @@ export default function SettingsPage() {
           <Separator className="opacity-10" />
 
           {/* 2. Appearance & Language */}
-          <div className="glass-surface-alt">
+          <div id="section-appearance" className="glass-surface-alt">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Palette className="w-4 h-4 text-primary/60" />
               Appearance
@@ -296,7 +368,7 @@ export default function SettingsPage() {
           <Separator className="opacity-10" />
 
           {/* 3. AI & Voice */}
-          <div>
+          <div id="section-ai-voice">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Brain className="w-4 h-4 text-primary/60" />
               AI & Voice
@@ -362,7 +434,7 @@ export default function SettingsPage() {
           <Separator className="opacity-10" />
 
           {/* 4. Editor & Export */}
-          <div className="glass-surface-alt">
+          <div id="section-editor-export" className="glass-surface-alt">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Download className="w-4 h-4 text-primary/60" />
               Editor & Export
@@ -499,7 +571,7 @@ export default function SettingsPage() {
           <Separator className="opacity-10" />
 
           {/* 5. Notifications */}
-          <div>
+          <div id="section-notifications">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Bell className="w-4 h-4 text-primary/60" />
               Notifications
@@ -527,7 +599,7 @@ export default function SettingsPage() {
           </div>
 
           <Separator className="opacity-10" />
-          <div className="glass-surface-alt">
+          <div id="section-privacy" className="glass-surface-alt">
             <TooltipProvider>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
                 <Shield className="w-4 h-4 text-primary/60" />
@@ -605,7 +677,7 @@ export default function SettingsPage() {
           {/* 7. Account - Auth only */}
           {user && (
             <>
-              <div>
+              <div id="section-account">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
                   <LogOut className="w-4 h-4 text-primary/60" />
                   Account
@@ -634,7 +706,7 @@ export default function SettingsPage() {
           )}
 
           {/* 8. About & Help */}
-          <div className="glass-surface-alt">
+          <div id="section-about" className="glass-surface-alt">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
               <Info className="w-4 h-4 text-primary/60" />
               About & Help
@@ -731,6 +803,23 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Scroll-to-top FAB */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={scrollToTop}
+            className="fixed bottom-24 right-5 z-20 w-11 h-11 rounded-full glass-elevated flex items-center justify-center text-primary shadow-lg active:scale-95 transition-transform touch-manipulation border border-border/30"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Sheets and Dialogs */}
       <Suspense fallback={null}>
