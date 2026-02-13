@@ -1,132 +1,118 @@
 
 
-## Database Tables & Hooks for Complete Mobile App
+## Connect All Pages to Database Hooks
 
 ### Overview
-Create 3 new database tables (`jobs`, `notifications`, `resume_shares`), enhance 2 existing tables (`cover_letters`, `job_applications`), and build a comprehensive set of React Query hooks covering all CRUD operations.
+Rewire the five new pages to use their proper database-backed hooks, replacing localStorage patterns and incorrect data sources. Add a tabbed layout to the Applications page and connect the bell icon with unread count.
 
 ---
 
-### Existing vs New -- What Changes
+### 1. Rewrite `/applications` -- Add Tabbed Layout
 
-| Table | Status | Action |
-|-------|--------|--------|
-| `jobs` | New | Create from scratch |
-| `job_applications` | Exists | Add nullable `job_id` FK to new `jobs` table |
-| `cover_letters` | Exists | Add `title` (text, nullable) and `updated_at` (timestamptz) columns |
-| `notifications` | New | Create from scratch |
-| `resume_shares` | New | Create from scratch (replaces simple `is_public` flag with richer sharing) |
+**File:** `src/pages/ApplicationsPage.tsx`
 
----
+Add two tabs below the header for authenticated users:
 
-### Database Migration (single SQL migration)
+- **"Jobs" tab**: Uses `useJobs()` hook to list saved jobs from the `jobs` table. Each job card shows title, company, location, job type. Tapping navigates to `/job/:id`. Includes an "Add Job" button that opens a simple form sheet to create a job via `useJobMutations().createJob`.
+- **"Applications" tab**: Uses `useJobApplications()` hook to list applications. Each card uses existing `ApplicationCard` component, tapping navigates to `/application/:id`. Keeps the existing `AddApplicationSheet` for manual entry.
 
-**New table: `jobs`**
-- `id` uuid PK, `user_id` uuid NOT NULL, `title` text NOT NULL, `company` text NOT NULL
-- `company_logo` text nullable, `description` text default '', `requirements` text default ''
-- `location` text default '', `salary_range` text nullable
-- `job_type` text default 'full-time', `posted_date` timestamptz default now()
-- `source_url` text nullable, `is_saved` boolean default true
-- `created_at` / `updated_at` timestamptz defaults
-- RLS: all operations scoped to `auth.uid() = user_id`
+The existing stats section and activity timeline move into the Applications tab (or above both tabs). The bell icon in the header links to `/notifications` and shows unread count badge via `useUnreadNotificationCount()`.
 
-**New table: `notifications`**
-- `id` uuid PK, `user_id` uuid NOT NULL
-- `type` text NOT NULL default 'system', `title` text NOT NULL, `message` text NOT NULL
-- `link` text nullable, `is_read` boolean default false
-- `created_at` timestamptz default now()
-- RLS: SELECT + UPDATE (is_read) + DELETE for own rows; INSERT for own rows
-
-**New table: `resume_shares`**
-- `id` uuid PK, `resume_id` uuid NOT NULL (FK to resumes)
-- `user_id` uuid NOT NULL (for RLS -- the resume owner)
-- `token` text UNIQUE NOT NULL, `is_active` boolean default true
-- `password` text nullable, `expires_at` timestamptz nullable
-- `view_count` integer default 0, `created_at` timestamptz default now()
-- RLS: owner can SELECT/INSERT/UPDATE/DELETE own shares; anonymous users can SELECT where `is_active = true` and (`expires_at` is null or `expires_at > now()`)
-- Database function: `increment_share_view_count(share_token text)` -- security definer function to bump view_count without requiring auth
-
-**Alter `cover_letters`:**
-- ADD `title` text nullable
-- ADD `updated_at` timestamptz default now()
-
-**Alter `job_applications`:**
-- ADD `job_id` uuid nullable (FK to `jobs(id)` ON DELETE SET NULL)
-
-**Triggers:**
-- `updated_at` trigger on `jobs` table (reuse existing `update_updated_at_column` function)
-- `updated_at` trigger on `cover_letters` table
+**Key changes:**
+- Import `useJobs`, `useJobMutations` from `@/hooks/useJobs`
+- Import `useUnreadNotificationCount` from `@/hooks/useNotifications`
+- Add tab state (`'jobs' | 'applications'`)
+- Create a simple `JobCard` inline component for the jobs list
+- Bell icon navigates to `/notifications` instead of toggling reminders filter
+- Add unread badge count on bell icon
 
 ---
 
-### React Query Hooks
+### 2. Rewrite `/job/:id` -- Use `useJob` Hook
 
-**New file: `src/hooks/useJobs.ts`**
-- `useJobs()` -- list all user's saved jobs, ordered by created_at desc
-- `useJob(id)` -- fetch single job by ID (uses `.maybeSingle()`)
-- `useJobMutations()` -- returns `createJob`, `updateJob`, `deleteJob` mutations
-  - All invalidate `['jobs']` query key
-  - Toast notifications on success/error
+**File:** `src/pages/JobDetailPage.tsx`
 
-**Updated file: `src/hooks/useJobApplications.ts`**
-- Add `screening` to `ApplicationStatus` type (currently missing from the enum)
-- Add `job_id` to `JobApplication` interface
-- Everything else (existing hooks + mutations) remains unchanged
+Currently fetches from `job_applications` -- needs to fetch from `jobs` table instead.
 
-**Updated file: `src/hooks/useCoverLetters.ts`**
-- Add `title` and `updated_at` to `CoverLetterRecord` interface
-- Add `useCoverLetter(id)` -- single letter fetch
-- Add `updateCoverLetter` mutation to `useCoverLetterMutations()`
-- Include `title` in save/update mutation inputs
-
-**New file: `src/hooks/useNotifications.ts`**
-- `useNotifications()` -- list user's notifications, ordered by created_at desc
-- `useUnreadNotificationCount()` -- count of unread notifications (for badge)
-- `useNotificationMutations()` -- returns:
-  - `markAsRead(id)` -- update single notification `is_read = true`
-  - `markAllAsRead()` -- update all user's notifications
-  - `deleteNotification(id)` -- delete single
-  - `clearAll()` -- delete all user's notifications
-- All invalidate `['notifications']` query key
-
-**New file: `src/hooks/useResumeShares.ts`**
-- `useResumeShares(resumeId)` -- list shares for a specific resume
-- `usePublicResume(token)` -- fetch resume data by share token (no auth required), joins `resume_shares` with `resumes`
-- `useResumeShareMutations()` -- returns:
-  - `createShare(resumeId, options?)` -- generates a random token, inserts share row
-  - `updateShare(id, updates)` -- toggle active, set password/expiry
-  - `deleteShare(id)` -- remove share
-  - `incrementViewCount(token)` -- calls the database function
-- All invalidate `['resume-shares', resumeId]` query key
+**Key changes:**
+- Replace `useJobApplication(id)` with `useJob(id)` from `@/hooks/useJobs`
+- Replace `useJobApplicationMutations` with `useJobMutations` for save/unsave
+- Show full job details: description, requirements, location, salary range, job type, posted date
+- "Apply with Resume" creates a new application via `useJobApplicationMutations().createApplication` with `job_id` set, then navigates to `/application/:newId`
+- "Save/Unsave" toggles `is_saved` via `updateJob`
+- "Share" uses Web Share API or clipboard with `source_url`
+- "Delete Job" button with confirmation via `deleteJob`
+- Add `screening` to STATUS_OPTIONS
 
 ---
 
-### Hook Pattern (consistent across all hooks)
+### 3. Update `/application/:id` -- Add Delete + Screening Stage
 
-```text
-useQuery hooks:
-  - queryKey includes user?.id for cache scoping
-  - enabled: !!user (except usePublicResume which needs no auth)
-  - Returns typed data with fallback empty arrays
+**File:** `src/pages/ApplicationTrackerPage.tsx`
 
-useMutation hooks:
-  - Check user auth before executing
-  - Set user_id from auth context (not from input)
-  - Invalidate relevant query keys on success
-  - Toast success/error messages
-  - Return mutation objects for component consumption
-```
+Mostly complete already. Small enhancements:
+
+**Key changes:**
+- Add `screening` stage to the STAGES array between `applied` and `interviewing`
+- Update STAGE_ORDER to include `screening: 1.5` (renumber: saved=0, applied=1, screening=2, interviewing=3, offer=4)
+- Add "Delete Application" button at the bottom using `deleteApplication` mutation, then navigate back to `/applications`
+- Add linked cover letter display (if `cover_letter_id` exists, fetch via `useCoverLetter`)
+- Invalidate `job-application` query key after updates
+
+---
+
+### 4. Rewrite `/notifications` -- Use Database Hooks
+
+**File:** `src/pages/NotificationsPage.tsx`
+
+Replace the localStorage-based approach with the database `notifications` table.
+
+**Key changes:**
+- Remove all localStorage logic (`LS_KEY`, `getStoredNotifications`, `saveNotifications`)
+- Remove `LocalNotification` interface
+- Import `useNotifications`, `useNotificationMutations` from `@/hooks/useNotifications`
+- Use `Notification` type from the hook
+- Filter tabs: All | Unread | Applications | System
+  - "Unread" filters by `is_read === false`
+  - "Applications" filters by `type === 'application'`
+  - "System" filters by `type === 'system'`
+- On notification click: call `markAsRead.mutate(id)` and if `n.link` exists, navigate to it
+- "Clear all" calls `clearAll.mutate()`
+- Show notification `title` (bold) + `message` (body text)
+- Keep the existing animation and empty state UI
+
+---
+
+### 5. Update `/share/:token` -- Use `usePublicResume` Hook
+
+**File:** `src/pages/SharePage.tsx`
+
+Replace the direct Supabase query with the `usePublicResume` hook from `useResumeShares`, which uses the `resume_shares` table with token-based lookup.
+
+**Key changes:**
+- Import `usePublicResume`, `useResumeShareMutations` from `@/hooks/useResumeShares`
+- Replace inline query with `usePublicResume(token)`
+- Call `incrementViewCount.mutate(token)` on mount to track views
+- Parse resume data from `data.resume` instead of direct resume fetch
+- Handle password-protected shares (if `share.password` exists, show password input first)
+- Keep existing resume rendering and footer
+
+---
+
+### 6. CoverLetterPage -- No Changes Needed
+
+The cover letter page is already properly wired to `useCoverLetters()` and `useCoverLetterMutations()`. No modifications required.
 
 ---
 
 ### Files Summary
 
-| Action | File |
-|--------|------|
-| Migration | Single SQL migration with 3 new tables + 2 ALTER TABLE + triggers + RLS policies + increment function |
-| Create | `src/hooks/useJobs.ts` |
-| Create | `src/hooks/useNotifications.ts` |
-| Create | `src/hooks/useResumeShares.ts` |
-| Edit | `src/hooks/useJobApplications.ts` (add `job_id` to interface, `screening` to status) |
-| Edit | `src/hooks/useCoverLetters.ts` (add `title`, `updated_at`, single fetch, update mutation) |
+| Action | File | What Changes |
+|--------|------|-------------|
+| Rewrite | `src/pages/ApplicationsPage.tsx` | Add Jobs/Applications tabs, bell icon with unread count, job cards list |
+| Rewrite | `src/pages/JobDetailPage.tsx` | Switch from `useJobApplication` to `useJob`, show full job details, apply creates application |
+| Edit | `src/pages/ApplicationTrackerPage.tsx` | Add screening stage, delete button, cover letter link |
+| Rewrite | `src/pages/NotificationsPage.tsx` | Replace localStorage with `useNotifications` database hooks |
+| Edit | `src/pages/SharePage.tsx` | Use `usePublicResume` hook with token-based sharing |
+| No change | `src/pages/CoverLetterPage.tsx` | Already wired correctly |
 
