@@ -27,7 +27,9 @@ import {
   RotateCcw,
   Lock,
   Check,
-  X
+  X,
+  BookOpen,
+  Users
 } from 'lucide-react';
 import { DeveloperCreditCard } from '@/components/settings/DeveloperCreditCard';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -545,7 +547,7 @@ export default function SettingsPage() {
               <SettingsRow
                 type="button"
                 label="Take Tour Again"
-                description="Replay the welcome onboarding"
+                description="Replay the quick product tour to learn the main features"
                 icon={<RotateCcw className="w-4 h-4" />}
                 onClick={async () => {
                   haptics.light();
@@ -584,6 +586,43 @@ export default function SettingsPage() {
                 <span className="text-sm text-muted-foreground">
                   WiseResume v1.0.0
                 </span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
+              <div className="px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                  Need help?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1.5"
+                    onClick={() => window.open('https://docs.lovable.dev', '_blank')}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Docs
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1.5"
+                    onClick={() => window.open('mailto:contact@magdysaber.com')}
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    Email Support
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1.5"
+                    onClick={() => window.open('https://discord.gg/lovable-dev', '_blank')}
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    Community
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
