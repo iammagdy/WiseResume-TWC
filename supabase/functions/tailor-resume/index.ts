@@ -306,7 +306,11 @@ Analyze deeply, then return this exact JSON structure:
       : "https://ai.gateway.lovable.dev/v1/chat/completions";
     
     const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-    const modelName = useGeminiDirect ? "gemini-2.5-pro-preview-05-06" : "google/gemini-2.5-pro";
+    const modelName = useGeminiDirect ? "gemini-2.5-pro-preview-05-06" : "google/gemini-2.5-flash";
+
+    // 25s timeout to fail gracefully before edge function hard-kills at 30s
+    const controller = new AbortController();
+    const fetchTimeout = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -321,9 +325,12 @@ Analyze deeply, then return this exact JSON structure:
           { role: "user", content: userPrompt },
         ],
         temperature: 0.5,
-        max_tokens: 8000,
+        max_tokens: 5000,
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(fetchTimeout);
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
