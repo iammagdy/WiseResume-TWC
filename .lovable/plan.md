@@ -1,73 +1,118 @@
 
 
-## Enhance Wise AI Icon and Section AI Buttons
+## Transform Homepage into Mobile-First PWA Experience
 
 ### Overview
-Upgrade the visual treatment of the main Wise AI chat icon and the per-section AI buttons with glowing effects, auth-aware states, and polished interactions.
-
-### Changes
+Rewrite the Index page (`src/pages/Index.tsx`) as a compact, mobile-app-style single page that replaces the current multi-section landing page. The goal: user sees value and taps "Create My Resume" within 3 seconds. Total page height capped at ~2.5x viewport.
 
 ---
 
-### 1. Main Wise AI Icon (EditorPage header)
+### 1. New Hero Section (replaces current HeroSection + SpaceBackground)
 
-**File: `src/pages/EditorPage.tsx` (lines 401-408)**
+- **App Icon**: Use `AppIcon` component at 120px with a glowing radial gradient behind it (purple-to-pink, animated pulse)
+- **Headline**: "Build Your Dream Resume" -- 32px bold, centered
+- **Subtext**: "AI-powered . ATS-optimized . Free forever" -- 16px, muted color, dot-separated
+- **Primary CTA**: "Create My Resume" -- full-width, 56px height, gradient background. If authenticated, reads "Go to Dashboard" and navigates to `/dashboard`
+- **Secondary link**: "Already have an account? Sign In" -- text link below CTA, navigates to `/auth`. Hidden when authenticated (replaced with avatar dropdown)
+- **Trust line**: Small green dot + "Free . No credit card . 5 minutes" beneath
+- Remove the top-right Sign In button; move sign-in into the hero content area
+- Keep avatar dropdown for authenticated users (repositioned inline or top-right)
 
-Current: A plain `MessageCircle` icon in a ghost button with a small pulse dot.
+### 2. Steps Row (replaces "Mission Control" / HowItWorks)
 
-Changes:
-- Replace `MessageCircle` with `Sparkles` icon (consistent AI branding)
-- Make the button larger with a gradient background and glowing box-shadow
-- **Logged in**: Pulsing glow ring animation, tooltip "Click for AI assistance"
-- **Logged out**: 50% opacity, lock badge overlay (`Lock` icon), tooltip "Sign in to unlock Wise AI". Clicking opens the sign-in prompt dialog instead of the chat sheet
-- Wrap with `Tooltip` component for hover text
+- Three icons in a horizontal row, no section title
+- Layout: evenly spaced, centered, with subtle connecting lines
+- Items:
+  - Pencil icon + "Create"
+  - Sparkles icon + "AI Polish"  
+  - Download icon + "Export"
+- Each item: 48px icon container + 2-word label below (14px)
+- No space/rocket language -- clean, functional labels
+- Subtle glass card background wrapping the row
 
-### 2. Section AI Buttons (InlineAIButton)
+### 3. Features Section (replaces WhyWiseResume + FeatureGrid)
 
-**File: `src/components/editor/InlineAIButton.tsx`**
+- Title: "Why WiseResume?" -- 24px, centered
+- Three feature cards in vertical stack (not grid):
+  - Sparkles icon + "AI Writing Assistant" + "Enhance bullets and summaries instantly"
+  - BarChart icon + "ATS Score Checker" + "See how well you match any job"
+  - LayoutGrid icon + "Professional Templates" + "12 designs for every industry"
+- Each card: horizontal layout (icon left, text right), glass background, 48px icon area
+- Remove Voice Interview and 4 AI Recruiters from homepage
+- Remove the BulletTransformCard (too tall)
 
-Changes:
-- Accept new `isAuthenticated` prop
-- Change label from "AI" to "AI Assist" with sparkle emoji or icon
-- **Logged in**: Brighter primary color with subtle glow shadow, gentle pulse animation on the sparkles icon, enhanced hover state with scale and brighter glow
-- **Logged out**: Grey out with reduced opacity, replace sparkles icon with `Lock` icon, show tooltip "Sign in to use AI Assist". Clicking opens sign-in prompt instead of dropdown menu
-- Add `Tooltip` wrapper for contextual help text
+### 4. Template Preview (simplified from TemplateGallery)
 
-**File: `src/components/editor/SectionAIAction.tsx`**
+- Show 3 mini template previews in a horizontal scroll (reuse existing `MiniPreview` component)
+- "Browse All Templates" text link below
+- No section title beyond a subtle "Templates" label
+- Remove "Choose Your Flight Suit" and space-themed names (show real template names)
 
-Changes:
-- Import `useAuth` and pass `isAuthenticated` to `InlineAIButton`
-- When not authenticated, pass an `onLockedClick` callback that triggers the sign-in prompt dialog
+### 5. Bottom CTA (simplified)
 
-### 3. EditorPage Integration
+- Remove entirely -- the hero CTA is sufficient. The page is short enough that users don't need a second prompt.
 
-**File: `src/pages/EditorPage.tsx`**
+### 6. Background
 
-Changes:
-- Update the Wise AI header button with auth-aware rendering
-- Add a reusable `handleAILockedClick` function that opens the sign-in prompt with AI-specific messaging ("Unlock Wise AI", "Sign in to access AI-powered resume editing")
-- Pass this handler down to `SectionAIAction` components via context or prop
+- Keep `SpaceBackground` but simplify: remove star generation, keep only the gradient + nebula overlay for the dark theme aesthetic
+- Alternatively, inline a simple dark gradient background directly in Index to avoid the component overhead
+
+### 7. PWA Install Banner
+
+- Already exists (`InstallPrompt` component in `App.tsx`) and renders globally as a sticky banner at `bottom-24`
+- No changes needed -- it already appears after 3 seconds when the browser supports install
+
+### 8. Bottom Tab Bar
+
+- Already exists globally via `AppShell` for all routes inside the shell
+- The landing page (`/`) is outside `AppShell` (line 87 of App.tsx), so no bottom bar shows
+- Per the request to show an "inactive preview" of the bottom nav, add the `BottomTabBar` component to the Index page in a static/visual-only mode, or wrap the landing page inside AppShell
+- **Decision**: Keep landing page outside AppShell but render a visual-only bottom bar preview (non-functional, just showing the 4 tabs as a teaser)
 
 ---
 
 ### Technical Details
 
-**New CSS classes (added inline or via Tailwind):**
-- Glow effect: `shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)]` on the main icon
-- Pulse glow: A keyframe animation that alternates the glow intensity
-- Lock badge: Absolute positioned small `Lock` icon (12x12) at bottom-right of the main button
-
-**Tooltip integration:**
-- Uses existing `Tooltip`, `TooltipTrigger`, `TooltipContent` from `@/components/ui/tooltip`
-- `TooltipProvider` is likely already at app level; if not, wrap locally
-
-**Auth-aware click handlers:**
-- Main icon: `onClick={() => user ? setShowChat(true) : handleAILockedClick()}`
-- Section buttons: `onClick={() => isAuthenticated ? openMenu() : onLockedClick?.()`
-
 **Files modified:**
-1. `src/pages/EditorPage.tsx` -- Main Wise AI icon upgrade with auth states, glow, tooltip
-2. `src/components/editor/InlineAIButton.tsx` -- Enhanced styling, auth-aware states, lock icon, tooltip, label change
-3. `src/components/editor/SectionAIAction.tsx` -- Pass auth state and locked click handler to InlineAIButton
 
-**No new files or dependencies needed.** All icons (`Sparkles`, `Lock`) and components (`Tooltip`) are already available.
+1. **`src/pages/Index.tsx`** -- Complete rewrite. Replace lazy-loaded multi-section layout with a single compact page:
+   - Import `AppIcon`, `useAuth`, `useProfile`, `useNavigate`, `useResumeStore`, `Button`, icons
+   - Render inline: Hero, Steps Row, Features, Template Preview, visual bottom bar
+   - No lazy loading needed (page is lightweight enough)
+   - Keep `SpaceBackground` wrapper for the dark theme
+
+2. **No other files modified** -- All existing landing components (`HeroSection`, `SocialProofBar`, `HowItWorks`, `FeatureGrid`, `WhyWiseResume`, `BottomCTA`, `TemplateGallery`) remain in the codebase but are no longer imported by Index. They can be cleaned up later.
+
+**Component structure of new Index:**
+
+```text
+SpaceBackground
+  main (max-height ~250vh)
+    HeroBlock
+      AppIcon (120px) + glow
+      "Build Your Dream Resume" (h1)
+      "AI-powered . ATS-optimized . Free forever" (p)
+      [Create My Resume] button (56px)
+      "Already have an account? Sign In" link
+      Trust line
+    StepsRow
+      Create | AI Polish | Export (3 icons)
+    FeaturesBlock
+      "Why WiseResume?" (h2)
+      3 feature cards (vertical stack)
+    TemplatePreview
+      3 mini templates (horizontal scroll)
+      "Browse All Templates" link
+    BottomSpacer (pb-24 for visual bottom bar)
+  BottomTabBar (visual-only, inactive)
+```
+
+**Mobile optimizations:**
+- All touch targets 48px minimum
+- Body text 16px minimum, secondary 14px
+- Section spacing 24px
+- Full-width CTA button
+- Momentum scrolling
+- Reduced animations (only icon glow pulse, fade-in on mount)
+- No heavy lazy loading or intersection observer for this page
+
