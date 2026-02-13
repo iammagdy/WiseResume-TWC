@@ -445,55 +445,55 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <Separator />
-
-          {/* 6. Privacy & Security */}
-          <div>
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary/60" />
-              Privacy & Security
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
-            {biometricAvailable && (
-              <div className="rounded-2xl glass-elevated overflow-hidden">
-                <SettingsRow
-                  type="toggle"
-                  label="Biometric Lock"
-                  description="Protect your resumes"
-                  icon={<Fingerprint className="w-4 h-4" />}
-                  checked={biometricLockEnabled}
-                  onCheckedChange={handleBiometricToggle}
-                />
-                {biometricLockEnabled && (
-                  <>
-                    <Separator className="bg-border/30" />
-                    <SettingsRow
-                      type="navigation"
-                      label="Require Authentication After"
-                      value={
-                        biometricLockTimeout === 0 ? 'Immediately' :
-                        biometricLockTimeout === 30000 ? '30 seconds' :
-                        biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
-                      }
-                      icon={<Clock className="w-4 h-4" />}
-                      onClick={() => setBiometricTimeoutOpen(true)}
-                    />
-                  </>
-                )}
+          {biometricAvailable && (
+            <>
+              <Separator />
+              <div>
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-primary/60" />
+                  Privacy & Security
+                </h2>
+                <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
+                <div className="rounded-2xl glass-elevated overflow-hidden">
+                  <SettingsRow
+                    type="toggle"
+                    label="Biometric Lock"
+                    description="Protect your resumes"
+                    icon={<Fingerprint className="w-4 h-4" />}
+                    checked={biometricLockEnabled}
+                    onCheckedChange={handleBiometricToggle}
+                  />
+                  {biometricLockEnabled && (
+                    <>
+                      <Separator className="bg-border/30" />
+                      <SettingsRow
+                        type="navigation"
+                        label="Require Authentication After"
+                        value={
+                          biometricLockTimeout === 0 ? 'Immediately' :
+                          biometricLockTimeout === 30000 ? '30 seconds' :
+                          biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
+                        }
+                        icon={<Clock className="w-4 h-4" />}
+                        onClick={() => setBiometricTimeoutOpen(true)}
+                      />
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
+                  Your resumes are stored securely and never sold to third parties.{' '}
+                  <a
+                    href="https://magdysaber.com/privacy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2"
+                  >
+                    Privacy Policy
+                  </a>
+                </p>
               </div>
-            )}
-            <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
-              Your resumes are stored securely and never sold to third parties.{' '}
-              <a
-                href="https://magdysaber.com/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline underline-offset-2"
-              >
-                Privacy Policy
-              </a>
-            </p>
-          </div>
+            </>
+          )}
 
           <Separator />
 
@@ -538,16 +538,6 @@ export default function SettingsPage() {
 
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
-                type="navigation"
-                label="Get Help"
-                description="Docs, email support, and community"
-                icon={<BookOpen className="w-4 h-4" />}
-                onClick={() => setHelpSheetOpen(true)}
-              />
-            </div>
-
-            <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
-              <SettingsRow
                 type="button"
                 label="Take Tour Again"
                 description="Replay the quick product tour to learn the main features"
@@ -578,6 +568,16 @@ export default function SettingsPage() {
                 description="Send a link to a friend or colleague"
                 icon={<Share2 className="w-4 h-4" />}
                 onClick={handleShareApp}
+              />
+            </div>
+
+            <div className="rounded-2xl glass-elevated overflow-hidden mt-3">
+              <SettingsRow
+                type="navigation"
+                label="Get Help"
+                description="Docs, email support, and community"
+                icon={<BookOpen className="w-4 h-4" />}
+                onClick={() => setHelpSheetOpen(true)}
               />
             </div>
           </div>
