@@ -1,34 +1,81 @@
 
 
-## Fix Editor StepperNav Tab Overflow and Connecting Line
+## Fix Editor Tab Issues and Guest Resume Creation
 
-### Problem
-The 5-step navigation (Contact, Summary, Work, Education, Skills) has two main UI issues:
-1. Tabs can overflow horizontally on narrower screens, requiring scroll to see all tabs
-2. The connecting progress line passes visually through the tab circles (because circles have semi-transparent backgrounds)
+### Problem Summary
+Two issues identified through testing:
+
+1. **Guest Resume Creation is Broken**: Clicking "Create" in the resume dialog fails silently because `createResume.mutateAsync` throws "Not authenticated" for guest users. Guests can never reach the editor to see the tabs.
+
+2. **AI Assist Lock Icon**: When not logged in, the "AI Assist" buttons show a Lock icon instead of Sparkles. While functionally correct (auth-gated), the Lock icon feels restrictive and confusing. It should use Sparkles with reduced opacity instead, matching the overall AI branding.
+
+3. **StepperNav Tabs**: The previous fix (opaque backgrounds, `flex-1 min-w-0`, `w-10 h-10` circles) is already applied and looks correct in code. Needs visual verification once the guest flow is fixed.
+
+---
 
 ### Changes
 
-**File: `src/components/editor/StepperNav.tsx`**
+#### 1. Fix Guest Resume Creation
+**File: `src/components/dashboard/CreateResumeDialog.tsx`**
 
-1. **Ensure all 5 tabs fit without scrolling**: Replace `justify-between` with a flex layout that distributes tabs evenly using `flex-1` on each button, and reduce circle size from 48px (`w-12 h-12`) to 40px (`w-10 h-10`) to guarantee fit on 320px screens.
+In `handleStartBlank`, add a guest fallback before the DB mutation. If `!user`, create a local-only resume using the zustand store with a UUID id, then navigate to `/editor` -- bypassing the database entirely.
 
-2. **Fix connecting line showing through circles**: Give each circle an opaque background instead of transparent/semi-transparent. For example:
-   - Active: solid background with primary tint on an opaque base
-   - Completed: solid success-tinted opaque background  
-   - Default: opaque `bg-card` or `bg-background`
-   
-   This ensures the line (which is already behind the circles via z-index) is visually hidden beneath opaque circle backgrounds.
+```
+// Before the existing DB call:
+if (!user) {
+  const guestId = uuidv4();
+  setCurrentResumeId(guestId);
+  setCurrentResume({
+    id: guestId,
+    contactInfo: { fullName: '', email: '', phone: '', location: '', linkedin: '' },
+    summary: '',
+    experience: [],
+    education: [],
+    skills: [],
+    certifications: [],
+    templateId: 'modern',
+  });
+  onOpenChange(false);
+  navigate('/editor');
+  return;
+}
+```
 
-3. **Compact labels**: Reduce label font from `text-[11px]` to `text-[10px]` and shorten "Education" to "Edu" on small screens using a responsive approach, or keep labels compact enough to fit.
+This requires importing `uuidv4` (already a project dependency).
 
-4. **Remove unnecessary scroll infrastructure**: Since all tabs will now fit, remove the `overflow-x-auto`, `canScrollLeft`/`canScrollRight` state, and fade gradient indicators -- simplifying the component.
+#### 2. Fix Editor Guest Redirect
+**File: `src/pages/EditorPage.tsx`**
 
-### Technical Details
+The stale-resume-ID check (lines 122-129) will incorrectly redirect guests because `useResume` returns no data when `!user`. Add a guard: only run the stale-ID redirect when the user is authenticated, so guests with local-only resumes are not kicked out.
 
-The key CSS changes in the circle div:
-- Replace `bg-primary/15` (semi-transparent) with an opaque equivalent like `bg-[hsl(355_90%_60%/0.15)]` layered on `bg-background`, or simply use a wrapper approach where the circle has `bg-background` as base
-- Each button gets `flex-1 min-w-0` instead of fixed `min-w-[48px]` to distribute space evenly
-- Icon size stays at `w-5 h-5` (20px) which works fine in a 40px circle
+Change the condition to:
+```
+if (user && currentResumeId && !isValidating && !resumeFromDb && resumeError) {
+```
 
-No other files need changes.
+#### 3. Replace Lock Icon with Sparkles for Unauthenticated AI Assist
+**File: `src/components/editor/InlineAIButton.tsx`**
+
+Replace the Lock icon (line 111) with Sparkles but without the pulse animation, keeping the 60% opacity styling that already exists for unauthenticated state. This communicates "AI feature available but requires sign-in" without the negative "locked" feeling.
+
+Change:
+```
+<Lock className="w-3.5 h-3.5" />
+```
+To:
+```
+<Sparkles className="w-3.5 h-3.5" />
+```
+
+Also remove the `Lock` import since it will no longer be used.
+
+---
+
+### Technical Notes
+
+- The `uuid` package is already installed (v13.0.0) and used elsewhere in the codebase
+- The zustand store uses `persist` middleware, so the guest resume will survive page refreshes via localStorage
+- The guest is already limited to one resume by the `handleCreateNew` guard in DashboardPage (line 80-84)
+- No database or migration changes needed
+- 3 files modified total
+
