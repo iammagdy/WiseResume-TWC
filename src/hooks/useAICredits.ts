@@ -65,46 +65,21 @@ export function useAICreditsMutations() {
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
 
-      const today = new Date().toISOString().split('T')[0];
+      // Use secure server-side function to increment usage
+      const { error } = await supabase.rpc('increment_ai_usage', {
+        p_user_id: user.id,
+      });
 
-      // Try to get existing record
-      const { data: existing } = await supabase
+      if (error) throw error;
+
+      // Fetch updated credits after increment
+      const { data } = await supabase
         .from('ai_credits')
-        .select('*')
+        .select('daily_usage, daily_limit')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      if (!existing) {
-        // Create first record
-        const { error } = await supabase
-          .from('ai_credits')
-          .insert({
-            user_id: user.id,
-            daily_usage: 1,
-            daily_limit: 20,
-            usage_date: today,
-            total_usage: 1,
-          });
-        if (error) throw error;
-        return { daily_usage: 1, daily_limit: 20 };
-      }
-
-      // Reset if new day
-      const newDailyUsage = existing.usage_date === today
-        ? (existing.daily_usage || 0) + 1
-        : 1;
-
-      const { error } = await supabase
-        .from('ai_credits')
-        .update({
-          daily_usage: newDailyUsage,
-          usage_date: today,
-          total_usage: (existing.total_usage || 0) + 1,
-        })
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      return { daily_usage: newDailyUsage, daily_limit: existing.daily_limit || 20 };
+      return { daily_usage: data?.daily_usage || 1, daily_limit: data?.daily_limit || 20 };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ai-credits'] });
