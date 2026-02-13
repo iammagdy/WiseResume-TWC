@@ -1,105 +1,138 @@
 
 
-## Dashboard Empty State Enhancement
+## Add Critical Pages to WiseResume Architecture
 
 ### Overview
-Comprehensive overhaul of the empty state experience on `/dashboard` when a user has zero resumes. This touches the `EmptyState` component, `DashboardStats` header, `DailyTipCard`, and adds new sub-components for quick actions and a tips carousel.
+Add 4 new pages to complete the app's navigation architecture. The existing 404 page already meets the requirements, so it will be skipped.
 
 ---
 
-### File Changes
+### 1. `/onboarding` -- Dedicated Onboarding Page
 
-#### 1. `src/components/dashboard/DailyTipCard.tsx` -- "Daily Tip" label + pulse
+**New file:** `src/pages/OnboardingPage.tsx`
 
-- Change the collapsed button label from `"Tip"` to `"Daily Tip"` (line 124)
-- Add a subtle pulse animation class to the collapsed button: `animate-pulse` on the lightbulb icon wrapper
+A multi-step flow with 5 screens managed by a `step` state (0-4), distinct from the existing `OnboardingCarousel` (which remains for first-visit dashboard use).
 
-#### 2. `src/components/dashboard/DashboardStats.tsx` -- Rotating subtitle + reduced spacing
+| Step | Screen | Content |
+|------|--------|---------|
+| 0 | Welcome | AppIcon + "Welcome to WiseResume" greeting, animated entrance |
+| 1 | Select Goal | 3 choice cards: "Land a new job", "Update my resume", "Explore templates" -- stored in localStorage as `wr-onboarding-goal` |
+| 2 | Pick Template | Grid of 6 popular templates (reuse `TemplateThumbnail` component), selected template stored in localStorage as `wr-onboarding-template` |
+| 3 | Notifications | Optional push notification prompt (informational only -- no actual push setup), skip-friendly |
+| 4 | Done | Confetti-like sparkle animation, "You're all set!" message, "Get Started" CTA navigating to `/dashboard` |
 
-- Add a rotating motivational subtitle array (e.g., "Let's create something amazing today!", "Your next opportunity starts here", "One great resume away from your dream job")
-- Use `AnimatePresence` with a 4-second interval to cycle through them with a fade transition below the greeting line
-- Subtitle only appears when `totalResumes === 0` (empty state context)
-- Change container padding from `pt-4 pb-3` to `pt-3 pb-2` to tighten gap between greeting and empty state (64px to ~40px)
+- Progress indicator: horizontal progress bar at the top using the existing `Progress` component
+- Skip button in top-right corner on all steps
+- Back/Next navigation buttons at bottom
+- Marks `wr-onboarding-completed` in localStorage on finish
+- If already completed, redirect to `/dashboard`
 
-#### 3. `src/components/dashboard/EmptyState.tsx` -- Major polish
-
-**Staggered entrance animations:**
-- Wrap the entire component in a parent `motion.div` with `staggerChildren: 0.1`
-- Each sub-section (icon, heading, steps, templates, CTAs) becomes a child `motion.div` with `variants` for `hidden`/`visible` (fade-in + slide-up)
-- Respect `prefers-reduced-motion` via a `useReducedMotion` check from framer-motion
-
-**Icon enhancements (lines 31-45):**
-- Add a slow pulsing glow ring: second `absolute inset-0` div with `animate-pulse` and `bg-primary/15 blur-xl scale-150`
-
-**Heading (line 47):**
-- Change `text-xl` to `text-2xl` (plan says reduce from 3xl to 2xl, but it's currently xl -- bumping to 2xl gives more prominence)
-
-**Steps with dotted connectors (lines 63-81):**
-- Add a vertical dotted line between steps using a `relative` wrapper and an `absolute` pseudo-element (`border-l-2 border-dashed border-primary/20`) connecting each step icon to the next
-- Implemented as an explicit `div` between step items (height 12px, centered under the icon column)
-
-**Template previews (lines 83-122):**
-- Increase card width from `w-[80px]` to `w-[96px]` (20% larger)
-- Add "Popular" badge on the Modern template: small absolute-positioned `Badge` with `text-[8px]`
-- Add hover/active state: `hover:scale-105 hover:shadow-xl transition-all duration-200`
-- Increase gap from `gap-3` to `gap-4`
-
-**CTA buttons (lines 124-145):**
-- The "Create Your First Resume" button already has a Plus icon -- add a 3-pulse animation on mount using a custom motion animation (`animate={{ scale: [1, 1.03, 1] }}` with `transition={{ times: [0,0.5,1], duration: 0.6, repeat: 2 }}`)
-- Add `LayoutGrid` icon to "Browse All Templates" button
-- Ensure `gap-3` between buttons (add wrapper `div` with `flex flex-col gap-3 w-full max-w-xs`)
-
-#### 4. `src/pages/DashboardPage.tsx` -- Quick Actions + Tips Carousel in empty state
-
-**Quick Actions grid (lines 420-421):**
-- When `resumes.length === 0`, render a 2x2 grid of quick action cards ABOVE the `EmptyState` component
-- Reuse existing `ActionCard` component from `src/components/home/ActionCard.tsx`
-- Actions: "New Resume" (FileText), "Import PDF" (Upload), "Browse Jobs" (Briefcase), "AI Writer" (Sparkles)
-- Grid: `grid grid-cols-2 gap-3 px-6 mb-4`
-
-**Tips Carousel (below CTAs inside EmptyState):**
-- Add a new section at the bottom of EmptyState with an auto-cycling tips carousel (5s interval)
-- 4 tips: "Keep your resume to 1-2 pages", "Use action verbs", "Tailor for each job", "Include quantifiable results"
-- Each tip shows a Lightbulb icon + text in a glass-surface card
-- Navigation dots below (small circles, active one uses `bg-primary`)
-- Auto-pause cycling on hover/touch via `onMouseEnter`/`onMouseLeave`
-- Uses `useState` for active index + `useEffect` interval
-
-**Keyboard shortcuts:**
-- Add a `useEffect` in DashboardPage listening for `keydown` events when empty state is showing:
-  - `N` key -> `handleCreateNew()`
-  - `I` key -> `navigate('/upload')`
-- Only active when no input is focused
-
-**ARIA labels:**
-- Add `aria-label` to template preview buttons, quick action cards, and CTA buttons
+**Route registration:** Add to `App.tsx` inside `AppShell` with lazy loading.
 
 ---
 
-### Layout (empty state, top to bottom)
+### 2. `/profile` -- User Profile Page
 
-```text
-[Header bar with logo + profile avatar]
-[Daily Tip banner / collapsed "Daily Tip" pill]
-[Glass Hero Card: greeting + rotating subtitle]
-[2x2 Quick Actions grid]
-[Empty State Card]
-  - Floating file icon with glow
-  - "No Resumes Yet" (text-2xl)
-  - Steps with dotted connectors
-  - Template previews (larger, with "Popular" badge)
-  - CTA buttons (pulsing primary + outlined templates)
-  - Tips carousel with dots
-```
+**New file:** `src/pages/ProfilePage.tsx`
+
+Requires authentication -- redirects to `/auth` if not logged in.
+
+**Layout (top to bottom):**
+- Header with back arrow + "My Profile" title
+- Avatar (large, 80px) + full name + job title
+- Profile completion progress bar (reuse `calculateProfileCompletion`)
+- "Edit Profile" button (opens existing `EditProfileSheet`)
+- Stats row: glass cards showing resume count and application count
+- Resume portfolio section: grid/list of user's resumes (reuse `ResumeListCard`)
+- "Share Profile" button (uses `navigator.share` or copies a formatted text summary)
+
+**Data sources:** `useProfile` hook for profile data, `useResumes` hook for resume list, `useJobApplications` for application count.
+
+**Route registration:** Add to `App.tsx` inside `AppShell`.
+
+---
+
+### 3. `/templates` -- Template Browser Page
+
+**New file:** `src/pages/TemplatesPage.tsx`
+
+A full-page template gallery accessible to all users (no auth required).
+
+**Layout:**
+- Header with back arrow + "Templates" title
+- Filter chips: "All", "Professional", "Creative", "Tech", "ATS-Optimized" (derived from existing template categories)
+- Grid of template cards (3 columns on tablet, 2 on mobile) using `TemplateThumbnail`
+- Each card shows: template name, ATS badge (High/Medium), category tag
+- Tap a card to open a preview sheet (`Sheet`) showing a larger thumbnail + description + "Use Template" button
+- "Use Template" navigates to `/editor` after setting the template in the resume store (or creates a new resume with that template)
+
+**Data source:** Reuse the `templates` array from `TemplateSelector.tsx` -- extract it to a shared constant file or import directly.
+
+**Route registration:** Add to `App.tsx` inside `AppShell`.
+
+---
+
+### 4. `/resume/:id` -- Resume Detail Page
+
+**New file:** `src/pages/ResumeDetailPage.tsx`
+
+Shows a single resume's details with action buttons.
+
+**Layout:**
+- Header with back arrow + resume title (editable inline)
+- Template thumbnail preview (large, centered)
+- Metadata section: created date, last edited, template name
+- Action buttons grid (2x3): Edit, Preview, Download PDF, Share, Duplicate, Delete
+  - Edit navigates to `/editor` with resume loaded
+  - Preview navigates to `/preview`
+  - Download triggers PDF generation (reuse `pdfGenerator`)
+  - Share opens `ShareSheet`
+  - Duplicate calls `createResume` mutation with cloned data
+  - Delete shows confirmation dialog then calls `deleteResume` mutation
+- Health score ring (if score data exists, reuse `ScoreRing`)
+
+**Data source:** `useResumes` to fetch by ID from URL param, `useResumeScore` for health data.
+
+**Route registration:** Add to `App.tsx` inside `AppShell` as `<Route path="/resume/:id" ...>`.
+
+---
+
+### 5. 404 Page -- Already Complete
+
+The existing `NotFound.tsx` already has centered layout, illustration (AlertCircle icon), "Page Not Found" heading, message text, and "Return to Home" CTA. No changes needed.
+
+---
+
+### Route & Navigation Updates
+
+**`src/App.tsx`:**
+- Add 4 new lazy-loaded page imports
+- Add routes inside `AppShell`: `/onboarding`, `/profile`, `/templates`, `/resume/:id`
+
+**`src/components/layout/AppShell.tsx`:**
+- Add new routes to `TAB_ROUTES` array so bottom nav remains visible
+
+**`src/lib/navigation.ts`:**
+- Add back routes: `/onboarding` -> `/dashboard`, `/profile` -> `/dashboard`, `/templates` -> `/dashboard`, `/resume/:id` -> `/dashboard` (pattern match)
+
+---
+
+### Shared Template Data Extraction
+
+**New file:** `src/lib/templateData.ts`
+
+Extract the `templates: TemplateInfo[]` array currently defined inside `TemplateSelector.tsx` into a shared module so both `TemplateSelector`, `TemplatesPage`, and `EmptyState` can import it without duplication.
+
+---
 
 ### Technical Summary
 
-| Area | Detail |
+| Item | Detail |
 |------|--------|
-| Files modified | `EmptyState.tsx`, `DashboardStats.tsx`, `DailyTipCard.tsx`, `DashboardPage.tsx` |
-| New imports | `Briefcase`, `LayoutGrid` from lucide-react; `ActionCard` from home; `useReducedMotion` from framer-motion |
-| New state | `activeTipIndex` in EmptyState; keyboard listener in DashboardPage |
-| Accessibility | `aria-label` on interactive elements; `useReducedMotion` to skip animations; keyboard shortcuts (N, I) |
-| Mobile | Templates shrink via responsive width; quick actions stay 2x2; full-width CTAs |
-| Performance | Tips carousel uses simple `setInterval`; no new network requests; all client-side |
+| New files | `OnboardingPage.tsx`, `ProfilePage.tsx`, `TemplatesPage.tsx`, `ResumeDetailPage.tsx`, `templateData.ts` |
+| Modified files | `App.tsx` (routes), `AppShell.tsx` (TAB_ROUTES), `navigation.ts` (back routes), `TemplateSelector.tsx` (import from shared data) |
+| Reused components | `TemplateThumbnail`, `ResumeListCard`, `ScoreRing`, `EditProfileSheet`, `ShareSheet`, `Progress`, `AppIcon` |
+| Reused hooks | `useProfile`, `useResumes`, `useResumeScore`, `useJobApplications`, `useAuth` |
+| Auth requirements | `/profile` requires auth; others are public |
+| Storage | Onboarding progress in localStorage (`wr-onboarding-goal`, `wr-onboarding-template`, `wr-onboarding-completed`) |
 
