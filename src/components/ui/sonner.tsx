@@ -1,11 +1,22 @@
-import { useTheme } from "next-themes";
+import { useState, useEffect } from "react";
 import { Toaster as Sonner, toast } from "sonner";
 import { CheckCircle2, XCircle, AlertTriangle, Info } from "lucide-react";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
+    if (typeof window === "undefined") return "dark";
+    return (localStorage.getItem("theme") as "light" | "dark" | "system") || "dark";
+  });
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setTheme((localStorage.getItem("theme") as "light" | "dark" | "system") || "dark");
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   return (
     <Sonner
