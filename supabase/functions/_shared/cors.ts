@@ -13,7 +13,7 @@ export const getCorsHeaders = (origin?: string | null) => {
     origins.push(allowedOrigin);
   }
 
-  const isLovablePreview = origin?.endsWith('.lovable.app');
+  const isLovablePreview = origin?.endsWith('.lovable.app') || origin?.endsWith('.lovableproject.com');
   const isAllowed = origin && (origins.includes(origin) || isLovablePreview);
 
   return {
