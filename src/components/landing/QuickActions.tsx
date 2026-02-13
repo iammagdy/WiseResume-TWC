@@ -39,19 +39,7 @@ export function QuickActions() {
 
   const handleAction = (action: typeof actions[0]) => {
     triggerHaptic.light();
-    if (action.createBlank) {
-      setCurrentResume({
-        contactInfo: { fullName: '', email: '', phone: '', location: '', linkedin: '', portfolio: '' },
-        summary: '',
-        experience: [],
-        education: [],
-        skills: [],
-        certifications: [],
-        templateId: 'modern',
-      });
-      setCurrentResumeId(null);
-    }
-    navigate(action.route);
+    navigate('/auth');
   };
 
   return (

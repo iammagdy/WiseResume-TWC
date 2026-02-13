@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Briefcase, Lock } from 'lucide-react';
+import { FileText, Settings, Home, Briefcase } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -60,7 +60,6 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   };
 
   const isEditorDisabled = !currentResumeId;
-  const isJobsLocked = !user;
 
   const handleTabPress = (tab: TabItem) => {
     haptics.selection();
@@ -132,12 +131,6 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                     aria-hidden="true"
                   />
                 </div>
-                {/* Lock overlay for Jobs tab when not signed in */}
-                {tab.path === '/applications' && isJobsLocked && (
-                  <div className="absolute -top-1 -right-2">
-                    <Lock className="w-3 h-3 text-muted-foreground" />
-                  </div>
-                )}
               </div>
               <span
                 className={cn(

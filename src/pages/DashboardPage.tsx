@@ -28,7 +28,7 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
 const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
-const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
@@ -66,7 +66,7 @@ export default function DashboardPage() {
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
-  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+  
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tipVisible, setTipVisible] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -76,28 +76,15 @@ export default function DashboardPage() {
     if (showCreateDialog) setIsCreating(false);
   }, [showCreateDialog]);
 
-  // Guest-gated create handler
   const handleCreateNew = useCallback(() => {
-    if (!user && resumes && resumes.length > 0) {
-      setShowSignInPrompt(true);
-      return;
-    }
     setIsCreating(true);
     setShowCreateDialog(true);
-  }, [user, resumes]);
+  }, []);
 
-  // Check onboarding status for both authenticated and guest users
+  // Check onboarding status for authenticated users
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      if (!user) {
-        // Guest: check localStorage
-        const seen = localStorage.getItem('wr-onboarding-seen');
-        if (!seen) {
-          setShowOnboarding(true);
-        }
-        setProfileLoaded(true);
-        return;
-      }
+      if (!user) return;
       try {
         const { data } = await supabase
           .from('profiles')
@@ -117,8 +104,6 @@ export default function DashboardPage() {
     
     checkOnboardingStatus();
   }, [user]);
-
-  // Guests can use the dashboard - no forced redirect to /auth
 
   // Keyboard shortcuts for empty state
   useEffect(() => {
@@ -165,8 +150,6 @@ export default function DashboardPage() {
         .from('profiles')
         .update({ onboarding_completed: true })
         .eq('user_id', user.id);
-    } else {
-      localStorage.setItem('wr-onboarding-seen', 'true');
     }
     haptics.success();
     setShowOnboarding(false);
@@ -287,6 +270,11 @@ export default function DashboardPage() {
     setCreateTailoredParentId(parentId);
     setShowCreateDialog(true);
   };
+
+  // Auth guard - redirect unauthenticated users
+  if (!authLoading && !user) {
+    return <Navigate to="/auth" replace />;
+  }
 
   // Show onboarding for first-time users
   if (showOnboarding) {
@@ -584,17 +572,6 @@ export default function DashboardPage() {
         <FloatingCreateButton onClick={handleCreateNew} pulse={tipVisible} isLoading={isCreating} />
       )}
 
-      {/* Sign In Prompt for guests */}
-      <Suspense fallback={null}>
-        {showSignInPrompt && (
-          <SignInPromptDialog
-            open={showSignInPrompt}
-            onOpenChange={setShowSignInPrompt}
-            title="Create Unlimited Resumes"
-            description="Sign in to create and manage multiple resumes."
-          />
-        )}
-      </Suspense>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteResumeId} onOpenChange={() => setDeleteResumeId(null)}>

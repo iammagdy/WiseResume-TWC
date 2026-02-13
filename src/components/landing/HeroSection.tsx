@@ -26,28 +26,7 @@ export function HeroSection() {
 
   const handleGetStarted = () => {
     triggerHaptic.medium();
-    if (isAuthenticated) {
-      navigate('/dashboard');
-    } else {
-      setCurrentResume({
-        contactInfo: {
-          fullName: '',
-          email: '',
-          phone: '',
-          location: '',
-          linkedin: '',
-          portfolio: '',
-        },
-        summary: '',
-        experience: [],
-        education: [],
-        skills: [],
-        certifications: [],
-        templateId: 'modern',
-      });
-      setCurrentResumeId(null);
-      navigate('/editor');
-    }
+    navigate(isAuthenticated ? '/dashboard' : '/auth');
   };
 
   return (

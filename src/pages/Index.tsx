@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Sparkles, Download, BarChart3, LayoutGrid } from 'lucide-react';
+import { Pencil, Sparkles, Download, BarChart3, LayoutGrid, Wand2, Target, Mic, Users, Check, X, Shield, Zap } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, useReducedMotion, type Easing } from 'framer-motion';
 
@@ -13,9 +14,22 @@ const steps = [
 ];
 
 const features = [
-  { icon: Sparkles, title: 'AI Writing Assistant', desc: 'Enhance bullets and summaries instantly' },
-  { icon: BarChart3, title: 'ATS Score Checker', desc: 'See how well you match any job' },
-  { icon: LayoutGrid, title: 'Professional Templates', desc: '12 designs for every industry' },
+  { icon: Sparkles, title: 'AI Writing Assistant', desc: 'Enhance bullets and summaries with one tap', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
+  { icon: Target, title: 'ATS Score Checker', desc: 'Real-time scoring against any job posting', iconColor: 'text-emerald-500', gradient: 'from-emerald-500/20 to-emerald-500/5' },
+  { icon: Wand2, title: 'Smart Job Tailoring', desc: 'AI adapts your resume to each job automatically', iconColor: 'text-blue-500', gradient: 'from-blue-500/20 to-blue-500/5' },
+  { icon: Mic, title: 'Voice Mock Interviews', desc: 'Practice with AI voice coaching & real-time feedback', iconColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' },
+  { icon: Users, title: '4 AI Recruiter Perspectives', desc: 'Fortune 500, Startup, Tech & Executive viewpoints', iconColor: 'text-rose-500', gradient: 'from-rose-500/20 to-rose-500/5' },
+  { icon: LayoutGrid, title: '12 Professional Templates', desc: 'Designs for every industry, fully customizable', iconColor: 'text-violet-500', gradient: 'from-violet-500/20 to-violet-500/5' },
+];
+
+const competitors = [
+  { label: 'Generic templates only', us: true, them: false },
+  { label: 'AI-powered writing', us: true, them: false },
+  { label: 'ATS score checker', us: true, them: false },
+  { label: 'Job-specific tailoring', us: true, them: false },
+  { label: 'Voice mock interviews', us: true, them: false },
+  { label: 'AI recruiter feedback', us: true, them: false },
+  { label: 'Free forever', us: true, them: false },
 ];
 
 const templatePreviews = [
@@ -49,12 +63,15 @@ const Index = () => {
           transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
         };
 
+  const handleCTA = () => {
+    navigate(user ? '/dashboard' : '/auth');
+  };
+
   return (
     <SpaceBackground>
       <main className="min-h-screen pb-12">
         {/* Hero */}
         <section className="flex flex-col items-center text-center px-6 pt-16 pb-6">
-          {/* Floating icon with glow */}
           <motion.div className="relative mb-6 animate-float" {...fade(0)}>
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-50 animate-glow-pulse"
@@ -81,7 +98,7 @@ const Index = () => {
             className="text-base text-muted-foreground mb-8"
             {...fade(0.2)}
           >
-            AI-powered&nbsp;•&nbsp;ATS-optimized&nbsp;•&nbsp;Free forever
+            The AI resume builder that actually gets you hired
           </motion.p>
 
           <motion.div className="w-full flex justify-center" {...fade(0.25)}>
@@ -93,9 +110,9 @@ const Index = () => {
               <Button
                 size="lg"
                 className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-[hsl(330_70%_50%)] hover:from-primary/90 hover:to-[hsl(330_70%_45%)] shadow-[0_0_24px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_32px_-4px_hsl(var(--primary)/0.7)] transition-shadow"
-                onClick={() => navigate(user ? '/dashboard' : '/dashboard')}
+                onClick={handleCTA}
               >
-                {user ? 'Go to Dashboard' : 'Create My Resume'}
+                {user ? 'Go to Dashboard' : 'Get Started Free'}
               </Button>
             </motion.div>
           </motion.div>
@@ -115,7 +132,7 @@ const Index = () => {
             {...fade(0.35)}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            Free&nbsp;•&nbsp;No credit card&nbsp;•&nbsp;5 minutes
+            Free forever&nbsp;•&nbsp;No credit card&nbsp;•&nbsp;Ready in 5 minutes
           </motion.div>
         </section>
 
@@ -148,39 +165,127 @@ const Index = () => {
           </div>
         </motion.section>
 
-        {/* Features */}
-        <motion.section className="px-6 mb-6" {...inView(0)}>
+        {/* Social Proof Bar */}
+        <motion.section className="px-6 mb-8" {...inView(0)}>
+          <div className="flex items-center justify-center">
+            <div className="inline-flex items-center gap-5 sm:gap-8 px-5 py-3 rounded-2xl bg-card/40 backdrop-blur-sm border border-border/20">
+              {[
+                { icon: '⭐', value: '4.9', label: 'Rating' },
+                { icon: '📄', value: '10,000+', label: 'Resumes Built' },
+                { icon: '💚', value: 'Free', label: 'Forever' },
+              ].map((stat, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-lg">{stat.icon}</span>
+                  <div className="text-center">
+                    <p className="font-display font-bold text-foreground">{stat.value}</p>
+                    <p className="text-xs text-muted-foreground">{stat.label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </motion.section>
+
+        {/* Why We're Different - Comparison */}
+        <motion.section className="px-6 mb-8" {...inView(0)}>
           <motion.h2
-            className="text-2xl font-bold text-foreground text-center mb-4"
+            className="text-2xl font-bold text-foreground text-center mb-2"
             {...inView(0)}
           >
             Why WiseResume?
           </motion.h2>
-          <div className="space-y-3">
-            {features.map((f, i) => (
+          <p className="text-sm text-muted-foreground text-center mb-6">See what sets us apart from the rest</p>
+
+          <Card className="max-w-md mx-auto p-0 overflow-hidden border-border/30 bg-card/50 backdrop-blur-sm">
+            {/* Header */}
+            <div className="grid grid-cols-3 text-center text-xs font-semibold border-b border-border/20 bg-muted/30">
+              <div className="py-3 px-2">Feature</div>
+              <div className="py-3 px-2 text-primary">WiseResume</div>
+              <div className="py-3 px-2 text-muted-foreground">Others</div>
+            </div>
+            {/* Rows */}
+            {competitors.map((row, i) => (
               <motion.div
-                key={f.title}
-                className="glass-surface border border-border/30 rounded-2xl p-4 flex items-center gap-4 group transition-colors hover:border-primary/40 hover:bg-primary/5"
-                {...inView(0.15 * i)}
-                whileHover={prefersReducedMotion ? undefined : { y: -4, transition: { duration: 0.2 } }}
+                key={row.label}
+                className="grid grid-cols-3 text-center items-center border-b border-border/10 last:border-0"
+                {...inView(0.05 * i)}
               >
-                <div className="w-12 h-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center transition-transform group-hover:rotate-[5deg]">
-                  <f.icon className="w-5 h-5 text-primary" />
+                <div className="py-2.5 px-3 text-xs text-foreground text-left">{row.label}</div>
+                <div className="py-2.5 flex justify-center">
+                  <div className="w-6 h-6 rounded-full bg-success/15 flex items-center justify-center">
+                    <Check className="w-3.5 h-3.5 text-success" />
+                  </div>
                 </div>
-                <div className="min-w-0">
-                  <h3 className="text-base font-semibold text-foreground">{f.title}</h3>
-                  <p className="text-sm text-muted-foreground">{f.desc}</p>
+                <div className="py-2.5 flex justify-center">
+                  <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center">
+                    <X className="w-3.5 h-3.5 text-destructive/60" />
+                  </div>
                 </div>
+              </motion.div>
+            ))}
+          </Card>
+        </motion.section>
+
+        {/* AI Bullet Transform Demo */}
+        <motion.section className="px-6 mb-8" {...inView(0)}>
+          <Card className="max-w-md mx-auto p-5 border-border/30 bg-card/50 backdrop-blur-sm overflow-hidden">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-lg">✨</span>
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">AI Bullet Transformation</h3>
+                <p className="text-xs text-muted-foreground">From vague to impactful</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20">
+                <p className="text-xs text-destructive font-medium mb-1">Before</p>
+                <p className="text-sm text-muted-foreground">"Worked on frontend development"</p>
+              </div>
+              <div className="flex justify-center">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center animate-bounce">
+                  <Zap className="w-4 h-4 text-primary" />
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-success/5 border border-success/20">
+                <p className="text-xs text-success font-medium mb-1">After</p>
+                <p className="text-sm text-foreground">
+                  "Built <span className="text-primary font-medium">15+ React components</span> serving <span className="text-primary font-medium">50K+ users</span>, reducing load time by <span className="text-primary font-medium">40%</span>"
+                </p>
+              </div>
+            </div>
+          </Card>
+        </motion.section>
+
+        {/* Features - 6 items */}
+        <motion.section className="px-6 mb-8" {...inView(0)}>
+          <motion.h2
+            className="text-2xl font-bold text-foreground text-center mb-2"
+            {...inView(0)}
+          >
+            Everything You Need
+          </motion.h2>
+          <p className="text-sm text-muted-foreground text-center mb-6">Powerful features to land your dream job</p>
+          <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
+            {features.map((f, i) => (
+              <motion.div key={f.title} {...inView(0.08 * i)}>
+                <Card className="p-4 border-border/30 bg-card/50 backdrop-blur-sm h-full hover:border-primary/40 transition-colors">
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-3`}>
+                    <f.icon className={`w-5 h-5 ${f.iconColor}`} />
+                  </div>
+                  <h3 className="font-semibold text-sm mb-1">{f.title}</h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+                </Card>
               </motion.div>
             ))}
           </div>
         </motion.section>
 
         {/* Template Preview */}
-        <motion.section className="px-6 mb-6" {...inView(0)}>
+        <motion.section className="px-6 mb-8" {...inView(0)}>
           <p className="text-sm text-muted-foreground mb-3 text-center">Templates</p>
           <div className="relative">
-            {/* Gradient fade overlays */}
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
               {templatePreviews.map((t, i) => (
                 <motion.div
@@ -207,14 +312,40 @@ const Index = () => {
             </div>
           </div>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={handleCTA}
             className="story-link block mx-auto mt-2 text-sm text-primary hover:text-primary/80 transition-colors touch-manipulation"
           >
-            <span>Browse All Templates →</span>
+            <span>Browse All 12 Templates →</span>
           </button>
         </motion.section>
-      </main>
 
+        {/* Bottom CTA */}
+        <motion.section className="px-6 py-12" {...inView(0)}>
+          <div className="max-w-md mx-auto text-center">
+            <h2 className="text-2xl font-bold text-foreground mb-3">
+              Ready to Land Your Dream Job?
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+              Join thousands building better resumes with AI
+            </p>
+            <Button
+              size="lg"
+              className="w-full h-14 text-lg font-semibold gap-3 bg-gradient-to-r from-primary to-[hsl(330_70%_50%)] hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
+              onClick={handleCTA}
+            >
+              <Sparkles className="w-5 h-5" />
+              Get Started Free
+            </Button>
+            <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Free forever</span>
+              <span>•</span>
+              <span>No credit card</span>
+              <span>•</span>
+              <span>5 minutes</span>
+            </div>
+          </div>
+        </motion.section>
+      </main>
     </SpaceBackground>
   );
 };
