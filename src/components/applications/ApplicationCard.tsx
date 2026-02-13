@@ -14,6 +14,7 @@ import { haptics } from '@/lib/haptics';
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; dotColor: string; bgColor: string }> = {
   saved: { label: 'Saved', dotColor: 'bg-secondary', bgColor: 'bg-secondary/10' },
   applied: { label: 'Applied', dotColor: 'bg-primary', bgColor: 'bg-primary/10' },
+  screening: { label: 'Screening', dotColor: 'bg-accent', bgColor: 'bg-accent/10' },
   interviewing: { label: 'Interviewing', dotColor: 'bg-warning', bgColor: 'bg-warning/10' },
   offer: { label: 'Offer', dotColor: 'bg-success', bgColor: 'bg-success/10' },
   rejected: { label: 'Rejected', dotColor: 'bg-destructive', bgColor: 'bg-destructive/10' },

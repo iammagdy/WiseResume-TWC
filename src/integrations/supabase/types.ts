@@ -90,7 +90,9 @@ export type Database = {
           id: string
           job_title: string
           resume_id: string | null
+          title: string | null
           tone: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -100,7 +102,9 @@ export type Database = {
           id?: string
           job_title: string
           resume_id?: string | null
+          title?: string | null
           tone?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -110,7 +114,9 @@ export type Database = {
           id?: string
           job_title?: string
           resume_id?: string | null
+          title?: string | null
           tone?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: [
@@ -184,6 +190,7 @@ export type Database = {
           created_at: string | null
           deadline: string | null
           id: string
+          job_id: string | null
           job_title: string
           notes: string | null
           remind_at: string | null
@@ -200,6 +207,7 @@ export type Database = {
           created_at?: string | null
           deadline?: string | null
           id?: string
+          job_id?: string | null
           job_title: string
           notes?: string | null
           remind_at?: string | null
@@ -216,6 +224,7 @@ export type Database = {
           created_at?: string | null
           deadline?: string | null
           id?: string
+          job_id?: string | null
           job_title?: string
           notes?: string | null
           remind_at?: string | null
@@ -234,6 +243,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "job_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "job_applications_resume_id_fkey"
             columns: ["resume_id"]
             isOneToOne: false
@@ -241,6 +257,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      jobs: {
+        Row: {
+          company: string
+          company_logo: string | null
+          created_at: string
+          description: string
+          id: string
+          is_saved: boolean
+          job_type: string
+          location: string
+          posted_date: string
+          requirements: string
+          salary_range: string | null
+          source_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          company: string
+          company_logo?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_saved?: boolean
+          job_type?: string
+          location?: string
+          posted_date?: string
+          requirements?: string
+          salary_range?: string | null
+          source_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          company?: string
+          company_logo?: string | null
+          created_at?: string
+          description?: string
+          id?: string
+          is_saved?: boolean
+          job_type?: string
+          location?: string
+          posted_date?: string
+          requirements?: string
+          salary_range?: string | null
+          source_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          link: string | null
+          message: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          link?: string | null
+          message?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -289,6 +392,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      resume_shares: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          is_active: boolean
+          password: string | null
+          resume_id: string
+          token: string
+          user_id: string
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          password?: string | null
+          resume_id: string
+          token: string
+          user_id: string
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean
+          password?: string | null
+          resume_id?: string
+          token?: string
+          user_id?: string
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resume_shares_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resume_versions: {
         Row: {
@@ -490,7 +637,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_share_view_count: {
+        Args: { share_token: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
