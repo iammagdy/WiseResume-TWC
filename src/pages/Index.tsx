@@ -181,8 +181,6 @@ const Index = () => {
           <p className="text-sm text-muted-foreground mb-3 text-center">Templates</p>
           <div className="relative">
             {/* Gradient fade overlays */}
-            <div className="absolute left-0 top-0 bottom-2 w-6 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
-            <div className="absolute right-0 top-0 bottom-2 w-6 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
               {templatePreviews.map((t, i) => (
                 <motion.div
