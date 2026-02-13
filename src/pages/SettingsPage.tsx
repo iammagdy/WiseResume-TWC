@@ -29,8 +29,10 @@ import {
   Check,
   BookOpen,
   Users,
-  Palette
+  Palette,
+  X
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -249,38 +251,7 @@ export default function SettingsPage() {
               <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             </button>
           ) : (
-            /* Enhanced Guest CTA card */
-            <div className="rounded-2xl glass-elevated border-glow overflow-hidden">
-              <div className="h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
-              <div className="p-4">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <AppIcon size={32} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium">Welcome, Guest</p>
-                    <p className="text-sm text-muted-foreground">Create a free account to unlock:</p>
-                  </div>
-                </div>
-                <ul className="mt-3 space-y-1.5 ml-1">
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                    Sync across devices
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                    Export & backup resumes
-                  </li>
-                  <li className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0" />
-                    AI-powered enhancements
-                  </li>
-                </ul>
-                <Button size="sm" onClick={() => navigate('/auth')} className="w-full mt-4">
-                  Get Started Free
-                </Button>
-              </div>
-            </div>
+            <GuestCtaCard navigate={navigate} />
           )}
 
           <Separator />
@@ -678,5 +649,82 @@ export default function SettingsPage() {
         )}
       </Suspense>
     </div>
+  );
+}
+
+const GUEST_CTA_DISMISS_KEY = 'wr-settings-guest-cta-dismissed';
+
+function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem(GUEST_CTA_DISMISS_KEY) === '1');
+
+  const handleDismiss = () => {
+    setDismissed(true);
+    localStorage.setItem(GUEST_CTA_DISMISS_KEY, '1');
+  };
+
+  return (
+    <AnimatePresence mode="wait">
+      {!dismissed ? (
+        <motion.div
+          key="full-cta"
+          initial={{ opacity: 1 }}
+          exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-2xl glass-elevated border-glow overflow-hidden relative"
+        >
+          <button
+            onClick={handleDismiss}
+            className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[28px] min-h-[28px] flex items-center justify-center z-10"
+            aria-label="Dismiss"
+          >
+            <X className="w-3.5 h-3.5 text-muted-foreground" />
+          </button>
+          <div className="h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
+          <div className="p-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <AppIcon size={32} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-medium">Welcome, Guest</p>
+                <p className="text-sm text-muted-foreground">Create a free account to unlock:</p>
+              </div>
+            </div>
+            <ul className="mt-3 space-y-1.5 ml-1">
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                Sync across devices
+              </li>
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                Export & backup resumes
+              </li>
+              <li className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Check className="w-3.5 h-3.5 text-primary shrink-0" />
+                AI-powered enhancements
+              </li>
+            </ul>
+            <Button size="sm" onClick={() => navigate('/auth')} className="w-full mt-4">
+              Get Started Free
+            </Button>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="compact-cta"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.2 }}
+          className="rounded-2xl glass-elevated overflow-hidden"
+        >
+          <SettingsRow
+            type="navigation"
+            label="Sign in to unlock all features"
+            icon={<AppIcon size={20} showSparkle={false} />}
+            onClick={() => navigate('/auth')}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
