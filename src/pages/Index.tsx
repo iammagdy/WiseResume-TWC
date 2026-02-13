@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Sparkles, Download, BarChart3, LayoutGrid, FileText, Settings, Home, Briefcase } from 'lucide-react';
+import { Pencil, Sparkles, Download, BarChart3, LayoutGrid } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
@@ -24,12 +24,6 @@ const templatePreviews = [
   { name: 'Creative', accent: '#EC4899' },
 ];
 
-const bottomTabs = [
-  { icon: Home, label: 'Home' },
-  { icon: FileText, label: 'Editor' },
-  { icon: Briefcase, label: 'Jobs' },
-  { icon: Settings, label: 'Settings' },
-];
 
 const Index = () => {
   const navigate = useNavigate();
@@ -57,7 +51,7 @@ const Index = () => {
 
   return (
     <SpaceBackground>
-      <main className="min-h-screen pb-24">
+      <main className="min-h-screen pb-12">
         {/* Hero */}
         <section className="flex flex-col items-center text-center px-6 pt-16 pb-6">
           {/* Floating icon with glow */}
@@ -223,22 +217,6 @@ const Index = () => {
         </motion.section>
       </main>
 
-      {/* Visual-only bottom tab bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 glass-surface border-t border-border/30 pb-safe opacity-60" aria-hidden="true">
-        <p className="text-[10px] text-muted-foreground text-center pt-1">App Preview</p>
-        <div className="flex items-center justify-around h-14">
-          {bottomTabs.map((tab, i) => (
-            <div
-              key={tab.label}
-              className="flex flex-col items-center gap-0.5 animate-pulse"
-              style={{ animationDelay: `${i * 0.5}s`, animationDuration: '3s' }}
-            >
-              <tab.icon className="w-5 h-5 text-muted-foreground" />
-              <span className="text-[11px] text-muted-foreground font-medium">{tab.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </SpaceBackground>
   );
 };
