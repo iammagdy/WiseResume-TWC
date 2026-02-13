@@ -1,55 +1,41 @@
 
 
-## Fix: Wise AI Chat Sheet Empty State UI Polish
+## Fix: Resume Tailor Timeout + Deployment Verification
 
-### Issues Identified (from screenshot)
-1. The large gradient circle + "Wise AI" title in the scrollable content **duplicates** the header, creating redundancy and visual clutter
-2. The gradient circle overlaps/bleeds into the header border area
-3. Suggestion buttons look flat and lack clear tap affordance
-4. The input area and Close button feel disconnected from the content flow
-5. Overall vertical spacing is off, causing content to feel cramped at top and cut off at bottom
+### Status of Previous CORS Fix
+The CORS fix has been deployed and is confirmed working. Both `parse-job-url` and `tailor-resume` edge functions were successfully redeployed and tested. The error in the screenshot ("Failed to parse job URL") was occurring before the CORS fix took effect.
 
-### Changes
+**Please try the tailor feature again now -- it should work.**
 
-**File: `src/components/editor/AgenticChatSheet.tsx`**
+### Remaining Risk: Tailor Function Timeout
+The `tailor-resume` function takes approximately 30 seconds to complete, which is right at the edge function timeout boundary. This can cause intermittent failures, especially with larger resumes or complex job descriptions.
 
-**1. Remove redundant hero block from empty state (lines 304-311)**
-Remove the large gradient circle icon and duplicate "Wise AI" heading from the scrollable content area. The header already shows the branding, so repeating it wastes valuable screen space and causes the overlap issue.
+### Proposed Optimization
 
-Replace with a compact intro paragraph:
-```tsx
-<div className="flex flex-col items-center text-center pt-6 pb-2">
-  <p className="text-sm text-muted-foreground max-w-[260px]">
-    I can edit your resume directly. Just tell me what to change.
-  </p>
-</div>
-```
+**File: `supabase/functions/tailor-resume/index.ts`**
 
-**2. Upgrade suggestion buttons styling (lines 318-325)**
-Add subtle left accent, icon hint, and better padding for professional look:
-```tsx
-<button
-  key={s}
-  onClick={() => handleSuggestion(s)}
-  className="w-full text-left text-sm px-4 py-3 rounded-xl border border-border/50 
-             bg-card/50 hover:bg-primary/5 hover:border-primary/30 
-             active:scale-[0.98] transition-all touch-manipulation 
-             flex items-center gap-3"
->
-  <Sparkles className="w-3.5 h-3.5 text-primary/50 shrink-0" />
-  <span>{s}</span>
-</button>
-```
+1. **Switch to a faster model**: Change from `gemini-2.5-pro` (slow, heavy reasoning) to `gemini-2.5-flash` for the Lovable gateway path. This model is significantly faster while still producing high-quality results for structured JSON generation tasks like resume tailoring.
 
-**3. Move AIProviderBadge inline with the header title (lines 291-295)**
-Instead of a separate row below the title, place the badge on the same line as the title for a tighter header. Remove the extra `space-y-2` from SheetHeader.
+   ```
+   // Line ~282: Change model for Lovable gateway
+   const modelName = useGeminiDirect ? "gemini-2.5-pro-preview-05-06" : "google/gemini-2.5-flash";
+   ```
 
-**4. Remove the "Close" button from the bottom footer (line 430-435)**
-The sheet already has a native X close button in the header and can be dismissed by swiping down. The "Close" text button wastes vertical space and pushes the input field up unnecessarily.
+2. **Reduce max_tokens**: The current `max_tokens: 8000` is excessive. The typical tailored response is 3000-4000 tokens. Reducing to `5000` speeds up generation.
 
-### Summary of visual improvements
-- No more overlapping gradient circle at the top
-- Single, clean header with title + provider badge inline
-- Professional suggestion chips with sparkle icons and border accents
-- More vertical space for content by removing redundant close button
-- Cleaner overall layout aligned with the Cosmic Glass UI system
+3. **Add a 25-second timeout** to the AI fetch call to fail gracefully before the edge function hard-kills at 30s:
+
+   ```typescript
+   const controller = new AbortController();
+   const timeout = setTimeout(() => controller.abort(), 25000);
+   const response = await fetch(apiUrl, { ..., signal: controller.signal });
+   clearTimeout(timeout);
+   ```
+
+### Technical Summary
+- CORS fix: Already deployed and confirmed working
+- Model change: `gemini-2.5-pro` to `gemini-2.5-flash` (Lovable gateway only; user's own Gemini key still uses Pro)
+- Timeout safety: 25s abort to prevent hanging
+- Token reduction: 8000 to 5000
+
+These changes will make the tailor feature reliably complete within the edge function time limit.
