@@ -350,7 +350,11 @@ export default function SettingsPage() {
               <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
             </button>
           ) : (
-            <GuestCtaCard navigate={navigate} />
+            <div className="text-center py-4">
+              <Button onClick={() => navigate('/auth')} className="w-full">
+                Sign in to access settings
+              </Button>
+            </div>
           )}
 
           <Separator className="opacity-10" />

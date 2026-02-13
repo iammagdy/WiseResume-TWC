@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-const SignInPromptDialog = lazy(() => import('@/components/auth/SignInPromptDialog').then(m => ({ default: m.SignInPromptDialog })));
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
@@ -92,10 +91,6 @@ export default function EditorPage() {
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
-  const [showSignInPrompt, setShowSignInPrompt] = useState(false);
-  const [signInPromptContext, setSignInPromptContext] = useState<{ title: string; description: string } | null>(null);
-  const signInPromptShownRef = useRef(false);
-  const [guestBannerDismissed, setGuestBannerDismissed] = useState(() => sessionStorage.getItem('wr-editor-guest-dismissed') === 'true');
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -218,21 +213,6 @@ export default function EditorPage() {
     return () => window.removeEventListener('keyboard-close', handleKbClose);
   }, [saveToCloud]);
 
-  // Warn guests about unsaved data loss (H6)
-  useEffect(() => {
-    if (user || !currentResume) return;
-
-    const hasContent = currentResume.contactInfo?.fullName || currentResume.summary || currentResume.experience?.length > 0;
-    if (!hasContent) return;
-
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-      e.returnValue = '';
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [user, currentResume]);
 
   // Memoize steps array to prevent StepperNav re-renders
   const steps = useMemo(() => [
@@ -320,51 +300,20 @@ export default function EditorPage() {
       prev[id] = nowComplete;
     }
 
-    // Strategic sign-in prompt for guests after completing 2 sections
-    if (!user && !signInPromptShownRef.current && sessionStorage.getItem('wr-signin-prompt-shown') !== '1') {
-      const completedCount = sectionIds.filter(id => sectionScores[id] >= 100).length;
-      if (completedCount >= 2) {
-        signInPromptShownRef.current = true;
-        sessionStorage.setItem('wr-signin-prompt-shown', '1');
-        setSignInPromptContext({
-          title: "You're making great progress! 🎉",
-          description: 'Sign in to save your work and continue on any device.',
-        });
-        setShowSignInPrompt(true);
-      }
-    }
   }, [sectionScores, CELEBRATION_MESSAGES, NEXT_STEP_MESSAGES, currentResume, user]);
 
-  // Resume guard - redirect to appropriate page based on auth state
-  if (!currentResume) {
-    return <Navigate to={user ? '/dashboard' : '/'} replace />;
-  }
-
   const handleImproveSection = useCallback(() => {
-    // For now, open tailor sheet - could be enhanced to improve specific section
     setShowTailor(true);
   }, []);
 
   const handleBack = useCallback(() => {
-    if (user) {
-      navigate('/dashboard');
-    } else {
-      navigate('/');
-    }
-  }, [user, navigate]);
+    navigate('/dashboard');
+  }, [navigate]);
 
   const handleChangeTemplate = useCallback(() => setShowTemplates(true), []);
   const handleTailor = useCallback(() => {
-    if (!user) {
-      setSignInPromptContext({
-        title: 'Unlock AI-Tailored Resumes',
-        description: 'Sign in to tailor your resume for specific job postings.',
-      });
-      setShowSignInPrompt(true);
-      return;
-    }
     setShowTailor(true);
-  }, [user]);
+  }, []);
   const handleAnalyze = useCallback(() => setShowJobSheet(true), []);
   const handleRecruiterSim = useCallback(() => setShowRecruiterSim(true), []);
   const handleAIDetector = useCallback(() => setShowAIDetector(true), []);
@@ -375,6 +324,17 @@ export default function EditorPage() {
     setLastAppliedJobInfo(info);
     setShowApplyPrompt(true);
   }, []);
+
+  // Auth guard
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  // Resume guard
+  if (!currentResume) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
       {/* Header */}
@@ -404,69 +364,25 @@ export default function EditorPage() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  onClick={() => {
-                    if (user) {
-                      setShowChat(true);
-                    } else {
-                      setSignInPromptContext({ title: 'Unlock Wise AI', description: 'Sign in to access AI-powered resume editing.' });
-                      setShowSignInPrompt(true);
-                    }
-                  }}
-                  className={`keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[54px] min-h-[54px] flex flex-col items-center justify-center gap-0.5 -mr-2 ${
-                    user
-                      ? 'bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]'
-                      : 'opacity-50 cursor-pointer hover:opacity-70 active:scale-95'
-                  }`}
+                  onClick={() => setShowChat(true)}
+                  className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[54px] min-h-[54px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
                   aria-label="Open Wise AI"
                 >
                   <span className="relative">
-                    <Sparkles className={`w-5 h-5 ${user ? 'text-primary' : 'text-muted-foreground'}`} />
-                    {user && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    )}
-                    {!user && (
-                      <Lock className="absolute -bottom-1 -right-1.5 w-3 h-3 text-muted-foreground bg-background rounded-full p-[1px]" />
-                    )}
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
                   </span>
-                  <span className={`text-[9px] font-medium leading-none ${user ? 'text-primary' : 'text-muted-foreground'}`}>Wise AI</span>
+                  <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
                 </button>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                {user ? 'Click for AI assistance' : 'Sign in to unlock Wise AI'}
+                Click for AI assistance
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         </div>
       </header>
 
-        {/* Guest Info Banner */}
-        {!user && !guestBannerDismissed && (
-          <div className="bg-blue-500/10 border-b border-blue-500/20 px-4 py-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Info className="w-4 h-4 text-blue-500 shrink-0" />
-                <p className="text-sm text-foreground truncate">
-                  Working as guest — <span className="text-muted-foreground">Sign in to save permanently</span>
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Button size="sm" className="h-7 text-xs px-3" onClick={() => navigate('/auth')}>
-                  Sign In
-                </Button>
-                <button
-                  onClick={() => {
-                    setGuestBannerDismissed(true);
-                    sessionStorage.setItem('wr-editor-guest-dismissed', 'true');
-                  }}
-                  className="p-1 rounded-full hover:bg-muted transition-colors"
-                  aria-label="Dismiss"
-                >
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Progress Bar with Save Status */}
         <div className="shrink-0 px-4 py-3 border-b border-border">
@@ -666,20 +582,6 @@ export default function EditorPage() {
               company={lastAppliedJobInfo.company}
               resumeId={lastAppliedJobInfo.resumeId}
               jobUrl={lastAppliedJobInfo.jobUrl}
-            />
-          )}
-          {showSignInPrompt && signInPromptContext && (
-            <SignInPromptDialog
-              open={showSignInPrompt}
-              onOpenChange={setShowSignInPrompt}
-              title={signInPromptContext.title}
-              description={signInPromptContext.description}
-              benefits={[
-                'Access your resume anywhere',
-                'Tailor to unlimited jobs',
-                'Generate AI cover letters',
-                'Track your applications',
-              ]}
             />
           )}
         </Suspense>

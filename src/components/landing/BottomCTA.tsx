@@ -8,7 +8,7 @@ export function BottomCTA() {
 
   const handleLaunch = () => {
     triggerHaptic.medium();
-    navigate('/editor');
+    navigate('/auth');
   };
 
   return (

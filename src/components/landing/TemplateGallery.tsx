@@ -282,7 +282,7 @@ export function TemplateGallery() {
               activeIndex === index ? 'scale-100' : 'scale-95 opacity-70'
             )}
             style={{ animationDelay: `${0.15 + index * 0.08}s`, animationFillMode: 'forwards' }}
-            onClick={() => navigate('/editor')}
+            onClick={() => navigate('/auth')}
           >
             <div
               className={cn(
@@ -327,7 +327,7 @@ export function TemplateGallery() {
           ))}
         </div>
         <button
-          onClick={() => navigate('/editor')}
+          onClick={() => navigate('/auth')}
           className="text-xs text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors group"
         >
           See all 12 templates <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
