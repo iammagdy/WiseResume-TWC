@@ -194,7 +194,7 @@ const Index = () => {
                   transition={{ delay: 0.1 * i, duration: 0.4 }}
                   whileHover={prefersReducedMotion ? undefined : { scale: 1.05 }}
                 >
-                  <div className="aspect-[612/792] rounded-lg overflow-hidden border border-border/30 bg-white mb-1.5 transition-shadow hover:shadow-lg">
+                  <div className="aspect-[612/792] rounded-lg overflow-hidden bg-white/90 shadow-md mb-1.5 transition-all hover:shadow-xl hover:scale-105">
                     <div className="w-full h-full p-2 flex flex-col gap-1">
                       <div className="h-1.5 rounded-full w-3/4 mx-auto" style={{ backgroundColor: t.accent }} />
                       <div className="h-1 rounded-full w-full bg-gray-200 mt-1" />
