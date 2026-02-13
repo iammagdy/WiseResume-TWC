@@ -1,59 +1,40 @@
 
 
-## Fix Privacy Section Empty Card and Move Footer Below Developer Card
+## Fix Privacy Section and Reorder Help Section
 
 ### Changes to `src/pages/SettingsPage.tsx`
 
-#### 1. Fix Empty Privacy & Security Card
-The `<div className="rounded-2xl glass-elevated overflow-hidden">` (line 457) renders as an empty visible box when biometric is not available on web. Wrap the entire glass card in the same `biometricAvailable` condition so it only renders when there's content inside it.
+#### 1. Fix Empty Privacy & Security Section
+The section still shows an empty header + description when biometric is not available. Wrap the entire Privacy & Security section (header, description, card, and privacy text) in the `biometricAvailable` condition, along with its preceding `<Separator>`. This removes the empty section entirely on web.
 
-**Lines 457-486** -- move the `biometricAvailable` condition to wrap the glass card div itself:
+**Lines 448-496** -- wrap everything in `biometricAvailable`:
 ```tsx
 {biometricAvailable && (
-  <div className="rounded-2xl glass-elevated overflow-hidden">
-    <SettingsRow
-      type="toggle"
-      label="Biometric Lock"
-      description="Protect your resumes"
-      icon={<Fingerprint className="w-4 h-4" />}
-      checked={biometricLockEnabled}
-      onCheckedChange={handleBiometricToggle}
-    />
-    {biometricLockEnabled && (
-      <>
-        <Separator className="bg-border/30" />
-        <SettingsRow
-          type="navigation"
-          label="Require Authentication After"
-          ...
-        />
-      </>
-    )}
-  </div>
+  <>
+    <Separator />
+    <div>
+      <h2 className="...">
+        <Shield className="w-4 h-4 text-primary/60" />
+        Privacy & Security
+      </h2>
+      <p className="...">Biometric lock and data protection</p>
+      <div className="rounded-2xl glass-elevated overflow-hidden">
+        {/* biometric rows as-is */}
+      </div>
+      <p className="...">Your resumes are stored securely... Privacy Policy</p>
+    </div>
+  </>
 )}
 ```
 
-#### 2. Move Footer Below Developer Card
-Swap the order so the developer card comes first, then the version/tagline footer, then the bottom padding.
+#### 2. Move "Get Help" Below "Share WiseResume"
+Move the "Get Help" `SettingsRow` card (lines 539-547) from above the main About card to below "Share WiseResume" (after line 582). This merges it into a single card or places it as a separate card below.
 
-Current order: Footer text -> Developer Card -> padding
-New order: Developer Card -> Footer text -> padding
-
-**Lines 587-604** become:
-```tsx
-{/* Developer Credit Card */}
-<Suspense fallback={null}>
-  <DeveloperCreditCard ... />
-</Suspense>
-
-{/* Footer */}
-<div className="text-center pt-2 pb-10">
-  <p className="text-xs text-muted-foreground">WiseResume v1.0.0</p>
-  <p className="text-xs text-muted-foreground mt-1">Made with ❤️ in Egypt</p>
-</div>
-```
-
-Remove the separate `<div className="pb-10" />` and merge the padding into the footer div.
+New order in About & Help section:
+1. Take Tour Again
+2. Rate WiseResume
+3. Share WiseResume
+4. Get Help (separate card below, with `mt-3`)
 
 ### Files Modified
 1. `src/pages/SettingsPage.tsx`
