@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; color: string }> = {
   saved: { label: 'Saved', color: 'bg-secondary/15 text-secondary-foreground' },
   applied: { label: 'Applied', color: 'bg-primary/15 text-primary' },
+  screening: { label: 'Screening', color: 'bg-accent/15 text-accent-foreground' },
   interviewing: { label: 'Interviewing', color: 'bg-warning/15 text-warning' },
   offer: { label: 'Offer', color: 'bg-success/15 text-success' },
   rejected: { label: 'Rejected', color: 'bg-destructive/15 text-destructive' },

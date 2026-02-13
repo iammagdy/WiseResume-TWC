@@ -3,13 +3,14 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 
-export type ApplicationStatus = 'saved' | 'applied' | 'interviewing' | 'offer' | 'rejected';
+export type ApplicationStatus = 'saved' | 'applied' | 'screening' | 'interviewing' | 'offer' | 'rejected';
 
 export interface JobApplication {
   id: string;
   user_id: string;
   resume_id: string | null;
   cover_letter_id: string | null;
+  job_id: string | null;
   job_title: string;
   company: string;
   status: ApplicationStatus;
