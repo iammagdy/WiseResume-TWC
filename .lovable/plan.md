@@ -1,66 +1,83 @@
 
 
-## Help, Tour & Support — Enhance Descriptions and Add "Need Help?" Area
+## About & Trust — Enhancements
 
-### Changes Overview
+### Current State
+- The **About & Help** section already has a `DeveloperCreditCard` (with contact email and website link), "Take Tour Again", "Rate WiseResume", and "Share WiseResume" rows, plus a version info block and "Need help?" area.
+- The **Privacy & Security** section only has Biometric Lock settings with a brief subtitle.
+
+### Changes
 
 **File: `src/pages/SettingsPage.tsx`**
 
-Two targeted edits in the About & Help section (lines ~544-588):
+#### 1. Add privacy reassurance line to Privacy & Security section
 
-### 1. Update "Take Tour Again" description
-
-Change the description from `"Replay the welcome onboarding"` to `"Replay the quick product tour to learn the main features."` on line 548.
-
-### 2. Add "Need Help?" area after the version info block
-
-Insert a new card below the version info block (after line 588) with a clean row of link buttons:
+Update the subtitle text on line 468 from:
+```
+"Biometric lock and data protection"
+```
+to:
+```
+"Biometric lock and data protection"
+```
+And insert a reassurance card **after** the biometric settings card (after line 499), before the closing `</div>`:
 
 ```tsx
-<div className="rounded-2xl glass-elevated overflow-hidden mt-3">
-  <div className="px-4 py-3">
-    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-      Need help?
-    </p>
-    <div className="flex flex-wrap gap-2">
-      <Button
-        size="sm"
-        variant="outline"
-        className="text-xs gap-1.5"
-        onClick={() => window.open('https://docs.lovable.dev', '_blank')}
-      >
-        <BookOpen className="w-3.5 h-3.5" />
-        Docs
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="text-xs gap-1.5"
-        onClick={() => window.open('mailto:contact@magdysaber.com')}
-      >
-        <Mail className="w-3.5 h-3.5" />
-        Email Support
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="text-xs gap-1.5"
-        onClick={() => window.open('https://discord.gg/lovable-dev', '_blank')}
-      >
-        <Users className="w-3.5 h-3.5" />
-        Community
-      </Button>
-    </div>
-  </div>
+<p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
+  Your resumes are stored securely and never sold to third parties.{' '}
+  <a
+    href="https://magdysaber.com/privacy"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-primary underline underline-offset-2"
+  >
+    Privacy Policy
+  </a>
+</p>
+```
+
+This adds a trust-building line directly within the Privacy section with a link to the privacy policy.
+
+#### 2. Enhance "Rate WiseResume" and "Share WiseResume" descriptions
+
+These rows already exist (lines 564-578). Update their descriptions to be slightly more informative:
+- "Rate WiseResume" description: change from `"Help us grow ⭐"` to `"Love WiseResume? Leave a rating to help others find it"`
+- "Share WiseResume" description: change from `"Tell your friends"` to `"Send a link to a friend or colleague"`
+
+#### 3. Add clickable contact email and website below the DeveloperCreditCard
+
+The `DeveloperCreditCard` already renders an email button and website link, so these are covered. However, for clarity and accessibility, add small text links directly below the card (after line 544) that are visible even without hovering the 3D card:
+
+```tsx
+<div className="flex items-center justify-center gap-4 mt-2">
+  <a
+    href="mailto:contact@magdysaber.com"
+    className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+  >
+    <Mail className="w-3 h-3" />
+    contact@magdysaber.com
+  </a>
+  <a
+    href="https://magdysaber.com"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+  >
+    <Globe className="w-3 h-3" />
+    magdysaber.com
+  </a>
 </div>
 ```
 
-### 3. Add missing icon imports
+### Summary of Edits
 
-Add `BookOpen` and `Users` to the existing lucide-react import statement (line ~5-30). `Mail` is already imported.
+All in `src/pages/SettingsPage.tsx`:
 
-### Files Modified
-- `src/pages/SettingsPage.tsx` — update tour description, add "Need help?" support links area, add icon imports
+1. **Line ~499** — Insert privacy reassurance text with Privacy Policy link after the biometric card
+2. **Line ~544** — Insert plain-text contact email and website links below the DeveloperCreditCard
+3. **Line ~567** — Update "Rate WiseResume" description
+4. **Line ~575** — Update "Share WiseResume" description
 
-### No new dependencies or components needed.
+### No new imports or dependencies needed
+All icons (`Mail`, `Globe`, `Shield`) are already imported. No new components required.
 
