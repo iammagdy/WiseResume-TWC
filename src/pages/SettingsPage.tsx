@@ -48,6 +48,7 @@ import { Progress } from '@/components/ui/progress';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -525,55 +526,79 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {biometricAvailable && (
-            <>
-              <Separator className="opacity-10" />
-              <div className="glass-surface-alt">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-primary/60" />
-                  Privacy & Security
-                </h2>
-                <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
-                <div className="rounded-2xl glass-elevated overflow-hidden">
-                  <SettingsRow
-                    type="toggle"
-                    label="Biometric Lock"
-                    description="Protect your resumes"
-                    icon={<Fingerprint className="w-4 h-4" />}
-                    checked={biometricLockEnabled}
-                    onCheckedChange={handleBiometricToggle}
-                  />
-                  {biometricLockEnabled && (
-                    <>
-                      <Separator className="bg-border/30" />
-                      <SettingsRow
-                        type="navigation"
-                        label="Require Authentication After"
-                        value={
-                          biometricLockTimeout === 0 ? 'Immediately' :
-                          biometricLockTimeout === 30000 ? '30 seconds' :
-                          biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
-                        }
-                        icon={<Clock className="w-4 h-4" />}
-                        onClick={() => setBiometricTimeoutOpen(true)}
-                      />
-                    </>
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
-                  Your resumes are stored securely and never sold to third parties.{' '}
-                  <a
-                    href="https://magdysaber.com/privacy"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-primary underline underline-offset-2"
-                  >
-                    Privacy Policy
-                  </a>
-                </p>
+          <Separator className="opacity-10" />
+          <div className="glass-surface-alt">
+            <TooltipProvider>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+                <Shield className="w-4 h-4 text-primary/60" />
+                Privacy & Security
+                {!biometricAvailable && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 ml-1 cursor-help">
+                        Mobile only
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Biometric lock requires a device with fingerprint or face recognition
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </h2>
+            </TooltipProvider>
+            <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
+            {biometricAvailable ? (
+              <div className="rounded-2xl glass-elevated overflow-hidden">
+                <SettingsRow
+                  type="toggle"
+                  label="Biometric Lock"
+                  description="Protect your resumes"
+                  icon={<Fingerprint className="w-4 h-4" />}
+                  checked={biometricLockEnabled}
+                  onCheckedChange={handleBiometricToggle}
+                />
+                {biometricLockEnabled && (
+                  <>
+                    <Separator className="bg-border/30" />
+                    <SettingsRow
+                      type="navigation"
+                      label="Require Authentication After"
+                      value={
+                        biometricLockTimeout === 0 ? 'Immediately' :
+                        biometricLockTimeout === 30000 ? '30 seconds' :
+                        biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
+                      }
+                      icon={<Clock className="w-4 h-4" />}
+                      onClick={() => setBiometricTimeoutOpen(true)}
+                    />
+                  </>
+                )}
               </div>
-            </>
-          )}
+            ) : (
+              <div className="rounded-2xl glass-elevated overflow-hidden opacity-50 pointer-events-none">
+                <div className="flex items-center gap-3 py-3.5 px-4 min-h-[56px]">
+                  <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
+                    <Fingerprint className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Biometric Lock</p>
+                    <p className="text-xs text-muted-foreground">Available on mobile devices with biometrics</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
+              Your resumes are stored securely and never sold to third parties.{' '}
+              <a
+                href="https://magdysaber.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline underline-offset-2"
+              >
+                Privacy Policy
+              </a>
+            </p>
+          </div>
 
           <Separator className="opacity-10" />
 
