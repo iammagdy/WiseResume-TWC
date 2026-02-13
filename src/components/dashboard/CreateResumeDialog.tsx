@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FileText, Upload, Copy, ArrowRight, GitBranch } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import { motion } from 'framer-motion';
 import {
   Dialog,
@@ -65,6 +66,25 @@ export function CreateResumeDialog({
   const handleStartBlank = async () => {
     if (!title.trim()) return;
     
+    // Guest fallback: create local-only resume
+    if (!user) {
+      const guestId = uuidv4();
+      setCurrentResumeId(guestId);
+      setCurrentResume({
+        id: guestId,
+        contactInfo: { fullName: '', email: '', phone: '', location: '', linkedin: '' },
+        summary: '',
+        experience: [],
+        education: [],
+        skills: [],
+        certifications: [],
+        templateId: 'modern',
+      });
+      onOpenChange(false);
+      navigate('/editor');
+      return;
+    }
+
     setIsCreating(true);
     try {
       const newResume = await createResume.mutateAsync({

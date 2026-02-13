@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus, Lock } from 'lucide-react';
+import { Loader2, Sparkles, Wand2, Target, Minimize2, BarChart3, BookOpen, CheckCircle, Layers, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { haptics } from '@/lib/haptics';
@@ -108,7 +108,7 @@ export function InlineAIButton({
               ) : isAuthenticated ? (
                 <Sparkles className="w-3.5 h-3.5 animate-pulse" />
               ) : (
-                <Lock className="w-3.5 h-3.5" />
+                <Sparkles className="w-3.5 h-3.5" />
               )}
               <span className="text-xs font-medium">AI Assist</span>
             </Button>
