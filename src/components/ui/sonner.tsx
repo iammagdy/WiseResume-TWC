@@ -27,22 +27,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
       richColors={false}
       duration={4000}
       icons={{
-        success: <CheckCircle2 className="h-5 w-5 text-[hsl(var(--success))] drop-shadow-[0_0_6px_hsl(var(--success)/0.5)]" />,
-        error: <XCircle className="h-5 w-5 text-[hsl(var(--destructive))] drop-shadow-[0_0_6px_hsl(var(--destructive)/0.5)]" />,
-        warning: <AlertTriangle className="h-5 w-5 text-[hsl(var(--warning))] drop-shadow-[0_0_6px_hsl(var(--warning)/0.5)]" />,
-        info: <Info className="h-5 w-5 text-[hsl(var(--secondary))] drop-shadow-[0_0_6px_hsl(var(--secondary)/0.5)]" />,
+        success: <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />,
+        error: <XCircle className="h-4 w-4 text-[hsl(var(--destructive))]" />,
+        warning: <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />,
+        info: <Info className="h-4 w-4 text-[hsl(var(--secondary))]" />,
       }}
       toastOptions={{
         classNames: {
           toast:
-            "group toast toast-premium group-[.toaster]:text-foreground group-[.toaster]:shadow-xl",
+            "group toast toast-premium group-[.toaster]:text-foreground",
           description: "group-[.toast]:text-muted-foreground group-[.toast]:text-sm",
           actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:rounded-xl group-[.toast]:font-medium group-[.toast]:shadow-md",
+            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:rounded-lg group-[.toast]:font-medium group-[.toast]:text-xs group-[.toast]:px-3 group-[.toast]:py-1.5",
           cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground group-[.toast]:rounded-xl",
-          closeButton:
-            "group-[.toast]:!bg-background/60 group-[.toast]:!border-border/40 group-[.toast]:!text-muted-foreground group-[.toast]:hover:!bg-muted group-[.toast]:!rounded-full group-[.toast]:!h-6 group-[.toast]:!w-6 group-[.toast]:transition-colors",
+            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground group-[.toast]:rounded-lg",
           success: "toast-success-accent",
           error: "toast-error-accent",
           warning: "toast-warning-accent",

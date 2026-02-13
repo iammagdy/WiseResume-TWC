@@ -240,7 +240,6 @@ export function useResumeMutations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
-      toast.success('Resume deleted');
     },
     onError: (error) => {
       toast.error('Failed to delete resume');
