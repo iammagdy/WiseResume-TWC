@@ -1,45 +1,36 @@
 
 
-## Fix: Resume Tailoring Broken Due to CORS Configuration
+## Fix: Duplicate Toasts and Premium Toast Redesign
 
-### Root Cause
+### Problem 1: Duplicate Delete Toasts
+When deleting a resume, TWO success toasts appear:
+- `useResumes.ts` hook fires `toast.success('Resume deleted')` in its `onSuccess` callback
+- `DashboardPage.tsx` fires `toast.success('"Title" deleted')` with an Undo action in its own `onSuccess`
 
-The shared CORS utility (`supabase/functions/_shared/cors.ts`) only allows requests from `localhost:8080` and `localhost:3000`. The production domains (`wiseresume.lovable.app`, `wiseresume.magdysaber.com`) are **not included**, and no `ALLOWED_ORIGIN` environment variable is configured.
+**Fix**: Remove the generic toast from `useResumes.ts` (line 243) since the DashboardPage provides a richer, contextual toast with the resume title and Undo action. The hook should only handle cache invalidation.
 
-This means every edge function call (parse-job-url, tailor-resume, score-resume, etc.) from the published app is silently blocked by the browser's CORS policy. The browser sends the OPTIONS preflight, gets back `Access-Control-Allow-Origin: http://localhost:8080`, sees it doesn't match the actual origin, and refuses to send the real POST request.
+### Problem 2: Toast Visual Design
+The current toast styling has issues visible in the screenshot:
+- Oversized icon with a glowing green circle that bleeds into the layout
+- The toast surface looks messy with conflicting glass layers and border-left treatment
+- Close button and action button styling feel inconsistent with the Cosmic Glass UI
 
-### Fix (1 file change)
+**Fix**: Redesign the toast CSS in `index.css` and update the Sonner component config in `sonner.tsx`:
 
-**File: `supabase/functions/_shared/cors.ts`**
+**`src/components/ui/sonner.tsx` changes:**
+- Reduce icon size from `h-5 w-5` to `h-4 w-4` and remove the heavy `drop-shadow` glow
+- Clean up the `toastOptions.classNames` to remove conflicting class layers
+- Keep `richColors={false}` and `closeButton={true}`
 
-Update the CORS utility to allow all production origins:
+**`src/index.css` changes (lines 968-1161):**
+- Simplify the base `[data-sonner-toast]` styling: cleaner glass surface, tighter padding, no border-left
+- Replace the `.toast-premium` class with a cleaner design: subtle rounded card with a thin top-edge color accent instead of a thick left border
+- Refined type-specific styles (success/error/warning/info): subtle tinted background with a thin colored top border instead of a left border
+- Smaller, tighter progress bar animation
+- Remove redundant `box-shadow` layers that cause visual noise
+- Ensure mobile toast width uses full width minus safe margins
 
-```typescript
-const ALLOWED_ORIGINS = [
-  'http://localhost:8080',
-  'http://localhost:3000',
-  'https://wiseresume.lovable.app',
-  'https://wiseresume.magdysaber.com',
-];
-```
-
-Also add a wildcard fallback for Lovable preview URLs (which use dynamic subdomains):
-
-```typescript
-// Also allow Lovable preview subdomains
-const isLovablePreview = origin?.endsWith('.lovable.app');
-const isAllowed = origin && (origins.includes(origin) || isLovablePreview);
-```
-
-This single change will fix all edge function calls across the entire app -- tailor-resume, parse-job-url, score-resume, agentic-chat, and every other function that uses the shared CORS helper.
-
-### What this fixes
-
-- "Failed to parse job URL" error when pasting a job URL
-- "Failed to tailor resume" when running the AI tailor
-- Any other edge function failures from the published app (score-resume, agentic-chat, cover letter generation, etc.)
-
-### What about "Failed to save resume"?
-
-This error comes from the regular database save (not an edge function), so it's unrelated to CORS. It's likely triggered when the editor tries to auto-save while the user isn't properly authenticated, or the resume ID is stale. This is handled gracefully by the existing error handler in `useResumes.ts` (line 219-225) and should resolve once the user re-opens the resume from the dashboard.
-
+### Files Changed
+1. **`src/hooks/useResumes.ts`** - Remove `toast.success('Resume deleted')` from the delete mutation's `onSuccess` (line 243)
+2. **`src/components/ui/sonner.tsx`** - Smaller icons, remove drop-shadow glow, cleaner class names
+3. **`src/index.css`** - Redesigned toast CSS block (lines 968-1161): cleaner glass surface, top-accent color bar, refined shadows
