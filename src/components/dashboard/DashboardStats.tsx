@@ -147,7 +147,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
 
           {/* Stats Row with Score Ring */}
           {totalResumes > 0 && (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 min-w-0">
               {/* Large Score Ring */}
               <div className="flex flex-col items-center gap-1">
                 <ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={avgScore === 0} />
@@ -155,7 +155,7 @@ export function DashboardStats({ totalResumes, healthScores, userName }: Dashboa
               </div>
 
               {/* Stats beside ring */}
-              <div className="flex-1 grid grid-cols-2 gap-3">
+              <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
                     <FileText className="w-4.5 h-4.5 text-primary" />

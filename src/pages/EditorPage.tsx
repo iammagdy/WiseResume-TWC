@@ -380,7 +380,7 @@ export default function EditorPage() {
       {/* Header */}
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <button 
               onClick={handleBack}
               className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
@@ -393,7 +393,7 @@ export default function EditorPage() {
             {user && currentResumeId && (
               <button
                 onClick={() => setShowVersionHistory(true)}
-                className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex"
                 aria-label="Version history"
               >
                 <Clock className="w-4 h-4 text-muted-foreground" />

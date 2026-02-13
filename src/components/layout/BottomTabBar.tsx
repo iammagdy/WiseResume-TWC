@@ -101,7 +101,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               tabIndex={0}
               onClick={() => handleTabPress(tab)}
               className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 h-full',
+                'flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px]',
                 'touch-manipulation active:scale-95 transition-all duration-200 touch-ripple',
                 'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
                 tab.guarded && isEditorDisabled && 'opacity-50'
@@ -141,7 +141,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               </div>
               <span
                 className={cn(
-                  'text-[11px] relative z-10 transition-colors duration-200',
+                  'text-[10px] whitespace-nowrap relative z-10 transition-colors duration-200',
                   active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
                 )}
               >

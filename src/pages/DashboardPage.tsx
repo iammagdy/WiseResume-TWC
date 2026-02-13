@@ -487,7 +487,7 @@ export default function DashboardPage() {
           <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-hidden">
             <div className="px-4 pb-safe h-full overflow-y-auto">
               <motion.div 
-                className="space-y-4 pb-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0"
+                className="space-y-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0"
                 initial="hidden"
                 animate="visible"
                 variants={{
