@@ -4,23 +4,25 @@ import { Sparkles, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
-import { usePublicResume, useResumeShareMutations } from '@/hooks/useResumeShares';
-import { ContactInfo, Experience, Education, Certification } from '@/types/resume';
+import { usePublicResume, useResumeShareMutations, PublicShareResult } from '@/hooks/useResumeShares';
+import { ContactInfo, Experience, Education } from '@/types/resume';
+import { toast } from 'sonner';
 
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
-  const { data, isLoading, error } = usePublicResume(token || null);
+  const [passwordAttempt, setPasswordAttempt] = useState<string | undefined>(undefined);
+  const [passwordInput, setPasswordInput] = useState('');
+  const { data, isLoading, error } = usePublicResume(token || null, passwordAttempt);
   const { incrementViewCount } = useResumeShareMutations();
-  const [password, setPassword] = useState('');
-  const [unlocked, setUnlocked] = useState(false);
   const [viewCounted, setViewCounted] = useState(false);
 
-  // Increment view count once on mount
+  // Increment view count once when resume loads successfully
   useEffect(() => {
-    if (token && data && !viewCounted) {
+    if (token && data && 'share' in data && !viewCounted) {
       incrementViewCount.mutate(token);
       setViewCounted(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, data, viewCounted]);
 
   if (isLoading) return <PageLoadingSpinner />;
@@ -35,10 +37,9 @@ export default function SharePage() {
     );
   }
 
-  const { share, resume } = data;
-
   // Password gate
-  if (share.password && !unlocked) {
+  if ('requires_password' in data && data.requires_password) {
+    const isWrongPassword = passwordAttempt !== undefined;
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background text-foreground">
         <div className="glass-card rounded-2xl p-6 max-w-sm w-full space-y-4">
@@ -47,18 +48,29 @@ export default function SharePage() {
             <h2 className="text-lg font-bold">Password Required</h2>
           </div>
           <p className="text-sm text-muted-foreground text-center">This resume is password protected.</p>
+          {isWrongPassword && (
+            <p className="text-sm text-destructive text-center">Incorrect password. Please try again.</p>
+          )}
           <Input
             type="password"
             placeholder="Enter password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
+            value={passwordInput}
+            onChange={e => setPasswordInput(e.target.value)}
             className="text-[16px]"
+            onKeyDown={e => {
+              if (e.key === 'Enter' && passwordInput.trim()) {
+                setPasswordAttempt(passwordInput);
+              }
+            }}
           />
           <Button
             className="w-full"
             onClick={() => {
-              if (password === share.password) setUnlocked(true);
-              else alert('Incorrect password');
+              if (!passwordInput.trim()) {
+                toast.error('Please enter a password');
+                return;
+              }
+              setPasswordAttempt(passwordInput);
             }}
           >
             Unlock
@@ -68,8 +80,10 @@ export default function SharePage() {
     );
   }
 
+  const { share, resume } = data as PublicShareResult;
+
   const contactInfo = (resume.contact_info as unknown as ContactInfo) || { fullName: '', email: '', phone: '', location: '' };
-  const summary = resume.summary || '';
+  const summary = (resume.summary as string) || '';
   const experience = (resume.experience as unknown as Experience[]) || [];
   const education = (resume.education as unknown as Education[]) || [];
   const skills = (resume.skills as unknown as string[]) || [];
@@ -77,9 +91,8 @@ export default function SharePage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
-        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">{contactInfo.fullName || resume.title}</h1>
+          <h1 className="text-2xl font-bold">{contactInfo.fullName || (resume.title as string)}</h1>
           <div className="flex flex-wrap gap-2 mt-2 text-sm text-muted-foreground">
             {contactInfo.email && <span>{contactInfo.email}</span>}
             {contactInfo.phone && <span>· {contactInfo.phone}</span>}
@@ -87,7 +100,6 @@ export default function SharePage() {
           </div>
         </div>
 
-        {/* Summary */}
         {summary && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-2">Summary</h2>
@@ -95,7 +107,6 @@ export default function SharePage() {
           </section>
         )}
 
-        {/* Experience */}
         {experience.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Experience</h2>
@@ -122,7 +133,6 @@ export default function SharePage() {
           </section>
         )}
 
-        {/* Education */}
         {education.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-3">Education</h2>
@@ -138,7 +148,6 @@ export default function SharePage() {
           </section>
         )}
 
-        {/* Skills */}
         {skills.length > 0 && (
           <section className="mb-6">
             <h2 className="text-sm font-bold uppercase tracking-wider text-primary mb-2">Skills</h2>
@@ -151,7 +160,6 @@ export default function SharePage() {
         )}
       </main>
 
-      {/* Bottom Bar */}
       <footer className="border-t border-border/50 px-4 py-4 bg-card/50 backdrop-blur-sm">
         <div className="max-w-2xl mx-auto flex items-center gap-3">
           <a href="/" className="flex items-center gap-2 text-sm font-medium text-primary hover:underline flex-1">

@@ -50,8 +50,8 @@ export default function CoverLetterPage() {
       const letter = await generateCoverLetter(resumeData, jobDescription, tone);
       setResult(letter);
       setIsEditing(false);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to generate cover letter');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to generate cover letter');
     } finally {
       setGenerating(false);
     }

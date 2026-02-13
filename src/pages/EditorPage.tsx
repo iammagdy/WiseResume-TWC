@@ -164,10 +164,11 @@ export default function EditorPage() {
       });
       lastSavedResumeRef.current = currentResumeJson;
       setLastSavedAt(new Date());
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : '';
       const isNetworkError = !navigator.onLine ||
-        error?.message?.includes('Failed to fetch') ||
-        error?.message?.includes('NetworkError');
+        errorMessage.includes('Failed to fetch') ||
+        errorMessage.includes('NetworkError');
 
       if (isNetworkError && currentResumeId) {
         addPendingChange(currentResumeId, resume);

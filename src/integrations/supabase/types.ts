@@ -637,7 +637,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_shared_resume: { Args: { share_token: string }; Returns: Json }
+      get_shared_resume:
+        | { Args: { share_token: string }; Returns: Json }
+        | {
+            Args: { password_attempt?: string; share_token: string }
+            Returns: Json
+          }
       increment_share_view_count: {
         Args: { share_token: string }
         Returns: undefined

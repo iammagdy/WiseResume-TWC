@@ -37,18 +37,35 @@ export function useResumeShares(resumeId: string | null) {
   });
 }
 
-export function usePublicResume(token: string | null) {
+export interface PublicShareResult {
+  share: {
+    resume_id: string;
+    is_active: boolean;
+    expires_at: string | null;
+    view_count: number;
+  };
+  resume: Record<string, unknown>;
+}
+
+export interface PasswordRequiredResult {
+  requires_password: true;
+  authenticated: false;
+}
+
+export type PublicResumeResult = PublicShareResult | PasswordRequiredResult;
+
+export function usePublicResume(token: string | null, passwordAttempt?: string) {
   return useQuery({
-    queryKey: ['public-resume', token],
-    queryFn: async () => {
-      // Use security definer function to bypass RLS
+    queryKey: ['public-resume', token, passwordAttempt],
+    queryFn: async (): Promise<PublicResumeResult> => {
       const { data, error } = await supabase.rpc('get_shared_resume', {
         share_token: token!,
+        password_attempt: passwordAttempt ?? null,
       });
       if (error) throw error;
       if (!data) throw new Error('Share link not found or expired');
 
-      return data as { share: { resume_id: string; is_active: boolean; expires_at: string | null; password: string | null; view_count: number }; resume: any };
+      return data as unknown as PublicResumeResult;
     },
     enabled: !!token,
   });
