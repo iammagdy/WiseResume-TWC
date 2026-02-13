@@ -48,6 +48,7 @@ import { haptics } from '@/lib/haptics';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
+import developerPhoto from '@/assets/developer-photo.png';
 
 // Lazy-loaded sheets
 const EditProfileSheet = lazy(() => import('@/components/settings/EditProfileSheet').then(m => ({ default: m.EditProfileSheet })));
@@ -59,6 +60,7 @@ const BiometricTimeoutSheet = lazy(() => import('@/components/settings/Biometric
 const ElevenLabsKeySheet = lazy(() => import('@/components/settings/ElevenLabsKeySheet').then(m => ({ default: m.ElevenLabsKeySheet })));
 const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet').then(m => ({ default: m.AISettingsSheet })));
 const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then(m => ({ default: m.HelpSheet })));
+const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then(m => ({ default: m.DeveloperCreditCard })));
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -539,20 +541,6 @@ export default function SettingsPage() {
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
                 type="navigation"
-                label="Created by Magdy Saber"
-                description="Creator & Developer"
-                icon={
-                  <img 
-                    src="/icons/icon-48x48.png" 
-                    alt="Developer" 
-                    className="w-5 h-5 rounded-full object-cover"
-                  />
-                }
-                onClick={() => window.open('https://magdysaber.com', '_blank', 'noopener,noreferrer')}
-              />
-              <Separator className="bg-border/30" />
-              <SettingsRow
-                type="navigation"
                 label="Get Help"
                 description="Docs, email support, and community"
                 icon={<BookOpen className="w-4 h-4" />}
@@ -597,10 +585,23 @@ export default function SettingsPage() {
           </div>
 
           {/* Footer */}
-          <div className="text-center pb-8 pt-2">
+          <div className="text-center pt-2">
             <p className="text-xs text-muted-foreground">WiseResume v1.0.0</p>
             <p className="text-xs text-muted-foreground mt-1">Made with ❤️ in Egypt</p>
           </div>
+
+          {/* Developer Credit Card */}
+          <Suspense fallback={null}>
+            <DeveloperCreditCard
+              name="Magdy Saber"
+              title="Creator & Developer"
+              avatarUrl={developerPhoto}
+              websiteUrl="https://magdysaber.com"
+              onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+            />
+          </Suspense>
+
+          <div className="pb-10" />
         </div>
       </div>
 
