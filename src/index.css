@@ -4,6 +4,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes toggle-bounce {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
 /* Definition of the design system - Modern & Vibrant Mobile Resume Editor */
 
 @layer base {

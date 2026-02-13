@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ReactNode, useState, useEffect, useRef } from 'react';
+import { ChevronRight, Loader2, Check } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -24,6 +24,7 @@ interface SettingsRowToggleProps extends SettingsRowBaseProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
   disabled?: boolean;
+  loading?: boolean;
   showStateLabel?: boolean;
   stateLabel?: { on: string; off: string };
 }
@@ -43,47 +44,7 @@ export function SettingsRow(props: SettingsRowProps) {
   const { label, description, icon, className } = props;
 
   if (props.type === 'toggle') {
-    return (
-      <div className={cn(
-        'flex items-center justify-between py-3.5 px-4 min-h-[56px]',
-        'transition-colors',
-         props.disabled && 'opacity-50',
-        className
-      )}>
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          {icon && (
-            <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary flex-shrink-0">
-              {icon}
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="font-medium truncate">{label}</p>
-            {description && (
-              <p className="text-xs text-muted-foreground truncate">
-                {description}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {(props.showStateLabel !== false) && (
-            <span className="text-xs text-muted-foreground min-w-[20px] text-right">
-              {props.checked
-                ? (props.stateLabel?.on ?? 'On')
-                : (props.stateLabel?.off ?? 'Off')}
-            </span>
-          )}
-          <Switch
-            checked={props.checked}
-            disabled={props.disabled}
-            onCheckedChange={(checked) => {
-              haptics.light();
-              props.onCheckedChange(checked);
-            }}
-          />
-        </div>
-      </div>
-    );
+    return <ToggleRow {...props} />;
   }
 
   if (props.type === 'navigation') {
@@ -167,5 +128,84 @@ export function SettingsRow(props: SettingsRowProps) {
         )}
       </div>
     </button>
+  );
+}
+
+function ToggleRow(props: SettingsRowToggleProps) {
+  const { label, description, icon, className } = props;
+  const [bouncing, setBouncing] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const prevLoading = useRef(props.loading);
+
+  // Detect loading -> not loading transition for success flash
+  useEffect(() => {
+    if (prevLoading.current === true && props.loading === false) {
+      setShowSuccess(true);
+      haptics.success();
+      const timer = setTimeout(() => setShowSuccess(false), 800);
+      return () => clearTimeout(timer);
+    }
+    prevLoading.current = props.loading;
+  }, [props.loading]);
+
+  const handleChange = (checked: boolean) => {
+    haptics.light();
+    setBouncing(true);
+    setTimeout(() => setBouncing(false), 200);
+    props.onCheckedChange(checked);
+  };
+
+  const isDisabled = props.disabled || props.loading;
+
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between py-3.5 px-4 min-h-[56px]',
+        'transition-transform duration-200',
+        isDisabled && 'opacity-50',
+        className
+      )}
+      style={bouncing ? { animation: 'toggle-bounce 200ms ease-out' } : undefined}
+    >
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        {icon && (
+          <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary flex-shrink-0">
+            {icon}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="font-medium truncate">{label}</p>
+          {description && (
+            <p className="text-xs text-muted-foreground truncate">
+              {description}
+            </p>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {(props.showStateLabel !== false) && (
+          <span className="text-xs text-muted-foreground min-w-[20px] text-right">
+            {props.checked
+              ? (props.stateLabel?.on ?? 'On')
+              : (props.stateLabel?.off ?? 'Off')}
+          </span>
+        )}
+        {props.loading ? (
+          <div className="w-12 flex items-center justify-center">
+            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+          </div>
+        ) : showSuccess ? (
+          <div className="w-12 flex items-center justify-center animate-scale-in">
+            <Check className="w-5 h-5 text-[hsl(var(--success))]" />
+          </div>
+        ) : (
+          <Switch
+            checked={props.checked}
+            disabled={isDisabled}
+            onCheckedChange={handleChange}
+          />
+        )}
+      </div>
+    </div>
   );
 }
