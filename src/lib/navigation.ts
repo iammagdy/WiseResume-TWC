@@ -13,6 +13,10 @@ const BACK_ROUTES: Record<string, string> = {
   '/interview': '/dashboard',
   '/settings': '/dashboard',
   '/auth': '/',
+  '/onboarding': '/dashboard',
+  '/profile': '/dashboard',
+  '/templates': '/dashboard',
+  '/resume': '/dashboard',
 };
 
 /**
