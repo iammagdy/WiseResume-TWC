@@ -122,5 +122,38 @@ export function useCoverLetterMutations() {
     onError: () => toast.error('Failed to delete cover letter'),
   });
 
-  return { saveCoverLetter, updateCoverLetter, deleteCoverLetter };
+  const duplicateCoverLetter = useMutation({
+    mutationFn: async (id: string) => {
+      if (!user) throw new Error('Not authenticated');
+      const original = await supabase
+        .from('cover_letters')
+        .select('*')
+        .eq('id', id)
+        .single();
+      if (original.error) throw original.error;
+      const orig = original.data as unknown as CoverLetterRecord;
+      const { data, error } = await supabase
+        .from('cover_letters')
+        .insert({
+          user_id: user.id,
+          title: `${orig.title || orig.job_title} (Copy)`,
+          job_title: orig.job_title,
+          company: orig.company,
+          content: orig.content,
+          tone: orig.tone,
+          resume_id: orig.resume_id,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as unknown as CoverLetterRecord;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cover-letters'] });
+      toast.success('Cover letter duplicated!');
+    },
+    onError: () => toast.error('Failed to duplicate cover letter'),
+  });
+
+  return { saveCoverLetter, updateCoverLetter, deleteCoverLetter, duplicateCoverLetter };
 }

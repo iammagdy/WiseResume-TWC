@@ -1,0 +1,1 @@
+ALTER TABLE public.cover_letters ADD COLUMN IF NOT EXISTS template_style text DEFAULT 'professional';
