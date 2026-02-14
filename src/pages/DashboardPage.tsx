@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, LogIn, Home, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, LogIn, Home, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -464,6 +464,13 @@ export default function DashboardPage() {
                     description="Import your profile"
                     onClick={() => setShowLinkedInImport(true)}
                     aria-label="Import from LinkedIn"
+                  />
+                  <ActionCard
+                    icon={BookOpen}
+                    title="Examples"
+                    description="Browse resume samples"
+                    onClick={() => navigate('/examples')}
+                    aria-label="Browse resume examples"
                   />
                 </div>
                 <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
