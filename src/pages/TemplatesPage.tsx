@@ -10,13 +10,14 @@ import { TemplateId, TemplateInfo } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
 import { motion } from 'framer-motion';
 
-type FilterCategory = 'all' | 'professional' | 'creative' | 'tech';
+type FilterCategory = 'all' | 'professional' | 'creative' | 'tech' | 'minimalist';
 
 const FILTER_CHIPS: { value: FilterCategory; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'professional', label: 'Professional' },
   { value: 'creative', label: 'Creative' },
   { value: 'tech', label: 'Tech' },
+  { value: 'minimalist', label: 'Minimalist' },
 ];
 
 export default function TemplatesPage() {

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, LogIn, Home, FileText as FileTextIcon, Upload, Briefcase, Sparkles } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, LogIn, Home, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -28,6 +28,7 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
 const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
+import { LinkedInImportSheet } from '@/components/settings/LinkedInImportSheet';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
@@ -67,6 +68,7 @@ export default function DashboardPage() {
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [showLinkedInImport, setShowLinkedInImport] = useState(false);
   
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tipVisible, setTipVisible] = useState(true);
@@ -457,11 +459,11 @@ export default function DashboardPage() {
                     aria-label="Browse job listings"
                   />
                   <ActionCard
-                    icon={Sparkles}
-                    title="AI Writer"
-                    description="AI-powered creation"
-                    onClick={handleCreateNew}
-                    aria-label="Create resume with AI"
+                    icon={Linkedin}
+                    title="Import LinkedIn"
+                    description="Import your profile"
+                    onClick={() => setShowLinkedInImport(true)}
+                    aria-label="Import from LinkedIn"
                   />
                 </div>
                 <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
@@ -623,6 +625,56 @@ export default function DashboardPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* LinkedIn Import Sheet */}
+      <LinkedInImportSheet
+        open={showLinkedInImport}
+        onOpenChange={setShowLinkedInImport}
+        onImport={async (data) => {
+          // Create a new resume from LinkedIn data
+          if (!user) return;
+          const contactInfo = {
+            fullName: '',
+            email: user.email || '',
+            phone: '',
+            location: '',
+          };
+          const newResume = {
+            title: 'LinkedIn Import',
+            user_id: user.id,
+            contact_info: contactInfo,
+            summary: data.summary || '',
+            experience: (data.experience || []).map((exp, i) => ({
+              id: String(i + 1),
+              company: exp.company,
+              position: exp.title,
+              startDate: exp.startDate,
+              endDate: exp.endDate,
+              current: exp.current,
+              description: exp.description,
+              achievements: [],
+            })),
+            education: (data.education || []).map((edu, i) => ({
+              id: String(i + 1),
+              institution: edu.institution,
+              degree: edu.degree,
+              field: edu.field || '',
+              startDate: edu.startYear || '',
+              endDate: edu.endYear || '',
+            })),
+            skills: data.skills || [],
+            template_id: 'modern',
+          };
+          const { data: created, error } = await supabase.from('resumes').insert(newResume).select().single();
+          if (created && !error) {
+            haptics.success();
+            toast.success('Resume created from LinkedIn!');
+            refetch();
+            navigate(`/editor`);
+          }
+        }}
+        linkedinUsername={profile?.linkedinUrl?.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '')}
+      />
 
     </div>
   );
