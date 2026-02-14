@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 
 // Routes that show bottom nav
-const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letter', '/cover-letters', '/examples'];
+const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/auth', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letter', '/cover-letters', '/examples', '/career'];
 
 export function AppShell() {
   const location = useLocation();

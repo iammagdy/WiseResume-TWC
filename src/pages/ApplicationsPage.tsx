@@ -1,26 +1,30 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, ArrowLeft, Bell, BarChart3, Lock, Briefcase, Layers, FileText, Scissors, Search, Mail, MapPin, Building2 } from 'lucide-react';
+import { Plus, ArrowLeft, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { useJobs, Job } from '@/hooks/useJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
+import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { JobActivityStatsCard } from '@/components/applications/JobActivityStats';
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
 import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
-import { Button } from '@/components/ui/button';
+import { JobSearchSheet, JobFilters } from '@/components/applications/JobSearchSheet';
+import { SaveJobSheet } from '@/components/applications/SaveJobSheet';
+import { JobMatchScore } from '@/components/applications/JobMatchScore';
 import { Badge } from '@/components/ui/badge';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { scoreJobMatch, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
 
-function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
+function JobCard({ job, onClick, matchScore }: { job: Job; onClick: () => void; matchScore: JobMatchResult | null }) {
   return (
     <motion.button
       initial={{ opacity: 0, y: 8 }}
@@ -49,6 +53,7 @@ function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
           )}
         </div>
       </div>
+      <JobMatchScore score={matchScore} jobTitle={job.title} />
     </motion.button>
   );
 }
@@ -60,11 +65,48 @@ export default function ApplicationsPage() {
   const stats = useJobActivityStats();
   const [activeTab, setActiveTab] = useState<TabKey>('applications');
   const [showAdd, setShowAdd] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [showSaveJob, setShowSaveJob] = useState(false);
+  const [filters, setFilters] = useState<JobFilters>({ query: '', jobTypes: [], location: '' });
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: jobs = [] } = useJobs();
   const { data: applications = [] } = useJobApplications();
+  const { data: resumes } = useResumes();
   const [resumeListOpen, setResumeListOpen] = useState(false);
   const [resumeListFilter, setResumeListFilter] = useState<'originals' | 'tailored'>('originals');
+
+  // Get primary resume for match scoring
+  const primaryResume = useMemo(() => {
+    const primary = resumes?.find(r => r.is_primary) || resumes?.[0];
+    return primary ? dbToResumeData(primary) : null;
+  }, [resumes]);
+
+  // Compute match scores
+  const matchScores = useMemo(() => {
+    if (!primaryResume) return {};
+    const scores: Record<string, JobMatchResult> = {};
+    for (const job of jobs) {
+      scores[job.id] = scoreJobMatch(primaryResume, job);
+    }
+    return scores;
+  }, [primaryResume, jobs]);
+
+  // Filter jobs
+  const filteredJobs = useMemo(() => {
+    return jobs.filter(job => {
+      if (filters.query) {
+        const q = filters.query.toLowerCase();
+        if (!job.title.toLowerCase().includes(q) && !job.company.toLowerCase().includes(q)) return false;
+      }
+      if (filters.jobTypes.length > 0) {
+        if (!filters.jobTypes.some(t => t.toLowerCase() === job.job_type.toLowerCase())) return false;
+      }
+      if (filters.location) {
+        if (!job.location.toLowerCase().includes(filters.location.toLowerCase())) return false;
+      }
+      return true;
+    });
+  }, [jobs, filters]);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
@@ -85,6 +127,8 @@ export default function ApplicationsPage() {
     { key: 'jobs', label: 'Saved Jobs' },
   ];
 
+  const hasActiveFilters = filters.query || filters.jobTypes.length > 0 || filters.location;
+
   return (
     <div className="flex-1 flex flex-col min-h-0 pb-4">
       {/* Header */}
@@ -103,18 +147,30 @@ export default function ApplicationsPage() {
               <h1 className="text-lg font-display font-semibold">My Activity</h1>
             </div>
           </div>
-          <button
-            onClick={() => navigate('/notifications')}
-            className="relative p-2.5 rounded-xl hover:bg-muted/50 text-muted-foreground transition-all touch-manipulation"
-            aria-label="Notifications"
-          >
-            <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => { haptics.light(); setShowSearch(true); }}
+              className={`relative p-2.5 rounded-xl hover:bg-muted/50 transition-all touch-manipulation ${hasActiveFilters ? 'text-primary' : 'text-muted-foreground'}`}
+              aria-label="Search jobs"
+            >
+              <Search className="w-5 h-5" />
+              {hasActiveFilters && (
+                <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary" />
+              )}
+            </button>
+            <button
+              onClick={() => navigate('/notifications')}
+              className="relative p-2.5 rounded-xl hover:bg-muted/50 text-muted-foreground transition-all touch-manipulation"
+              aria-label="Notifications"
+            >
+              <Bell className="w-5 h-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -194,17 +250,22 @@ export default function ApplicationsPage() {
           ) : (
             <>
               {/* Jobs List */}
-              {jobs.length > 0 ? (
+              {filteredJobs.length > 0 ? (
                 <div className="space-y-2">
-                  {jobs.map(job => (
-                    <JobCard key={job.id} job={job} onClick={() => navigate(`/job/${job.id}`)} />
+                  {filteredJobs.map(job => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      onClick={() => navigate(`/job/${job.id}`)}
+                      matchScore={matchScores[job.id] || null}
+                    />
                   ))}
                 </div>
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Briefcase className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="font-medium">No saved jobs yet</p>
-                  <p className="text-sm mt-1">Jobs you save will appear here</p>
+                  <p className="font-medium">{hasActiveFilters ? 'No jobs match filters' : 'No saved jobs yet'}</p>
+                  <p className="text-sm mt-1">{hasActiveFilters ? 'Try adjusting your filters' : 'Jobs you save will appear here'}</p>
                 </div>
               )}
             </>
@@ -212,12 +273,32 @@ export default function ApplicationsPage() {
         </div>
       </PullToRefresh>
 
+      {/* Save Job FAB */}
+      {activeTab === 'jobs' && (
+        <motion.button
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          onClick={() => { haptics.medium(); setShowSaveJob(true); }}
+          className="fixed bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          aria-label="Save new job"
+        >
+          <Plus className="w-6 h-6 text-primary-foreground" />
+        </motion.button>
+      )}
+
       <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} />
       <ResumeListSheet
         open={resumeListOpen}
         onOpenChange={setResumeListOpen}
         filter={resumeListFilter}
       />
+      <JobSearchSheet
+        open={showSearch}
+        onOpenChange={setShowSearch}
+        filters={filters}
+        onFiltersChange={setFilters}
+      />
+      <SaveJobSheet open={showSaveJob} onOpenChange={setShowSaveJob} />
     </div>
   );
 }
