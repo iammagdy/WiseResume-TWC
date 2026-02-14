@@ -1,14 +1,18 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard, Sparkles } from 'lucide-react';
+import { ArrowLeft, Square, Keyboard, Sparkles, History, Lightbulb } from 'lucide-react';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
 import { TranscriptBubble, TypingBubble } from '@/components/interview/TranscriptBubble';
 import { InterviewSummary } from '@/components/interview/InterviewSummary';
 import { InterviewPreview } from '@/components/interview/InterviewPreview';
 import { AnswerScoreSheet } from '@/components/interview/AnswerScoreSheet';
+import { InterviewHistorySheet } from '@/components/interview/InterviewHistorySheet';
+import { InterviewTipsSheet } from '@/components/interview/InterviewTipsSheet';
+import { InterviewStatsCard } from '@/components/interview/InterviewStatsCard';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
+import { useSaveInterviewSession } from '@/hooks/useInterviewHistory';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -27,6 +31,10 @@ export default function InterviewPage() {
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
   const [pendingJobDescription, setPendingJobDescription] = useState<string | undefined>();
+  const [showHistory, setShowHistory] = useState(false);
+  const [showTips, setShowTips] = useState(false);
+  const [sessionSaved, setSessionSaved] = useState(false);
+  const saveSession = useSaveInterviewSession();
 
   // Resume guard - require a resume for interview practice
   const hasValidResume = currentResume && currentResume.contactInfo?.fullName;
@@ -140,6 +148,31 @@ export default function InterviewPage() {
   const mins = Math.floor(elapsedSeconds / 60);
   const secs = elapsedSeconds % 60;
 
+  // Auto-save session when summary is shown
+  useEffect(() => {
+    if (summary && !sessionSaved && user) {
+      setSessionSaved(true);
+      // Parse score from summary
+      const scoreMatch = summary.match(/Score:\s*(\d+)\/10/i);
+      const overallScore = scoreMatch ? parseInt(scoreMatch[1]) : undefined;
+      // Parse strengths and improvements
+      const strengthsMatch = summary.match(/\*\*Strengths:\*\*\n([\s\S]*?)(?=\n\*\*)/);
+      const improvementsMatch = summary.match(/\*\*Areas to Improve:\*\*\n([\s\S]*?)(?=\n\*\*)/);
+      const strengths = strengthsMatch ? strengthsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()) : [];
+      const improvements = improvementsMatch ? improvementsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()) : [];
+
+      saveSession.mutate({
+        interview_type: pendingJobDescription ? 'job-targeted' : 'general',
+        job_description: pendingJobDescription,
+        messages: transcript as any,
+        overall_score: overallScore,
+        strengths,
+        improvements,
+        duration_seconds: elapsedSeconds,
+      });
+    }
+  }, [summary, sessionSaved]);
+
   // Summary screen
   if (phase === 'summary') {
     return (
@@ -148,9 +181,11 @@ export default function InterviewPage() {
           summary={summary!}
           duration={elapsedSeconds}
           scores={scores}
-          onRestart={handleReset}
+          onRestart={() => { setSessionSaved(false); handleReset(); }}
           onGoHome={() => navigate('/dashboard')}
+          onShowTips={() => setShowTips(true)}
         />
+        <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
       </div>
     );
   }
@@ -185,18 +220,29 @@ export default function InterviewPage() {
           <button onClick={() => navigate('/dashboard')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1">
             <Sparkles className="w-4 h-4 text-primary" />
             <h1 className="text-lg font-bold text-foreground">Wise AI Interview</h1>
           </div>
+          <button onClick={() => setShowTips(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <Lightbulb className="w-5 h-5 text-muted-foreground" />
+          </button>
+          <button onClick={() => setShowHistory(true)} className="touch-manipulation p-2 rounded-full hover:bg-muted active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center">
+            <History className="w-5 h-5 text-muted-foreground" />
+          </button>
         </div>
-        <InterviewSetup
-          hasResume={!!currentResume && !!currentResume.contactInfo.fullName}
-          speechSupported={speechSupported}
-          voiceGender={voiceGender}
-          onVoiceGenderChange={setVoiceGender}
-          onStart={handleSetupStart}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <InterviewStatsCard onViewHistory={() => setShowHistory(true)} />
+          <InterviewSetup
+            hasResume={!!currentResume && !!currentResume.contactInfo.fullName}
+            speechSupported={speechSupported}
+            voiceGender={voiceGender}
+            onVoiceGenderChange={setVoiceGender}
+            onStart={handleSetupStart}
+          />
+        </div>
+        <InterviewHistorySheet open={showHistory} onOpenChange={setShowHistory} />
+        <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
       </div>
     );
   }

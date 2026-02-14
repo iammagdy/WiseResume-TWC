@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Award, RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp } from 'lucide-react';
+import { Award, RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { AnswerScore } from '@/hooks/useVoiceInterview';
@@ -11,6 +11,7 @@ interface InterviewSummaryProps {
   scores: AnswerScore[];
   onRestart: () => void;
   onGoHome: () => void;
+  onShowTips?: () => void;
 }
 
 function ScoreBadge({ score }: { score: number }) {
@@ -26,7 +27,7 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
-export function InterviewSummary({ summary, duration, scores, onRestart, onGoHome }: InterviewSummaryProps) {
+export function InterviewSummary({ summary, duration, scores, onRestart, onGoHome, onShowTips }: InterviewSummaryProps) {
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -138,6 +139,27 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
           <Home className="w-4 h-4 mr-2" />
           Home
         </Button>
+      </div>
+
+      {/* Share & Tips */}
+      <div className="flex gap-3">
+        <Button
+          variant="outline"
+          className="flex-1 backdrop-blur-sm"
+          onClick={async () => {
+            await navigator.clipboard.writeText(summary);
+            import('sonner').then(({ toast }) => toast.success('Summary copied!'));
+          }}
+        >
+          <Share2 className="w-4 h-4 mr-2" />
+          Share Results
+        </Button>
+        {onShowTips && (
+          <Button variant="outline" className="flex-1 backdrop-blur-sm" onClick={onShowTips}>
+            <BookOpen className="w-4 h-4 mr-2" />
+            Practice Tips
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center justify-center gap-1.5 pt-2">

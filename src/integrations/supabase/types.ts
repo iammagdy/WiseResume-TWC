@@ -456,6 +456,63 @@ export type Database = {
         }
         Relationships: []
       }
+      resignation_letters: {
+        Row: {
+          additions: Json | null
+          checklist_progress: Json | null
+          company: string | null
+          content: string
+          created_at: string | null
+          id: string
+          last_working_day: string | null
+          notice_period: string | null
+          position: string | null
+          reason: string | null
+          recipient_name: string | null
+          template_style: string | null
+          title: string | null
+          tone: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          additions?: Json | null
+          checklist_progress?: Json | null
+          company?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          last_working_day?: string | null
+          notice_period?: string | null
+          position?: string | null
+          reason?: string | null
+          recipient_name?: string | null
+          template_style?: string | null
+          title?: string | null
+          tone?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          additions?: Json | null
+          checklist_progress?: Json | null
+          company?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          last_working_day?: string | null
+          notice_period?: string | null
+          position?: string | null
+          reason?: string | null
+          recipient_name?: string | null
+          template_style?: string | null
+          title?: string | null
+          tone?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       resume_shares: {
         Row: {
           created_at: string
