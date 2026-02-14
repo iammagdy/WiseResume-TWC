@@ -15,6 +15,12 @@ const SECTION_NAMES: Record<SectionId, string> = {
   education: 'Education',
   skills: 'Skills',
   certifications: 'Certifications',
+  awards: 'Awards',
+  projects: 'Projects',
+  publications: 'Publications',
+  volunteering: 'Volunteering',
+  hobbies: 'Hobbies',
+  references: 'References',
 };
 
 const SECTION_ICONS: Record<SectionId, string> = {
@@ -23,6 +29,12 @@ const SECTION_ICONS: Record<SectionId, string> = {
   education: '🎓',
   skills: '🛠️',
   certifications: '📜',
+  awards: '🏆',
+  projects: '🚀',
+  publications: '📚',
+  volunteering: '🤝',
+  hobbies: '🎨',
+  references: '👤',
 };
 
 /**

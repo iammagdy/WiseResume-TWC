@@ -6,7 +6,7 @@ interface SectionCardProps {
   icon: LucideIcon;
   title: string;
   tip?: string;
-  status: 'empty' | 'partial' | 'complete';
+  status?: 'empty' | 'partial' | 'complete';
   action?: ReactNode;
   children: ReactNode;
 }

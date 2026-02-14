@@ -1,0 +1,62 @@
+import { memo } from 'react';
+import { Trophy, Rocket, BookOpen, Heart, Palette, Users, Check } from 'lucide-react';
+import { useResumeStore } from '@/store/resumeStore';
+import haptics from '@/lib/haptics';
+
+interface AddSectionSheetProps {
+  onSelectSection: (section: string) => void;
+}
+
+const OPTIONAL_SECTIONS = [
+  { id: 'awards', label: 'Awards', icon: Trophy, description: 'Awards & achievements', color: 'text-amber-500' },
+  { id: 'projects', label: 'Projects', icon: Rocket, description: 'Personal & work projects', color: 'text-blue-500' },
+  { id: 'publications', label: 'Publications', icon: BookOpen, description: 'Papers & articles', color: 'text-emerald-500' },
+  { id: 'volunteering', label: 'Volunteering', icon: Heart, description: 'Community service', color: 'text-rose-500' },
+  { id: 'hobbies', label: 'Hobbies', icon: Palette, description: 'Interests & hobbies', color: 'text-purple-500' },
+  { id: 'references', label: 'References', icon: Users, description: 'Professional references', color: 'text-sky-500' },
+] as const;
+
+export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }: AddSectionSheetProps) {
+  const currentResume = useResumeStore(state => state.currentResume);
+
+  const hasContent = (sectionId: string): boolean => {
+    if (!currentResume) return false;
+    const data = currentResume[sectionId as keyof typeof currentResume];
+    return Array.isArray(data) && data.length > 0;
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">Add optional sections to enhance your resume</p>
+      <div className="grid grid-cols-2 gap-3">
+        {OPTIONAL_SECTIONS.map(section => {
+          const Icon = section.icon;
+          const active = hasContent(section.id);
+          return (
+            <button
+              key={section.id}
+              onClick={() => {
+                haptics.light();
+                onSelectSection(section.id);
+              }}
+              className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border transition-all touch-manipulation active:scale-95 min-h-[100px] ${
+                active
+                  ? 'border-primary/50 bg-primary/5'
+                  : 'border-border hover:border-primary/30 hover:bg-muted/50'
+              }`}
+            >
+              {active && (
+                <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-success flex items-center justify-center">
+                  <Check className="w-3 h-3 text-success-foreground" />
+                </span>
+              )}
+              <Icon className={`w-6 h-6 ${section.color}`} />
+              <span className="text-sm font-medium">{section.label}</span>
+              <span className="text-[11px] text-muted-foreground text-center leading-tight">{section.description}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});

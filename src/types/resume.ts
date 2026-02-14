@@ -40,6 +40,64 @@ export interface Certification {
   credentialId?: string;
 }
 
+export interface Award {
+  id: string;
+  title: string;
+  issuer: string;
+  date: string;
+  description?: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  technologies: string[];
+  description: string;
+  url?: string;
+  githubUrl?: string;
+}
+
+export interface Publication {
+  id: string;
+  title: string;
+  publisher: string;
+  date: string;
+  coAuthors?: string;
+  url?: string;
+  description?: string;
+}
+
+export interface Volunteering {
+  id: string;
+  organization: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+  hours?: string;
+}
+
+export interface Hobby {
+  id: string;
+  name: string;
+  description?: string;
+  visible: boolean;
+}
+
+export interface Reference {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  email: string;
+  phone: string;
+  relationship: string;
+  availableOnRequest?: boolean;
+}
+
 export interface TemplateCustomization {
   accentColor: string;
   fontHeading: string;
@@ -58,6 +116,12 @@ export interface ResumeData {
   education: Education[];
   skills: string[];
   certifications: Certification[];
+  awards?: Award[];
+  projects?: Project[];
+  publications?: Publication[];
+  volunteering?: Volunteering[];
+  hobbies?: Hobby[];
+  references?: Reference[];
   templateId: string;
   customization?: TemplateCustomization;
   createdAt?: string;
@@ -88,7 +152,7 @@ export interface GapAnalysis {
 
 export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive' | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant' | 'corporate' | 'banking' | 'consulting' | 'federal' | 'legal' | 'marketing' | 'designer' | 'portfolio' | 'startup' | 'infographic' | 'data-science' | 'devops' | 'cyber' | 'product' | 'clean' | 'swiss' | 'mono' | 'zen';
 
-export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications';
+export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'hobbies' | 'references';
 
 export type TailorSectionId = 'summary' | 'skills' | 'experience' | 'education';
 

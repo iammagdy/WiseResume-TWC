@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users } from 'lucide-react';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -19,6 +19,13 @@ import { EducationSection } from '@/components/editor/EducationSection';
 import { SkillsSection } from '@/components/editor/SkillsSection';
 import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
 import { SectionAIAction } from '@/components/editor/SectionAIAction';
+import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
+import { AwardsSection } from '@/components/editor/AwardsSection';
+import { ProjectsSection } from '@/components/editor/ProjectsSection';
+import { PublicationsSection } from '@/components/editor/PublicationsSection';
+import { VolunteeringSection } from '@/components/editor/VolunteeringSection';
+import { HobbiesSection } from '@/components/editor/HobbiesSection';
+import { ReferencesSection } from '@/components/editor/ReferencesSection';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
@@ -99,6 +106,7 @@ export default function EditorPage() {
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
+  const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -229,6 +237,7 @@ export default function EditorPage() {
     { id: 'experience', label: 'Work' },
     { id: 'education', label: 'Education' },
     { id: 'skills', label: 'Skills' },
+    { id: 'more', label: 'More' },
   ], []);
 
   // Granular section scores
@@ -519,6 +528,27 @@ export default function EditorPage() {
                 <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
                   <SkillsSection />
                 </SectionCard>
+              </div>
+            )}
+            {activeTab === 'more' && (
+              <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+                {!moreSubSection ? (
+                  <SectionCard icon={Plus} title="More Sections" tip="Add optional sections to stand out">
+                    <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
+                  </SectionCard>
+                ) : (
+                  <div className="space-y-3">
+                    <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation">
+                      <ChevronLeft className="w-4 h-4" /> All Sections
+                    </button>
+                    {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements"><AwardsSection /></SectionCard>}
+                    {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects"><ProjectsSection /></SectionCard>}
+                    {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications"><PublicationsSection /></SectionCard>}
+                    {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering"><VolunteeringSection /></SectionCard>}
+                    {moreSubSection === 'hobbies' && <SectionCard icon={Palette} title="Hobbies & Interests"><HobbiesSection /></SectionCard>}
+                    {moreSubSection === 'references' && <SectionCard icon={Users} title="References"><ReferencesSection /></SectionCard>}
+                  </div>
+                )}
               </div>
             )}
 

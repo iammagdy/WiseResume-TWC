@@ -101,19 +101,16 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
 export function regenerateResumeIds(data: ResumeData): ResumeData {
   return {
     ...data,
-    id: undefined, // Clear old ID so a new one is assigned on save
-    experience: data.experience?.map(exp => ({
-      ...exp,
-      id: crypto.randomUUID(),
-    })) || [],
-    education: data.education?.map(edu => ({
-      ...edu,
-      id: crypto.randomUUID(),
-    })) || [],
-    certifications: data.certifications?.map(cert => ({
-      ...cert,
-      id: crypto.randomUUID(),
-    })) || [],
+    id: undefined,
+    experience: data.experience?.map(exp => ({ ...exp, id: crypto.randomUUID() })) || [],
+    education: data.education?.map(edu => ({ ...edu, id: crypto.randomUUID() })) || [],
+    certifications: data.certifications?.map(cert => ({ ...cert, id: crypto.randomUUID() })) || [],
+    awards: data.awards?.map(a => ({ ...a, id: crypto.randomUUID() })) || [],
+    projects: data.projects?.map(p => ({ ...p, id: crypto.randomUUID() })) || [],
+    publications: data.publications?.map(p => ({ ...p, id: crypto.randomUUID() })) || [],
+    volunteering: data.volunteering?.map(v => ({ ...v, id: crypto.randomUUID() })) || [],
+    hobbies: data.hobbies?.map(h => ({ ...h, id: crypto.randomUUID() })) || [],
+    references: data.references?.map(r => ({ ...r, id: crypto.randomUUID() })) || [],
   };
 }
 
@@ -189,7 +186,7 @@ export function getExtractionSummary(data: ResumeData): {
   };
 
   const hasContact = counts.hasName || counts.hasEmail || counts.hasPhone;
-  const hasContent = counts.experienceCount > 0 || counts.educationCount > 0 || counts.skillsCount > 0 || !!data.summary;
+  const hasContent = counts.experienceCount > 0 || counts.educationCount > 0 || counts.skillsCount > 0 || !!data.summary || (data.awards?.length || 0) > 0 || (data.projects?.length || 0) > 0;
   
   const isEmpty = !hasContact && !hasContent;
   const isPartial = hasContact && !hasContent || !hasContact && hasContent;

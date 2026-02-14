@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
-import { ResumeData, Experience, Education, Certification, ContactInfo } from '@/types/resume';
+import { ResumeData, Experience, Education, Certification, ContactInfo, Award, Project, Publication, Volunteering, Hobby, Reference } from '@/types/resume';
 import { toast } from 'sonner';
 import { Json } from '@/integrations/supabase/types';
 import { useResumeStore } from '@/store/resumeStore';
@@ -17,6 +17,12 @@ export interface DatabaseResume {
   education: Education[];
   skills: string[];
   certifications: Certification[];
+  awards: Award[];
+  projects: Project[];
+  publications: Publication[];
+  volunteering: Volunteering[];
+  hobbies: Hobby[];
+  references: Reference[];
   template_id: string;
   target_job_title: string | null;
   target_company: string | null;
@@ -28,25 +34,8 @@ export interface DatabaseResume {
 }
 
 // Type helper to convert database Json types to our types
-function parseDbResume(dbResume: {
-  id: string;
-  user_id: string;
-  title: string;
-  contact_info: Json;
-  summary: string | null;
-  experience: Json;
-  education: Json;
-  skills: Json;
-  certifications: Json;
-  template_id: string | null;
-  target_job_title: string | null;
-  target_company: string | null;
-  job_match_score: number | null;
-  is_primary: boolean | null;
-  parent_resume_id: string | null;
-  created_at: string;
-  updated_at: string;
-}): DatabaseResume {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseDbResume(dbResume: any): DatabaseResume {
   return {
     id: dbResume.id,
     user_id: dbResume.user_id,
@@ -57,6 +46,12 @@ function parseDbResume(dbResume: {
     education: (dbResume.education as unknown as Education[]) || [],
     skills: (dbResume.skills as unknown as string[]) || [],
     certifications: (dbResume.certifications as unknown as Certification[]) || [],
+    awards: (dbResume.awards as unknown as Award[]) || [],
+    projects: (dbResume.projects as unknown as Project[]) || [],
+    publications: (dbResume.publications as unknown as Publication[]) || [],
+    volunteering: (dbResume.volunteering as unknown as Volunteering[]) || [],
+    hobbies: (dbResume.hobbies as unknown as Hobby[]) || [],
+    references: (dbResume.references as unknown as Reference[]) || [],
     template_id: dbResume.template_id || 'modern',
     target_job_title: dbResume.target_job_title,
     target_company: dbResume.target_company,
@@ -78,6 +73,12 @@ export function dbToResumeData(dbResume: DatabaseResume): ResumeData {
     education: dbResume.education || [],
     skills: dbResume.skills || [],
     certifications: dbResume.certifications || [],
+    awards: dbResume.awards || [],
+    projects: dbResume.projects || [],
+    publications: dbResume.publications || [],
+    volunteering: dbResume.volunteering || [],
+    hobbies: dbResume.hobbies || [],
+    references: dbResume.references || [],
     templateId: dbResume.template_id,
     createdAt: dbResume.created_at,
     updatedAt: dbResume.updated_at,
@@ -95,6 +96,12 @@ export function resumeDataToDb(resume: ResumeData, userId: string, title?: strin
     education: resume.education as unknown as Json,
     skills: resume.skills as unknown as Json,
     certifications: resume.certifications as unknown as Json,
+    awards: (resume.awards || []) as unknown as Json,
+    projects: (resume.projects || []) as unknown as Json,
+    publications: (resume.publications || []) as unknown as Json,
+    volunteering: (resume.volunteering || []) as unknown as Json,
+    hobbies: (resume.hobbies || []) as unknown as Json,
+    references: (resume.references || []) as unknown as Json,
     template_id: resume.templateId,
   };
 }
@@ -190,6 +197,12 @@ export function useResumeMutations() {
       if (updates.education) dbUpdates.education = updates.education;
       if (updates.skills) dbUpdates.skills = updates.skills;
       if (updates.certifications) dbUpdates.certifications = updates.certifications;
+      if (updates.awards) dbUpdates.awards = updates.awards;
+      if (updates.projects) dbUpdates.projects = updates.projects;
+      if (updates.publications) dbUpdates.publications = updates.publications;
+      if (updates.volunteering) dbUpdates.volunteering = updates.volunteering;
+      if (updates.hobbies) dbUpdates.hobbies = updates.hobbies;
+      if (updates.references) dbUpdates.references = updates.references;
       if (updates.templateId) dbUpdates.template_id = updates.templateId;
       if (title) dbUpdates.title = title;
 

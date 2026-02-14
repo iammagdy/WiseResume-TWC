@@ -507,17 +507,22 @@ export type Database = {
       }
       resumes: {
         Row: {
+          awards: Json | null
           certifications: Json | null
           contact_info: Json
           created_at: string | null
           customization: Json | null
           education: Json | null
           experience: Json | null
+          hobbies: Json | null
           id: string
           is_primary: boolean | null
           is_public: boolean
           job_match_score: number | null
           parent_resume_id: string | null
+          projects: Json | null
+          publications: Json | null
+          references: Json | null
           skills: Json | null
           summary: string | null
           target_company: string | null
@@ -526,19 +531,25 @@ export type Database = {
           title: string
           updated_at: string | null
           user_id: string
+          volunteering: Json | null
         }
         Insert: {
+          awards?: Json | null
           certifications?: Json | null
           contact_info?: Json
           created_at?: string | null
           customization?: Json | null
           education?: Json | null
           experience?: Json | null
+          hobbies?: Json | null
           id?: string
           is_primary?: boolean | null
           is_public?: boolean
           job_match_score?: number | null
           parent_resume_id?: string | null
+          projects?: Json | null
+          publications?: Json | null
+          references?: Json | null
           skills?: Json | null
           summary?: string | null
           target_company?: string | null
@@ -547,19 +558,25 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id: string
+          volunteering?: Json | null
         }
         Update: {
+          awards?: Json | null
           certifications?: Json | null
           contact_info?: Json
           created_at?: string | null
           customization?: Json | null
           education?: Json | null
           experience?: Json | null
+          hobbies?: Json | null
           id?: string
           is_primary?: boolean | null
           is_public?: boolean
           job_match_score?: number | null
           parent_resume_id?: string | null
+          projects?: Json | null
+          publications?: Json | null
+          references?: Json | null
           skills?: Json | null
           summary?: string | null
           target_company?: string | null
@@ -568,6 +585,7 @@ export type Database = {
           title?: string
           updated_at?: string | null
           user_id?: string
+          volunteering?: Json | null
         }
         Relationships: [
           {
