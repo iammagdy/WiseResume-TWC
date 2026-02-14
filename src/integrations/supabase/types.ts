@@ -82,6 +82,39 @@ export type Database = {
           },
         ]
       }
+      career_assessments: {
+        Row: {
+          completed_milestones: Json
+          created_at: string | null
+          id: string
+          quiz_answers: Json
+          result: Json
+          resume_id: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_milestones?: Json
+          created_at?: string | null
+          id?: string
+          quiz_answers?: Json
+          result?: Json
+          resume_id?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_milestones?: Json
+          created_at?: string | null
+          id?: string
+          quiz_answers?: Json
+          result?: Json
+          resume_id?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       cover_letters: {
         Row: {
           company: string | null
