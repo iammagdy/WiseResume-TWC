@@ -1,12 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Sparkles, Lock } from 'lucide-react';
+import { Sparkles, Lock, MessageSquare, ChevronDown, ChevronUp, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { usePublicResume, useResumeShareMutations, PublicShareResult } from '@/hooks/useResumeShares';
+import { usePublicShareComments, useAddShareComment, type ShareComment } from '@/hooks/useShareComments';
 import { ContactInfo, Experience, Education } from '@/types/resume';
 import { toast } from 'sonner';
+import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+const SECTIONS = ['summary', 'experience', 'education', 'skills', 'general'] as const;
 
 export default function SharePage() {
   const { token } = useParams<{ token: string }>();
@@ -15,6 +23,14 @@ export default function SharePage() {
   const { data, isLoading, error } = usePublicResume(token || null, passwordAttempt);
   const { incrementViewCount } = useResumeShareMutations();
   const [viewCounted, setViewCounted] = useState(false);
+
+  // Feedback state
+  const { data: comments = [] } = usePublicShareComments(token || null);
+  const addComment = useAddShareComment();
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [authorName, setAuthorName] = useState('');
+  const [feedbackContent, setFeedbackContent] = useState('');
+  const [feedbackSection, setFeedbackSection] = useState<string>('general');
 
   // Increment view count once when resume loads successfully
   useEffect(() => {
@@ -88,6 +104,23 @@ export default function SharePage() {
   const education = (resume.education as unknown as Education[]) || [];
   const skills = (resume.skills as unknown as string[]) || [];
 
+  const handleSubmitFeedback = () => {
+    if (!token) return;
+    if (!authorName.trim()) { toast.error('Please enter your name'); return; }
+    if (!feedbackContent.trim()) { toast.error('Please enter your feedback'); return; }
+    addComment.mutate(
+      { shareToken: token, authorName: authorName.trim(), content: feedbackContent.trim(), section: feedbackSection },
+      {
+        onSuccess: () => {
+          setFeedbackContent('');
+          setFeedbackSection('general');
+        },
+      }
+    );
+  };
+
+  const visibleComments = (comments as ShareComment[]).filter(c => !c.is_resolved);
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
       <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-8">
@@ -158,6 +191,80 @@ export default function SharePage() {
             </div>
           </section>
         )}
+
+        <section className="mt-10 border-t border-border pt-6">
+          <button
+            onClick={() => setFeedbackOpen(!feedbackOpen)}
+            className="w-full flex items-center justify-between p-3 rounded-xl glass-surface touch-manipulation active:scale-[0.98] min-h-[48px]"
+          >
+            <div className="flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-primary" />
+              <span className="font-medium text-sm">Leave Feedback</span>
+              {visibleComments.length > 0 && (
+                <Badge variant="secondary" className="text-[10px]">{visibleComments.length}</Badge>
+              )}
+            </div>
+            {feedbackOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+
+          {feedbackOpen && (
+            <div className="mt-3 space-y-3">
+              <div className="p-4 rounded-xl glass-surface space-y-3">
+                <Input
+                  placeholder="Your name"
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  className="text-[16px]"
+                />
+                <Select value={feedbackSection} onValueChange={setFeedbackSection}>
+                  <SelectTrigger className="min-h-[44px]">
+                    <SelectValue placeholder="Section (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SECTIONS.map((s) => (
+                      <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Textarea
+                  placeholder="Your feedback (max 1000 chars)..."
+                  value={feedbackContent}
+                  onChange={(e) => setFeedbackContent(e.target.value.slice(0, 1000))}
+                  className="text-[16px] min-h-[80px]"
+                  rows={3}
+                />
+                <Button
+                  onClick={handleSubmitFeedback}
+                  disabled={addComment.isPending}
+                  className="w-full min-h-[48px]"
+                >
+                  {addComment.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                  Submit Feedback
+                </Button>
+              </div>
+
+              {visibleComments.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground px-1">Recent Feedback</p>
+                  {visibleComments.map((comment) => (
+                    <div key={comment.id} className="p-3 rounded-xl glass-surface">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium">{comment.author_name}</span>
+                        {comment.section && comment.section !== 'general' && (
+                          <Badge variant="outline" className="text-[10px] capitalize">{comment.section}</Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{comment.content}</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </section>
       </main>
 
       <footer className="border-t border-border/50 px-4 py-4 bg-card/50 backdrop-blur-sm">

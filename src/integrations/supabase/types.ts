@@ -687,6 +687,44 @@ export type Database = {
           },
         ]
       }
+      share_comments: {
+        Row: {
+          author_name: string
+          content: string
+          created_at: string
+          id: string
+          is_resolved: boolean
+          section: string | null
+          share_id: string
+        }
+        Insert: {
+          author_name: string
+          content: string
+          created_at?: string
+          id?: string
+          is_resolved?: boolean
+          section?: string | null
+          share_id: string
+        }
+        Update: {
+          author_name?: string
+          content?: string
+          created_at?: string
+          id?: string
+          is_resolved?: boolean
+          section?: string | null
+          share_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_comments_share_id_fkey"
+            columns: ["share_id"]
+            isOneToOne: false
+            referencedRelation: "resume_shares"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tailor_history: {
         Row: {
           applied_sections: Json | null
@@ -778,6 +816,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_share_comment: {
+        Args: {
+          p_author_name: string
+          p_content: string
+          p_section?: string
+          p_share_token: string
+        }
+        Returns: Json
+      }
+      get_share_comments: { Args: { p_share_token: string }; Returns: Json }
       get_shared_resume:
         | { Args: { share_token: string }; Returns: Json }
         | {
