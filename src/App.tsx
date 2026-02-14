@@ -49,6 +49,7 @@ const CoverLettersPage = lazyWithRetry(() => import("./pages/CoverLettersPage"))
 const CoverLetterNewPage = lazyWithRetry(() => import("./pages/CoverLetterNewPage"));
 const CoverLetterEditPage = lazyWithRetry(() => import("./pages/CoverLetterEditPage"));
 const SharePage = lazyWithRetry(() => import("./pages/SharePage"));
+const ExamplesPage = lazyWithRetry(() => import("./pages/ExamplesPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -186,11 +187,16 @@ const queryClient = new QueryClient({
              </Suspense>
            } />
            <Route path="/cover-letter/edit/:id" element={
-             <Suspense fallback={<PageLoadingSpinner />}>
-               <CoverLetterEditPage />
-             </Suspense>
-           } />
-         </Route>
+              <Suspense fallback={<PageLoadingSpinner />}>
+                <CoverLetterEditPage />
+              </Suspense>
+            } />
+           <Route path="/examples" element={
+              <Suspense fallback={<PageLoadingSpinner />}>
+                <ExamplesPage />
+              </Suspense>
+            } />
+          </Route>
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<PageLoadingSpinner />}><SharePage /></Suspense>} />
