@@ -1,48 +1,28 @@
 
 
-## Fix: Remove Radix Tooltip from Editor Page (Maximum Update Depth)
+## Fix: Remove Radix Tooltip from InlineAIButton (Persistent Maximum Update Depth)
 
 ### Root Cause
 
-The "Maximum update depth exceeded" crash is caused by the Radix UI `Tooltip` component wrapping the "Wise AI" button in the editor header (lines 475-494 of EditorPage.tsx). Radix Tooltip uses a Popper component internally, and its `composeRefs` utility creates an infinite `setRef` loop during render.
-
-The project's own architecture notes explicitly state: "The editor page specifically avoids Radix UI Popper components." This Tooltip violates that rule.
+The previous fix removed the Tooltip from the EditorPage header, but the same Radix Tooltip is still used inside `src/components/editor/InlineAIButton.tsx` (lines 85-100). This component renders inside every section card on the editor page via `SectionAIAction`. The Radix Tooltip's internal Popper/composeRefs mechanism triggers the same infinite `setRef` loop.
 
 ### Fix (1 file)
 
-**File: `src/pages/EditorPage.tsx`**
+**File: `src/components/editor/InlineAIButton.tsx`**
 
-Replace the `TooltipProvider > Tooltip > TooltipTrigger > button` wrapper (lines 475-494) with just the plain `<button>` element. The button already has an `aria-label` for accessibility, so the tooltip is redundant.
+Remove the `TooltipProvider`, `Tooltip`, `TooltipTrigger`, and `TooltipContent` wrapper around the AI Assist button. Replace with a plain `<Button>` -- the button already has visible text ("AI Assist") and the dropdown menu provides full context, so a tooltip adds no value (especially on mobile where hover doesn't exist).
 
-Before:
-```tsx
-<TooltipProvider delayDuration={300}>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <button onClick={...} className="..." aria-label="Open Wise AI">
-        ...
-      </button>
-    </TooltipTrigger>
-    <TooltipContent side="bottom">
-      Click for AI assistance
-    </TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+Remove these imports (line 3):
+```ts
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 ```
 
-After:
-```tsx
-<button onClick={...} className="..." aria-label="Open Wise AI">
-  ...
-</button>
-```
-
-This also allows removing the `Tooltip`, `TooltipTrigger`, `TooltipContent`, and `TooltipProvider` imports from line 4 (if not used elsewhere in the file -- they are not).
+Replace the TooltipProvider/Tooltip/TooltipTrigger/TooltipContent block (lines 85-100) with just the `<Button>` element, keeping all its existing props and children intact.
 
 ### Why This Works
 
-- Removes the only Radix Popper component from the editor page, eliminating the infinite `setRef` recursion
-- The button already has `aria-label="Open Wise AI"` for accessibility
-- On mobile (the primary target), tooltips are not useful anyway since there is no hover
-- Aligns with the documented architectural decision to avoid Popper components in the editor
+- Eliminates the last Radix Popper component from the editor render tree
+- The button already displays "AI Assist" text and has clear visual affordance
+- On mobile (primary target), tooltips provide zero value since there is no hover interaction
+- Aligns with the documented architectural rule: "The editor page specifically avoids Radix UI Popper components"
 
