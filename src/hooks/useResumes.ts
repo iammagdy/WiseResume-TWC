@@ -145,6 +145,10 @@ export function useResume(resumeId: string | null) {
       return parseDbResume(data);
     },
     enabled: !!user && !!resumeId,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
+    staleTime: 0,
+    gcTime: 5 * 60 * 1000,
   });
 }
 

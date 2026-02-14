@@ -59,7 +59,7 @@ import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
 
   // Use shallow selector to prevent unnecessary re-renders when unrelated store parts change
@@ -95,6 +95,17 @@ export default function EditorPage() {
       useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
     }
   }, [resumeFromDb, currentResume, currentResumeId]);
+
+  // Validate resume ownership - prevent access to other users' resumes
+  useEffect(() => {
+    if (resumeFromDb && user && resumeFromDb.user_id !== user.id) {
+      console.error('Resume belongs to different user, access denied');
+      setCurrentResumeId(null);
+      toast.error('Access denied. This resume belongs to another user.');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [resumeFromDb, user, setCurrentResumeId, navigate]);
+
   const { isSyncing } = useOfflineSync();
   const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
   
@@ -116,6 +127,40 @@ export default function EditorPage() {
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Detect loading timeout (8 seconds)
+  useEffect(() => {
+    if (currentResumeId && isValidating && !resumeFromDb) {
+      const timer = setTimeout(() => {
+        console.error('Resume loading timeout detected');
+        setLoadingTimeout(true);
+      }, 8000);
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [currentResumeId, isValidating, resumeFromDb]);
+
+  // Handle loading timeout - clear stale ID and redirect
+  useEffect(() => {
+    if (loadingTimeout && currentResumeId) {
+      console.error('Clearing stale resume ID due to timeout:', currentResumeId);
+      setCurrentResumeId(null);
+      toast.error('Failed to load resume. Please try again from the dashboard.');
+      setTimeout(() => {
+        navigate('/dashboard', { replace: true });
+      }, 500);
+    }
+  }, [loadingTimeout, currentResumeId, setCurrentResumeId, navigate]);
+
+  // Early redirect if no resume ID - prevents infinite loading
+  useEffect(() => {
+    if (user && !authLoading && !currentResumeId && !currentResume) {
+      console.warn('No resume selected, redirecting to dashboard');
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, authLoading, currentResumeId, currentResume, navigate]);
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -420,6 +465,18 @@ export default function EditorPage() {
     setShowApplyPrompt(true);
   }, []);
 
+  // Auth loading guard - wait for auth to finish loading
+  if (authLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   // Auth guard
   if (!user) {
     return <Navigate to="/auth" replace />;
@@ -427,23 +484,52 @@ export default function EditorPage() {
 
   // Resume guard — wait for DB fetch before redirecting
   if (!currentResume) {
+    // Show loading skeleton while validating
     if (currentResumeId && isValidating) {
       return (
-        <div className="flex-1 flex flex-col animate-pulse">
+        <div className="flex-1 flex flex-col">
           <div className="px-4 py-3 border-b border-border">
-            <div className="h-2 w-full bg-muted rounded" />
+            <div className="h-2 w-full bg-muted rounded animate-pulse" />
           </div>
           <div className="mt-3 px-4 flex gap-2">
-            {[1,2,3,4,5].map(i => <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0" />)}
+            {[1,2,3,4,5].map(i => <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0 animate-pulse" />)}
           </div>
           <div className="flex-1 px-4 py-4 space-y-4">
-            <div className="h-12 bg-muted rounded-xl" />
-            <div className="h-12 bg-muted rounded-xl" />
-            <div className="h-32 bg-muted rounded-xl" />
+            <div className="h-12 bg-muted rounded-xl animate-pulse" />
+            <div className="h-12 bg-muted rounded-xl animate-pulse" />
+            <div className="h-32 bg-muted rounded-xl animate-pulse" />
+
+            {loadingTimeout && (
+              <div className="mt-8 flex flex-col items-center gap-4 p-4">
+                <div className="text-center space-y-2">
+                  <p className="text-sm font-medium text-foreground">Taking longer than expected...</p>
+                  <p className="text-xs text-muted-foreground">The resume may have been deleted or there's a connection issue.</p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setCurrentResumeId(null);
+                    navigate('/dashboard', { replace: true });
+                  }}
+                  variant="outline"
+                  size="lg"
+                >
+                  Return to Dashboard
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       );
     }
+
+    // If we have a resume ID but finished validating without data, redirect
+    if (currentResumeId && !isValidating) {
+      console.warn('Resume validation completed but no data found, redirecting...');
+      setCurrentResumeId(null);
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    // No resume ID at all, redirect to dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
