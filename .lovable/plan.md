@@ -1,156 +1,79 @@
 
 
-## Fix: Editor Page Infinite Loading -- Complete Rewrite of Guard Logic
+## Fix: Editor Page Infinite Loading -- Root Cause Resolution
 
-### Problem Diagnosis
+### Root Causes Found (via live reproduction in browser tool)
 
-After thoroughly analyzing the 868-line `EditorPage.tsx`, the root cause is **six competing `useEffect` hooks** that manage navigation guards and data loading. They run in different render cycles and create race conditions that no single-line fix can resolve:
+Three issues work together to create the infinite loading:
 
-1. **Line 94**: Hydrate `currentResume` from DB
-2. **Line 100**: Validate ownership
-3. **Line 134**: Loading timeout detection
-4. **Line 147**: Handle loading timeout
-5. **Line 160**: Early redirect if no resume ID
-6. **Line 190**: Handle query completion without data
+1. **AppShell uses `key={location.pathname}`** which forces React to fully unmount and remount the entire page component tree on every navigation. When going from `/dashboard` to `/editor`, the EditorPage is destroyed and recreated, re-triggering the Suspense lazy load and resetting all component state.
 
-These effects fight each other -- one redirects while another is still loading, or the hydration effect hasn't fired yet when a guard checks state. Every previous fix addressed one edge case but broke another.
+2. **`useResumeStoreHydration()` can get stuck returning `false`**. It uses `useSyncExternalStore` with a server snapshot of `() => false`. If the Zustand persist hydration completes before the component subscribes, the listener never fires and the component never learns hydration finished. This blocks the guard at line 445: `if (!storeHydrated) return <EditorSkeleton />`.
 
-### Solution: Replace All Guard Effects with a Single Deterministic Flow
+3. **The safety timeout depends on `storeHydrated`**. Since `storeHydrated` is stuck at `false`, the timeout effect returns early and never starts its 10-second countdown. Result: skeleton shows forever.
 
-The fix replaces all 6 guard-related `useEffect` hooks with:
+### Fix (3 files)
 
-1. **One inline guard block** (synchronous, runs every render) -- no timing issues
-2. **One hydration effect** (the only async side-effect needed)
-3. **One safety timeout** (catches truly stuck states)
+**File 1: `src/components/layout/AppShell.tsx`**
+- Remove `key={location.pathname}` from the outlet wrapper div
+- This prevents unnecessary unmount/remount of pages during navigation
+- Pages will now properly transition without losing state
 
-### Detailed Changes (EditorPage.tsx only)
+**File 2: `src/store/resumeStore.ts`**
+- Change `useResumeStoreHydration` to directly read `hasHydrated` using a simple `useState` + `useEffect` pattern instead of `useSyncExternalStore`
+- This eliminates the race condition where `useSyncExternalStore` misses the hydration event
 
-**Step 1: Remove these useEffect blocks entirely:**
-- Lines 100-108 (ownership validation -- move to inline guard)
-- Lines 134-144 (loading timeout detection)
-- Lines 147-156 (handle loading timeout)
-- Lines 160-165 (early redirect)
-- Lines 190-198 (query completion redirect)
-- Remove `loadingTimeout` state variable (line 131)
+**File 3: `src/pages/EditorPage.tsx`**
+- Make the safety timeout independent of `storeHydrated` -- if stuck loading for 8 seconds regardless of hydration state, redirect to dashboard
+- Add a fallback: if `storeHydrated` is false for more than 2 seconds, treat it as hydrated (the store definitely hydrated by then since localStorage is synchronous)
 
-**Step 2: Rewrite the hydration effect (lines 94-98) to be robust:**
+### Technical Details
 
-```ts
-// Single hydration effect: sync DB data into Zustand store
-useEffect(() => {
-  if (!resumeFromDb || !currentResumeId) return;
-
-  // Ownership check
-  if (user && resumeFromDb.user_id !== user.id) {
-    setCurrentResumeId(null);
-    toast.error('Access denied.');
-    navigate('/dashboard', { replace: true });
-    return;
-  }
-
-  // Hydrate store if needed
-  if (!currentResume) {
-    useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-  }
-}, [resumeFromDb, currentResume, currentResumeId, user]);
+**AppShell.tsx change (line 30):**
+```text
+Before: <div key={location.pathname} className="...">
+After:  <div className="...">
 ```
 
-**Step 3: Add one safety-net timeout effect:**
-
+**resumeStore.ts -- replace `useResumeStoreHydration` (bottom of file):**
 ```ts
-// Safety timeout: if stuck loading for 10s, bail out
-useEffect(() => {
-  if (currentResume || !currentResumeId || !storeHydrated) return;
+export const useResumeStoreHydration = () => {
+  const [hydrated, setHydrated] = useState(getResumeStoreHasHydrated);
+  useEffect(() => {
+    if (hydrated) return;
+    // If already hydrated, set immediately
+    if (getResumeStoreHasHydrated()) {
+      setHydrated(true);
+      return;
+    }
+    // Otherwise subscribe
+    const unsub = subscribeToHydration(() => setHydrated(true));
+    return unsub;
+  }, [hydrated]);
+  return hydrated;
+};
+```
 
+**EditorPage.tsx -- make timeout unconditional:**
+```ts
+// Safety timeout: if no resume after 8s, bail out (no storeHydrated dependency)
+useEffect(() => {
+  if (currentResume) return;
   const timer = setTimeout(() => {
-    setCurrentResumeId(null);
-    toast.error('Resume could not be loaded.');
-    navigate('/dashboard', { replace: true });
-  }, 10000);
-
+    if (!useResumeStore.getState().currentResume) {
+      useResumeStore.getState().setCurrentResumeId(null);
+      toast.error('Resume could not be loaded.');
+      navigate('/dashboard', { replace: true });
+    }
+  }, 8000);
   return () => clearTimeout(timer);
-}, [currentResume, currentResumeId, storeHydrated]);
-```
-
-**Step 4: Replace the guard block (lines 472-558) with a simple, linear flow:**
-
-```ts
-// === GUARDS (all inline, no effects) ===
-
-// 1. Auth loading
-if (authLoading) {
-  return <EditorSkeleton />;
-}
-
-// 2. No user
-if (!user) {
-  return <Navigate to="/auth" replace />;
-}
-
-// 3. Store not hydrated yet
-if (!storeHydrated) {
-  return <EditorSkeleton />;
-}
-
-// 4. No resume selected at all
-if (!currentResumeId && !currentResume) {
-  return <Navigate to="/dashboard" replace />;
-}
-
-// 5. Have ID but data not loaded yet -- show skeleton
-if (!currentResume) {
-  return <EditorSkeleton />;
-}
-
-// === Past this point, currentResume is guaranteed non-null ===
-```
-
-This uses the existing `EditorSkeleton` component from `PageSkeletons.tsx` instead of inline skeleton JSX, keeping the code clean.
-
-**Step 5: Import `EditorSkeleton` at the top:**
-
-```ts
-import { EditorSkeleton } from '@/components/layout/PageSkeletons';
+}, [currentResume, navigate]);
 ```
 
 ### Why This Works
 
-```text
-User flow: Dashboard -> click resume -> /editor
-
-  storeHydrated?  ---no---> EditorSkeleton
-        |
-       yes
-        |
-  authLoading?  ---yes---> EditorSkeleton
-        |
-        no
-        |
-  user exists?  ---no---> /auth
-        |
-       yes
-        |
-  currentResumeId || currentResume?  ---no---> /dashboard
-        |
-       yes
-        |
-  currentResume?  ---no---> EditorSkeleton
-        |                   (useEffect hydrates from DB)
-       yes                  (timeout after 10s -> /dashboard)
-        |
-  RENDER EDITOR
-```
-
-- **No race conditions**: Guards are checked synchronously on every render
-- **No competing effects**: Only 2 effects remain (hydration + timeout)
-- **No flash redirects**: Skeleton shows until data is confirmed present or absent
-- **Clean timeout**: Single 10s fallback catches all stuck states
-
-### Summary
-
-- **File changed**: `src/pages/EditorPage.tsx` only
-- **Lines removed**: ~60 lines (6 useEffect blocks + loadingTimeout state + inline skeleton JSX)
-- **Lines added**: ~30 lines (2 effects + simplified guard block + 1 import)
-- **Net reduction**: ~30 lines, dramatically simpler logic
-- **No new dependencies**
+- Removing `key={location.pathname}` stops the destructive remount cycle
+- The new hydration hook reliably detects hydration even if it completed before mount
+- The unconditional timeout ensures the app NEVER gets permanently stuck -- worst case, it redirects after 8 seconds
+- No new dependencies needed
 
