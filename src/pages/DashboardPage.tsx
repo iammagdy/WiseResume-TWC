@@ -397,168 +397,171 @@ export default function DashboardPage() {
           </div>
         </header>
 
-        {/* Daily Tip - below header, auto-hides */}
-        <DailyTipCard onVisibilityChange={setTipVisible} />
+        {/* All scrollable content inside PullToRefresh */}
+        <PullToRefresh onRefresh={handleRefresh} className="flex-1">
+          <div className="pb-safe">
+            {/* Daily Tip - below header, auto-hides */}
+            <DailyTipCard onVisibilityChange={setTipVisible} />
 
-        {/* Personalized Stats Header */}
-        <DashboardStats
-          totalResumes={resumes?.length || 0}
-          healthScores={healthScores}
-          userName={profile?.fullName}
-          isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
-        />
+            {/* Personalized Stats Header */}
+            <DashboardStats
+              totalResumes={resumes?.length || 0}
+              healthScores={healthScores}
+              userName={profile?.fullName}
+              isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
+            />
 
-        {/* Search pill */}
-        {resumes && resumes.length > 0 && (
-          <div className="px-4 pb-3">
-            <div className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search resumes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 rounded-full h-11 glass-input"
-              />
-            </div>
-          </div>
-        )}
+            {/* Search pill */}
+            {resumes && resumes.length > 0 && (
+              <div className="px-4 pb-3">
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search resumes..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 rounded-full h-11 glass-input"
+                  />
+                </div>
+              </div>
+            )}
 
-        {/* Content with Pull-to-Refresh */}
-        {isLoading ? (
-          <div className="flex-1 px-4 pb-safe">
-            <SkeletonCardList count={3} />
-          </div>
-        ) : !resumes || resumes.length === 0 ? (
-          <>
-            {/* Quick Actions Grid */}
-            <div className="grid grid-cols-2 gap-3 px-6 mb-4">
-              <ActionCard
-                icon={FileTextIcon}
-                title="New Resume"
-                description="Start from scratch"
-                onClick={handleCreateNew}
-                aria-label="Create new resume"
-              />
-              <ActionCard
-                icon={Upload}
-                title="Import PDF"
-                description="Upload existing resume"
-                onClick={() => navigate('/upload')}
-                aria-label="Import PDF resume"
-              />
-              <ActionCard
-                icon={Briefcase}
-                title="Browse Jobs"
-                description="Find opportunities"
-                onClick={() => navigate('/applications')}
-                aria-label="Browse job listings"
-              />
-              <ActionCard
-                icon={Sparkles}
-                title="AI Writer"
-                description="AI-powered creation"
-                onClick={handleCreateNew}
-                aria-label="Create resume with AI"
-              />
-            </div>
-            <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
-          </>
-        ) : !hasResumes ? (
-          <div className="flex-1 flex items-center justify-center px-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center"
-            >
-              <p className="text-muted-foreground">No resumes match "{searchQuery}"</p>
-              <Button
-                variant="link"
-                onClick={() => setSearchQuery('')}
-                className="mt-2"
-              >
-                Clear search
-              </Button>
-            </motion.div>
-          </div>
-        ) : (
-          <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-hidden">
-            <div className="px-4 pb-safe h-full overflow-y-auto">
-              <motion.div 
-                className="space-y-4 pb-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0"
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  visible: {
-                    transition: {
-                      staggerChildren: 0.05,
+            {/* Content */}
+            {isLoading ? (
+              <div className="px-4">
+                <SkeletonCardList count={3} />
+              </div>
+            ) : !resumes || resumes.length === 0 ? (
+              <>
+                {/* Quick Actions Grid */}
+                <div className="grid grid-cols-2 gap-3 px-6 mb-4">
+                  <ActionCard
+                    icon={FileTextIcon}
+                    title="New Resume"
+                    description="Start from scratch"
+                    onClick={handleCreateNew}
+                    aria-label="Create new resume"
+                  />
+                  <ActionCard
+                    icon={Upload}
+                    title="Import PDF"
+                    description="Upload existing resume"
+                    onClick={() => navigate('/upload')}
+                    aria-label="Import PDF resume"
+                  />
+                  <ActionCard
+                    icon={Briefcase}
+                    title="Browse Jobs"
+                    description="Find opportunities"
+                    onClick={() => navigate('/applications')}
+                    aria-label="Browse job listings"
+                  />
+                  <ActionCard
+                    icon={Sparkles}
+                    title="AI Writer"
+                    description="AI-powered creation"
+                    onClick={handleCreateNew}
+                    aria-label="Create resume with AI"
+                  />
+                </div>
+                <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
+              </>
+            ) : !hasResumes ? (
+              <div className="flex items-center justify-center px-4 py-16">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-center"
+                >
+                  <p className="text-muted-foreground">No resumes match "{searchQuery}"</p>
+                  <Button
+                    variant="link"
+                    onClick={() => setSearchQuery('')}
+                    className="mt-2"
+                  >
+                    Clear search
+                  </Button>
+                </motion.div>
+              </div>
+            ) : (
+              <div className="px-4 pb-4">
+                <motion.div 
+                  className="space-y-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0"
+                  initial="hidden"
+                  animate="visible"
+                  variants={{
+                    visible: {
+                      transition: {
+                        staggerChildren: 0.05,
+                      },
                     },
-                  },
-                }}
-              >
-                {resumeHierarchy && (
-                  <>
-                    {/* Render master resumes with their tailored versions */}
-                    {resumeHierarchy.masterResumes.map((masterResume, index) => {
-                      const tailoredVersions = resumeHierarchy.tailoredByParent[masterResume.id] || [];
-                      
-                      if (tailoredVersions.length > 0) {
+                  }}
+                >
+                  {resumeHierarchy && (
+                    <>
+                      {/* Render master resumes with their tailored versions */}
+                      {resumeHierarchy.masterResumes.map((masterResume, index) => {
+                        const tailoredVersions = resumeHierarchy.tailoredByParent[masterResume.id] || [];
+                        
+                        if (tailoredVersions.length > 0) {
+                          return (
+                            <motion.div key={masterResume.id} variants={itemVariants}>
+                              <ResumeGroup
+                                masterResume={masterResume}
+                                tailoredVersions={tailoredVersions}
+                                onEdit={handleEdit}
+                                onDuplicate={handleDuplicate}
+                                onDelete={handleDelete}
+                                onRename={handleRename}
+                                onInterview={handleInterview}
+                                onCreateTailored={handleCreateTailored}
+                                healthScores={healthScores}
+                                scoringId={scoringId}
+                              />
+                            </motion.div>
+                          );
+                        }
+
+                        // Single resume without tailored versions
                         return (
                           <motion.div key={masterResume.id} variants={itemVariants}>
-                            <ResumeGroup
-                              masterResume={masterResume}
-                              tailoredVersions={tailoredVersions}
+                            <ResumeListCard
+                              resume={masterResume}
                               onEdit={handleEdit}
                               onDuplicate={handleDuplicate}
                               onDelete={handleDelete}
                               onRename={handleRename}
                               onInterview={handleInterview}
-                              onCreateTailored={handleCreateTailored}
-                              healthScores={healthScores}
-                              scoringId={scoringId}
+                              healthScore={healthScores[masterResume.id]}
+                              isScoring={scoringId === masterResume.id}
                             />
                           </motion.div>
                         );
-                      }
+                      })}
 
-                      // Single resume without tailored versions
-                      return (
-                        <motion.div key={masterResume.id} variants={itemVariants}>
+                      {/* Render orphaned tailored resumes (parent was deleted) */}
+                      {resumeHierarchy.orphanTailored.map((resume, index) => (
+                        <motion.div key={resume.id} variants={itemVariants}>
                           <ResumeListCard
-                            resume={masterResume}
+                            resume={resume}
                             onEdit={handleEdit}
                             onDuplicate={handleDuplicate}
                             onDelete={handleDelete}
                             onRename={handleRename}
                             onInterview={handleInterview}
-                            healthScore={healthScores[masterResume.id]}
-                            isScoring={scoringId === masterResume.id}
+                            showTailoredBadge
+                            healthScore={healthScores[resume.id]}
+                            isScoring={scoringId === resume.id}
                           />
                         </motion.div>
-                      );
-                    })}
-
-                    {/* Render orphaned tailored resumes (parent was deleted) */}
-                    {resumeHierarchy.orphanTailored.map((resume, index) => (
-                      <motion.div key={resume.id} variants={itemVariants}>
-                        <ResumeListCard
-                          resume={resume}
-                          onEdit={handleEdit}
-                          onDuplicate={handleDuplicate}
-                          onDelete={handleDelete}
-                          onRename={handleRename}
-                          onInterview={handleInterview}
-                          showTailoredBadge
-                          healthScore={healthScores[resume.id]}
-                          isScoring={scoringId === resume.id}
-                        />
-                      </motion.div>
-                    ))}
-                  </>
-                )}
-              </motion.div>
-            </div>
-          </PullToRefresh>
-        )}
+                      ))}
+                    </>
+                  )}
+                </motion.div>
+              </div>
+            )}
+          </div>
+        </PullToRefresh>
 
       {/* Create Resume Dialog - lazy loaded */}
       <Suspense fallback={null}>

@@ -86,7 +86,7 @@ export default function ApplicationsPage() {
   ];
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-4">
+    <div className="flex-1 flex flex-col min-h-0 pb-4">
       {/* Header */}
       <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center justify-between">
@@ -118,24 +118,23 @@ export default function ApplicationsPage() {
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="px-4 pt-3 pb-1 flex gap-2">
-        {TABS.map(t => (
-          <button
-            key={t.key}
-            onClick={() => { haptics.selection(); setActiveTab(t.key); }}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
-              activeTab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Content with Pull-to-Refresh */}
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-hidden">
+      {/* All scrollable content inside PullToRefresh */}
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1">
         <div className="px-4 py-4 space-y-6">
+          {/* Tabs */}
+          <div className="flex gap-2 -mt-2">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => { haptics.selection(); setActiveTab(t.key); }}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  activeTab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
           {activeTab === 'applications' ? (
             <>
               {/* Stats */}
