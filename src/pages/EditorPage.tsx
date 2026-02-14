@@ -48,6 +48,7 @@ const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').t
 const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
+import { EditorSkeleton } from '@/components/layout/PageSkeletons';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
@@ -87,25 +88,39 @@ export default function EditorPage() {
   })));
   
   // Validate that the resume ID exists in the database
-  const { data: resumeFromDb, isLoading: isValidating, error: resumeError } = useResume(currentResumeId);
+  const { data: resumeFromDb, isLoading: isValidating } = useResume(currentResumeId);
   const { updateResume } = useResumeMutations();
 
-  // Hydrate currentResume from DB if Zustand lost it but ID persisted
+  // Single hydration effect: sync DB data into Zustand store + ownership check
   useEffect(() => {
-    if (resumeFromDb && !currentResume && currentResumeId) {
+    if (!resumeFromDb || !currentResumeId) return;
+
+    // Ownership check
+    if (user && resumeFromDb.user_id !== user.id) {
+      setCurrentResumeId(null);
+      toast.error('Access denied.');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    // Hydrate store if needed
+    if (!currentResume) {
       useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
     }
-  }, [resumeFromDb, currentResume, currentResumeId]);
+  }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate]);
 
-  // Validate resume ownership - prevent access to other users' resumes
+  // Safety timeout: if stuck loading for 10s, bail out
   useEffect(() => {
-    if (resumeFromDb && user && resumeFromDb.user_id !== user.id) {
-      console.error('Resume belongs to different user, access denied');
+    if (currentResume || !currentResumeId || !storeHydrated) return;
+
+    const timer = setTimeout(() => {
       setCurrentResumeId(null);
-      toast.error('Access denied. This resume belongs to another user.');
+      toast.error('Resume could not be loaded.');
       navigate('/dashboard', { replace: true });
-    }
-  }, [resumeFromDb, user, setCurrentResumeId, navigate]);
+    }, 10000);
+
+    return () => clearTimeout(timer);
+  }, [currentResume, currentResumeId, storeHydrated, setCurrentResumeId, navigate]);
 
   const { isSyncing } = useOfflineSync();
   const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
@@ -128,41 +143,6 @@ export default function EditorPage() {
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
-  const [loadingTimeout, setLoadingTimeout] = useState(false);
-
-  // Detect loading timeout (8 seconds) - only start after store hydration
-  useEffect(() => {
-    if (storeHydrated && currentResumeId && isValidating && !resumeFromDb) {
-      const timer = setTimeout(() => {
-        console.error('Resume loading timeout detected');
-        setLoadingTimeout(true);
-      }, 8000);
-      return () => clearTimeout(timer);
-    } else {
-      setLoadingTimeout(false);
-    }
-  }, [storeHydrated, currentResumeId, isValidating, resumeFromDb]);
-
-  // Handle loading timeout - clear stale ID and redirect
-  useEffect(() => {
-    if (loadingTimeout && currentResumeId) {
-      console.error('Clearing stale resume ID due to timeout:', currentResumeId);
-      setCurrentResumeId(null);
-      toast.error('Failed to load resume. Please try again from the dashboard.');
-      setTimeout(() => {
-        navigate('/dashboard', { replace: true });
-      }, 500);
-    }
-  }, [loadingTimeout, currentResumeId, setCurrentResumeId, navigate]);
-
-  // Early redirect if no resume ID - prevents infinite loading
-  // Only run after store has hydrated to avoid premature redirects
-  useEffect(() => {
-    if (storeHydrated && user && !authLoading && !currentResumeId && !currentResume) {
-      console.warn('No resume selected, redirecting to dashboard');
-      navigate('/dashboard', { replace: true });
-    }
-  }, [storeHydrated, user, authLoading, currentResumeId, currentResume, navigate]);
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -185,17 +165,7 @@ export default function EditorPage() {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Handle query completion without data - redirect to dashboard
-  // This runs when: store hydrated + query finished (!isValidating) + no data found (!resumeFromDb) + we had an ID
-  useEffect(() => {
-    if (storeHydrated && user && currentResumeId && !isValidating && !resumeFromDb) {
-      const hasError = !!resumeError;
-      console.warn('Resume not found after validation, redirecting...', { currentResumeId, hasError });
-      setCurrentResumeId(null);
-      toast.error(hasError ? 'Resume not found. Please select a resume from the dashboard.' : 'Resume could not be loaded.');
-      navigate('/dashboard', { replace: true });
-    }
-  }, [storeHydrated, user, currentResumeId, isValidating, resumeFromDb, resumeError, setCurrentResumeId, navigate]);
+  // (query-completion redirect removed — handled by inline guards + safety timeout)
 
   // Show AI intro for first-time users after resume loads
   useEffect(() => {
@@ -469,94 +439,13 @@ export default function EditorPage() {
     setShowApplyPrompt(true);
   }, []);
 
-  // Auth loading guard - wait for auth to finish loading
-  if (authLoading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Auth guard
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // Wait for Zustand store to hydrate before making decisions
-  // This prevents redirecting before we know if there's a persisted resume
-  if (!storeHydrated) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <div className="px-4 py-3 border-b border-border">
-          <div className="h-2 w-full bg-muted rounded animate-pulse" />
-        </div>
-        <div className="mt-3 px-4 flex gap-2">
-          {[1,2,3,4,5].map(i => <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0 animate-pulse" />)}
-        </div>
-        <div className="flex-1 px-4 py-4 space-y-4">
-          <div className="h-12 bg-muted rounded-xl animate-pulse" />
-          <div className="h-12 bg-muted rounded-xl animate-pulse" />
-          <div className="h-32 bg-muted rounded-xl animate-pulse" />
-        </div>
-      </div>
-    );
-  }
-
-  // After hydration: if no resume ID exists, redirect immediately
-  if (!currentResumeId) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // Resume guard — wait for DB fetch before redirecting
-  // Show loading skeleton while: (1) actively fetching, OR (2) data exists but state hydration pending
-  const isStateHydrationPending = !!resumeFromDb && !currentResume;
-  const shouldShowLoading = isValidating || isStateHydrationPending;
-
-  if (!currentResume) {
-    if (shouldShowLoading) {
-      return (
-        <div className="flex-1 flex flex-col">
-          <div className="px-4 py-3 border-b border-border">
-            <div className="h-2 w-full bg-muted rounded animate-pulse" />
-          </div>
-          <div className="mt-3 px-4 flex gap-2">
-            {[1,2,3,4,5].map(i => <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0 animate-pulse" />)}
-          </div>
-          <div className="flex-1 px-4 py-4 space-y-4">
-            <div className="h-12 bg-muted rounded-xl animate-pulse" />
-            <div className="h-12 bg-muted rounded-xl animate-pulse" />
-            <div className="h-32 bg-muted rounded-xl animate-pulse" />
-
-            {loadingTimeout && (
-              <div className="mt-8 flex flex-col items-center gap-4 p-4">
-                <div className="text-center space-y-2">
-                  <p className="text-sm font-medium text-foreground">Taking longer than expected...</p>
-                  <p className="text-xs text-muted-foreground">The resume may have been deleted or there's a connection issue.</p>
-                </div>
-                <Button
-                  onClick={() => {
-                    setCurrentResumeId(null);
-                    navigate('/dashboard', { replace: true });
-                  }}
-                  variant="outline"
-                  size="lg"
-                >
-                  Return to Dashboard
-                </Button>
-              </div>
-            )}
-          </div>
-        </div>
-      );
-    }
-
-    // Query completed but no data found - redirect to dashboard
-    return <Navigate to="/dashboard" replace />;
-  }
+  // === GUARDS (all inline, no effects — deterministic) ===
+  if (authLoading) return <EditorSkeleton />;
+  if (!user) return <Navigate to="/auth" replace />;
+  if (!storeHydrated) return <EditorSkeleton />;
+  if (!currentResumeId && !currentResume) return <Navigate to="/dashboard" replace />;
+  if (!currentResume) return <EditorSkeleton />;
+  // === Past this point, currentResume is guaranteed non-null ===
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
