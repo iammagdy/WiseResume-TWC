@@ -109,18 +109,18 @@ export default function EditorPage() {
     }
   }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate]);
 
-  // Safety timeout: if stuck loading for 10s, bail out
+  // Safety timeout: if no resume after 8s, bail out (independent of storeHydrated)
   useEffect(() => {
-    if (currentResume || !currentResumeId || !storeHydrated) return;
-
+    if (currentResume) return;
     const timer = setTimeout(() => {
-      setCurrentResumeId(null);
-      toast.error('Resume could not be loaded.');
-      navigate('/dashboard', { replace: true });
-    }, 10000);
-
+      if (!useResumeStore.getState().currentResume) {
+        useResumeStore.getState().setCurrentResumeId(null);
+        toast.error('Resume could not be loaded.');
+        navigate('/dashboard', { replace: true });
+      }
+    }, 8000);
     return () => clearTimeout(timer);
-  }, [currentResume, currentResumeId, storeHydrated, setCurrentResumeId, navigate]);
+  }, [currentResume, navigate]);
 
   const { isSyncing } = useOfflineSync();
   const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
