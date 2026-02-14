@@ -21,6 +21,7 @@ export function ActionCard({
 }: ActionCardProps) {
   return (
     <motion.button
+      style={{ touchAction: 'pan-y' }}
       className={cn(
         'flex flex-col items-start p-4 rounded-2xl text-left transition-all duration-300 min-h-[120px]',
         'touch-manipulation active:scale-[0.98]',

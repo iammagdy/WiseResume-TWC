@@ -53,6 +53,7 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
         {actions.map((item, i) => (
           <motion.button
             key={item.label}
+            style={{ touchAction: 'pan-y' }}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 + i * 0.06 }}
