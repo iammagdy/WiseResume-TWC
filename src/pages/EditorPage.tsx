@@ -38,12 +38,15 @@ const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet')
 const VersionHistorySheet = lazy(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
 const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
 const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
+const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
-
+import { useProofread } from '@/hooks/useProofread';
+import { ProofreadButton } from '@/components/editor/ProofreadButton';
+import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -91,6 +94,7 @@ export default function EditorPage() {
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [showContentLibrary, setShowContentLibrary] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
+  const [showProofread, setShowProofread] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
@@ -326,6 +330,13 @@ export default function EditorPage() {
   const handleCareerPath = useCallback(() => setShowCareerPath(true), []);
   const handleGetIdeas = useCallback(() => setShowContentLibrary(true), []);
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
+  const handleProofread = useCallback(() => setShowProofread(true), []);
+
+  // Proofread hook
+  const { issues: proofreadIssues, score: proofreadScore, isChecking: isProofreadChecking, checkNow, fixIssue, ignoreIssue, fixAll } = useProofread(currentResume);
+  const proofreadIssueCount = proofreadIssues.length;
+  const proofreadErrorCount = proofreadIssues.filter(i => i.type === 'spelling' || i.type === 'grammar').length;
+  const autoProofread = useSettingsStore((s) => s.autoProofread);
 
   const handleContentInsert = useCallback((text: string) => {
     if (!currentResume) return;
@@ -580,9 +591,19 @@ export default function EditorPage() {
             onCareerPath={handleCareerPath}
             onGetIdeas={handleGetIdeas}
             onCustomize={handleCustomize}
+            onProofread={handleProofread}
+            proofreadIssueCount={proofreadIssueCount}
             className="pt-3 pb-3"
           />
         </div>
+
+        {/* Proofread FAB */}
+        <ProofreadButton
+          issueCount={proofreadIssueCount}
+          errorCount={proofreadErrorCount}
+          isChecking={isProofreadChecking}
+          onClick={handleProofread}
+        />
 
       {/* Keyboard Toolbar - floats above keyboard */}
       <KeyboardToolbar />
@@ -608,6 +629,20 @@ export default function EditorPage() {
           {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
           {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={handleContentInsert} />}
           {showCustomize && <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} customization={currentResume?.customization} onApply={handleCustomizeApply} />}
+          {showProofread && (
+            <ProofreadSheet
+              open={showProofread}
+              onOpenChange={setShowProofread}
+              issues={proofreadIssues}
+              score={proofreadScore}
+              isChecking={isProofreadChecking}
+              onFix={fixIssue}
+              onIgnore={ignoreIssue}
+              onFixAll={fixAll}
+              onCheckNow={checkNow}
+              autoProofread={autoProofread}
+            />
+          )}
           {lastAppliedJobInfo && (
             <ApplyPromptDialog
               open={showApplyPrompt}
