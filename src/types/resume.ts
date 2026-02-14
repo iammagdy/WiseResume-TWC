@@ -75,7 +75,7 @@ export interface GapAnalysis {
   }[];
 }
 
-export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive' | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant';
+export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive' | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant' | 'corporate' | 'banking' | 'consulting' | 'federal' | 'legal' | 'marketing' | 'designer' | 'portfolio' | 'startup' | 'infographic' | 'data-science' | 'devops' | 'cyber' | 'product' | 'clean' | 'swiss' | 'mono' | 'zen';
 
 export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications';
 
@@ -91,7 +91,7 @@ export interface TemplateInfo {
   name: string;
   description: string;
   atsScore: 'high' | 'medium' | 'low';
-  category: 'professional' | 'tech' | 'creative';
+  category: 'professional' | 'tech' | 'creative' | 'minimalist';
 }
 
 export interface ResumeTemplate {
