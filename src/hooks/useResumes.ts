@@ -130,7 +130,7 @@ export function useResumes() {
 export function useResume(resumeId: string | null) {
   const { user } = useAuth();
 
-  return useQuery({
+  const query = useQuery({
     queryKey: ['resume', resumeId],
     queryFn: async () => {
       if (!resumeId) return null;
@@ -139,10 +139,10 @@ export function useResume(resumeId: string | null) {
         .from('resumes')
         .select('*')
         .eq('id', resumeId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      return parseDbResume(data);
+      return data ? parseDbResume(data) : null;
     },
     enabled: !!user && !!resumeId,
     retry: 2,
@@ -150,6 +150,13 @@ export function useResume(resumeId: string | null) {
     staleTime: 0,
     gcTime: 5 * 60 * 1000,
   });
+
+  return {
+    ...query,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    isPending: query.isPending,
+  };
 }
 
 export function useResumeMutations() {

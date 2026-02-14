@@ -183,13 +183,15 @@ export default function EditorPage() {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  // Detect and handle stale resume IDs
+  // Handle query completion without data - redirect to dashboard
+  // This runs when: query finished (!isValidating) + no data found (!resumeFromDb) + we had an ID
   useEffect(() => {
-    if (user && currentResumeId && !isValidating && !resumeFromDb && resumeError) {
-      console.warn('Stale resume ID detected, clearing...', currentResumeId);
+    if (user && currentResumeId && !isValidating && !resumeFromDb) {
+      const hasError = !!resumeError;
+      console.warn('Resume not found after validation, redirecting...', { currentResumeId, hasError });
       setCurrentResumeId(null);
-      toast.error('Resume not found. Please select a resume from the dashboard.');
-      navigate('/dashboard');
+      toast.error(hasError ? 'Resume not found. Please select a resume from the dashboard.' : 'Resume could not be loaded.');
+      navigate('/dashboard', { replace: true });
     }
   }, [user, currentResumeId, isValidating, resumeFromDb, resumeError, setCurrentResumeId, navigate]);
 
@@ -483,9 +485,13 @@ export default function EditorPage() {
   }
 
   // Resume guard — wait for DB fetch before redirecting
+  // Show loading skeleton while: (1) actively validating, OR (2) data exists but hydration pending
+  const isHydrationPending = !!resumeFromDb && !currentResume && !!currentResumeId;
+  const shouldShowLoading = currentResumeId && (isValidating || isHydrationPending);
+
   if (!currentResume) {
-    // Show loading skeleton while validating
-    if (currentResumeId && isValidating) {
+    // Show loading skeleton while validating or hydration pending
+    if (shouldShowLoading) {
       return (
         <div className="flex-1 flex flex-col">
           <div className="px-4 py-3 border-b border-border">
@@ -520,13 +526,6 @@ export default function EditorPage() {
           </div>
         </div>
       );
-    }
-
-    // If we have a resume ID but finished validating without data, redirect
-    if (currentResumeId && !isValidating) {
-      console.warn('Resume validation completed but no data found, redirecting...');
-      setCurrentResumeId(null);
-      return <Navigate to="/dashboard" replace />;
     }
 
     // No resume ID at all, redirect to dashboard
