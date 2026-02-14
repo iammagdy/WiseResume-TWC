@@ -1,162 +1,186 @@
 
 
-## Resume Examples Library + PWA Assessment
+## Career Planning & Job Search Enhancement
 
-### PWA Status: Already Complete
-
-The PWA is fully implemented and requires no changes:
-- `public/manifest.json` -- Full PWA manifest with icons, standalone display, portrait orientation
-- `public/custom-sw.js` -- Workbox service worker with precaching, runtime caching (CacheFirst for fonts, NetworkFirst for API, NetworkOnly for edge functions)
-- `src/components/pwa/InstallPrompt.tsx` -- Custom install banner with deferred prompt
-- `src/hooks/useOfflineSync.ts` + `src/store/offlineSyncStore.ts` -- Offline change queue with auto-sync
-- `src/components/layout/OfflineBanner.tsx` -- Online/offline status indicator
-- `src/hooks/usePushNotifications.ts` -- Web Push with VAPID
-- `src/components/BiometricLockScreen.tsx` -- Native biometric auth
-- Haptic feedback throughout the app
-- `vite-plugin-pwa` with `injectManifest` strategy configured
-
-No PWA work is needed. This plan focuses entirely on the Resume Examples Library.
+Builds on top of the existing `CareerPathSheet`, `career-path-advisor` edge function, `jobs` table, and `ApplicationsPage`. No external job board APIs (Indeed, LinkedIn) are used -- instead, we enhance the existing job management system with AI-powered features and add a standalone career planning page.
 
 ---
 
-### Resume Examples Library
+### What Already Exists (No Changes Needed)
 
-A new `/examples` page with pre-built resume samples organized by industry and experience level. Examples are static data (no database needed) that users can browse, preview, and use as starting points for their own resumes.
+- `CareerPathSheet.tsx` -- AI career analysis with next roles, skill gaps, industry alternatives, action plan
+- `career-path-advisor` edge function -- Lovable AI gateway integration
+- `jobs` table -- Full CRUD for saved jobs
+- `job_applications` table -- Application tracking with status pipeline
+- `ApplicationsPage.tsx` -- Tabs for applications + saved jobs
+- `ApplicationTrackerPage.tsx` -- Status timeline for individual applications
+- `JobDetailPage.tsx` -- Job detail view with apply flow
 
-#### Data Architecture
+### Part 1: Career Planning Page
 
-**`src/lib/resumeExamples.ts`** -- Static data file containing 30-40 example resumes
+A new `/career` page that promotes the existing career path analysis from a hidden sheet into a first-class feature with persistent results and a visual roadmap.
 
-Each example contains:
-- `id` -- unique identifier
-- `title` -- display name (e.g., "Senior Software Engineer")
-- `industry` -- category tag (Technology, Healthcare, Finance, etc.)
-- `experienceLevel` -- Entry Level, Mid-Level, Senior, Executive
-- `description` -- one-line summary of the example
-- `highlights` -- 2-3 key resume highlights (shown on cards)
-- `atsScore` -- pre-computed ATS score
-- `templateId` -- which template it uses
-- `resumeData` -- full `ResumeData` object with realistic anonymized content
+#### Database Changes
 
-Industries covered (12 categories):
-Technology, Marketing/Sales, Healthcare, Finance, Education, Creative/Design, Engineering, Customer Service, Management/Executive, HR/Recruiting, Legal, Hospitality
-
-Experience levels: Entry Level, Mid-Level, Senior, Executive
-
-This file will contain ~30 examples covering the most common industry + level combinations.
+New `career_assessments` table:
+- `id` (uuid, PK)
+- `user_id` (uuid, NOT NULL)
+- `resume_id` (uuid, nullable) -- which resume was analyzed
+- `result` (jsonb, NOT NULL) -- full CareerPathResult
+- `quiz_answers` (jsonb, default '{}') -- career quiz responses
+- `completed_milestones` (jsonb, default '[]') -- tracked progress
+- `created_at`, `updated_at` (timestamps)
+- RLS: users can only access their own assessments
 
 #### New Files
 
-**1. `src/lib/resumeExamples.ts`** -- Example data (30+ entries)
-- Static array of `ResumeExample` objects
-- Each has a full `ResumeData` payload with realistic content
-- Organized to cover all 12 industries and 4 experience levels
-- Includes highlights, ATS scores, and template assignments
+**1. `src/pages/CareerPage.tsx`** -- Career planning dashboard
+- Header with back button and "Career Plan" title
+- If no assessment exists: shows career quiz intro card with "Start Assessment" button
+- If assessment exists: shows results in a scrollable card layout:
+  - Current position summary card (field, level, years)
+  - Visual roadmap timeline (Now -> 3mo -> 6mo -> 1yr -> 3yr) as vertical cards with milestone checkboxes
+  - Skill gaps section with priority badges
+  - Next roles section with match scores
+  - Action plan steps with progress tracking
+- "Re-analyze" button at bottom
+- Pull-to-refresh
 
-**2. `src/types/resumeExamples.ts`** -- Types
-```
-ResumeExample {
-  id: string
-  title: string
-  industry: string
-  experienceLevel: 'entry' | 'mid' | 'senior' | 'executive'
-  description: string
-  highlights: string[]
-  atsScore: number
-  templateId: string
-  resumeData: ResumeData
-}
-```
+**2. `src/components/career/CareerQuizSheet.tsx`** -- Career assessment quiz (bottom sheet, 90% height)
+- 10 mobile-friendly questions (swipeable):
+  1. Current role satisfaction (1-5 scale)
+  2. Career goal (promotion / switch role / switch industry / freelance / leadership)
+  3. Skills to develop (multi-select chips)
+  4. Work preference (remote / hybrid / office)
+  5. Timeline for next move (3mo / 6mo / 1yr / 2yr+)
+  6. Salary priority (critical / important / flexible)
+  7. Industry interest (multi-select from 12 industries)
+  8. Biggest career challenge (free text, optional)
+  9. Learning preference (courses / mentorship / hands-on / certifications)
+  10. Geographic flexibility (yes / no / partially)
+- Progress bar at top
+- Large touch-friendly option buttons (48px height)
+- "Back" and "Next" navigation
+- On completion: triggers AI analysis combining quiz + resume data
 
-**3. `src/pages/ExamplesPage.tsx`** -- Main gallery page
-- Header with back button and title
-- Two-row filter: industry chips (horizontal scroll) + experience level chips
-- Vertical scrolling grid of example cards (1-col mobile, 2-col tablet)
-- Cards show: title, industry badge, level badge, ATS score, 2-3 highlights, "View" button
-- Lazy rendering (show 10, load more on scroll)
-- Smooth fade-in animations per card
+**3. `src/components/career/CareerRoadmap.tsx`** -- Visual roadmap component
+- Vertical timeline with milestone cards at 5 time horizons
+- Each card shows: skills to learn, certifications, estimated salary range, relevant job titles
+- Tap to expand/collapse details
+- "Mark Complete" checkbox per milestone (persisted to DB)
+- Progress percentage calculated from completed milestones
 
-**4. `src/components/examples/ExampleCard.tsx`** -- Individual card
-- Glass-elevated card with gradient accent
-- Title, industry + level badges
-- ATS score ring (reuse existing `ProgressRing` component)
-- 2-3 highlight bullets
-- "View Example" and "Use Template" buttons (44px touch targets)
-- `active:scale-95` + haptic on tap
+**4. `src/components/career/SkillGapAnalyzer.tsx`** -- Skill comparison component
+- Takes user's current skills vs required skills for target role
+- Visual bar chart showing match percentage per skill category
+- Missing skills highlighted with "Add to Learning Plan" action
+- Color-coded priority: critical (red), important (amber), nice-to-have (gray)
 
-**5. `src/components/examples/ExampleDetailSheet.tsx`** -- Full preview bottom sheet (85% height)
-- Scrollable read-only resume preview using `TemplateThumbnail`
-- Bottom action bar (sticky):
-  - "Use This Template" (primary) -- opens use-mode selector
-  - "Get Ideas" -- opens phrases sheet
-  - Close button
-- ATS score badge at top
+**5. `src/hooks/useCareerAssessment.ts`** -- Data hook
+- `useCareerAssessment()` -- fetches latest assessment for user
+- `useCareerMutations()` -- create/update assessment, toggle milestones
+- Uses TanStack Query with `career-assessments` query key
 
-**6. `src/components/examples/UseTemplateSheet.tsx`** -- Bottom sheet with 3 options
-- "Design Only" -- creates empty resume with the example's template
-- "Design + Structure" -- creates resume with section headings but empty content
-- "Use as Starting Point" -- copies the full example data, user edits it
-- Each option is a large tappable card with icon + description
-- On selection: creates new resume via `useResumeMutations().createResume`, navigates to `/editor`
-
-**7. `src/components/examples/ExampleIdeasSheet.tsx`** -- Phrase picker
-- Lists the example's best bullets and phrases grouped by section
-- Each phrase has a "Copy" button that:
-  - Copies to clipboard
-  - Adds to Content Library recent items (via `useContentLibraryStore`)
-  - Shows toast confirmation
-- "Save to Library" option to add phrases to favorites
+**6. `supabase/functions/career-assessment/index.ts`** -- Enhanced edge function
+- Accepts `{ resume, quizAnswers }` 
+- Extends existing career-path-advisor prompt with quiz context
+- Returns enhanced `CareerPathResult` plus roadmap milestones
+- Uses `google/gemini-2.5-flash` via Lovable AI gateway
 
 #### Files to Modify
 
-**8. `src/App.tsx`** -- Add route
-- Lazy import `ExamplesPage`
-- Add `<Route path="/examples" ...>` inside `AppShell`
+- `src/App.tsx` -- Add lazy route for `/career`
+- `src/components/layout/AppShell.tsx` -- Add `/career` to TAB_ROUTES
+- `src/pages/DashboardPage.tsx` -- Add "Career Plan" action card in the quick actions grid
 
-**9. `src/components/layout/AppShell.tsx`** -- Add `/examples` to `TAB_ROUTES`
+---
 
-**10. `src/pages/DashboardPage.tsx`** -- Add access point
-- Add "Resume Examples" action card/chip that navigates to `/examples`
-- Positioned alongside existing quick actions
+### Part 2: Job Search Enhancement
 
-#### Technical Details
+Enhance the existing `ApplicationsPage` with search/filter capabilities and AI resume-job match scoring. No external APIs -- users manually save jobs (or jobs are captured from the tailor flow), and the app provides AI-powered matching.
 
-**No database changes** -- all example data is static, bundled in the JS.
+#### New Files
 
-**Performance**:
-- `resumeExamples.ts` is lazy-imported only when visiting `/examples` (code-split via `lazyWithRetry`)
-- Example cards use intersection observer for staggered rendering
-- `TemplateThumbnail` is already optimized for rendering previews
+**7. `src/components/applications/JobSearchSheet.tsx`** -- Search/filter bottom sheet
+- Search input for job title/company keywords
+- Filter chips: job type (full-time, part-time, contract, remote), location, salary range
+- Applied filters shown as removable badges
+- Results update the existing jobs list in ApplicationsPage
 
-**Mobile patterns**:
-- Filter chips: horizontal scroll with `-webkit-overflow-scrolling: touch`
-- Cards: 44px touch targets, `active:scale-95`, haptic feedback
-- Sheets: 85% height with drag handle, scrollable content
-- Safe areas: `pt-safe` on header, `pb-safe` on bottom actions
+**8. `src/components/applications/JobMatchScore.tsx`** -- AI match score badge
+- Small circular score badge (0-100%) shown on each job card
+- Tap to expand breakdown: skills match, experience match, keyword overlap
+- "Tailor Resume" button that navigates to editor with TailorSheet pre-opened
+- Score is computed client-side by comparing job requirements text against resume skills/experience
 
-**"Use Template" flow**:
-1. User taps "Use This Template" on detail sheet
-2. UseTemplateSheet opens with 3 options
-3. On selection, `createResume()` is called with appropriate data
-4. Navigates to `/editor` with the new resume loaded
-5. Toast: "Resume created from example"
+**9. `src/lib/jobMatchScorer.ts`** -- Client-side match scoring
+- `scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult`
+- Keyword extraction from job description/requirements
+- Skill matching against resume skills array
+- Experience level estimation from years
+- Returns `{ overall: number, skillMatch: number, experienceMatch: number, keywords: { found: string[], missing: string[] } }`
+- No AI call needed -- pure text comparison for instant results
 
-**"Get Ideas" flow**:
-1. User taps "Get Ideas" on detail sheet
-2. ExampleIdeasSheet opens showing categorized phrases
-3. User taps "Copy" on a phrase -- clipboard + toast
-4. User taps "Save" -- adds to `contentLibraryStore` favorites
-5. Phrases are available later in the Content Library sheet
+**10. `src/components/applications/SaveJobSheet.tsx`** -- Quick save job sheet
+- Compact bottom sheet for manually saving a job
+- Fields: title, company, location, job type, salary range, source URL, description
+- "Paste Job URL" button that auto-fills from clipboard
+- Integrates with existing `useJobMutations().createJob`
+
+#### Files to Modify
+
+- `src/pages/ApplicationsPage.tsx` -- Add search icon in header that opens JobSearchSheet, add match score badge to job cards, add "Save Job" FAB
+- `src/components/applications/JobActivityStats.tsx` -- Add "Career Plan" quick link card
+
+---
+
+### Technical Details
+
+**Database migration (1 new table):**
+```sql
+CREATE TABLE public.career_assessments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  resume_id uuid,
+  result jsonb NOT NULL DEFAULT '{}',
+  quiz_answers jsonb NOT NULL DEFAULT '{}',
+  completed_milestones jsonb NOT NULL DEFAULT '[]',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+ALTER TABLE public.career_assessments ENABLE ROW LEVEL SECURITY;
+-- RLS policies for own data only
+```
+
+**No external API integrations** -- all job data is user-entered or captured from the tailor flow. Match scoring is client-side keyword comparison. Career analysis uses the existing Lovable AI gateway.
+
+**Edge function reuse** -- The new `career-assessment` function extends the existing `career-path-advisor` pattern but adds quiz context to the prompt and returns roadmap milestones. The original function remains untouched.
+
+**Mobile patterns:**
+- Quiz uses full-width option buttons (48px height) with `active:scale-95` + haptics
+- Roadmap timeline uses vertical scroll with expandable cards
+- Match scores are lightweight badges that expand on tap
+- All sheets use 85% height with drag handle
+- Safe areas respected on all new pages
+
+**Performance:**
+- Career assessment results are persisted (not re-computed on every visit)
+- Job match scoring is client-side (instant, no API call)
+- Career page is lazy-loaded via `lazyWithRetry`
+- Quiz state is held in component state (not persisted until submission)
 
 #### Implementation Order
 
-1. Create types (`src/types/resumeExamples.ts`)
-2. Create example data (`src/lib/resumeExamples.ts`) -- 30+ entries
-3. Create `ExampleCard.tsx` component
-4. Create `ExampleDetailSheet.tsx` with preview
-5. Create `UseTemplateSheet.tsx` with 3 options
-6. Create `ExampleIdeasSheet.tsx` with phrase picker
-7. Create `ExamplesPage.tsx` with filters and grid
-8. Update `App.tsx` with new route
-9. Update `AppShell.tsx` with route in TAB_ROUTES
-10. Add access point on DashboardPage
+1. Database migration (career_assessments table)
+2. Types and data hook (`useCareerAssessment.ts`)
+3. Career assessment edge function
+4. Career quiz sheet component
+5. Career roadmap and skill gap components
+6. Career page
+7. Job match scorer (client-side)
+8. Job search/filter sheet
+9. Save job sheet
+10. Update ApplicationsPage with search + match scores
+11. Update App.tsx and AppShell with new route
+12. Add dashboard access point
+
