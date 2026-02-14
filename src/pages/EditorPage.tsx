@@ -53,6 +53,8 @@ import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
 import { useProofread } from '@/hooks/useProofread';
 import { ProofreadButton } from '@/components/editor/ProofreadButton';
+import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
 export default function EditorPage() {
   const navigate = useNavigate();
@@ -228,6 +230,42 @@ export default function EditorPage() {
     window.addEventListener('keyboard-close', handleKbClose);
     return () => window.removeEventListener('keyboard-close', handleKbClose);
   }, [saveToCloud]);
+
+  // Network status for enhanced save indicator
+  const { isOnline } = useNetworkStatus();
+
+  // Keyboard shortcuts
+  const [showExport, setShowExport] = useState(false);
+  useEditorShortcuts({
+    onSave: saveToCloud,
+    onExport: () => setShowExport(true),
+    resumeId: currentResumeId,
+  });
+
+  // Unsaved changes warning
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      const current = JSON.stringify(resumeRef.current);
+      if (current !== lastSavedResumeRef.current && lastSavedResumeRef.current !== '') {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
+  // Auto-hide "Saved" indicator after 2s
+  const [showSavedCheck, setShowSavedCheck] = useState(false);
+  const prevIsSaving = useRef(false);
+  useEffect(() => {
+    if (prevIsSaving.current && !isSaving) {
+      setShowSavedCheck(true);
+      const timer = setTimeout(() => setShowSavedCheck(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    prevIsSaving.current = isSaving;
+  }, [isSaving]);
 
 
   // Memoize steps array to prevent StepperNav re-renders
@@ -452,17 +490,22 @@ export default function EditorPage() {
             <ProgressBar resume={currentResume} />
             {user && currentResumeId && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
-                {isSaving ? (
+                {!isOnline ? (
+                  <>
+                    <CloudOff className="w-3.5 h-3.5 text-warning" />
+                    <span className="text-warning">Offline</span>
+                  </>
+                ) : isSaving ? (
                   <>
                     <Cloud className="w-3.5 h-3.5 animate-pulse" />
                     <span>Saving...</span>
                   </>
-                ) : (
+                ) : showSavedCheck ? (
                   <>
                     <Check className="w-3.5 h-3.5 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
                     <span>Saved</span>
                   </>
-                )}
+                ) : null}
               </div>
             )}
             {user && !currentResumeId && (

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -11,7 +12,7 @@ interface ActionCardProps {
   className?: string;
 }
 
-export function ActionCard({
+export const ActionCard = memo(function ActionCard({
   icon: Icon,
   title,
   description,
@@ -63,4 +64,4 @@ export function ActionCard({
       </p>
     </motion.button>
   );
-}
+});

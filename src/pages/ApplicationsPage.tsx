@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useDeferredValue } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Plus, ArrowLeft, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -91,11 +91,13 @@ export default function ApplicationsPage() {
     return scores;
   }, [primaryResume, jobs]);
 
+  const deferredQuery = useDeferredValue(filters.query);
+
   // Filter jobs
   const filteredJobs = useMemo(() => {
     return jobs.filter(job => {
-      if (filters.query) {
-        const q = filters.query.toLowerCase();
+      if (deferredQuery) {
+        const q = deferredQuery.toLowerCase();
         if (!job.title.toLowerCase().includes(q) && !job.company.toLowerCase().includes(q)) return false;
       }
       if (filters.jobTypes.length > 0) {
@@ -106,7 +108,7 @@ export default function ApplicationsPage() {
       }
       return true;
     });
-  }, [jobs, filters]);
+  }, [jobs, deferredQuery, filters.jobTypes, filters.location]);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });

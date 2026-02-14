@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, lazy, Suspense, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, User, Settings, LogOut, LogIn, Home, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap } from 'lucide-react';
@@ -250,10 +250,13 @@ export default function DashboardPage() {
     }
   };
 
+  // Deferred search for smoother typing
+  const deferredSearch = useDeferredValue(searchQuery);
+
   // Filter resumes by search query
   const filteredResumes = resumes?.filter(resume => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
+    if (!deferredSearch) return true;
+    const query = deferredSearch.toLowerCase();
     return (
       resume.title.toLowerCase().includes(query) ||
       resume.target_job_title?.toLowerCase().includes(query) ||
