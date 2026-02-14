@@ -1,187 +1,162 @@
 
-## Additional Resume Sections + PDF Import Enhancement
 
-Two additive features: 6 new optional resume sections in the editor, and improvements to the existing PDF import flow. No existing files are deleted or broken.
+## Resume Examples Library + PWA Assessment
 
----
+### PWA Status: Already Complete
 
-### Part 1: Additional Resume Sections
+The PWA is fully implemented and requires no changes:
+- `public/manifest.json` -- Full PWA manifest with icons, standalone display, portrait orientation
+- `public/custom-sw.js` -- Workbox service worker with precaching, runtime caching (CacheFirst for fonts, NetworkFirst for API, NetworkOnly for edge functions)
+- `src/components/pwa/InstallPrompt.tsx` -- Custom install banner with deferred prompt
+- `src/hooks/useOfflineSync.ts` + `src/store/offlineSyncStore.ts` -- Offline change queue with auto-sync
+- `src/components/layout/OfflineBanner.tsx` -- Online/offline status indicator
+- `src/hooks/usePushNotifications.ts` -- Web Push with VAPID
+- `src/components/BiometricLockScreen.tsx` -- Native biometric auth
+- Haptic feedback throughout the app
+- `vite-plugin-pwa` with `injectManifest` strategy configured
 
-**Strategy**: Add 6 new optional sections to `ResumeData` as optional arrays. The editor gets a new "More Sections" tab that shows an "Add Section" grid. Sections only appear when they have content, keeping the default 5-step flow unchanged.
-
-#### Type Changes
-
-**`src/types/resume.ts`** -- Add new interfaces and update `ResumeData`:
-
-```
-Award { id, title, issuer, date, description? }
-Project { id, name, role, startDate, endDate, technologies: string[], description, url?, githubUrl? }
-Publication { id, title, publisher, date, coAuthors?, url?, description? }
-Volunteering { id, organization, role, startDate, endDate, description, hours? }
-Hobby { id, name, description?, visible: boolean }
-Reference { id, name, title, company, email, phone, relationship, availableOnRequest?: boolean }
-```
-
-Add to `ResumeData`:
-```
-awards?: Award[]
-projects?: Project[]
-publications?: Publication[]
-volunteering?: Volunteering[]
-hobbies?: Hobby[]
-references?: Reference[]
-```
-
-Update `SectionId` type to include new sections.
-
-#### Database Migration
-
-Add 6 new JSONB columns to the `resumes` table:
-```sql
-ALTER TABLE public.resumes
-  ADD COLUMN IF NOT EXISTS awards jsonb DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS projects jsonb DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS publications jsonb DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS volunteering jsonb DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS hobbies jsonb DEFAULT '[]',
-  ADD COLUMN IF NOT EXISTS "references" jsonb DEFAULT '[]';
-```
-
-#### Data Flow Updates
-
-**`src/hooks/useResumes.ts`** -- Update `dbToResumeData()` and `resumeDataToDb()` to include the 6 new fields. Update `parseDbResume()` to handle the new columns.
-
-**`src/store/resumeStore.ts`** -- Update `defaultResume` to include empty arrays for new sections.
-
-#### New Editor Components
-
-6 new section editor components following the existing pattern (like `ExperienceSection.tsx`):
-
-- **`src/components/editor/AwardsSection.tsx`** -- List of award entries with add/edit/delete
-- **`src/components/editor/ProjectsSection.tsx`** -- Project entries with technology tags
-- **`src/components/editor/PublicationsSection.tsx`** -- Publication entries
-- **`src/components/editor/VolunteeringSection.tsx`** -- Volunteering entries
-- **`src/components/editor/HobbiesSection.tsx`** -- Simple list with visibility toggles
-- **`src/components/editor/ReferencesSection.tsx`** -- Reference entries with "Available upon request" toggle
-
-Each component:
-- Uses `useResumeStore` to read/write data
-- 48px height inputs, 16px font (no iOS zoom)
-- "Add Another" button with haptic feedback
-- `active:scale-95` on all interactive elements
-- Tag input for technologies (Projects section)
-
-#### Add Section Sheet
-
-**`src/components/editor/AddSectionSheet.tsx`** -- Bottom sheet (75% height)
-- 2-column grid of section cards
-- Each card: icon + section name + brief description
-- Already-added sections show a checkmark
-- Tap to add section (creates empty array, navigates to that section tab)
-
-#### Editor Integration
-
-**`src/pages/EditorPage.tsx`** -- Changes:
-- Add a 6th step to the stepper: "More" (with a `Plus` icon)
-- The "More" tab renders `AddSectionSheet` inline (not as a bottom sheet) showing which optional sections are active
-- When a section is active, it appears as a sub-tab under "More"
-- Add states for each new section's visibility
-- Import lazy-loaded section components
-- Wire section rendering in the tab content area
-
-**`src/lib/resumeCompletionRules.ts`** -- No changes needed. The 5 core sections remain the completion criteria. Optional sections are bonus content.
-
-#### Template Rendering
-
-**All 30 template components** -- Add rendering blocks for the new sections at the bottom, after certifications. Each template renders sections conditionally (only when array has entries). Example pattern:
-
-```tsx
-{resume.awards?.length > 0 && (
-  <section data-section="awards">
-    <h2>Awards</h2>
-    {resume.awards.map(award => (...))}
-  </section>
-)}
-```
-
-This is a non-breaking change -- templates that don't have the new sections yet will simply not render them (undefined/empty arrays).
-
-#### PDF Generation
-
-**`src/lib/pdfGenerator.ts`** -- Add rendering for new sections in PDF output. Same conditional pattern as templates.
-
-#### AI Parsing
-
-**`supabase/functions/parse-resume/index.ts`** -- Update the AI prompt to also extract awards, projects, publications, volunteering from uploaded resumes when detected.
+No PWA work is needed. This plan focuses entirely on the Resume Examples Library.
 
 ---
 
-### Part 2: PDF Import Enhancement
+### Resume Examples Library
 
-The PDF import flow already exists and is fully functional (`UploadPage.tsx` with `ImportUploadSheet`, `ImportReviewSheet`, OCR fallback, multi-format support). The user's request describes features that are **already implemented**:
+A new `/examples` page with pre-built resume samples organized by industry and experience level. Examples are static data (no database needed) that users can browse, preview, and use as starting points for their own resumes.
 
-- Upload modal with file type selector (PDF, Word, Image, JSON, HTML)
-- Processing steps with progress indicators
-- Review sheet with section checkboxes
-- OCR fallback for scanned PDFs
-- Error handling (password protected, corrupted, no text)
-- Template selection before save
+#### Data Architecture
 
-**Enhancements to add:**
+**`src/lib/resumeExamples.ts`** -- Static data file containing 30-40 example resumes
 
-1. **`src/components/upload/ImportReviewSheet.tsx`** -- Add checkboxes for new sections (awards, projects, publications, volunteering) when detected in parsed data
+Each example contains:
+- `id` -- unique identifier
+- `title` -- display name (e.g., "Senior Software Engineer")
+- `industry` -- category tag (Technology, Healthcare, Finance, etc.)
+- `experienceLevel` -- Entry Level, Mid-Level, Senior, Executive
+- `description` -- one-line summary of the example
+- `highlights` -- 2-3 key resume highlights (shown on cards)
+- `atsScore` -- pre-computed ATS score
+- `templateId` -- which template it uses
+- `resumeData` -- full `ResumeData` object with realistic anonymized content
 
-2. **`src/pages/UploadPage.tsx`** -- Update `handleImportConfirm` to include new section fields in the filtered data
+Industries covered (12 categories):
+Technology, Marketing/Sales, Healthcare, Finance, Education, Creative/Design, Engineering, Customer Service, Management/Executive, HR/Recruiting, Legal, Hospitality
 
-3. **`src/lib/pdfParser.ts`** -- Update `getExtractionSummary` to count new sections
+Experience levels: Entry Level, Mid-Level, Senior, Executive
 
-4. **Dashboard access** -- The dashboard already has an "Import PDF" action card that navigates to `/upload`. No changes needed.
+This file will contain ~30 examples covering the most common industry + level combinations.
 
----
+#### New Files
 
-### Technical Details
+**1. `src/lib/resumeExamples.ts`** -- Example data (30+ entries)
+- Static array of `ResumeExample` objects
+- Each has a full `ResumeData` payload with realistic content
+- Organized to cover all 12 industries and 4 experience levels
+- Includes highlights, ATS scores, and template assignments
 
-**New files to create (7):**
-- `src/components/editor/AwardsSection.tsx`
-- `src/components/editor/ProjectsSection.tsx`
-- `src/components/editor/PublicationsSection.tsx`
-- `src/components/editor/VolunteeringSection.tsx`
-- `src/components/editor/HobbiesSection.tsx`
-- `src/components/editor/ReferencesSection.tsx`
-- `src/components/editor/AddSectionSheet.tsx`
+**2. `src/types/resumeExamples.ts`** -- Types
+```
+ResumeExample {
+  id: string
+  title: string
+  industry: string
+  experienceLevel: 'entry' | 'mid' | 'senior' | 'executive'
+  description: string
+  highlights: string[]
+  atsScore: number
+  templateId: string
+  resumeData: ResumeData
+}
+```
 
-**Files to modify:**
-- `src/types/resume.ts` -- New interfaces + update ResumeData
-- `src/hooks/useResumes.ts` -- DB mapping for new fields
-- `src/store/resumeStore.ts` -- Default resume includes new empty arrays
-- `src/pages/EditorPage.tsx` -- "More" tab with sub-section navigation
-- `src/components/editor/StepperNav.tsx` -- Support 6th "More" step (may need minor layout adjustment)
-- `src/lib/pdfParser.ts` -- Update extraction summary
-- `src/components/upload/ImportReviewSheet.tsx` -- Checkboxes for new sections
-- `src/pages/UploadPage.tsx` -- Filter new sections in import confirm
-- `supabase/functions/parse-resume/index.ts` -- Expand AI prompt for new sections
-- All 30 template files -- Add conditional rendering for new sections
-- `src/lib/pdfGenerator.ts` -- PDF rendering for new sections
+**3. `src/pages/ExamplesPage.tsx`** -- Main gallery page
+- Header with back button and title
+- Two-row filter: industry chips (horizontal scroll) + experience level chips
+- Vertical scrolling grid of example cards (1-col mobile, 2-col tablet)
+- Cards show: title, industry badge, level badge, ATS score, 2-3 highlights, "View" button
+- Lazy rendering (show 10, load more on scroll)
+- Smooth fade-in animations per card
 
-**Database migration:**
-- Add 6 JSONB columns to `resumes` table (all default to `'[]'`)
+**4. `src/components/examples/ExampleCard.tsx`** -- Individual card
+- Glass-elevated card with gradient accent
+- Title, industry + level badges
+- ATS score ring (reuse existing `ProgressRing` component)
+- 2-3 highlight bullets
+- "View Example" and "Use Template" buttons (44px touch targets)
+- `active:scale-95` + haptic on tap
 
-**Mobile-first patterns:**
-- 48px input heights, 44px touch targets
-- Tag inputs use chip-style with X button to remove
-- "Add Another" buttons with `active:scale-95` + haptic
-- Section cards in 2-column grid for "Add Section" UI
-- All new sections scrollable within the existing editor scroll container
+**5. `src/components/examples/ExampleDetailSheet.tsx`** -- Full preview bottom sheet (85% height)
+- Scrollable read-only resume preview using `TemplateThumbnail`
+- Bottom action bar (sticky):
+  - "Use This Template" (primary) -- opens use-mode selector
+  - "Get Ideas" -- opens phrases sheet
+  - Close button
+- ATS score badge at top
 
-**Implementation order:**
-1. Database migration (add 6 columns)
-2. Type updates (`resume.ts`)
-3. Data flow updates (`useResumes.ts`, `resumeStore.ts`)
-4. Create 6 section editor components
-5. Create AddSectionSheet
-6. Update EditorPage with "More" tab
-7. Update all 30 templates with new section rendering
-8. Update PDF generator
-9. Update parse-resume edge function prompt
-10. Update import review sheet for new sections
-11. Test on 375px viewport
+**6. `src/components/examples/UseTemplateSheet.tsx`** -- Bottom sheet with 3 options
+- "Design Only" -- creates empty resume with the example's template
+- "Design + Structure" -- creates resume with section headings but empty content
+- "Use as Starting Point" -- copies the full example data, user edits it
+- Each option is a large tappable card with icon + description
+- On selection: creates new resume via `useResumeMutations().createResume`, navigates to `/editor`
+
+**7. `src/components/examples/ExampleIdeasSheet.tsx`** -- Phrase picker
+- Lists the example's best bullets and phrases grouped by section
+- Each phrase has a "Copy" button that:
+  - Copies to clipboard
+  - Adds to Content Library recent items (via `useContentLibraryStore`)
+  - Shows toast confirmation
+- "Save to Library" option to add phrases to favorites
+
+#### Files to Modify
+
+**8. `src/App.tsx`** -- Add route
+- Lazy import `ExamplesPage`
+- Add `<Route path="/examples" ...>` inside `AppShell`
+
+**9. `src/components/layout/AppShell.tsx`** -- Add `/examples` to `TAB_ROUTES`
+
+**10. `src/pages/DashboardPage.tsx`** -- Add access point
+- Add "Resume Examples" action card/chip that navigates to `/examples`
+- Positioned alongside existing quick actions
+
+#### Technical Details
+
+**No database changes** -- all example data is static, bundled in the JS.
+
+**Performance**:
+- `resumeExamples.ts` is lazy-imported only when visiting `/examples` (code-split via `lazyWithRetry`)
+- Example cards use intersection observer for staggered rendering
+- `TemplateThumbnail` is already optimized for rendering previews
+
+**Mobile patterns**:
+- Filter chips: horizontal scroll with `-webkit-overflow-scrolling: touch`
+- Cards: 44px touch targets, `active:scale-95`, haptic feedback
+- Sheets: 85% height with drag handle, scrollable content
+- Safe areas: `pt-safe` on header, `pb-safe` on bottom actions
+
+**"Use Template" flow**:
+1. User taps "Use This Template" on detail sheet
+2. UseTemplateSheet opens with 3 options
+3. On selection, `createResume()` is called with appropriate data
+4. Navigates to `/editor` with the new resume loaded
+5. Toast: "Resume created from example"
+
+**"Get Ideas" flow**:
+1. User taps "Get Ideas" on detail sheet
+2. ExampleIdeasSheet opens showing categorized phrases
+3. User taps "Copy" on a phrase -- clipboard + toast
+4. User taps "Save" -- adds to `contentLibraryStore` favorites
+5. Phrases are available later in the Content Library sheet
+
+#### Implementation Order
+
+1. Create types (`src/types/resumeExamples.ts`)
+2. Create example data (`src/lib/resumeExamples.ts`) -- 30+ entries
+3. Create `ExampleCard.tsx` component
+4. Create `ExampleDetailSheet.tsx` with preview
+5. Create `UseTemplateSheet.tsx` with 3 options
+6. Create `ExampleIdeasSheet.tsx` with phrase picker
+7. Create `ExamplesPage.tsx` with filters and grid
+8. Update `App.tsx` with new route
+9. Update `AppShell.tsx` with route in TAB_ROUTES
+10. Add access point on DashboardPage
