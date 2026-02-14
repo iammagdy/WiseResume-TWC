@@ -1,47 +1,30 @@
 
 
-## Add Interactive Editor Demo to Landing Page
+## Fix Resume Card Swipe Animation and Confirmation
 
-Since we can't embed an actual video or GIF in a code-only project without hosting external assets, we'll build an **animated interactive demo component** that simulates the resume editor in action. This creates a "live demo" feel that's more engaging than a static video and loads instantly with zero external dependencies.
+### Problems Found
 
-### What the Demo Will Look Like
+1. **Drag is too restricted**: `dragConstraints` is set to `{ left: 0, right: 0 }` with `dragElastic: 0.1`, meaning the card can barely move (only 10% of finger movement). This makes the swipe feel broken and unresponsive.
 
-A phone-frame mockup card showing an animated sequence that loops:
+2. **Card snaps back instantly**: After a swipe action triggers, `x.set(0)` resets the card position with no animation -- it just jumps back.
 
-1. **Typing animation** -- A cursor types out a resume bullet point ("Managed team projects...")
-2. **AI enhance trigger** -- A sparkle button pulses and "clicks" automatically
-3. **Transform animation** -- The text fades out and is replaced with an enhanced version ("Led cross-functional team of 8, delivering 3 projects 2 weeks ahead of schedule, saving $120K in operational costs")
-4. **ATS score animation** -- A score ring animates from 45 to 92
-5. **Brief pause, then loops**
+3. **Duplicate has no confirmation**: Swiping right to duplicate triggers immediately without any confirmation dialog, unlike delete which correctly shows a confirmation.
 
-The whole sequence runs on a ~8-second loop using framer-motion and CSS animations.
+### Fixes
 
-### Placement
+**File: `src/components/dashboard/ResumeListCard.tsx`**
 
-Inserted between the **Steps Row** and the **Social Proof Bar** sections -- right after the user understands the 3-step flow, they see it in action.
+- Widen `dragConstraints` to allow free horizontal movement (e.g., `left: -150, right: 150`) and increase `dragElastic` to `0.5` so the card actually follows the finger during the swipe.
+- Replace `x.set(0)` with `animate(x, 0, { type: "spring", stiffness: 500, damping: 30 })` so the card springs back smoothly when the swipe doesn't exceed the threshold.
+- When a swipe action IS triggered (delete or duplicate), animate the card off-screen first before invoking the callback: animate the card to -300 or +300, then call the handler.
+
+**File: `src/pages/DashboardPage.tsx`**
+
+- Add a duplicate confirmation dialog (similar to the existing delete confirmation) so swiping right also asks for confirmation before duplicating.
 
 ### Technical Details
 
-**New file: `src/components/landing/EditorDemo.tsx`**
-- Self-contained component with all animation logic
-- Uses framer-motion's `animate` with `useEffect` for the typing + transform sequence
-- Phone-frame mockup using rounded card with a fake status bar and toolbar
-- Simulated editor UI: contact header area, a bullet point area where typing happens, and a floating AI button
-- Score ring that animates up using framer-motion's `useMotionValue` + `useTransform`
-- Respects `useReducedMotion` -- shows static "after" state if reduced motion is preferred
-- No external assets needed -- pure CSS/JSX
-
-**Modified file: `src/pages/Index.tsx`**
-- Import `EditorDemo` component
-- Add a new section between Steps Row (line 166) and Social Proof Bar (line 168) with heading "See It in Action"
-- Uses the same `inView` animation pattern as other sections
-
-### Demo UI Elements (all CSS-drawn, no images)
-
-- Mini phone frame with rounded corners and subtle shadow
-- Fake status bar (time, battery icon as simple shapes)
-- Resume header area with placeholder lines (name, email)
-- Editable bullet area where the typing animation plays
-- Small floating "AI" button that glows when activated
-- Score badge in the corner that counts up
-
+- Uses framer-motion's imperative `animate` function from `useAnimate` or the `x` motion value's built-in animate method
+- Spring-back animation uses `type: "spring"` for a natural bounce feel
+- Swipe-away animation uses `type: "tween"` with a short 200ms duration before triggering the action
+- The SWIPE_THRESHOLD remains at 80px for consistent trigger distance
