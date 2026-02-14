@@ -1,186 +1,194 @@
 
 
-## Career Planning & Job Search Enhancement
+## Resignation Letter Builder + Enhanced Interview Prep
 
-Builds on top of the existing `CareerPathSheet`, `career-path-advisor` edge function, `jobs` table, and `ApplicationsPage`. No external job board APIs (Indeed, LinkedIn) are used -- instead, we enhance the existing job management system with AI-powered features and add a standalone career planning page.
+### Part 1: Resignation Letter Builder
 
----
-
-### What Already Exists (No Changes Needed)
-
-- `CareerPathSheet.tsx` -- AI career analysis with next roles, skill gaps, industry alternatives, action plan
-- `career-path-advisor` edge function -- Lovable AI gateway integration
-- `jobs` table -- Full CRUD for saved jobs
-- `job_applications` table -- Application tracking with status pipeline
-- `ApplicationsPage.tsx` -- Tabs for applications + saved jobs
-- `ApplicationTrackerPage.tsx` -- Status timeline for individual applications
-- `JobDetailPage.tsx` -- Job detail view with apply flow
-
-### Part 1: Career Planning Page
-
-A new `/career` page that promotes the existing career path analysis from a hidden sheet into a first-class feature with persistent results and a visual roadmap.
+Reuses the existing cover letter architecture (DB table, hooks, edge function, multi-page flow) adapted for resignation letters.
 
 #### Database Changes
 
-New `career_assessments` table:
+New `resignation_letters` table (mirrors `cover_letters` structure):
 - `id` (uuid, PK)
 - `user_id` (uuid, NOT NULL)
-- `resume_id` (uuid, nullable) -- which resume was analyzed
-- `result` (jsonb, NOT NULL) -- full CareerPathResult
-- `quiz_answers` (jsonb, default '{}') -- career quiz responses
-- `completed_milestones` (jsonb, default '[]') -- tracked progress
+- `title` (text, nullable)
+- `recipient_name` (text) -- manager's name
+- `company` (text)
+- `position` (text) -- user's current position
+- `last_working_day` (date)
+- `notice_period` (text) -- '2_weeks', '1_month', 'immediate'
+- `reason` (text) -- 'new_opportunity', 'career_growth', 'relocation', etc.
+- `tone` (text, default 'professional') -- 'formal', 'grateful', 'direct'
+- `template_style` (text) -- 'standard', 'short', 'grateful', 'career_growth', 'immediate', 'retirement'
+- `additions` (jsonb, default '[]') -- selected optional additions
+- `content` (text, NOT NULL)
+- `checklist_progress` (jsonb, default '[]') -- completed checklist items
 - `created_at`, `updated_at` (timestamps)
-- RLS: users can only access their own assessments
+- RLS: users can only access their own letters
+
+#### New Edge Function
+
+**`supabase/functions/generate-resignation-letter/index.ts`**
+- Accepts: `{ recipientName, company, position, lastWorkingDay, noticePeriod, reason, tone, templateStyle, additions, resumeData? }`
+- Uses Lovable AI gateway (`google/gemini-3-flash-preview`)
+- System prompt instructs AI to generate a professional resignation letter with:
+  - Proper business letter format
+  - Selected tone (formal to friendly slider maps to tone values)
+  - Optional additions (gratitude, transition help, reference request, etc.)
+  - Appropriate length (1 page)
+- Auth check follows existing edge function pattern
+- Input validation with size limits
 
 #### New Files
 
-**1. `src/pages/CareerPage.tsx`** -- Career planning dashboard
-- Header with back button and "Career Plan" title
-- If no assessment exists: shows career quiz intro card with "Start Assessment" button
-- If assessment exists: shows results in a scrollable card layout:
-  - Current position summary card (field, level, years)
-  - Visual roadmap timeline (Now -> 3mo -> 6mo -> 1yr -> 3yr) as vertical cards with milestone checkboxes
-  - Skill gaps section with priority badges
-  - Next roles section with match scores
-  - Action plan steps with progress tracking
-- "Re-analyze" button at bottom
-- Pull-to-refresh
+**1. `src/hooks/useResignationLetters.ts`** -- Data hook (mirrors `useCoverLetters.ts`)
+- `useResignationLetters()` -- fetch all for user
+- `useResignationLetter(id)` -- fetch single
+- `useResignationLetterMutations()` -- save, update, delete
 
-**2. `src/components/career/CareerQuizSheet.tsx`** -- Career assessment quiz (bottom sheet, 90% height)
-- 10 mobile-friendly questions (swipeable):
-  1. Current role satisfaction (1-5 scale)
-  2. Career goal (promotion / switch role / switch industry / freelance / leadership)
-  3. Skills to develop (multi-select chips)
-  4. Work preference (remote / hybrid / office)
-  5. Timeline for next move (3mo / 6mo / 1yr / 2yr+)
-  6. Salary priority (critical / important / flexible)
-  7. Industry interest (multi-select from 12 industries)
-  8. Biggest career challenge (free text, optional)
-  9. Learning preference (courses / mentorship / hands-on / certifications)
-  10. Geographic flexibility (yes / no / partially)
+**2. `src/pages/ResignationLettersPage.tsx`** -- Dashboard listing all letters
+- Header with back button
+- List of saved resignation letters (cards with company, date, status)
+- "New Letter" FAB
+- Empty state with illustration
+
+**3. `src/pages/ResignationLetterNewPage.tsx`** -- Guided creation flow
+- Step 1: Basic Info (name auto-filled from resume, position, company, manager name, last working day date picker, notice period selector, reason dropdown)
+- Step 2: Tone + Template (tone slider: Formal/Balanced/Friendly, template style cards: Standard, Short, Grateful, Career Growth, Immediate, Retirement)
+- Step 3: Optional Additions (checkbox list: transition assistance, gratitude, positive experiences, train replacement, request reference, include contact info)
+- Step 4: AI generates letter, shows editable result
+- StepperNav-style progress indicator at top
+- Bottom toolbar with Copy, PDF, Save buttons (same pattern as `CoverLetterNewPage`)
+
+**4. `src/pages/ResignationLetterEditPage.tsx`** -- Edit existing letter
+- Load letter by ID
+- Full text editor with preview toggle
+- Regenerate button
+- Resignation checklist section at bottom:
+  - 10 checklist items (review contract, schedule meeting, document work, return property, etc.)
+  - Progress persisted to `checklist_progress` in DB
+  - Progress percentage shown
+- Export: PDF, DOCX, clipboard copy
+
+**5. `src/components/resignation/ResignationChecklist.tsx`** -- Checklist component
+- 10 pre-defined items with descriptions
+- Swipe-to-complete or tap checkbox
 - Progress bar at top
-- Large touch-friendly option buttons (48px height)
-- "Back" and "Next" navigation
-- On completion: triggers AI analysis combining quiz + resume data
-
-**3. `src/components/career/CareerRoadmap.tsx`** -- Visual roadmap component
-- Vertical timeline with milestone cards at 5 time horizons
-- Each card shows: skills to learn, certifications, estimated salary range, relevant job titles
-- Tap to expand/collapse details
-- "Mark Complete" checkbox per milestone (persisted to DB)
-- Progress percentage calculated from completed milestones
-
-**4. `src/components/career/SkillGapAnalyzer.tsx`** -- Skill comparison component
-- Takes user's current skills vs required skills for target role
-- Visual bar chart showing match percentage per skill category
-- Missing skills highlighted with "Add to Learning Plan" action
-- Color-coded priority: critical (red), important (amber), nice-to-have (gray)
-
-**5. `src/hooks/useCareerAssessment.ts`** -- Data hook
-- `useCareerAssessment()` -- fetches latest assessment for user
-- `useCareerMutations()` -- create/update assessment, toggle milestones
-- Uses TanStack Query with `career-assessments` query key
-
-**6. `supabase/functions/career-assessment/index.ts`** -- Enhanced edge function
-- Accepts `{ resume, quizAnswers }` 
-- Extends existing career-path-advisor prompt with quiz context
-- Returns enhanced `CareerPathResult` plus roadmap milestones
-- Uses `google/gemini-2.5-flash` via Lovable AI gateway
+- Haptic feedback on completion
 
 #### Files to Modify
 
-- `src/App.tsx` -- Add lazy route for `/career`
-- `src/components/layout/AppShell.tsx` -- Add `/career` to TAB_ROUTES
-- `src/pages/DashboardPage.tsx` -- Add "Career Plan" action card in the quick actions grid
+- `src/App.tsx` -- Add 3 lazy routes: `/resignation-letters`, `/resignation-letter/new`, `/resignation-letter/edit/:id`
+- `src/components/layout/AppShell.tsx` -- Add `/resignation-letter` to TAB_ROUTES
+- `src/pages/DashboardPage.tsx` -- Add "Resignation Letter" action card in the quick actions grid (with `FileSignature` icon)
 
 ---
 
-### Part 2: Job Search Enhancement
+### Part 2: Enhanced Interview Prep
 
-Enhance the existing `ApplicationsPage` with search/filter capabilities and AI resume-job match scoring. No external APIs -- users manually save jobs (or jobs are captured from the tailor flow), and the app provides AI-powered matching.
+Layers new features on top of the existing voice interview without modifying its core. The existing `useVoiceInterview`, `InterviewSetup`, `InterviewSummary`, and `interview-chat` edge function remain untouched.
+
+#### Database Changes
+
+Add columns to existing `interview_sessions` table:
+- `interview_type` already exists (default 'general')
+- `job_title` already exists
+- `job_description` already exists
+- No new columns needed -- the table already supports all required data
 
 #### New Files
 
-**7. `src/components/applications/JobSearchSheet.tsx`** -- Search/filter bottom sheet
-- Search input for job title/company keywords
-- Filter chips: job type (full-time, part-time, contract, remote), location, salary range
-- Applied filters shown as removable badges
-- Results update the existing jobs list in ApplicationsPage
+**6. `src/components/interview/InterviewHistorySheet.tsx`** -- Past sessions bottom sheet
+- Fetches from `interview_sessions` table
+- Shows cards: date, duration, overall score, job title
+- Tap to view full transcript and score breakdown
+- Delete option per session
 
-**8. `src/components/applications/JobMatchScore.tsx`** -- AI match score badge
-- Small circular score badge (0-100%) shown on each job card
-- Tap to expand breakdown: skills match, experience match, keyword overlap
-- "Tailor Resume" button that navigates to editor with TailorSheet pre-opened
-- Score is computed client-side by comparing job requirements text against resume skills/experience
+**7. `src/hooks/useInterviewHistory.ts`** -- Data hook
+- `useInterviewHistory()` -- fetches all sessions for user, ordered by date
+- `useSaveInterviewSession()` -- mutation to persist session after completion
 
-**9. `src/lib/jobMatchScorer.ts`** -- Client-side match scoring
-- `scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult`
-- Keyword extraction from job description/requirements
-- Skill matching against resume skills array
-- Experience level estimation from years
-- Returns `{ overall: number, skillMatch: number, experienceMatch: number, keywords: { found: string[], missing: string[] } }`
-- No AI call needed -- pure text comparison for instant results
+**8. `src/components/interview/InterviewTipsSheet.tsx`** -- Tips library bottom sheet
+- Accordion sections:
+  - STAR Method Reminder (with examples)
+  - Body Language Tips
+  - Common Mistakes to Avoid
+  - Salary Negotiation Scripts
+  - Questions to Ask the Interviewer (10+ curated)
+  - Thank You Email Template
+- Static content, no API calls
 
-**10. `src/components/applications/SaveJobSheet.tsx`** -- Quick save job sheet
-- Compact bottom sheet for manually saving a job
-- Fields: title, company, location, job type, salary range, source URL, description
-- "Paste Job URL" button that auto-fills from clipboard
-- Integrates with existing `useJobMutations().createJob`
+**9. `src/components/interview/InterviewStatsCard.tsx`** -- Performance analytics card
+- Shows on InterviewSetup page when user has past sessions
+- Average score trend (sparkline using recharts)
+- Total sessions count
+- Best score badge
+- "View History" button
 
 #### Files to Modify
 
-- `src/pages/ApplicationsPage.tsx` -- Add search icon in header that opens JobSearchSheet, add match score badge to job cards, add "Save Job" FAB
-- `src/components/applications/JobActivityStats.tsx` -- Add "Career Plan" quick link card
+**10. `src/pages/InterviewPage.tsx`** -- Enhance setup phase
+- Add "History" button in header (opens InterviewHistorySheet)
+- Add "Tips" button in header (opens InterviewTipsSheet)
+- Add InterviewStatsCard above the mode selection (when history exists)
+- After interview ends (summary phase), auto-save session to `interview_sessions` table
+
+**11. `src/components/interview/InterviewSetup.tsx`** -- Add practice mode selector
+- Add a third mode card: "Quick Practice" (5 questions, no job description needed)
+- Quick practice passes a flag to `interview-chat` to limit to 5 questions
+- Existing General and Job-Targeted modes remain unchanged
+
+**12. `src/components/interview/InterviewSummary.tsx`** -- Add save + share
+- "Save Session" button (persists to DB if authenticated)
+- "Share Results" button (copies summary text)
+- "Practice Tips" link to tips sheet
+
+**13. `supabase/functions/interview-chat/index.ts`** -- Minor prompt enhancement
+- Add `quickPractice` flag handling: when true, system prompt instructs AI to ask exactly 5 questions then provide summary
+- No other changes to existing logic
 
 ---
 
 ### Technical Details
 
-**Database migration (1 new table):**
-```sql
-CREATE TABLE public.career_assessments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
-  resume_id uuid,
-  result jsonb NOT NULL DEFAULT '{}',
-  quiz_answers jsonb NOT NULL DEFAULT '{}',
-  completed_milestones jsonb NOT NULL DEFAULT '[]',
-  created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
-);
-ALTER TABLE public.career_assessments ENABLE ROW LEVEL SECURITY;
--- RLS policies for own data only
-```
+**Database migration (1 new table + no column changes needed):**
+The `interview_sessions` table already has all needed columns. Only `resignation_letters` needs creation.
 
-**No external API integrations** -- all job data is user-entered or captured from the tailor flow. Match scoring is client-side keyword comparison. Career analysis uses the existing Lovable AI gateway.
-
-**Edge function reuse** -- The new `career-assessment` function extends the existing `career-path-advisor` pattern but adds quiz context to the prompt and returns roadmap milestones. The original function remains untouched.
+**Edge function pattern:** The resignation letter edge function follows the exact same pattern as `generate-cover-letter` -- auth check, input validation, Lovable AI gateway call, return generated text.
 
 **Mobile patterns:**
-- Quiz uses full-width option buttons (48px height) with `active:scale-95` + haptics
-- Roadmap timeline uses vertical scroll with expandable cards
-- Match scores are lightweight badges that expand on tap
+- Guided creation flow uses step indicators with large touch targets (48px buttons)
+- Date picker uses existing Shadcn Calendar in Popover with `pointer-events-auto`
+- Checklist items have swipe-to-complete with `active:scale-95` + haptics
 - All sheets use 85% height with drag handle
-- Safe areas respected on all new pages
+- Safe areas: `pt-safe` on headers, `pb-safe` on bottom actions
 
 **Performance:**
-- Career assessment results are persisted (not re-computed on every visit)
-- Job match scoring is client-side (instant, no API call)
-- Career page is lazy-loaded via `lazyWithRetry`
-- Quiz state is held in component state (not persisted until submission)
+- All new pages lazy-loaded via `lazyWithRetry`
+- Interview history uses TanStack Query with `interview-sessions` key
+- Resignation letters use same caching strategy as cover letters
+- Tips content is static (no API calls)
+
+**Interview session persistence flow:**
+1. User completes interview (summary phase)
+2. `InterviewSummary` calls `useSaveInterviewSession().mutate()` with transcript, scores, duration, job info
+3. Session saved to `interview_sessions` table
+4. Next visit to InterviewSetup shows stats from history
 
 #### Implementation Order
 
-1. Database migration (career_assessments table)
-2. Types and data hook (`useCareerAssessment.ts`)
-3. Career assessment edge function
-4. Career quiz sheet component
-5. Career roadmap and skill gap components
-6. Career page
-7. Job match scorer (client-side)
-8. Job search/filter sheet
-9. Save job sheet
-10. Update ApplicationsPage with search + match scores
-11. Update App.tsx and AppShell with new route
-12. Add dashboard access point
+1. Database migration (resignation_letters table)
+2. Generate resignation letter edge function
+3. useResignationLetters hook
+4. ResignationLettersPage (listing)
+5. ResignationLetterNewPage (guided creation)
+6. ResignationLetterEditPage + ResignationChecklist
+7. useInterviewHistory hook
+8. InterviewHistorySheet + InterviewTipsSheet
+9. InterviewStatsCard
+10. Update InterviewPage with history/tips integration
+11. Update InterviewSetup with quick practice mode
+12. Update InterviewSummary with save/share
+13. Minor interview-chat prompt update
+14. Route registration in App.tsx + AppShell + Dashboard access point
 
