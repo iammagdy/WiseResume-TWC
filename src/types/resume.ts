@@ -40,6 +40,16 @@ export interface Certification {
   credentialId?: string;
 }
 
+export interface TemplateCustomization {
+  accentColor: string;
+  fontHeading: string;
+  fontBody: string;
+  fontSize: 'small' | 'medium' | 'large';
+  layout: 'single' | 'two-column';
+  spacing: 'compact' | 'normal' | 'spacious';
+  margins: 'narrow' | 'normal' | 'wide';
+}
+
 export interface ResumeData {
   id?: string;
   contactInfo: ContactInfo;
@@ -49,6 +59,7 @@ export interface ResumeData {
   skills: string[];
   certifications: Certification[];
   templateId: string;
+  customization?: TemplateCustomization;
   createdAt?: string;
   updatedAt?: string;
 }

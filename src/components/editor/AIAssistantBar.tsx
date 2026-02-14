@@ -46,10 +46,14 @@ interface AIAssistantBarProps {
   onLinkedIn?: () => void;
   onOnePage?: () => void;
   onCareerPath?: () => void;
+  onGetIdeas?: () => void;
+  onCustomize?: () => void;
   className?: string;
 }
 
 const secondaryTools = [
+  { id: 'ideas', icon: Lightbulb, label: 'Ideas', color: 'text-yellow-500' },
+  { id: 'customize', icon: Palette, label: 'Customize', color: 'text-pink-500' },
   { id: 'enhance', icon: Sparkles, label: 'Enhance', color: 'text-cyan-500' },
   { id: 'interview', icon: Mic, label: 'Interview', color: 'text-orange-500' },
   { id: 'career', icon: TrendingUp, label: 'Career', color: 'text-emerald-500' },
@@ -72,6 +76,8 @@ export const AIAssistantBar = memo(function AIAssistantBar({
   onLinkedIn,
   onOnePage,
   onCareerPath,
+  onGetIdeas,
+  onCustomize,
   className,
 }: AIAssistantBarProps) {
   const navigate = useNavigate();
@@ -94,6 +100,8 @@ export const AIAssistantBar = memo(function AIAssistantBar({
     setIsExpanded(false);
     
     switch (id) {
+      case 'ideas': onGetIdeas?.(); break;
+      case 'customize': onCustomize?.(); break;
       case 'enhance': onImprove(); break;
       case 'interview': navigate('/interview'); break;
       case 'career': onCareerPath?.(); break;
@@ -106,6 +114,8 @@ export const AIAssistantBar = memo(function AIAssistantBar({
 
   const availableSecondaryTools = secondaryTools.filter(tool => {
     switch (tool.id) {
+      case 'ideas': return !!onGetIdeas;
+      case 'customize': return !!onCustomize;
       case 'career': return !!onCareerPath;
       case 'humanizer': return !!onAIDetector;
       case 'linkedin': return !!onLinkedIn;

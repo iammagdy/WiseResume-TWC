@@ -510,6 +510,7 @@ export type Database = {
           certifications: Json | null
           contact_info: Json
           created_at: string | null
+          customization: Json | null
           education: Json | null
           experience: Json | null
           id: string
@@ -530,6 +531,7 @@ export type Database = {
           certifications?: Json | null
           contact_info?: Json
           created_at?: string | null
+          customization?: Json | null
           education?: Json | null
           experience?: Json | null
           id?: string
@@ -550,6 +552,7 @@ export type Database = {
           certifications?: Json | null
           contact_info?: Json
           created_at?: string | null
+          customization?: Json | null
           education?: Json | null
           experience?: Json | null
           id?: string

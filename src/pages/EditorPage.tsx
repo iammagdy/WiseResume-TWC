@@ -36,6 +36,8 @@ const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWiza
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
 const VersionHistorySheet = lazy(() => import('@/components/editor/VersionHistorySheet').then(m => ({ default: m.VersionHistorySheet })));
+const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
+const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
@@ -87,6 +89,8 @@ export default function EditorPage() {
   const [showChat, setShowChat] = useState(false);
   const [showCareerPath, setShowCareerPath] = useState(false);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showContentLibrary, setShowContentLibrary] = useState(false);
+  const [showCustomize, setShowCustomize] = useState(false);
   const [activeTab, setActiveTab] = useState('contact');
   const [showAIIntro, setShowAIIntro] = useState(false);
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
@@ -320,6 +324,32 @@ export default function EditorPage() {
   const handleLinkedIn = useCallback(() => setShowLinkedIn(true), []);
   const handleOnePage = useCallback(() => setShowOnePage(true), []);
   const handleCareerPath = useCallback(() => setShowCareerPath(true), []);
+  const handleGetIdeas = useCallback(() => setShowContentLibrary(true), []);
+  const handleCustomize = useCallback(() => setShowCustomize(true), []);
+
+  const handleContentInsert = useCallback((text: string) => {
+    if (!currentResume) return;
+    const { setCurrentResume } = useResumeStore.getState();
+    if (activeTab === 'summary') {
+      setCurrentResume({ ...currentResume, summary: currentResume.summary ? `${currentResume.summary}\n${text}` : text });
+    } else if (activeTab === 'skills') {
+      const skill = text.replace(/[{}]/g, '').trim();
+      if (!currentResume.skills.includes(skill)) {
+        setCurrentResume({ ...currentResume, skills: [...currentResume.skills, skill] });
+      }
+    } else {
+      navigator.clipboard?.writeText(text);
+      toast('Copied to clipboard', { duration: 1500 });
+    }
+  }, [currentResume, activeTab]);
+
+  const handleCustomizeApply = useCallback((customization: import('@/types/resume').TemplateCustomization) => {
+    if (!currentResume) return;
+    const { setCurrentResume } = useResumeStore.getState();
+    setCurrentResume({ ...currentResume, customization });
+    toast.success('Customization applied ✓', { duration: 1500 });
+  }, [currentResume]);
+
   const handleTailorApplied = useCallback((info: { title: string; company: string; resumeId?: string; jobUrl?: string }) => {
     setLastAppliedJobInfo(info);
     setShowApplyPrompt(true);
@@ -548,6 +578,8 @@ export default function EditorPage() {
             onLinkedIn={handleLinkedIn}
             onOnePage={handleOnePage}
             onCareerPath={handleCareerPath}
+            onGetIdeas={handleGetIdeas}
+            onCustomize={handleCustomize}
             className="pt-3 pb-3"
           />
         </div>
@@ -574,6 +606,8 @@ export default function EditorPage() {
           {showChat && <AgenticChatSheet open={showChat} onOpenChange={setShowChat} />}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
           {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
+          {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={handleContentInsert} />}
+          {showCustomize && <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} customization={currentResume?.customization} onApply={handleCustomizeApply} />}
           {lastAppliedJobInfo && (
             <ApplyPromptDialog
               open={showApplyPrompt}
