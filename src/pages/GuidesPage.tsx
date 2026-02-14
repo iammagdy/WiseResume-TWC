@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Search, Bookmark, BookOpen, Clock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,8 @@ export default function GuidesPage() {
   const [showSaved, setShowSaved] = useState(false);
   const { bookmarkedSlugs, readSlugs, toggleBookmark } = useGuidesStore();
 
+  const deferredSearch = useDeferredValue(searchQuery);
+
   const filtered = useMemo(() => {
     let list: Guide[] = showSaved
       ? guides.filter((g) => bookmarkedSlugs.includes(g.slug))
@@ -24,8 +26,8 @@ export default function GuidesPage() {
       list = list.filter((g) => g.category === activeCategory);
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.toLowerCase();
       list = list.filter(
         (g) =>
           g.title.toLowerCase().includes(q) ||
@@ -33,7 +35,7 @@ export default function GuidesPage() {
       );
     }
     return list;
-  }, [searchQuery, activeCategory, showSaved, bookmarkedSlugs]);
+  }, [deferredSearch, activeCategory, showSaved, bookmarkedSlugs]);
 
   const categoryLabel = (cat: GuideCategory) =>
     GUIDE_CATEGORIES.find((c) => c.id === cat)?.label ?? cat;

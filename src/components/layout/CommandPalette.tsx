@@ -1,7 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from 'cmdk';
-import { FileText, Upload, Briefcase, Settings, Home, BookOpen, Palette, Mic, PenTool, Search } from 'lucide-react';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import { FileText, Upload, Briefcase, Settings, Home, BookOpen, Palette, Mic, PenTool } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 
 export function CommandPalette() {
@@ -27,52 +34,50 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <Command className="rounded-lg border shadow-md">
-        <CommandInput placeholder="Search actions, pages..." />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          <CommandGroup heading="Quick Actions">
-            <CommandItem onSelect={() => go('/editor')}>
-              <FileText className="mr-2 h-4 w-4" />
-              Open Editor
-            </CommandItem>
-            <CommandItem onSelect={() => go('/upload')}>
-              <Upload className="mr-2 h-4 w-4" />
-              Import Resume
-            </CommandItem>
-            <CommandItem onSelect={() => go('/cover-letter/new')}>
-              <PenTool className="mr-2 h-4 w-4" />
-              New Cover Letter
-            </CommandItem>
-            <CommandItem onSelect={() => go('/interview')}>
-              <Mic className="mr-2 h-4 w-4" />
-              Practice Interview
-            </CommandItem>
-          </CommandGroup>
-          <CommandGroup heading="Navigation">
-            <CommandItem onSelect={() => go('/dashboard')}>
-              <Home className="mr-2 h-4 w-4" />
-              Dashboard
-            </CommandItem>
-            <CommandItem onSelect={() => go('/applications')}>
-              <Briefcase className="mr-2 h-4 w-4" />
-              Job Applications
-            </CommandItem>
-            <CommandItem onSelect={() => go('/templates')}>
-              <Palette className="mr-2 h-4 w-4" />
-              Templates
-            </CommandItem>
-            <CommandItem onSelect={() => go('/guides')}>
-              <BookOpen className="mr-2 h-4 w-4" />
-              Career Guides
-            </CommandItem>
-            <CommandItem onSelect={() => go('/settings')}>
-              <Settings className="mr-2 h-4 w-4" />
-              Settings
-            </CommandItem>
-          </CommandGroup>
-        </CommandList>
-      </Command>
+      <CommandInput placeholder="Search actions, pages..." />
+      <CommandList>
+        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandGroup heading="Quick Actions">
+          <CommandItem onSelect={() => go('/editor')}>
+            <FileText className="mr-2 h-4 w-4" />
+            Open Editor
+          </CommandItem>
+          <CommandItem onSelect={() => go('/upload')}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import Resume
+          </CommandItem>
+          <CommandItem onSelect={() => go('/cover-letter/new')}>
+            <PenTool className="mr-2 h-4 w-4" />
+            New Cover Letter
+          </CommandItem>
+          <CommandItem onSelect={() => go('/interview')}>
+            <Mic className="mr-2 h-4 w-4" />
+            Practice Interview
+          </CommandItem>
+        </CommandGroup>
+        <CommandGroup heading="Navigation">
+          <CommandItem onSelect={() => go('/dashboard')}>
+            <Home className="mr-2 h-4 w-4" />
+            Dashboard
+          </CommandItem>
+          <CommandItem onSelect={() => go('/applications')}>
+            <Briefcase className="mr-2 h-4 w-4" />
+            Job Applications
+          </CommandItem>
+          <CommandItem onSelect={() => go('/templates')}>
+            <Palette className="mr-2 h-4 w-4" />
+            Templates
+          </CommandItem>
+          <CommandItem onSelect={() => go('/guides')}>
+            <BookOpen className="mr-2 h-4 w-4" />
+            Career Guides
+          </CommandItem>
+          <CommandItem onSelect={() => go('/settings')}>
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </CommandItem>
+        </CommandGroup>
+      </CommandList>
     </CommandDialog>
   );
 }

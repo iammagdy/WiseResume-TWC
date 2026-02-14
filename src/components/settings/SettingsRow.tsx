@@ -1,4 +1,4 @@
-import { ReactNode, useState, useEffect, useRef } from 'react';
+import { ReactNode, useState, useEffect, useRef, memo } from 'react';
 import { ChevronRight, Loader2, Check } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
@@ -40,7 +40,7 @@ type SettingsRowProps =
   | SettingsRowToggleProps 
   | SettingsRowButtonProps;
 
-export function SettingsRow(props: SettingsRowProps) {
+export const SettingsRow = memo(function SettingsRow(props: SettingsRowProps) {
   const { label, description, icon, className } = props;
 
   if (props.type === 'toggle') {
@@ -129,7 +129,7 @@ export function SettingsRow(props: SettingsRowProps) {
       </div>
     </button>
   );
-}
+});
 
 function ToggleRow(props: SettingsRowToggleProps) {
   const { label, description, icon, className } = props;

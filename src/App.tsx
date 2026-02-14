@@ -12,6 +12,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CommandPalette } from "@/components/layout/CommandPalette";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import {
   DashboardSkeleton,
@@ -238,7 +239,8 @@ const queryClient = new QueryClient({
         <Route path="/share/:token" element={<Suspense fallback={<PageLoadingSpinner />}><SharePage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
-      </Routes>
+       <CommandPalette />
+     </Routes>
    );
  }
  
