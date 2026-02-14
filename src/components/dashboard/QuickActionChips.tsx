@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Upload, FileText, Mic } from 'lucide-react';
+import { Upload, FileText, Mic, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -22,6 +22,12 @@ const actions = [
     iconColor: 'text-secondary',
   },
   {
+    icon: Mail,
+    label: 'Cover Letter',
+    action: 'cover-letters',
+    iconColor: 'text-accent',
+  },
+  {
     icon: Mic,
     label: 'Interview',
     action: 'interview',
@@ -40,6 +46,9 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
         break;
       case 'upload':
         navigate('/upload');
+        break;
+      case 'cover-letters':
+        navigate('/cover-letters');
         break;
       case 'interview':
         navigate('/interview');

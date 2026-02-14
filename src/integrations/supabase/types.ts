@@ -90,6 +90,7 @@ export type Database = {
           id: string
           job_title: string
           resume_id: string | null
+          template_style: string | null
           title: string | null
           tone: string | null
           updated_at: string | null
@@ -102,6 +103,7 @@ export type Database = {
           id?: string
           job_title: string
           resume_id?: string | null
+          template_style?: string | null
           title?: string | null
           tone?: string | null
           updated_at?: string | null
@@ -114,6 +116,7 @@ export type Database = {
           id?: string
           job_title?: string
           resume_id?: string | null
+          template_style?: string | null
           title?: string | null
           tone?: string | null
           updated_at?: string | null

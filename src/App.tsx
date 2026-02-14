@@ -45,6 +45,9 @@ const JobDetailPage = lazyWithRetry(() => import("./pages/JobDetailPage"));
 const ApplicationTrackerPage = lazyWithRetry(() => import("./pages/ApplicationTrackerPage"));
 const NotificationsPage = lazyWithRetry(() => import("./pages/NotificationsPage"));
 const CoverLetterPage = lazyWithRetry(() => import("./pages/CoverLetterPage"));
+const CoverLettersPage = lazyWithRetry(() => import("./pages/CoverLettersPage"));
+const CoverLetterNewPage = lazyWithRetry(() => import("./pages/CoverLetterNewPage"));
+const CoverLetterEditPage = lazyWithRetry(() => import("./pages/CoverLetterEditPage"));
 const SharePage = lazyWithRetry(() => import("./pages/SharePage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
@@ -168,9 +171,24 @@ const queryClient = new QueryClient({
             </Suspense>
            } />
            <Route path="/cover-letter" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
-              <CoverLetterPage />
-            </Suspense>
+             <Suspense fallback={<PageLoadingSpinner />}>
+               <CoverLetterPage />
+             </Suspense>
+           } />
+           <Route path="/cover-letters" element={
+             <Suspense fallback={<PageLoadingSpinner />}>
+               <CoverLettersPage />
+             </Suspense>
+           } />
+           <Route path="/cover-letter/new" element={
+             <Suspense fallback={<PageLoadingSpinner />}>
+               <CoverLetterNewPage />
+             </Suspense>
+           } />
+           <Route path="/cover-letter/edit/:id" element={
+             <Suspense fallback={<PageLoadingSpinner />}>
+               <CoverLetterEditPage />
+             </Suspense>
            } />
          </Route>
 
