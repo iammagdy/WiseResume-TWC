@@ -1,79 +1,64 @@
 
 
-## Fix: Editor Page Infinite Loading -- Root Cause Resolution
+## Fix: Editor Infinite Reload Loop and White Bar
 
-### Root Causes Found (via live reproduction in browser tool)
+### Root Cause (confirmed via live browser reproduction)
 
-Three issues work together to create the infinite loading:
+The "Loading..." spinner the user sees is NOT a React component -- it's the raw HTML embedded in `index.html` (line 38-44). This means **a full page hard reload** is happening. The ONLY code that calls `window.location.reload()` is in `src/lib/lazyWithRetry.ts` (line 9):
 
-1. **AppShell uses `key={location.pathname}`** which forces React to fully unmount and remount the entire page component tree on every navigation. When going from `/dashboard` to `/editor`, the EditorPage is destroyed and recreated, re-triggering the Suspense lazy load and resetting all component state.
-
-2. **`useResumeStoreHydration()` can get stuck returning `false`**. It uses `useSyncExternalStore` with a server snapshot of `() => false`. If the Zustand persist hydration completes before the component subscribes, the listener never fires and the component never learns hydration finished. This blocks the guard at line 445: `if (!storeHydrated) return <EditorSkeleton />`.
-
-3. **The safety timeout depends on `storeHydrated`**. Since `storeHydrated` is stuck at `false`, the timeout effect returns early and never starts its 10-second countdown. Result: skeleton shows forever.
-
-### Fix (3 files)
-
-**File 1: `src/components/layout/AppShell.tsx`**
-- Remove `key={location.pathname}` from the outlet wrapper div
-- This prevents unnecessary unmount/remount of pages during navigation
-- Pages will now properly transition without losing state
-
-**File 2: `src/store/resumeStore.ts`**
-- Change `useResumeStoreHydration` to directly read `hasHydrated` using a simple `useState` + `useEffect` pattern instead of `useSyncExternalStore`
-- This eliminates the race condition where `useSyncExternalStore` misses the hydration event
-
-**File 3: `src/pages/EditorPage.tsx`**
-- Make the safety timeout independent of `storeHydrated` -- if stuck loading for 8 seconds regardless of hydration state, redirect to dashboard
-- Add a fallback: if `storeHydrated` is false for more than 2 seconds, treat it as hydrated (the store definitely hydrated by then since localStorage is synchronous)
-
-### Technical Details
-
-**AppShell.tsx change (line 30):**
-```text
-Before: <div key={location.pathname} className="...">
-After:  <div className="...">
-```
-
-**resumeStore.ts -- replace `useResumeStoreHydration` (bottom of file):**
 ```ts
-export const useResumeStoreHydration = () => {
-  const [hydrated, setHydrated] = useState(getResumeStoreHasHydrated);
-  useEffect(() => {
-    if (hydrated) return;
-    // If already hydrated, set immediately
-    if (getResumeStoreHasHydrated()) {
-      setHydrated(true);
-      return;
-    }
-    // Otherwise subscribe
-    const unsub = subscribeToHydration(() => setHydrated(true));
-    return unsub;
-  }, [hydrated]);
-  return hydrated;
-};
+// If lazy chunk fails twice, reload the entire page
+window.location.reload();
 ```
 
-**EditorPage.tsx -- make timeout unconditional:**
+On a mobile network (user is on "Comet" browser), chunk loading can fail intermittently. When it does:
+1. First attempt fails -- retry after 1 second
+2. Second attempt fails -- `window.location.reload()`
+3. Page reloads, tries to load chunk again -- fails again
+4. Infinite reload loop
+
+The "white bar" is caused by AppShell applying `pb-20` (80px bottom padding) during skeleton states before the BottomTabBar renders.
+
+### Changes
+
+**File 1: `src/lib/lazyWithRetry.ts`**
+- Remove `window.location.reload()` entirely
+- Instead, after 2 failed attempts, let the error propagate naturally to the ErrorBoundary
+- The ErrorBoundary already handles chunk errors gracefully with a "Try Again" button
+- This breaks the infinite reload loop permanently
+
 ```ts
-// Safety timeout: if no resume after 8s, bail out (no storeHydrated dependency)
-useEffect(() => {
-  if (currentResume) return;
-  const timer = setTimeout(() => {
-    if (!useResumeStore.getState().currentResume) {
-      useResumeStore.getState().setCurrentResumeId(null);
-      toast.error('Resume could not be loaded.');
-      navigate('/dashboard', { replace: true });
-    }
-  }, 8000);
-  return () => clearTimeout(timer);
-}, [currentResume, navigate]);
+export function lazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(() =>
+    factory().catch(() => {
+      // Retry once after 1 second
+      return new Promise<{ default: T }>((resolve, reject) =>
+        setTimeout(() => factory().then(resolve).catch(reject), 1500)
+      );
+      // If retry also fails, let error propagate to ErrorBoundary
+      // NEVER reload the page -- that causes infinite reload loops
+    })
+  );
+}
 ```
 
-### Why This Works
+**File 2: `src/components/layout/PageSkeletons.tsx` -- EditorSkeleton**
+- Add `min-h-[100dvh]` and `bg-background` to the EditorSkeleton wrapper to eliminate the white bar during loading
+- Ensure it fills the entire viewport with the correct dark background
 
-- Removing `key={location.pathname}` stops the destructive remount cycle
-- The new hydration hook reliably detects hydration even if it completed before mount
-- The unconditional timeout ensures the app NEVER gets permanently stuck -- worst case, it redirects after 8 seconds
-- No new dependencies needed
+**File 3: `src/components/ui/PageLoadingSpinner.tsx`**
+- This is the Suspense fallback used for NotFound -- ensure it also has proper dark background (it already does, but verify)
+
+### Why This Fixes Everything
+
+- **No more reload loops**: The `lazyWithRetry` no longer calls `window.location.reload()`, so even if chunks fail on flaky mobile networks, the ErrorBoundary shows a user-friendly error with a manual "Try Again" button instead of silently reloading forever
+- **No white bar**: The EditorSkeleton fills the full viewport with the dark background
+- **Guard logic is preserved**: The existing guard logic in EditorPage is correct and doesn't need changes
+- **ErrorBoundary already handles chunk errors**: It detects "dynamically imported module" and "Failed to fetch" errors (lines 34-36) and offers a retry button
+
+### Files Changed
+- `src/lib/lazyWithRetry.ts` (remove reload, simplify)
+- `src/components/layout/PageSkeletons.tsx` (fix EditorSkeleton background)
 
