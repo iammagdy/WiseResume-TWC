@@ -1,194 +1,178 @@
 
 
-## Resignation Letter Builder + Enhanced Interview Prep
+## Resume Guides & Enhanced Sharing
 
-### Part 1: Resignation Letter Builder
-
-Reuses the existing cover letter architecture (DB table, hooks, edge function, multi-page flow) adapted for resignation letters.
-
-#### Database Changes
-
-New `resignation_letters` table (mirrors `cover_letters` structure):
-- `id` (uuid, PK)
-- `user_id` (uuid, NOT NULL)
-- `title` (text, nullable)
-- `recipient_name` (text) -- manager's name
-- `company` (text)
-- `position` (text) -- user's current position
-- `last_working_day` (date)
-- `notice_period` (text) -- '2_weeks', '1_month', 'immediate'
-- `reason` (text) -- 'new_opportunity', 'career_growth', 'relocation', etc.
-- `tone` (text, default 'professional') -- 'formal', 'grateful', 'direct'
-- `template_style` (text) -- 'standard', 'short', 'grateful', 'career_growth', 'immediate', 'retirement'
-- `additions` (jsonb, default '[]') -- selected optional additions
-- `content` (text, NOT NULL)
-- `checklist_progress` (jsonb, default '[]') -- completed checklist items
-- `created_at`, `updated_at` (timestamps)
-- RLS: users can only access their own letters
-
-#### New Edge Function
-
-**`supabase/functions/generate-resignation-letter/index.ts`**
-- Accepts: `{ recipientName, company, position, lastWorkingDay, noticePeriod, reason, tone, templateStyle, additions, resumeData? }`
-- Uses Lovable AI gateway (`google/gemini-3-flash-preview`)
-- System prompt instructs AI to generate a professional resignation letter with:
-  - Proper business letter format
-  - Selected tone (formal to friendly slider maps to tone values)
-  - Optional additions (gratitude, transition help, reference request, etc.)
-  - Appropriate length (1 page)
-- Auth check follows existing edge function pattern
-- Input validation with size limits
-
-#### New Files
-
-**1. `src/hooks/useResignationLetters.ts`** -- Data hook (mirrors `useCoverLetters.ts`)
-- `useResignationLetters()` -- fetch all for user
-- `useResignationLetter(id)` -- fetch single
-- `useResignationLetterMutations()` -- save, update, delete
-
-**2. `src/pages/ResignationLettersPage.tsx`** -- Dashboard listing all letters
-- Header with back button
-- List of saved resignation letters (cards with company, date, status)
-- "New Letter" FAB
-- Empty state with illustration
-
-**3. `src/pages/ResignationLetterNewPage.tsx`** -- Guided creation flow
-- Step 1: Basic Info (name auto-filled from resume, position, company, manager name, last working day date picker, notice period selector, reason dropdown)
-- Step 2: Tone + Template (tone slider: Formal/Balanced/Friendly, template style cards: Standard, Short, Grateful, Career Growth, Immediate, Retirement)
-- Step 3: Optional Additions (checkbox list: transition assistance, gratitude, positive experiences, train replacement, request reference, include contact info)
-- Step 4: AI generates letter, shows editable result
-- StepperNav-style progress indicator at top
-- Bottom toolbar with Copy, PDF, Save buttons (same pattern as `CoverLetterNewPage`)
-
-**4. `src/pages/ResignationLetterEditPage.tsx`** -- Edit existing letter
-- Load letter by ID
-- Full text editor with preview toggle
-- Regenerate button
-- Resignation checklist section at bottom:
-  - 10 checklist items (review contract, schedule meeting, document work, return property, etc.)
-  - Progress persisted to `checklist_progress` in DB
-  - Progress percentage shown
-- Export: PDF, DOCX, clipboard copy
-
-**5. `src/components/resignation/ResignationChecklist.tsx`** -- Checklist component
-- 10 pre-defined items with descriptions
-- Swipe-to-complete or tap checkbox
-- Progress bar at top
-- Haptic feedback on completion
-
-#### Files to Modify
-
-- `src/App.tsx` -- Add 3 lazy routes: `/resignation-letters`, `/resignation-letter/new`, `/resignation-letter/edit/:id`
-- `src/components/layout/AppShell.tsx` -- Add `/resignation-letter` to TAB_ROUTES
-- `src/pages/DashboardPage.tsx` -- Add "Resignation Letter" action card in the quick actions grid (with `FileSignature` icon)
+Adds a static educational content hub and enhances the existing resume sharing system with feedback capabilities. Scoped to avoid over-engineering -- guides are static (no DB), and collaboration starts with comment-based feedback on shared resumes rather than full team workspaces.
 
 ---
 
-### Part 2: Enhanced Interview Prep
+### What Already Exists
 
-Layers new features on top of the existing voice interview without modifying its core. The existing `useVoiceInterview`, `InterviewSetup`, `InterviewSummary`, and `interview-chat` edge function remain untouched.
+- `contentLibrary.ts` -- 500+ resume phrases (action verbs, achievements, skills)
+- `ContentLibrarySheet.tsx` -- Phrase browser with favorites and categories
+- `ExamplesPage.tsx` -- Resume examples with industry/level filters
+- `ShareSheet.tsx` + `SharePage.tsx` -- Resume sharing with token-based links and password protection
+- `useResumeShares.ts` -- Share CRUD with `get_shared_resume` RPC
+- `resume_shares` table -- Token, password, expiry, view count
 
-#### Database Changes
+---
 
-Add columns to existing `interview_sessions` table:
-- `interview_type` already exists (default 'general')
-- `job_title` already exists
-- `job_description` already exists
-- No new columns needed -- the table already supports all required data
+### Part 1: Resume Guides Content Hub
+
+A new `/guides` page with static educational articles organized by category. No database needed -- all content is bundled as static TypeScript data, keeping things fast and offline-friendly.
 
 #### New Files
 
-**6. `src/components/interview/InterviewHistorySheet.tsx`** -- Past sessions bottom sheet
-- Fetches from `interview_sessions` table
-- Shows cards: date, duration, overall score, job title
-- Tap to view full transcript and score breakdown
-- Delete option per session
+**1. `src/lib/guidesData.ts`** -- Static guide content (all articles)
+- ~30 curated guides across 5 categories:
+  - Resume Writing (10): ATS tips, power words, quantifying achievements, format comparison, common mistakes, career gaps, entry-level, executive, length guidelines, skills section
+  - Cover Letters (5): Structure, opening paragraphs, closing examples, cold applications, referral letters
+  - Interview Prep (5): STAR method, behavioral questions, salary negotiation, video interview tips, questions to ask
+  - Career Advice (5): Job search strategies, networking, LinkedIn optimization, personal branding, remote work
+  - Industry Insights (5): Tech, healthcare, finance, marketing, general career paths
+- Each guide is a TypeScript object: `{ slug, title, category, readTimeMinutes, content (markdown string), tags }`
+- Content is professional-quality markdown with headers, bullet points, and actionable tips
+- Total bundle size ~50KB (acceptable for static content)
 
-**7. `src/hooks/useInterviewHistory.ts`** -- Data hook
-- `useInterviewHistory()` -- fetches all sessions for user, ordered by date
-- `useSaveInterviewSession()` -- mutation to persist session after completion
+**2. `src/pages/GuidesPage.tsx`** -- Content hub listing page
+- Header with back button and "Career Guides" title
+- Search bar (filters guides by title/content/tags)
+- Category filter chips (horizontal scroll): All, Resume, Cover Letter, Interview, Career, Industry
+- Guide cards in vertical list:
+  - Title (bold), category badge, read time badge ("5 min read")
+  - First ~80 chars of content as preview
+  - Bookmark icon (persisted via Zustand store)
+- Bookmarks tab toggle (Browse / Saved)
+- Empty state for no results
 
-**8. `src/components/interview/InterviewTipsSheet.tsx`** -- Tips library bottom sheet
-- Accordion sections:
-  - STAR Method Reminder (with examples)
-  - Body Language Tips
-  - Common Mistakes to Avoid
-  - Salary Negotiation Scripts
-  - Questions to Ask the Interviewer (10+ curated)
-  - Thank You Email Template
-- Static content, no API calls
+**3. `src/pages/GuidePage.tsx`** -- Individual guide reader
+- Header with back button and guide title
+- Reading progress bar at top (scroll-based)
+- Markdown rendered content using `react-markdown` (already installed)
+- Large readable text (text-base, leading-relaxed)
+- "Was this helpful?" thumbs up/down at bottom (stored in local store)
+- Related guides section (same category, different article)
+- "Back to Guides" link at bottom
+- Font size adjustment (small/medium/large toggle in header)
 
-**9. `src/components/interview/InterviewStatsCard.tsx`** -- Performance analytics card
-- Shows on InterviewSetup page when user has past sessions
-- Average score trend (sparkline using recharts)
-- Total sessions count
-- Best score badge
-- "View History" button
+**4. `src/store/guidesStore.ts`** -- Zustand persisted store
+- `bookmarkedSlugs: string[]` -- saved guides
+- `readSlugs: string[]` -- guides user has scrolled >80%
+- `helpfulSlugs: Record<string, boolean>` -- thumbs up/down feedback
+- `fontSize: 'sm' | 'md' | 'lg'` -- reader preference
 
 #### Files to Modify
 
-**10. `src/pages/InterviewPage.tsx`** -- Enhance setup phase
-- Add "History" button in header (opens InterviewHistorySheet)
-- Add "Tips" button in header (opens InterviewTipsSheet)
-- Add InterviewStatsCard above the mode selection (when history exists)
-- After interview ends (summary phase), auto-save session to `interview_sessions` table
+- `src/App.tsx` -- Add 2 lazy routes: `/guides`, `/guides/:slug`
+- `src/components/layout/AppShell.tsx` -- Add `/guides` to TAB_ROUTES
+- `src/pages/DashboardPage.tsx` -- Add "Guides" action card with `BookOpen` icon (replace or add alongside existing Examples card)
 
-**11. `src/components/interview/InterviewSetup.tsx`** -- Add practice mode selector
-- Add a third mode card: "Quick Practice" (5 questions, no job description needed)
-- Quick practice passes a flag to `interview-chat` to limit to 5 questions
-- Existing General and Job-Targeted modes remain unchanged
+---
 
-**12. `src/components/interview/InterviewSummary.tsx`** -- Add save + share
-- "Save Session" button (persists to DB if authenticated)
-- "Share Results" button (copies summary text)
-- "Practice Tips" link to tips sheet
+### Part 2: Enhanced Resume Sharing with Feedback
 
-**13. `supabase/functions/interview-chat/index.ts`** -- Minor prompt enhancement
-- Add `quickPractice` flag handling: when true, system prompt instructs AI to ask exactly 5 questions then provide summary
-- No other changes to existing logic
+Extends the existing token-based sharing system to allow viewers to leave comments/feedback on shared resumes. This is a lightweight collaboration layer -- no team workspaces, no real-time editing.
+
+#### Database Changes
+
+**New `share_comments` table:**
+- `id` (uuid, PK)
+- `share_id` (uuid, NOT NULL, references resume_shares.id)
+- `author_name` (text, NOT NULL) -- viewer's name (no auth required)
+- `section` (text, nullable) -- which resume section the comment targets (e.g., 'experience', 'summary')
+- `content` (text, NOT NULL, max 1000 chars)
+- `is_resolved` (boolean, default false)
+- `created_at` (timestamptz)
+- RLS: Public insert for active shares, owner can read/update/delete via share ownership
+
+**New RPC function: `add_share_comment`** (SECURITY DEFINER)
+- Validates share token is active and not expired
+- Inserts comment linked to the share
+- Returns the created comment
+- Prevents abuse: rate limit of 10 comments per share per hour
+
+**Modify `get_shared_resume` RPC:**
+- Add optional `include_comments` parameter
+- When true, includes comments array in the response
+
+#### New Files
+
+**5. `src/hooks/useShareComments.ts`** -- Comments data hook
+- `useShareComments(shareId)` -- fetch comments for a share (owner only)
+- `useAddShareComment()` -- mutation for viewers to add comments via RPC
+- `useResolveComment()` -- mutation for owner to mark resolved
+
+**6. `src/components/editor/ShareFeedbackSheet.tsx`** -- Owner's feedback viewer
+- Bottom sheet showing all comments on a shared resume
+- Filter: All / Unresolved / Resolved
+- Each comment card: author name, section tag, content, timestamp
+- "Resolve" button per comment
+- Badge count of unresolved comments
+- Accessible from ShareSheet when share has comments
+
+**7. Public share page comment form** (added to `SharePage.tsx`)
+- "Leave Feedback" expandable section at bottom of shared resume view
+- Name input + comment textarea + optional section selector dropdown
+- Submit button with loading state
+- Success toast after submission
+- Shows existing comments (read-only) below the form
+
+#### Files to Modify
+
+- `src/pages/SharePage.tsx` -- Add feedback form section and display existing comments
+- `src/components/editor/ShareSheet.tsx` -- Add "View Feedback" button when share has comments, linking to ShareFeedbackSheet
 
 ---
 
 ### Technical Details
 
-**Database migration (1 new table + no column changes needed):**
-The `interview_sessions` table already has all needed columns. Only `resignation_letters` needs creation.
+**No external APIs** -- guides are static content, comments use existing Supabase infrastructure.
 
-**Edge function pattern:** The resignation letter edge function follows the exact same pattern as `generate-cover-letter` -- auth check, input validation, Lovable AI gateway call, return generated text.
+**Database migration:**
+```sql
+CREATE TABLE public.share_comments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  share_id uuid NOT NULL REFERENCES public.resume_shares(id) ON DELETE CASCADE,
+  author_name text NOT NULL,
+  section text,
+  content text NOT NULL,
+  is_resolved boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.share_comments ENABLE ROW LEVEL SECURITY;
+-- Public can insert on active shares
+-- Owner can read/update/delete via share ownership check
+```
+
+**RPC function** (`add_share_comment`): SECURITY DEFINER, validates token, inserts comment, returns result. No auth required (public viewers can comment).
 
 **Mobile patterns:**
-- Guided creation flow uses step indicators with large touch targets (48px buttons)
-- Date picker uses existing Shadcn Calendar in Popover with `pointer-events-auto`
-- Checklist items have swipe-to-complete with `active:scale-95` + haptics
-- All sheets use 85% height with drag handle
-- Safe areas: `pt-safe` on headers, `pb-safe` on bottom actions
+- Guide cards use `glass-surface` with 44px minimum tap targets
+- Reader uses large text with adjustable font size
+- Comment form uses `text-[16px]` inputs to prevent iOS zoom
+- All new pages lazy-loaded via `lazyWithRetry`
+- Guides store uses Zustand `persist` for offline bookmarks
 
 **Performance:**
-- All new pages lazy-loaded via `lazyWithRetry`
-- Interview history uses TanStack Query with `interview-sessions` key
-- Resignation letters use same caching strategy as cover letters
-- Tips content is static (no API calls)
+- Static guide content is tree-shaken per page (dynamic import by slug)
+- No API calls for guides (instant load)
+- Comments fetched only when share page loads
+- Guides page is ~50KB total (acceptable)
 
-**Interview session persistence flow:**
-1. User completes interview (summary phase)
-2. `InterviewSummary` calls `useSaveInterviewSession().mutate()` with transcript, scores, duration, job info
-3. Session saved to `interview_sessions` table
-4. Next visit to InterviewSetup shows stats from history
+**Bundle strategy for guides:**
+- All guide content in a single `guidesData.ts` file
+- Lazy-loaded with the GuidesPage route (not in main bundle)
+- Markdown rendering uses already-installed `react-markdown`
 
 #### Implementation Order
 
-1. Database migration (resignation_letters table)
-2. Generate resignation letter edge function
-3. useResignationLetters hook
-4. ResignationLettersPage (listing)
-5. ResignationLetterNewPage (guided creation)
-6. ResignationLetterEditPage + ResignationChecklist
-7. useInterviewHistory hook
-8. InterviewHistorySheet + InterviewTipsSheet
-9. InterviewStatsCard
-10. Update InterviewPage with history/tips integration
-11. Update InterviewSetup with quick practice mode
-12. Update InterviewSummary with save/share
-13. Minor interview-chat prompt update
-14. Route registration in App.tsx + AppShell + Dashboard access point
+1. Static guide content data (`guidesData.ts`)
+2. Guides Zustand store
+3. GuidesPage (listing with search + filters)
+4. GuidePage (reader with progress tracking)
+5. Database migration (share_comments table + RPC)
+6. useShareComments hook
+7. SharePage comment form enhancement
+8. ShareFeedbackSheet for owners
+9. Route registration + Dashboard access point
 
