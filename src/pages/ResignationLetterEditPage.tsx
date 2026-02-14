@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+import { DetailSkeleton } from '@/components/layout/PageSkeletons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -179,7 +179,7 @@ export default function ResignationLetterEditPage() {
   }, [id, deleteLetter, navigate]);
 
   if (!authLoading && !user) return <Navigate to="/auth" replace />;
-  if (isLoading || authLoading) return <PageLoadingSpinner />;
+  if (isLoading || authLoading) return <DetailSkeleton />;
   if (!letter) {
     return (
       <div className="flex-1 flex items-center justify-center p-4">

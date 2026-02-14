@@ -22,6 +22,8 @@ import {
   UploadSkeleton,
   InterviewSkeleton,
   AuthSkeleton,
+  DetailSkeleton,
+  ShareSkeleton,
 } from "@/components/layout/PageSkeletons";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
@@ -144,99 +146,99 @@ const queryClient = new QueryClient({
             </Suspense>
            } />
            <Route path="/onboarding" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
+            <Suspense fallback={<AuthSkeleton />}>
               <OnboardingPage />
             </Suspense>
            } />
            <Route path="/profile" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
+            <Suspense fallback={<SettingsSkeleton />}>
               <ProfilePage />
             </Suspense>
            } />
            <Route path="/templates" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
+            <Suspense fallback={<DashboardSkeleton />}>
               <TemplatesPage />
             </Suspense>
            } />
            <Route path="/resume/:id" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
+            <Suspense fallback={<DetailSkeleton />}>
               <ResumeDetailPage />
             </Suspense>
            } />
            <Route path="/job/:id" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
+            <Suspense fallback={<DetailSkeleton />}>
               <JobDetailPage />
             </Suspense>
            } />
            <Route path="/application/:id" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
+            <Suspense fallback={<DetailSkeleton />}>
               <ApplicationTrackerPage />
             </Suspense>
            } />
            <Route path="/notifications" element={
-            <Suspense fallback={<PageLoadingSpinner />}>
+            <Suspense fallback={<DetailSkeleton />}>
               <NotificationsPage />
             </Suspense>
            } />
            <Route path="/cover-letter" element={
-             <Suspense fallback={<PageLoadingSpinner />}>
+             <Suspense fallback={<DetailSkeleton />}>
                <CoverLetterPage />
              </Suspense>
            } />
            <Route path="/cover-letters" element={
-             <Suspense fallback={<PageLoadingSpinner />}>
+             <Suspense fallback={<DashboardSkeleton />}>
                <CoverLettersPage />
              </Suspense>
            } />
            <Route path="/cover-letter/new" element={
-             <Suspense fallback={<PageLoadingSpinner />}>
+             <Suspense fallback={<DetailSkeleton />}>
                <CoverLetterNewPage />
              </Suspense>
            } />
            <Route path="/cover-letter/edit/:id" element={
-              <Suspense fallback={<PageLoadingSpinner />}>
+              <Suspense fallback={<DetailSkeleton />}>
                 <CoverLetterEditPage />
               </Suspense>
             } />
            <Route path="/examples" element={
-               <Suspense fallback={<PageLoadingSpinner />}>
+               <Suspense fallback={<DashboardSkeleton />}>
                  <ExamplesPage />
                </Suspense>
              } />
               <Route path="/career" element={
-                <Suspense fallback={<PageLoadingSpinner />}>
+                <Suspense fallback={<DetailSkeleton />}>
                   <CareerPage />
                 </Suspense>
               } />
               <Route path="/resignation-letters" element={
-                <Suspense fallback={<PageLoadingSpinner />}>
+                <Suspense fallback={<DashboardSkeleton />}>
                   <ResignationLettersPage />
                 </Suspense>
               } />
               <Route path="/resignation-letter/new" element={
-                <Suspense fallback={<PageLoadingSpinner />}>
+                <Suspense fallback={<DetailSkeleton />}>
                   <ResignationLetterNewPage />
                 </Suspense>
               } />
                <Route path="/resignation-letter/edit/:id" element={
-                 <Suspense fallback={<PageLoadingSpinner />}>
+                 <Suspense fallback={<DetailSkeleton />}>
                    <ResignationLetterEditPage />
                  </Suspense>
                } />
                <Route path="/guides" element={
-                 <Suspense fallback={<PageLoadingSpinner />}>
+                 <Suspense fallback={<DashboardSkeleton />}>
                    <GuidesPage />
                  </Suspense>
                } />
                <Route path="/guides/:slug" element={
-                 <Suspense fallback={<PageLoadingSpinner />}>
+                 <Suspense fallback={<DetailSkeleton />}>
                    <GuidePage />
                  </Suspense>
                } />
           </Route>
 
         {/* Public share page - outside AppShell */}
-        <Route path="/share/:token" element={<Suspense fallback={<PageLoadingSpinner />}><SharePage /></Suspense>} />
+        <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
      </Routes>
