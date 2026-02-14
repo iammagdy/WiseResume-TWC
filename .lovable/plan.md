@@ -1,30 +1,55 @@
 
 
-## Fix Resume Card Swipe Animation and Confirmation
+## Fix Scrolling Difficulties Across All Screens
 
-### Problems Found
+### Root Cause
 
-1. **Drag is too restricted**: `dragConstraints` is set to `{ left: 0, right: 0 }` with `dragElastic: 0.1`, meaning the card can barely move (only 10% of finger movement). This makes the swipe feel broken and unresponsive.
+The scrolling problem stems from a **nested overflow architecture** in the app. The `AppShell.tsx` wrapper applies `overflow-hidden` on the `<main>` element, which means **every page must manage its own scrolling internally**. However, several pages split their content between fixed elements (headers, stats, search bars) and a small scrollable area, leaving users with only a tiny region to scroll -- especially on smaller screens.
 
-2. **Card snaps back instantly**: After a swipe action triggers, `x.set(0)` resets the card position with no animation -- it just jumps back.
+### Affected Screens
 
-3. **Duplicate has no confirmation**: Swiping right to duplicate triggers immediately without any confirmation dialog, unlike delete which correctly shows a confirmation.
+**1. Dashboard Page (`DashboardPage.tsx`)**
+- The header, DailyTipCard, DashboardStats, and search bar are all **outside** the scrollable `PullToRefresh` container
+- On a typical mobile screen, these fixed elements consume 40-50% of the viewport, leaving a small scrollable window for the actual resume list
+- **Fix**: Wrap the entire page content (except the sticky header) inside the `PullToRefresh` scroll container so everything scrolls together
 
-### Fixes
+**2. Applications Page (`ApplicationsPage.tsx`)**
+- Has `overflow-hidden` on its root div (line 89), and the tabs section sits outside the `PullToRefresh` scroll area
+- **Fix**: Move tabs inside the scroll container and remove redundant `overflow-hidden`
 
-**File: `src/components/dashboard/ResumeListCard.tsx`**
+**3. AppShell (`AppShell.tsx`)**
+- The `overflow-hidden` on `<main>` is correct for preventing body scroll, but the `motion.div` wrapper should allow overflow so pages can choose their scroll strategy
+- **Fix**: No change needed here -- pages should manage their own scrolling, which is the existing pattern. The issue is in individual pages.
 
-- Widen `dragConstraints` to allow free horizontal movement (e.g., `left: -150, right: 150`) and increase `dragElastic` to `0.5` so the card actually follows the finger during the swipe.
-- Replace `x.set(0)` with `animate(x, 0, { type: "spring", stiffness: 500, damping: 30 })` so the card springs back smoothly when the swipe doesn't exceed the threshold.
-- When a swipe action IS triggered (delete or duplicate), animate the card off-screen first before invoking the callback: animate the card to -300 or +300, then call the handler.
+**4. Editor Page (`EditorPage.tsx`)**
+- Already well-structured with `overflow-y-auto` on the editor content area
+- No changes needed
 
-**File: `src/pages/DashboardPage.tsx`**
+**5. Settings Page (`SettingsPage.tsx`)**
+- Already well-structured with a `scrollRef` div using `overflow-y-auto`
+- No changes needed
 
-- Add a duplicate confirmation dialog (similar to the existing delete confirmation) so swiping right also asks for confirmation before duplicating.
+### Technical Changes
 
-### Technical Details
+#### `src/pages/DashboardPage.tsx`
+- Restructure so that **only the header** remains outside the scroll area
+- Move DailyTipCard, DashboardStats, QuickActionChips, search bar, and resume list **all inside** a single `PullToRefresh` scroll container
+- The `PullToRefresh` becomes the flex-1 scrollable area right after the header
+- Content inside uses regular flow (no nested `overflow-y-auto` div)
+- Keep `pb-safe` on the inner content for bottom safe area
 
-- Uses framer-motion's imperative `animate` function from `useAnimate` or the `x` motion value's built-in animate method
-- Spring-back animation uses `type: "spring"` for a natural bounce feel
-- Swipe-away animation uses `type: "tween"` with a short 200ms duration before triggering the action
-- The SWIPE_THRESHOLD remains at 80px for consistent trigger distance
+#### `src/pages/ApplicationsPage.tsx`
+- Remove `overflow-hidden` from root div
+- Move the tab buttons inside the `PullToRefresh` container so they scroll with content, or make them sticky within the scroll area
+- This gives the full viewport area (minus header and bottom nav) for scrolling
+
+#### `src/components/ui/pull-to-refresh.tsx`
+- The inner scroll container currently applies `style={{ y }}` which transforms the entire container -- this is fine
+- No changes needed here
+
+### What This Achieves
+- The entire page content scrolls as one unit on Dashboard and Applications
+- Headers remain fixed/sticky at the top
+- Users get the full viewport height (minus header and bottom nav) as their scroll area instead of a small constrained box
+- Pull-to-refresh continues to work from the top of the scroll area
+
