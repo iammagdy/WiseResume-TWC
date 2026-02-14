@@ -27,7 +27,6 @@ export function AppShell() {
         className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}
       >
         <div
-          key={location.pathname}
           className="flex-1 flex flex-col min-h-0 w-full animate-fade-in"
         >
           {currentOutlet}

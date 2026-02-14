@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useState, useEffect } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory } from '@/types/resume';
@@ -308,9 +308,15 @@ export const useResumeStore = create<ResumeState>()(
 );
 
 export const useResumeStoreHydration = () => {
-  return useSyncExternalStore(
-    subscribeToHydration,
-    getResumeStoreHasHydrated,
-    () => false
-  );
+  const [hydrated, setHydrated] = useState(getResumeStoreHasHydrated);
+  useEffect(() => {
+    if (hydrated) return;
+    if (getResumeStoreHasHydrated()) {
+      setHydrated(true);
+      return;
+    }
+    const unsub = subscribeToHydration(() => setHydrated(true));
+    return () => { unsub(); };
+  }, [hydrated]);
+  return hydrated;
 };
