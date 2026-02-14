@@ -1,157 +1,187 @@
 
+## Additional Resume Sections + PDF Import Enhancement
 
-## Grammar and Spell Checker (Mobile-First)
-
-This feature adds an AI-powered proofreading layer on top of the existing editor. It uses a new edge function to check resume text and presents results through mobile-optimized bottom sheets and floating UI elements. No existing editor components are modified -- the checker runs as a parallel, non-blocking overlay.
-
----
-
-### Architecture Overview
-
-The grammar checker works as a **post-typing analysis layer**:
-1. User types in the editor (existing flow, untouched)
-2. A debounced hook collects all resume text and sends it to a new `proofread-resume` edge function
-3. The edge function uses the Lovable AI gateway (no API key needed) to identify spelling, grammar, and style issues
-4. Results are stored in a Zustand store and displayed via a floating "Proofread" button with error count badge
-5. Tapping the button opens a bottom sheet with issues listed, navigable with prev/next buttons
+Two additive features: 6 new optional resume sections in the editor, and improvements to the existing PDF import flow. No existing files are deleted or broken.
 
 ---
 
-### New Files to Create
+### Part 1: Additional Resume Sections
 
-**1. `supabase/functions/proofread-resume/index.ts`** -- Edge function
-- Accepts `{ text: string, sections: { id: string, name: string, text: string }[] }`
-- Uses `callAI` with `google/gemini-2.5-flash` (fast, cheap) to identify issues
-- Returns structured JSON: `{ issues: ProofreadIssue[], score: WritingScore }`
-- Each issue: `{ id, sectionId, type: 'spelling'|'grammar'|'style', original, suggestion, explanation, offset, length }`
-- Writing score: `{ overall, spelling, grammar, style, tone: 'professional'|'casual'|'mixed' }`
-- Rate limited: 10 requests per minute per user
-- Max input: 50KB of text
+**Strategy**: Add 6 new optional sections to `ResumeData` as optional arrays. The editor gets a new "More Sections" tab that shows an "Add Section" grid. Sections only appear when they have content, keeping the default 5-step flow unchanged.
 
-**2. `src/hooks/useProofread.ts`** -- Core hook
-- `useProofread(resume: ResumeData | null)` returns `{ issues, score, isChecking, checkNow, fixIssue, ignoreIssue, fixAll }`
-- Debounced auto-check (2 second delay after typing stops, configurable)
-- Cancels in-flight requests when user continues typing (AbortController)
-- Caches results keyed by text hash to avoid re-checking identical content
-- `checkNow()` for manual trigger (bypasses debounce)
-- `fixIssue(id)` applies the suggestion to the resume via `updateResume()`
-- `ignoreIssue(id)` removes from current session
-- `fixAll()` applies all safe fixes (spelling corrections only, skips grammar/style)
+#### Type Changes
 
-**3. `src/store/proofreadStore.ts`** -- Zustand store (not persisted)
-- State: `issues: ProofreadIssue[]`, `score: WritingScore | null`, `ignoredIds: Set<string>`, `isChecking: boolean`
-- Actions: `setIssues`, `setScore`, `removeIssue`, `ignoreIssue`, `clear`
-- Derived: `activeIssues` (filtered by ignored), `issueCount`, `errorCount` (spelling+grammar only)
+**`src/types/resume.ts`** -- Add new interfaces and update `ResumeData`:
 
-**4. `src/components/editor/ProofreadSheet.tsx`** -- Bottom sheet (75% height)
-- Writing score card at top (collapsible):
-  - Overall score ring (0-100)
-  - Breakdown bars: Spelling, Grammar, Style
-  - Tone badge: Professional / Casual / Mixed
-- Issue list below (scrollable):
-  - Each issue card shows:
-    - Type badge with color (red=spelling, blue=grammar, green=style)
-    - Section name label (e.g., "Summary", "Experience - Google")
-    - Original text with colored underline
-    - 1-3 suggestion buttons (44px touch targets)
-    - "Ignore" text button
-  - Tap suggestion -> applies fix, haptic feedback, toast "Fixed", card animates out
-- Empty state when no issues: checkmark animation + "Your resume looks great!"
-- "Fix All Spelling" button in footer (fixes only spelling issues, safest)
-- "Check Now" button if auto-check is disabled
-- Prev/Next navigation arrows at bottom for stepping through issues
+```
+Award { id, title, issuer, date, description? }
+Project { id, name, role, startDate, endDate, technologies: string[], description, url?, githubUrl? }
+Publication { id, title, publisher, date, coAuthors?, url?, description? }
+Volunteering { id, organization, role, startDate, endDate, description, hours? }
+Hobby { id, name, description?, visible: boolean }
+Reference { id, name, title, company, email, phone, relationship, availableOnRequest?: boolean }
+```
 
-**5. `src/components/editor/ProofreadButton.tsx`** -- Floating action button
-- Positioned bottom-right, above the AI Studio bar (bottom-36, right-4)
-- Shows a small badge with error count (red for errors, blue if only style suggestions)
-- Pulsing animation when new issues are found
-- 48px touch target
-- Tap opens ProofreadSheet
-- Hidden when no issues and no active check
-- `active:scale-95` + haptic on tap
+Add to `ResumeData`:
+```
+awards?: Award[]
+projects?: Project[]
+publications?: Publication[]
+volunteering?: Volunteering[]
+hobbies?: Hobby[]
+references?: Reference[]
+```
 
-**6. `src/types/proofread.ts`** -- TypeScript types
-- `ProofreadIssue { id: string; sectionId: string; sectionName: string; type: 'spelling' | 'grammar' | 'style'; original: string; suggestions: string[]; explanation: string; offset: number; length: number }`
-- `WritingScore { overall: number; spelling: number; grammar: number; style: number; tone: 'professional' | 'casual' | 'mixed' }`
-- `ProofreadResult { issues: ProofreadIssue[]; score: WritingScore }`
+Update `SectionId` type to include new sections.
+
+#### Database Migration
+
+Add 6 new JSONB columns to the `resumes` table:
+```sql
+ALTER TABLE public.resumes
+  ADD COLUMN IF NOT EXISTS awards jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS projects jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS publications jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS volunteering jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS hobbies jsonb DEFAULT '[]',
+  ADD COLUMN IF NOT EXISTS "references" jsonb DEFAULT '[]';
+```
+
+#### Data Flow Updates
+
+**`src/hooks/useResumes.ts`** -- Update `dbToResumeData()` and `resumeDataToDb()` to include the 6 new fields. Update `parseDbResume()` to handle the new columns.
+
+**`src/store/resumeStore.ts`** -- Update `defaultResume` to include empty arrays for new sections.
+
+#### New Editor Components
+
+6 new section editor components following the existing pattern (like `ExperienceSection.tsx`):
+
+- **`src/components/editor/AwardsSection.tsx`** -- List of award entries with add/edit/delete
+- **`src/components/editor/ProjectsSection.tsx`** -- Project entries with technology tags
+- **`src/components/editor/PublicationsSection.tsx`** -- Publication entries
+- **`src/components/editor/VolunteeringSection.tsx`** -- Volunteering entries
+- **`src/components/editor/HobbiesSection.tsx`** -- Simple list with visibility toggles
+- **`src/components/editor/ReferencesSection.tsx`** -- Reference entries with "Available upon request" toggle
+
+Each component:
+- Uses `useResumeStore` to read/write data
+- 48px height inputs, 16px font (no iOS zoom)
+- "Add Another" button with haptic feedback
+- `active:scale-95` on all interactive elements
+- Tag input for technologies (Projects section)
+
+#### Add Section Sheet
+
+**`src/components/editor/AddSectionSheet.tsx`** -- Bottom sheet (75% height)
+- 2-column grid of section cards
+- Each card: icon + section name + brief description
+- Already-added sections show a checkmark
+- Tap to add section (creates empty array, navigates to that section tab)
+
+#### Editor Integration
+
+**`src/pages/EditorPage.tsx`** -- Changes:
+- Add a 6th step to the stepper: "More" (with a `Plus` icon)
+- The "More" tab renders `AddSectionSheet` inline (not as a bottom sheet) showing which optional sections are active
+- When a section is active, it appears as a sub-tab under "More"
+- Add states for each new section's visibility
+- Import lazy-loaded section components
+- Wire section rendering in the tab content area
+
+**`src/lib/resumeCompletionRules.ts`** -- No changes needed. The 5 core sections remain the completion criteria. Optional sections are bonus content.
+
+#### Template Rendering
+
+**All 30 template components** -- Add rendering blocks for the new sections at the bottom, after certifications. Each template renders sections conditionally (only when array has entries). Example pattern:
+
+```tsx
+{resume.awards?.length > 0 && (
+  <section data-section="awards">
+    <h2>Awards</h2>
+    {resume.awards.map(award => (...))}
+  </section>
+)}
+```
+
+This is a non-breaking change -- templates that don't have the new sections yet will simply not render them (undefined/empty arrays).
+
+#### PDF Generation
+
+**`src/lib/pdfGenerator.ts`** -- Add rendering for new sections in PDF output. Same conditional pattern as templates.
+
+#### AI Parsing
+
+**`supabase/functions/parse-resume/index.ts`** -- Update the AI prompt to also extract awards, projects, publications, volunteering from uploaded resumes when detected.
 
 ---
 
-### Files to Modify
+### Part 2: PDF Import Enhancement
 
-**7. `src/pages/EditorPage.tsx`** -- Minor additions
-- Import `useProofread` hook, pass `currentResume`
-- Lazy import `ProofreadSheet` and `ProofreadButton`
-- Add `showProofread` state
-- Render `ProofreadButton` in the editor body (above AI Studio bar)
-- Render `ProofreadSheet` in the Suspense/ErrorBoundary block
-- Wire `fixIssue` callback to apply fixes via `updateResume()`
+The PDF import flow already exists and is fully functional (`UploadPage.tsx` with `ImportUploadSheet`, `ImportReviewSheet`, OCR fallback, multi-format support). The user's request describes features that are **already implemented**:
 
-**8. `src/components/editor/AIAssistantBar.tsx`** -- Add "Proofread" tool
-- Add new entry to `secondaryTools`: `{ id: 'proofread', icon: SpellCheck, label: 'Proofread', color: 'text-red-500' }`
-- Add `onProofread` callback prop
-- Wire click in `handleSecondaryAction` switch
-- Show issue count badge on the tool button when issues exist
+- Upload modal with file type selector (PDF, Word, Image, JSON, HTML)
+- Processing steps with progress indicators
+- Review sheet with section checkboxes
+- OCR fallback for scanned PDFs
+- Error handling (password protected, corrupted, no text)
+- Template selection before save
 
-**9. `src/store/settingsStore.ts`** -- Add auto-check toggle
-- Add `autoProofread: boolean` (default: `true`)
-- Add `setAutoProofread: (value: boolean) => void`
-- Add to `defaultSettings` and store actions
+**Enhancements to add:**
+
+1. **`src/components/upload/ImportReviewSheet.tsx`** -- Add checkboxes for new sections (awards, projects, publications, volunteering) when detected in parsed data
+
+2. **`src/pages/UploadPage.tsx`** -- Update `handleImportConfirm` to include new section fields in the filtered data
+
+3. **`src/lib/pdfParser.ts`** -- Update `getExtractionSummary` to count new sections
+
+4. **Dashboard access** -- The dashboard already has an "Import PDF" action card that navigates to `/upload`. No changes needed.
 
 ---
 
 ### Technical Details
 
-**Text extraction for checking:**
-- The hook extracts all text from `ResumeData`:
-  - `contactInfo.name` (skip email/phone/url -- not prose)
-  - `summary` (full text)
-  - Each `experience[].description` + `experience[].achievements[]`
-  - Each `education[].description`
-  - `skills[]` are skipped (proper nouns / technical terms cause false positives)
-- Each piece is tagged with its `sectionId` so fixes can be applied to the right field
+**New files to create (7):**
+- `src/components/editor/AwardsSection.tsx`
+- `src/components/editor/ProjectsSection.tsx`
+- `src/components/editor/PublicationsSection.tsx`
+- `src/components/editor/VolunteeringSection.tsx`
+- `src/components/editor/HobbiesSection.tsx`
+- `src/components/editor/ReferencesSection.tsx`
+- `src/components/editor/AddSectionSheet.tsx`
 
-**Fix application logic:**
-- Spelling fix on summary: string replacement at offset
-- Spelling fix on experience description: find the experience entry by ID, replace in description
-- Spelling fix on achievement bullet: find the exact bullet, replace text
-- All fixes go through `useResumeStore.getState().updateResume()` to trigger auto-save
+**Files to modify:**
+- `src/types/resume.ts` -- New interfaces + update ResumeData
+- `src/hooks/useResumes.ts` -- DB mapping for new fields
+- `src/store/resumeStore.ts` -- Default resume includes new empty arrays
+- `src/pages/EditorPage.tsx` -- "More" tab with sub-section navigation
+- `src/components/editor/StepperNav.tsx` -- Support 6th "More" step (may need minor layout adjustment)
+- `src/lib/pdfParser.ts` -- Update extraction summary
+- `src/components/upload/ImportReviewSheet.tsx` -- Checkboxes for new sections
+- `src/pages/UploadPage.tsx` -- Filter new sections in import confirm
+- `supabase/functions/parse-resume/index.ts` -- Expand AI prompt for new sections
+- All 30 template files -- Add conditional rendering for new sections
+- `src/lib/pdfGenerator.ts` -- PDF rendering for new sections
 
-**Performance safeguards:**
-- 2-second debounce prevents checking during active typing
-- AbortController cancels in-flight AI requests when new text arrives
-- Text hash comparison skips re-checking identical content
-- Edge function uses `gemini-2.5-flash` (fastest model) for low latency
-- Issues are stored in memory only (not persisted) -- fresh check on each edit session
+**Database migration:**
+- Add 6 JSONB columns to `resumes` table (all default to `'[]'`)
 
-**Mobile optimizations:**
-- ProofreadButton uses `touch-manipulation` and `active:scale-95`
-- Bottom sheet uses 75% max height with drag handle
-- Issue cards have 44px minimum touch targets for suggestion buttons
-- Haptic feedback on fix application (`haptics.success()`)
-- Toast notifications for applied fixes ("Fixed: [original] -> [suggestion]")
-- Smooth card exit animation when issue is fixed
+**Mobile-first patterns:**
+- 48px input heights, 44px touch targets
+- Tag inputs use chip-style with X button to remove
+- "Add Another" buttons with `active:scale-95` + haptic
+- Section cards in 2-column grid for "Add Section" UI
+- All new sections scrollable within the existing editor scroll container
 
-**Edge function prompt strategy:**
-- The AI is prompted to return structured JSON with issues categorized by type
-- It is instructed to be lenient with industry jargon and technical terms
-- It scores resume-specific writing quality (action verbs, quantified achievements, professional tone)
-- The `tone` field helps users understand if their language is appropriately professional
-
-**No database changes needed** -- all proofreading state is ephemeral (in-memory only).
-
----
-
-### Implementation Order
-
-1. Create `src/types/proofread.ts` (types)
-2. Create `supabase/functions/proofread-resume/index.ts` (edge function)
-3. Create `src/store/proofreadStore.ts` (state management)
-4. Create `src/hooks/useProofread.ts` (core logic)
-5. Create `src/components/editor/ProofreadButton.tsx` (floating button)
-6. Create `src/components/editor/ProofreadSheet.tsx` (results UI)
-7. Update `src/store/settingsStore.ts` (auto-check toggle)
-8. Update `src/components/editor/AIAssistantBar.tsx` (add Proofread tool)
-9. Update `src/pages/EditorPage.tsx` (wire everything together)
-10. Deploy edge function and test on 375px viewport
-
+**Implementation order:**
+1. Database migration (add 6 columns)
+2. Type updates (`resume.ts`)
+3. Data flow updates (`useResumes.ts`, `resumeStore.ts`)
+4. Create 6 section editor components
+5. Create AddSectionSheet
+6. Update EditorPage with "More" tab
+7. Update all 30 templates with new section rendering
+8. Update PDF generator
+9. Update parse-resume edge function prompt
+10. Update import review sheet for new sections
+11. Test on 375px viewport
