@@ -239,7 +239,6 @@ const queryClient = new QueryClient({
         <Route path="/share/:token" element={<Suspense fallback={<PageLoadingSpinner />}><SharePage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
-       <CommandPalette />
      </Routes>
    );
  }
@@ -252,6 +251,7 @@ const App = () => (
          <BrowserRouter>
            <AuthProvider>
              <AppRoutes />
+             <CommandPalette />
              <InstallPrompt />
            </AuthProvider>
          </BrowserRouter>
