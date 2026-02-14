@@ -1,145 +1,157 @@
 
 
-## Pre-Written Content Library + Template Customization
+## Grammar and Spell Checker (Mobile-First)
 
-Two additive features for the resume editor: a searchable phrase library accessible via a "Get Ideas" button, and a per-document template customization panel. No existing files are deleted or broken.
-
----
-
-### Part 1: Pre-Written Content Library
-
-**New Files:**
-
-1. **`src/lib/contentLibrary.ts`** -- Static data file with 500+ phrases
-   - Categories: `action-verbs`, `achievements`, `skills-descriptions`, plus 10 industry-specific categories (tech, finance, healthcare, marketing, sales, education, engineering, legal, design, management)
-   - Each phrase has: `id`, `text`, `category`, `industry` (optional), `variables` (array of placeholder names like `{number}`, `{percentage}`)
-   - Example: `{ id: 'ach-1', text: 'Reduced costs by {percentage}% through {method}', category: 'achievements', variables: ['percentage', 'method'] }`
-   - TypeScript interface: `ContentPhrase { id: string; text: string; category: ContentCategory; industry?: string; variables?: string[] }`
-
-2. **`src/store/contentLibraryStore.ts`** -- Zustand store (persisted)
-   - State: `favorites: string[]` (phrase IDs), `recentlyUsed: string[]` (last 20 used)
-   - Actions: `toggleFavorite(id)`, `addToRecent(id)`, `clearRecents()`
-
-3. **`src/components/editor/ContentLibrarySheet.tsx`** -- Bottom sheet (75% height)
-   - Drag handle at top
-   - Search bar with auto-focus on open
-   - Horizontal scroll category chips: "All", "Action Verbs", "Achievements", "Skills", + industry chips
-   - Two sub-tabs: "Browse" | "Favorites"
-   - Vertical scroll phrase cards below:
-     - Phrase text (16px, readable)
-     - Category badge (small colored chip)
-     - "Insert" button (right side, 44px touch target)
-     - Star icon to toggle favorite (left of Insert)
-   - Tap "Insert" -> calls `onInsert(phraseText)` callback, haptic feedback, toast "Phrase added"
-   - Variables like `{number}` highlighted in primary color
-   - Empty state for favorites tab
-
-**Integration into Editor:**
-
-4. **`src/pages/EditorPage.tsx`** -- Minor changes
-   - Add `showContentLibrary` state
-   - Add lazy import for `ContentLibrarySheet`
-   - Add "Get Ideas" button in the AI assistant bar area or as a secondary floating action
-   - `onInsert` callback: depending on active tab, appends phrase to the relevant field (summary textarea, experience description, or skills list)
-
-5. **`src/components/editor/AIAssistantBar.tsx`** -- Add "Ideas" tool
-   - Add a new tool entry to `secondaryTools`: `{ id: 'ideas', icon: Lightbulb, label: 'Ideas', color: 'text-yellow-500' }`
-   - Wire click to `onGetIdeas` callback prop
-
-**Phrase insertion logic:**
-- `summary` tab: Append phrase to summary text with a newline
-- `experience` tab: Append phrase as a new achievement bullet to the currently expanded experience entry
-- `skills` tab: If phrase is a skill, add to skills array
-- For other tabs: Copy phrase to clipboard with toast "Copied to clipboard"
-- After insert, replace `{variable}` placeholders with highlighted inline editable spans (or leave as-is with instructions to edit)
+This feature adds an AI-powered proofreading layer on top of the existing editor. It uses a new edge function to check resume text and presents results through mobile-optimized bottom sheets and floating UI elements. No existing editor components are modified -- the checker runs as a parallel, non-blocking overlay.
 
 ---
 
-### Part 2: Template Customization
+### Architecture Overview
 
-**New Types:**
+The grammar checker works as a **post-typing analysis layer**:
+1. User types in the editor (existing flow, untouched)
+2. A debounced hook collects all resume text and sends it to a new `proofread-resume` edge function
+3. The edge function uses the Lovable AI gateway (no API key needed) to identify spelling, grammar, and style issues
+4. Results are stored in a Zustand store and displayed via a floating "Proofread" button with error count badge
+5. Tapping the button opens a bottom sheet with issues listed, navigable with prev/next buttons
 
-6. **`src/types/resume.ts`** -- Add customization types
-   - `TemplateCustomization { accentColor: string; fontHeading: string; fontBody: string; fontSize: 'small' | 'medium' | 'large'; layout: 'single' | 'two-column'; spacing: 'compact' | 'normal' | 'spacious'; margins: 'narrow' | 'normal' | 'wide' }`
-   - Add `customization?: TemplateCustomization` to `ResumeData` interface
+---
 
-**New Files:**
+### New Files to Create
 
-7. **`src/components/editor/CustomizeSheet.tsx`** -- Full-screen bottom sheet
-   - Live preview at top (50% of screen, scaled-down template render)
-   - Controls at bottom (50%, scrollable)
-   - Accordion sections (one open at a time):
-     - **Colors**: 8 preset palette swatches (44px each) + custom color picker input; palettes: Professional (navy/gray), Creative (teal/coral), Bold (red/black), Warm (brown/cream), Cool (blue/slate), Nature (green/earth), Royal (purple/gold), Mono (black/white)
-     - **Fonts**: Heading font dropdown (Inter, Playfair Display, Roboto, Merriweather, Poppins, Lato) + Body font dropdown (same list); Size segmented control: Small | Medium | Large
-     - **Layout**: Single/Two Column toggle switch; Spacing segmented control: Compact | Normal | Spacious; Margins segmented control: Narrow | Normal | Wide
-   - Fixed bottom bar: "Apply" primary button + "Reset to Default" ghost button
-   - Real-time preview updates as user changes controls
-   - All changes stored in `ResumeData.customization` via `updateResume()`
+**1. `supabase/functions/proofread-resume/index.ts`** -- Edge function
+- Accepts `{ text: string, sections: { id: string, name: string, text: string }[] }`
+- Uses `callAI` with `google/gemini-2.5-flash` (fast, cheap) to identify issues
+- Returns structured JSON: `{ issues: ProofreadIssue[], score: WritingScore }`
+- Each issue: `{ id, sectionId, type: 'spelling'|'grammar'|'style', original, suggestion, explanation, offset, length }`
+- Writing score: `{ overall, spelling, grammar, style, tone: 'professional'|'casual'|'mixed' }`
+- Rate limited: 10 requests per minute per user
+- Max input: 50KB of text
 
-8. **`src/lib/templateCustomization.ts`** -- Helper utilities
-   - `getDefaultCustomization(): TemplateCustomization` -- returns sensible defaults
-   - `applyCustomizationCSS(customization: TemplateCustomization): CSSProperties` -- converts customization to inline styles for template rendering
-   - `PRESET_PALETTES` -- array of named color palettes
-   - `FONT_OPTIONS` -- array of available fonts with display names
+**2. `src/hooks/useProofread.ts`** -- Core hook
+- `useProofread(resume: ResumeData | null)` returns `{ issues, score, isChecking, checkNow, fixIssue, ignoreIssue, fixAll }`
+- Debounced auto-check (2 second delay after typing stops, configurable)
+- Cancels in-flight requests when user continues typing (AbortController)
+- Caches results keyed by text hash to avoid re-checking identical content
+- `checkNow()` for manual trigger (bypasses debounce)
+- `fixIssue(id)` applies the suggestion to the resume via `updateResume()`
+- `ignoreIssue(id)` removes from current session
+- `fixAll()` applies all safe fixes (spelling corrections only, skips grammar/style)
 
-**Integration:**
+**3. `src/store/proofreadStore.ts`** -- Zustand store (not persisted)
+- State: `issues: ProofreadIssue[]`, `score: WritingScore | null`, `ignoredIds: Set<string>`, `isChecking: boolean`
+- Actions: `setIssues`, `setScore`, `removeIssue`, `ignoreIssue`, `clear`
+- Derived: `activeIssues` (filtered by ignored), `issueCount`, `errorCount` (spelling+grammar only)
 
-9. **`src/pages/EditorPage.tsx`** -- Add customize button
-   - Add `showCustomize` state
-   - Lazy import `CustomizeSheet`
-   - Add to sheets section
+**4. `src/components/editor/ProofreadSheet.tsx`** -- Bottom sheet (75% height)
+- Writing score card at top (collapsible):
+  - Overall score ring (0-100)
+  - Breakdown bars: Spelling, Grammar, Style
+  - Tone badge: Professional / Casual / Mixed
+- Issue list below (scrollable):
+  - Each issue card shows:
+    - Type badge with color (red=spelling, blue=grammar, green=style)
+    - Section name label (e.g., "Summary", "Experience - Google")
+    - Original text with colored underline
+    - 1-3 suggestion buttons (44px touch targets)
+    - "Ignore" text button
+  - Tap suggestion -> applies fix, haptic feedback, toast "Fixed", card animates out
+- Empty state when no issues: checkmark animation + "Your resume looks great!"
+- "Fix All Spelling" button in footer (fixes only spelling issues, safest)
+- "Check Now" button if auto-check is disabled
+- Prev/Next navigation arrows at bottom for stepping through issues
 
-10. **`src/components/editor/AIAssistantBar.tsx`** -- Add "Customize" tool
-    - Already has `Palette` icon imported
-    - Add `onCustomize` callback prop
-    - Wire to open the customize sheet
+**5. `src/components/editor/ProofreadButton.tsx`** -- Floating action button
+- Positioned bottom-right, above the AI Studio bar (bottom-36, right-4)
+- Shows a small badge with error count (red for errors, blue if only style suggestions)
+- Pulsing animation when new issues are found
+- 48px touch target
+- Tap opens ProofreadSheet
+- Hidden when no issues and no active check
+- `active:scale-95` + haptic on tap
 
-11. **Template rendering** -- Each template component receives `customization` from `ResumeData`
-    - Templates apply accent color via inline `style` overrides (no Tailwind modification)
-    - Font family applied via inline `style={{ fontFamily: customization.fontBody }}`
-    - Font size scaled via a multiplier on base sizes
-    - Spacing/margins applied via padding/gap adjustments
-    - This is a non-breaking change: templates render normally when `customization` is undefined
+**6. `src/types/proofread.ts`** -- TypeScript types
+- `ProofreadIssue { id: string; sectionId: string; sectionName: string; type: 'spelling' | 'grammar' | 'style'; original: string; suggestions: string[]; explanation: string; offset: number; length: number }`
+- `WritingScore { overall: number; spelling: number; grammar: number; style: number; tone: 'professional' | 'casual' | 'mixed' }`
+- `ProofreadResult { issues: ProofreadIssue[]; score: WritingScore }`
 
-12. **Database** -- No schema changes needed
-    - `customization` object is stored as part of the resume JSON fields (contact_info, or as a new JSONB column)
-    - Option: Add `customization jsonb DEFAULT '{}'` column to `resumes` table for clean separation
+---
 
-**Database migration (optional but recommended):**
-```sql
-ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS customization jsonb DEFAULT '{}';
-```
+### Files to Modify
+
+**7. `src/pages/EditorPage.tsx`** -- Minor additions
+- Import `useProofread` hook, pass `currentResume`
+- Lazy import `ProofreadSheet` and `ProofreadButton`
+- Add `showProofread` state
+- Render `ProofreadButton` in the editor body (above AI Studio bar)
+- Render `ProofreadSheet` in the Suspense/ErrorBoundary block
+- Wire `fixIssue` callback to apply fixes via `updateResume()`
+
+**8. `src/components/editor/AIAssistantBar.tsx`** -- Add "Proofread" tool
+- Add new entry to `secondaryTools`: `{ id: 'proofread', icon: SpellCheck, label: 'Proofread', color: 'text-red-500' }`
+- Add `onProofread` callback prop
+- Wire click in `handleSecondaryAction` switch
+- Show issue count badge on the tool button when issues exist
+
+**9. `src/store/settingsStore.ts`** -- Add auto-check toggle
+- Add `autoProofread: boolean` (default: `true`)
+- Add `setAutoProofread: (value: boolean) => void`
+- Add to `defaultSettings` and store actions
 
 ---
 
 ### Technical Details
 
-**New files to create:**
-- `src/lib/contentLibrary.ts` (phrase data, ~500 entries)
-- `src/store/contentLibraryStore.ts` (favorites/recents store)
-- `src/components/editor/ContentLibrarySheet.tsx` (bottom sheet UI)
-- `src/components/editor/CustomizeSheet.tsx` (customization panel)
-- `src/lib/templateCustomization.ts` (customization utilities)
+**Text extraction for checking:**
+- The hook extracts all text from `ResumeData`:
+  - `contactInfo.name` (skip email/phone/url -- not prose)
+  - `summary` (full text)
+  - Each `experience[].description` + `experience[].achievements[]`
+  - Each `education[].description`
+  - `skills[]` are skipped (proper nouns / technical terms cause false positives)
+- Each piece is tagged with its `sectionId` so fixes can be applied to the right field
 
-**Files to modify:**
-- `src/types/resume.ts` -- Add `TemplateCustomization` interface, add `customization?` to `ResumeData`
-- `src/pages/EditorPage.tsx` -- Add states + lazy imports for both sheets, wire callbacks
-- `src/components/editor/AIAssistantBar.tsx` -- Add "Ideas" and "Customize" tools, add callback props
+**Fix application logic:**
+- Spelling fix on summary: string replacement at offset
+- Spelling fix on experience description: find the experience entry by ID, replace in description
+- Spelling fix on achievement bullet: find the exact bullet, replace text
+- All fixes go through `useResumeStore.getState().updateResume()` to trigger auto-save
 
-**Mobile-first patterns:**
-- Content library sheet: 75% height bottom sheet, horizontal scroll chips, 44px touch targets, haptic on insert
-- Customize sheet: Full-screen bottom sheet, accordion sections, 44px color swatches, segmented controls
-- All interactive elements: `active:scale-95`, `touch-manipulation`, `touchAction: 'pan-y'`
-- Safe area padding: `pb-safe` on bottom-fixed buttons
-- 16px minimum font on all inputs to prevent iOS zoom
+**Performance safeguards:**
+- 2-second debounce prevents checking during active typing
+- AbortController cancels in-flight AI requests when new text arrives
+- Text hash comparison skips re-checking identical content
+- Edge function uses `gemini-2.5-flash` (fastest model) for low latency
+- Issues are stored in memory only (not persisted) -- fresh check on each edit session
 
-**Implementation order:**
-1. Content library data file (`contentLibrary.ts`)
-2. Content library store (`contentLibraryStore.ts`)
-3. Content library sheet component
-4. Template customization types and utilities
-5. Customize sheet component
-6. Database migration for `customization` column
-7. Wire both sheets into EditorPage + AIAssistantBar
-8. Test on 375px viewport
+**Mobile optimizations:**
+- ProofreadButton uses `touch-manipulation` and `active:scale-95`
+- Bottom sheet uses 75% max height with drag handle
+- Issue cards have 44px minimum touch targets for suggestion buttons
+- Haptic feedback on fix application (`haptics.success()`)
+- Toast notifications for applied fixes ("Fixed: [original] -> [suggestion]")
+- Smooth card exit animation when issue is fixed
+
+**Edge function prompt strategy:**
+- The AI is prompted to return structured JSON with issues categorized by type
+- It is instructed to be lenient with industry jargon and technical terms
+- It scores resume-specific writing quality (action verbs, quantified achievements, professional tone)
+- The `tone` field helps users understand if their language is appropriately professional
+
+**No database changes needed** -- all proofreading state is ephemeral (in-memory only).
+
+---
+
+### Implementation Order
+
+1. Create `src/types/proofread.ts` (types)
+2. Create `supabase/functions/proofread-resume/index.ts` (edge function)
+3. Create `src/store/proofreadStore.ts` (state management)
+4. Create `src/hooks/useProofread.ts` (core logic)
+5. Create `src/components/editor/ProofreadButton.tsx` (floating button)
+6. Create `src/components/editor/ProofreadSheet.tsx` (results UI)
+7. Update `src/store/settingsStore.ts` (auto-check toggle)
+8. Update `src/components/editor/AIAssistantBar.tsx` (add Proofread tool)
+9. Update `src/pages/EditorPage.tsx` (wire everything together)
+10. Deploy edge function and test on 375px viewport
 
