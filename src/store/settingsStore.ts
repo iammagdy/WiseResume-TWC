@@ -44,6 +44,9 @@ interface SettingsState {
   // Integrations
   elevenlabsApiKey: string;
   
+  // Proofread
+  autoProofread: boolean;
+  
   // AI Provider Settings
   aiProvider: AIProvider;
   geminiApiKey: string;
@@ -70,6 +73,7 @@ interface SettingsState {
   setHasSeenTailorHint: (value: boolean) => void;
   setHasSeenInterviewHint: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
+  setAutoProofread: (value: boolean) => void;
   
   // AI Provider Actions
   setAIProvider: (provider: AIProvider) => void;
@@ -105,6 +109,7 @@ const defaultSettings = {
   hasSeenTailorHint: false,
   hasSeenInterviewHint: false,
   elevenlabsApiKey: '',
+  autoProofread: true,
   // AI Provider defaults
   aiProvider: 'wiseresume' as AIProvider,
   geminiApiKey: '',
@@ -144,6 +149,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenTailorHint: (value) => set({ hasSeenTailorHint: value }),
       setHasSeenInterviewHint: (value) => set({ hasSeenInterviewHint: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
+      setAutoProofread: (value) => set({ autoProofread: value }),
       
       // AI Provider Actions
       setAIProvider: (provider) => set({ aiProvider: provider }),
