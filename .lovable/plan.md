@@ -1,109 +1,92 @@
 
 
-## Fix Editor Blank Screen + Performance Optimizations
+## Fix Editor Loading Issue
 
-### Priority 0: Fix Editor Blank Screen (Critical Bug)
+### Root Cause
 
-**Root Cause:** `AppShell.tsx` uses `AnimatePresence mode="popLayout"` with `motion.div` to wrap page outlets. The `popLayout` mode triggers framer-motion's layout animation engine, which conflicts with the editor's deeply nested flex/overflow layout. This causes the editor content to render with zero visible height or get clipped entirely.
+The `EditorPage` has two navigation guards (lines 417-424):
 
-This is consistent with the project's known constraint: "The editor page avoids framer-motion layout props and AnimatePresence to prevent infinite loop crashes."
+```text
+if (!user) → redirect to /auth
+if (!currentResume) → redirect to /dashboard
+```
 
-**Fix:** Replace the framer-motion `AnimatePresence` + `motion.div` in `AppShell.tsx` with a simple CSS fade transition. This eliminates the layout animation engine entirely while preserving a smooth page transition feel.
+The problem: `currentResume` is checked from the Zustand store BEFORE the database query (`useResume`) has a chance to load. This means:
 
-Changes to `src/components/layout/AppShell.tsx`:
-- Remove `import { motion, AnimatePresence } from 'framer-motion'`
-- Replace the `AnimatePresence`/`motion.div` wrapper with a plain `div` using a CSS `animate-fade-in` class keyed on `location.pathname`
-- This is lighter, avoids the layout engine conflict, and reduces the framer-motion bundle impact on every page transition
+1. User navigates to `/editor` (via bottom tab or URL)
+2. Zustand restores `currentResumeId` from localStorage, but `currentResume` may be `null` (e.g., if persist data is large and hydration is slow, or if only the ID was set without the full resume data)
+3. The guard immediately redirects to `/dashboard` before `useResume` finishes fetching
+4. User sees dashboard instead of editor, or sees a brief loading skeleton that disappears
 
-**Secondary fix:** The editor also applies `pb-20` on its root div, while `AppShell` independently adds `pb-20` via the `showBottomNav` condition -- causing double bottom padding (160px total). Remove the redundant `pb-20` from the `AppShell` main element since pages that need it already handle their own spacing.
+Additionally, the `useResume` query result (`resumeFromDb`) is never used to populate `currentResume` -- it's only used for stale-ID detection. So even if the DB query succeeds, the Zustand state stays null.
 
-Wait -- actually the AppShell `pb-20` is intentional to reserve space for the bottom tab bar across all pages. The editor's own `pb-20` at line 389 is the duplicate. However, since changing the editor could break other things, the safer fix is to just ensure the CSS transition fix resolves the blank screen first.
+### Fix (2 changes in EditorPage.tsx)
 
----
+**Change 1: Hydrate `currentResume` from the database query**
 
-### Part 1: Performance Optimizations
+After the `useResume` query resolves, sync the result into Zustand's `currentResume` if it's currently null. This bridges the gap between persisted IDs and full resume data:
 
-**1. Database Indexes (Migration)**
+```ts
+// After line 89 (useResume call), add:
+useEffect(() => {
+  if (resumeFromDb && !currentResume && currentResumeId) {
+    useResumeStore.getState().setCurrentResume(resumeFromDb);
+  }
+}, [resumeFromDb, currentResume, currentResumeId]);
+```
 
-Add indexes on frequently queried columns to speed up list pages:
-- `resumes(user_id)` and `resumes(user_id, updated_at DESC)`
-- `job_applications(user_id)`
-- `cover_letters(user_id)`
-- `interview_sessions(user_id)`
-- `resignation_letters(user_id)`
-- `notifications(user_id, is_read)`
-- `resume_shares(token)` where `is_active = true`
+**Change 2: Show loading state while validating instead of redirecting**
 
-Non-destructive, no data changes.
+Replace the immediate redirect with a loading check. If `currentResumeId` exists but the data is still loading, show the skeleton instead of redirecting:
 
-**2. React.memo on List Components**
+```ts
+// Replace lines 421-424:
+// OLD:
+if (!currentResume) {
+  return <Navigate to="/dashboard" replace />;
+}
 
-Wrap frequently re-rendered list item components in `React.memo`:
-- `ResumeListCard` -- re-renders on every dashboard search keystroke
-- `ActionCard` -- static props, never changes
-- `SettingsRow` -- re-renders when sibling toggles change
+// NEW:
+if (!currentResume) {
+  if (currentResumeId && isValidating) {
+    // Data is loading from database, show skeleton
+    return (
+      <div className="flex-1 flex flex-col animate-pulse">
+        <div className="px-4 py-3 border-b border-border">
+          <div className="h-2 w-full bg-muted rounded" />
+        </div>
+        <div className="mt-3 px-4 flex gap-2">
+          {[1,2,3,4,5].map(i => <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0" />)}
+        </div>
+        <div className="flex-1 px-4 py-4 space-y-4">
+          <div className="h-12 bg-muted rounded-xl" />
+          <div className="h-12 bg-muted rounded-xl" />
+          <div className="h-32 bg-muted rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+  return <Navigate to="/dashboard" replace />;
+}
+```
 
-**3. Debounced Search with useDeferredValue**
+**Change 3: Remove double bottom padding**
 
-Add `useDeferredValue` to search inputs in:
-- `DashboardPage` resume search
-- `GuidesPage` guide search
-- `ApplicationsPage` job search
+The `AppShell` already adds `pb-20` when `showBottomNav` is true. The `EditorPage` root div also has `pb-20`. Remove the redundant one from EditorPage (line 427):
 
-Keeps the input responsive while deferring the expensive filter operation.
+```ts
+// OLD:
+<div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
 
-**4. Image Lazy Loading**
+// NEW:
+<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+```
 
-Add `loading="lazy"` to `<img>` tags in template thumbnails and avatars.
+### Summary
 
----
+These three changes ensure:
+- The editor waits for data to load instead of immediately redirecting
+- Database-fetched resume data hydrates the Zustand store when persistence fails
+- No double bottom padding wastes screen space
 
-### Part 2: Quality of Life Features
-
-**5. Keyboard Shortcuts (Editor)**
-
-New file: `src/hooks/useEditorShortcuts.ts`
-- `Ctrl/Cmd + S` -- Trigger immediate save
-- `Ctrl/Cmd + P` -- Navigate to preview
-- `Ctrl/Cmd + D` -- Open export/download sheet
-- `Escape` -- Close any open sheet
-- Single `useEffect` with `keydown` listener, only active in editor
-
-**6. Skip-to-Content Link (Accessibility)**
-
-Add a visually hidden, focus-visible skip link in `AppShell.tsx` for keyboard/screen reader users.
-
-**7. "Unsaved Changes" Warning**
-
-Add a `beforeunload` listener in `EditorPage.tsx` that warns when there are unsaved changes (compares current resume JSON to last saved snapshot).
-
-**8. Save Status Indicator Enhancement**
-
-Enhance the editor header indicator to show three clear states:
-- "Saving..." with spinner (when saving)
-- "Saved" with checkmark (after save, auto-hides after 2s)
-- "Offline" with cloud-off icon (when offline)
-
-**9. Global Command Palette (Cmd+K)**
-
-New file: `src/components/layout/CommandPalette.tsx`
-- Uses existing `cmdk` package (already installed)
-- Trigger: `Cmd/Ctrl+K` anywhere
-- Sections: Quick Actions, Recent Resumes, Navigation
-- Added to `AppRoutes` in `App.tsx`
-
----
-
-### Implementation Order
-
-1. Fix AppShell CSS transition (fixes editor blank screen) -- highest priority
-2. Database migration (indexes)
-3. React.memo wrappers
-4. useDeferredValue for search
-5. Image lazy loading
-6. Editor keyboard shortcuts
-7. Skip-to-content link
-8. Unsaved changes warning
-9. Save status enhancement
-10. Command Palette
-
+No new files. No new dependencies. Only `src/pages/EditorPage.tsx` is modified.
