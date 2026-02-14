@@ -1,31 +1,48 @@
 
 
-## Fix: "supabaseUrl is required" Crash on Editor Page
+## Fix: Remove Radix Tooltip from Editor Page (Maximum Update Depth)
 
 ### Root Cause
 
-The error `supabaseUrl is required` comes from `src/integrations/supabase/client.ts`, which calls `createClient()` with `import.meta.env.VITE_SUPABASE_URL` and **no fallback values**. When env vars are unavailable (e.g., in the Capacitor APK build), the URL is `undefined` and the Supabase SDK throws immediately.
+The "Maximum update depth exceeded" crash is caused by the Radix UI `Tooltip` component wrapping the "Wise AI" button in the editor header (lines 475-494 of EditorPage.tsx). Radix Tooltip uses a Popper component internally, and its `composeRefs` utility creates an infinite `setRef` loop during render.
 
-The file `src/hooks/useProofread.ts` imports from this broken `client.ts` instead of the safe `safeClient.ts` (which has hardcoded fallbacks). When this hook is loaded on the Editor page, the crash propagates and the ErrorBoundary catches it.
+The project's own architecture notes explicitly state: "The editor page specifically avoids Radix UI Popper components." This Tooltip violates that rule.
 
 ### Fix (1 file)
 
-**File: `src/hooks/useProofread.ts` (line 5)**
+**File: `src/pages/EditorPage.tsx`**
 
-Change the import from:
-```ts
-import { supabase } from '@/integrations/supabase/client';
-```
-To:
-```ts
-import { supabase } from '@/integrations/supabase/safeClient';
+Replace the `TooltipProvider > Tooltip > TooltipTrigger > button` wrapper (lines 475-494) with just the plain `<button>` element. The button already has an `aria-label` for accessibility, so the tooltip is redundant.
+
+Before:
+```tsx
+<TooltipProvider delayDuration={300}>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <button onClick={...} className="..." aria-label="Open Wise AI">
+        ...
+      </button>
+    </TooltipTrigger>
+    <TooltipContent side="bottom">
+      Click for AI assistance
+    </TooltipContent>
+  </Tooltip>
+</TooltipProvider>
 ```
 
-This is the only file in the codebase that imports from `client.ts` instead of `safeClient.ts`. The `safeClient.ts` has hardcoded fallback values for the Supabase URL and anon key, so it never crashes even when env vars are missing.
+After:
+```tsx
+<button onClick={...} className="..." aria-label="Open Wise AI">
+  ...
+</button>
+```
+
+This also allows removing the `Tooltip`, `TooltipTrigger`, `TooltipContent`, and `TooltipProvider` imports from line 4 (if not used elsewhere in the file -- they are not).
 
 ### Why This Works
 
-- `safeClient.ts` wraps `createClient()` in a try/catch with hardcoded fallbacks -- it can never throw "supabaseUrl is required"
-- Every other file in the project already uses `safeClient.ts`
-- This single import was the only path that could trigger the crash
+- Removes the only Radix Popper component from the editor page, eliminating the infinite `setRef` recursion
+- The button already has `aria-label="Open Wise AI"` for accessibility
+- On mobile (the primary target), tooltips are not useful anyway since there is no hover
+- Aligns with the documented architectural decision to avoid Popper components in the editor
 
