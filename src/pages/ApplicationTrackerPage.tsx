@@ -12,7 +12,7 @@ import { useCoverLetter } from '@/hooks/useCoverLetters';
 import { useResumes } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+import { DetailSkeleton } from '@/components/layout/PageSkeletons';
 
 const STAGES: { key: ApplicationStatus; label: string }[] = [
   { key: 'saved', label: 'Saved' },
@@ -38,7 +38,7 @@ export default function ApplicationTrackerPage() {
   const [reminderDate, setReminderDate] = useState('');
 
   if (!user) { navigate('/auth'); return null; }
-  if (isLoading) return <PageLoadingSpinner />;
+  if (isLoading) return <DetailSkeleton />;
   if (!app) return (
     <div className="flex-1 flex items-center justify-center p-6">
       <p className="text-muted-foreground">Application not found</p>

@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+import { ShareSkeleton } from '@/components/layout/PageSkeletons';
 import { usePublicResume, useResumeShareMutations, PublicShareResult } from '@/hooks/useResumeShares';
 import { usePublicShareComments, useAddShareComment, type ShareComment } from '@/hooks/useShareComments';
 import { ContactInfo, Experience, Education } from '@/types/resume';
@@ -41,7 +41,7 @@ export default function SharePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, data, viewCounted]);
 
-  if (isLoading) return <PageLoadingSpinner />;
+  if (isLoading) return <ShareSkeleton />;
 
   if (error || !data) {
     return (
