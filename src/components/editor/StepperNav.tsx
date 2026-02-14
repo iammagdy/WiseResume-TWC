@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { Check, User, AlignLeft, Briefcase, GraduationCap, Wrench } from 'lucide-react';
+import { Check, User, AlignLeft, Briefcase, GraduationCap, Wrench, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface StepperNavProps {
@@ -11,7 +11,14 @@ interface StepperNavProps {
   justCompletedStep?: string | null;
 }
 
-const STEP_ICONS = [User, AlignLeft, Briefcase, GraduationCap, Wrench];
+const STEP_ICONS: Record<string, typeof User> = {
+  contact: User,
+  summary: AlignLeft,
+  experience: Briefcase,
+  education: GraduationCap,
+  skills: Wrench,
+  more: Plus,
+};
 
 const PARTICLE_COLORS = ['bg-success', 'bg-primary', 'bg-warning', 'bg-amber-400', 'bg-success', 'bg-primary'];
 const PARTICLE_ANGLES = [0, 60, 120, 180, 240, 300];
@@ -53,7 +60,7 @@ export const StepperNav = memo(function StepperNav({
         />
 
         {steps.map((step, i) => {
-          const Icon = STEP_ICONS[i];
+          const Icon = STEP_ICONS[step.id] || Plus;
           const isActive = step.id === activeStep;
           const isCompleted = completedSteps[step.id];
           const isPast = i < activeIndex;

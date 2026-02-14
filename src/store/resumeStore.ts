@@ -68,6 +68,12 @@ const defaultResume: ResumeData = {
   education: [],
   skills: [],
   certifications: [],
+  awards: [],
+  projects: [],
+  publications: [],
+  volunteering: [],
+  hobbies: [],
+  references: [],
   templateId: 'modern',
 };
 
