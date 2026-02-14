@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users } from 'lucide-react';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
+// Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
@@ -472,10 +472,7 @@ export default function EditorPage() {
               </button>
             )}
           </div>
-          <TooltipProvider delayDuration={300}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
+          <button
                   onClick={() => setShowChat(true)}
                   className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[54px] min-h-[54px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
                   aria-label="Open Wise AI"
@@ -486,12 +483,6 @@ export default function EditorPage() {
                   </span>
                   <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
                 </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                Click for AI assistance
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
       </header>
 
