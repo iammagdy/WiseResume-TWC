@@ -1,5 +1,5 @@
 import { useState, useMemo, memo } from 'react';
-import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { 
   MoreVertical, 
   Edit2, 
@@ -44,6 +44,8 @@ interface ResumeListCardProps {
   showTailoredBadge?: boolean;
   healthScore?: ResumeHealthScore | null;
   isScoring?: boolean;
+  /** If true, swipe actions require external confirmation (card springs back instead of animating off-screen) */
+  confirmSwipeActions?: boolean;
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -92,6 +94,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   showTailoredBadge = false,
   healthScore,
   isScoring = false,
+  confirmSwipeActions = true,
 }: ResumeListCardProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -135,13 +138,26 @@ export const ResumeListCard = memo(function ResumeListCard({
     
     if (info.offset.x <= -SWIPE_THRESHOLD) {
       haptics.warning();
-      onDelete(resume.id);
+      if (confirmSwipeActions) {
+        // Spring back and let parent handle confirmation
+        animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+        onDelete(resume.id);
+      } else {
+        // Animate off-screen then trigger
+        animate(x, -300, { type: 'tween', duration: 0.2 }).then(() => onDelete(resume.id));
+      }
     } else if (info.offset.x >= SWIPE_THRESHOLD) {
       haptics.success();
-      onDuplicate(resume.id);
+      if (confirmSwipeActions) {
+        animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+        onDuplicate(resume.id);
+      } else {
+        animate(x, 300, { type: 'tween', duration: 0.2 }).then(() => onDuplicate(resume.id));
+      }
+    } else {
+      // Didn't reach threshold — spring back smoothly
+      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
     }
-    
-    x.set(0);
   };
 
   const handleCardClick = () => {
@@ -193,8 +209,8 @@ export const ResumeListCard = memo(function ResumeListCard({
         )}
         style={{ x }}
         drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.1}
+        dragConstraints={{ left: -150, right: 150 }}
+        dragElastic={0.5}
         onDragStart={handleDragStart}
         onDrag={handleDrag}
         onDragEnd={handleDragEnd}
