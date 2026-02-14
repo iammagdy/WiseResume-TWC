@@ -3,12 +3,6 @@ import { Sparkles, Diamond, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAIProviderInfo } from '@/hooks/useAIProviderInfo';
 import { haptics } from '@/lib/haptics';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 
 type BadgeSize = 'xs' | 'sm' | 'md';
@@ -96,23 +90,7 @@ export const AIProviderBadge = memo(function AIProviderBadge({
 
   return (
     <>
-      <TooltipProvider>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            {badge}
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="text-xs">
-            <p>
-              {providerInfo.isCustomKey
-                ? `Using your Gemini API key (${providerInfo.tierLabel})`
-                : 'Using WiseResume AI (default)'}
-            </p>
-            <p className="text-muted-foreground mt-0.5">
-              Tap to change AI provider
-            </p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      {badge}
       <AISettingsSheet open={sheetOpen} onOpenChange={setSheetOpen} />
     </>
   );

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useProofreadStore, selectActiveIssues } from '@/store/proofreadStore';
+import { useShallow } from 'zustand/react/shallow';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -53,9 +54,16 @@ function hashText(text: string): string {
 }
 
 export function useProofread(resume: ResumeData | null) {
-  const { issues, score, isChecking, setIssues, setScore, setIsChecking, removeIssue, ignoreIssue, clear } =
-    useProofreadStore();
-  const activeIssues = useProofreadStore(selectActiveIssues);
+  const issues = useProofreadStore(s => s.issues);
+  const score = useProofreadStore(s => s.score);
+  const isChecking = useProofreadStore(s => s.isChecking);
+  const setIssues = useProofreadStore(s => s.setIssues);
+  const setScore = useProofreadStore(s => s.setScore);
+  const setIsChecking = useProofreadStore(s => s.setIsChecking);
+  const removeIssue = useProofreadStore(s => s.removeIssue);
+  const ignoreIssue = useProofreadStore(s => s.ignoreIssue);
+  const clear = useProofreadStore(s => s.clear);
+  const activeIssues = useProofreadStore(useShallow(selectActiveIssues));
   const autoProofread = useSettingsStore((s) => s.autoProofread);
   const abortRef = useRef<AbortController | null>(null);
   const lastHashRef = useRef('');
