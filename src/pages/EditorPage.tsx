@@ -427,7 +427,7 @@ export default function EditorPage() {
 
   // Resume guard — wait for DB fetch before redirecting
   if (!currentResume) {
-    if (currentResumeId && isValidating) {
+    if (currentResumeId && (isValidating || resumeFromDb)) {
       return (
         <div className="flex-1 flex flex-col animate-pulse">
           <div className="px-4 py-3 border-b border-border">
