@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.career-assessment]
 verify_jwt = false
+
+[functions.generate-resignation-letter]
+verify_jwt = false

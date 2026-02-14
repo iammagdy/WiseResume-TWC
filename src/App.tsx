@@ -51,6 +51,9 @@ const CoverLetterEditPage = lazyWithRetry(() => import("./pages/CoverLetterEditP
 const SharePage = lazyWithRetry(() => import("./pages/SharePage"));
 const ExamplesPage = lazyWithRetry(() => import("./pages/ExamplesPage"));
 const CareerPage = lazyWithRetry(() => import("./pages/CareerPage"));
+const ResignationLettersPage = lazyWithRetry(() => import("./pages/ResignationLettersPage"));
+const ResignationLetterNewPage = lazyWithRetry(() => import("./pages/ResignationLetterNewPage"));
+const ResignationLetterEditPage = lazyWithRetry(() => import("./pages/ResignationLetterEditPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -197,11 +200,26 @@ const queryClient = new QueryClient({
                  <ExamplesPage />
                </Suspense>
              } />
-             <Route path="/career" element={
-               <Suspense fallback={<PageLoadingSpinner />}>
-                 <CareerPage />
-               </Suspense>
-             } />
+              <Route path="/career" element={
+                <Suspense fallback={<PageLoadingSpinner />}>
+                  <CareerPage />
+                </Suspense>
+              } />
+              <Route path="/resignation-letters" element={
+                <Suspense fallback={<PageLoadingSpinner />}>
+                  <ResignationLettersPage />
+                </Suspense>
+              } />
+              <Route path="/resignation-letter/new" element={
+                <Suspense fallback={<PageLoadingSpinner />}>
+                  <ResignationLetterNewPage />
+                </Suspense>
+              } />
+              <Route path="/resignation-letter/edit/:id" element={
+                <Suspense fallback={<PageLoadingSpinner />}>
+                  <ResignationLetterEditPage />
+                </Suspense>
+              } />
           </Route>
 
         {/* Public share page - outside AppShell */}

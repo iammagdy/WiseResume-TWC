@@ -44,7 +44,7 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const { messages, resumeData, jobDescription, endInterview, analyzeRole, userGeminiKey } = await req.json();
+    const { messages, resumeData, jobDescription, endInterview, analyzeRole, userGeminiKey, quickPractice } = await req.json();
 
     // ============= SECURITY: Input validation =============
     if (messages) {
@@ -221,7 +221,7 @@ Focus on:
 **Tip:** [One actionable tip for their next interview]
 
 Be encouraging but honest.`
-      : `You are Wise AI, the intelligent interview coach powered by WiseResume — part of the WiseUniverse. You speak naturally and warmly, like a real human interviewer having a conversation. Your role:
+      : `You are Wise AI, the intelligent interview coach powered by WiseResume — part of the WiseUniverse. You speak naturally and warmly, like a real human interviewer having a conversation.${quickPractice ? '\n\nIMPORTANT: This is a QUICK PRACTICE session. Ask EXACTLY 5 questions total, then automatically provide the performance summary as if the interview ended. After the 5th answer, generate the summary in the end-interview format.\n' : ''} Your role:
 
 1. Ask ONE question at a time and wait for the answer
 2. After each answer, give brief, constructive feedback (1-2 sentences), then ask the next question

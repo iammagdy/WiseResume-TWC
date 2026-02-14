@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import type { VoiceGender } from '@/hooks/useVoiceInterview';
 
-type InterviewMode = 'general' | 'job-targeted';
+type InterviewMode = 'general' | 'job-targeted' | 'quick-practice';
 
 interface InterviewSetupProps {
   hasResume: boolean;
@@ -23,7 +23,13 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
 
   const handleStart = () => {
     haptics.medium();
-    onStart(mode === 'job-targeted' ? jobDescription : undefined);
+    if (mode === 'job-targeted') {
+      onStart(jobDescription);
+    } else if (mode === 'quick-practice') {
+      onStart('__QUICK_PRACTICE__');
+    } else {
+      onStart(undefined);
+    }
   };
 
   const handleModeChange = (newMode: InterviewMode) => {
@@ -157,51 +163,74 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
 
       <div className="space-y-3">
         <p className="text-sm font-semibold text-foreground">Interview Mode</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-2">
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => handleModeChange('general')}
             className={cn(
-              'flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
+              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
               mode === 'general'
                 ? 'border-primary/60 bg-primary/15 shadow-[0_0_25px_hsl(var(--primary)/0.2)]'
                 : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-primary/5'
             )}
           >
             <div className={cn(
-              'p-3 rounded-xl transition-all',
+              'p-2.5 rounded-xl transition-all',
               mode === 'general' ? 'bg-primary/20' : 'bg-muted/40'
             )}>
-              <FileText className={cn('w-6 h-6', mode === 'general' ? 'text-primary' : 'text-muted-foreground')} />
+              <FileText className={cn('w-5 h-5', mode === 'general' ? 'text-primary' : 'text-muted-foreground')} />
             </div>
             <div className="text-center">
-              <span className={cn('text-sm font-bold block', mode === 'general' ? 'text-primary' : 'text-foreground')}>
+              <span className={cn('text-xs font-bold block', mode === 'general' ? 'text-primary' : 'text-foreground')}>
                 General
               </span>
-              <span className="text-[11px] text-muted-foreground">Based on your CV</span>
+              <span className="text-[10px] text-muted-foreground">Based on CV</span>
             </div>
           </motion.button>
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => handleModeChange('job-targeted')}
             className={cn(
-              'flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
+              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
               mode === 'job-targeted'
                 ? 'border-primary/60 bg-primary/15 shadow-[0_0_25px_hsl(var(--primary)/0.2)]'
                 : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-primary/5'
             )}
           >
             <div className={cn(
-              'p-3 rounded-xl transition-all',
+              'p-2.5 rounded-xl transition-all',
               mode === 'job-targeted' ? 'bg-primary/20' : 'bg-muted/40'
             )}>
-              <Briefcase className={cn('w-6 h-6', mode === 'job-targeted' ? 'text-primary' : 'text-muted-foreground')} />
+              <Briefcase className={cn('w-5 h-5', mode === 'job-targeted' ? 'text-primary' : 'text-muted-foreground')} />
             </div>
             <div className="text-center">
-              <span className={cn('text-sm font-bold block', mode === 'job-targeted' ? 'text-primary' : 'text-foreground')}>
+              <span className={cn('text-xs font-bold block', mode === 'job-targeted' ? 'text-primary' : 'text-foreground')}>
                 Job-Targeted
               </span>
-              <span className="text-[11px] text-muted-foreground">Paste job description</span>
+              <span className="text-[10px] text-muted-foreground">Paste JD</span>
+            </div>
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => handleModeChange('quick-practice')}
+            className={cn(
+              'flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all touch-manipulation backdrop-blur-xl',
+              mode === 'quick-practice'
+                ? 'border-primary/60 bg-primary/15 shadow-[0_0_25px_hsl(var(--primary)/0.2)]'
+                : 'border-border/40 bg-card/60 hover:border-primary/40 hover:bg-primary/5'
+            )}
+          >
+            <div className={cn(
+              'p-2.5 rounded-xl transition-all',
+              mode === 'quick-practice' ? 'bg-primary/20' : 'bg-muted/40'
+            )}>
+              <Rocket className={cn('w-5 h-5', mode === 'quick-practice' ? 'text-primary' : 'text-muted-foreground')} />
+            </div>
+            <div className="text-center">
+              <span className={cn('text-xs font-bold block', mode === 'quick-practice' ? 'text-primary' : 'text-foreground')}>
+                Quick
+              </span>
+              <span className="text-[10px] text-muted-foreground">5 questions</span>
             </div>
           </motion.button>
         </div>
@@ -229,6 +258,7 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
           size="lg"
           className="w-full text-base font-bold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-[0_4px_30px_hsl(var(--primary)/0.4)] rounded-2xl h-14"
           disabled={mode === 'job-targeted' && !jobDescription.trim()}
+
         >
           <Rocket className="w-5 h-5 mr-2" />
           Launch Interview
