@@ -63,6 +63,7 @@ export default function DashboardPage() {
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
+  const [duplicateResumeId, setDuplicateResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -182,12 +183,19 @@ export default function DashboardPage() {
   };
 
   const handleDuplicate = (resumeId: string) => {
-    haptics.success();
-    duplicateResume.mutate(resumeId, {
-      onSuccess: () => {
-        toast.success('Resume duplicated successfully');
-      },
-    });
+    setDuplicateResumeId(resumeId);
+  };
+
+  const confirmDuplicate = () => {
+    if (duplicateResumeId) {
+      haptics.success();
+      duplicateResume.mutate(duplicateResumeId, {
+        onSuccess: () => {
+          toast.success('Resume duplicated successfully');
+        },
+      });
+      setDuplicateResumeId(null);
+    }
   };
 
   const handleInterview = (resumeId: string) => {
@@ -590,6 +598,24 @@ export default function DashboardPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate Confirmation Dialog */}
+      <AlertDialog open={!!duplicateResumeId} onOpenChange={() => setDuplicateResumeId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Duplicate Resume?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will create a copy of this resume with all its content.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => haptics.light()}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDuplicate}>
+              Duplicate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
