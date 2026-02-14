@@ -86,6 +86,7 @@ export function DailyTipCard({ onVisibilityChange }: DailyTipCardProps) {
               : { opacity: 0, height: 0, transition: { duration: 0.25 } }
             }
             transition={{ duration: 0.25 }}
+            style={{ touchAction: 'pan-y' }}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.3}

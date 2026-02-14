@@ -21,6 +21,7 @@ export function ChoiceCard({
 }: ChoiceCardProps) {
   return (
     <motion.button
+      style={{ touchAction: 'pan-y' }}
       className={cn(
         'w-full p-5 rounded-2xl glass-elevated text-left',
         'flex items-center gap-4 touch-manipulation transition-all',

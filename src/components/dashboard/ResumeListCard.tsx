@@ -207,7 +207,7 @@ export const ResumeListCard = memo(function ResumeListCard({
           'relative glass-elevated p-4 touch-manipulation cursor-pointer',
           'active:bg-muted/30 transition-all'
         )}
-        style={{ x }}
+        style={{ x, touchAction: 'pan-y' }}
         drag="x"
         dragConstraints={{ left: -150, right: 150 }}
         dragElastic={0.5}
