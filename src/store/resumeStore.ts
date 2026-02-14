@@ -1,7 +1,18 @@
+import { useSyncExternalStore } from 'react';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory } from '@/types/resume';
 import { v4 as uuidv4 } from 'uuid';
+
+let hasHydrated = false;
+const hydrationListeners: Set<() => void> = new Set();
+
+export const subscribeToHydration = (listener: () => void) => {
+  hydrationListeners.add(listener);
+  return () => hydrationListeners.delete(listener);
+};
+
+export const getResumeStoreHasHydrated = () => hasHydrated;
 
 interface ResumeState {
   currentResume: ResumeData | null;
@@ -285,6 +296,21 @@ export const useResumeStore = create<ResumeState>()(
     }),
     {
       name: 'resume-storage',
+      storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => {
+        return () => {
+          hasHydrated = true;
+          hydrationListeners.forEach(listener => listener());
+        };
+      },
     }
   )
 );
+
+export const useResumeStoreHydration = () => {
+  return useSyncExternalStore(
+    subscribeToHydration,
+    getResumeStoreHasHydrated,
+    () => false
+  );
+};

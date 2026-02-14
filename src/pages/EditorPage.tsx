@@ -7,7 +7,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { StepperNav } from '@/components/editor/StepperNav';
 import { SectionCard } from '@/components/editor/SectionCard';
 import { Button } from '@/components/ui/button';
-import { useResumeStore } from '@/store/resumeStore';
+import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations, useResume, dbToResumeData } from '@/hooks/useResumes';
@@ -60,6 +60,7 @@ export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading } = useAuth();
+  const storeHydrated = useResumeStoreHydration();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
 
   // Use shallow selector to prevent unnecessary re-renders when unrelated store parts change
@@ -129,9 +130,9 @@ export default function EditorPage() {
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
   const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  // Detect loading timeout (8 seconds)
+  // Detect loading timeout (8 seconds) - only start after store hydration
   useEffect(() => {
-    if (currentResumeId && isValidating && !resumeFromDb) {
+    if (storeHydrated && currentResumeId && isValidating && !resumeFromDb) {
       const timer = setTimeout(() => {
         console.error('Resume loading timeout detected');
         setLoadingTimeout(true);
@@ -140,7 +141,7 @@ export default function EditorPage() {
     } else {
       setLoadingTimeout(false);
     }
-  }, [currentResumeId, isValidating, resumeFromDb]);
+  }, [storeHydrated, currentResumeId, isValidating, resumeFromDb]);
 
   // Handle loading timeout - clear stale ID and redirect
   useEffect(() => {
@@ -155,12 +156,13 @@ export default function EditorPage() {
   }, [loadingTimeout, currentResumeId, setCurrentResumeId, navigate]);
 
   // Early redirect if no resume ID - prevents infinite loading
+  // Only run after store has hydrated to avoid premature redirects
   useEffect(() => {
-    if (user && !authLoading && !currentResumeId && !currentResume) {
+    if (storeHydrated && user && !authLoading && !currentResumeId && !currentResume) {
       console.warn('No resume selected, redirecting to dashboard');
       navigate('/dashboard', { replace: true });
     }
-  }, [user, authLoading, currentResumeId, currentResume, navigate]);
+  }, [storeHydrated, user, authLoading, currentResumeId, currentResume, navigate]);
 
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -184,16 +186,16 @@ export default function EditorPage() {
   }, []);
 
   // Handle query completion without data - redirect to dashboard
-  // This runs when: query finished (!isValidating) + no data found (!resumeFromDb) + we had an ID
+  // This runs when: store hydrated + query finished (!isValidating) + no data found (!resumeFromDb) + we had an ID
   useEffect(() => {
-    if (user && currentResumeId && !isValidating && !resumeFromDb) {
+    if (storeHydrated && user && currentResumeId && !isValidating && !resumeFromDb) {
       const hasError = !!resumeError;
       console.warn('Resume not found after validation, redirecting...', { currentResumeId, hasError });
       setCurrentResumeId(null);
       toast.error(hasError ? 'Resume not found. Please select a resume from the dashboard.' : 'Resume could not be loaded.');
       navigate('/dashboard', { replace: true });
     }
-  }, [user, currentResumeId, isValidating, resumeFromDb, resumeError, setCurrentResumeId, navigate]);
+  }, [storeHydrated, user, currentResumeId, isValidating, resumeFromDb, resumeError, setCurrentResumeId, navigate]);
 
   // Show AI intro for first-time users after resume loads
   useEffect(() => {
@@ -484,13 +486,37 @@ export default function EditorPage() {
     return <Navigate to="/auth" replace />;
   }
 
+  // Wait for Zustand store to hydrate before making decisions
+  // This prevents redirecting before we know if there's a persisted resume
+  if (!storeHydrated) {
+    return (
+      <div className="flex-1 flex flex-col">
+        <div className="px-4 py-3 border-b border-border">
+          <div className="h-2 w-full bg-muted rounded animate-pulse" />
+        </div>
+        <div className="mt-3 px-4 flex gap-2">
+          {[1,2,3,4,5].map(i => <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0 animate-pulse" />)}
+        </div>
+        <div className="flex-1 px-4 py-4 space-y-4">
+          <div className="h-12 bg-muted rounded-xl animate-pulse" />
+          <div className="h-12 bg-muted rounded-xl animate-pulse" />
+          <div className="h-32 bg-muted rounded-xl animate-pulse" />
+        </div>
+      </div>
+    );
+  }
+
+  // After hydration: if no resume ID exists, redirect immediately
+  if (!currentResumeId) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   // Resume guard — wait for DB fetch before redirecting
-  // Show loading skeleton while: (1) actively validating, OR (2) data exists but hydration pending
-  const isHydrationPending = !!resumeFromDb && !currentResume && !!currentResumeId;
-  const shouldShowLoading = currentResumeId && (isValidating || isHydrationPending);
+  // Show loading skeleton while: (1) actively fetching, OR (2) data exists but state hydration pending
+  const isStateHydrationPending = !!resumeFromDb && !currentResume;
+  const shouldShowLoading = isValidating || isStateHydrationPending;
 
   if (!currentResume) {
-    // Show loading skeleton while validating or hydration pending
     if (shouldShowLoading) {
       return (
         <div className="flex-1 flex flex-col">
@@ -528,7 +554,7 @@ export default function EditorPage() {
       );
     }
 
-    // No resume ID at all, redirect to dashboard
+    // Query completed but no data found - redirect to dashboard
     return <Navigate to="/dashboard" replace />;
   }
 
