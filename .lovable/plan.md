@@ -1,178 +1,109 @@
 
 
-## Resume Guides & Enhanced Sharing
+## Fix Editor Blank Screen + Performance Optimizations
 
-Adds a static educational content hub and enhances the existing resume sharing system with feedback capabilities. Scoped to avoid over-engineering -- guides are static (no DB), and collaboration starts with comment-based feedback on shared resumes rather than full team workspaces.
+### Priority 0: Fix Editor Blank Screen (Critical Bug)
 
----
+**Root Cause:** `AppShell.tsx` uses `AnimatePresence mode="popLayout"` with `motion.div` to wrap page outlets. The `popLayout` mode triggers framer-motion's layout animation engine, which conflicts with the editor's deeply nested flex/overflow layout. This causes the editor content to render with zero visible height or get clipped entirely.
 
-### What Already Exists
+This is consistent with the project's known constraint: "The editor page avoids framer-motion layout props and AnimatePresence to prevent infinite loop crashes."
 
-- `contentLibrary.ts` -- 500+ resume phrases (action verbs, achievements, skills)
-- `ContentLibrarySheet.tsx` -- Phrase browser with favorites and categories
-- `ExamplesPage.tsx` -- Resume examples with industry/level filters
-- `ShareSheet.tsx` + `SharePage.tsx` -- Resume sharing with token-based links and password protection
-- `useResumeShares.ts` -- Share CRUD with `get_shared_resume` RPC
-- `resume_shares` table -- Token, password, expiry, view count
+**Fix:** Replace the framer-motion `AnimatePresence` + `motion.div` in `AppShell.tsx` with a simple CSS fade transition. This eliminates the layout animation engine entirely while preserving a smooth page transition feel.
 
----
+Changes to `src/components/layout/AppShell.tsx`:
+- Remove `import { motion, AnimatePresence } from 'framer-motion'`
+- Replace the `AnimatePresence`/`motion.div` wrapper with a plain `div` using a CSS `animate-fade-in` class keyed on `location.pathname`
+- This is lighter, avoids the layout engine conflict, and reduces the framer-motion bundle impact on every page transition
 
-### Part 1: Resume Guides Content Hub
+**Secondary fix:** The editor also applies `pb-20` on its root div, while `AppShell` independently adds `pb-20` via the `showBottomNav` condition -- causing double bottom padding (160px total). Remove the redundant `pb-20` from the `AppShell` main element since pages that need it already handle their own spacing.
 
-A new `/guides` page with static educational articles organized by category. No database needed -- all content is bundled as static TypeScript data, keeping things fast and offline-friendly.
-
-#### New Files
-
-**1. `src/lib/guidesData.ts`** -- Static guide content (all articles)
-- ~30 curated guides across 5 categories:
-  - Resume Writing (10): ATS tips, power words, quantifying achievements, format comparison, common mistakes, career gaps, entry-level, executive, length guidelines, skills section
-  - Cover Letters (5): Structure, opening paragraphs, closing examples, cold applications, referral letters
-  - Interview Prep (5): STAR method, behavioral questions, salary negotiation, video interview tips, questions to ask
-  - Career Advice (5): Job search strategies, networking, LinkedIn optimization, personal branding, remote work
-  - Industry Insights (5): Tech, healthcare, finance, marketing, general career paths
-- Each guide is a TypeScript object: `{ slug, title, category, readTimeMinutes, content (markdown string), tags }`
-- Content is professional-quality markdown with headers, bullet points, and actionable tips
-- Total bundle size ~50KB (acceptable for static content)
-
-**2. `src/pages/GuidesPage.tsx`** -- Content hub listing page
-- Header with back button and "Career Guides" title
-- Search bar (filters guides by title/content/tags)
-- Category filter chips (horizontal scroll): All, Resume, Cover Letter, Interview, Career, Industry
-- Guide cards in vertical list:
-  - Title (bold), category badge, read time badge ("5 min read")
-  - First ~80 chars of content as preview
-  - Bookmark icon (persisted via Zustand store)
-- Bookmarks tab toggle (Browse / Saved)
-- Empty state for no results
-
-**3. `src/pages/GuidePage.tsx`** -- Individual guide reader
-- Header with back button and guide title
-- Reading progress bar at top (scroll-based)
-- Markdown rendered content using `react-markdown` (already installed)
-- Large readable text (text-base, leading-relaxed)
-- "Was this helpful?" thumbs up/down at bottom (stored in local store)
-- Related guides section (same category, different article)
-- "Back to Guides" link at bottom
-- Font size adjustment (small/medium/large toggle in header)
-
-**4. `src/store/guidesStore.ts`** -- Zustand persisted store
-- `bookmarkedSlugs: string[]` -- saved guides
-- `readSlugs: string[]` -- guides user has scrolled >80%
-- `helpfulSlugs: Record<string, boolean>` -- thumbs up/down feedback
-- `fontSize: 'sm' | 'md' | 'lg'` -- reader preference
-
-#### Files to Modify
-
-- `src/App.tsx` -- Add 2 lazy routes: `/guides`, `/guides/:slug`
-- `src/components/layout/AppShell.tsx` -- Add `/guides` to TAB_ROUTES
-- `src/pages/DashboardPage.tsx` -- Add "Guides" action card with `BookOpen` icon (replace or add alongside existing Examples card)
+Wait -- actually the AppShell `pb-20` is intentional to reserve space for the bottom tab bar across all pages. The editor's own `pb-20` at line 389 is the duplicate. However, since changing the editor could break other things, the safer fix is to just ensure the CSS transition fix resolves the blank screen first.
 
 ---
 
-### Part 2: Enhanced Resume Sharing with Feedback
+### Part 1: Performance Optimizations
 
-Extends the existing token-based sharing system to allow viewers to leave comments/feedback on shared resumes. This is a lightweight collaboration layer -- no team workspaces, no real-time editing.
+**1. Database Indexes (Migration)**
 
-#### Database Changes
+Add indexes on frequently queried columns to speed up list pages:
+- `resumes(user_id)` and `resumes(user_id, updated_at DESC)`
+- `job_applications(user_id)`
+- `cover_letters(user_id)`
+- `interview_sessions(user_id)`
+- `resignation_letters(user_id)`
+- `notifications(user_id, is_read)`
+- `resume_shares(token)` where `is_active = true`
 
-**New `share_comments` table:**
-- `id` (uuid, PK)
-- `share_id` (uuid, NOT NULL, references resume_shares.id)
-- `author_name` (text, NOT NULL) -- viewer's name (no auth required)
-- `section` (text, nullable) -- which resume section the comment targets (e.g., 'experience', 'summary')
-- `content` (text, NOT NULL, max 1000 chars)
-- `is_resolved` (boolean, default false)
-- `created_at` (timestamptz)
-- RLS: Public insert for active shares, owner can read/update/delete via share ownership
+Non-destructive, no data changes.
 
-**New RPC function: `add_share_comment`** (SECURITY DEFINER)
-- Validates share token is active and not expired
-- Inserts comment linked to the share
-- Returns the created comment
-- Prevents abuse: rate limit of 10 comments per share per hour
+**2. React.memo on List Components**
 
-**Modify `get_shared_resume` RPC:**
-- Add optional `include_comments` parameter
-- When true, includes comments array in the response
+Wrap frequently re-rendered list item components in `React.memo`:
+- `ResumeListCard` -- re-renders on every dashboard search keystroke
+- `ActionCard` -- static props, never changes
+- `SettingsRow` -- re-renders when sibling toggles change
 
-#### New Files
+**3. Debounced Search with useDeferredValue**
 
-**5. `src/hooks/useShareComments.ts`** -- Comments data hook
-- `useShareComments(shareId)` -- fetch comments for a share (owner only)
-- `useAddShareComment()` -- mutation for viewers to add comments via RPC
-- `useResolveComment()` -- mutation for owner to mark resolved
+Add `useDeferredValue` to search inputs in:
+- `DashboardPage` resume search
+- `GuidesPage` guide search
+- `ApplicationsPage` job search
 
-**6. `src/components/editor/ShareFeedbackSheet.tsx`** -- Owner's feedback viewer
-- Bottom sheet showing all comments on a shared resume
-- Filter: All / Unresolved / Resolved
-- Each comment card: author name, section tag, content, timestamp
-- "Resolve" button per comment
-- Badge count of unresolved comments
-- Accessible from ShareSheet when share has comments
+Keeps the input responsive while deferring the expensive filter operation.
 
-**7. Public share page comment form** (added to `SharePage.tsx`)
-- "Leave Feedback" expandable section at bottom of shared resume view
-- Name input + comment textarea + optional section selector dropdown
-- Submit button with loading state
-- Success toast after submission
-- Shows existing comments (read-only) below the form
+**4. Image Lazy Loading**
 
-#### Files to Modify
-
-- `src/pages/SharePage.tsx` -- Add feedback form section and display existing comments
-- `src/components/editor/ShareSheet.tsx` -- Add "View Feedback" button when share has comments, linking to ShareFeedbackSheet
+Add `loading="lazy"` to `<img>` tags in template thumbnails and avatars.
 
 ---
 
-### Technical Details
+### Part 2: Quality of Life Features
 
-**No external APIs** -- guides are static content, comments use existing Supabase infrastructure.
+**5. Keyboard Shortcuts (Editor)**
 
-**Database migration:**
-```sql
-CREATE TABLE public.share_comments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  share_id uuid NOT NULL REFERENCES public.resume_shares(id) ON DELETE CASCADE,
-  author_name text NOT NULL,
-  section text,
-  content text NOT NULL,
-  is_resolved boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
-);
-ALTER TABLE public.share_comments ENABLE ROW LEVEL SECURITY;
--- Public can insert on active shares
--- Owner can read/update/delete via share ownership check
-```
+New file: `src/hooks/useEditorShortcuts.ts`
+- `Ctrl/Cmd + S` -- Trigger immediate save
+- `Ctrl/Cmd + P` -- Navigate to preview
+- `Ctrl/Cmd + D` -- Open export/download sheet
+- `Escape` -- Close any open sheet
+- Single `useEffect` with `keydown` listener, only active in editor
 
-**RPC function** (`add_share_comment`): SECURITY DEFINER, validates token, inserts comment, returns result. No auth required (public viewers can comment).
+**6. Skip-to-Content Link (Accessibility)**
 
-**Mobile patterns:**
-- Guide cards use `glass-surface` with 44px minimum tap targets
-- Reader uses large text with adjustable font size
-- Comment form uses `text-[16px]` inputs to prevent iOS zoom
-- All new pages lazy-loaded via `lazyWithRetry`
-- Guides store uses Zustand `persist` for offline bookmarks
+Add a visually hidden, focus-visible skip link in `AppShell.tsx` for keyboard/screen reader users.
 
-**Performance:**
-- Static guide content is tree-shaken per page (dynamic import by slug)
-- No API calls for guides (instant load)
-- Comments fetched only when share page loads
-- Guides page is ~50KB total (acceptable)
+**7. "Unsaved Changes" Warning**
 
-**Bundle strategy for guides:**
-- All guide content in a single `guidesData.ts` file
-- Lazy-loaded with the GuidesPage route (not in main bundle)
-- Markdown rendering uses already-installed `react-markdown`
+Add a `beforeunload` listener in `EditorPage.tsx` that warns when there are unsaved changes (compares current resume JSON to last saved snapshot).
 
-#### Implementation Order
+**8. Save Status Indicator Enhancement**
 
-1. Static guide content data (`guidesData.ts`)
-2. Guides Zustand store
-3. GuidesPage (listing with search + filters)
-4. GuidePage (reader with progress tracking)
-5. Database migration (share_comments table + RPC)
-6. useShareComments hook
-7. SharePage comment form enhancement
-8. ShareFeedbackSheet for owners
-9. Route registration + Dashboard access point
+Enhance the editor header indicator to show three clear states:
+- "Saving..." with spinner (when saving)
+- "Saved" with checkmark (after save, auto-hides after 2s)
+- "Offline" with cloud-off icon (when offline)
+
+**9. Global Command Palette (Cmd+K)**
+
+New file: `src/components/layout/CommandPalette.tsx`
+- Uses existing `cmdk` package (already installed)
+- Trigger: `Cmd/Ctrl+K` anywhere
+- Sections: Quick Actions, Recent Resumes, Navigation
+- Added to `AppRoutes` in `App.tsx`
+
+---
+
+### Implementation Order
+
+1. Fix AppShell CSS transition (fixes editor blank screen) -- highest priority
+2. Database migration (indexes)
+3. React.memo wrappers
+4. useDeferredValue for search
+5. Image lazy loading
+6. Editor keyboard shortcuts
+7. Skip-to-content link
+8. Unsaved changes warning
+9. Save status enhancement
+10. Command Palette
 
