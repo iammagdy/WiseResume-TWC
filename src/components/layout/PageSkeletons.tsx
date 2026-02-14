@@ -74,7 +74,7 @@ export function ShareSkeleton() {
 
 export function EditorSkeleton() {
   return (
-    <div className="flex-1 flex flex-col animate-pulse">
+    <div className="flex-1 flex flex-col animate-pulse min-h-[100dvh] bg-background">
       {/* Progress Bar */}
       <div className="px-4 py-3 border-b border-border">
         <div className="h-2 w-full bg-muted rounded" />
