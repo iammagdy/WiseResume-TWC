@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
-import { useResumeMutations, useResume } from '@/hooks/useResumes';
+import { useResumeMutations, useResume, dbToResumeData } from '@/hooks/useResumes';
 import { toast } from 'sonner';
 import { ContactSection } from '@/components/editor/ContactSection';
 import { SummarySection } from '@/components/editor/SummarySection';
@@ -88,6 +88,13 @@ export default function EditorPage() {
   // Validate that the resume ID exists in the database
   const { data: resumeFromDb, isLoading: isValidating, error: resumeError } = useResume(currentResumeId);
   const { updateResume } = useResumeMutations();
+
+  // Hydrate currentResume from DB if Zustand lost it but ID persisted
+  useEffect(() => {
+    if (resumeFromDb && !currentResume && currentResumeId) {
+      useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
+    }
+  }, [resumeFromDb, currentResume, currentResumeId]);
   const { isSyncing } = useOfflineSync();
   const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
   
@@ -418,13 +425,30 @@ export default function EditorPage() {
     return <Navigate to="/auth" replace />;
   }
 
-  // Resume guard
+  // Resume guard — wait for DB fetch before redirecting
   if (!currentResume) {
+    if (currentResumeId && isValidating) {
+      return (
+        <div className="flex-1 flex flex-col animate-pulse">
+          <div className="px-4 py-3 border-b border-border">
+            <div className="h-2 w-full bg-muted rounded" />
+          </div>
+          <div className="mt-3 px-4 flex gap-2">
+            {[1,2,3,4,5].map(i => <div key={i} className="h-10 w-20 bg-muted rounded flex-shrink-0" />)}
+          </div>
+          <div className="flex-1 px-4 py-4 space-y-4">
+            <div className="h-12 bg-muted rounded-xl" />
+            <div className="h-12 bg-muted rounded-xl" />
+            <div className="h-32 bg-muted rounded-xl" />
+          </div>
+        </div>
+      );
+    }
     return <Navigate to="/dashboard" replace />;
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
