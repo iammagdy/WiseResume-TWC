@@ -65,6 +65,7 @@ export default function InterviewPage() {
     dismissScore,
     countdown,
     audioLevel,
+    sttEngine,
     roleAnalysis,
     isAnalyzingRole,
     analyzeRole,
@@ -92,10 +93,24 @@ export default function InterviewPage() {
     }
   }, [transcript, interimText, status]);
 
-  // Show errors as toast
+  // Show errors as toast with specific messages and auto-show text input
   useEffect(() => {
     if (error) {
-      toast.error('Error', { description: error });
+      let title = 'Error';
+      let description = error;
+      if (error.toLowerCase().includes('microphone') && error.toLowerCase().includes('denied')) {
+        title = 'Microphone Blocked';
+        description = 'Please allow microphone access in your browser settings, or use the Type button.';
+        setShowTextInput(true);
+      } else if (error.toLowerCase().includes('not supported')) {
+        title = 'Speech Recognition Unavailable';
+        setShowTextInput(true);
+      } else if (error.toLowerCase().includes('timed out') || error.toLowerCase().includes('connection error')) {
+        title = 'Connection Issue';
+        description = error + ' You can use the Type button instead.';
+        setShowTextInput(true);
+      }
+      toast.error(title, { description });
     }
   }, [error]);
 
@@ -313,6 +328,7 @@ export default function InterviewPage() {
             onPress={handleToggle} 
             silenceDetected={silenceDetected}
             audioLevel={audioLevel}
+            sttEngine={sttEngine}
           />
           
           {/* Premium countdown overlay */}
