@@ -25,12 +25,7 @@ export default function ProfilePage() {
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const [editOpen, setEditOpen] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      navigate('/auth', { replace: true });
-    }
-  }, [user, navigate]);
-
+  // Auth guard handled by ProtectedRoute
   if (!user) return null;
 
   const completion = calculateProfileCompletion(profile);

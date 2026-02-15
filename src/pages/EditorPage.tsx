@@ -624,7 +624,7 @@ export default function EditorPage() {
 
   // === GUARDS (all inline, no effects — deterministic) ===
   if (authLoading) return <EditorSkeleton />;
-  if (!user) return <Navigate to="/auth" replace />;
+  // Auth guard handled by ProtectedRoute
   if (!storeHydrated) return <EditorSkeleton />;
   if (!currentResumeId && !currentResume) return <Navigate to="/dashboard" replace />;
   if (!currentResume) return <EditorSkeleton />;

@@ -30,7 +30,7 @@ const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResum
 const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
 const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImportSheet').then(m => ({ default: m.LinkedInImportSheet })));
 const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
-import { Navigate } from 'react-router-dom';
+
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
@@ -281,10 +281,7 @@ export default function DashboardPage() {
     setShowCreateDialog(true);
   };
 
-  // Auth guard - redirect unauthenticated users
-  if (!authLoading && !user) {
-    return <Navigate to="/auth" replace />;
-  }
+  // Auth guard handled by ProtectedRoute
 
   // Show onboarding for first-time users
   if (showOnboarding) {

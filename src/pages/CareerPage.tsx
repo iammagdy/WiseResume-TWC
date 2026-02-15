@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, RefreshCw, MapPin, Briefcase, Clock, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,7 @@ export default function CareerPage() {
   const [showQuiz, setShowQuiz] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
-  if (!user) return <Navigate to="/auth" replace />;
+  // Auth guard handled by ProtectedRoute
 
   const primaryResume = resumes?.find(r => r.is_primary) || resumes?.[0];
 

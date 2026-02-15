@@ -23,7 +23,7 @@ export default function JobDetailPage() {
   const { createApplication } = useJobApplicationMutations();
   const [showApply, setShowApply] = useState(false);
 
-  if (!user) { navigate('/auth'); return null; }
+  // Auth guard handled by ProtectedRoute
   if (isLoading) return <DetailSkeleton />;
   if (!job) return (
     <div className="flex-1 flex flex-col items-center justify-center p-6">
