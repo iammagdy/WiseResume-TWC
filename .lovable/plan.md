@@ -1,111 +1,101 @@
 
-## Mobile Export Module Audit
+## Final Export Screen Audit -- Findings and Fixes
 
-### Pipeline Summary
+### Screen Architecture
 
-```text
-ResumeData (Zustand store)
-  -> Template component renders HTML (with ExtraSections for extras)
-  -> html2canvas captures rendered DOM at 2x scale
-  -> pdf-lib slices canvas into pages with smart breaks
-  -> Footer (page numbers + branding) added
-  -> Blob returned
-  -> downloadFile() dispatches per-platform: iOS (share/open/data-url), Android (window.open), Desktop (anchor click)
-```
+The "final screen before download" consists of two layers:
 
-### Bugs Found
+1. **PreviewPage** (`src/pages/PreviewPage.tsx`) -- Full-page preview with template rendering, template switcher, page break controls, and a bottom action bar with "Download" + chevron for more options.
+2. **ExportOptionsSheet** (`src/components/editor/ExportOptionsSheet.tsx`) -- Bottom sheet listing 10 export types, PDF settings (page numbers, branding badge), progress bar, and the final CTA button.
+
+### Issues Found
 
 ---
 
-#### BUG 1 (Medium): Android download uses `window.open` -- no filename, potential popup block
+#### ISSUE 1 (Bug): Export button incorrectly disabled for Interview Prep when no cover letter exists
 
-`downloadMobile()` in `src/lib/downloadUtils.ts` (line 99-105) calls `window.open(url, '_blank')` which:
-- Opens the PDF in a browser tab but the user cannot save it with the correct filename (Chrome shows it as a random blob URL)
-- May be blocked by popup blockers on some Android browsers
-- Does not use the `fileName` parameter at all
+**Location:** `ExportOptionsSheet.tsx` line 302
 
-**Fix:** Use the `<a download>` pattern (same as desktop) for Android Chrome, which triggers a proper named download. Only fall back to `window.open` if the anchor click fails.
+The disable condition is:
+```
+disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && !hasCoverLetter)}
+```
 
-```typescript
-function downloadMobile(blob: Blob, fileName: string): DownloadResult {
-  // Try anchor download first (works on most Android browsers)
-  const url = URL.createObjectURL(blob);
-  try {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    return { success: true, method: 'anchor' };
-  } catch {
-    // Fallback to window.open
-    window.open(url, '_blank');
-    setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    return { success: true, method: 'open' };
-  }
-}
+`interview-prep` is not a PDF type, not a text type, and not docx. So when `hasCoverLetter` is false, the "Start Practice" button is disabled even though interview prep has nothing to do with cover letters. The button should always be enabled for interview-prep.
+
+**Fix:** Add `&& selectedType !== 'interview-prep'` to the disable condition:
+```
+disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && selectedType !== 'interview-prep' && !hasCoverLetter)}
 ```
 
 ---
 
-#### BUG 2 (Medium): DOCX export missing extra sections
+#### ISSUE 2 (UX): Bottom action bar has hidden text labels on narrow screens, leaving icon-only buttons that are unclear
 
-`src/lib/docxGenerator.ts` only exports: Contact, Summary, Experience, Education, Skills, Certifications.
+**Location:** `PreviewPage.tsx` lines 628-668
 
-Missing from DOCX: Projects, Awards, Languages, Publications, Volunteering, Hobbies, References.
+The secondary action row uses `<span className="hidden xs:inline ...">` which hides labels below 475px (the `xs` breakpoint). On a 320px iPhone SE, users see four cryptic icon-only buttons (back arrow, mic, share icon, folder icon on iOS) with no labels. This is confusing -- especially the mic icon for "Interview" and the share icon.
 
-Users who add these sections and export as DOCX will silently lose that data.
-
-**Fix:** Add the missing sections to `generateAndDownloadDOCX()` after the Certifications block, following the same pattern (heading + paragraphs).
+**Fix:** Change `hidden xs:inline` to always-visible labels with smaller text on tight screens. Use `text-xs` as default and `sm:text-sm` for larger screens. This ensures labels like "Edit", "Interview", "Share", and "Save" are always readable.
 
 ---
 
-#### BUG 3 (Low): Plain text export missing Volunteering, Publications, Hobbies, References
+#### ISSUE 3 (UX): ExportOptionsSheet scrollable list clips at bottom on short phones
 
-`generatePlainText()` in `src/lib/shareUtils.ts` includes Projects, Awards, Languages but omits Volunteering, Publications, Hobbies, and References.
+**Location:** `ExportOptionsSheet.tsx` line 179
 
-**Fix:** Add the missing sections after the Languages block.
+The `max-h-[40vh]` for the options list, combined with the toggle switches and CTA button below, can cause the CTA to be pushed offscreen on phones shorter than 667px (iPhone SE, older Androids). The sheet is `max-h-[85vh]` but the internal content doesn't have proper overflow management for the full content block.
+
+**Fix:** Change the outer `space-y-4 pb-6` div (line 177) to use `flex flex-col min-h-0` with the options list as `flex-1 overflow-y-auto` and the button + toggles as `shrink-0`. Add `pb-safe` to the bottom to respect home indicator. This ensures the CTA button is always visible at the bottom regardless of screen height.
 
 ---
 
-#### BUG 4 (Low): `ResumeDetailPage` statically imports `generatePDF` from `pdfGenerator`
+#### ISSUE 4 (UX): No summary of what will be exported
 
-Line 24: `import { generatePDF } from '@/lib/pdfGenerator'` -- this pulls the heavy `html2canvas` + `pdf-lib` bundle (~200KB) into the ResumeDetailPage chunk even though it's a lazy route. Not a bug per se, but a performance regression that was supposed to be fixed.
+Users see export type options but no confirmation of which resume or template they're exporting. On the final screen before download, there's no indicator like "Exporting: Magdy Saber -- Modern template".
 
-**Fix:** Convert to dynamic import inside `handleDownload`:
-```typescript
-const { generatePDF } = await import('@/lib/pdfGenerator');
+**Fix:** Add a small summary line below the sheet title showing the resume name and current template:
+```tsx
+<p className="text-sm text-muted-foreground mt-1">
+  {resumeName} -- {templateName} template
+</p>
 ```
 
+This requires passing `resumeName` and `templateName` as new optional props to `ExportOptionsSheet`.
+
 ---
 
-### What's Already Working Well
+#### ISSUE 5 (UX): "Download PDF" button label doesn't change when selecting non-default export
 
-- **iOS download flow**: Robust 3-tier fallback (navigator.share -> window.open -> data URL anchor) with proper AbortError handling for cancelled shares
-- **Export progress UI**: Clear stage-based progress bar (Preparing -> Capturing -> Paginating -> Embedding -> Finalizing -> Downloading) with percentage
-- **Error handling**: Typed `PdfGenerationError` with codes (EMPTY_CANVAS, MISSING_ELEMENT, CAPTURE_FAILED), retry logic (up to 2 retries), and human-readable toast messages with retry action
-- **Button disable during generation**: `isGenerating` state properly disables all export buttons during PDF generation, preventing double-taps
-- **iOS "Save to Files" button**: Dedicated button for iOS users that triggers `navigator.share` with a "Save to Files" hint toast
-- **Mobile capture preparation**: `prepareForCapture()` fixes element width to 612px, removes CSS transforms, makes parent containers overflow:visible, and scrolls to top -- all critical for iOS Safari compatibility
-- **Template preview rendering**: All 30 templates now render in preview with ExtraSections component appended
-- **Page break intelligence**: Smart break algorithm avoids cutting through `data-break-avoid` blocks and protects section header orphaning
+When a user selects "PDF (ATS-Optimized)", the button still says "Download PDF" -- this is technically correct but doesn't reassure the user that they selected the ATS version. The label should distinguish between the two PDF types.
+
+**Fix:** Update `getButtonLabel()` to return "Download ATS PDF" for `ats-pdf` and "Download One-Page PDF" for `one-page` to make the action more specific.
+
+---
+
+#### ISSUE 6 (Minor): PreviewPage bottom bar second row has `flex-1` on all buttons causing uneven sizing on iOS
+
+On iOS, when the "Save to Files" button appears (4 buttons total), all use `flex-1` which distributes space evenly. But the "Edit" button with back arrow icon looks cramped at 25% width. Non-iOS users see 3 buttons which is fine.
+
+**Fix:** For the iOS case, give "Edit" a fixed `w-auto px-3` instead of `flex-1` since it's a short label, letting the other 3 buttons share remaining space evenly.
+
+---
 
 ### Implementation Plan
 
 | File | Change | Priority |
 |------|--------|----------|
-| `src/lib/downloadUtils.ts` | Fix Android download to use anchor pattern with filename | High |
-| `src/lib/docxGenerator.ts` | Add Projects, Awards, Languages, Publications, Volunteering, Hobbies, References sections | High |
-| `src/lib/shareUtils.ts` | Add Volunteering, Publications, Hobbies, References to `generatePlainText()` | Medium |
-| `src/pages/ResumeDetailPage.tsx` | Convert static `generatePDF` import to dynamic import | Low |
+| `ExportOptionsSheet.tsx` line 302 | Fix disabled logic for interview-prep | High (bug) |
+| `ExportOptionsSheet.tsx` line 157-164 | Make button labels more specific for ATS/one-page PDF | Medium |
+| `ExportOptionsSheet.tsx` line 177-179 | Fix layout to keep CTA visible on short phones | Medium |
+| `ExportOptionsSheet.tsx` props + header | Add resume name + template name summary | Medium |
+| `PreviewPage.tsx` lines 628-668 | Show button labels on all screen sizes | Medium |
+| `PreviewPage.tsx` lines 686-696 | Pass resumeName and templateName to ExportOptionsSheet | Medium |
 
 ### What Won't Change
 
-- Core PDF generation algorithm (html2canvas -> pdf-lib pipeline)
-- iOS download flow (already robust with 3-tier fallback)
-- Export progress UI and error handling
-- Page break logic and template-aware pagination
-- Button disable behavior during generation
-- All public function signatures remain identical
+- No changes to export business rules or PDF generation logic
+- No changes to the export handler (`handleExport`) or its type signatures
+- No changes to the core `onExport` callback signature
+- Template rendering, page break logic, and download utilities remain untouched
+- All existing `ExportType` values and their behaviors remain identical
