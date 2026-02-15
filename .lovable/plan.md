@@ -1,52 +1,81 @@
 
 
-## Mobile Responsiveness Fix: Work Timeline and Skills Chips
+## Mobile Responsiveness Fix: Form Inputs and Interactive Elements
 
 ### Overview
 
-Optimize the work experience timeline and skills section for mobile touch interaction. Desktop layouts remain completely unchanged.
+Optimize form fields, AI action buttons, navigation buttons, and floating elements for mobile touch interaction. All changes use Tailwind responsive prefixes and the existing `useIsMobile` hook. Desktop layouts remain completely unchanged.
 
 ### Changes
 
-**File 1: `src/components/editor/ExperienceTimeline.tsx`**
+**File 1: `src/components/ui/form-field.tsx`**
 
-Hide the horizontal timeline bar on mobile and show a vertical card-based layout instead:
+Improve the `InputFormField` and `TextareaFormField` components for mobile touch comfort:
 
-- Import `useIsMobile` hook
-- On mobile (<768px), replace the horizontal bar visualization with a vertical list of cards:
-  - Each job segment renders as a full-width rounded card showing the company name, date range label, and a colored left border (primary for jobs)
-  - Gap segments render as warning-styled alert banners between job cards, with the "Explain with AI" button inline (min 44px height)
-  - Year markers shown as text above/below the vertical list
-- On desktop (>=768px), render the existing horizontal timeline bar exactly as-is
-- The gap alert section at the bottom remains shared between both layouts (already has good mobile styling)
-- No changes to data parsing, gap detection, or any logic
+- **Labels**: Change from `text-sm` to `text-sm sm:text-sm font-semibold` (add `font-semibold` for better readability on mobile)
+- **Input field wrapper spacing**: Change the root `space-y-1.5` to `space-y-2 sm:space-y-1.5` for more vertical breathing room on mobile
+- **Character counter**: Add `text-xs` (already `text-sm`, reduce to `text-xs` on small screens) -- no position change needed since it's already in a flex row below the input
+- **Textarea**: Add `min-h-[120px]` class on mobile to the Textarea component for better vertical space, keep existing `resize-none`
+- **Clear button**: Already has `min-w-[48px] min-h-[48px]` -- no change needed (already meets 44px+ target)
+- **Error messages**: Keep as-is (already well-styled with icon + text)
 
-**File 2: `src/components/editor/SkillsSection.tsx`**
+These are minor Tailwind class additions that affect both components uniformly.
 
-Improve touch targets and layout for skills on small screens:
+**File 2: `src/components/ui/input.tsx`**
 
-- Skill input row: Add responsive classes so the input is `h-12 text-base` (already 12 on input, ensure 16px font with `text-base` to prevent iOS zoom), and the Add button is `min-h-[48px]` on mobile
-- Current skills chips: Change gap from `gap-2` to `gap-2 sm:gap-2` (keep same), increase Badge `min-h` from `[44px]` to keep at 44px but add `px-3 sm:px-4` padding, and ensure the X delete area has a `min-w-[32px] min-h-[32px]` tap zone by wrapping the X icon in a span with those dimensions
-- Common Skills section: Change from `flex flex-wrap` to `grid grid-cols-2 sm:flex sm:flex-wrap` so on mobile it shows as a 2-column grid with `gap-2`, each button `min-h-[44px]`
-- Suggested skills (gap analysis): Same grid treatment -- `grid grid-cols-2 sm:flex sm:flex-wrap` with `gap-2`
-- All changes use Tailwind responsive prefixes only; no logic changes
+The base Input component already has `h-12` (48px) and `text-[16px]` -- no changes needed. Already meets all mobile requirements.
+
+**File 3: `src/components/ui/textarea.tsx`**
+
+The base Textarea already uses `text-[16px]` (prevents iOS zoom). Add a responsive minimum height:
+
+- Add `min-h-[120px] sm:min-h-[80px]` to replace the current `min-h-[80px]`, giving textareas more vertical space on mobile
+
+**File 4: `src/pages/EditorPage.tsx`**
+
+Optimize the Previous/Next navigation buttons and bottom bar for mobile:
+
+- **Nav buttons container** (line 648): Change from `gap-3` to `gap-2 sm:gap-3` and add `flex-col xs:flex-row` -- on very small screens (<480px), stack the Previous/Next buttons vertically as full-width buttons
+- **Button height**: Change from `h-12` to `min-h-[56px] sm:h-12` on mobile for larger touch targets
+- **ProofreadButton**: Change from `bottom-36` to `bottom-40 sm:bottom-36` and increase touch target from `w-12 h-12` to `w-14 h-14 sm:w-12 sm:h-12` on mobile for a 56px touch target
+
+**File 5: `src/components/editor/ProofreadButton.tsx`**
+
+Optimize the floating proofread FAB for mobile:
+
+- Increase size from `w-12 h-12` to `min-w-[48px] min-h-[48px] w-12 h-12` (already 48px, which is good)
+- Adjust position from `bottom-36 right-4` to `bottom-40 right-4 sm:bottom-36` to avoid overlap with the AI Studio bar on mobile
+- No logic changes
+
+**File 6: `src/components/editor/SectionCard.tsx`**
+
+Minor mobile optimization for section card padding:
+
+- Change content padding from `px-4 pb-4` to `px-3 sm:px-4 pb-4` to give slightly more horizontal space to form fields on very narrow screens (320px)
+
+**File 7: `src/components/editor/InlineAIButton.tsx`**
+
+The AI Assist button already has `min-h-[44px]` and the dropdown menu items have `min-h-[44px]` -- already meets touch target requirements. No changes needed.
 
 ### What Does NOT Change
 
-- All CRUD operations on work experiences (add, edit, delete, expand/collapse)
-- AI enhancement features (InlineAIButton, AIEnhanceDialog, AIContextualNudge)
-- Gap detection logic and GapExplainerSheet
-- Skills add/remove/suggest logic
+- Form validation logic, Zod schemas, error handling
+- Auto-save functionality and debouncing
+- AI Assist, AIEnhanceDialog, AIContextualNudge features
+- Character counting and maxLength enforcement
+- Input/Textarea data binding and onChange handlers
 - Desktop layouts (>=768px) -- identical behavior and appearance
-- Data persistence, auto-save, navigation guards
-- Drag-to-reorder functionality (if any)
-- SectionEmptyState components
+- AIAssistantBar bottom bar functionality
+- Keyboard shortcuts for desktop users
+- Template switching and job matching features
+- All sheet/modal functionality
 
 ### Technical Notes
 
-- Uses existing `useIsMobile` hook (768px breakpoint) for timeline toggle
-- Uses Tailwind responsive prefixes (`sm:`, `md:`) for skills adjustments
-- Touch targets maintain 44px minimum per project guidelines
-- Input uses `text-base` (16px) to prevent iOS auto-zoom on focus
-- All animations (framer-motion) preserved on both layouts
+- Uses Tailwind responsive prefixes (`sm:`) for all adjustments
+- Input already uses `text-[16px]` which prevents iOS auto-zoom -- verified in both Input and Textarea base components
+- Clear buttons already have 48px touch targets -- verified in form-field.tsx
+- AI Assist menu items already have 44px minimum height -- verified in InlineAIButton.tsx
+- Navigation buttons increase from 48px to 56px on mobile for one-handed comfort
+- ProofreadButton repositioned to avoid AI Studio bar overlap on mobile
 
