@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle } from 'lucide-react';
+import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -62,10 +62,18 @@ export function ExportOptionsSheet({
   const exportOptions = [
     {
       id: 'resume' as ExportType,
-      label: 'Resume Only',
-      description: 'Export your tailored resume',
+      label: 'PDF (Design-Enhanced)',
+      description: 'Full design with colors, icons & visual hierarchy',
       icon: FileText,
       available: true,
+    },
+    {
+      id: 'ats-pdf' as ExportType,
+      label: 'PDF (ATS-Optimized)',
+      description: 'Black & white, simple fonts, machine-readable',
+      icon: Shield,
+      available: true,
+      badge: 'ATS-Safe',
     },
     {
       id: 'docx' as ExportType,
@@ -80,6 +88,27 @@ export function ExportOptionsSheet({
       label: 'One-Page Resume',
       description: 'Scale entire resume to fit one page',
       icon: Minimize2,
+      available: true,
+    },
+    {
+      id: 'linkedin' as ExportType,
+      label: 'LinkedIn Format',
+      description: 'Copy-paste ready sections for LinkedIn',
+      icon: Linkedin,
+      available: true,
+    },
+    {
+      id: 'plain-text' as ExportType,
+      label: 'Plain Text (.txt)',
+      description: 'Pure text, email-friendly, ATS-safe',
+      icon: AlignLeft,
+      available: true,
+    },
+    {
+      id: 'share-link' as ExportType,
+      label: 'Shareable Web Link',
+      description: 'Generate a public link to your resume',
+      icon: Link2,
       available: true,
     },
     {
@@ -106,7 +135,17 @@ export function ExportOptionsSheet({
     onExport(selectedType, showPageNumbers, showBranding);
   };
 
-  const isDocx = selectedType === 'docx';
+  const isPdfType = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined'].includes(selectedType);
+  const isTextType = ['linkedin', 'plain-text', 'share-link'].includes(selectedType);
+
+  const getButtonLabel = () => {
+    if (selectedType === 'docx') return 'Download DOCX';
+    if (selectedType === 'combined') return 'Download Package';
+    if (selectedType === 'linkedin') return 'Copy LinkedIn Text';
+    if (selectedType === 'plain-text') return 'Download .txt';
+    if (selectedType === 'share-link') return 'Copy Share Link';
+    return 'Download PDF';
+  };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -120,7 +159,7 @@ export function ExportOptionsSheet({
 
         <div className="space-y-4 pb-6">
           {/* Export type selection */}
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-[40vh] overflow-y-auto">
             {exportOptions.map((option) => (
               <motion.button
                 key={option.id}
@@ -138,14 +177,14 @@ export function ExportOptionsSheet({
               >
                 <div className="flex items-start gap-3">
                   <div className={cn(
-                    'w-10 h-10 rounded-lg flex items-center justify-center',
+                    'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
                     selectedType === option.id && option.available
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted text-muted-foreground'
                   )}>
                     <option.icon className="w-5 h-5" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{option.label}</span>
                       {selectedType === option.id && option.available && (
@@ -189,8 +228,8 @@ export function ExportOptionsSheet({
             ))}
           </div>
 
-          {/* Footer options - hidden for DOCX */}
-          {!isDocx && (
+          {/* Footer options - only for PDF types */}
+          {isPdfType && !isTextType && selectedType !== 'ats-pdf' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
                 <div className="space-y-0.5">
@@ -243,7 +282,7 @@ export function ExportOptionsSheet({
             size="lg"
             className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={handleExport}
-            disabled={isExporting || (selectedType !== 'resume' && selectedType !== 'one-page' && selectedType !== 'docx' && !hasCoverLetter)}
+            disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && !hasCoverLetter)}
             style={{
               boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
             }}
@@ -255,8 +294,8 @@ export function ExportOptionsSheet({
               </>
             ) : (
               <>
-                <Download className="w-5 h-5 mr-2" />
-                {isDocx ? 'Download DOCX' : selectedType === 'combined' ? 'Download Package' : 'Download PDF'}
+                {isTextType ? <Copy className="w-5 h-5 mr-2" /> : <Download className="w-5 h-5 mr-2" />}
+                {getButtonLabel()}
               </>
             )}
           </Button>

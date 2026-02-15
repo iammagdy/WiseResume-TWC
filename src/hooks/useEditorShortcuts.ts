@@ -5,10 +5,12 @@ import { toast } from 'sonner';
 interface UseEditorShortcutsOptions {
   onSave: () => void;
   onExport?: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
   resumeId?: string | null;
 }
 
-export function useEditorShortcuts({ onSave, onExport, resumeId }: UseEditorShortcutsOptions) {
+export function useEditorShortcuts({ onSave, onExport, onUndo, onRedo, resumeId }: UseEditorShortcutsOptions) {
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,10 +32,22 @@ export function useEditorShortcuts({ onSave, onExport, resumeId }: UseEditorShor
           e.preventDefault();
           onExport?.();
           break;
+        case 'z':
+          e.preventDefault();
+          if (e.shiftKey) {
+            onRedo?.();
+          } else {
+            onUndo?.();
+          }
+          break;
+        case 'y':
+          e.preventDefault();
+          onRedo?.();
+          break;
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onSave, onExport, resumeId, navigate]);
+  }, [onSave, onExport, onUndo, onRedo, resumeId, navigate]);
 }

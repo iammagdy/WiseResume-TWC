@@ -220,6 +220,39 @@ export default function PreviewPage() {
           return;
         }
 
+        // Text-based exports (no PDF generation needed)
+        if (type === 'plain-text') {
+          const { generatePlainText } = await import('@/lib/shareUtils');
+          const text = generatePlainText(currentResume);
+          const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+          const fileName = `${baseName}_Resume.txt`;
+          const result = await downloadFile({ blob, fileName });
+          if (result.success) toast.success('Plain text downloaded!');
+          setShowExportSheet(false);
+          return;
+        }
+
+        if (type === 'linkedin') {
+          const { generateLinkedInFormat } = await import('@/lib/shareUtils');
+          const sections = generateLinkedInFormat(currentResume);
+          const fullText = `=== ABOUT ===\n${sections.about}\n\n=== EXPERIENCE ===\n${sections.experience}\n\n=== EDUCATION ===\n${sections.education}\n\n=== SKILLS ===\n${sections.skills}`;
+          await navigator.clipboard.writeText(fullText);
+          toast.success('LinkedIn format copied to clipboard!');
+          setShowExportSheet(false);
+          return;
+        }
+
+        if (type === 'share-link') {
+          const { shareAsLink } = await import('@/lib/shareUtils');
+          if (currentResume.id) {
+            await shareAsLink(currentResume.id);
+          } else {
+            toast.error('Save your resume first to generate a share link');
+          }
+          setShowExportSheet(false);
+          return;
+        }
+
         let pdfBlob: Blob;
         let fileName: string;
 
@@ -240,6 +273,29 @@ export default function PreviewPage() {
             pdfBlob = await generateOnePagePDF(currentResume, selectedTemplate, resumeRef.current, pdfOptions, onProgress);
             fileName = `${baseName}_Resume_OnePage.pdf`;
             break;
+
+          case 'ats-pdf': {
+            // ATS mode: strip colors, force single column, no photo
+            const atsResume = {
+              ...currentResume,
+              customization: {
+                ...(currentResume.customization || {}),
+                accentColor: '#000000',
+                layout: 'single' as const,
+                fontHeading: 'Arial',
+                fontBody: 'Arial',
+                fontSize: 'medium' as const,
+                spacing: 'normal' as const,
+                margins: 'normal' as const,
+                lineHeight: '1.15' as const,
+                pageFormat: (currentResume.customization?.pageFormat || 'letter') as 'a4' | 'letter',
+              },
+              contactInfo: { ...currentResume.contactInfo, photoUrl: undefined },
+            };
+            pdfBlob = await generatePDF(atsResume, 'clean', resumeRef.current, undefined, { ...pdfOptions, showBranding: false }, onProgress);
+            fileName = `${baseName}_Resume_ATS.pdf`;
+            break;
+          }
 
           case 'resume':
           default:
@@ -263,6 +319,10 @@ export default function PreviewPage() {
             'combined': 'Application package downloaded!',
             'one-page': 'One-page resume downloaded!',
             'docx': 'Word document downloaded!',
+            'ats-pdf': 'ATS-optimized PDF downloaded!',
+            'linkedin': 'LinkedIn format copied!',
+            'plain-text': 'Plain text downloaded!',
+            'share-link': 'Share link generated!',
           };
           toast.success(successMessages[type]);
           if (result.method === 'data-url' || result.method === 'open') {
