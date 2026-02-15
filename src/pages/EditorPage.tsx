@@ -945,7 +945,7 @@ export default function EditorPage() {
               {showATSBadge ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
             </button>
             <p className="text-[11px] sm:text-xs text-muted-foreground min-w-0 truncate">
-              {Object.values(sectionStatus).filter(Boolean).length} of {Object.keys(sectionStatus).length} sections completed
+              {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length} of {steps.filter(s => s.id !== 'more').length} sections completed
             </p>
           </div>
           {showATSBadge && localHealthScore && (
