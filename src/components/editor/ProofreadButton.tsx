@@ -28,7 +28,7 @@ export const ProofreadButton = memo(function ProofreadButton({
         onClick();
       }}
       className={cn(
-        'fixed bottom-36 right-4 z-40 w-12 h-12 rounded-full',
+        'fixed bottom-40 right-4 sm:bottom-36 z-40 w-14 h-14 sm:w-12 sm:h-12 rounded-full',
         'glass-elevated shadow-lg flex items-center justify-center',
         'touch-manipulation active:scale-95 transition-transform',
         isChecking && 'animate-pulse'

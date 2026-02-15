@@ -102,8 +102,8 @@ export function InputFormField({
   };
 
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="flex items-center gap-2 text-sm">
+    <div className="space-y-2 sm:space-y-1.5">
+      <Label htmlFor={id} className="flex items-center gap-2 text-sm font-semibold">
         {icon && <span className="text-muted-foreground">{icon}</span>}
         {label}
         {required && <span className="text-destructive">*</span>}
@@ -168,7 +168,7 @@ export function InputFormField({
         {showCount && maxLength && (
           <p
             className={cn(
-              'text-sm',
+              'text-xs sm:text-sm',
               isOverLimit ? 'text-destructive font-medium' : 'text-muted-foreground'
             )}
           >
@@ -211,8 +211,8 @@ export function TextareaFormField({
   };
 
   return (
-    <div className="space-y-1.5">
-      <Label htmlFor={id} className="flex items-center gap-2 text-sm">
+    <div className="space-y-2 sm:space-y-1.5">
+      <Label htmlFor={id} className="flex items-center gap-2 text-sm font-semibold">
         {icon && <span className="text-muted-foreground">{icon}</span>}
         {label}
         {required && <span className="text-destructive">*</span>}
@@ -229,7 +229,7 @@ export function TextareaFormField({
           rows={rows}
           maxLength={maxLength}
           className={cn(
-            'resize-none',
+            'resize-none min-h-[120px] sm:min-h-[80px]',
             showError && 'border-destructive focus-visible:ring-destructive',
             value && 'pr-10',
           )}
@@ -264,7 +264,7 @@ export function TextareaFormField({
         {showCount && maxLength && (
           <p
             className={cn(
-              'text-sm',
+              'text-xs sm:text-sm',
               isOverLimit ? 'text-destructive font-medium' : 'text-muted-foreground'
             )}
           >
