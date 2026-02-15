@@ -1,51 +1,66 @@
 
 
-## Add "Jump to Section" FloatingPanel to Settings Header
+## Polish All FloatingPanel Usages for Native Mobile Feel
 
 ### Overview
 
-Add a FloatingPanel trigger button in the Settings header (top-right) that opens a panel listing all settings sections. Tapping a section smoothly scrolls to it. The existing horizontal jump bar and all section rendering remain untouched.
+Standardize styling across all 4 `FloatingPanelContent` usages and update the base `FloatingPanelButton` component to enforce consistent mobile-friendly touch targets. The base `FloatingPanelContent` component already applies `bg-background/95 backdrop-blur-xl border-border/40`, so per-usage fixes focus on scroll constraints and safe areas.
 
 ### What Changes
 
+**File: `src/components/ui/floating-panel.tsx`**
+
+Update `FloatingPanelButton` base styles (line 409-411) to add mobile touch target defaults:
+
+| Before | After |
+|--------|-------|
+| `flex w-full items-center gap-2 rounded-md px-4 py-2 text-left text-sm hover:bg-muted transition-colors` | `flex w-full items-center gap-2 rounded-md px-4 py-2 text-left text-sm hover:bg-muted transition-all min-h-[44px] touch-manipulation active:scale-95` |
+
+This ensures every button rendered via `FloatingPanelButton` (used in `ActionsPanel`) automatically meets 44px touch targets with tactile feedback.
+
+---
+
+**File: `src/components/ActionsPanel.tsx`**
+
+The `FloatingPanelContent` (line 54-59) already has `w-[calc(100vw-2rem)] max-w-md` and `backdrop-blur-xl bg-background/95`. Add missing mobile constraints:
+
+| Before | After |
+|--------|-------|
+| `w-[calc(100vw-2rem)] max-w-md`, `max-h-[80dvh] overflow-y-auto`, `pb-safe`, `backdrop-blur-xl bg-background/95 border-border/40` | Same -- already correct, no changes needed |
+
+ActionsPanel is already fully polished. No changes.
+
+---
+
+**File: `src/components/editor/StepperNav.tsx`**
+
+Two FloatingPanelContent usages:
+
+1. **Mobile panel (line 177)**: Add `overflow-y-auto`
+   - Before: `max-h-[80dvh] pb-safe`
+   - After: `max-h-[80dvh] overflow-y-auto pb-safe`
+
+2. **Desktop panel (line 315)**: Add scroll and safe area classes
+   - Before: no className
+   - After: `max-h-[80dvh] overflow-y-auto pb-safe`
+
+3. **Desktop grid buttons (line 324)**: Add `min-h-[44px]` (already present, confirmed correct)
+
+---
+
 **File: `src/pages/SettingsPage.tsx`**
 
-1. **Add imports** for `FloatingPanelRoot`, `FloatingPanelTrigger`, `FloatingPanelContent` from `@/components/ui/floating-panel`, and the `Menu` icon from `lucide-react`.
+The `FloatingPanelContent` (line 299) already has `max-h-[80dvh] overflow-y-auto pb-safe`. No changes needed -- already correct.
 
-2. **Add a scroll helper** function near the existing `scrollToTop`:
-   ```text
-   const scrollToSection = useCallback((sectionId: string) => {
-     const el = scrollRef.current?.querySelector(`#${sectionId}`);
-     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-     haptics.selection();
-   }, []);
-   ```
+---
 
-3. **Update the header** (lines 273-284): Add the FloatingPanel trigger as a right-aligned button next to the title. The header layout changes from a simple left-aligned row to a `justify-between` row:
+### Summary of Actual Edits
 
-   - Left side: Back button + "Settings" title (unchanged)
-   - Right side: FloatingPanel trigger with `Menu` icon
+| File | Lines | Change |
+|------|-------|--------|
+| `src/components/ui/floating-panel.tsx` | 410 | Add `min-h-[44px] touch-manipulation active:scale-95` to `FloatingPanelButton` base class |
+| `src/components/editor/StepperNav.tsx` | 177 | Add `overflow-y-auto` to mobile FloatingPanelContent |
+| `src/components/editor/StepperNav.tsx` | 315 | Add `max-h-[80dvh] overflow-y-auto pb-safe` to desktop FloatingPanelContent |
 
-4. **FloatingPanel content**: Maps over the existing `SECTIONS` array to render a list of tappable rows, each showing the section icon and label. On click, calls `scrollToSection(section.id)`. Styled with `max-h-[80dvh]`, `overflow-y-auto`, `pb-safe`, and 44px min-height touch targets.
-
-5. **Make header sticky**: Add `sticky top-0 z-10 backdrop-blur-xl` to the header so it stays visible while scrolling.
-
-### Visual Result
-
-- **Mobile**: A compact menu icon button in the header opens a bottom-anchored panel with all 7 sections listed vertically with their icons. Tapping scrolls to the section.
-- **Desktop**: Same behavior -- the menu button is always visible as a quick-access alternative to the horizontal chip bar.
-
-### Existing Logic Preserved
-
-- `SECTIONS` array is reused as-is (no changes)
-- Section DOM IDs (`section-appearance`, `section-ai-voice`, etc.) are unchanged
-- `activeSection` tracking via IntersectionObserver is untouched
-- Horizontal jump bar remains in place
-- All section rendering stays identical
-
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/pages/SettingsPage.tsx` | Add FloatingPanel imports, `scrollToSection` helper, update header with sticky positioning and FloatingPanel trigger |
+Only 3 small class-string changes. No logic, handler, or structural changes.
 
