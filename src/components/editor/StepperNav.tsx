@@ -174,7 +174,7 @@ export const StepperNav = memo(function StepperNav({
                 <Plus className="w-4 h-4" />
                 More Sections
               </FloatingPanelTrigger>
-              <FloatingPanelContent className="max-h-[80dvh] pb-safe">
+              <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe">
                 <div className="px-4 pb-4">
                   <div className="grid grid-cols-2 gap-2">
                     {MORE_SECTIONS.map(sec => {
@@ -312,7 +312,7 @@ export const StepperNav = memo(function StepperNav({
             <FloatingPanelTrigger title="Additional Sections" className="h-10 w-10 !px-0 justify-center rounded-full">
               <Plus className="w-5 h-5" />
             </FloatingPanelTrigger>
-            <FloatingPanelContent>
+            <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe">
               <div className="px-4 pb-4">
                 <div className="grid grid-cols-2 gap-2">
                   {MORE_SECTIONS.map(sec => {
