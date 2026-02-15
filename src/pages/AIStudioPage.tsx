@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Sparkles,
@@ -106,6 +106,16 @@ export default function AIStudioPage() {
   const [showEnhance, setShowEnhance] = useState(false);
   const [moreToolsOpen, setMoreToolsOpen] = useState(true);
   const [stickyInput, setStickyInput] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Auto-open enhance sheet when navigated with ?action=enhance
+  useEffect(() => {
+    if (searchParams.get('action') === 'enhance') {
+      setShowEnhance(true);
+      searchParams.delete('action');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleStickySubmit = useCallback(() => {
     if (!stickyInput.trim()) return;
