@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy } from 'lucide-react';
+import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -36,6 +37,7 @@ export function ExportOptionsSheet({
   exportProgress,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
+  const navigate = useNavigate();
   
   const [selectedType, setSelectedType] = useState<ExportType>('resume');
   const [showPageNumbers, setShowPageNumbers] = useState(pdfDefaults.showPageNumbers ?? true);
@@ -112,6 +114,13 @@ export function ExportOptionsSheet({
       available: true,
     },
     {
+      id: 'interview-prep' as ExportType,
+      label: 'Interview Prep',
+      description: 'Practice answering questions about this resume',
+      icon: Mic,
+      available: true,
+    },
+    {
       id: 'cover-letter' as ExportType,
       label: 'Cover Letter Only',
       description: hasCoverLetter 
@@ -132,13 +141,21 @@ export function ExportOptionsSheet({
   ];
 
   const handleExport = () => {
+    if (selectedType === 'interview-prep') {
+      onOpenChange(false);
+      navigate('/interview');
+      return;
+    }
     onExport(selectedType, showPageNumbers, showBranding);
   };
 
   const isPdfType = ['resume', 'ats-pdf', 'one-page', 'cover-letter', 'combined'].includes(selectedType);
   const isTextType = ['linkedin', 'plain-text', 'share-link'].includes(selectedType);
 
+  const isInterviewPrep = selectedType === 'interview-prep';
+
   const getButtonLabel = () => {
+    if (selectedType === 'interview-prep') return 'Start Practice';
     if (selectedType === 'docx') return 'Download DOCX';
     if (selectedType === 'combined') return 'Download Package';
     if (selectedType === 'linkedin') return 'Copy LinkedIn Text';
@@ -294,7 +311,7 @@ export function ExportOptionsSheet({
               </>
             ) : (
               <>
-                {isTextType ? <Copy className="w-5 h-5 mr-2" /> : <Download className="w-5 h-5 mr-2" />}
+                {isInterviewPrep ? <Mic className="w-5 h-5 mr-2" /> : isTextType ? <Copy className="w-5 h-5 mr-2" /> : <Download className="w-5 h-5 mr-2" />}
                 {getButtonLabel()}
               </>
             )}

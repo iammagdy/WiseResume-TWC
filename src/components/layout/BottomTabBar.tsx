@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Briefcase, Sparkles, Mic } from 'lucide-react';
+import { FileText, Settings, Home, Briefcase, Sparkles } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -33,13 +33,6 @@ const tabs: TabItem[] = [
     icon: Sparkles,
     label: 'Studio',
     matchPaths: ['/ai-studio'],
-  },
-  {
-    path: '/interview',
-    icon: Mic,
-    label: 'Interview',
-    matchPaths: ['/interview'],
-    guarded: true,
   },
   { 
     path: '/applications', 

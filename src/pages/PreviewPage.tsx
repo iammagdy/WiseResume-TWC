@@ -323,6 +323,7 @@ export default function PreviewPage() {
             'linkedin': 'LinkedIn format copied!',
             'plain-text': 'Plain text downloaded!',
             'share-link': 'Share link generated!',
+            'interview-prep': 'Starting interview prep...',
           };
           toast.success(successMessages[type]);
           if (result.method === 'data-url' || result.method === 'open') {
