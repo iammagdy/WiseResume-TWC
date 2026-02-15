@@ -1,80 +1,78 @@
 
 
-## Mobile Responsiveness Fix: Dashboard Layout and Navigation Bar
+## Mobile Responsiveness Fix: Global Mobile Enhancements
 
 ### Overview
 
-Optimize resume cards, stats header, search bar, FAB, and bottom navigation for mobile touch interaction. Desktop layouts remain completely unchanged.
+Apply targeted global mobile improvements to the viewport meta tag, CSS globals, toast notifications, and the Applications/Jobs page. Most global enhancements (safe areas, overflow-x hidden, momentum scrolling, settings row touch targets) are already well-implemented.
 
 ### Changes
 
-**File 1: `src/components/dashboard/ResumeListCard.tsx`**
+**File 1: `index.html`**
 
-Improve card touch targets and readability on mobile:
+Update viewport meta tag to allow zoom up to 5x for accessibility:
 
-- Card content padding: Change `p-4` to `p-4 sm:p-4` (keep same) but add `min-h-[120px]` to ensure comfortable card height
-- Resume title: Change from default font size to `text-base sm:text-sm` (18px on mobile, 14px on desktop)
-- Metadata text (target job, timestamp): Change from `text-sm` to `text-sm` (already 14px) -- keep as-is
-- "No target job set" text: Add `break-words` class to ensure wrapping
-- Three-dot menu button: Change from `h-10 w-10` to `min-w-[44px] min-h-[44px] h-10 w-10` to guarantee 44px touch target
-- Progress bar: Already `flex-1` (full-width within card) -- no change needed
-- Card spacing: The parent container already uses `space-y-4` which gives ~16px between cards -- adequate
+- Change `content="width=device-width, initial-scale=1.0, viewport-fit=cover"` to `content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"`
+- This improves accessibility by allowing users to pinch-zoom
 
-**File 2: `src/components/dashboard/DashboardStats.tsx`**
+**File 2: `src/index.css`**
 
-Optimize the stats hero card for mobile:
+Add smooth scrolling and minor global improvements:
 
-- Greeting text: Change from `text-lg` to `text-xl sm:text-lg` for larger mobile display (~20px)
-- Avatar size is handled elsewhere (profile dropdown) -- no change here
-- Stats grid: The `grid grid-cols-2` already handles 2-column layout on all screens -- keep as-is
-- Score Ring: Already 72px -- keep as-is
+- Add `scroll-behavior: smooth;` to the `html` rule (currently only has font-family and font-smoothing)
+- No other global CSS changes needed -- safe areas, overflow-x hidden, momentum scrolling, and overscroll-behavior are already implemented on the body
 
-**File 3: `src/pages/DashboardPage.tsx`**
+**File 3: `src/index.css` (toast section)**
 
-Optimize search bar and resume list container:
+Improve toast mobile styling in the existing `@media (max-width: 640px)` block:
 
-- Search input: Change from `h-11` to `h-12 sm:h-11 text-base` to ensure 48px height and 16px font on mobile
-- Resume list container: The existing `space-y-4 md:grid md:grid-cols-2` already forces single-column on mobile and 2-column on tablet -- keep as-is
-- Add `px-4` margins are already 16px -- adequate
+- Add `font-size: 14px !important;` to `.toast-premium` within the media query so text is comfortably readable on small screens
+- Add `padding-top: env(safe-area-inset-top)` to `[data-sonner-toaster]` within the media query so toasts respect the notch
 
-**File 4: `src/components/dashboard/FloatingCreateButton.tsx`**
+**File 4: `src/components/applications/JobActivityStats.tsx`**
 
-Increase FAB size on mobile:
+Optimize the 2x2 stats grid for very small screens:
 
-- Change from `h-14 px-5` to `h-16 sm:h-14 px-6 sm:px-5` for a larger (64px) mobile touch target
-- Change `bottom-20` to `bottom-24 sm:bottom-20` to add more clearance from the bottom navigation bar
-- Icon size: Change from `w-5 h-5` to `w-6 h-6 sm:w-5 sm:h-5` for better visibility on larger FAB
+- Change `grid grid-cols-2 gap-3` to `grid grid-cols-1 sm:grid-cols-2 gap-3` so cards stack single-column on screens under 640px
+- Change `min-h-[48px]` to `min-h-[100px]` for comfortable card height on mobile
+- The icon/label/value layout within each card is already well-structured
 
-**File 5: `src/components/layout/BottomTabBar.tsx`**
+**File 5: `src/pages/ApplicationsPage.tsx`**
 
-Refine bottom navigation for mobile:
+Optimize tabs and activity feed for mobile touch:
 
-- Tab bar height: Already `h-16` (64px) -- matches requirement, no change
-- Icon size: Change from `w-5 h-5` to `w-6 h-6 sm:w-5 sm:h-5` (24px on mobile)
-- Label font: Change from `text-[10px]` to `text-[11px]` for better readability
-- Add `active:scale-95` tap animation -- already present, keep as-is
-- Safe area: Already uses `pb-safe` -- no change needed
-- Active pill: Already has primary color highlight with scale animation -- adequate
+- **Tab buttons**: Change from `px-3 py-1.5 text-xs` to `px-4 py-2.5 text-sm min-h-[48px] flex-1` so tabs are full-width and have 48px touch targets
+- **Tab container**: Change from `flex gap-2` to `flex gap-2 w-full`
+- **Application cards**: Add `min-h-[80px]` to each application card button for comfortable touch
+- **Save Job FAB**: Change from `w-14 h-14 bottom-20` to `w-16 h-16 bottom-24 sm:bottom-20` for a larger (64px) touch target with nav bar clearance
+
+**File 6: `src/components/applications/ActivityTimeline.tsx`**
+
+Make timeline entries more tappable on mobile:
+
+- Add `min-h-[80px]` to each timeline entry container for comfortable touch interaction
+- Add `cursor-pointer` to all entries (not just resume types) so they feel interactive
+- The existing layout with icon + text + badge is already well-optimized
 
 ### What Does NOT Change
 
-- Resume CRUD operations (open, edit, duplicate, delete, rename)
-- ATS scoring, health scores, version history
-- Navigation routing and deep linking
-- Swipe gestures on resume cards
-- Desktop layouts (768px+) -- identical behavior and appearance
-- Onboarding flow, profile dropdown, daily tip
-- Pull-to-refresh functionality
-- All dialog/sheet modals
-- Search filtering and deferred search logic
-- Tab persistence and navigation guards
+- Resume CRUD operations, version history, ATS scoring
+- Navigation routing, deep linking, tab persistence
+- All dialog/sheet modals and their animations
+- Toast auto-dismiss duration (already 4000ms / 4 seconds)
+- Toast swipe-to-dismiss (already built into Sonner library)
+- Settings page toggles (already min-h 56px with proper touch targets)
+- Settings Switch component (already h-7 w-12 -- adequate)
+- Loading skeletons and spinners (already centered and visible)
+- Desktop layouts (640px+/768px+) -- identical behavior and appearance
+- All AI features and data operations
 
 ### Technical Notes
 
-- All changes use Tailwind responsive prefixes (`sm:`, `md:`) only
-- No logic changes or new state variables
-- Touch targets maintain 44px minimum per project guidelines
-- Search input uses `text-base` (16px) to prevent iOS auto-zoom on focus
-- FAB positioned at `bottom-24` to clear the 64px nav bar plus safe area
-- Bottom tab icons increased to 24px (w-6 h-6) for WCAG touch target compliance
+- Viewport `maximum-scale=5.0` maintains WCAG 2.1 AA compliance for zoom accessibility
+- `scroll-behavior: smooth` on html enables smooth anchor scrolling (used by activity stats scroll-to-timeline)
+- Toast safe-area padding uses `env(safe-area-inset-top)` which gracefully falls back to 0 on non-notched devices
+- Stats grid uses `sm:` breakpoint (640px) for single-to-double column transition
+- Tab buttons use `flex-1` to distribute width evenly across the tab bar
+- All changes use Tailwind responsive prefixes or CSS media queries only
 
