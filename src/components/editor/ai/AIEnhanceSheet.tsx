@@ -17,6 +17,7 @@ import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 interface AIEnhanceSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEnhanced?: () => void;
 }
 
 const MODES: { id: ActionType; label: string }[] = [
@@ -67,7 +68,7 @@ function contentToString(content: unknown): string {
   return String(content);
 }
 
-export function AIEnhanceSheet({ open, onOpenChange }: AIEnhanceSheetProps) {
+export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceSheetProps) {
   const [mode, setMode] = useState<ActionType>('improve');
   const [selectedSections, setSelectedSections] = useState<Set<SectionType>>(new Set());
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -165,6 +166,7 @@ export function AIEnhanceSheet({ open, onOpenChange }: AIEnhanceSheetProps) {
     }
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
+    onEnhanced?.();
     toast.success(`${result.label} updated!`);
   }, [results, currentResume, updateResume]);
 
