@@ -1,41 +1,26 @@
 
 
-## Fix Toast Notification UI
-
-### Problem
-
-The toast shows overlapping icons -- the close button (X circle) renders on top of the success checkmark icon on the left side, creating a cluttered, broken appearance. The layout is cramped with icons colliding.
-
-### Root Cause
-
-Sonner's `closeButton` renders inside the toast alongside the custom status icon. Combined with the `toast-premium` CSS that applies tight padding (`14px 16px`) and the `overflow: hidden` rule, the close button overlaps the status icon area.
+## Remove Phone Authentication
 
 ### Changes
 
-**1. File: `src/components/ui/sonner.tsx`**
+**1. File: `src/pages/AuthPage.tsx`**
 
-- Disable `closeButton={true}` -- set it to `false`. Toasts already auto-dismiss after 4 seconds and can be swiped away, so the close button is redundant and causes the overlap.
-- Alternatively, add explicit class styling to push the close button to the right edge using the `closeButton` classNames key.
+- Remove the `AuthMethodToggle` import and component usage (line 14, line 311)
+- Remove `Phone` icon import (line 4)
+- Remove `AuthMethod` type and `authMethod` state (lines 22, 29)
+- Remove `phone` state and `phoneSchema` (lines 19, 31)
+- Remove `getPhoneError`, `phoneError` (lines 52-56, 65)
+- Remove `phone` from `touched` state (lines 38-43)
+- Remove phone-related branches in `validateInputs` and `handleSubmit` (lines 88-96, 110-112, 121-123)
+- Remove the conditional rendering that switches between email/phone input fields (lines 314-334) -- keep only the email input
+- Always use email-based auth flow
 
-Recommended approach: set `closeButton={false}` since mobile toasts are swipe-dismissible and auto-dismiss after 4s. This immediately fixes the overlap.
+**2. File: `src/components/auth/AuthMethodToggle.tsx`**
 
-**2. File: `src/index.css` (lines 1035-1050)**
-
-- Increase left padding on `.toast-premium` to give the icon breathing room: change `padding: 14px 16px` to `padding: 14px 18px 14px 14px`
-- Add explicit styling for the close button position in case it's re-enabled later:
-  ```css
-  .toast-premium [data-close-button] {
-    position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0.5;
-  }
-  ```
-- Add `min-height: 48px` to ensure the toast meets the 44px touch target guideline
-- Add `align-items: center` to vertically center the icon with the text
+- Delete this file entirely as it is no longer needed
 
 ### Result
 
-Clean toast with the success icon on the left, message text centered, and the "Undo" action button on the right -- no overlapping elements.
+The auth page will show only the email + password form with Google/Apple social login. No phone option visible anywhere.
 
