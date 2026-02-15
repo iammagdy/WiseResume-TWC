@@ -1,86 +1,102 @@
 
 
-## Live Resume Preview in the Editor
+## Expand Resume Editor "More" Sections
 
-### Overview
+### Current State
 
-Add a real-time resume preview that shows the formatted resume while editing. On mobile, a "Preview" button opens a full-screen sheet. On desktop (768px+), a collapsible side panel shows the preview alongside the editor in a split-screen layout.
+The editor already has 6 "More" sub-sections: Awards, Projects, Publications, Volunteering, Hobbies, and References -- all with full form components and TypeScript types. What's **missing** from the user's request:
 
-### Architecture
+1. **Certifications section** -- type exists (`Certification` in resume.ts), but no `CertificationsSection` editor component
+2. **Languages section** -- neither the type nor the component exist
+3. **Item count badges** on the AddSectionSheet grid tiles
+4. **AI Assist buttons** on each "More" sub-section's SectionCard
+5. **Drag-and-drop reordering** within each section's entry list
 
-The core preview rendering logic already exists in `PreviewPage.tsx`. We will extract the template rendering into a reusable component and embed it in the editor without modifying the existing form structure, section navigation, AI Studio, or bottom tab bar.
+Drag-and-drop reordering is a significant feature that would require adding a drag library. To keep the scope manageable and avoid introducing instability in the editor (which has had render-loop issues), I recommend implementing **manual reorder buttons** (up/down arrows) instead. This is simpler, touch-friendly, and doesn't require any new dependencies.
 
-### New Files
+### Changes
 
-#### 1. `src/components/editor/LivePreviewPanel.tsx`
-A self-contained preview component that:
-- Reads `currentResume` and `selectedTemplate` from the Zustand resume store (using individual selectors to avoid render loops)
-- Lazy-loads only the selected template component
-- Renders the resume inside a scaled container with zoom controls (50%, 75%, 100%, 125%)
-- Includes a "Download PDF" button that reuses the existing `generatePDF` utility
-- Applies template customizations via `applyCustomizationCSS` and `headingStyle` from `templateCustomization.ts`
-- Shows a loading skeleton while the template loads
-- NO Radix Tooltip or Popper components (per editor architectural rule)
-- Uses `React.memo` and stable selectors for performance
+#### 1. New Type: `Language` in `src/types/resume.ts`
 
-#### 2. `src/components/editor/LivePreviewSheet.tsx`
-A mobile-only full-screen sheet (using the existing Vaul Drawer component) that:
-- Wraps `LivePreviewPanel` in a bottom sheet with `snap` points at 100%
-- Supports swipe-down to close gesture (built into Vaul)
-- Has a "Close Preview" handle/button at the top
-- Includes the zoom controls and download button
+Add the `Language` interface and update `ResumeData` to include `languages?: Language[]`:
 
-### Modified Files
+```text
+interface Language {
+  id: string;
+  name: string;
+  proficiency: 'native' | 'fluent' | 'professional' | 'basic';
+}
+```
 
-#### 3. `src/pages/EditorPage.tsx` (minimal changes)
-- Add a "Preview" toggle button in the header bar (next to the Wise AI button) -- simple `<button>` with an `Eye` icon, no Tooltip
-- Add state: `const [showPreview, setShowPreview] = useState(false)`
-- Import `useIsMobile` from `src/hooks/use-mobile.tsx`
-- **Mobile path**: When `showPreview` is true and `isMobile`, render the lazy-loaded `LivePreviewSheet`
-- **Desktop path**: When `showPreview` is true and NOT mobile, wrap the existing editor content area and the `LivePreviewPanel` in a CSS flex row (editor takes `flex-1`, preview takes `flex-1` with `max-w-[50%]`)
-- The preview button toggles `showPreview` on/off
-- Both components are lazy-loaded to avoid impacting editor initial load time
+Also add `'languages'` to the `SectionId` union type and `'certifications'` if not already there.
+
+#### 2. New Component: `src/components/editor/CertificationsSection.tsx`
+
+Follows the exact same pattern as `AwardsSection`:
+- Reads `certifications` from `useResumeStore`
+- Accordion-style expand/collapse per entry
+- Fields: Name, Issuing Organization, Date, Expiry Date (optional), Credential ID (optional), Credential URL (optional)
+- Add/Delete buttons with haptic feedback
+- 44px minimum touch targets, h-12 inputs
+
+#### 3. New Component: `src/components/editor/LanguagesSection.tsx`
+
+Simpler card-based layout (similar to HobbiesSection):
+- Reads `languages` from `useResumeStore`
+- Each entry: language name input + proficiency dropdown (Native, Fluent, Professional, Basic)
+- Add/Delete with haptic feedback
+- Uses a simple `<select>` or styled radio group for proficiency level
+
+#### 4. Update `src/components/editor/AddSectionSheet.tsx`
+
+- Add Certifications and Languages to the `OPTIONAL_SECTIONS` array (with `Award` icon for Certifications, `Globe` icon for Languages)
+- Show item count badges: a small pill showing the number of entries (e.g., "3") next to the check icon for sections with content
+
+#### 5. Update `src/pages/EditorPage.tsx`
+
+- Import `CertificationsSection` and `LanguagesSection`
+- Add routing for `moreSubSection === 'certifications'` and `moreSubSection === 'languages'` in the "more" tab
+- Add `SectionAIAction` to each "More" sub-section's `SectionCard` (Awards, Projects, Publications, Volunteering, Certifications, Languages) -- Hobbies and References don't benefit from AI assist
+
+#### 6. Update `src/components/editor/InlineAIButton.tsx`
+
+- Expand `SectionType` union to include the new section types: `'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages'`
+- Add AI action configs for each new section type (e.g., "Generate" and "Improve" actions)
+
+#### 7. Update `src/components/editor/SectionAIAction.tsx`
+
+- Expand the `contentMap` and `onApply` switch to handle the new section types, mapping them to the correct resume data fields
+
+#### 8. Add Reorder Controls to All "More" Sections
+
+Add up/down arrow buttons to each entry's header row in all 8 "More" section components (Awards, Projects, Publications, Volunteering, Hobbies, References, Certifications, Languages). These swap adjacent entries in the array via `updateResume`. No new dependencies needed.
 
 ### What Does NOT Change
-- The stepper navigation (Contact, Summary, Work, Education, Skills, More)
-- The section form components (ContactSection, SummarySection, etc.)
-- The AI Studio bar and all AI sheet functionality
-- The bottom tab bar (BottomTabBar)
+
+- Contact, Summary, Work, Education, Skills sections -- completely untouched
+- StepperNav and the 6-step structure
+- AI Studio bar and all sheet functionality
+- Bottom tab bar
 - Progress tracking and completion percentages
-- Form validation and error handling
-- The existing PreviewPage at `/preview` (remains fully functional)
-- Auto-save logic and cloud sync
+- Auto-save logic
+- Template rendering
+- Live Preview feature
 
-### Technical Details
+### File Summary
 
-**Performance safeguards:**
-- The preview panel uses `React.memo` and only re-renders when `currentResume` or `selectedTemplate` changes
-- Template components are already `memo`-wrapped (verified in codebase)
-- The preview is lazy-loaded -- zero impact on editor initial load
-- Zoom is handled via CSS `transform: scale()` on the preview container, not by re-rendering at different sizes
-
-**Zoom implementation:**
-- A toolbar with 4 preset zoom buttons (50%, 75%, 100%, 125%)
-- Applied as `transform: scale(zoomLevel)` with `transform-origin: top center` on the resume wrapper
-- The container uses `overflow: auto` so users can scroll when zoomed in
-
-**Mobile UX:**
-- Full-screen Vaul drawer with swipe-down to close
-- Preview is scaled to fit screen width by default (responsive `max-width: 100%` with aspect ratio preservation)
-- 44px minimum touch targets on all controls
-
-**Desktop split-screen:**
-- Simple CSS flex layout: `flex flex-row` on the main content area
-- Editor panel: `flex-1 min-w-0 overflow-hidden`
-- Preview panel: `flex-1 min-w-0 border-l border-border overflow-hidden` with a close button
-- Collapsible via the same toggle button -- no complex resize handles needed
-
-**Download in preview:**
-- Reuses the existing `generatePDF` and `downloadFile` utilities from `src/lib/pdfGenerator.ts` and `src/lib/downloadUtils.ts`
-- Shows a loading spinner during generation
-
-**Section visibility toggles:**
-- Small eye-icon toggles next to each section header in the preview panel
-- Uses local state `hiddenSections: Set<string>` to filter which sections render
-- Does NOT modify the actual resume data -- purely visual filtering in the preview
+| File | Action |
+|------|--------|
+| `src/types/resume.ts` | Add `Language` interface, update `ResumeData` and `SectionId` |
+| `src/components/editor/CertificationsSection.tsx` | Create new |
+| `src/components/editor/LanguagesSection.tsx` | Create new |
+| `src/components/editor/AddSectionSheet.tsx` | Add 2 new tiles + item count badges |
+| `src/pages/EditorPage.tsx` | Add imports + 2 new routing entries + AI actions on More sub-sections |
+| `src/components/editor/InlineAIButton.tsx` | Expand `SectionType` + add action configs |
+| `src/components/editor/SectionAIAction.tsx` | Expand content map + apply handlers |
+| `src/components/editor/AwardsSection.tsx` | Add reorder (up/down) buttons |
+| `src/components/editor/ProjectsSection.tsx` | Add reorder buttons |
+| `src/components/editor/PublicationsSection.tsx` | Add reorder buttons |
+| `src/components/editor/VolunteeringSection.tsx` | Add reorder buttons |
+| `src/components/editor/HobbiesSection.tsx` | Add reorder buttons |
+| `src/components/editor/ReferencesSection.tsx` | Add reorder buttons |
 
