@@ -133,6 +133,8 @@ export function InlineAIButton({
         }`}
         disabled={disabled || isLoading}
         onClick={handleButtonClick}
+        aria-expanded={isOpen}
+        aria-haspopup="true"
       >
         {isLoading ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -146,12 +148,13 @@ export function InlineAIButton({
 
       {/* Desktop dropdown */}
       {isOpen && isAuthenticated && !isMobile && (
-        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl bg-popover border border-border p-1 shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.12)] animate-in fade-in-0 zoom-in-95 duration-150">
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-xl bg-popover border border-border p-1 shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.12)] animate-in fade-in-0 zoom-in-95 duration-150" role="menu">
           {actions.map((action) => (
             <button
               key={action.id}
               onClick={() => handleAction(action.id)}
               className="flex w-full items-center gap-2 rounded-sm px-2 py-2.5 min-h-[44px] text-sm text-popover-foreground outline-none cursor-pointer transition-colors hover:bg-accent hover:text-accent-foreground"
+              role="menuitem"
             >
               {action.icon}
               <span>{action.label}</span>

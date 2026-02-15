@@ -677,7 +677,7 @@ export default function EditorPage() {
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
@@ -852,7 +852,7 @@ export default function EditorPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-1">
             <ProgressBar resume={currentResume} />
             {user && currentResumeId && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2" aria-live="polite" aria-atomic="true">
                 {!isOnline ? (
                   <>
                     <CloudOff className="w-3.5 h-3.5 text-warning" />
@@ -883,6 +883,8 @@ export default function EditorPage() {
             <button
               onClick={() => { setShowATSBadge(v => !v); haptics.light(); }}
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95"
+              aria-expanded={showATSBadge}
+              aria-label="Toggle completeness breakdown"
             >
               <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
               <span className="text-xs font-medium">Completeness:</span>
@@ -1043,6 +1045,6 @@ export default function EditorPage() {
           )}
         </Suspense>
       </ErrorBoundary>
-    </div>
+    </main>
   );
 }

@@ -71,6 +71,8 @@ export const StepperNav = memo(function StepperNav({
         <button
           onClick={() => { setShowSheet(true); haptics.light(); }}
           className="w-full flex items-center gap-3 px-4 min-h-[56px] rounded-xl bg-card border border-border active:scale-[0.98] transition-transform touch-manipulation"
+          aria-label="Select resume section"
+          aria-haspopup="dialog"
         >
           <div className={cn(
             'w-9 h-9 rounded-full flex items-center justify-center border-2 shrink-0',
@@ -179,6 +181,7 @@ export const StepperNav = memo(function StepperNav({
             <button
               onClick={() => { setShowMoreSheet(true); haptics.light(); }}
               className="w-full flex items-center justify-center gap-2 min-h-[44px] rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-[0.98] transition-transform touch-manipulation text-sm font-medium text-foreground"
+              aria-label="Add more sections"
             >
               <Plus className="w-4 h-4" />
               More Sections
@@ -252,6 +255,8 @@ export const StepperNav = memo(function StepperNav({
               key={step.id}
               onClick={() => onStepClick(step.id)}
               className="flex flex-col items-center gap-1 relative z-10 touch-manipulation flex-1 min-w-0 min-h-[48px] p-1"
+              aria-current={isActive ? 'step' : undefined}
+              aria-label={step.label}
             >
               <div className="relative">
                 <div

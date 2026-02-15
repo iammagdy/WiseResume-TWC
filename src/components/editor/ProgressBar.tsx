@@ -71,7 +71,7 @@ export const ProgressBar = memo(function ProgressBar({ resume, className, varian
       </span>
 
       {/* Animated bar */}
-      <div className={cn('flex-1 rounded-full bg-secondary/30 overflow-hidden relative', compact ? 'h-2' : 'h-2.5')}>
+      <div className={cn('flex-1 rounded-full bg-secondary/30 overflow-hidden relative', compact ? 'h-2' : 'h-2.5')} role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Resume completion">
         <div
           className="h-full rounded-full"
           style={{
