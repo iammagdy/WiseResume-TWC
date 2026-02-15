@@ -59,6 +59,7 @@ const SECTION_LABELS: Record<string, string> = {
   volunteering: 'Volunteering',
   hobbies: 'Hobbies',
   references: 'References',
+  languages: 'Languages',
 };
 
 function PreviewSkeleton() {
@@ -89,6 +90,7 @@ function filterResume(resume: ResumeData, hidden: Set<string>): ResumeData {
     volunteering: hidden.has('volunteering') ? [] : resume.volunteering,
     hobbies: hidden.has('hobbies') ? [] : resume.hobbies,
     references: hidden.has('references') ? [] : resume.references,
+    languages: hidden.has('languages') ? [] : resume.languages,
   };
 }
 

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { Github, Mail, Phone, MapPin, Globe } from 'lucide-react';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -201,6 +202,7 @@ export const DeveloperTemplate = memo(function DeveloperTemplate({ resume }: Tem
             </div>
           </section>
         )}
+        <ExtraSections resume={resume} />
       </div>
     </div>
   );

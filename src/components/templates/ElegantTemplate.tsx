@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface ElegantTemplateProps {
   resume: ResumeData;
@@ -149,6 +150,7 @@ export const ElegantTemplate = memo(function ElegantTemplate({ resume }: Elegant
             </section>
           )}
         </div>
+        <ExtraSections resume={resume} exclude={['certifications']} />
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -55,6 +56,7 @@ export const SwissTemplate = memo(function SwissTemplate({ resume }: TemplatePro
           </div>
         </section>
       )}
+      <ExtraSections resume={resume} />
     </div>
   );
 });

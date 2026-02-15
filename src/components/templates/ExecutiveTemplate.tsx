@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -127,6 +128,7 @@ export const ExecutiveTemplate = memo(function ExecutiveTemplate({ resume }: Tem
           </section>
         )}
       </div>
+      <ExtraSections resume={resume} />
     </div>
   );
 });

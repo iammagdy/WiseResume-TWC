@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
 import { Mail, Phone, MapPin, Linkedin, Globe } from 'lucide-react';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -180,6 +181,7 @@ export const CreativeTemplate = memo(function CreativeTemplate({ resume }: Templ
             </div>
           </section>
         )}
+        <ExtraSections resume={resume} exclude={['certifications']} />
       </main>
     </div>
   );

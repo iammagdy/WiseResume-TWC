@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface SalesTemplateProps {
   resume: ResumeData;
@@ -149,6 +150,7 @@ export const SalesTemplate = memo(function SalesTemplate({ resume }: SalesTempla
             </section>
           )}
         </div>
+        <ExtraSections resume={resume} exclude={['certifications']} />
       </div>
     </div>
   );

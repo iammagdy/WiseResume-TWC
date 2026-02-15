@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface HealthcareTemplateProps {
   resume: ResumeData;
@@ -144,6 +145,7 @@ export const HealthcareTemplate = memo(function HealthcareTemplate({ resume }: H
             </div>
           </section>
         )}
+        <ExtraSections resume={resume} exclude={['certifications']} />
       </div>
     </div>
   );

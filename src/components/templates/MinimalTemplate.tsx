@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps {
   resume: ResumeData;
@@ -80,6 +81,7 @@ export const MinimalTemplate = memo(function MinimalTemplate({ resume }: Templat
           <p className="text-gray-600 text-xs">{resume.skills.join(', ')}</p>
         </section>
       )}
+      <ExtraSections resume={resume} />
     </div>
   );
 });
