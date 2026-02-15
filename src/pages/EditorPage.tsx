@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, ChevronUp, BarChart3, Undo2, Redo2 } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, ChevronUp, BarChart3, Undo2, Redo2, Scissors } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
@@ -809,6 +809,28 @@ export default function EditorPage() {
             </div>
           )}
         </div>
+
+        {/* Tailored Resume Indicator Banner */}
+        {resumeFromDb?.parent_resume_id && (
+          <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-primary/10 border-b border-primary/20" style={{ minHeight: 36 }}>
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-semibold uppercase tracking-wide shrink-0">
+                <Scissors className="w-3 h-3" />
+                Tailored
+              </span>
+              <span className="text-xs text-foreground/80 truncate">
+                {resumeFromDb.target_job_title || 'Job'}
+                {resumeFromDb.target_company ? ` @ ${resumeFromDb.target_company}` : ''}
+              </span>
+            </div>
+            <button
+              onClick={() => { navigate(`/editor?id=${resumeFromDb.parent_resume_id}`); haptics.light(); }}
+              className="text-[11px] font-medium text-primary hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[36px] flex items-center"
+            >
+              View Original
+            </button>
+          </div>
+        )}
 
         {/* Stepper Nav */}
         <div className="shrink-0">
