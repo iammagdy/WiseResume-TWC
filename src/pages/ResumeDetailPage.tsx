@@ -44,6 +44,8 @@ export default function ResumeDetailPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
+  const enhancedRef = useRef(false);
+  const prevScoreRef = useRef<ReturnType<typeof getCachedScore>>(null);
   const hiddenTemplateRef = useRef<HTMLDivElement>(null);
 
   if (isLoading) {
@@ -301,16 +303,22 @@ export default function ResumeDetailPage() {
           {showEnhance && (
             <AIEnhanceSheet
               open={showEnhance}
+              onEnhanced={() => { enhancedRef.current = true; }}
               onOpenChange={(open) => {
+                if (open) {
+                  enhancedRef.current = false;
+                  prevScoreRef.current = getCachedScore(dbResume.id, dbResume.updated_at);
+                }
                 setShowEnhance(open);
-                if (!open) {
-                  // Clear stale cache and re-score with enhanced content
+                if (!open && enhancedRef.current) {
+                  // Only re-score if user applied changes
                   clearCachedScore(dbResume.id, dbResume.updated_at);
                   const updatedResume = useResumeStore.getState().currentResume;
                   if (updatedResume) {
                     scoreResume(dbResume.id, updatedResume, dbResume.updated_at);
                   }
                 }
+                // If cancelled (enhancedRef false), keep existing score
               }}
             />
           )}
