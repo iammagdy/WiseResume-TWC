@@ -1,97 +1,77 @@
 
 
-## Editor Accessibility Audit and Improvements
-
-### Accessibility Checklist for the Editor
-
-1. **Structure and Semantics**: Use landmarks (`<main>`, `<nav>`, `<header>`), proper heading hierarchy, and semantic HTML (`<button>` not `<div onClick>`)
-2. **Forms and Labels**: Every input has a visible, programmatically-associated label; error messages linked via `aria-describedby`; required fields indicated with both visual and ARIA cues
-3. **Keyboard and Focus**: All interactive elements reachable via Tab in logical order; visible focus rings; no keyboard traps; Escape closes panels
-4. **ARIA for Panels and Dialogs**: Sheets/panels have `role="dialog"`, `aria-modal`, `aria-labelledby`; icon-only buttons have `aria-label`
-5. **Mobile Touch Targets**: All interactive elements are at least 44x44px
-6. **Feedback and Status**: Loading, saving, error states use `aria-live` regions; status not conveyed by color alone
-7. **Progress Communication**: Progress bar and scores are accessible to screen readers via `aria-label` or `role="progressbar"` with `aria-valuenow`
+## Touch Target Audit and Improvements for the Editor Tab
 
 ### Audit Results
 
-**Passes (no change needed)**:
-- Forms: `InputFormField` and `TextareaFormField` already use `<Label htmlFor>`, `aria-invalid`, `aria-describedby` for errors, and `role="alert"` on error messages
-- Touch targets: All buttons in the header, tools sheet, stepper, and section cards meet 44-48px minimums
-- Sheets: All mobile sheets use Radix/Vaul `Sheet` which provides `role="dialog"`, `aria-modal`, focus trap, and Escape-to-close out of the box
-- Icon-only buttons in the header (back, undo, redo, version history, design, live preview, tools) all have `aria-label`
-- Keyboard toolbar has proper `aria-label` on prev/next/done buttons
-- Dismiss button on `NextStepBanner` has `aria-label="Dismiss"`
+After scanning every interactive element in the Editor on a 360px viewport, the majority already meet the 44px minimum. The following elements fall short:
 
-**Issues Found**:
+| Element | Current Size | Location |
+|---------|-------------|----------|
+| Undo/Redo buttons | 36x36px | EditorPage.tsx header (visible on xs+ screens) |
+| Version History button | ~32px (p-2 only) | EditorPage.tsx header |
+| NextStepBanner action button | 32px tall | NextStepBanner.tsx |
+| NextStepBanner dismiss button | 28x28px | NextStepBanner.tsx |
+| "All Sections" back link | No min-h | EditorPage.tsx renderEditorContent |
+| SectionEmptyState action buttons | ~32px (size="sm") | SectionEmptyState.tsx |
+| "Show/Hide Example" toggle | Inline text, ~20px | SectionEmptyState.tsx |
+| ATS completeness toggle | py-1, no min-h | EditorPage.tsx |
+| "View Original" link (tailored) | 36px tall | EditorPage.tsx |
 
-| # | Category | Issue | Location |
-|---|----------|-------|----------|
-| 1 | Structure | Editor page has no `<main>` landmark; the outermost div is unsemantic | `EditorPage.tsx` line 680 |
-| 2 | Structure | `SectionCard` heading uses `<h3>` but there is no `<h2>` parent, breaking heading hierarchy | `SectionCard.tsx` line 38 |
-| 3 | ARIA | StepperNav mobile dropdown trigger button has no `aria-label` or accessible name describing its purpose | `StepperNav.tsx` line 71-108 |
-| 4 | ARIA | StepperNav "More Sections" button has no `aria-label` | `StepperNav.tsx` line 179-185 |
-| 5 | ARIA | StepperNav desktop step buttons have no accessible name beyond truncated visual text | `StepperNav.tsx` line 251-317 |
-| 6 | Progress | The progress bar `<div>` has no `role="progressbar"` or `aria-valuenow`; screen readers cannot interpret the completion percentage | `ProgressBar.tsx` line 74 |
-| 7 | Status | Save status ("Saving...", "Saved", "Offline") has no `aria-live` region; changes are invisible to screen readers | `EditorPage.tsx` lines 855-879 |
-| 8 | ARIA | ATS completeness toggle button has no `aria-expanded` state | `EditorPage.tsx` line 883-891 |
-| 9 | ARIA | Desktop AI Assist dropdown in `InlineAIButton` is not a landmark; no `role="menu"` or `aria-expanded` on trigger | `InlineAIButton.tsx` lines 126-163 |
-| 10 | Structure | `SectionEmptyState` "Show/Hide Example" collapsible trigger has no `aria-expanded` | `SectionEmptyState.tsx` line 74 (Radix handles this, so actually passes) |
+### Elements That Already Pass (No Changes Needed)
+
+- Back button: 48x48
+- Mobile tools trigger: 48x48
+- Tools sheet actions: 48px tall
+- StepperNav mobile dropdown: 56px tall
+- Section rows in sheet: 64px tall
+- More sections grid cards: 48px tall
+- Prev/Next navigation: 56px tall
+- Experience card headers: 80px tall
+- Add Experience button: 56px tall
+- Skill badges (remove/add): 44px tall
+- InlineAIButton: 44px tall
+- AI Assist sheet actions: 64px tall
+- Proofread FAB: 56px (14 * 4)
+- All form inputs: 48px (h-12)
 
 ### Proposed Changes
 
 **File: `src/pages/EditorPage.tsx`**
 
-1. **Add `<main>` landmark**: Change the outermost `<div>` (line 680) to `<main>` with `role="main"`.
+1. **Undo/Redo buttons** (lines 698-721): Change `min-w-[36px] min-h-[36px]` to `min-w-[44px] min-h-[44px]`
 
-2. **Add `aria-live` to save status region** (lines 854-879): Wrap the save status indicators in a `<div aria-live="polite" aria-atomic="true">` so screen readers announce save state changes.
+2. **Version History button** (lines 724-731): Add `min-w-[44px] min-h-[44px] flex items-center justify-center`
 
-3. **Add `aria-expanded` to ATS completeness toggle** (line 883): Add `aria-expanded={showATSBadge}` and `aria-label="Toggle completeness breakdown"` to the button.
+3. **ATS completeness toggle** (lines 883-886): Add `min-h-[44px]` to the button class
 
-**File: `src/components/editor/StepperNav.tsx`**
+4. **"All Sections" back link** (line 573): Add `min-h-[44px] flex items-center` to ensure comfortable tapping
 
-4. **Add `aria-label` to mobile dropdown trigger** (line 71): Add `aria-label="Select resume section"` and `aria-haspopup="dialog"`.
+5. **"View Original" link** (line 925): Change `min-h-[36px]` to `min-h-[44px]`
 
-5. **Add `aria-label` to "More Sections" button** (line 179): Add `aria-label="Add more sections"`.
+**File: `src/components/editor/NextStepBanner.tsx`**
 
-6. **Add `aria-current` to active step** (desktop stepper, line 251): Add `aria-current={isActive ? 'step' : undefined}` to each step button.
+6. **Action button** (line 55): Change `min-h-[32px]` to `min-h-[44px]` and add padding `px-3 py-2`
 
-**File: `src/components/editor/ProgressBar.tsx`**
+7. **Dismiss button** (line 60): Change `min-w-[28px] min-h-[28px]` to `min-w-[44px] min-h-[44px]`
 
-7. **Add progressbar role** (line 74): Add `role="progressbar"`, `aria-valuenow={progress}`, `aria-valuemin={0}`, `aria-valuemax={100}`, and `aria-label="Resume completion"` to the track div.
+**File: `src/components/editor/SectionEmptyState.tsx`**
 
-**File: `src/components/editor/SectionCard.tsx`**
+8. **Action buttons** (line 101): Add `min-h-[44px]` to the Button className
 
-8. **Change `<h3>` to `<h2>`** (line 38): Use `<h2>` for section titles to establish proper heading hierarchy (the page title in the header is effectively h1).
+9. **"Show/Hide Example" trigger** (line 74): Add `min-h-[44px] px-3` to ensure tappable area
 
-**File: `src/components/editor/InlineAIButton.tsx`**
+### What Stays the Same
 
-9. **Add `aria-expanded` and `aria-haspopup`** to the trigger button (line 126): Add `aria-expanded={isOpen}` and `aria-haspopup="true"`.
+- All handlers, navigation logic, and data unchanged
+- All component names and props unchanged
+- No layout or visual design changes beyond size/spacing
+- Tools sheet, StepperNav, form fields, AI sheets -- all already compliant
 
-10. **Add `role="menu"` to desktop dropdown** (line 149): Add `role="menu"` to the dropdown container and `role="menuitem"` to each action button.
+### Summary of Pattern
 
-### What stays the same
-
-- All business logic, handlers, data models, API calls unchanged
-- All component names, props, and types unchanged
-- All visual styling unchanged (except heading element swap which uses same classes)
-- All Sheet/panel behavior unchanged (Radix already handles dialog ARIA)
-- All form field components unchanged (already accessible)
-
-### Technical Summary
-
-| File | Changes |
-|------|---------|
-| `src/pages/EditorPage.tsx` | `<div>` to `<main>`, `aria-live` on save status, `aria-expanded` on ATS toggle |
-| `src/components/editor/StepperNav.tsx` | `aria-label` on mobile trigger and "More Sections" button, `aria-current="step"` on active step |
-| `src/components/editor/ProgressBar.tsx` | `role="progressbar"` with `aria-valuenow/min/max` and `aria-label` |
-| `src/components/editor/SectionCard.tsx` | `<h3>` to `<h2>` for heading hierarchy |
-| `src/components/editor/InlineAIButton.tsx` | `aria-expanded`, `aria-haspopup` on trigger; `role="menu"`/`role="menuitem"` on desktop dropdown |
-
-10 targeted ARIA/semantic fixes. Zero logic changes. All changes are additive attributes or element swaps with identical styling.
-
-### Follow-up Items (Larger Changes, Not in Scope)
-
-- **Focus management on section switch**: When the user changes sections via StepperNav, focus stays on the stepper button rather than moving to the new section content. Ideally, focus would shift to the section heading or first input. This requires managing `ref` focus and is a larger refactor.
-- **Skip navigation link**: A "Skip to editor content" link at the top of the page would help keyboard users bypass the header and stepper. Requires design consideration.
-- **Screen reader announcements for AI actions**: When an AI action completes (enhance, tailor, proofread), there is a toast but no `aria-live` announcement. The `sonner` toast library may or may not be accessible -- needs verification.
+Every fix applies the same principle: ensure `min-h-[44px]` (and `min-w-[44px]` for icon-only buttons) plus adequate padding. The standardized class pattern is:
+- Icon-only: `min-w-[44px] min-h-[44px] flex items-center justify-center`
+- Text buttons: `min-h-[44px] px-3`
+- Inline links: `min-h-[44px] flex items-center`
 
