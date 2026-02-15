@@ -1,87 +1,73 @@
 
 
-## Fix Notification Badge Sync and Add Resume Card Quick Actions
+## Implement Standalone "Analyze Job" Sheet from Dashboard FAB
 
-### Part 1: Fix Notification Badge
+### Problem
+Clicking "Analyze Job" from the dashboard FAB currently navigates to the Jobs tab (`/applications`), which is confusing. Instead, it should open an inline sheet (like the reference screenshot) where users can paste a job URL or description, analyze it, and then choose to tailor a resume or save the job.
 
-**Current state**: The notification badge code in `ApplicationsPage.tsx` (line 194) already correctly checks `unreadCount > 0` before showing the badge. The `useUnreadNotificationCount` hook queries the database properly with `user_id` filtering. The database currently has 0 notifications.
+### Solution
+Create a new `AnalyzeJobSheet` component that reuses the existing `JobUrlParser` for input. Unlike `SetTargetJobSheet` (which requires a specific resume), this standalone sheet will:
 
-**Root cause**: The badge logic is already correct. The issue is likely stale cached data or a race condition. To make this bulletproof:
+1. **Input phase**: Paste job URL or description (same UI as screenshot)
+2. **Analyzing phase**: Show progress while AI parses the job
+3. **Results phase**: Show job details and two action buttons:
+   - "Tailor a Resume" -- opens a resume picker, then navigates to the editor with tailor context
+   - "Save Job for Later" -- saves the job to the `jobs` table and shows success toast
 
-**File: `src/hooks/useNotifications.ts`**
-- Add `refetchInterval: 30000` (30s) to `useUnreadNotificationCount` so badge auto-refreshes
-- Add `staleTime: 10000` to prevent serving stale cache indefinitely
-- Ensure the query returns `0` (not `null`) as default when there's no data
+### Files to Change
 
-**File: `src/pages/ApplicationsPage.tsx`**
-- No changes needed -- the badge rendering logic is already correct (only shows when `unreadCount > 0`, shows "9+" for 10+)
+**New file: `src/components/dashboard/AnalyzeJobSheet.tsx`**
+- Bottom sheet with 3 phases: input, analyzing, results
+- Input phase: Reuses `JobUrlParser` component + "Analyze Job" button (matches the screenshot design)
+- Analyzing phase: Spinner + progress bar (reuse pattern from `SetTargetJobSheet`)
+- Results phase: Displays parsed job title, company, description summary, and key requirements extracted
+- Two CTA buttons:
+  - "Tailor a Resume" -- shows a mini resume picker (list of user's resumes), then navigates to `/editor` with the selected resume and job context pre-loaded
+  - "Save to Jobs" -- calls `useJobMutations().createJob` to save the parsed job, then closes the sheet
+- Uses `parseJobUrl` from `@/lib/aiTailor` for URL parsing, and the `parse-job-url` edge function
+- For manual text input (no URL), extracts job title/company using simple heuristics or stores the raw description
 
----
+**Modified file: `src/pages/DashboardPage.tsx`**
+- Add state: `const [showAnalyzeJob, setShowAnalyzeJob] = useState(false)`
+- Change FAB's `onAnalyzeJob` from `() => navigate('/applications')` to `() => setShowAnalyzeJob(true)`
+- Render `<AnalyzeJobSheet>` at the bottom of the component tree
+- Pass `resumes` list so the sheet can show a resume picker in the results phase
 
-### Part 2: Add Quick Actions to Resume Cards
+### Component Structure
 
-#### A. Enhance `ResumeListCard` dropdown menu
+```text
+AnalyzeJobSheet
++-- Phase: Input
+|   +-- JobUrlParser (existing component)
+|   +-- "Analyze Job" button
++-- Phase: Analyzing
+|   +-- Loader + progress message
++-- Phase: Results
+    +-- Job info card (title, company, description preview)
+    +-- Resume picker (list of user's resumes to tailor)
+    +-- "Tailor Resume" button (primary)
+    +-- "Save Job for Later" button (secondary)
+```
 
-**File: `src/components/dashboard/ResumeListCard.tsx`**
+### User Flow
 
-Add these actions to the existing three-dot dropdown menu:
-- **Preview** (Eye icon) -- navigates to `/resume/{id}` (already the card click behavior)
-- **Download PDF** (Download icon) -- generates and downloads PDF inline
-- **Share** (Share2 icon) -- creates a share link and copies to clipboard
-- Keep existing: Rename, Edit, Duplicate, Practice Interview, Delete
+1. User taps "+" FAB on dashboard
+2. User taps "Analyze Job"
+3. Sheet slides up with job URL/description input (matches screenshot)
+4. User pastes URL and taps "Parse" (or pastes text manually)
+5. User taps "Analyze Job" button
+6. Sheet shows analyzing progress
+7. Results appear with job details
+8. User picks a resume and taps "Tailor Resume" -- navigates to editor with job context
+   OR taps "Save Job for Later" -- job saved to Jobs tab, sheet closes
 
-Add required imports: `Download, Share2, Eye` from lucide-react, plus `generatePDF`, `downloadFile`, `useResumeShareMutations`, and `toast`.
+### Technical Details
 
-New props needed: none -- we can use the existing `resume` prop to generate PDF and share directly from the card.
-
-#### B. Add quick actions to Home page `ResumeCard`
-
-**File: `src/components/home/ResumeCard.tsx`**
-
-Add a three-dot menu button (top-right, alongside the existing delete button):
-- Preview Resume
-- Edit Resume
-- Download PDF
-- Duplicate Resume
-- Delete Resume (with existing confirmation)
-
-New props needed: `onDuplicate`, `onPreview`, `onDownload` callbacks (or handle internally with navigation).
-
-Since `ResumeCard` uses `ResumeData` (not `DatabaseResume`), and doesn't have a resume ID, the parent component needs to pass these handlers. We'll add `resumeId?: string` and `templateId?: string` props for PDF generation and navigation.
-
-#### C. Add quick actions to `ResumeListSheet` items
-
-**File: `src/components/applications/ResumeListSheet.tsx`**
-
-Each resume item in the modal list currently just navigates on tap. Add a small three-dot menu on the right side of each item with:
-- Preview
-- Edit
-- Download PDF
-- Duplicate
-
----
-
-### Files Summary
-
-| File | Change |
-|------|--------|
-| `src/hooks/useNotifications.ts` | Add `refetchInterval` and `staleTime` to unread count query |
-| `src/components/dashboard/ResumeListCard.tsx` | Add Download PDF, Share, Preview to dropdown menu |
-| `src/components/home/ResumeCard.tsx` | Add three-dot menu with quick actions, accept new props |
-| `src/components/applications/ResumeListSheet.tsx` | Add three-dot menu to each resume list item |
-
-### Implementation Order
-
-1. `useNotifications.ts` -- harden notification count query
-2. `ResumeListCard.tsx` -- add Download/Share/Preview to existing menu
-3. `ResumeCard.tsx` -- add three-dot menu with quick actions
-4. `ResumeListSheet.tsx` -- add per-item action menu
-
-### Technical Notes
-
-- PDF generation uses the existing `generatePDF` + `downloadFile` utilities
-- Share uses the existing `useResumeShareMutations().createShare` mutation
-- All new menu items include `e.stopPropagation()` to prevent card click from firing
-- Touch targets maintain 44px minimum for all new buttons
-- `active:scale-95` applied to new interactive elements per project guidelines
+- Reuses `JobUrlParser` for the input UI (same as screenshot)
+- Reuses `parseJobUrl` from `@/lib/aiTailor` for URL parsing
+- Uses `useJobMutations().createJob` from `src/hooks/useJobs.ts` for saving
+- Resume picker uses `useResumes()` to list available resumes
+- Navigation to editor uses existing pattern: set resume in store + navigate with query params
+- All buttons have `active:scale-95` and 44px min touch targets per project guidelines
+- Sheet height: `h-[85vh]` with `overflow-y-auto` and `pb-safe`
 
