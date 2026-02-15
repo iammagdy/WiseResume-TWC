@@ -49,7 +49,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
       )}
 
       {/* Content */}
-      <div className="px-4 pb-4">
+      <div className="px-3 sm:px-4 pb-4">
         {children}
       </div>
     </div>

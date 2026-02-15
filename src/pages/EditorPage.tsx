@@ -645,11 +645,11 @@ export default function EditorPage() {
               )}
 
               {/* Section Navigation */}
-              <div className="flex items-center gap-3 pt-6 pb-2">
+              <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2">
                 <Button
                   variant="outline"
                   size="lg"
-                  className="flex-1 h-12"
+                  className="flex-1 min-h-[56px] sm:h-12"
                   onClick={() => {
                     haptics.light();
                     const currentIndex = steps.findIndex(s => s.id === activeTab);
@@ -663,7 +663,7 @@ export default function EditorPage() {
                 {activeTab === steps[steps.length - 1].id ? (
                   <Button
                     size="lg"
-                    className="flex-1 h-12 gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+                    className="flex-1 min-h-[56px] sm:h-12 gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
                     onClick={() => {
                       haptics.success();
                       navigate('/preview');
@@ -675,7 +675,7 @@ export default function EditorPage() {
                 ) : (
                   <Button
                     size="lg"
-                    className="flex-1 h-12"
+                    className="flex-1 min-h-[56px] sm:h-12"
                     onClick={() => {
                       haptics.medium();
                       const currentIndex = steps.findIndex(s => s.id === activeTab);
