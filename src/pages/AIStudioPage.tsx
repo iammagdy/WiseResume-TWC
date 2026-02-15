@@ -41,6 +41,7 @@ const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet')
 const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
 const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
+const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
 
 const SUGGESTIONS = [
   'Write a summary for a software engineer',
@@ -81,6 +82,7 @@ export default function AIStudioPage() {
   const [showContentLibrary, setShowContentLibrary] = useState(false);
   const [showCustomize, setShowCustomize] = useState(false);
   const [showProofread, setShowProofread] = useState(false);
+  const [showEnhance, setShowEnhance] = useState(false);
   const [moreToolsOpen, setMoreToolsOpen] = useState(true);
 
   const requireResume = useCallback((action: () => void) => {
@@ -98,7 +100,7 @@ export default function AIStudioPage() {
         case 'proofread': setShowProofread(true); break;
         case 'ideas': setShowContentLibrary(true); break;
         case 'customize': setShowCustomize(true); break;
-        case 'enhance': setShowTailor(true); break;
+        case 'enhance': setShowEnhance(true); break;
         case 'interview': navigate('/interview'); break;
         case 'career': setShowCareerPath(true); break;
         case 'humanizer': setShowAIDetector(true); break;
@@ -312,6 +314,7 @@ export default function AIStudioPage() {
           {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={() => {}} />}
           {showCustomize && <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} onApply={() => {}} />}
           {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
+          {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
         </Suspense>
       </ErrorBoundary>
     </div>
