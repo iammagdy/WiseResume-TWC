@@ -162,6 +162,7 @@
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -1110,6 +1111,11 @@
     width: calc(100% - 32px) !important;
     left: 16px !important;
     right: 16px !important;
+    padding-top: env(safe-area-inset-top) !important;
+  }
+
+  .toast-premium {
+    font-size: 14px !important;
   }
 }
 

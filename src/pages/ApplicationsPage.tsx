@@ -180,12 +180,12 @@ export default function ApplicationsPage() {
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
         <div className="px-4 py-4 space-y-6">
           {/* Tabs */}
-          <div className="flex gap-2 -mt-2">
+          <div className="flex gap-2 w-full -mt-2">
             {TABS.map(t => (
               <button
                 key={t.key}
                 onClick={() => { haptics.selection(); setActiveTab(t.key); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors min-h-[48px] flex-1 ${
                   activeTab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                 }`}
               >
@@ -218,7 +218,7 @@ export default function ApplicationsPage() {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       onClick={() => navigate(`/application/${app.id}`)}
-                      className="glass-card rounded-2xl p-4 flex items-start gap-3 w-full text-left hover:bg-muted/30 transition-colors"
+                      className="glass-card rounded-2xl p-4 flex items-start gap-3 w-full text-left hover:bg-muted/30 transition-colors min-h-[80px]"
                     >
                       <div className="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center shrink-0">
                         <FileText className="w-5 h-5 text-secondary" />
@@ -281,7 +281,7 @@ export default function ApplicationsPage() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           onClick={() => { haptics.medium(); setShowSaveJob(true); }}
-          className="fixed bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          className="fixed bottom-24 sm:bottom-20 right-4 pr-safe z-50 w-16 h-16 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
           aria-label="Save new job"
         >
           <Plus className="w-6 h-6 text-primary-foreground" />
