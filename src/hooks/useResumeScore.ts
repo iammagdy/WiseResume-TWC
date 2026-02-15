@@ -24,6 +24,10 @@ function cacheKey(resumeId: string, updatedAt: string) {
   return `${resumeId}:${updatedAt}`;
 }
 
+export function clearCachedScore(resumeId: string, updatedAt: string) {
+  scoreCache.delete(cacheKey(resumeId, updatedAt));
+}
+
 export function useResumeScore() {
   const [scoringId, setScoringId] = useState<string | null>(null);
 

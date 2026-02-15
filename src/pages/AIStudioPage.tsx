@@ -108,14 +108,6 @@ export default function AIStudioPage() {
   const [stickyInput, setStickyInput] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Auto-open enhance sheet when navigated with ?action=enhance
-  useEffect(() => {
-    if (searchParams.get('action') === 'enhance') {
-      setShowEnhance(true);
-      searchParams.delete('action');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams]);
 
   const handleStickySubmit = useCallback(() => {
     if (!stickyInput.trim()) return;
