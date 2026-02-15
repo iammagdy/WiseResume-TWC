@@ -1,78 +1,106 @@
 
 
-## Mobile Responsiveness Fix: Global Mobile Enhancements
+## Feature: Dedicated AI Studio Tab
 
 ### Overview
 
-Apply targeted global mobile improvements to the viewport meta tag, CSS globals, toast notifications, and the Applications/Jobs page. Most global enhancements (safe areas, overflow-x hidden, momentum scrolling, settings row touch targets) are already well-implemented.
+Add a 5th "Studio" tab to the bottom navigation bar, create a new `/ai-studio` page that consolidates the Wise AI chat and all AI tools into a single dedicated screen, and remove the old AI Studio drawer from the Editor page.
 
 ### Changes
 
-**File 1: `index.html`**
+**File 1: `src/pages/AIStudioPage.tsx` (NEW)**
 
-Update viewport meta tag to allow zoom up to 5x for accessibility:
+Create a new page with the following layout (top to bottom):
 
-- Change `content="width=device-width, initial-scale=1.0, viewport-fit=cover"` to `content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"`
-- This improves accessibility by allowing users to pinch-zoom
+- **Header**: "AI Studio" title with animated gradient text, "Powered by WiseResume AI" subtitle with `AIEngineBadge`, and `AICreditsIndicator` showing remaining credits
+- **Resume Context Bar**: If `currentResumeId` exists in store, show "Working on: [resume name]" pill; if not, show a "Select a Resume" prompt button that navigates to `/dashboard`
+- **Wise AI Chat Section**: Embed the `AgenticChatSheet` content (not as a sheet -- extract the chat UI into a reusable component or render the chat inline). Show suggestion chips (same SUGGESTIONS array from AgenticChatSheet). Full-width chat input pinned at bottom of this section
+- **Featured Tools** (2 full-width cards): "Smart Tailor" and "Job Match" -- clicking opens the corresponding sheet (TailorSheet, JobAnalysisSheet) which requires `currentResumeId`
+- **More AI Tools Grid** (collapsible section, default expanded): 2-column grid on mobile, 3-column on tablet, 4-column on desktop. Cards for: Proofread, Ideas, Customize, Enhance, Interview, Career, Humanize, LinkedIn, 1-Page, Recruiter -- each opens the same sheets as in EditorPage
+- **Pro Tip**: Static card with the job URL tip text
+- All tool activations check for `currentResumeId` and show "Create a resume first" toast if missing
+- Page wrapped in `ErrorBoundary`, uses `pb-20` for bottom nav clearance
+- Uses `motion.div` fade-in animations on sections with staggered delays
 
-**File 2: `src/index.css`**
+The page reuses existing lazy-loaded sheet components (TailorSheet, JobAnalysisSheet, RecruiterSimSheet, AIDetectorSheet, LinkedInOptimizerSheet, OnePageWizardSheet, CareerPathSheet, ContentLibrarySheet, CustomizeSheet, ProofreadSheet, AgenticChatSheet). All sheets are opened via boolean state variables, same pattern as EditorPage.
 
-Add smooth scrolling and minor global improvements:
+**File 2: `src/components/layout/BottomTabBar.tsx` (EDIT)**
 
-- Add `scroll-behavior: smooth;` to the `html` rule (currently only has font-family and font-smoothing)
-- No other global CSS changes needed -- safe areas, overflow-x hidden, momentum scrolling, and overscroll-behavior are already implemented on the body
+Add a 5th tab between Editor and Jobs:
 
-**File 3: `src/index.css` (toast section)**
+```typescript
+{
+  path: '/ai-studio',
+  icon: Sparkles,
+  label: 'Studio',
+  matchPaths: ['/ai-studio'],
+  guarded: false, // accessible without a resume (page handles context)
+}
+```
 
-Improve toast mobile styling in the existing `@media (max-width: 640px)` block:
+Import `Sparkles` from lucide-react (already imported in other files). The Studio tab icon gets a special gradient/primary color treatment when active to make it visually distinctive.
 
-- Add `font-size: 14px !important;` to `.toast-premium` within the media query so text is comfortably readable on small screens
-- Add `padding-top: env(safe-area-inset-top)` to `[data-sonner-toaster]` within the media query so toasts respect the notch
+**File 3: `src/App.tsx` (EDIT)**
 
-**File 4: `src/components/applications/JobActivityStats.tsx`**
+Add lazy-loaded route for the new page:
 
-Optimize the 2x2 stats grid for very small screens:
+```typescript
+const AIStudioPage = lazyWithRetry(() => import("./pages/AIStudioPage"));
+```
 
-- Change `grid grid-cols-2 gap-3` to `grid grid-cols-1 sm:grid-cols-2 gap-3` so cards stack single-column on screens under 640px
-- Change `min-h-[48px]` to `min-h-[100px]` for comfortable card height on mobile
-- The icon/label/value layout within each card is already well-structured
+Add route inside `AppShell`:
 
-**File 5: `src/pages/ApplicationsPage.tsx`**
+```jsx
+<Route path="/ai-studio" element={
+  <Suspense fallback={<DashboardSkeleton />}>
+    <AIStudioPage />
+  </Suspense>
+} />
+```
 
-Optimize tabs and activity feed for mobile touch:
+**File 4: `src/components/layout/AppShell.tsx` (EDIT)**
 
-- **Tab buttons**: Change from `px-3 py-1.5 text-xs` to `px-4 py-2.5 text-sm min-h-[48px] flex-1` so tabs are full-width and have 48px touch targets
-- **Tab container**: Change from `flex gap-2` to `flex gap-2 w-full`
-- **Application cards**: Add `min-h-[80px]` to each application card button for comfortable touch
-- **Save Job FAB**: Change from `w-14 h-14 bottom-20` to `w-16 h-16 bottom-24 sm:bottom-20` for a larger (64px) touch target with nav bar clearance
+Add `/ai-studio` to the `TAB_ROUTES` array so the bottom nav shows on this page.
 
-**File 6: `src/components/applications/ActivityTimeline.tsx`**
+**File 5: `src/pages/EditorPage.tsx` (EDIT)**
 
-Make timeline entries more tappable on mobile:
+- Remove the `AIAssistantBar` from the bottom sticky section (lines 708-730)
+- Remove the `AIHubSheet` import and usage if present
+- Keep the top-right Wise AI button but change it to navigate to `/ai-studio` instead of opening `showChat`
+- Keep `ProofreadButton` FAB (repositioned since AI bar is removed -- move to `bottom-24` to clear bottom nav)
+- Keep all sheet components and their state -- they are still openable from the AI Studio page or via shortcuts
+- Remove imports: `AIAssistantBar`
 
-- Add `min-h-[80px]` to each timeline entry container for comfortable touch interaction
-- Add `cursor-pointer` to all entries (not just resume types) so they feel interactive
-- The existing layout with icon + text + badge is already well-optimized
+**File 6: `src/components/editor/AIAssistantBar.tsx` (KEEP)**
+
+Keep the component file -- it will no longer be used in EditorPage but could be removed in a future cleanup. No changes needed.
 
 ### What Does NOT Change
 
+- All AI tool sheet components (TailorSheet, JobAnalysisSheet, etc.) remain identical
+- AgenticChatSheet component stays the same (opened as sheet from AI Studio page)
+- AI credits system, provider management, Gemini/WiseResume AI integration
+- Editor page form sections, auto-save, validation, keyboard shortcuts
+- All other pages and navigation routes
 - Resume CRUD operations, version history, ATS scoring
-- Navigation routing, deep linking, tab persistence
-- All dialog/sheet modals and their animations
-- Toast auto-dismiss duration (already 4000ms / 4 seconds)
-- Toast swipe-to-dismiss (already built into Sonner library)
-- Settings page toggles (already min-h 56px with proper touch targets)
-- Settings Switch component (already h-7 w-12 -- adequate)
-- Loading skeletons and spinners (already centered and visible)
-- Desktop layouts (640px+/768px+) -- identical behavior and appearance
-- All AI features and data operations
+- Desktop layouts for non-affected pages
 
 ### Technical Notes
 
-- Viewport `maximum-scale=5.0` maintains WCAG 2.1 AA compliance for zoom accessibility
-- `scroll-behavior: smooth` on html enables smooth anchor scrolling (used by activity stats scroll-to-timeline)
-- Toast safe-area padding uses `env(safe-area-inset-top)` which gracefully falls back to 0 on non-notched devices
-- Stats grid uses `sm:` breakpoint (640px) for single-to-double column transition
-- Tab buttons use `flex-1` to distribute width evenly across the tab bar
-- All changes use Tailwind responsive prefixes or CSS media queries only
+- The 5-tab layout fits comfortably on 320px+ screens (each tab ~64px wide minimum vs 320px/5 = 64px)
+- Tab label "Studio" is short enough to avoid wrapping on small screens
+- AI Studio page uses the same sheet-based architecture as EditorPage -- tools open as bottom sheets
+- `currentResumeId` from Zustand store provides context awareness without prop drilling
+- All tool sheets already handle their own data fetching from the resume store
+- The `guarded: false` on the Studio tab means users can always navigate there; the page itself shows a "select resume" prompt if no resume is active
+- Removing the AIAssistantBar from EditorPage frees ~60px of vertical space, improving the editing experience on mobile
+- ProofreadButton position adjusted since the sticky AI bar is removed
+
+### Responsive Design
+
+- **Mobile (less than 768px)**: Single column layout, 2-column tool grid, chat input pinned at section bottom, suggestion chips wrap horizontally
+- **Tablet (768-1024px)**: 3-column tool grid
+- **Desktop (1024px+)**: 4-column tool grid, wider chat area
+- All interactive elements maintain 44px minimum touch targets
+- Page uses `pb-20` for bottom nav clearance and `pt-safe` for notch
 
