@@ -2,6 +2,7 @@ import html2canvas from 'html2canvas';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions, SectionId } from '@/types/resume';
 import { TemplateConfig, getTemplateConfig } from '@/lib/templateConfig';
+import { PAGE_FORMAT_PX } from '@/lib/templateCustomization';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
@@ -14,13 +15,23 @@ export class PdfGenerationError extends Error {
   }
 }
 
-// PDF dimensions (Letter size in points)
-const PAGE_WIDTH = 612;
-const PAGE_HEIGHT = 792;
+// PDF dimensions defaults (Letter size in points)
+const DEFAULT_PAGE_WIDTH = 612;
+const DEFAULT_PAGE_HEIGHT = 792;
 const FOOTER_RESERVED_PT = 44; // Space for page numbers + branding
-const PRINTABLE_HEIGHT = PAGE_HEIGHT - FOOTER_RESERVED_PT;
 const SCALE = 2; // Higher scale for better quality
 const MARGIN = 72; // 1 inch margins for cover letter
+
+/**
+ * Resolves page dimensions from resume customization, defaulting to Letter.
+ */
+function getPageDimensions(resume?: ResumeData): { pageWidth: number; pageHeight: number; printableHeight: number } {
+  const format = resume?.customization?.pageFormat || 'letter';
+  const dims = PAGE_FORMAT_PX[format] || PAGE_FORMAT_PX['letter'];
+  const pageWidth = dims?.width || DEFAULT_PAGE_WIDTH;
+  const pageHeight = dims?.height || DEFAULT_PAGE_HEIGHT;
+  return { pageWidth, pageHeight, printableHeight: pageHeight - FOOTER_RESERVED_PT };
+}
 
 interface ContentBlock {
   top: number;
@@ -462,7 +473,8 @@ function wrapText(
  */
 async function addPageFooter(
   pdfDoc: PDFDocument,
-  options: PDFOptions = {}
+  options: PDFOptions = {},
+  pageWidth: number = DEFAULT_PAGE_WIDTH
 ): Promise<void> {
   const { 
     showPageNumbers = true, 
@@ -488,7 +500,7 @@ async function addPageFooter(
       const textWidth = font.widthOfTextAtSize(pageText, 9);
 
       page.drawText(pageText, {
-        x: (PAGE_WIDTH - textWidth) / 2,
+        x: (pageWidth - textWidth) / 2,
         y: showBranding ? 28 : 20, // Move up if branding shown
         size: 9,
         font,
@@ -502,7 +514,7 @@ async function addPageFooter(
       const brandingWidth = font.widthOfTextAtSize(brandingText, 7);
 
       page.drawText(brandingText, {
-        x: (PAGE_WIDTH - brandingWidth) / 2,
+        x: (pageWidth - brandingWidth) / 2,
         y: 12,
         size: 7,
         font,
@@ -517,7 +529,7 @@ async function addPageFooter(
  * Forces exact 612px width, removes CSS transforms, ensures all content visible.
  * Returns a cleanup function to restore original styles.
  */
-function prepareForCapture(sourceElement: HTMLElement): () => void {
+function prepareForCapture(sourceElement: HTMLElement, pageWidth: number = DEFAULT_PAGE_WIDTH): () => void {
   const originalStyles = {
     width: sourceElement.style.width,
     maxWidth: sourceElement.style.maxWidth,
@@ -526,8 +538,8 @@ function prepareForCapture(sourceElement: HTMLElement): () => void {
   };
 
   // Force exact PDF-width layout (prevents mobile reflow at smaller widths)
-  sourceElement.style.width = '612px';
-  sourceElement.style.maxWidth = '612px';
+  sourceElement.style.width = `${pageWidth}px`;
+  sourceElement.style.maxWidth = `${pageWidth}px`;
   // Remove any framer-motion transforms that affect getBoundingClientRect
   sourceElement.style.transform = 'none';
 
@@ -595,13 +607,19 @@ export interface PDFDimensions {
  * Estimates the scale percentage for one-page PDF export without generating a PDF.
  * Returns a number 1-100 representing the percentage (e.g., 67 means 67% scale).
  */
-export function estimateOnePageScale(templateElement: HTMLElement): number {
-  const cleanup = prepareForCapture(templateElement);
+export function estimateOnePageScale(templateElement: HTMLElement, pageFormat?: 'a4' | 'letter'): number {
+  const format = pageFormat || 'letter';
+  const dims = PAGE_FORMAT_PX[format] || PAGE_FORMAT_PX['letter'];
+  const pw = dims?.width || DEFAULT_PAGE_WIDTH;
+  const ph = dims?.height || DEFAULT_PAGE_HEIGHT;
+  const printable = ph - FOOTER_RESERVED_PT;
+
+  const cleanup = prepareForCapture(templateElement, pw);
   try {
-    const { totalHeight, globalScaleFactor } = calculatePDFDimensions(templateElement);
+    const { totalHeight, globalScaleFactor } = calculatePDFDimensions(templateElement, pw, ph);
     const pdfContentHeight = totalHeight * globalScaleFactor;
-    const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
-      ? PRINTABLE_HEIGHT / pdfContentHeight
+    const fitScale = pdfContentHeight > printable
+      ? printable / pdfContentHeight
       : 1;
     return Math.round(fitScale * 100);
   } finally {
@@ -609,22 +627,27 @@ export function estimateOnePageScale(templateElement: HTMLElement): number {
   }
 }
 
-export function calculatePDFDimensions(sourceElement: HTMLElement): PDFDimensions {
+export function calculatePDFDimensions(
+  sourceElement: HTMLElement,
+  pageWidth: number = DEFAULT_PAGE_WIDTH,
+  pageHeight: number = DEFAULT_PAGE_HEIGHT
+): PDFDimensions {
+  const printableHeight = pageHeight - FOOTER_RESERVED_PT;
   // Use offsetWidth (transform-agnostic) instead of getBoundingClientRect which returns scaled values on iOS
   const sourceWidth = Math.max(
-    sourceElement.offsetWidth || PAGE_WIDTH,
-    PAGE_WIDTH / 2 // Minimum sensible width
+    sourceElement.offsetWidth || pageWidth,
+    pageWidth / 2 // Minimum sensible width
   );
   const totalHeight = Math.max(
-    sourceElement.scrollHeight || sourceElement.offsetHeight || PAGE_HEIGHT,
-    PAGE_HEIGHT / 2 // Minimum sensible height
+    sourceElement.scrollHeight || sourceElement.offsetHeight || pageHeight,
+    pageHeight / 2 // Minimum sensible height
   );
 
   // GLOBAL scale factor - used consistently for ALL pages
-  const globalScaleFactor = PAGE_WIDTH / sourceWidth;
+  const globalScaleFactor = pageWidth / sourceWidth;
 
   // How much source height fits on one PDF page (accounting for footer)
-  const sourceHeightPerPage = PRINTABLE_HEIGHT / globalScaleFactor;
+  const sourceHeightPerPage = printableHeight / globalScaleFactor;
 
   return {
     sourceWidth,
@@ -673,7 +696,9 @@ export async function generatePDFPages(
   canvas: HTMLCanvasElement,
   smartBreaks: number[],
   totalHeight: number,
-  globalScaleFactor: number
+  globalScaleFactor: number,
+  pageWidth: number = DEFAULT_PAGE_WIDTH,
+  pageHeight: number = DEFAULT_PAGE_HEIGHT
 ): Promise<void> {
   // If no breaks found (e.g. single page or fixed-sidebar), we have 1 page
   const numPages = smartBreaks.length + 1;
@@ -690,7 +715,7 @@ export async function generatePDFPages(
 
     // Create page canvas at the exact size needed for this slice
     const pageCanvas = document.createElement('canvas');
-    pageCanvas.width = PAGE_WIDTH * SCALE;
+    pageCanvas.width = pageWidth * SCALE;
     pageCanvas.height = Math.ceil(pdfContentHeight * SCALE);
     const ctx = pageCanvas.getContext('2d');
 
@@ -724,25 +749,25 @@ export async function generatePDFPages(
     const pngImage = await pdfDoc.embedPng(imgData);
 
     // Add page to PDF
-    const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
     // In PDF, y=0 is BOTTOM. Position image at TOP of page.
     // The image is already at correct scale, just position it
     page.drawImage(pngImage, {
       x: 0,
-      y: PAGE_HEIGHT - pdfContentHeight,
-      width: PAGE_WIDTH,
+      y: pageHeight - pdfContentHeight,
+      width: pageWidth,
       height: pdfContentHeight,
     });
 
     // Draw white rectangle to cleanly mask ALL unused space below content
     // This ensures manual page breaks result in clean white space (professional look)
-    const contentBottomY = PAGE_HEIGHT - pdfContentHeight;
+    const contentBottomY = pageHeight - pdfContentHeight;
     if (contentBottomY > 0) {
       page.drawRectangle({
         x: 0,
         y: 0,
-        width: PAGE_WIDTH,
+        width: pageWidth,
         height: contentBottomY, // Covers everything from bottom up to content edge
         color: rgb(1, 1, 1), // White
       });
@@ -781,17 +806,20 @@ export async function generatePDF(
 
   onProgress?.('preparing', 10);
 
+  // Resolve dynamic page dimensions
+  const { pageWidth, pageHeight, printableHeight } = getPageDimensions(resume);
+
   // Prepare element for capture: fix width, remove transforms, ensure visibility
-  const cleanup = prepareForCapture(sourceElement);
+  const cleanup = prepareForCapture(sourceElement, pageWidth);
 
   try {
-    // Calculate dimensions (after prepareForCapture so we get correct 612px width)
+    // Calculate dimensions (after prepareForCapture so we get correct width)
     const {
       sourceWidth,
       totalHeight,
       globalScaleFactor,
       sourceHeightPerPage
-    } = calculatePDFDimensions(sourceElement);
+    } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
     // Calculate smart break positions that avoid cutting content
     let smartBreaks = findSmartBreakPositions(
@@ -818,12 +846,12 @@ export async function generatePDF(
     onProgress?.('paginating', 40);
 
     // Generate pages
-    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor);
+    await generatePDFPages(pdfDoc, canvas, smartBreaks, totalHeight, globalScaleFactor, pageWidth, pageHeight);
 
     onProgress?.('finalizing', 80);
 
     // Add page footer (numbers + branding)
-    await addPageFooter(pdfDoc, options);
+    await addPageFooter(pdfDoc, options, pageWidth);
 
     onProgress?.('finalizing', 90);
 
@@ -861,17 +889,18 @@ export async function generateOnePagePDF(
   await new Promise(resolve => setTimeout(resolve, 300));
   onProgress?.('preparing', 10);
 
-  const cleanup = prepareForCapture(sourceElement);
+  const { pageWidth, pageHeight, printableHeight } = getPageDimensions(resume);
+  const cleanup = prepareForCapture(sourceElement, pageWidth);
 
   try {
-    const { sourceWidth, totalHeight, globalScaleFactor } = calculatePDFDimensions(sourceElement);
+    const { sourceWidth, totalHeight, globalScaleFactor } = calculatePDFDimensions(sourceElement, pageWidth, pageHeight);
 
     // Calculate the full content height in PDF points
     const pdfContentHeight = totalHeight * globalScaleFactor;
 
     // Calculate scale factor to fit everything on one page
-    const fitScale = pdfContentHeight > PRINTABLE_HEIGHT
-      ? PRINTABLE_HEIGHT / pdfContentHeight
+    const fitScale = pdfContentHeight > printableHeight
+      ? printableHeight / pdfContentHeight
       : 1;
 
     // Dynamically increase capture scale if we need to shrink significantly
@@ -885,40 +914,40 @@ export async function generateOnePagePDF(
 
     const pdfDoc = await PDFDocument.create();
 
-    const finalWidth = PAGE_WIDTH * fitScale;
+    const finalWidth = pageWidth * fitScale;
     const finalHeight = pdfContentHeight * fitScale;
 
     // Center horizontally if scaled down
-    const offsetX = (PAGE_WIDTH - finalWidth) / 2;
+    const offsetX = (pageWidth - finalWidth) / 2;
 
     onProgress?.('embedding', 50);
     const imgData = canvas.toDataURL('image/png');
     const pngImage = await pdfDoc.embedPng(imgData);
 
-    const page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
     // Position at top of page, centered horizontally
     page.drawImage(pngImage, {
       x: offsetX,
-      y: PAGE_HEIGHT - finalHeight,
+      y: pageHeight - finalHeight,
       width: finalWidth,
       height: finalHeight,
     });
 
     // White-fill below content
-    const contentBottomY = PAGE_HEIGHT - finalHeight;
+    const contentBottomY = pageHeight - finalHeight;
     if (contentBottomY > FOOTER_RESERVED_PT) {
       page.drawRectangle({
         x: 0,
         y: FOOTER_RESERVED_PT,
-        width: PAGE_WIDTH,
+        width: pageWidth,
         height: contentBottomY - FOOTER_RESERVED_PT,
         color: rgb(1, 1, 1),
       });
     }
 
     onProgress?.('finalizing', 85);
-    await addPageFooter(pdfDoc, options);
+    await addPageFooter(pdfDoc, options, pageWidth);
 
     const pdfBytes = await pdfDoc.save();
     onProgress?.('downloading', 100);
@@ -940,11 +969,11 @@ export async function generateCoverLetterPDF(
   const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
-  const contentWidth = PAGE_WIDTH - (MARGIN * 2);
+  const contentWidth = DEFAULT_PAGE_WIDTH - (MARGIN * 2);
   const lines = wrapText(coverLetter, font, 11, contentWidth);
 
-  let page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  let y = PAGE_HEIGHT - MARGIN;
+  let page = pdfDoc.addPage([DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT]);
+  let y = DEFAULT_PAGE_HEIGHT - MARGIN;
 
   // Add header with contact info
   if (contactInfo.fullName) {
@@ -993,8 +1022,8 @@ export async function generateCoverLetterPDF(
   for (const line of lines) {
     if (y < MARGIN + 30) {
       // New page needed
-      page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      y = PAGE_HEIGHT - MARGIN;
+      page = pdfDoc.addPage([DEFAULT_PAGE_WIDTH, DEFAULT_PAGE_HEIGHT]);
+      y = DEFAULT_PAGE_HEIGHT - MARGIN;
     }
 
     if (line === '') {
