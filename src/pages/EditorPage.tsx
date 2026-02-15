@@ -184,6 +184,10 @@ export default function EditorPage() {
   
   // Smart tab change handler with auto-scroll
   const handleTabChange = useCallback((newTab: string) => {
+    if (newTab !== 'more') {
+      // Clear sub-section when leaving More
+      setMoreSubSection(null);
+    }
     setActiveTab(newTab);
     // Scroll content to top smoothly when switching tabs
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
@@ -574,14 +578,29 @@ export default function EditorPage() {
                 <ChevronLeft className="w-4 h-4" /> All Sections
               </button>
               <Suspense fallback={<SectionSkeleton />}>
-                {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements" action={<SectionAIAction section="awards" />}><AwardsSection /></SectionCard>}
-                {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}><ProjectsSection /></SectionCard>}
-                {moreSubSection === 'certifications' && <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}><CertificationsSection /></SectionCard>}
-                {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications" action={<SectionAIAction section="publications" />}><PublicationsSection /></SectionCard>}
-                {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering" action={<SectionAIAction section="volunteering" />}><VolunteeringSection /></SectionCard>}
-                {moreSubSection === 'languages' && <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}><LanguagesSection /></SectionCard>}
-                {moreSubSection === 'hobbies' && <SectionCard icon={Palette} title="Hobbies & Interests"><HobbiesSection /></SectionCard>}
-                {moreSubSection === 'references' && <SectionCard icon={Users} title="References"><ReferencesSection /></SectionCard>}
+                {(() => {
+                  const MORE_SECTION_COMPONENTS: Record<string, { icon: typeof Trophy; title: string; hasAI: boolean; Component: React.LazyExoticComponent<React.ComponentType> }> = {
+                    awards: { icon: Trophy, title: 'Awards & Achievements', hasAI: true, Component: AwardsSection },
+                    projects: { icon: Rocket, title: 'Projects', hasAI: true, Component: ProjectsSection },
+                    certifications: { icon: Award, title: 'Certifications', hasAI: true, Component: CertificationsSection },
+                    publications: { icon: BookOpen, title: 'Publications', hasAI: true, Component: PublicationsSection },
+                    volunteering: { icon: Heart, title: 'Volunteering', hasAI: true, Component: VolunteeringSection },
+                    languages: { icon: Globe, title: 'Languages', hasAI: true, Component: LanguagesSection },
+                    hobbies: { icon: Palette, title: 'Hobbies & Interests', hasAI: false, Component: HobbiesSection },
+                    references: { icon: Users, title: 'References', hasAI: false, Component: ReferencesSection },
+                  };
+                  const config = MORE_SECTION_COMPONENTS[moreSubSection!];
+                  if (!config) {
+                    setMoreSubSection(null);
+                    return null;
+                  }
+                  const { icon, title, hasAI, Component } = config;
+                  return (
+                    <SectionCard icon={icon} title={title} action={hasAI ? <SectionAIAction section={moreSubSection! as any} /> : undefined}>
+                      <Component />
+                    </SectionCard>
+                  );
+                })()}
               </Suspense>
             </div>
           )}
