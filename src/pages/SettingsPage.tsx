@@ -296,7 +296,7 @@ export default function SettingsPage() {
                 <Menu className="w-4 h-4" />
                 <span className="hidden sm:inline">Sections</span>
               </FloatingPanelTrigger>
-              <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe">
+              <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe backdrop-blur-xl bg-background/95">
                 <FloatingPanelBody className="space-y-1">
                   {SECTIONS.map(s => {
                     const Icon = s.icon;
