@@ -1,59 +1,40 @@
 
 
-## Mobile UX Polish Pass -- Audit and Fixes
+## Editor Mobile Polish -- Minor Fixes
 
-### Audit Findings
+### Audit Summary
 
-After scanning all FloatingPanel usages, the editor header, dashboard cards, settings header, and bottom tab bar, here are the concrete issues found on small screens (320-400px):
+The Editor screen is already well-built for mobile. After reviewing the header, tools panel, stepper nav, progress bar, ATS score, editor canvas, and all FloatingPanel usages, only 3 minor styling issues were found.
 
-| # | Issue | Location | Severity |
-|---|-------|----------|----------|
-| 1 | StepperNav mobile FloatingPanel missing width constraint -- relies on base `inset-x-4` which is fine but lacks explicit `backdrop-blur` override for consistency | `StepperNav.tsx` line 177 | Low |
-| 2 | StepperNav desktop FloatingPanel also missing width constraint and backdrop styling | `StepperNav.tsx` line 315 | Low |
-| 3 | Settings "Jump to Section" FloatingPanel missing width constraint | `SettingsPage.tsx` line 299 | Low |
-| 4 | Settings SectionJumpButton lacks explicit `min-h-[44px]` and `touch-manipulation` -- relies only on base FloatingPanelButton which now has it, but this is a custom component, not FloatingPanelButton | `SettingsPage.tsx` SectionJumpButton | Medium |
-| 5 | Editor header title can overflow on 320px screens when resume name is long -- `truncate` is present but the undo/redo buttons and tools trigger compete for space | `EditorPage.tsx` line 671 | Low |
-| 6 | ResumeListCard action menu trigger uses `h-10 w-10` which is smaller than the 44px touch target min | `ResumeListCard.tsx` line 311 | Low |
+### Issues and Fixes
 
-Most things are already well-polished. The base `FloatingPanelContent` component bakes in `bg-background/95 backdrop-blur-xl border-border/40` and `inset-x-4 bottom-4` positioning, so per-instance width classes like `w-[100vw]` are unnecessary (and would conflict). The base `FloatingPanelButton` already has the 44px / touch-manipulation / active:scale-95 treatment from the previous polish pass.
+| # | Issue | File | Line(s) | Fix |
+|---|-------|------|---------|-----|
+| 1 | ATS completeness text can overflow horizontally at 320px | `EditorPage.tsx` | 836 | Add `min-w-0 truncate` to the paragraph element |
+| 2 | Editor scroll container missing bottom safe area padding | `EditorPage.tsx` | 914 | Add `pb-safe` to the scroll container |
+| 3 | "More Sections" grid buttons lack centered text alignment on narrow 2-col layout | `StepperNav.tsx` | 186 | Add `text-center` to the button className |
 
-### Planned Changes (styling only, no logic)
+### Details
 
-**File: `src/components/editor/StepperNav.tsx`**
+**Fix 1 -- ATS score text overflow**
+- Problem: On 320px screens, the "X of Y sections completed" paragraph sits beside the completeness button in a `flex` row with no overflow protection.
+- Change: Add `min-w-0 truncate` to `<p>` at line 836.
+- Result: Text truncates gracefully instead of causing horizontal scroll.
 
-1. **Mobile FloatingPanelContent (line 177)**: Add `backdrop-blur-xl bg-background/95` for explicit depth consistency (the base has it, but className merge means explicit wins for readability).
+**Fix 2 -- Editor content bottom safe area**
+- Problem: The editor scroll container (`px-4 py-4 pb-4`) doesn't account for the home indicator on modern phones. Content at the bottom of a section can be hidden behind the system bar.
+- Change: Add `pb-safe` to the scroll container class at line 914.
+- Result: Content respects the bottom safe area and remains fully visible.
 
-2. **Desktop FloatingPanelContent (line 315)**: Add `backdrop-blur-xl bg-background/95` to match.
+**Fix 3 -- More Sections button text alignment**
+- Problem: In the mobile 2-column grid for "More Sections", buttons use `flex items-center` but on very narrow screens the truncated label can look left-heavy.
+- Change: No structural change -- just confirming alignment is acceptable. On review, the `items-center` with icon + label is actually correct for this layout. Skipping this fix as it would make the buttons look inconsistent with the horizontal icon+label pattern.
 
-**File: `src/pages/SettingsPage.tsx`**
+### Revised Summary -- 2 Actual Changes
 
-3. **SectionJumpButton**: Ensure the button element has `min-h-[44px]`, `touch-manipulation`, and `active:scale-95` classes. Currently it's a custom `<button>` element, not using `FloatingPanelButton`, so it doesn't inherit the base styles.
+| File | Change |
+|------|--------|
+| `src/pages/EditorPage.tsx` line 836 | Add `min-w-0 truncate` to ATS completeness paragraph |
+| `src/pages/EditorPage.tsx` line 914 | Add `pb-safe` to editor scroll container |
 
-4. **FloatingPanelContent (line 299)**: Add `backdrop-blur-xl bg-background/95` for consistency.
-
-**File: `src/components/dashboard/ResumeListCard.tsx`**
-
-5. **ActionsPanel trigger Button (line 311)**: Change `h-10 w-10` to `h-11 w-11` to meet 44px minimum touch target.
-
-### What is NOT changing
-
-- No business logic, handlers, props, or types are modified
-- No component renames
-- ActionsPanel already fully polished (confirmed)
-- BottomTabBar already has `pb-safe`, 48px touch targets, `touch-manipulation` -- no changes needed
-- Editor header already has `pt-safe`, truncation, and responsive hiding -- no changes needed
-- Base FloatingPanelButton already has 44px / touch / scale -- no changes needed
-- viewport meta tag already includes `viewport-fit=cover` -- confirmed correct
-
-### Summary
-
-| File | Lines | Change |
-|------|-------|--------|
-| `src/components/editor/StepperNav.tsx` | 177 | Add `backdrop-blur-xl bg-background/95` to mobile panel |
-| `src/components/editor/StepperNav.tsx` | 315 | Add `backdrop-blur-xl bg-background/95` to desktop panel |
-| `src/pages/SettingsPage.tsx` | 299 | Add `backdrop-blur-xl bg-background/95` to jump panel |
-| `src/pages/SettingsPage.tsx` | SectionJumpButton | Add `min-h-[44px] touch-manipulation active:scale-95` to button |
-| `src/components/dashboard/ResumeListCard.tsx` | 311 | Change `h-10 w-10` to `h-11 w-11` for 44px touch target |
-
-5 small class-string changes. Zero logic changes.
-
+2 small class-string changes. Zero logic changes. Zero structural changes.
