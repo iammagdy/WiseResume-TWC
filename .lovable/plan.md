@@ -1,50 +1,52 @@
 
 
-## Add ATS Score Label, "Improve Score" Button, and Remove Duplicate Completion Card
+## Fix "Improve Score" Flow: Keep User on Detail Page and Re-score After Enhancement
+
+### Problem
+
+1. **Score doesn't update**: After enhancing sections, the ATS score stays the same because:
+   - The score is cached by `resumeId:updatedAt` key
+   - The `updatedAt` value doesn't change (no DB save happens during enhancement)
+   - The resume store updates locally but the score cache is stale
+
+2. **User gets navigated away**: Clicking "Improve Score" navigates to `/ai-studio?action=enhance`, which is disorienting. The user should stay on the resume detail page.
+
+### Solution
+
+Open the `AIEnhanceSheet` directly on the `ResumeDetailPage` instead of navigating away. After the user applies enhancements, automatically re-score the resume and update the displayed ATS score.
 
 ### Changes
 
 **File: `src/pages/ResumeDetailPage.tsx`**
+- Add `showEnhance` state and import the lazy-loaded `AIEnhanceSheet`
+- Change "Improve Score" button from navigating to `/ai-studio?action=enhance` to `setShowEnhance(true)`
+- Add an `onOpenChange` handler for the sheet that, when closed after enhancements:
+  - Reads the updated resume from the Zustand store
+  - Clears the old score cache entry
+  - Triggers `scoreResume()` to re-calculate the ATS score with the enhanced content
+- Render `<AIEnhanceSheet>` at the bottom of the component
 
-1. **Remove the "Complete" card from the 3-col grid** (lines 192-205): The first tile showing `95% Complete` duplicates the ProgressBar rendered just below it. Change the grid from 3 columns to 2 columns, keeping only "Sections" and "Tailored" tiles.
+**File: `src/hooks/useResumeScore.ts`**
+- Export a `clearCachedScore(resumeId, updatedAt)` function so the detail page can invalidate the stale cache entry before re-scoring
+- This allows the same `updatedAt` key to be re-used for a fresh score after local-only changes
 
-2. **Add "ATS Score" label and "Improve Score" button to the ScoreRing section** (lines 184-189):
-   - Always render the score section (not just when `healthScore` exists)
-   - If `healthScore` exists: show `ScoreRing` at 80px size, an "ATS Score" label below, and an "Improve Score" button
-   - If no cached score: show a "Score Resume" button to trigger on-demand scoring via `useResumeScore().scoreResume`
-   - "Improve Score" button sets resume context in the store and navigates to `/editor?action=enhance`
+**File: `src/pages/AIStudioPage.tsx`**
+- Remove the `?action=enhance` auto-open logic (no longer needed since the flow stays on the detail page)
 
-3. **Add scoring state**: Import `scoreResume` from `useResumeScore`, add `isScoring` state to track when scoring is in progress
+### User Flow (After Fix)
 
-**File: `src/pages/EditorPage.tsx`** (minor addition)
-- On mount, check `searchParams.get('action')` -- if it equals `'enhance'`, auto-open the AI Enhance sheet so the user lands directly in the improvement flow with comparison diffs
-
-### Updated Layout
-
-```text
-+----------------------------------+
-|      Template Preview Card       |
-+----------------------------------+
-|     ScoreRing (80px, ATS: 72%)   |
-|          "ATS Score"             |
-|     [ Improve Score ] button     |
-+----------------------------------+
-|   Resume 95% Complete ========   |  <-- ProgressBar (kept)
-+----------------------------------+
-|    4/5     |      0             |
-|  Sections  |   Tailored         |  <-- 2-col grid (completion card removed)
-+----------------------------------+
-```
+1. User is on Resume Detail page, sees ATS Score 78%
+2. Taps "Improve Score"
+3. AIEnhanceSheet slides up (user stays on same page)
+4. User selects sections, enhances, applies changes
+5. User closes the sheet
+6. Score automatically re-calculates with enhanced content
+7. Updated ATS score appears (e.g., 85%)
 
 ### Technical Details
 
-| File | Change |
-|------|--------|
-| `src/pages/ResumeDetailPage.tsx` | Remove completion card from grid, add ATS label + Improve Score button, on-demand scoring |
-| `src/pages/EditorPage.tsx` | Check `?action=enhance` query param to auto-open AI Enhance sheet |
-
-- "Improve Score" uses `setCurrentResume` / `setCurrentResumeId` / `setSelectedTemplate` then `navigate('/editor?action=enhance')`
-- On-demand scoring uses `scoreResume(resumeData)` from the existing `useResumeScore` hook
-- All buttons maintain 44px min touch targets and `active:scale-95`
-- ScoreRing enlarged to 80px for better visibility with the label
+- `clearCachedScore` simply calls `scoreCache.delete(cacheKey(resumeId, updatedAt))`
+- After sheet closes, we use `useResumeStore.getState().currentResume` to get the latest enhanced data
+- The re-scoring happens transparently using the existing `scoreResume` function
+- No navigation occurs at any point -- the user stays on `/resume/:id`
 
