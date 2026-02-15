@@ -1,77 +1,57 @@
 
 
-## Fix Dashboard Resume Card Layout and Floating Button
+## Remove Interview from Bottom Bar, Add to Studio and Export
 
-### Problems Identified
+### Overview
 
-1. **Chevron button off-screen**: In `ResumeGroup.tsx`, the expand/collapse button uses `absolute left-0 -translate-x-full` which places it completely outside the visible area on mobile.
-
-2. **Overlapping badges**: The "3 tailored versions" and "Compare" badges at the bottom of the card overlap with the ATS score bar because they use `absolute -bottom-2` positioning which collides with the score breakdown area.
-
-3. **Floating button too wide on mobile**: The "New Resume" FAB shows full text on all screen sizes. On mobile it should be a compact circle with just the `+` icon, and tapping it should open a radial/popup menu with options.
+Remove the Interview tab from the bottom navigation bar (reducing it from 6 to 5 tabs), keep it accessible via the AI Studio page (already there as a secondary tool), and add an "Interview Prep" option in the Export sheet so users can practice answering questions about their resume right before exporting.
 
 ---
 
-### Fix 1: Move Chevron Inside the Card
+### Changes
 
-**File: `src/components/dashboard/ResumeGroup.tsx`**
+#### 1. Remove Interview Tab from Bottom Bar
 
-- Remove the `absolute left-0 -translate-x-full` chevron button that sits outside the card
-- Instead, place the expand/collapse toggle **inline** within the tailored count badge at the bottom of the card
-- Make the "X tailored versions" badge itself act as the toggle (it already has `onClick={toggleExpand}`)
-- Add the chevron icon inside the badge so users see a clear expand/collapse indicator
-- Remove the separate floating chevron button entirely
+**File: `src/components/layout/BottomTabBar.tsx`**
 
-### Fix 2: Fix Badge Overlap with ATS Score
+- Remove the Interview tab entry (`path: '/interview'`, `icon: Mic`, `label: 'Interview'`) from the `tabs` array
+- Remove the `Mic` import from lucide-react
+- Final tabs: Home, Editor, Studio, Jobs, Settings (5 tabs)
 
-**File: `src/components/dashboard/ResumeGroup.tsx`**
+#### 2. Add Interview Prep to Export Sheet
 
-- Change the tailored versions badge from `absolute -bottom-2` to a **static element** placed below the card content
-- Use a flex row with proper spacing (`mt-2`) instead of absolute positioning
-- This prevents the badge from overlapping the ATS score bar or progress indicators
+**File: `src/components/editor/ExportOptionsSheet.tsx`**
 
-### Fix 3: Compact FAB with Popup Menu on Mobile
+- Add a new export option entry with id `'interview-prep'`:
+  - Label: "Interview Prep"
+  - Description: "Practice answering questions about this resume"
+  - Icon: `Mic` (from lucide-react)
+  - Always available
+- When user selects "Interview Prep" and taps the action button, navigate to `/interview` instead of triggering a download
+- Update `getButtonLabel` to return "Start Practice" for this type
+- Update the action button icon to show `Mic` instead of `Download`/`Copy` for this type
 
-**File: `src/components/dashboard/FloatingCreateButton.tsx`**
+**File: `src/types/resume.ts`**
 
-- On mobile (below `sm` breakpoint): render as a 56x56 circle with only the `+` icon, no text
-- On desktop: keep current pill shape with "New Resume" text
-- On tap (mobile): open a small popup menu above the button with 3 circular action buttons:
-  - "New Resume" (FileText icon) -- opens CreateResumeDialog
-  - "Tailor Resume" (GitBranch icon) -- navigates to AI Studio tailor flow
-  - "Analyze Job" (Target icon) -- navigates to job analysis
-- Each menu item is a 48px circle with icon + small label below
-- Menu dismisses on outside tap or selection
-- Wire actions: "New Resume" calls existing `onClick`, "Tailor Resume" navigates to `/ai-studio`, "Analyze Job" navigates to `/applications`
+- Add `'interview-prep'` to the `ExportType` union
 
-**File: `src/pages/DashboardPage.tsx`**
+#### 3. AI Studio Already Has Interview (No Change Needed)
 
-- Update `FloatingCreateButton` usage to pass a `navigate` function for the new menu actions
-- Add `onTailor` and `onAnalyzeJob` callbacks
+The Interview tool is already in `secondaryTools` on the AI Studio page (line 70: `{ id: 'interview', icon: Mic, label: 'Interview', desc: 'Practice Q&A' }`). No changes needed here.
 
 ---
-
-### Technical Details
-
-**ResumeGroup badge layout change (before vs after)**:
-
-Before: Badge uses `absolute -bottom-2 left-1/2 -translate-x-1/2` causing overlap with content below.
-
-After: Badge is a static `div` with `mt-2 flex items-center justify-center gap-1.5` placed inside the normal document flow, pushing content down naturally.
-
-**FloatingCreateButton mobile menu**: Uses `AnimatePresence` + `motion.div` for a small popup that appears above the FAB. Each option is a `button` with `min-w-[48px] min-h-[48px]` touch target. The popup uses a backdrop overlay for dismissal.
 
 ### Files Summary
 
 | File | Action |
 |------|--------|
-| `src/components/dashboard/ResumeGroup.tsx` | Remove off-screen chevron, make badge inline, fix overlap |
-| `src/components/dashboard/FloatingCreateButton.tsx` | Icon-only on mobile, add popup menu with 3 actions |
-| `src/pages/DashboardPage.tsx` | Pass new callbacks to FloatingCreateButton |
+| `src/components/layout/BottomTabBar.tsx` | Remove Interview tab from tabs array |
+| `src/types/resume.ts` | Add `'interview-prep'` to ExportType |
+| `src/components/editor/ExportOptionsSheet.tsx` | Add Interview Prep option, handle navigation |
 
 ### Implementation Order
 
-1. `ResumeGroup.tsx` (fix chevron + badge positioning)
-2. `FloatingCreateButton.tsx` (compact mobile FAB + popup menu)
-3. `DashboardPage.tsx` (wire new callbacks)
+1. `src/types/resume.ts` (add type)
+2. `src/components/layout/BottomTabBar.tsx` (remove tab)
+3. `src/components/editor/ExportOptionsSheet.tsx` (add interview prep option)
 
