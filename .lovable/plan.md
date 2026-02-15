@@ -1,33 +1,35 @@
 
 
-## Fix Preview Centering and PDF Download
+## Use pageFormat Setting in PDF Generator
 
-### Issue 1: Preview Content Shifted Right
+### Problem
 
-**Root cause:** In `LivePreviewPanel.tsx` (line 228-235), the zoom container uses `width: ${100/zoom}%` combined with `transform: scale(zoom)` and `transform-origin: top center`. At 75% zoom, the container width becomes 133%, which pushes content to the right since the parent `overflow-auto` div starts scrolling horizontally rather than centering.
+The PDF generator hardcodes Letter size (612x792 points) regardless of the user's page format selection (A4 vs Letter) in the customization sheet. The `PAGE_FORMAT_PX` map already exists in `templateCustomization.ts` with the correct dimensions.
 
-**Fix:** Add `display: flex; justify-content: center` to the scrollable container (line 228), and set a fixed `max-width: 612px` on the inner resume wrapper instead of relying on the inverse-zoom width trick. The zoom container should center itself within the scroll area.
+### Changes
 
-Specifically in `LivePreviewPanel.tsx`:
-- Change the scroll container (line 228) to use `flex justify-center` so the scaled content centers horizontally
-- Keep the `transform: scale(zoom)` and `transform-origin: top center` approach but ensure the wrapper is centered within the flex parent
+**File: `src/lib/pdfGenerator.ts`**
 
-### Issue 2: PDF Download Has Overlapping Text
+1. Import `PAGE_FORMAT_PX` from `@/lib/templateCustomization`
+2. Keep the hardcoded `PAGE_WIDTH`/`PAGE_HEIGHT` constants as **defaults** (fallback)
+3. Create a helper function `getPageDimensions(resume: ResumeData)` that reads `resume.customization?.pageFormat` and returns `{ pageWidth, pageHeight }` from `PAGE_FORMAT_PX`, defaulting to Letter
+4. Update `generatePDF()` to call this helper and pass dynamic dimensions through:
+   - `calculatePDFDimensions()` -- add `pageWidth`/`pageHeight` parameters instead of using the constants
+   - `generatePDFPages()` -- add `pageWidth`/`pageHeight` parameters for page creation and image positioning
+   - `addPageFooter()` -- add `pageWidth` parameter for centering text
+5. Update `generateOnePagePDF()` similarly
+6. Update `prepareForCapture()` to use the dynamic `pageWidth` instead of hardcoded 612
+7. Update `estimateOnePageScale()` and `estimatePageCount()` to accept optional `pageFormat` parameter
 
-**Root cause:** When the user clicks "Download PDF", the `handleDownload` function passes `resumeRef.current` to `generatePDF`. This element is inside a parent div that has `transform: scale(0.75)` applied (the zoom). The `prepareForCapture` function in `pdfGenerator.ts` only resets the transform on the source element itself (line 532), NOT on its parent container. So `html2canvas` captures the element while its parent still has a CSS scale transform active, causing text to render at one size but position at another -- resulting in the overlapping text shown in the screenshot.
+### What Does NOT Change
 
-**Fix:** Before calling `generatePDF`, temporarily reset the parent zoom container's transform to `scale(1)` (or `none`), then restore it after capture completes. This ensures html2canvas sees the element at its true layout dimensions without any interfering transforms.
+- All break-detection logic (works with relative positions, unaffected)
+- Template rendering (templates already apply customization CSS)
+- Cover letter PDF generation (uses its own MARGIN-based layout)
+- The `PAGE_FORMAT_PX` map in `templateCustomization.ts` (already correct)
+- The existing `SCALE` constant (capture resolution, independent of page size)
 
-Specifically in `LivePreviewPanel.tsx`:
-- In `handleDownload`, before calling `generatePDF`, find the zoom wrapper (parent of `resumeRef.current`) and temporarily set its `transform` to `none` and `width` to `auto`
-- After the PDF is generated, restore the original transform and width
-- This is a 5-line change in the `handleDownload` callback
+### Risk
 
-### Files Modified
-
-| File | Change |
-|------|--------|
-| `src/components/editor/LivePreviewPanel.tsx` | Center the scroll container with flexbox; reset parent zoom transform before PDF capture |
-
-No other files need modification. The `pdfGenerator.ts` logic is correct -- the issue is purely that the LivePreviewPanel's zoom transform interferes with capture.
+Low -- this is a mechanical refactor replacing constant references with parameterized values. The A4 and Letter point sizes are standard PDF dimensions.
 
