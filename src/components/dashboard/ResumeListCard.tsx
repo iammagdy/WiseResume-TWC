@@ -32,6 +32,8 @@ import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { ScoreRing } from './ScoreRing';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
+import { ATSScoreBreakdown } from './ATSScoreBreakdown';
+import { useNavigate } from 'react-router-dom';
 
 interface ResumeListCardProps {
   resume: DatabaseResume;
@@ -66,6 +68,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const navigateToEditor = useNavigate();
   
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
@@ -272,13 +275,18 @@ export const ResumeListCard = memo(function ResumeListCard({
                   Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
               </div>
-              {/* AI Improvement Nudge */}
-              {healthScore && healthScore.topImprovement ? (
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
-                  <span className="text-sm text-muted-foreground line-clamp-2 italic">
-                    {healthScore.topImprovement}
-                  </span>
+              {/* ATS Score Breakdown */}
+              {healthScore ? (
+                <div className="mt-2 border-t border-border pt-2">
+                  <ATSScoreBreakdown
+                    healthScore={healthScore}
+                    isScoring={isScoring}
+                    compact
+                    onImprove={() => {
+                      haptics.medium();
+                      navigateToEditor(`/editor?openTailor=1`);
+                    }}
+                  />
                 </div>
               ) : !healthScore ? (
                 <div className="mt-1.5 h-4 w-3/4 rounded bg-muted animate-pulse" />
