@@ -51,7 +51,16 @@ export function useResumeScore() {
         console.error('Score resume error:', error);
         if (error.message?.includes('429')) {
           toast.error('Rate limit reached. Try again shortly.');
+        } else {
+          toast.error('Scoring failed. Tap Re-score to try again.');
         }
+        return null;
+      }
+
+      // Check for error in response body (e.g. AI parse failure)
+      if (data?.error) {
+        console.error('Score resume API error:', data.error);
+        toast.error('Scoring failed. Tap Re-score to try again.');
         return null;
       }
 

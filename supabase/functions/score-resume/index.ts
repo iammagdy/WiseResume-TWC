@@ -65,7 +65,8 @@ serve(async (req) => {
 
     const systemPrompt = `You are an expert resume quality analyzer. Score a resume's quality WITHOUT a job description. Evaluate it purely on best practices, ATS readability, and professional standards.
 
-IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks.`;
+IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks.
+IMPORTANT: Be consistent — identical resume content must always receive the same score.`;
 
     const userPrompt = `Score this resume's overall quality:
 
@@ -104,7 +105,7 @@ Scoring guide:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.2,
+      temperature: 0,
       userGeminiKey,
     });
 
@@ -113,12 +114,13 @@ Scoring guide:
       throw new Error('No content in AI response');
     }
 
-    const result = parseAIJSON(content) ?? {
-      overallScore: 50,
-      categories: { completeness: 50, atsReadiness: 50, impactLanguage: 50, formatting: 50 },
-      topStrength: "Resume has basic structure",
-      topImprovement: "Add more detail to all sections",
-    };
+    const result = parseAIJSON(content);
+    if (!result || typeof result.overallScore !== 'number') {
+      return new Response(
+        JSON.stringify({ error: 'Failed to parse AI scoring response. Please try again.' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Record usage for rate limiting
     await recordUsage(user.id, 'score');
