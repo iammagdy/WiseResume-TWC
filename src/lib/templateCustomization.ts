@@ -9,6 +9,8 @@ export const getDefaultCustomization = (): TemplateCustomization => ({
   layout: 'single',
   spacing: 'normal',
   margins: 'normal',
+  lineHeight: '1.15',
+  pageFormat: 'a4',
 });
 
 export interface PresetPalette {
@@ -59,6 +61,18 @@ const MARGIN_PX: Record<string, number> = {
   wide: 56,
 };
 
+export const LINE_HEIGHT_VALUES: Record<string, number> = {
+  single: 1,
+  '1.15': 1.15,
+  '1.5': 1.5,
+  double: 2,
+};
+
+export const PAGE_FORMAT_PX: Record<string, { width: number; height: number }> = {
+  a4: { width: 595, height: 842 },
+  letter: { width: 612, height: 792 },
+};
+
 export function applyCustomizationCSS(c: TemplateCustomization | undefined): CSSProperties {
   if (!c) return {};
   const mul = FONT_SIZE_MULTIPLIER[c.fontSize] ?? 1;
@@ -68,6 +82,7 @@ export function applyCustomizationCSS(c: TemplateCustomization | undefined): CSS
     fontSize: `${mul}em`,
     padding: `${MARGIN_PX[c.margins] ?? 40}px`,
     gap: `${SPACING_PX[c.spacing] ?? 20}px`,
+    lineHeight: LINE_HEIGHT_VALUES[c.lineHeight] ?? 1.15,
   } as CSSProperties;
 }
 

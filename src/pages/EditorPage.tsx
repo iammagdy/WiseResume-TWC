@@ -480,6 +480,15 @@ export default function EditorPage() {
             )}
           </div>
           <div className="flex items-center gap-1.5">
+            {/* Design shortcut */}
+            <button
+              onClick={() => { handleCustomize(); haptics.light(); }}
+              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
+              aria-label="Open design customization"
+            >
+              <Palette className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none">Design</span>
+            </button>
             {/* Live Preview Toggle */}
             <button
               onClick={() => { setShowPreview(v => !v); haptics.light(); }}

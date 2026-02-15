@@ -174,6 +174,15 @@ export const CustomizeSheet = memo(function CustomizeSheet({
                     onChange={(v) => update('fontSize', v as TemplateCustomization['fontSize'])}
                   />
                 </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Line Spacing</label>
+                  <SegmentedControl
+                    options={['single', '1.15', '1.5', 'double']}
+                    labels={['Single', '1.15', '1.5', 'Double']}
+                    value={draft.lineHeight}
+                    onChange={(v) => update('lineHeight', v as TemplateCustomization['lineHeight'])}
+                  />
+                </div>
               </AccordionContent>
             </AccordionItem>
 
@@ -206,6 +215,15 @@ export const CustomizeSheet = memo(function CustomizeSheet({
                     labels={['Narrow', 'Normal', 'Wide']}
                     value={draft.margins}
                     onChange={(v) => update('margins', v as TemplateCustomization['margins'])}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1.5 block">Page Format</label>
+                  <SegmentedControl
+                    options={['a4', 'letter']}
+                    labels={['A4', 'Letter']}
+                    value={draft.pageFormat}
+                    onChange={(v) => update('pageFormat', v as TemplateCustomization['pageFormat'])}
                   />
                 </div>
               </AccordionContent>
