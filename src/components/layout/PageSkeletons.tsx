@@ -1,5 +1,16 @@
 import { cn } from '@/lib/utils';
 
+/** Lightweight skeleton shown while lazy-loaded editor sections are loading */
+export function SectionSkeleton() {
+  return (
+    <div className="space-y-3 animate-pulse py-2">
+      <div className="h-11 bg-muted rounded-lg" />
+      <div className="h-11 bg-muted rounded-lg" />
+      <div className="h-24 bg-muted rounded-lg" />
+    </div>
+  );
+}
+
 export function DashboardSkeleton() {
   return (
     <div className="min-h-full flex flex-col animate-pulse">

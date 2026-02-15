@@ -13,22 +13,23 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations, useResume, dbToResumeData } from '@/hooks/useResumes';
 import { toast } from 'sonner';
-import { ContactSection } from '@/components/editor/ContactSection';
-import { SummarySection } from '@/components/editor/SummarySection';
-import { ExperienceSection } from '@/components/editor/ExperienceSection';
-import { EducationSection } from '@/components/editor/EducationSection';
-import { SkillsSection } from '@/components/editor/SkillsSection';
+// Lazy-loaded section components (only the active tab is loaded)
+const ContactSection = lazy(() => import('@/components/editor/ContactSection').then(m => ({ default: m.ContactSection })));
+const SummarySection = lazy(() => import('@/components/editor/SummarySection').then(m => ({ default: m.SummarySection })));
+const ExperienceSection = lazy(() => import('@/components/editor/ExperienceSection').then(m => ({ default: m.ExperienceSection })));
+const EducationSection = lazy(() => import('@/components/editor/EducationSection').then(m => ({ default: m.EducationSection })));
+const SkillsSection = lazy(() => import('@/components/editor/SkillsSection').then(m => ({ default: m.SkillsSection })));
+const AwardsSection = lazy(() => import('@/components/editor/AwardsSection').then(m => ({ default: m.AwardsSection })));
+const ProjectsSection = lazy(() => import('@/components/editor/ProjectsSection').then(m => ({ default: m.ProjectsSection })));
+const PublicationsSection = lazy(() => import('@/components/editor/PublicationsSection').then(m => ({ default: m.PublicationsSection })));
+const VolunteeringSection = lazy(() => import('@/components/editor/VolunteeringSection').then(m => ({ default: m.VolunteeringSection })));
+const HobbiesSection = lazy(() => import('@/components/editor/HobbiesSection').then(m => ({ default: m.HobbiesSection })));
+const ReferencesSection = lazy(() => import('@/components/editor/ReferencesSection').then(m => ({ default: m.ReferencesSection })));
+const CertificationsSection = lazy(() => import('@/components/editor/CertificationsSection').then(m => ({ default: m.CertificationsSection })));
+const LanguagesSection = lazy(() => import('@/components/editor/LanguagesSection').then(m => ({ default: m.LanguagesSection })));
 // AIAssistantBar moved to AI Studio tab
 import { SectionAIAction } from '@/components/editor/SectionAIAction';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
-import { AwardsSection } from '@/components/editor/AwardsSection';
-import { ProjectsSection } from '@/components/editor/ProjectsSection';
-import { PublicationsSection } from '@/components/editor/PublicationsSection';
-import { VolunteeringSection } from '@/components/editor/VolunteeringSection';
-import { HobbiesSection } from '@/components/editor/HobbiesSection';
-import { ReferencesSection } from '@/components/editor/ReferencesSection';
-import { CertificationsSection } from '@/components/editor/CertificationsSection';
-import { LanguagesSection } from '@/components/editor/LanguagesSection';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
@@ -57,7 +58,7 @@ import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
-import { EditorSkeleton } from '@/components/layout/PageSkeletons';
+import { EditorSkeleton, SectionSkeleton } from '@/components/layout/PageSkeletons';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
@@ -483,35 +484,35 @@ export default function EditorPage() {
       {activeTab === 'contact' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
-            <ContactSection />
+            <Suspense fallback={<SectionSkeleton />}><ContactSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'summary' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
-            <SummarySection />
+            <Suspense fallback={<SectionSkeleton />}><SummarySection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'experience' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
-            <ExperienceSection />
+            <Suspense fallback={<SectionSkeleton />}><ExperienceSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'education' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
-            <EducationSection />
+            <Suspense fallback={<SectionSkeleton />}><EducationSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'skills' && (
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
-            <SkillsSection />
+            <Suspense fallback={<SectionSkeleton />}><SkillsSection /></Suspense>
           </SectionCard>
         </div>
       )}
@@ -526,14 +527,16 @@ export default function EditorPage() {
               <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation">
                 <ChevronLeft className="w-4 h-4" /> All Sections
               </button>
-              {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements" action={<SectionAIAction section="awards" />}><AwardsSection /></SectionCard>}
-              {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}><ProjectsSection /></SectionCard>}
-              {moreSubSection === 'certifications' && <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}><CertificationsSection /></SectionCard>}
-              {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications" action={<SectionAIAction section="publications" />}><PublicationsSection /></SectionCard>}
-              {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering" action={<SectionAIAction section="volunteering" />}><VolunteeringSection /></SectionCard>}
-              {moreSubSection === 'languages' && <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}><LanguagesSection /></SectionCard>}
-              {moreSubSection === 'hobbies' && <SectionCard icon={Palette} title="Hobbies & Interests"><HobbiesSection /></SectionCard>}
-              {moreSubSection === 'references' && <SectionCard icon={Users} title="References"><ReferencesSection /></SectionCard>}
+              <Suspense fallback={<SectionSkeleton />}>
+                {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements" action={<SectionAIAction section="awards" />}><AwardsSection /></SectionCard>}
+                {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}><ProjectsSection /></SectionCard>}
+                {moreSubSection === 'certifications' && <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}><CertificationsSection /></SectionCard>}
+                {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications" action={<SectionAIAction section="publications" />}><PublicationsSection /></SectionCard>}
+                {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering" action={<SectionAIAction section="volunteering" />}><VolunteeringSection /></SectionCard>}
+                {moreSubSection === 'languages' && <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}><LanguagesSection /></SectionCard>}
+                {moreSubSection === 'hobbies' && <SectionCard icon={Palette} title="Hobbies & Interests"><HobbiesSection /></SectionCard>}
+                {moreSubSection === 'references' && <SectionCard icon={Users} title="References"><ReferencesSection /></SectionCard>}
+              </Suspense>
             </div>
           )}
         </div>
