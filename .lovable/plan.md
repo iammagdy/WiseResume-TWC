@@ -1,57 +1,48 @@
 
 
-## Remove Interview from Bottom Bar, Add to Studio and Export
+## Add Tailored Resume Indicator Banner in Editor
 
-### Overview
+### What It Does
 
-Remove the Interview tab from the bottom navigation bar (reducing it from 6 to 5 tabs), keep it accessible via the AI Studio page (already there as a secondary tool), and add an "Interview Prep" option in the Export sheet so users can practice answering questions about their resume right before exporting.
+When a user opens a tailored resume (one with a `parent_resume_id`), a compact banner appears just below the editor header showing:
+- A "Tailored" label with a scissors icon
+- The target job title and company (e.g., "Frontend Developer @ Google")
+- A tap action to navigate back to the parent (original) resume
 
----
+This gives users instant context about which tailored CV they're editing and what job it was tailored for.
 
-### Changes
+### What Changes
 
-#### 1. Remove Interview Tab from Bottom Bar
+#### 1. Editor Page (`src/pages/EditorPage.tsx`)
 
-**File: `src/components/layout/BottomTabBar.tsx`**
+- Read `parent_resume_id`, `target_job_title`, and `target_company` from `resumeFromDb` (already fetched via `useResume`)
+- Add a new banner component rendered between the header and the StepperNav when `parent_resume_id` is not null
+- Banner layout:
+  - Left: Scissors icon + "Tailored" badge (purple/primary tint)
+  - Center: Job title and company text, truncated on mobile
+  - Right: "View Original" link button that navigates to `/editor?id={parent_resume_id}`
+- Styled as a slim, dismissible bar with `bg-primary/10 border-b border-primary/20`
+- 36px height, compact text (`text-xs`), full-width
 
-- Remove the Interview tab entry (`path: '/interview'`, `icon: Mic`, `label: 'Interview'`) from the `tabs` array
-- Remove the `Mic` import from lucide-react
-- Final tabs: Home, Editor, Studio, Jobs, Settings (5 tabs)
+### What Does NOT Change
 
-#### 2. Add Interview Prep to Export Sheet
-
-**File: `src/components/editor/ExportOptionsSheet.tsx`**
-
-- Add a new export option entry with id `'interview-prep'`:
-  - Label: "Interview Prep"
-  - Description: "Practice answering questions about this resume"
-  - Icon: `Mic` (from lucide-react)
-  - Always available
-- When user selects "Interview Prep" and taps the action button, navigate to `/interview` instead of triggering a download
-- Update `getButtonLabel` to return "Start Practice" for this type
-- Update the action button icon to show `Mic` instead of `Download`/`Copy` for this type
-
-**File: `src/types/resume.ts`**
-
-- Add `'interview-prep'` to the `ExportType` union
-
-#### 3. AI Studio Already Has Interview (No Change Needed)
-
-The Interview tool is already in `secondaryTools` on the AI Studio page (line 70: `{ id: 'interview', icon: Mic, label: 'Interview', desc: 'Practice Q&A' }`). No changes needed here.
-
----
+- Resume data loading or store logic
+- StepperNav, section cards, or any editing functionality
+- Header layout (banner is added below, not inside the header)
+- Navigation flow from Jobs tab (already navigates to `/editor?id=...`)
 
 ### Files Summary
 
 | File | Action |
 |------|--------|
-| `src/components/layout/BottomTabBar.tsx` | Remove Interview tab from tabs array |
-| `src/types/resume.ts` | Add `'interview-prep'` to ExportType |
-| `src/components/editor/ExportOptionsSheet.tsx` | Add Interview Prep option, handle navigation |
+| `src/pages/EditorPage.tsx` | Add tailored resume indicator banner below header |
 
-### Implementation Order
+### Technical Details
 
-1. `src/types/resume.ts` (add type)
-2. `src/components/layout/BottomTabBar.tsx` (remove tab)
-3. `src/components/editor/ExportOptionsSheet.tsx` (add interview prep option)
+The `resumeFromDb` object (from `useResume(currentResumeId)`) already contains:
+- `parent_resume_id: string | null`
+- `target_job_title: string | null`
+- `target_company: string | null`
+
+The banner conditionally renders when `resumeFromDb?.parent_resume_id` is truthy. No new database queries or hooks needed.
 
