@@ -24,6 +24,8 @@ interface ExportOptionsSheetProps {
   isExporting: boolean;
   templateElement?: HTMLElement | null;
   exportProgress?: ExportProgress;
+  resumeName?: string;
+  templateName?: string;
 }
 
 export function ExportOptionsSheet({
@@ -35,6 +37,8 @@ export function ExportOptionsSheet({
   isExporting,
   templateElement,
   exportProgress,
+  resumeName,
+  templateName,
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
   const navigate = useNavigate();
@@ -161,22 +165,29 @@ export function ExportOptionsSheet({
     if (selectedType === 'linkedin') return 'Copy LinkedIn Text';
     if (selectedType === 'plain-text') return 'Download .txt';
     if (selectedType === 'share-link') return 'Copy Share Link';
+    if (selectedType === 'ats-pdf') return 'Download ATS PDF';
+    if (selectedType === 'one-page') return 'Download One-Page PDF';
     return 'Download PDF';
   };
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-auto max-h-[85vh] rounded-t-3xl">
-        <SheetHeader className="pb-4">
+        <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
             <Download className="w-5 h-5 text-primary" />
             Export Options
           </SheetTitle>
+          {(resumeName || templateName) && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {resumeName}{resumeName && templateName ? ' · ' : ''}{templateName ? `${templateName} template` : ''}
+            </p>
+          )}
         </SheetHeader>
 
-        <div className="space-y-4 pb-6">
+        <div className="flex flex-col gap-4 min-h-0 pb-safe">
           {/* Export type selection */}
-          <div className="space-y-2 max-h-[40vh] overflow-y-auto">
+          <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
             {exportOptions.map((option) => (
               <motion.button
                 key={option.id}
@@ -247,7 +258,7 @@ export function ExportOptionsSheet({
 
           {/* Footer options - only for PDF types */}
           {isPdfType && !isTextType && selectedType !== 'ats-pdf' && (
-            <div className="space-y-3">
+            <div className="space-y-3 shrink-0">
               <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
                 <div className="space-y-0.5">
                   <Label htmlFor="page-numbers" className="font-medium">
@@ -299,7 +310,7 @@ export function ExportOptionsSheet({
             size="lg"
             className="w-full h-14 text-lg font-semibold gradient-primary"
             onClick={handleExport}
-            disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && !hasCoverLetter)}
+            disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && selectedType !== 'interview-prep' && !hasCoverLetter)}
             style={{
               boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
             }}

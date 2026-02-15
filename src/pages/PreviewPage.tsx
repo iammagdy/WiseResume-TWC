@@ -629,11 +629,11 @@ export default function PreviewPage() {
             <Button
               variant="outline"
               size="lg"
-              className="flex-1 h-11 sm:h-12 touch-manipulation"
+              className="w-auto px-3 h-11 sm:h-12 touch-manipulation"
               onClick={() => navigate('/editor')}
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-              <span className="hidden xs:inline text-sm sm:text-base">Edit</span>
+              <span className="text-xs sm:text-sm">Edit</span>
             </Button>
             {isIOS && (
               <Button
@@ -644,7 +644,7 @@ export default function PreviewPage() {
                 disabled={isGenerating}
               >
                 <FolderDown className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-                <span className="hidden xs:inline text-sm sm:text-base">Save</span>
+                <span className="text-xs sm:text-sm">Save</span>
               </Button>
             )}
             <Button
@@ -654,7 +654,7 @@ export default function PreviewPage() {
               onClick={() => navigate('/interview')}
             >
               <Mic className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-              <span className="hidden xs:inline text-sm sm:text-base">Interview</span>
+              <span className="text-xs sm:text-sm">Interview</span>
             </Button>
             <Button
               variant="outline"
@@ -663,7 +663,7 @@ export default function PreviewPage() {
               onClick={() => setShowShareSheet(true)}
             >
               <Share2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
-              <span className="hidden xs:inline text-sm sm:text-base">Share</span>
+              <span className="text-xs sm:text-sm">Share</span>
             </Button>
           </div>
         </motion.div>
@@ -693,6 +693,8 @@ export default function PreviewPage() {
             isExporting={isGenerating}
             templateElement={resumeRef.current}
             exportProgress={exportProgress}
+            resumeName={currentResume?.contactInfo?.fullName || 'Resume'}
+            templateName={templates.find(t => t.id === selectedTemplate)?.name || selectedTemplate}
           />
         )}
         {showOnePageWizard && (
