@@ -41,6 +41,7 @@ import {
   Moon
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { openExternal } from '@/lib/openExternal';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
@@ -792,14 +793,12 @@ export default function SettingsPage() {
             )}
             <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
               Your resumes are stored securely and never sold to third parties.{' '}
-              <a
-                href="https://magdysaber.com/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary underline underline-offset-2"
+              <button
+                onClick={() => openExternal('https://magdysaber.com/privacy')}
+                className="text-primary underline underline-offset-2 touch-manipulation"
               >
                 Privacy Policy
-              </a>
+              </button>
             </p>
           </div>
 
@@ -911,23 +910,23 @@ export default function SettingsPage() {
             </button>
 
             <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <a href="https://magdysaber.com/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Privacy</a>
+              <button onClick={() => openExternal('https://magdysaber.com/privacy')} className="hover:text-primary transition-colors touch-manipulation">Privacy</button>
               <span>·</span>
-              <a href="https://magdysaber.com/terms" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">Terms</a>
+              <button onClick={() => openExternal('https://magdysaber.com/terms')} className="hover:text-primary transition-colors touch-manipulation">Terms</button>
               <span>·</span>
               <button onClick={() => setChangelogOpen(true)} className="hover:text-primary transition-colors touch-manipulation">Changelog</button>
             </div>
 
             <div className="flex items-center justify-center gap-1">
-              <a href="https://x.com/magdysaber" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
+              <button onClick={() => openExternal('https://x.com/magdysaber')} className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
                 <Twitter className="w-4 h-4" />
-              </a>
-              <a href="https://linkedin.com/in/magdysaber" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
+              </button>
+              <button onClick={() => openExternal('https://linkedin.com/in/magdysaber')} className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
                 <Linkedin className="w-4 h-4" />
-              </a>
-              <a href="https://github.com/magdysaber" target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
+              </button>
+              <button onClick={() => openExternal('https://github.com/magdysaber')} className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
                 <Github className="w-4 h-4" />
-              </a>
+              </button>
             </div>
 
             <p className="text-xs text-muted-foreground">Made in 🇪🇬</p>

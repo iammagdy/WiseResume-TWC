@@ -1,4 +1,5 @@
 import { useState, useEffect, forwardRef } from 'react';
+import { openExternal } from '@/lib/openExternal';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -247,15 +248,13 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
                     )}
                   </div>
 
-                  <a
-                    href="https://aistudio.google.com/apikey"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                  <button
+                    onClick={() => openExternal('https://aistudio.google.com/apikey')}
+                    className="flex items-center gap-2 text-sm text-primary hover:underline touch-manipulation"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     Get a key at Google AI Studio
-                  </a>
+                  </button>
 
                   {/* Usage Stats (for Gemini free tier) */}
                   {geminiKeyTier === 'free' && geminiKeyValidated && (

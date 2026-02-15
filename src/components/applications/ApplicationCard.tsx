@@ -3,6 +3,7 @@ import { Briefcase, MoreVertical, ExternalLink, Clock, Bell, Calendar } from 'lu
 import { cn } from '@/lib/utils';
 import { JobApplication, ApplicationStatus } from '@/hooks/useJobApplications';
 import { formatDistanceToNow, differenceInDays, differenceInHours } from 'date-fns';
+import { openExternal } from '@/lib/openExternal';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,16 +127,13 @@ export const ApplicationCard = memo(function ApplicationCard({
             </span>
           )}
           {application.url && (
-            <a
-              href={application.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-primary flex items-center gap-1 hover:underline"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              onClick={(e) => { e.stopPropagation(); openExternal(application.url!); }}
+              className="text-xs text-primary flex items-center gap-1 hover:underline touch-manipulation"
             >
               <ExternalLink className="w-3 h-3" />
               Link
-            </a>
+            </button>
           )}
           <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
         </div>

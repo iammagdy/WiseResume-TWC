@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ExternalLink, Calendar, MapPin, Share2, Briefcase, Bookmark, BookmarkCheck, Trash2, DollarSign, Clock } from 'lucide-react';
+import { openExternal } from '@/lib/openExternal';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -121,9 +122,9 @@ export default function JobDetailPage() {
 
         {/* Source URL */}
         {job.source_url && (
-          <a href={job.source_url} target="_blank" rel="noopener noreferrer" className="glass-card rounded-2xl p-4 flex items-center gap-2 text-sm text-secondary hover:underline">
+          <button onClick={() => openExternal(job.source_url!)} className="glass-card rounded-2xl p-4 flex items-center gap-2 text-sm text-secondary hover:underline w-full touch-manipulation">
             <ExternalLink className="w-4 h-4" /> View Original Posting
-          </a>
+          </button>
         )}
 
         {/* Apply with Resume */}
