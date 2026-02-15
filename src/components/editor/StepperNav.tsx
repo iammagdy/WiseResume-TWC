@@ -1,8 +1,9 @@
 import { memo, useState } from 'react';
-import { Check, User, AlignLeft, Briefcase, GraduationCap, Wrench, Plus, ChevronDown } from 'lucide-react';
+import { Check, User, AlignLeft, Briefcase, GraduationCap, Wrench, Plus, ChevronDown, Trophy, Rocket, Award, BookOpen, Heart, Globe, Palette, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { FloatingPanelRoot, FloatingPanelTrigger, FloatingPanelContent } from '@/components/ui/floating-panel';
 import haptics from '@/lib/haptics';
 
 interface StepperNavProps {
@@ -12,7 +13,19 @@ interface StepperNavProps {
   sectionScores?: Record<string, number>;
   onStepClick: (stepId: string) => void;
   justCompletedStep?: string | null;
+  onMoreSectionSelect?: (sectionId: string) => void;
 }
+
+const MORE_SECTIONS = [
+  { id: 'awards', label: 'Awards', icon: Trophy, color: 'text-amber-500' },
+  { id: 'projects', label: 'Projects', icon: Rocket, color: 'text-blue-500' },
+  { id: 'certifications', label: 'Certifications', icon: Award, color: 'text-orange-500' },
+  { id: 'publications', label: 'Publications', icon: BookOpen, color: 'text-emerald-500' },
+  { id: 'volunteering', label: 'Volunteering', icon: Heart, color: 'text-rose-500' },
+  { id: 'languages', label: 'Languages', icon: Globe, color: 'text-cyan-500' },
+  { id: 'hobbies', label: 'Hobbies', icon: Palette, color: 'text-purple-500' },
+  { id: 'references', label: 'References', icon: Users, color: 'text-sky-500' },
+] as const;
 
 const STEP_ICONS: Record<string, typeof User> = {
   contact: User,
@@ -33,6 +46,7 @@ export const StepperNav = memo(function StepperNav({
   sectionScores,
   onStepClick,
   justCompletedStep,
+  onMoreSectionSelect,
 }: StepperNavProps) {
   const isMobile = useIsMobile();
   const [showSheet, setShowSheet] = useState(false);
@@ -151,6 +165,37 @@ export const StepperNav = memo(function StepperNav({
             </div>
           </SheetContent>
         </Sheet>
+
+        {/* More sections FloatingPanel */}
+        {onMoreSectionSelect && (
+          <div className="mt-2">
+            <FloatingPanelRoot>
+              <FloatingPanelTrigger title="Additional Sections" className="w-full justify-center gap-2 min-h-[44px]">
+                <Plus className="w-4 h-4" />
+                More Sections
+              </FloatingPanelTrigger>
+              <FloatingPanelContent className="max-h-[80dvh] pb-safe">
+                <div className="px-4 pb-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    {MORE_SECTIONS.map(sec => {
+                      const SIcon = sec.icon;
+                      return (
+                        <button
+                          key={sec.id}
+                          onClick={() => { onMoreSectionSelect(sec.id); haptics.light(); }}
+                          className="flex items-center gap-2.5 px-3 min-h-[48px] rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-95 transition-transform touch-manipulation"
+                        >
+                          <SIcon className={cn('w-5 h-5 shrink-0', sec.color)} />
+                          <span className="text-sm font-medium text-foreground truncate">{sec.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </FloatingPanelContent>
+            </FloatingPanelRoot>
+          </div>
+        )}
       </div>
     );
   }
@@ -260,6 +305,34 @@ export const StepperNav = memo(function StepperNav({
             </button>
           );
         })}
+
+        {/* Desktop: More sections FloatingPanel */}
+        {onMoreSectionSelect && (
+          <FloatingPanelRoot className="flex-shrink-0">
+            <FloatingPanelTrigger title="Additional Sections" className="h-10 w-10 !px-0 justify-center rounded-full">
+              <Plus className="w-5 h-5" />
+            </FloatingPanelTrigger>
+            <FloatingPanelContent>
+              <div className="px-4 pb-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {MORE_SECTIONS.map(sec => {
+                    const SIcon = sec.icon;
+                    return (
+                      <button
+                        key={sec.id}
+                        onClick={() => { onMoreSectionSelect(sec.id); haptics.light(); }}
+                        className="flex items-center gap-2.5 px-3 min-h-[44px] rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-95 transition-transform touch-manipulation"
+                      >
+                        <SIcon className={cn('w-4 h-4 shrink-0', sec.color)} />
+                        <span className="text-sm font-medium text-foreground truncate">{sec.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </FloatingPanelContent>
+          </FloatingPanelRoot>
+        )}
       </div>
     </div>
   );
