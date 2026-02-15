@@ -22,13 +22,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/editor/ProgressBar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -71,7 +65,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   isScoring = false,
   confirmSwipeActions = true,
 }: ResumeListCardProps) {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [showTargetJobSheet, setShowTargetJobSheet] = useState(false);
@@ -309,125 +303,81 @@ export const ResumeListCard = memo(function ResumeListCard({
           </div>
 
           {/* Right: Menu */}
-          <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
-            <DropdownMenuTrigger asChild>
+          <ActionsPanel
+            trigger={
               <Button
                 variant="ghost"
                 size="icon"
                 className="min-w-[44px] min-h-[44px] h-10 w-10 flex-shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
-                  haptics.light();
                 }}
                 aria-label="More options"
               >
                 <MoreVertical className="h-5 w-5" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  haptics.light();
-                  navigateToEditor(`/resume/${resume.id}`);
-                }}
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                Preview
-              </DropdownMenuItem>
-              {onRename && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    haptics.light();
-                    setIsRenaming(true);
-                  }}
-                >
-                  <Pencil className="w-4 h-4 mr-2" />
-                  Rename
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  haptics.light();
-                  onEdit(resume.id);
-                }}
-              >
-                <Edit2 className="w-4 h-4 mr-2" />
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  haptics.light();
-                  try {
-                    const { generatePDF } = await import('@/lib/pdfGenerator');
-                    const { downloadFile } = await import('@/lib/downloadUtils');
-                    const resumeData = dbToResumeData(resume);
-                    const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
-                    const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
-                    await downloadFile({ blob, fileName });
-                    toast.success('PDF downloaded');
-                  } catch {
-                    toast.error('Failed to download PDF');
-                  }
-                }}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  haptics.light();
-                  try {
-                    await navigator.clipboard.writeText(`${window.location.origin}/resume/${resume.id}`);
-                    toast.success('Link copied to clipboard');
-                  } catch {
-                    toast.error('Failed to copy link');
-                  }
-                }}
-              >
-                <Share2 className="w-4 h-4 mr-2" />
-                Share
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  haptics.light();
-                  onDuplicate(resume.id);
-                }}
-              >
-                <Copy className="w-4 h-4 mr-2" />
-                Duplicate
-              </DropdownMenuItem>
-              {onInterview && (
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    haptics.light();
-                    onInterview(resume.id);
-                  }}
-                >
-                  <Mic className="w-4 h-4 mr-2" />
-                  Practice Interview
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={(e) => {
-                  e.stopPropagation();
-                  haptics.warning();
-                  onDelete(resume.id);
-                }}
-                className="text-destructive focus:text-destructive"
-              >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            }
+            groups={(() => {
+              const groups: ActionsPanelGroup[] = [
+                {
+                  id: 'view-edit',
+                  title: 'View & Edit',
+                  actions: [
+                    { id: 'preview', label: 'Preview', icon: Eye, onClick: () => navigateToEditor(`/resume/${resume.id}`) },
+                    ...(onRename ? [{ id: 'rename', label: 'Rename', icon: Pencil, onClick: () => setIsRenaming(true) }] : []),
+                    { id: 'edit', label: 'Edit', icon: Edit2, onClick: () => onEdit(resume.id) },
+                  ],
+                },
+                {
+                  id: 'actions',
+                  title: 'Actions',
+                  actions: [
+                    {
+                      id: 'download',
+                      label: 'Download PDF',
+                      icon: Download,
+                      onClick: async () => {
+                        try {
+                          const { generatePDF } = await import('@/lib/pdfGenerator');
+                          const { downloadFile } = await import('@/lib/downloadUtils');
+                          const resumeData = dbToResumeData(resume);
+                          const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
+                          const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
+                          await downloadFile({ blob, fileName });
+                          toast.success('PDF downloaded');
+                        } catch {
+                          toast.error('Failed to download PDF');
+                        }
+                      },
+                    },
+                    {
+                      id: 'share',
+                      label: 'Share',
+                      icon: Share2,
+                      onClick: async () => {
+                        try {
+                          await navigator.clipboard.writeText(`${window.location.origin}/resume/${resume.id}`);
+                          toast.success('Link copied to clipboard');
+                        } catch {
+                          toast.error('Failed to copy link');
+                        }
+                      },
+                    },
+                    { id: 'duplicate', label: 'Duplicate', icon: Copy, onClick: () => onDuplicate(resume.id) },
+                    ...(onInterview ? [{ id: 'interview', label: 'Practice Interview', icon: Mic, onClick: () => onInterview(resume.id) }] : []),
+                  ],
+                },
+                {
+                  id: 'manage',
+                  title: 'Manage',
+                  actions: [
+                    { id: 'delete', label: 'Delete', icon: Trash2, variant: 'destructive' as const, onClick: () => { haptics.warning(); onDelete(resume.id); } },
+                  ],
+                },
+              ];
+              return groups;
+            })()}
+          />
         </div>
       </motion.div>
 
