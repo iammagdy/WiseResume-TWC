@@ -881,6 +881,7 @@ export default function EditorPage() {
           onStepClick={handleTabChange}
           justCompletedStep={justCompletedStep}
           onMoreSectionSelect={handleMoreSectionSelect}
+          activeMoreSection={moreSubSection}
         />
         </div>
 
