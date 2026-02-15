@@ -1,47 +1,54 @@
 
 
-## Fix Color Palettes and Fonts Not Reflecting in CV Templates
+## Mobile Responsiveness Fix: Editor Navigation and Progress Bar
 
-### Problem
+### Overview
 
-The Customize Sheet correctly saves `accentColor`, `fontHeading`, and `fontBody` to the resume's `customization` object, and `applyCustomizationCSS()` sets CSS variables like `--custom-accent` and `fontFamily` on the wrapper div. However, **none of the 29 templates read these values**. They all use hardcoded Tailwind classes (e.g., `text-purple-600`, `font-sans`) which override the customization.
+Convert the horizontal stepper navigation to a mobile-friendly dropdown on screens under 768px, and optimize the progress bar layout for small screens. Desktop layout remains completely unchanged.
 
-### Solution
+### Changes
 
-Rather than rewriting all 29 templates (risky and massive), we will:
+**File 1: `src/components/editor/StepperNav.tsx`**
 
-1. **Inject a `<style>` tag** inside the resume wrapper in `LivePreviewPanel` that overrides template colors using CSS custom properties. This targets heading colors, border colors, and accent backgrounds using the `--custom-accent` variable.
+Add a mobile-specific dropdown mode that replaces the horizontal stepper on screens less than 768px:
 
-2. **Force font inheritance** by adding `!important` font-family overrides in the same injected style block, so templates respect the user's font choices.
+- Import `useIsMobile` hook, `ChevronDown` icon, and the `Sheet`/`SheetContent` components
+- Add local state `showSheet` to control the section picker bottom sheet
+- On mobile, render a tappable row showing the current section icon, label, completion badge, and a chevron -- styled as a full-width button with 56px height
+- When tapped, open a bottom sheet listing all 6 sections as full-width cards (min 56px height each) with:
+  - Section icon and label
+  - Green checkmark for completed sections
+  - Percentage badge for in-progress sections
+  - Highlighted background for the active section
+- On section tap, call `onStepClick`, close the sheet, and trigger haptic feedback
+- On desktop (768px+), render the existing horizontal stepper exactly as-is (no changes)
+- The connecting progress line and confetti animations remain desktop-only
 
-3. **Apply the same approach in the PDF generator** so downloaded PDFs also reflect the customization.
+**File 2: `src/pages/EditorPage.tsx`**
 
-### Technical Details
+Optimize the progress bar area for mobile screens:
 
-**File 1: `src/lib/templateCustomization.ts`**
-- Add a new function `generateCustomizationCSS(c: TemplateCustomization): string` that returns a CSS string with rules to override template accent colors and fonts. For example:
-  - Target `[data-resume-template] h2` to apply accent color to section headings
-  - Target `[data-resume-template] header` border colors
-  - Target `[data-resume-template]` root for font-family
-  - Use `!important` sparingly but necessarily to override hardcoded Tailwind classes
-
-**File 2: `src/components/editor/LivePreviewPanel.tsx`**
-- Import `generateCustomizationCSS` and inject a `<style>` element inside the resume wrapper div using the current resume's customization, so the preview reflects the selected colors and fonts in real time.
-
-**File 3: `src/lib/pdfGenerator.ts`**
-- Before capturing via html2canvas, inject the same customization CSS into the resume element so the PDF output also reflects the user's customization choices. Clean it up after capture.
-
-### What Changes
-
-| File | Change |
-|------|--------|
-| `src/lib/templateCustomization.ts` | Add `generateCustomizationCSS()` function |
-| `src/components/editor/LivePreviewPanel.tsx` | Inject `<style>` tag with customization overrides inside resume wrapper |
-| `src/lib/pdfGenerator.ts` | Inject customization CSS before html2canvas capture |
+- In the progress/save-status container (around line 521), add responsive classes:
+  - On `<640px`: stack the progress bar and save indicator vertically, add `py-3` padding
+  - Use `flex-col sm:flex-row` on the inner wrapper so text stacks on small screens
+  - Reduce the "X of Y sections completed" text size slightly on mobile with `text-[11px] sm:text-xs`
+- Ensure the gradient bar remains full-width at all breakpoints
+- No changes to save indicator logic, confetti, or real-time updates
 
 ### What Does NOT Change
 
-- The CustomizeSheet UI (already works correctly)
-- The resume store (already persists customization)
-- Individual template files (no changes needed)
-- The `handleCustomizeApply` callback in EditorPage
+- Desktop stepper layout (768px+) -- identical behavior and appearance
+- AI Assist, validation, auto-save, keyboard shortcuts
+- Section switching logic, animations, and `handleTabChange`
+- All sheet/modal functionality
+- Navigation guards, auth checks, data persistence
+- Progress bar gradient animation and confetti celebrations
+
+### Technical Notes
+
+- Uses existing `useIsMobile` hook (768px breakpoint) for the stepper toggle
+- Uses Tailwind responsive prefixes (`sm:`) for progress bar adjustments
+- Bottom sheet uses existing `Sheet` primitive (consistent with app patterns)
+- Touch targets: 56px height section cards, 48px min dropdown trigger
+- Haptic feedback via existing `haptics.light()` utility
+
