@@ -114,7 +114,7 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
         <div className="relative z-10">
           {/* Greeting - compact */}
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-xl sm:text-lg font-semibold">
               {greeting}{firstName ? `, ${firstName}` : ''}{' '}
               <span className="text-base">👋</span>
             </h2>

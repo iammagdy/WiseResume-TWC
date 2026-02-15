@@ -204,7 +204,7 @@ export const ResumeListCard = memo(function ResumeListCard({
       {/* Card content */}
       <motion.div
         className={cn(
-          'relative glass-elevated p-4 touch-manipulation cursor-pointer',
+          'relative glass-elevated p-4 touch-manipulation cursor-pointer min-h-[120px]',
           'active:bg-muted/30 transition-all'
         )}
         style={{ x, touchAction: 'pan-y' }}
@@ -256,7 +256,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     }}
                   />
                 ) : (
-                  <h3 className="font-semibold text-foreground truncate">
+                  <h3 className="font-semibold text-foreground truncate text-base sm:text-sm">
                     {resume.title}
                   </h3>
                 )}
@@ -290,7 +290,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground mb-2">
+                <p className="text-sm text-muted-foreground mb-2 break-words">
                   No target job set
                 </p>
               )}
@@ -336,7 +336,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 flex-shrink-0"
+                className="min-w-[44px] min-h-[44px] h-10 w-10 flex-shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                   haptics.light();
