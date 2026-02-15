@@ -17,6 +17,7 @@ import { AIContextualNudge } from './AIContextualNudge';
 import { useResumeNudges } from '@/hooks/useResumeNudges';
 import { ExperienceTimeline } from './ExperienceTimeline';
 import { GapExplainerSheet } from './GapExplainerSheet';
+import { GapFillerSheet } from './GapFillerSheet';
 import { formatDateRange, calculateDuration, GapInfo } from '@/lib/dateUtils';
 import { SectionEmptyState } from './SectionEmptyState';
 import { experienceExample } from '@/lib/emptyStateExamples';
@@ -60,6 +61,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
   const [showTimeline, setShowTimeline] = useState(true);
   const [showGapSheet, setShowGapSheet] = useState(false);
   const [selectedGap, setSelectedGap] = useState<GapInfo | null>(null);
+  const [showGapFiller, setShowGapFiller] = useState(false);
+  const [selectedGapForFill, setSelectedGapForFill] = useState<GapInfo | null>(null);
 
   if (!currentResume || !experience) return null;
 
@@ -149,6 +152,10 @@ export const ExperienceSection = memo(function ExperienceSection() {
           onExplainGap={(gap) => {
             setSelectedGap(gap);
             setShowGapSheet(true);
+          }}
+          onFillGap={(gap) => {
+            setSelectedGapForFill(gap);
+            setShowGapFiller(true);
           }}
         />
       )}
@@ -395,6 +402,33 @@ export const ExperienceSection = memo(function ExperienceSection() {
             ? `${currentSummary}\n\nCareer Note: ${explanation}`
             : `Career Note: ${explanation}`;
           updateResume({ summary: newSummary });
+        }}
+      />
+
+      {/* Gap Filler Sheet */}
+      <GapFillerSheet
+        isOpen={showGapFiller}
+        onClose={() => {
+          setShowGapFiller(false);
+          setSelectedGapForFill(null);
+        }}
+        gap={selectedGapForFill}
+        experiences={experience}
+        onAddExperience={(newExp) => {
+          // Insert at correct chronological position
+          const newExpYear = parseInt(newExp.startDate.match(/\d{4}/)?.[0] || '0');
+          const insertIndex = experience.findIndex((exp) => {
+            const expYear = parseInt(exp.startDate.match(/\d{4}/)?.[0] || '9999');
+            return expYear > newExpYear;
+          });
+          const updated = [...experience];
+          if (insertIndex === -1) {
+            updated.push(newExp);
+          } else {
+            updated.splice(insertIndex, 0, newExp);
+          }
+          updateResume({ experience: updated });
+          setExpandedId(newExp.id);
         }}
       />
     </div>
