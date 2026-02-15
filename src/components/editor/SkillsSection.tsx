@@ -115,9 +115,9 @@ export const SkillsSection = memo(function SkillsSection() {
           onChange={(e) => setNewSkill(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Add a skill..."
-          className="h-12"
+          className="h-12 text-base"
         />
-        <Button onClick={addSkill} className="h-12 px-6">
+        <Button onClick={addSkill} className="h-12 min-h-[48px] px-6">
           <Plus className="w-5 h-5" />
         </Button>
       </div>
@@ -128,11 +128,13 @@ export const SkillsSection = memo(function SkillsSection() {
             <div key={skill} className="transition-all duration-200">
               <Badge
                 variant="secondary"
-                className="min-h-[44px] px-4 gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-sm"
+                className="min-h-[44px] px-3 sm:px-4 gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-sm"
                 onClick={() => removeSkill(skill)}
               >
                 {skill}
-                <X className="w-4 h-4" />
+                <span className="inline-flex items-center justify-center min-w-[32px] min-h-[32px]">
+                  <X className="w-4 h-4" />
+                </span>
               </Badge>
             </div>
           ))}
@@ -170,7 +172,7 @@ export const SkillsSection = memo(function SkillsSection() {
           <p className="text-xs text-muted-foreground mb-3">
             Based on your target job description:
           </p>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
             {gapAnalysis.missingSkills
               .filter((skill) => !skills.includes(skill))
               .slice(0, 10)
@@ -178,7 +180,7 @@ export const SkillsSection = memo(function SkillsSection() {
                 <Badge
                   key={skill}
                   variant="outline"
-                  className="h-10 px-4 gap-2 cursor-pointer border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-colors touch-manipulation active:scale-95 text-sm"
+                  className="min-h-[44px] px-4 gap-2 cursor-pointer border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground transition-colors touch-manipulation active:scale-95 text-sm"
                   onClick={() => addSuggestedSkill(skill)}
                 >
                   <Plus className="w-4 h-4" />
@@ -192,7 +194,7 @@ export const SkillsSection = memo(function SkillsSection() {
       {/* Quick add common skills */}
       <div className="p-4 rounded-xl bg-muted/50 border border-border">
         <h4 className="font-semibold text-sm mb-3">Common Skills</h4>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
           {['JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'AWS', 'Git', 'Agile', 'Leadership', 'Communication']
             .filter((skill) => !skills.includes(skill))
             .slice(0, 6)

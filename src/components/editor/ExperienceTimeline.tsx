@@ -4,6 +4,7 @@ import { AlertCircle, X, Sparkles } from 'lucide-react';
 import { Experience } from '@/types/resume';
 import { parseResumeDate, getMonthsDifference, formatDuration, detectGaps, getTotalGapMonths, ParsedDate, GapInfo } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ExperienceTimelineProps {
   experiences: Experience[];
@@ -98,6 +99,7 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: Exp
     return null;
   }
 
+  const isMobile = useIsMobile();
   const totalGapMonths = getTotalGapMonths(gaps);
   const hasGaps = gaps.length > 0;
 
@@ -116,36 +118,79 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: Exp
       exit={{ opacity: 0, height: 0 }}
       className="space-y-3"
     >
-      {/* Timeline Bar */}
-      <div className="relative">
-        <div className="flex h-8 rounded-lg overflow-hidden bg-muted/50">
+      {/* Timeline Bar - Desktop horizontal / Mobile vertical cards */}
+      {isMobile ? (
+        <div className="space-y-2">
+          <div className="flex justify-between text-[10px] text-muted-foreground px-1">
+            <span>{timelineStart.year}</span>
+            <span>{timelineEnd.isPresent ? 'Present' : timelineEnd.year}</span>
+          </div>
           {segments.map((segment, index) => (
             <motion.div
               key={segment.id}
-              initial={{ scaleX: 0 }}
-              animate={{ scaleX: 1 }}
-              transition={{ delay: index * 0.1, duration: 0.3 }}
-              style={{ width: `${segment.width}%` }}
-              className={`relative flex items-center justify-center text-xs font-medium origin-left ${
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05, duration: 0.2 }}
+              className={
                 segment.type === 'job'
-                  ? 'bg-primary/80 text-primary-foreground'
-                  : 'bg-destructive/20 border-2 border-dashed border-destructive/40'
-              }`}
-              title={segment.type === 'job' ? segment.company : 'Employment gap'}
+                  ? 'rounded-xl p-3 border-l-4 border-l-primary bg-primary/5 border border-border/50'
+                  : 'rounded-lg p-2.5 border-l-4 border-l-destructive/50 bg-destructive/5 border border-destructive/20'
+              }
             >
-              {segment.type === 'job' && segment.width > 15 && (
-                <span className="truncate px-1">{segment.label}</span>
+              {segment.type === 'job' ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium truncate">{segment.company}</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{segment.label}</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-3.5 h-3.5 text-destructive/70 shrink-0" />
+                  <span className="text-xs text-destructive/80">Employment gap</span>
+                  {onExplainGap && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleExplainClick}
+                      className="ml-auto min-h-[44px] text-xs gap-1 text-warning-foreground"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Explain
+                    </Button>
+                  )}
+                </div>
               )}
             </motion.div>
           ))}
         </div>
-        
-        {/* Year markers */}
-        <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-          <span>{timelineStart.year}</span>
-          <span>{timelineEnd.isPresent ? 'Present' : timelineEnd.year}</span>
+      ) : (
+        <div className="relative">
+          <div className="flex h-8 rounded-lg overflow-hidden bg-muted/50">
+            {segments.map((segment, index) => (
+              <motion.div
+                key={segment.id}
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: index * 0.1, duration: 0.3 }}
+                style={{ width: `${segment.width}%` }}
+                className={`relative flex items-center justify-center text-xs font-medium origin-left ${
+                  segment.type === 'job'
+                    ? 'bg-primary/80 text-primary-foreground'
+                    : 'bg-destructive/20 border-2 border-dashed border-destructive/40'
+                }`}
+                title={segment.type === 'job' ? segment.company : 'Employment gap'}
+              >
+                {segment.type === 'job' && segment.width > 15 && (
+                  <span className="truncate px-1">{segment.label}</span>
+                )}
+              </motion.div>
+            ))}
+          </div>
+          <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+            <span>{timelineStart.year}</span>
+            <span>{timelineEnd.isPresent ? 'Present' : timelineEnd.year}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Gap Alert */}
       {hasGaps && (
