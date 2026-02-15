@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Crown, FileText, Scissors, Calendar } from 'lucide-react';
+import { Crown, FileText, Scissors, Calendar, MoreVertical, Eye, Edit2, Download, Copy } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Sheet,
@@ -9,9 +10,17 @@ import {
   SheetDescription,
 } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
-import { useResumes, useSetMasterCV } from '@/hooks/useResumes';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useResumes, useSetMasterCV, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { TemplateId } from '@/types/resume';
 
 type FilterType = 'originals' | 'tailored';
 
@@ -25,6 +34,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
   const navigate = useNavigate();
   const { data: resumes = [], isLoading } = useResumes();
   const setMasterCV = useSetMasterCV();
+  const { duplicateResume } = useResumeMutations();
 
   const filtered = resumes.filter((r) =>
     filter === 'originals' ? !r.parent_resume_id : !!r.parent_resume_id
@@ -43,6 +53,28 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
     e.stopPropagation();
     haptics.medium();
     setMasterCV.mutate(resumeId);
+  };
+
+  const handleDownload = async (resume: typeof filtered[0], e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptics.light();
+    try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { downloadFile } = await import('@/lib/downloadUtils');
+      const resumeData = dbToResumeData(resume);
+      const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
+      const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
+      await downloadFile({ blob, fileName });
+      toast.success('PDF downloaded');
+    } catch {
+      toast.error('Failed to download PDF');
+    }
+  };
+
+  const handleDuplicate = (resumeId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptics.light();
+    duplicateResume.mutate(resumeId);
   };
 
   return (
@@ -75,10 +107,10 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
             </div>
           ) : (
             filtered.map((resume) => (
-              <button
+              <div
                 key={resume.id}
                 onClick={() => handleTap(resume.id)}
-                className="w-full glass-surface rounded-2xl p-4 border border-border/20 text-left transition-all active:scale-[0.98] hover:border-border/40 flex items-start gap-3"
+                className="w-full glass-surface rounded-2xl p-4 border border-border/20 text-left transition-all active:scale-[0.98] hover:border-border/40 flex items-start gap-3 cursor-pointer"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -100,15 +132,49 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
                     </Badge>
                   )}
                 </div>
-                {filter === 'originals' && !resume.is_primary && (
-                  <button
-                    onClick={(e) => handleSetMaster(resume.id, e)}
-                    className="shrink-0 text-[10px] text-muted-foreground hover:text-primary border border-border/30 rounded-lg px-2 py-1 transition-colors"
-                  >
-                    Set as Master
-                  </button>
-                )}
-              </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  {filter === 'originals' && !resume.is_primary && (
+                    <button
+                      onClick={(e) => handleSetMaster(resume.id, e)}
+                      className="shrink-0 text-[10px] text-muted-foreground hover:text-primary border border-border/30 rounded-lg px-2 py-1 transition-colors"
+                    >
+                      Set as Master
+                    </button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="min-w-[44px] min-h-[44px] h-9 w-9"
+                        onClick={(e) => { e.stopPropagation(); haptics.light(); }}
+                        aria-label="More actions"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleTap(resume.id); }}>
+                        <Eye className="w-4 h-4 mr-2" />Preview
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => {
+                        e.stopPropagation();
+                        haptics.light();
+                        onOpenChange(false);
+                        navigate(`/editor`);
+                      }}>
+                        <Edit2 className="w-4 h-4 mr-2" />Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleDownload(resume, e)}>
+                        <Download className="w-4 h-4 mr-2" />Download PDF
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => handleDuplicate(resume.id, e)}>
+                        <Copy className="w-4 h-4 mr-2" />Duplicate
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             ))
           )}
         </div>

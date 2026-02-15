@@ -13,7 +13,10 @@ import {
   Mic,
   Sparkles,
   Pencil,
-  Plus
+  Plus,
+  Eye,
+  Download,
+  Share2
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -29,6 +32,8 @@ import {
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { TemplateId } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
 import { ScoreRing } from './ScoreRing';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
@@ -320,6 +325,16 @@ export const ResumeListCard = memo(function ResumeListCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  haptics.light();
+                  navigateToEditor(`/resume/${resume.id}`);
+                }}
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                Preview
+              </DropdownMenuItem>
               {onRename && (
                 <DropdownMenuItem
                   onClick={(e) => {
@@ -341,6 +356,41 @@ export const ResumeListCard = memo(function ResumeListCard({
               >
                 <Edit2 className="w-4 h-4 mr-2" />
                 Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  haptics.light();
+                  try {
+                    const { generatePDF } = await import('@/lib/pdfGenerator');
+                    const { downloadFile } = await import('@/lib/downloadUtils');
+                    const resumeData = dbToResumeData(resume);
+                    const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
+                    const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
+                    await downloadFile({ blob, fileName });
+                    toast.success('PDF downloaded');
+                  } catch {
+                    toast.error('Failed to download PDF');
+                  }
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  haptics.light();
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/resume/${resume.id}`);
+                    toast.success('Link copied to clipboard');
+                  } catch {
+                    toast.error('Failed to copy link');
+                  }
+                }}
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
               </DropdownMenuItem>
               <DropdownMenuItem
                 onClick={(e) => {
