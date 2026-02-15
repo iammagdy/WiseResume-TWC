@@ -95,9 +95,10 @@ function filterResume(resume: ResumeData, hidden: Set<string>): ResumeData {
 interface LivePreviewPanelProps {
   onClose?: () => void;
   className?: string;
+  highlightSection?: string;
 }
 
-export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, className }: LivePreviewPanelProps) {
+export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, className, highlightSection }: LivePreviewPanelProps) {
   const currentResume = useResumeStore(s => s.currentResume);
   const selectedTemplate = useResumeStore(s => s.selectedTemplate);
   const [zoom, setZoom] = useState(0.75);
@@ -257,6 +258,16 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           >
             {currentResume.customization && (
               <style dangerouslySetInnerHTML={{ __html: generateCustomizationCSS(currentResume.customization) }} />
+            )}
+            {highlightSection && (
+              <style dangerouslySetInnerHTML={{ __html: `
+                [data-section="${highlightSection}"] {
+                  outline: 2px solid hsl(var(--primary) / 0.2);
+                  outline-offset: 4px;
+                  border-radius: 4px;
+                  transition: outline-color 0.3s ease;
+                }
+              ` }} />
             )}
             <Suspense fallback={<PreviewSkeleton />}>
               <TemplateComponent resume={filteredResume} />

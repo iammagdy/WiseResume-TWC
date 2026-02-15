@@ -148,10 +148,6 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
                 <FileText className="w-3.5 h-3.5" />
                 {totalResumes} {totalResumes === 1 ? 'Resume' : 'Resumes'}
               </Badge>
-              <span className="text-muted-foreground text-sm hidden sm:inline">|</span>
-              <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-sm font-medium border-success/30 text-success">
-                Best: {bestScore}%
-              </Badge>
             </div>
           )}
         </div>

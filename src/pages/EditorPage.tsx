@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, CSSProperties } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
@@ -51,6 +51,10 @@ const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').t
 const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 const LivePreviewPanel = lazy(() => import('@/components/editor/LivePreviewPanel').then(m => ({ default: m.LivePreviewPanel })));
 const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet').then(m => ({ default: m.LivePreviewSheet })));
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
+import { ATSScoreBreakdown, getScoreColorClass } from '@/components/dashboard/ATSScoreBreakdown';
+import { ResumeHealthScore } from '@/hooks/useResumeScore';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
 import { EditorSkeleton } from '@/components/layout/PageSkeletons';
@@ -149,7 +153,13 @@ export default function EditorPage() {
   const [showApplyPrompt, setShowApplyPrompt] = useState(false);
   const [lastAppliedJobInfo, setLastAppliedJobInfo] = useState<{ title: string; company: string; resumeId?: string; jobUrl?: string } | null>(null);
   const [moreSubSection, setMoreSubSection] = useState<string | null>(null);
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      return localStorage.getItem('wr-live-preview') === 'true';
+    }
+    return false;
+  });
+  const [showATSBadge, setShowATSBadge] = useState(false);
   const isMobile = useIsMobile();
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -323,6 +333,39 @@ export default function EditorPage() {
     };
   }, [currentResume]);
 
+  // Overall score for ATS badge (local, no API call)
+  const overallScore = useMemo(() => {
+    if (!currentResume) return 0;
+    return calcOverallScore(currentResume);
+  }, [currentResume]);
+
+  // Track score changes for celebration toasts
+  const prevScoreRef = useRef(overallScore);
+  useEffect(() => {
+    const prev = prevScoreRef.current;
+    prevScoreRef.current = overallScore;
+    if (overallScore - prev >= 5 && prev > 0) {
+      toast.success(`Score improved to ${overallScore}%!`, { duration: 2000 });
+    }
+  }, [overallScore]);
+
+  // Build a local health score object for the ATS breakdown widget
+  const localHealthScore = useMemo((): ResumeHealthScore | null => {
+    if (!currentResume) return null;
+    return {
+      overallScore,
+      categories: {
+        completeness: sectionScores.contact,
+        atsReadiness: sectionScores.skills,
+        impactLanguage: sectionScores.experience,
+        formatting: sectionScores.education,
+      },
+      topStrength: '',
+      topImprovement: overallScore < 70 ? 'Fill in more sections to improve your score' : '',
+      scoredAt: new Date().toISOString(),
+    };
+  }, [overallScore, sectionScores, currentResume]);
+
   // Derive boolean completedSteps for StepperNav
   const sectionStatus = useMemo(() => ({
     contact: sectionScores.contact >= 100,
@@ -412,6 +455,114 @@ export default function EditorPage() {
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
   const handleProofread = useCallback(() => setShowProofread(true), []);
 
+  // Extract editor content into a render function for reuse in both layouts
+  const renderEditorContent = useCallback(() => (
+    <>
+      {activeTab === 'contact' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
+            <ContactSection />
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'summary' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
+            <SummarySection />
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'experience' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
+            <ExperienceSection />
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'education' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
+            <EducationSection />
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'skills' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
+            <SkillsSection />
+          </SectionCard>
+        </div>
+      )}
+      {activeTab === 'more' && (
+        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+          {!moreSubSection ? (
+            <SectionCard icon={Plus} title="More Sections" tip="Add optional sections to stand out">
+              <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
+            </SectionCard>
+          ) : (
+            <div className="space-y-3">
+              <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation">
+                <ChevronLeft className="w-4 h-4" /> All Sections
+              </button>
+              {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements" action={<SectionAIAction section="awards" />}><AwardsSection /></SectionCard>}
+              {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}><ProjectsSection /></SectionCard>}
+              {moreSubSection === 'certifications' && <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}><CertificationsSection /></SectionCard>}
+              {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications" action={<SectionAIAction section="publications" />}><PublicationsSection /></SectionCard>}
+              {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering" action={<SectionAIAction section="volunteering" />}><VolunteeringSection /></SectionCard>}
+              {moreSubSection === 'languages' && <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}><LanguagesSection /></SectionCard>}
+              {moreSubSection === 'hobbies' && <SectionCard icon={Palette} title="Hobbies & Interests"><HobbiesSection /></SectionCard>}
+              {moreSubSection === 'references' && <SectionCard icon={Users} title="References"><ReferencesSection /></SectionCard>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Section Navigation */}
+      <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2">
+        <Button
+          variant="outline"
+          size="lg"
+          className="flex-1 min-h-[56px] sm:h-12"
+          onClick={() => {
+            haptics.light();
+            const currentIndex = steps.findIndex(s => s.id === activeTab);
+            if (currentIndex > 0) handleTabChange(steps[currentIndex - 1].id);
+          }}
+          disabled={activeTab === steps[0].id}
+        >
+          <ChevronLeft className="w-4 h-4 mr-1.5" />
+          Previous
+        </Button>
+        {activeTab === steps[steps.length - 1].id ? (
+          <Button
+            size="lg"
+            className="flex-1 min-h-[56px] sm:h-12 gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+            onClick={() => {
+              haptics.success();
+              navigate('/preview');
+            }}
+          >
+            <Download className="w-4 h-4 mr-1.5" />
+            Preview & Export
+          </Button>
+        ) : (
+          <Button
+            size="lg"
+            className="flex-1 min-h-[56px] sm:h-12"
+            onClick={() => {
+              haptics.medium();
+              const currentIndex = steps.findIndex(s => s.id === activeTab);
+              if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
+            }}
+          >
+            Next
+            <ChevronRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        )}
+      </div>
+    </>
+  ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate]);
+
   // Proofread hook
   const { issues: proofreadIssues, score: proofreadScore, isChecking: isProofreadChecking, checkNow, fixIssue, ignoreIssue, fixAll } = useProofread(currentResume);
   const proofreadIssueCount = proofreadIssues.length;
@@ -490,17 +641,40 @@ export default function EditorPage() {
               <span className="text-[9px] font-medium leading-none">Design</span>
             </button>
             {/* Live Preview Toggle */}
-            <button
-              onClick={() => { setShowPreview(v => !v); haptics.light(); }}
-              className={cn(
-                'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
-                showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
-              )}
-              aria-label={showPreview ? 'Close preview' : 'Open preview'}
-            >
-              <Eye className="w-5 h-5" />
-              <span className="text-[9px] font-medium leading-none">Preview</span>
-            </button>
+            {!isMobile && (
+              <button
+                onClick={() => {
+                  setShowPreview(v => {
+                    const next = !v;
+                    localStorage.setItem('wr-live-preview', String(next));
+                    return next;
+                  });
+                  haptics.light();
+                }}
+                className={cn(
+                  'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
+                  showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
+                )}
+                aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
+              >
+                {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+                <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Live'}</span>
+              </button>
+            )}
+            {/* Mobile Preview Toggle */}
+            {isMobile && (
+              <button
+                onClick={() => { setShowPreview(v => !v); haptics.light(); }}
+                className={cn(
+                  'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
+                  showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
+                )}
+                aria-label={showPreview ? 'Close preview' : 'Open preview'}
+              >
+                <Eye className="w-5 h-5" />
+                <span className="text-[9px] font-medium leading-none">Preview</span>
+              </button>
+            )}
             <button
                     onClick={() => setShowChat(true)}
                     className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[54px] min-h-[54px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
@@ -560,9 +734,31 @@ export default function EditorPage() {
               </div>
             )}
           </div>
-          <p className="text-[11px] sm:text-xs text-muted-foreground">
-            {Object.values(sectionStatus).filter(Boolean).length} of {Object.keys(sectionStatus).length} sections completed
-          </p>
+          {/* Compact ATS Score Badge */}
+          <div className="flex items-center gap-2 mt-1">
+            <button
+              onClick={() => { setShowATSBadge(v => !v); haptics.light(); }}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs font-medium">ATS:</span>
+              <span className={cn('text-xs font-bold', getScoreColorClass(overallScore))}>{overallScore}/100</span>
+              {showATSBadge ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
+            </button>
+            <p className="text-[11px] sm:text-xs text-muted-foreground">
+              {Object.values(sectionStatus).filter(Boolean).length} of {Object.keys(sectionStatus).length} sections completed
+            </p>
+          </div>
+          {showATSBadge && localHealthScore && (
+            <div className="mt-2 border-t border-border pt-2">
+              <ATSScoreBreakdown
+                healthScore={localHealthScore}
+                compact
+                defaultOpen
+                onImprove={() => setShowTailor(true)}
+              />
+            </div>
+          )}
         </div>
 
         {/* Stepper Nav */}
@@ -578,127 +774,40 @@ export default function EditorPage() {
         </div>
 
         {/* Editor + Preview split layout */}
-        <div className={cn('flex-1 flex min-h-0 overflow-hidden', showPreview && !isMobile ? 'flex-row' : 'flex-col')}>
-          {/* Editor column */}
-          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-            <div
-              className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
-              ref={scrollContainerRef}
-            >
-              {activeTab === 'contact' && (
-                <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-                  <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
-                    <ContactSection />
-                  </SectionCard>
-                </div>
-              )}
-              {activeTab === 'summary' && (
-                <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-                  <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
-                    <SummarySection />
-                  </SectionCard>
-                </div>
-              )}
-              {activeTab === 'experience' && (
-                <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-                  <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
-                    <ExperienceSection />
-                  </SectionCard>
-                </div>
-              )}
-              {activeTab === 'education' && (
-                <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-                  <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
-                    <EducationSection />
-                  </SectionCard>
-                </div>
-              )}
-              {activeTab === 'skills' && (
-                <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-                  <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
-                    <SkillsSection />
-                  </SectionCard>
-                </div>
-              )}
-              {activeTab === 'more' && (
-                <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
-                  {!moreSubSection ? (
-                    <SectionCard icon={Plus} title="More Sections" tip="Add optional sections to stand out">
-                      <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
-                    </SectionCard>
-                  ) : (
-                    <div className="space-y-3">
-                      <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation">
-                        <ChevronLeft className="w-4 h-4" /> All Sections
-                      </button>
-                      {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements" action={<SectionAIAction section="awards" />}><AwardsSection /></SectionCard>}
-                      {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}><ProjectsSection /></SectionCard>}
-                      {moreSubSection === 'certifications' && <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}><CertificationsSection /></SectionCard>}
-                      {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications" action={<SectionAIAction section="publications" />}><PublicationsSection /></SectionCard>}
-                      {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering" action={<SectionAIAction section="volunteering" />}><VolunteeringSection /></SectionCard>}
-                      {moreSubSection === 'languages' && <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}><LanguagesSection /></SectionCard>}
-                      {moreSubSection === 'hobbies' && <SectionCard icon={Palette} title="Hobbies & Interests"><HobbiesSection /></SectionCard>}
-                      {moreSubSection === 'references' && <SectionCard icon={Users} title="References"><ReferencesSection /></SectionCard>}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Section Navigation */}
-              <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2">
-                <Button
-                  variant="outline"
-                  size="lg"
-                  className="flex-1 min-h-[56px] sm:h-12"
-                  onClick={() => {
-                    haptics.light();
-                    const currentIndex = steps.findIndex(s => s.id === activeTab);
-                    if (currentIndex > 0) handleTabChange(steps[currentIndex - 1].id);
-                  }}
-                  disabled={activeTab === steps[0].id}
+        {showPreview && !isMobile ? (
+          <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+            <ResizablePanel defaultSize={55} minSize={35}>
+              <div className="flex flex-col h-full min-h-0 overflow-hidden">
+                <div
+                  className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
+                  ref={scrollContainerRef}
                 >
-                  <ChevronLeft className="w-4 h-4 mr-1.5" />
-                  Previous
-                </Button>
-                {activeTab === steps[steps.length - 1].id ? (
-                  <Button
-                    size="lg"
-                    className="flex-1 min-h-[56px] sm:h-12 gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
-                    onClick={() => {
-                      haptics.success();
-                      navigate('/preview');
-                    }}
-                  >
-                    <Download className="w-4 h-4 mr-1.5" />
-                    Preview & Export
-                  </Button>
-                ) : (
-                  <Button
-                    size="lg"
-                    className="flex-1 min-h-[56px] sm:h-12"
-                    onClick={() => {
-                      haptics.medium();
-                      const currentIndex = steps.findIndex(s => s.id === activeTab);
-                      if (currentIndex < steps.length - 1) handleTabChange(steps[currentIndex + 1].id);
-                    }}
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4 ml-1.5" />
-                  </Button>
-                )}
+                  {renderEditorContent()}
+                </div>
+              </div>
+            </ResizablePanel>
+            <ResizableHandle withHandle />
+            <ResizablePanel defaultSize={45} minSize={25}>
+              <Suspense fallback={null}>
+                <LivePreviewPanel
+                  onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
+                  highlightSection={activeTab}
+                />
+              </Suspense>
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        ) : (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+              <div
+                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
+                ref={scrollContainerRef}
+              >
+                {renderEditorContent()}
               </div>
             </div>
           </div>
-
-          {/* Desktop: Live Preview side panel */}
-          {showPreview && !isMobile && (
-            <div className="flex-1 min-w-0 max-w-[50%] border-l border-border overflow-hidden">
-              <Suspense fallback={null}>
-                <LivePreviewPanel onClose={() => setShowPreview(false)} />
-              </Suspense>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* Next Step Banner - only show when most sections complete */}
         {sectionStatus.contact && sectionStatus.experience && sectionStatus.summary && sectionStatus.skills && (
