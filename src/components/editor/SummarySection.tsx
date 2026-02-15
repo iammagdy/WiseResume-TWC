@@ -81,7 +81,7 @@ export const SummarySection = memo(function SummarySection() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Contextual Nudge */}
       <AIContextualNudge
         show={!!nudge}
