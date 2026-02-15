@@ -833,7 +833,7 @@ export default function EditorPage() {
               <span className={cn('text-xs font-bold', getScoreColorClass(overallScore))}>{overallScore}/100</span>
               {showATSBadge ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
             </button>
-            <p className="text-[11px] sm:text-xs text-muted-foreground">
+            <p className="text-[11px] sm:text-xs text-muted-foreground min-w-0 truncate">
               {Object.values(sectionStatus).filter(Boolean).length} of {Object.keys(sectionStatus).length} sections completed
             </p>
           </div>
@@ -911,7 +911,7 @@ export default function EditorPage() {
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               <div
-                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
+                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 pb-safe space-y-0"
                 ref={scrollContainerRef}
               >
                 {renderEditorContent()}
