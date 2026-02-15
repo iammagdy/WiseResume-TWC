@@ -1,58 +1,86 @@
 
 
-## Fix: Zustand Selector Instability Causing Infinite Re-render Loop
+## Live Resume Preview in the Editor
 
-### Root Cause
+### Overview
 
-The "Maximum update depth exceeded" error originates from **unstable Zustand selectors** in `src/hooks/useProofread.ts`, NOT from Radix Tooltip (the previous fixes were necessary but didn't address this deeper issue).
+Add a real-time resume preview that shows the formatted resume while editing. On mobile, a "Preview" button opens a full-screen sheet. On desktop (768px+), a collapsible side panel shows the preview alongside the editor in a split-screen layout.
 
-The stack trace confirms this: `forceStoreRerender` -> `updateStoreInstance` -> `commitHookEffectListMount` is the classic Zustand `useSyncExternalStore` infinite loop pattern.
+### Architecture
 
-Two problems in `useProofread.ts`:
+The core preview rendering logic already exists in `PreviewPage.tsx`. We will extract the template rendering into a reusable component and embed it in the editor without modifying the existing form structure, section navigation, AI Studio, or bottom tab bar.
 
-1. **Line 58** - `useProofreadStore(selectActiveIssues)`: The `selectActiveIssues` selector uses `.filter()`, which returns a **new array reference on every call**. Zustand compares references (not deep equality), detects a "change", forces a re-render, which runs the selector again, gets another new array, and loops infinitely.
+### New Files
 
-2. **Line 56-57** - `useProofreadStore()` with no selector: Subscribes to the **entire store object**, so any state change (even unrelated) triggers a re-render in every component using this hook.
+#### 1. `src/components/editor/LivePreviewPanel.tsx`
+A self-contained preview component that:
+- Reads `currentResume` and `selectedTemplate` from the Zustand resume store (using individual selectors to avoid render loops)
+- Lazy-loads only the selected template component
+- Renders the resume inside a scaled container with zoom controls (50%, 75%, 100%, 125%)
+- Includes a "Download PDF" button that reuses the existing `generatePDF` utility
+- Applies template customizations via `applyCustomizationCSS` and `headingStyle` from `templateCustomization.ts`
+- Shows a loading skeleton while the template loads
+- NO Radix Tooltip or Popper components (per editor architectural rule)
+- Uses `React.memo` and stable selectors for performance
 
-### Secondary Issue
+#### 2. `src/components/editor/LivePreviewSheet.tsx`
+A mobile-only full-screen sheet (using the existing Vaul Drawer component) that:
+- Wraps `LivePreviewPanel` in a bottom sheet with `snap` points at 100%
+- Supports swipe-down to close gesture (built into Vaul)
+- Has a "Close Preview" handle/button at the top
+- Includes the zoom controls and download button
 
-`src/components/editor/ai/AIProviderBadge.tsx` still uses Radix `Tooltip` (lines 99-115) and renders inside the editor tree via `InlineAIButton` -> `AIProviderFooter`. While not the primary crash cause, it should also be cleaned up per the architectural rule.
+### Modified Files
 
-### Fix (2 files)
+#### 3. `src/pages/EditorPage.tsx` (minimal changes)
+- Add a "Preview" toggle button in the header bar (next to the Wise AI button) -- simple `<button>` with an `Eye` icon, no Tooltip
+- Add state: `const [showPreview, setShowPreview] = useState(false)`
+- Import `useIsMobile` from `src/hooks/use-mobile.tsx`
+- **Mobile path**: When `showPreview` is true and `isMobile`, render the lazy-loaded `LivePreviewSheet`
+- **Desktop path**: When `showPreview` is true and NOT mobile, wrap the existing editor content area and the `LivePreviewPanel` in a CSS flex row (editor takes `flex-1`, preview takes `flex-1` with `max-w-[50%]`)
+- The preview button toggles `showPreview` on/off
+- Both components are lazy-loaded to avoid impacting editor initial load time
 
-#### File 1: `src/hooks/useProofread.ts`
+### What Does NOT Change
+- The stepper navigation (Contact, Summary, Work, Education, Skills, More)
+- The section form components (ContactSection, SummarySection, etc.)
+- The AI Studio bar and all AI sheet functionality
+- The bottom tab bar (BottomTabBar)
+- Progress tracking and completion percentages
+- Form validation and error handling
+- The existing PreviewPage at `/preview` (remains fully functional)
+- Auto-save logic and cloud sync
 
-- Replace `useProofreadStore()` (whole-store subscription) with **individual selectors** for each needed property
-- Wrap `selectActiveIssues` with `useShallow` from `zustand/react/shallow` to prevent new-reference loops
-- This ensures Zustand only re-renders when the actual data values change, not just the array reference
+### Technical Details
 
-```ts
-// Before (unstable):
-const { issues, score, isChecking, setIssues, ... } = useProofreadStore();
-const activeIssues = useProofreadStore(selectActiveIssues);
+**Performance safeguards:**
+- The preview panel uses `React.memo` and only re-renders when `currentResume` or `selectedTemplate` changes
+- Template components are already `memo`-wrapped (verified in codebase)
+- The preview is lazy-loaded -- zero impact on editor initial load
+- Zoom is handled via CSS `transform: scale()` on the preview container, not by re-rendering at different sizes
 
-// After (stable):
-const issues = useProofreadStore(s => s.issues);
-const score = useProofreadStore(s => s.score);
-const isChecking = useProofreadStore(s => s.isChecking);
-const setIssues = useProofreadStore(s => s.setIssues);
-const setScore = useProofreadStore(s => s.setScore);
-const setIsChecking = useProofreadStore(s => s.setIsChecking);
-const removeIssue = useProofreadStore(s => s.removeIssue);
-const ignoreIssue = useProofreadStore(s => s.ignoreIssue);
-const clear = useProofreadStore(s => s.clear);
-const activeIssues = useProofreadStore(useShallow(selectActiveIssues));
-```
+**Zoom implementation:**
+- A toolbar with 4 preset zoom buttons (50%, 75%, 100%, 125%)
+- Applied as `transform: scale(zoomLevel)` with `transform-origin: top center` on the resume wrapper
+- The container uses `overflow: auto` so users can scroll when zoomed in
 
-#### File 2: `src/components/editor/ai/AIProviderBadge.tsx`
+**Mobile UX:**
+- Full-screen Vaul drawer with swipe-down to close
+- Preview is scaled to fit screen width by default (responsive `max-width: 100%` with aspect ratio preservation)
+- 44px minimum touch targets on all controls
 
-- Remove the `TooltipProvider`, `Tooltip`, `TooltipTrigger`, and `TooltipContent` wrapper from the `AIProviderBadge` component
-- Replace with a plain clickable element (the badge is already a button with visible text)
-- Remove the Tooltip imports
+**Desktop split-screen:**
+- Simple CSS flex layout: `flex flex-row` on the main content area
+- Editor panel: `flex-1 min-w-0 overflow-hidden`
+- Preview panel: `flex-1 min-w-0 border-l border-border overflow-hidden` with a close button
+- Collapsible via the same toggle button -- no complex resize handles needed
 
-### Why This Fixes the Crash
+**Download in preview:**
+- Reuses the existing `generatePDF` and `downloadFile` utilities from `src/lib/pdfGenerator.ts` and `src/lib/downloadUtils.ts`
+- Shows a loading spinner during generation
 
-- Stable selectors prevent Zustand from detecting false "changes" that trigger infinite re-render loops
-- Individual property selectors ensure components only re-render when the specific data they consume changes
-- `useShallow` performs shallow comparison on the filtered array, breaking the infinite loop cycle
-- Removing the remaining Radix Popper component from the editor tree eliminates a secondary source of render instability
+**Section visibility toggles:**
+- Small eye-icon toggles next to each section header in the preview panel
+- Uses local state `hiddenSections: Set<string>` to filter which sections render
+- Does NOT modify the actual resume data -- purely visual filtering in the preview
+
