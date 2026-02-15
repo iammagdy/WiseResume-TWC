@@ -22,7 +22,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProgressBar } from '@/components/editor/ProgressBar';
-import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Separator } from '@/components/ui/separator';
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -69,6 +70,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [showTargetJobSheet, setShowTargetJobSheet] = useState(false);
+  const [showActionsSheet, setShowActionsSheet] = useState(false);
   const navigateToEditor = useNavigate();
   
   // Fit score badge from tailor history
@@ -303,81 +305,19 @@ export const ResumeListCard = memo(function ResumeListCard({
           </div>
 
           {/* Right: Menu */}
-          <ActionsPanel
-            trigger={
-              <Button
-                variant="ghost"
-                size="icon"
-                className="min-w-[44px] min-h-[44px] h-11 w-11 flex-shrink-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                }}
-                aria-label="More options"
-              >
-                <MoreVertical className="h-5 w-5" />
-              </Button>
-            }
-            groups={(() => {
-              const groups: ActionsPanelGroup[] = [
-                {
-                  id: 'view-edit',
-                  title: 'View & Edit',
-                  actions: [
-                    { id: 'preview', label: 'Preview', icon: Eye, onClick: () => navigateToEditor(`/resume/${resume.id}`) },
-                    ...(onRename ? [{ id: 'rename', label: 'Rename', icon: Pencil, onClick: () => setIsRenaming(true) }] : []),
-                    { id: 'edit', label: 'Edit', icon: Edit2, onClick: () => onEdit(resume.id) },
-                  ],
-                },
-                {
-                  id: 'actions',
-                  title: 'Actions',
-                  actions: [
-                    {
-                      id: 'download',
-                      label: 'Download PDF',
-                      icon: Download,
-                      onClick: async () => {
-                        try {
-                          const { generatePDF } = await import('@/lib/pdfGenerator');
-                          const { downloadFile } = await import('@/lib/downloadUtils');
-                          const resumeData = dbToResumeData(resume);
-                          const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
-                          const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
-                          await downloadFile({ blob, fileName });
-                          toast.success('PDF downloaded');
-                        } catch {
-                          toast.error('Failed to download PDF');
-                        }
-                      },
-                    },
-                    {
-                      id: 'share',
-                      label: 'Share',
-                      icon: Share2,
-                      onClick: async () => {
-                        try {
-                          await navigator.clipboard.writeText(`${window.location.origin}/resume/${resume.id}`);
-                          toast.success('Link copied to clipboard');
-                        } catch {
-                          toast.error('Failed to copy link');
-                        }
-                      },
-                    },
-                    { id: 'duplicate', label: 'Duplicate', icon: Copy, onClick: () => onDuplicate(resume.id) },
-                    ...(onInterview ? [{ id: 'interview', label: 'Practice Interview', icon: Mic, onClick: () => onInterview(resume.id) }] : []),
-                  ],
-                },
-                {
-                  id: 'manage',
-                  title: 'Manage',
-                  actions: [
-                    { id: 'delete', label: 'Delete', icon: Trash2, variant: 'destructive' as const, onClick: () => { haptics.warning(); onDelete(resume.id); } },
-                  ],
-                },
-              ];
-              return groups;
-            })()}
-          />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="min-w-[44px] min-h-[44px] h-11 w-11 flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              haptics.light();
+              setShowActionsSheet(true);
+            }}
+            aria-label="More options"
+          >
+            <MoreVertical className="h-5 w-5" />
+          </Button>
         </div>
       </motion.div>
 
@@ -386,6 +326,79 @@ export const ResumeListCard = memo(function ResumeListCard({
         onOpenChange={setShowTargetJobSheet}
         resume={resume}
       />
+
+      {/* Actions Bottom Sheet */}
+      <Sheet open={showActionsSheet} onOpenChange={setShowActionsSheet}>
+        <SheetContent side="bottom" className="pb-safe max-h-[80dvh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="text-base">{resume.title}</SheetTitle>
+          </SheetHeader>
+
+          {/* View & Edit */}
+          <div className="mt-4 space-y-1">
+            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">View & Edit</p>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); navigateToEditor(`/resume/${resume.id}`); }}>
+              <Eye className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Preview</span>
+            </button>
+            {onRename && (
+              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); setIsRenaming(true); }}>
+                <Pencil className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Rename</span>
+              </button>
+            )}
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onEdit(resume.id); }}>
+              <Edit2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Edit</span>
+            </button>
+          </div>
+
+          <Separator className="my-2" />
+
+          {/* Actions */}
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Actions</p>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={async () => {
+              haptics.light(); setShowActionsSheet(false);
+              try {
+                const { generatePDF } = await import('@/lib/pdfGenerator');
+                const { downloadFile } = await import('@/lib/downloadUtils');
+                const resumeData = dbToResumeData(resume);
+                const blob = await generatePDF(resumeData, (resume.template_id || 'modern') as TemplateId);
+                const fileName = `${resumeData.contactInfo.fullName || resume.title}_Resume.pdf`.replace(/\s+/g, '_');
+                await downloadFile({ blob, fileName });
+                toast.success('PDF downloaded');
+              } catch { toast.error('Failed to download PDF'); }
+            }}>
+              <Download className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Download PDF</span>
+            </button>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={async () => {
+              haptics.light(); setShowActionsSheet(false);
+              try {
+                await navigator.clipboard.writeText(`${window.location.origin}/resume/${resume.id}`);
+                toast.success('Link copied to clipboard');
+              } catch { toast.error('Failed to copy link'); }
+            }}>
+              <Share2 className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Share</span>
+            </button>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onDuplicate(resume.id); }}>
+              <Copy className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Duplicate</span>
+            </button>
+            {onInterview && (
+              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); onInterview(resume.id); }}>
+                <Mic className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Practice Interview</span>
+              </button>
+            )}
+          </div>
+
+          <Separator className="my-2" />
+
+          {/* Manage */}
+          <div className="space-y-1 pb-2">
+            <p className="text-xs text-muted-foreground font-medium px-2 mb-1">Manage</p>
+            <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors text-destructive" onClick={() => { haptics.warning(); setShowActionsSheet(false); onDelete(resume.id); }}>
+              <Trash2 className="w-5 h-5" /><span className="text-sm">Delete</span>
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 });
