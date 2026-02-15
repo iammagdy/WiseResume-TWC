@@ -531,10 +531,10 @@ export default function EditorPage() {
               100% { transform: scale(1); }
             }
           `}</style>
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-1">
             <ProgressBar resume={currentResume} />
             {user && currentResumeId && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2">
                 {!isOnline ? (
                   <>
                     <CloudOff className="w-3.5 h-3.5 text-warning" />
@@ -554,13 +554,13 @@ export default function EditorPage() {
               </div>
             )}
             {user && !currentResumeId && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2">
                 <CloudOff className="w-3.5 h-3.5" />
                 <span>Local</span>
               </div>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-[11px] sm:text-xs text-muted-foreground">
             {Object.values(sectionStatus).filter(Boolean).length} of {Object.keys(sectionStatus).length} sections completed
           </p>
         </div>
