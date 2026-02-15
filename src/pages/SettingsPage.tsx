@@ -284,29 +284,31 @@ export default function SettingsPage() {
         </header>
 
         <div ref={scrollRef} onScroll={handleScroll} style={{ scrollBehavior: 'smooth' }} className="flex-1 overflow-y-auto px-5 py-4 space-y-8">
-          {/* Sticky section indicator */}
-          <AnimatePresence mode="wait">
-            {showScrollTop && (() => {
-              const active = SECTIONS.find(s => s.id === activeSection);
-              if (!active) return null;
-              const SectionIcon = active.icon;
+          {/* Section jump bar */}
+          <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-2 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {SECTIONS.map(s => {
+              const SectionIcon = s.icon;
               return (
-                <motion.div
-                  key={active.id}
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.15 }}
-                  className="sticky top-0 z-10 -mx-5 -mt-4 mb-4 px-5 py-2 glass-header backdrop-blur-md border-b border-border/20"
+                <button
+                  key={s.id}
+                  onClick={() => {
+                    haptics.selection();
+                    const el = scrollRef.current?.querySelector(`#${s.id}`);
+                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 shrink-0",
+                    activeSection === s.id
+                      ? "bg-primary text-primary-foreground"
+                      : "glass-elevated text-muted-foreground"
+                  )}
                 >
-                  <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <SectionIcon className="w-3.5 h-3.5 text-primary/60" />
-                    {active.label}
-                  </div>
-                </motion.div>
+                  <SectionIcon className="w-3.5 h-3.5" />
+                  {s.label}
+                </button>
               );
-            })()}
-          </AnimatePresence>
+            })}
+          </div>
           {/* 1. Profile Section */}
           <button
             onClick={handleOpenEditProfile}

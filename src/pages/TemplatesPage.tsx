@@ -37,7 +37,7 @@ export default function TemplatesPage() {
   return (
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
         <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="w-12 h-12" aria-label="Go back">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -50,7 +50,7 @@ export default function TemplatesPage() {
           <button
             key={chip.value}
             onClick={() => setFilter(chip.value)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all touch-manipulation ${
+            className={`px-4 py-2.5 min-h-[44px] rounded-full text-sm font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 ${
               filter === chip.value
                 ? 'bg-primary text-primary-foreground'
                 : 'glass-elevated text-muted-foreground hover:text-foreground'

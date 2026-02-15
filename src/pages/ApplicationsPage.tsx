@@ -65,13 +65,13 @@ function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: J
       <div className="flex gap-2 pl-[52px]">
         <button
           onClick={(e) => { e.stopPropagation(); haptics.light(); onTailor(); }}
-          className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[32px] touch-manipulation"
+          className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
         >
           <Scissors className="w-3 h-3" /> Tailor Resume
         </button>
         <button
           onClick={(e) => { e.stopPropagation(); haptics.light(); onMarkApplied(); }}
-          className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1.5 rounded-lg bg-success/10 hover:bg-success/15 transition-colors min-h-[32px] touch-manipulation"
+          className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1.5 rounded-lg bg-success/10 hover:bg-success/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
         >
           <CheckCircle2 className="w-3 h-3" /> Mark Applied
         </button>
@@ -283,14 +283,14 @@ export default function ApplicationsPage() {
                           {isInterviewing && (
                             <button
                               onClick={() => { haptics.light(); navigate('/interview'); }}
-                              className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[32px] touch-manipulation"
+                              className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
                             >
                               <Mic className="w-3 h-3" /> Prep
                             </button>
                           )}
                           <button
                             onClick={() => { haptics.light(); setFollowUpApp({ company: app.company, jobTitle: app.job_title }); }}
-                            className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium px-2 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors min-h-[32px] touch-manipulation"
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium px-2 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors min-h-[44px] touch-manipulation active:scale-95"
                           >
                             <Mail className="w-3 h-3" /> Follow-up
                           </button>
