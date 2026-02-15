@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { ExportType, CoverLetterContext } from '@/types/resume';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSettingsStore } from '@/store/settingsStore';
-import { estimateOnePageScale } from '@/lib/pdfGenerator';
+import { estimateOnePageScale } from '@/lib/pdfUtils';
 import { cn } from '@/lib/utils';
 import type { ExportProgress } from '@/hooks/useExportProgress';
 

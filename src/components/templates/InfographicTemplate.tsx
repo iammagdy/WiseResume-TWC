@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -49,6 +50,7 @@ export const InfographicTemplate = memo(function InfographicTemplate({ resume }:
           <div className="text-center space-y-1">{resume.education.map(edu => (<div key={edu.id} data-break-avoid><span className="font-bold text-gray-900 text-xs">{edu.degree}</span> <span className="text-gray-500 text-xs">— {edu.institution} ({edu.endDate})</span></div>))}</div>
         </section>
       )}
+      <ExtraSections resume={resume} />
     </div>
   );
 });

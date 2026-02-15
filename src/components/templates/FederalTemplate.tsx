@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -46,6 +47,7 @@ export const FederalTemplate = memo(function FederalTemplate({ resume }: Templat
           <ul className="grid grid-cols-2 gap-1 text-xs text-gray-700">{resume.skills.map((s, i) => <li key={i}>• {s}</li>)}</ul>
         </section>
       )}
+      <ExtraSections resume={resume} />
     </div>
   );
 });

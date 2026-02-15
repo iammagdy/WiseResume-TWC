@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -52,6 +53,7 @@ export const DesignerTemplate = memo(function DesignerTemplate({ resume }: Templ
             {resume.education.map(edu => (<div key={edu.id} data-break-avoid className="mb-2"><h3 className="font-bold text-gray-900 text-[10px]">{edu.degree} {edu.field && `in ${edu.field}`}</h3><p className="text-gray-500 text-[10px]">{edu.institution} — {edu.endDate}</p></div>))}
           </section>
         )}
+        <ExtraSections resume={resume} />
       </div>
     </div>
   );

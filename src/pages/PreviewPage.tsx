@@ -48,7 +48,7 @@ const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsS
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then(m => ({ default: m.ResumePhotoSheet })));
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
-import { getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator';
+import { getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfUtils';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { downloadFile } from '@/lib/downloadUtils';
 // docxGenerator is dynamically imported when needed to avoid Vite pre-bundle issues
@@ -75,6 +75,24 @@ const templates: { id: TemplateId; name: string }[] = [
   { id: 'healthcare', name: 'Healthcare' },
   { id: 'sales', name: 'Sales' },
   { id: 'elegant', name: 'Elegant' },
+  { id: 'corporate', name: 'Corporate' },
+  { id: 'banking', name: 'Banking' },
+  { id: 'consulting', name: 'Consulting' },
+  { id: 'federal', name: 'Federal' },
+  { id: 'legal', name: 'Legal' },
+  { id: 'marketing', name: 'Marketing' },
+  { id: 'designer', name: 'Designer' },
+  { id: 'portfolio', name: 'Portfolio' },
+  { id: 'startup', name: 'Startup' },
+  { id: 'infographic', name: 'Infographic' },
+  { id: 'data-science', name: 'Data Science' },
+  { id: 'devops', name: 'DevOps' },
+  { id: 'cyber', name: 'Cyber' },
+  { id: 'product', name: 'Product' },
+  { id: 'clean', name: 'Clean' },
+  { id: 'swiss', name: 'Swiss' },
+  { id: 'mono', name: 'Mono' },
+  { id: 'zen', name: 'Zen' },
 ];
 
 export default function PreviewPage() {
@@ -161,6 +179,13 @@ export default function PreviewPage() {
     if (currentResume.education.length > 0) sections.push('education');
     if (currentResume.skills.length > 0) sections.push('skills');
     if (currentResume.certifications.length > 0) sections.push('certifications');
+    if (currentResume.awards && currentResume.awards.length > 0) sections.push('awards');
+    if (currentResume.projects && currentResume.projects.length > 0) sections.push('projects');
+    if (currentResume.publications && currentResume.publications.length > 0) sections.push('publications');
+    if (currentResume.volunteering && currentResume.volunteering.length > 0) sections.push('volunteering');
+    if (currentResume.hobbies && currentResume.hobbies.filter(h => h.visible).length > 0) sections.push('hobbies');
+    if (currentResume.references && currentResume.references.length > 0) sections.push('references');
+    if (currentResume.languages && currentResume.languages.length > 0) sections.push('languages');
     return sections;
   }, [currentResume, domSections]);
 

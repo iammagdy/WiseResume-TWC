@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -47,6 +48,7 @@ export const CorporateTemplate = memo(function CorporateTemplate({ resume }: Tem
           <div className="grid grid-cols-3 gap-1 text-xs text-gray-700">{resume.skills.map((s, i) => <span key={i}>• {s}</span>)}</div>
         </section>
       )}
+      <ExtraSections resume={resume} />
     </div>
   );
 });

@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { ResumeData } from '@/types/resume';
+import { ExtraSections } from './shared/ExtraSections';
 
 interface TemplateProps { resume: ResumeData; }
 
@@ -46,6 +47,7 @@ export const ZenTemplate = memo(function ZenTemplate({ resume }: TemplateProps) 
           <p className="text-center text-xs text-gray-600">{resume.skills.join('  ·  ')}</p>
         </section>
       )}
+      <ExtraSections resume={resume} />
     </div>
   );
 });
