@@ -1,64 +1,51 @@
 
 
-## Add "More Sections" FloatingPanel to Editor Stepper
+## Add "Jump to Section" FloatingPanel to Settings Header
 
 ### Overview
 
-Add a FloatingPanel-based "More" button at the end of the section stepper navigation. Tapping it opens a mobile-friendly panel with a 2-column grid of additional sections (Awards, Projects, Certifications, Languages, etc.). Selecting a section jumps directly to it -- combining the two-step flow (tap More tab, then pick section) into one action.
+Add a FloatingPanel trigger button in the Settings header (top-right) that opens a panel listing all settings sections. Tapping a section smoothly scrolls to it. The existing horizontal jump bar and all section rendering remain untouched.
 
 ### What Changes
 
-**File: `src/components/editor/StepperNav.tsx`**
+**File: `src/pages/SettingsPage.tsx`**
 
-1. **Add a new prop** `onMoreSectionSelect?: (sectionId: string) => void` to `StepperNavProps`. This callback is invoked when a user picks a specific sub-section from the FloatingPanel, allowing the parent (EditorPage) to set both `activeTab` and `moreSubSection` in one go.
+1. **Add imports** for `FloatingPanelRoot`, `FloatingPanelTrigger`, `FloatingPanelContent` from `@/components/ui/floating-panel`, and the `Menu` icon from `lucide-react`.
 
-2. **Add imports** for `FloatingPanelRoot`, `FloatingPanelTrigger`, `FloatingPanelContent`, `FloatingPanelBody` from `@/components/ui/floating-panel`, plus section icons (`Trophy`, `Rocket`, `Award`, `BookOpen`, `Heart`, `Globe`, `Palette`, `Users`) from lucide-react.
+2. **Add a scroll helper** function near the existing `scrollToTop`:
+   ```text
+   const scrollToSection = useCallback((sectionId: string) => {
+     const el = scrollRef.current?.querySelector(`#${sectionId}`);
+     el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+     haptics.selection();
+   }, []);
+   ```
 
-3. **Define a constant** `MORE_SECTIONS` array (same 8 sections as `AddSectionSheet`):
+3. **Update the header** (lines 273-284): Add the FloatingPanel trigger as a right-aligned button next to the title. The header layout changes from a simple left-aligned row to a `justify-between` row:
 
-| id | label | icon | color |
-|----|-------|------|-------|
-| awards | Awards | Trophy | text-amber-500 |
-| projects | Projects | Rocket | text-blue-500 |
-| certifications | Certifications | Award | text-orange-500 |
-| publications | Publications | BookOpen | text-emerald-500 |
-| volunteering | Volunteering | Heart | text-rose-500 |
-| languages | Languages | Globe | text-cyan-500 |
-| hobbies | Hobbies | Palette | text-purple-500 |
-| references | References | Users | text-sky-500 |
+   - Left side: Back button + "Settings" title (unchanged)
+   - Right side: FloatingPanel trigger with `Menu` icon
 
-4. **Mobile view**: After the bottom sheet for section selection, add a separate row below the dropdown trigger with the FloatingPanel. The trigger is a compact pill button with `Plus` icon and "More" label. The panel content renders a 2-column grid of section buttons (44px min height, `active:scale-95`, `touch-manipulation`). Tapping a section calls `onMoreSectionSelect?.(sectionId)`, then closes the panel.
+4. **FloatingPanel content**: Maps over the existing `SECTIONS` array to render a list of tappable rows, each showing the section icon and label. On click, calls `scrollToSection(section.id)`. Styled with `max-h-[80dvh]`, `overflow-y-auto`, `pb-safe`, and 44px min-height touch targets.
 
-5. **Desktop view**: At the end of the horizontal stepper (after the last step button), add a similar FloatingPanel trigger -- a smaller `Plus` icon button. The panel content uses the same 2-column grid.
+5. **Make header sticky**: Add `sticky top-0 z-10 backdrop-blur-xl` to the header so it stays visible while scrolling.
 
-6. **The existing "more" step remains in the steps array.** The FloatingPanel is an *additional* quick-access entry point, not a replacement.
+### Visual Result
 
-**File: `src/pages/EditorPage.tsx`**
+- **Mobile**: A compact menu icon button in the header opens a bottom-anchored panel with all 7 sections listed vertically with their icons. Tapping scrolls to the section.
+- **Desktop**: Same behavior -- the menu button is always visible as a quick-access alternative to the horizontal chip bar.
 
-1. **Add a handler** `handleMoreSectionSelect` that sets both `activeTab` to `'more'` and `moreSubSection` to the chosen section ID, then scrolls to top:
+### Existing Logic Preserved
 
-```text
-const handleMoreSectionSelect = useCallback((sectionId: string) => {
-  setActiveTab('more');
-  setMoreSubSection(sectionId);
-  scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-}, []);
-```
-
-2. **Pass it to StepperNav** as the new `onMoreSectionSelect` prop (line ~870-877).
-
-### Logic Preservation
-
-- `handleTabChange` is untouched
-- `activeTab` and `moreSubSection` state management is unchanged
-- The "More" step in the stepper array remains
-- All section rendering in `renderEditorContent` stays identical
-- The `AddSectionSheet` grid inside the "More" tab still works as before
+- `SECTIONS` array is reused as-is (no changes)
+- Section DOM IDs (`section-appearance`, `section-ai-voice`, etc.) are unchanged
+- `activeSection` tracking via IntersectionObserver is untouched
+- Horizontal jump bar remains in place
+- All section rendering stays identical
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/editor/StepperNav.tsx` | Add `onMoreSectionSelect` prop, FloatingPanel trigger and content with section grid |
-| `src/pages/EditorPage.tsx` | Add `handleMoreSectionSelect` callback, pass to StepperNav |
+| `src/pages/SettingsPage.tsx` | Add FloatingPanel imports, `scrollToSection` helper, update header with sticky positioning and FloatingPanel trigger |
 
