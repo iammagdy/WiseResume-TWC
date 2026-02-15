@@ -3,7 +3,7 @@ import { ZoomIn, ZoomOut, Download, Loader2, Eye, EyeOff, X } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
-import { generatePDF } from '@/lib/pdfGenerator';
+// pdfGenerator is dynamically imported in handleDownload to reduce initial bundle
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -131,6 +131,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
         zoomWrapper.style.transform = 'none';
         zoomWrapper.style.width = 'auto';
       }
+      const { generatePDF } = await import('@/lib/pdfGenerator');
       const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
       if (zoomWrapper) {
         zoomWrapper.style.transform = origTransform || '';
