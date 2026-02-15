@@ -52,13 +52,13 @@ export const NextStepBanner = memo(function NextStepBanner({ variant, onAction }
         <span className="text-sm text-foreground flex-1">{text}</span>
         <button
           onClick={onAction}
-          className="text-xs font-semibold text-primary px-2.5 py-1 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors touch-manipulation min-h-[32px]"
+          className="text-xs font-semibold text-primary px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors touch-manipulation min-h-[44px] flex items-center"
         >
           {actionLabel}
         </button>
         <button
           onClick={dismiss}
-          className="p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[28px] min-h-[28px] flex items-center justify-center"
+          className="p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
           aria-label="Dismiss"
         >
           <X className="w-3.5 h-3.5 text-muted-foreground" />
