@@ -71,14 +71,18 @@ export const StepperNav = memo(function StepperNav({
               {activeStepData?.label}
             </span>
             <p className="text-[11px] text-muted-foreground">
-              Step {activeIndex + 1} of {steps.length}
+              {steps.filter(s => completedSteps[s.id]).length} of {steps.length} complete
             </p>
           </div>
-          {activeInProgress && !activeCompleted && (
+          {activeCompleted ? (
+            <span className="text-[10px] font-bold bg-success text-success-foreground rounded-full px-1.5 py-0.5">
+              100%
+            </span>
+          ) : activeScore > 0 ? (
             <span className="text-[10px] font-bold bg-warning text-warning-foreground rounded-full px-1.5 py-0.5">
               {activeScore}%
             </span>
-          )}
+          ) : null}
           <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
         </button>
 
@@ -104,7 +108,7 @@ export const StepperNav = memo(function StepperNav({
                         haptics.light();
                       }}
                       className={cn(
-                        'flex items-center gap-3 px-4 min-h-[56px] rounded-xl border transition-colors touch-manipulation active:scale-[0.98]',
+                        'flex items-center gap-3 px-4 min-h-[64px] rounded-xl border transition-colors touch-manipulation active:scale-[0.98]',
                         isActive
                           ? 'bg-primary/10 border-primary/30'
                           : 'bg-card border-border hover:bg-muted/50'

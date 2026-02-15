@@ -102,7 +102,7 @@ export function InputFormField({
   };
 
   return (
-    <div className="space-y-2 sm:space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={id} className="flex items-center gap-2 text-sm font-semibold">
         {icon && <span className="text-muted-foreground">{icon}</span>}
         {label}
@@ -211,7 +211,7 @@ export function TextareaFormField({
   };
 
   return (
-    <div className="space-y-2 sm:space-y-1.5">
+    <div className="space-y-2">
       <Label htmlFor={id} className="flex items-center gap-2 text-sm font-semibold">
         {icon && <span className="text-muted-foreground">{icon}</span>}
         {label}

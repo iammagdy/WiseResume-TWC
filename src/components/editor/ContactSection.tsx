@@ -153,7 +153,7 @@ export const ContactSection = memo(function ContactSection() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
         <InputFormField
           id="fullName"
           label="Full Name"

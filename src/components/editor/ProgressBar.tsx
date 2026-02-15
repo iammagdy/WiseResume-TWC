@@ -65,7 +65,7 @@ export const ProgressBar = memo(function ProgressBar({ resume, className, varian
         }}
       >
         {isComplete && <Sparkles className="w-3.5 h-3.5" />}
-        Resume {progress}% Complete
+        <span className="hidden min-[375px]:inline">Resume </span>{progress}%<span className="hidden min-[375px]:inline"> Complete</span>
       </span>
 
       {/* Animated bar */}
