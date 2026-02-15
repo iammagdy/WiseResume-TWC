@@ -1,0 +1,306 @@
+import { useState } from 'react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Loader2, Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, MoreHorizontal, Check } from 'lucide-react';
+import { GapInfo } from '@/lib/dateUtils';
+import { Experience } from '@/types/resume';
+import { supabase } from '@/integrations/supabase/client';
+import { useSettingsStore } from '@/store/settingsStore';
+import { toast } from 'sonner';
+import { haptics } from '@/lib/haptics';
+import { v4 as uuidv4 } from 'uuid';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface GapFillerSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  gap: GapInfo | null;
+  experiences: Experience[];
+  onAddExperience: (exp: Experience) => void;
+}
+
+interface Suggestion {
+  title: string;
+  company: string;
+  description: string;
+  achievements: string[];
+}
+
+const CATEGORIES = [
+  { id: 'military', label: 'Military Service', icon: Shield },
+  { id: 'freelance', label: 'Freelance/Contract', icon: Briefcase },
+  { id: 'education', label: 'Education', icon: BookOpen },
+  { id: 'caregiving', label: 'Caregiving', icon: Heart },
+  { id: 'sabbatical', label: 'Sabbatical', icon: Compass },
+  { id: 'other', label: 'Other', icon: MoreHorizontal },
+] as const;
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function formatParsedDate(d: { month: number; year: number; isPresent?: boolean }) {
+  if (d.isPresent) return 'Present';
+  return `${MONTH_NAMES[d.month]} ${d.year}`;
+}
+
+export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperience }: GapFillerSheetProps) {
+  const [category, setCategory] = useState<string>('');
+  const [userDescription, setUserDescription] = useState('');
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  const geminiKey = useSettingsStore((s) => s.geminiApiKey);
+
+  const resetState = () => {
+    setCategory('');
+    setUserDescription('');
+    setSuggestions([]);
+    setSelectedIndex(null);
+    setIsGenerating(false);
+  };
+
+  const handleClose = () => {
+    resetState();
+    onClose();
+  };
+
+  // Find surrounding jobs for context
+  const getSurroundingJobs = () => {
+    if (!gap) return { previousJob: undefined, nextJob: undefined };
+
+    const sorted = [...experiences]
+      .filter(e => e.startDate)
+      .sort((a, b) => {
+        const aYear = parseInt(a.startDate.match(/\d{4}/)?.[0] || '0');
+        const bYear = parseInt(b.startDate.match(/\d{4}/)?.[0] || '0');
+        return aYear - bYear;
+      });
+
+    let previousJob: { position: string; company: string } | undefined;
+    let nextJob: { position: string; company: string } | undefined;
+
+    for (const exp of sorted) {
+      const year = parseInt(exp.startDate.match(/\d{4}/)?.[0] || '0');
+      if (year <= gap.startDate.year && exp.position) {
+        previousJob = { position: exp.position, company: exp.company };
+      }
+      if (year >= gap.endDate.year && exp.position && !nextJob) {
+        nextJob = { position: exp.position, company: exp.company };
+      }
+    }
+
+    return { previousJob, nextJob };
+  };
+
+  const handleSuggest = async () => {
+    if (!gap || !category) return;
+
+    setIsGenerating(true);
+    setSuggestions([]);
+    setSelectedIndex(null);
+    haptics.light();
+
+    try {
+      const { previousJob, nextJob } = getSurroundingJobs();
+
+      const { data, error } = await supabase.functions.invoke('fill-gap', {
+        body: {
+          gap: {
+            startDate: formatParsedDate(gap.startDate),
+            endDate: formatParsedDate(gap.endDate),
+            months: gap.months,
+          },
+          category,
+          userDescription,
+          previousJob,
+          nextJob,
+          ...(geminiKey ? { userGeminiKey: geminiKey } : {}),
+        },
+      });
+
+      if (error) {
+        console.error('fill-gap error:', error);
+        toast.error('Failed to generate suggestions. Please try again.');
+        return;
+      }
+
+      if (data?.suggestions && Array.isArray(data.suggestions)) {
+        setSuggestions(data.suggestions.slice(0, 3));
+        haptics.success();
+      } else {
+        toast.error('Unexpected AI response. Please try again.');
+      }
+    } catch (err) {
+      console.error('fill-gap error:', err);
+      toast.error('Something went wrong. Please try again.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleAddToResume = () => {
+    if (selectedIndex === null || !suggestions[selectedIndex] || !gap) return;
+
+    const suggestion = suggestions[selectedIndex];
+
+    const newExp: Experience = {
+      id: uuidv4(),
+      company: suggestion.company,
+      position: suggestion.title,
+      startDate: formatParsedDate(gap.startDate),
+      endDate: formatParsedDate(gap.endDate),
+      current: false,
+      description: suggestion.description,
+      achievements: suggestion.achievements,
+    };
+
+    haptics.success();
+    onAddExperience(newExp);
+    toast.success('Experience added! Gap resolved.');
+    handleClose();
+  };
+
+  if (!gap) return null;
+
+  const gapLabel = `${formatParsedDate(gap.startDate)} — ${formatParsedDate(gap.endDate)}`;
+
+  return (
+    <Sheet open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <SheetContent side="bottom" className="glass-elevated rounded-t-3xl max-h-[85vh] overflow-y-auto pb-safe">
+        <SheetHeader className="text-left pb-4">
+          <SheetTitle className="text-fluid-lg font-bold">Fill Employment Gap</SheetTitle>
+          <p className="text-sm text-muted-foreground">
+            Gap period: <span className="font-medium text-foreground">{gapLabel}</span>
+            <span className="ml-2 text-xs">({gap.months} month{gap.months > 1 ? 's' : ''})</span>
+          </p>
+        </SheetHeader>
+
+        <div className="space-y-5">
+          {/* Category chips */}
+          <div>
+            <p className="text-sm font-medium mb-3">What did you do during this time?</p>
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORIES.map((cat) => {
+                const Icon = cat.icon;
+                const isSelected = category === cat.id;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => {
+                      setCategory(cat.id);
+                      haptics.light();
+                    }}
+                    className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all active:scale-95 min-h-[44px] ${
+                      isSelected
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-border bg-card hover:bg-muted/50 text-foreground'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{cat.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Description input */}
+          <div>
+            <p className="text-sm font-medium mb-2">Tell us briefly what you did</p>
+            <Textarea
+              value={userDescription}
+              onChange={(e) => setUserDescription(e.target.value)}
+              placeholder="e.g., I worked as HR at Whitewell, or I served in the Navy..."
+              className="min-h-[80px] resize-none glass-input"
+              maxLength={500}
+            />
+            <p className="text-xs text-muted-foreground mt-1 text-right">{userDescription.length}/500</p>
+          </div>
+
+          {/* Suggest button */}
+          <Button
+            onClick={handleSuggest}
+            disabled={!category || isGenerating}
+            className="w-full gap-2 min-h-[48px] active:scale-95 transition-transform"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating suggestions...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                Suggest Titles
+              </>
+            )}
+          </Button>
+
+          {/* AI Suggestions */}
+          <AnimatePresence mode="wait">
+            {suggestions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-3"
+              >
+                <p className="text-sm font-medium">Choose a suggestion:</p>
+                {suggestions.map((suggestion, index) => (
+                  <motion.button
+                    key={index}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    onClick={() => {
+                      setSelectedIndex(index);
+                      haptics.light();
+                    }}
+                    className={`w-full text-left p-4 rounded-xl border transition-all active:scale-[0.98] ${
+                      selectedIndex === index
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/30'
+                        : 'border-border bg-card hover:bg-muted/30'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm">{suggestion.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{suggestion.company}</p>
+                      </div>
+                      {selectedIndex === index && (
+                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0 mt-0.5">
+                          <Check className="w-3 h-3 text-primary-foreground" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{suggestion.description}</p>
+                    {suggestion.achievements.length > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {suggestion.achievements.slice(0, 2).map((a, i) => (
+                          <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                            <span className="text-primary mt-0.5">•</span>
+                            <span className="line-clamp-1">{a}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </motion.button>
+                ))}
+
+                {/* Add to Resume button */}
+                <Button
+                  onClick={handleAddToResume}
+                  disabled={selectedIndex === null}
+                  className="w-full gap-2 min-h-[48px] active:scale-95 transition-transform"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add to Resume
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

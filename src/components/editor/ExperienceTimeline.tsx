@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { AlertCircle, X, Sparkles } from 'lucide-react';
+import { AlertCircle, X, Sparkles, Wand2 } from 'lucide-react';
 import { Experience } from '@/types/resume';
 import { parseResumeDate, getMonthsDifference, formatDuration, detectGaps, getTotalGapMonths, ParsedDate, GapInfo } from '@/lib/dateUtils';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ interface ExperienceTimelineProps {
   experiences: Experience[];
   onDismiss?: () => void;
   onExplainGap?: (gap: GapInfo) => void;
+  onFillGap?: (gap: GapInfo) => void;
 }
 
 interface TimelineSegment {
@@ -22,7 +23,7 @@ interface TimelineSegment {
   company?: string;
 }
 
-export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: ExperienceTimelineProps) {
+export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFillGap }: ExperienceTimelineProps) {
   const { segments, gaps, timelineStart, timelineEnd } = useMemo(() => {
     // Parse all experiences with valid dates
     const parsed = experiences
@@ -105,9 +106,15 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: Exp
 
   const handleExplainClick = () => {
     if (gaps.length > 0 && onExplainGap) {
-      // Use the longest gap
       const longestGap = gaps.reduce((max, gap) => gap.months > max.months ? gap : max, gaps[0]);
       onExplainGap(longestGap);
+    }
+  };
+
+  const handleFillClick = () => {
+    if (gaps.length > 0 && onFillGap) {
+      const longestGap = gaps.reduce((max, gap) => gap.months > max.months ? gap : max, gaps[0]);
+      onFillGap(longestGap);
     }
   };
 
@@ -151,10 +158,21 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: Exp
                       variant="ghost"
                       size="sm"
                       onClick={handleExplainClick}
-                      className="ml-auto min-h-[44px] text-xs gap-1 text-warning-foreground"
+                      className="min-h-[44px] text-xs gap-1 text-warning-foreground"
                     >
                       <Sparkles className="w-3 h-3" />
                       Explain
+                    </Button>
+                  )}
+                  {onFillGap && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleFillClick}
+                      className="min-h-[44px] text-xs gap-1 text-primary"
+                    >
+                      <Wand2 className="w-3 h-3" />
+                      Fill Gap
                     </Button>
                   )}
                 </div>
@@ -219,17 +237,30 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap }: Exp
           </div>
           
           {/* Explain with AI button */}
-          {onExplainGap && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExplainClick}
-              className="mt-2 gap-2 w-full sm:w-auto border-warning/30 text-warning-foreground hover:bg-warning/10"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              Explain with AI
-            </Button>
-          )}
+          <div className="flex gap-2 mt-2 flex-wrap">
+            {onExplainGap && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExplainClick}
+                className="gap-2 flex-1 sm:flex-none border-warning/30 text-warning-foreground hover:bg-warning/10"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Explain with AI
+              </Button>
+            )}
+            {onFillGap && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleFillClick}
+                className="gap-2 flex-1 sm:flex-none border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                Fill Gap
+              </Button>
+            )}
+          </div>
         </motion.div>
       )}
     </motion.div>

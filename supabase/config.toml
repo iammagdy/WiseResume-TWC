@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.generate-resignation-letter]
 verify_jwt = false
+
+[functions.fill-gap]
+verify_jwt = false
