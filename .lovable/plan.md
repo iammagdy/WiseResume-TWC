@@ -1,77 +1,100 @@
 
 
-## Touch Target Audit and Improvements for the Editor Tab
+## Fix: "New Section / More" Content Not Rendering
 
-### Audit Results
+### Root Cause Analysis
 
-After scanning every interactive element in the Editor on a 360px viewport, the majority already meet the 44px minimum. The following elements fall short:
+After tracing the entire section flow end-to-end, the architecture works as follows:
 
-| Element | Current Size | Location |
-|---------|-------------|----------|
-| Undo/Redo buttons | 36x36px | EditorPage.tsx header (visible on xs+ screens) |
-| Version History button | ~32px (p-2 only) | EditorPage.tsx header |
-| NextStepBanner action button | 32px tall | NextStepBanner.tsx |
-| NextStepBanner dismiss button | 28x28px | NextStepBanner.tsx |
-| "All Sections" back link | No min-h | EditorPage.tsx renderEditorContent |
-| SectionEmptyState action buttons | ~32px (size="sm") | SectionEmptyState.tsx |
-| "Show/Hide Example" toggle | Inline text, ~20px | SectionEmptyState.tsx |
-| ATS completeness toggle | py-1, no min-h | EditorPage.tsx |
-| "View Original" link (tailored) | 36px tall | EditorPage.tsx |
+1. **Steps** are static: `[contact, summary, experience, education, skills, more]`
+2. **"More" tab** uses a secondary state `moreSubSection` to select which optional section to show
+3. **Two entry points** set this state:
+   - `AddSectionSheet` (inside the More tab content): calls `setMoreSubSection(s)` directly
+   - `StepperNav "More Sections"` button/sheet: calls `handleMoreSectionSelect(sectionId)` which sets BOTH `activeTab='more'` AND `moreSubSection`
 
-### Elements That Already Pass (No Changes Needed)
+4. **Content rendering** (lines 565-588 of EditorPage.tsx): When `activeTab === 'more'`, it checks `moreSubSection` and renders the matching component via a chain of `{moreSubSection === 'awards' && ...}` conditionals
 
-- Back button: 48x48
-- Mobile tools trigger: 48x48
-- Tools sheet actions: 48px tall
-- StepperNav mobile dropdown: 56px tall
-- Section rows in sheet: 64px tall
-- More sections grid cards: 48px tall
-- Prev/Next navigation: 56px tall
-- Experience card headers: 80px tall
-- Add Experience button: 56px tall
-- Skill badges (remove/add): 44px tall
-- InlineAIButton: 44px tall
-- AI Assist sheet actions: 64px tall
-- Proofread FAB: 56px (14 * 4)
-- All form inputs: 48px (h-12)
+The chain of conditionals works correctly for all 8 sections. However, the fragility is that:
+- There is **no fallback** if `moreSubSection` has an unrecognized value (silent blank render)
+- The section mapping is **duplicated in 3 places**: EditorPage rendering, AddSectionSheet definition, and StepperNav MORE_SECTIONS -- any ID mismatch between them causes a silent failure
+- The `renderEditorContent` callback depends on `moreSubSection` in its `useCallback` deps, which is correct
+
+**Most likely root cause**: The content renders correctly when `handleMoreSectionSelect` is called (sets both states atomically), but if a user navigates to "More" via the section dropdown (which only calls `handleTabChange('more')` without touching `moreSubSection`), and `moreSubSection` is null, they see the AddSectionSheet picker -- not a blank screen. This flow actually works.
+
+The real risk is an **edge case where `moreSubSection` gets set to a value that doesn't match any conditional** (e.g., from a stale store or URL param), resulting in a blank content area with only the "All Sections" back button visible. The fix is to add robustness via a config-driven lookup.
 
 ### Proposed Changes
 
 **File: `src/pages/EditorPage.tsx`**
 
-1. **Undo/Redo buttons** (lines 698-721): Change `min-w-[36px] min-h-[36px]` to `min-w-[44px] min-h-[44px]`
+1. **Create a section component map** replacing the chain of 8 conditionals with a single config-driven lookup. This eliminates the possibility of ID mismatches causing blank renders:
 
-2. **Version History button** (lines 724-731): Add `min-w-[44px] min-h-[44px] flex items-center justify-center`
+```typescript
+const MORE_SECTION_COMPONENTS: Record<string, {
+  icon: typeof Trophy;
+  title: string;
+  hasAI: boolean;
+  Component: React.LazyExoticComponent<React.ComponentType>;
+}> = {
+  awards: { icon: Trophy, title: 'Awards & Achievements', hasAI: true, Component: AwardsSection },
+  projects: { icon: Rocket, title: 'Projects', hasAI: true, Component: ProjectsSection },
+  certifications: { icon: Award, title: 'Certifications', hasAI: true, Component: CertificationsSection },
+  publications: { icon: BookOpen, title: 'Publications', hasAI: true, Component: PublicationsSection },
+  volunteering: { icon: Heart, title: 'Volunteering', hasAI: true, Component: VolunteeringSection },
+  languages: { icon: Globe, title: 'Languages', hasAI: true, Component: LanguagesSection },
+  hobbies: { icon: Palette, title: 'Hobbies & Interests', hasAI: false, Component: HobbiesSection },
+  references: { icon: Users, title: 'References', hasAI: false, Component: ReferencesSection },
+};
+```
 
-3. **ATS completeness toggle** (lines 883-886): Add `min-h-[44px]` to the button class
+2. **Replace the conditional chain** (lines 576-584) with a config lookup:
 
-4. **"All Sections" back link** (line 573): Add `min-h-[44px] flex items-center` to ensure comfortable tapping
+```tsx
+{(() => {
+  const config = MORE_SECTION_COMPONENTS[moreSubSection!];
+  if (!config) {
+    // Fallback: unknown sub-section, reset to picker
+    setMoreSubSection(null);
+    return null;
+  }
+  const { icon, title, hasAI, Component } = config;
+  return (
+    <SectionCard icon={icon} title={title} action={hasAI ? <SectionAIAction section={moreSubSection!} /> : undefined}>
+      <Component />
+    </SectionCard>
+  );
+})()}
+```
 
-5. **"View Original" link** (line 925): Change `min-h-[36px]` to `min-h-[44px]`
+3. **Add a guard in `handleTabChange`**: When switching TO the "more" tab via the section dropdown (not via "More Sections"), reset `moreSubSection` to null so users always see the section picker first:
 
-**File: `src/components/editor/NextStepBanner.tsx`**
+```typescript
+const handleTabChange = useCallback((newTab: string) => {
+  if (newTab !== 'more') {
+    // Clear sub-section when leaving More
+    setMoreSubSection(null);
+  }
+  setActiveTab(newTab);
+  scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+}, []);
+```
 
-6. **Action button** (line 55): Change `min-h-[32px]` to `min-h-[44px]` and add padding `px-3 py-2`
-
-7. **Dismiss button** (line 60): Change `min-w-[28px] min-h-[28px]` to `min-w-[44px] min-h-[44px]`
-
-**File: `src/components/editor/SectionEmptyState.tsx`**
-
-8. **Action buttons** (line 101): Add `min-h-[44px]` to the Button className
-
-9. **"Show/Hide Example" trigger** (line 74): Add `min-h-[44px] px-3` to ensure tappable area
+This way, tapping "More" in the section dropdown always shows the AddSectionSheet picker, while tapping a specific section via "More Sections" sheet goes directly to that section.
 
 ### What Stays the Same
 
-- All handlers, navigation logic, and data unchanged
-- All component names and props unchanged
-- No layout or visual design changes beyond size/spacing
-- Tools sheet, StepperNav, form fields, AI sheets -- all already compliant
+- All 8 lazy-loaded section components (unchanged)
+- All handlers (handleMoreSectionSelect, etc.)
+- StepperNav component (unchanged)
+- AddSectionSheet component (unchanged)
+- Data model, types, API calls (unchanged)
+- All built-in sections (Contact, Summary, Work, Education, Skills) (unchanged)
 
-### Summary of Pattern
+### Technical Summary
 
-Every fix applies the same principle: ensure `min-h-[44px]` (and `min-w-[44px]` for icon-only buttons) plus adequate padding. The standardized class pattern is:
-- Icon-only: `min-w-[44px] min-h-[44px] flex items-center justify-center`
-- Text buttons: `min-h-[44px] px-3`
-- Inline links: `min-h-[44px] flex items-center`
+| File | Change |
+|------|--------|
+| `src/pages/EditorPage.tsx` | Add `MORE_SECTION_COMPONENTS` config map; replace 8-line conditional chain with config lookup + fallback; clear `moreSubSection` on tab change away from "more" |
+
+3 targeted changes. Zero logic changes to existing sections. Adds a fallback for unknown sub-section IDs that prevents blank renders.
 
