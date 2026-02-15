@@ -6,14 +6,14 @@ import {
   Copy, 
   Trash2, 
   Star,
-  
   Target,
   Clock,
   GitBranch,
   Crown,
   Mic,
   Sparkles,
-  Pencil
+  Pencil,
+  Plus
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { ScoreRing } from './ScoreRing';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { ATSScoreBreakdown } from './ATSScoreBreakdown';
+import { SetTargetJobSheet } from './SetTargetJobSheet';
 import { useNavigate } from 'react-router-dom';
 
 interface ResumeListCardProps {
@@ -68,6 +69,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [showTargetJobSheet, setShowTargetJobSheet] = useState(false);
   const navigateToEditor = useNavigate();
   
   // Fit score badge from tailor history
@@ -250,17 +252,24 @@ export const ResumeListCard = memo(function ResumeListCard({
 
               {/* Target Job */}
               {hasTargetJob ? (
-                <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
-                  <Target className="w-3.5 h-3.5" />
+                <button
+                  className="flex items-center gap-1 text-sm text-muted-foreground mb-2 hover:text-foreground transition-colors"
+                  onClick={(e) => { e.stopPropagation(); haptics.light(); setShowTargetJobSheet(true); }}
+                >
+                  <Target className="w-3.5 h-3.5 text-primary" />
                   <span className="truncate">
-                    {resume.target_job_title}
-                    {resume.target_company && ` • ${resume.target_company}`}
+                    🎯 {resume.target_company && `${resume.target_company} - `}{resume.target_job_title}
+                    {matchScore ? ` (${matchScore}% match)` : ''}
                   </span>
-                </div>
+                </button>
               ) : (
-                <p className="text-sm text-muted-foreground mb-2 whitespace-nowrap">
-                  No target job set
-                </p>
+                <button
+                  className="flex items-center gap-1 text-sm text-primary/80 hover:text-primary mb-2 transition-colors"
+                  onClick={(e) => { e.stopPropagation(); haptics.light(); setShowTargetJobSheet(true); }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Set Target Job
+                </button>
               )}
 
               {/* Completion Progress */}
@@ -371,6 +380,12 @@ export const ResumeListCard = memo(function ResumeListCard({
           </DropdownMenu>
         </div>
       </motion.div>
+
+      <SetTargetJobSheet
+        open={showTargetJobSheet}
+        onOpenChange={setShowTargetJobSheet}
+        resume={resume}
+      />
     </div>
   );
 });

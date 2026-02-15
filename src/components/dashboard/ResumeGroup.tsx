@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronDown, ChevronRight, GitBranch, Target, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, GitBranch, GitCompare, Target, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ResumeListCard } from './ResumeListCard';
+import { VersionCompareSheet } from './VersionCompareSheet';
 import { DatabaseResume } from '@/hooks/useResumes';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { haptics } from '@/lib/haptics';
@@ -35,6 +36,7 @@ export function ResumeGroup({
   scoringId = null,
 }: ResumeGroupProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showCompare, setShowCompare] = useState(false);
   const hasTailored = tailoredVersions.length > 0;
 
   const toggleExpand = (e: React.MouseEvent) => {
@@ -80,19 +82,35 @@ export function ResumeGroup({
           
           {/* Tailored count badge */}
           {hasTailored && !isExpanded && (
-            <div 
-              className={cn(
-                'absolute -bottom-2 left-1/2 -translate-x-1/2',
-                'px-2 py-0.5 rounded-full',
-                'bg-secondary text-secondary-foreground',
-                'text-xs font-medium',
-                'border border-border shadow-sm',
-                'cursor-pointer hover:bg-secondary/80 transition-colors'
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+              <div
+                className={cn(
+                  'px-2 py-0.5 rounded-full',
+                  'bg-secondary text-secondary-foreground',
+                  'text-xs font-medium',
+                  'border border-border shadow-sm',
+                  'cursor-pointer hover:bg-secondary/80 transition-colors'
+                )}
+                onClick={toggleExpand}
+              >
+                <GitBranch className="w-3 h-3 inline mr-1" />
+                {tailoredVersions.length} tailored version{tailoredVersions.length > 1 ? 's' : ''}
+              </div>
+              {tailoredVersions.length >= 2 && (
+                <button
+                  className={cn(
+                    'px-2 py-0.5 rounded-full',
+                    'bg-primary/10 text-primary',
+                    'text-xs font-medium',
+                    'border border-primary/20 shadow-sm',
+                    'cursor-pointer hover:bg-primary/20 transition-colors'
+                  )}
+                  onClick={(e) => { e.stopPropagation(); haptics.light(); setShowCompare(true); }}
+                >
+                  <GitCompare className="w-3 h-3 inline mr-1" />
+                  Compare
+                </button>
               )}
-              onClick={toggleExpand}
-            >
-              <GitBranch className="w-3 h-3 inline mr-1" />
-              {tailoredVersions.length} tailored version{tailoredVersions.length > 1 ? 's' : ''}
             </div>
           )}
         </div>
@@ -153,6 +171,13 @@ export function ResumeGroup({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <VersionCompareSheet
+        open={showCompare}
+        onOpenChange={setShowCompare}
+        masterResume={masterResume}
+        tailoredVersions={tailoredVersions}
+      />
     </div>
   );
 }
