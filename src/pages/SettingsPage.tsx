@@ -41,6 +41,9 @@ import {
   Moon
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { FloatingPanelRoot, FloatingPanelTrigger, FloatingPanelContent, FloatingPanelBody } from '@/components/ui/floating-panel';
+import { useFloatingPanel } from '@/components/ui/floating-panel';
+import { Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -138,6 +141,12 @@ export default function SettingsPage() {
 
   const scrollToTop = useCallback(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const scrollToSection = useCallback((sectionId: string) => {
+    const el = scrollRef.current?.querySelector(`#${sectionId}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    haptics.selection();
   }, []);
 
   useEffect(() => {
@@ -270,16 +279,41 @@ export default function SettingsPage() {
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="pt-safe pt-4 pb-3 px-4 glass-header">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <h1 className="text-xl font-bold">Settings</h1>
+        <header className="pt-safe sticky top-0 z-10 pt-4 pb-3 px-4 glass-header backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => navigate('/dashboard')}
+                className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+                aria-label="Go back"
+              >
+                <ArrowLeft className="w-6 h-6" />
+              </button>
+              <h1 className="text-xl font-bold">Settings</h1>
+            </div>
+            <FloatingPanelRoot>
+              <FloatingPanelTrigger title="Jump to Section" className="gap-2">
+                <Menu className="w-4 h-4" />
+                <span className="hidden sm:inline">Sections</span>
+              </FloatingPanelTrigger>
+              <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe">
+                <FloatingPanelBody className="space-y-1">
+                  {SECTIONS.map(s => {
+                    const Icon = s.icon;
+                    return (
+                      <SectionJumpButton
+                        key={s.id}
+                        sectionId={s.id}
+                        label={s.label}
+                        icon={<Icon className="w-5 h-5" />}
+                        isActive={activeSection === s.id}
+                        onSelect={scrollToSection}
+                      />
+                    );
+                  })}
+                </FloatingPanelBody>
+              </FloatingPanelContent>
+            </FloatingPanelRoot>
           </div>
         </header>
 
@@ -1130,5 +1164,30 @@ function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function SectionJumpButton({ sectionId, label, icon, isActive, onSelect }: {
+  sectionId: string;
+  label: string;
+  icon: React.ReactNode;
+  isActive: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const { closeFloatingPanel } = useFloatingPanel();
+  return (
+    <button
+      onClick={() => {
+        onSelect(sectionId);
+        closeFloatingPanel();
+      }}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-xl px-3 py-3 min-h-[44px] text-left text-sm font-medium transition-all touch-manipulation active:scale-95",
+        isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
+      )}
+    >
+      <span className={isActive ? "text-primary" : "text-muted-foreground"}>{icon}</span>
+      {label}
+    </button>
   );
 }
