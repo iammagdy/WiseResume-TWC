@@ -1,104 +1,116 @@
 
 
-## Interview Prep Tab and Application Tracking Enhancements
+## Multiple Export Formats and Undo/Redo System
 
-### What Already Exists (will NOT be rebuilt)
+### Overview
 
-The app already has comprehensive implementations for both features:
-
-- **Interview Page** (`/interview`): Full AI mock interview with voice/text input, job-targeted mode, quick practice, session history, STAR tips, per-answer scoring, and summary reports
-- **Applications Page** (`/applications`): Dual-tab layout (My Applications / Saved Jobs), add application sheet with URL auto-parsing, status tracking, linked resumes, notes, and deadlines
-- **Application Tracker** (`/application/:id`): Visual pipeline with stages (Saved, Applied, Screening, Interviewing, Offer), notes editing, reminders, and status updates
-
-### What Changes
+Two features: (1) expand the existing export sheet with LinkedIn, Plain Text, and Shareable Link formats plus ATS-optimized PDF option, and (2) add an undo/redo system to the editor with keyboard shortcuts and enhanced version history.
 
 ---
 
-#### 1. Add Interview Tab to Bottom Navigation
+### Part 1: Multiple Export Formats
 
-**File: `src/components/layout/BottomTabBar.tsx`**
+**Current state**: `ExportOptionsSheet` already supports 5 options: Resume PDF, Word DOCX, One-Page PDF, Cover Letter PDF, and Application Package. `shareUtils.ts` has `shareAsLink` and `shareAsText` helpers. `docxGenerator.ts` handles DOCX creation.
 
-- Add a 5th tab for Interview between Studio and Jobs
-- Icon: `Mic` from lucide-react
-- Path: `/interview`
-- Guard: requires a resume (same as Editor tab -- shows toast if no resume)
-- The tab bar already handles 5 items with `flex justify-around`
+**What changes**:
 
-Updated tabs array:
-```
-Home | Editor | Studio | Interview | Jobs | Settings
-```
+**File: `src/components/editor/ExportOptionsSheet.tsx`**
 
-Wait -- that's 6 tabs. The current layout has 5 (Home, Editor, Studio, Jobs, Settings). Adding Interview makes 6, which is too many for mobile. 
+1. **Add 3 new export options** to the `exportOptions` array:
+   - "PDF (ATS-Optimized)" -- black-and-white, single-column, standard fonts. Uses existing PDF generator with a new `atsMode` flag that strips colors and forces simple styling
+   - "LinkedIn Profile Format" -- text-only, copy-paste ready. Opens a modal with sections (About, Experience, Education, Skills) formatted for LinkedIn character limits
+   - "Plain Text (.txt)" -- pure UTF-8 text with line breaks. Uses existing `shareAsText` logic expanded to include all sections
+   - "Shareable Web Link" -- uses existing `shareAsLink` from `shareUtils.ts`
 
-**Solution**: Replace the Settings tab icon with a "More" menu, or keep 5 tabs by nesting Interview under Studio. However, the user explicitly asked for 5 tabs with Interview between Studio and Jobs.
+2. **Update `ExportType`** in `src/types/resume.ts` to add: `'ats-pdf' | 'linkedin' | 'plain-text' | 'share-link'`
 
-**Revised approach**: Move Settings out of the bottom bar (accessible via profile/gear icon in headers) and use 5 tabs: Home, Editor, Studio, Interview, Jobs. But this breaks existing navigation patterns.
+3. **ATS-Optimized PDF logic**: Add an `atsMode` parameter to `generatePDF` in `pdfGenerator.ts` that:
+   - Overrides template customization to remove accent colors (force black text)
+   - Forces single-column layout
+   - Uses standard margins (1 inch / 72pt -- already the default)
+   - Strips photo if present
 
-**Simplest approach**: Use 5 tabs as requested -- Home, Editor, Studio, Interview, Jobs. Add a settings gear icon to the dashboard/home header instead. Settings is already accessible from multiple places.
+4. **LinkedIn format**: New sub-sheet or modal that renders resume data into LinkedIn-compatible sections with character counters and "Copy Section" buttons per section
 
-Actually, re-reading the request: "Add 5th tab" -- current has 5 tabs already. The user wants a 6th but calls it "5th" perhaps counting differently. To avoid breaking the nav, I'll keep all 6 tabs but make them slightly narrower, which works fine at 375px (each tab = ~62px, well above 48px min touch target).
+5. **Plain Text export**: Expand `shareAsText` to include Experience (with bullet points), Education, Skills, Certifications -- generate a `.txt` file and trigger download via `downloadFile`
 
-**Final approach**: Add Interview as 6th tab. At 375px viewport, 6 tabs at ~62px each fits. Each tab already uses `flex-1` so they auto-distribute.
+6. **File naming**: Update download filename to `FirstName_LastName_Resume_2026.pdf` pattern using `contactInfo.fullName`
 
----
+**File: `src/types/resume.ts`**
 
-#### 2. Status Filter on Applications Tab
+- Add new export types to `ExportType` union
 
-**File: `src/pages/ApplicationsPage.tsx`**
+**File: `src/lib/pdfGenerator.ts`**
 
-- Import and add `StatusFilter` component (already exists at `src/components/applications/StatusFilter.tsx`)
-- Add `statusFilter` state
-- Pass filter to `useJobApplications(statusFilter)` -- the hook already supports filtering by status
-- Place filter pills below the "My Applications" tab, above the stats card
+- Add `atsMode?: boolean` to PDF generation options
+- When `atsMode` is true: override customization to black text, no accent color, no photo, single column
 
----
+**File: `src/lib/shareUtils.ts`**
 
-#### 3. Follow-up Email Templates
-
-**New file: `src/components/applications/FollowUpEmailSheet.tsx`**
-
-- Bottom sheet with 3 template options: "Thank You", "Follow Up (1 week)", "Check In (2 weeks)"
-- Each template pre-filled with company name and job title from the application
-- AI-powered customization using the existing `generate-cover-letter` edge function (or a simpler prompt)
-- Copy-to-clipboard button and option to open in email client (`mailto:`)
-- Templates are simple string interpolations -- no AI call needed for basic versions
+- Add `generatePlainText(resume: ResumeData): string` function covering all sections
+- Add `generateLinkedInFormat(resume: ResumeData): { about: string; experience: string; education: string; skills: string }` function
 
 ---
 
-#### 4. Interview Prep Link from Application Cards
+### Part 2: Undo/Redo System
 
-**File: `src/pages/ApplicationsPage.tsx`**
+**Current state**: The resume store uses Zustand with `persist` middleware. `updateResume` directly merges partial updates. `useEditorShortcuts` handles Cmd+S/P/D. `VersionHistorySheet` shows cloud-saved versions from the `resume_versions` table.
 
-- When an application has status "interviewing", show a "Prep Materials" button on the card
-- Button navigates to `/interview` with the job description pre-loaded (via URL search params or resume store)
+**What changes**:
 
-**File: `src/pages/ApplicationTrackerPage.tsx`**
+**New file: `src/hooks/useUndoRedo.ts`**
 
-- Add "Interview Prep" action button when status is "interviewing" or "screening"
-- Navigates to `/interview` with job context
+A custom hook that wraps the resume store to provide undo/redo:
 
----
+1. **History stack**: Maintains an array of `ResumeData` snapshots (max 50) and a pointer index
+2. **Recording changes**: Debounces resume store changes (500ms). On each debounced change, pushes a snapshot to the history stack with an auto-generated description (e.g., "Updated summary", "Added skill 'React'")
+3. **Change descriptions**: Compare previous and current state to generate human-readable labels:
+   - Skills added/removed: "Added skill 'React'"
+   - Experience changed: "Updated experience at Google"
+   - Summary changed: "Updated summary (X chars changed)"
+   - Contact changed: "Updated contact info"
+4. **Undo**: Moves pointer back, calls `setCurrentResume` with previous snapshot
+5. **Redo**: Moves pointer forward, calls `setCurrentResume` with next snapshot
+6. **State**: `canUndo`, `canRedo`, `undoDescription`, `redoDescription`
+7. **Storage**: `useState` only (cleared on page refresh). Not persisted to localStorage to keep the store lean
+8. **New-change-after-undo**: If user makes a new change after undoing, the redo stack is discarded (standard behavior)
 
-#### 5. Enhanced Application Cards
+**File: `src/hooks/useEditorShortcuts.ts`**
 
-**File: `src/pages/ApplicationsPage.tsx`**
+- Add `onUndo` and `onRedo` callbacks
+- Handle `Cmd/Ctrl+Z` for undo
+- Handle `Cmd/Ctrl+Shift+Z` and `Cmd/Ctrl+Y` for redo
+- Remove conflict with existing `Cmd+S` (no overlap)
 
-- Show applied date on each card (already in data, just not displayed)
-- Show interview date if status is "interviewing" and deadline is set
-- Show "Follow-up due" reminder if `remind_at` is approaching
-- Add "Draft Follow-up" button that opens `FollowUpEmailSheet`
+**File: `src/pages/EditorPage.tsx`**
+
+1. **Wire up `useUndoRedo`**: Initialize with current resume, pass undo/redo to shortcuts hook
+2. **Undo/Redo buttons**: Add two icon buttons (`Undo2`, `Redo2` from lucide) in the editor header toolbar, next to the save indicator
+   - Size: 36x36px desktop, 32x32px mobile
+   - Disabled state with reduced opacity when `!canUndo` / `!canRedo`
+   - Tooltip (on desktop) showing what will be undone/redone
+3. **Toast feedback**: On undo/redo, show brief toast: "Undo: Added skill 'React'" (200ms duration)
+
+**File: `src/components/editor/VersionHistorySheet.tsx`**
+
+Enhanced with:
+
+1. **"Create Checkpoint" button** at the top -- saves current state to `resume_versions` table with a user-provided name via a small input prompt
+2. **Auto-checkpoint labels**: When versions have `change_summary`, show it. Add visual distinction for AI-triggered checkpoints (sparkle icon) vs manual (pin icon)
+3. **Compare button**: Each version gets a "Compare" button that opens the existing `VersionCompareSheet` (from dashboard) with the selected version vs. current state
+4. **Visual timeline**: Add a thin vertical line connecting version entries for timeline feel, with timestamp formatting improved (show "Today, 7:05 AM" instead of "2 hours ago" for same-day entries)
 
 ---
 
 ### What Does NOT Change
 
-- All existing interview functionality (voice, text, scoring, history, tips)
-- All existing application tracking and mutations
-- Resume editing, AI features, versions, data persistence
-- Database schema (all needed columns exist)
-- PDF generation, export, sharing
+- All existing PDF generation logic and quality
+- Current export options (Resume, DOCX, One-Page, Cover Letter, Package) remain
+- Data saving, auto-save, and offline sync
 - Mobile preview and editor behavior
+- Template rendering
+- Version history database schema (uses existing `resume_versions` table)
+- Share functionality
 
 ---
 
@@ -106,15 +118,23 @@ Actually, re-reading the request: "Add 5th tab" -- current has 5 tabs already. T
 
 | File | Action |
 |------|--------|
-| `src/components/layout/BottomTabBar.tsx` | Add Interview tab (6th tab) |
-| `src/pages/ApplicationsPage.tsx` | Add StatusFilter, enhanced cards, prep link, follow-up button |
-| `src/components/applications/FollowUpEmailSheet.tsx` | New -- email template generator |
-| `src/pages/ApplicationTrackerPage.tsx` | Add "Interview Prep" and "Draft Follow-up" buttons |
+| `src/types/resume.ts` | Add new `ExportType` values |
+| `src/components/editor/ExportOptionsSheet.tsx` | Add ATS PDF, LinkedIn, Plain Text, Share Link options |
+| `src/lib/pdfGenerator.ts` | Add `atsMode` flag for black-and-white ATS export |
+| `src/lib/shareUtils.ts` | Add `generatePlainText` and `generateLinkedInFormat` |
+| `src/hooks/useUndoRedo.ts` | New -- undo/redo history stack with change descriptions |
+| `src/hooks/useEditorShortcuts.ts` | Add Cmd+Z / Cmd+Shift+Z handlers |
+| `src/pages/EditorPage.tsx` | Wire undo/redo buttons and hook |
+| `src/components/editor/VersionHistorySheet.tsx` | Add checkpoint button, compare action, timeline UI |
 
 ### Implementation Order
 
-1. `BottomTabBar.tsx` (add Interview tab)
-2. `FollowUpEmailSheet.tsx` (new component)
-3. `ApplicationsPage.tsx` (status filter + enhanced cards + follow-up)
-4. `ApplicationTrackerPage.tsx` (prep link + follow-up button)
+1. `src/types/resume.ts` (add export types)
+2. `src/lib/shareUtils.ts` (plain text + LinkedIn generators)
+3. `src/lib/pdfGenerator.ts` (ATS mode)
+4. `src/components/editor/ExportOptionsSheet.tsx` (new format options)
+5. `src/hooks/useUndoRedo.ts` (new hook)
+6. `src/hooks/useEditorShortcuts.ts` (add undo/redo shortcuts)
+7. `src/pages/EditorPage.tsx` (wire everything)
+8. `src/components/editor/VersionHistorySheet.tsx` (enhanced UI)
 
