@@ -1,72 +1,56 @@
 
 
-## Mobile Optimization: Work Experience Cards and AI Assist Button
+## Mobile Optimization: Skills Section and Preview Panel (Incremental)
 
 ### Overview
 
-The Work Experience section already has accordion-style cards and the timeline already renders vertically on mobile. The AI Assist button already has 44px touch targets. This plan covers the remaining gaps: larger card headers, full-width action buttons, move up/down reordering, and converting the AI Assist dropdown to a bottom sheet on mobile.
+Both the Skills section and Preview panel are already heavily mobile-optimized. This plan covers the small remaining gaps to match the full specification.
 
 ### What's Already Done (No Changes Needed)
 
-- ExperienceTimeline: Already renders vertical cards on mobile with gap detection banners and "Explain with AI" buttons (44px targets)
-- ExperienceSection: Already uses accordion expand/collapse pattern with chevron icons
-- InlineAIButton: Already has 44px min-height, sparkle icon, loading spinner, and context-specific actions per section
-- Input fields: Already h-12 (48px) with 16px font
-- Gap detection: Already shows warning banners with AI explain button
-- All CRUD, validation, auto-save, and AI features fully functional
+- **Skills chips**: Already `min-h-[44px]` with `touch-manipulation active:scale-95` and `text-sm` (14px)
+- **Remove X button**: Already `min-w-[32px] min-h-[32px]` touch area wrapping the 16px icon
+- **Add skill input**: Already `h-12 text-base` (48px, 16px font -- prevents iOS zoom)
+- **Add button**: Already `h-12 min-h-[48px]`
+- **Common skills**: Already `grid grid-cols-2 sm:flex sm:flex-wrap` with `min-h-[44px]` and `touch-manipulation`
+- **Suggested skills**: Already same grid/touch pattern
+- **Preview on mobile**: Already uses `LivePreviewSheet` -- a Vaul `Drawer` at `h-[95dvh]` with swipe-down-to-close
+- **Zoom controls**: Already present with 50/75/100/125% buttons
+- **PDF download**: Already in toolbar with spinner state
+- **Section visibility toggles**: Already implemented
+- **Close button**: Already present with `min-w-[36px] min-h-[36px]`
 
 ### Changes Required
 
-**File 1: `src/components/editor/ExperienceSection.tsx`**
+**File 1: `src/components/editor/SkillsSection.tsx`**
 
-Mobile card header enhancements:
-- Increase card header `min-h` from `72px` to `80px` on mobile (keep 72px on desktop via `min-h-[80px] sm:min-h-[72px]`)
-- Increase job title font from `text-sm` to `text-base sm:text-sm` and add `font-semibold` (already there) for 16px on mobile
-- Make the "Add" button full-width on mobile: `w-full sm:w-auto min-h-[56px] sm:min-h-0`
-- Add "Move Up" / "Move Down" buttons in expanded card footer on mobile (hidden on desktop via `sm:hidden`). These rearrange the experience array in the store. Disabled when at top/bottom of list respectively. Each button min-h-[44px]
-- Make Delete button full-width on mobile with min-h-[44px], side-by-side with a reorder group
+Minor spacing and touch refinements:
+- Change outer container from `space-y-4` to `space-y-5` for consistent 20px vertical spacing (matches Contact and Summary sections)
+- Increase the X button touch area from `min-w-[32px] min-h-[32px]` to `min-w-[36px] min-h-[36px]` for a more comfortable removal target
 
-Expanded card footer layout on mobile:
-```
-[Move Up] [Move Down]    <- row 1, sm:hidden
-[Delete Experience]      <- row 2, full-width on mobile
-```
+**File 2: `src/components/editor/LivePreviewPanel.tsx`**
 
-**File 2: `src/components/editor/InlineAIButton.tsx`**
-
-Convert popup menu to bottom sheet on mobile:
-- Import `useIsMobile` and `Sheet`/`SheetContent` from UI components
-- On mobile (`isMobile`): Replace the absolute-positioned dropdown with a `Sheet` (side="bottom") that opens on button tap
-- Each action item in the sheet: `min-h-[64px]`, full-width, with icon (20px), label, and a short description text below the label
-- On desktop: Keep the current dropdown popup behavior exactly as is
-- Add subtle pulse animation on the button when section first loads (CSS `animate-pulse` for 2 cycles, then stop via a timeout state)
-
-Action descriptions for the bottom sheet (experience section example):
-- "Improve Bullets" -- "Rewrite with stronger action verbs"
-- "Add Metrics" -- "Quantify achievements with numbers"
-- "ATS Optimize" -- "Align keywords with job requirements"
-
-**File 3: `src/components/editor/SectionCard.tsx`**
-
-No changes needed -- the action slot already renders the AI Assist button in the header. The existing layout handles mobile well.
+Mobile toolbar touch target improvements:
+- Increase zoom button `min-h` from `36px` to `40px` to match the spec
+- Increase section toggle and close buttons from `min-w-[36px] min-h-[36px]` to `min-w-[44px] min-h-[44px]` to meet the 44px mobile standard
+- Add safe-area top padding to the toolbar on mobile: `pt-[env(safe-area-inset-top)]` so notched phones don't obscure controls
+- Make section visibility toggle chips `min-h-[36px]` (up from 32px) for easier tapping
 
 ### What Does NOT Change
 
-- ExperienceTimeline component -- already mobile-optimized with vertical cards
-- Gap detection algorithm, "Explain with AI" flow
-- All AI enhancement features (Improve Bullets, Add Metrics, ATS Optimize)
-- Data CRUD operations, auto-save, validation
-- Desktop horizontal timeline and stepper
-- All other section components
-- Drag-drop (not currently implemented, so move up/down buttons serve as the reordering mechanism)
-- AIEnhanceDialog, GapExplainerSheet
-- SectionAIAction component
+- All skill add/remove/reorder logic
+- AI skill suggestions and gap analysis features
+- Auto-save behavior
+- Preview Drawer component and its swipe-down-to-close behavior
+- Zoom calculation and resume rendering
+- PDF generation pipeline
+- Desktop layouts for both components
+- Template rendering and section filtering
+- All other editor sections and pages
 
 ### Technical Notes
 
-- Move up/down uses simple array index swapping in `updateResume({ experience: reorderedArray })` -- triggers auto-save like any other edit
-- The Sheet component for AI actions on mobile reuses the existing `Sheet`/`SheetContent` from `@/components/ui/sheet` -- same pattern used throughout the app
-- Pulse animation uses a `useEffect` with `setTimeout` to set `showPulse = false` after 2 seconds, preventing continuous animation
-- Bottom sheet for AI actions includes `AIProviderFooter` at the bottom, same as the current dropdown
-- All changes are CSS/conditional rendering only -- no business logic modifications
-
+- All changes are CSS class adjustments only -- no logic or data flow modifications
+- The Drawer component from Vaul already provides swipe-down-to-close, backdrop overlay, and smooth animations -- no custom implementation needed
+- Safe-area padding uses the CSS `env()` function which gracefully falls back to 0 on non-notched devices
+- The zoom buttons remain functional at all sizes; `min-h-[40px]` with `min-w-[40px]` is comfortable for thumb tapping
