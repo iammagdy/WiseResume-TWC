@@ -1,50 +1,64 @@
 
 
-## Consolidate Editor Header into Mobile ActionsPanel
+## Add "More Sections" FloatingPanel to Editor Stepper
 
 ### Overview
 
-Replace the row of individual header buttons (Design, Preview, Wise AI) with a single compact trigger button on mobile that opens an "Editor Tools" ActionsPanel. On desktop (md+), keep the existing buttons visible.
+Add a FloatingPanel-based "More" button at the end of the section stepper navigation. Tapping it opens a mobile-friendly panel with a 2-column grid of additional sections (Awards, Projects, Certifications, Languages, etc.). Selecting a section jumps directly to it -- combining the two-step flow (tap More tab, then pick section) into one action.
 
 ### What Changes
 
+**File: `src/components/editor/StepperNav.tsx`**
+
+1. **Add a new prop** `onMoreSectionSelect?: (sectionId: string) => void` to `StepperNavProps`. This callback is invoked when a user picks a specific sub-section from the FloatingPanel, allowing the parent (EditorPage) to set both `activeTab` and `moreSubSection` in one go.
+
+2. **Add imports** for `FloatingPanelRoot`, `FloatingPanelTrigger`, `FloatingPanelContent`, `FloatingPanelBody` from `@/components/ui/floating-panel`, plus section icons (`Trophy`, `Rocket`, `Award`, `BookOpen`, `Heart`, `Globe`, `Palette`, `Users`) from lucide-react.
+
+3. **Define a constant** `MORE_SECTIONS` array (same 8 sections as `AddSectionSheet`):
+
+| id | label | icon | color |
+|----|-------|------|-------|
+| awards | Awards | Trophy | text-amber-500 |
+| projects | Projects | Rocket | text-blue-500 |
+| certifications | Certifications | Award | text-orange-500 |
+| publications | Publications | BookOpen | text-emerald-500 |
+| volunteering | Volunteering | Heart | text-rose-500 |
+| languages | Languages | Globe | text-cyan-500 |
+| hobbies | Hobbies | Palette | text-purple-500 |
+| references | References | Users | text-sky-500 |
+
+4. **Mobile view**: After the bottom sheet for section selection, add a separate row below the dropdown trigger with the FloatingPanel. The trigger is a compact pill button with `Plus` icon and "More" label. The panel content renders a 2-column grid of section buttons (44px min height, `active:scale-95`, `touch-manipulation`). Tapping a section calls `onMoreSectionSelect?.(sectionId)`, then closes the panel.
+
+5. **Desktop view**: At the end of the horizontal stepper (after the last step button), add a similar FloatingPanel trigger -- a smaller `Plus` icon button. The panel content uses the same 2-column grid.
+
+6. **The existing "more" step remains in the steps array.** The FloatingPanel is an *additional* quick-access entry point, not a replacement.
+
 **File: `src/pages/EditorPage.tsx`**
 
-1. **Add import** for `ActionsPanel` and `ActionsPanelGroup` from `@/components/ActionsPanel`, plus additional icons (`Wand2` or `Sparkles`, `BarChart3`, `Target`, `Palette`, `Eye`, `MessageSquare`, `Clock`) -- most already imported.
+1. **Add a handler** `handleMoreSectionSelect` that sets both `activeTab` to `'more'` and `moreSubSection` to the chosen section ID, then scrolls to top:
 
-2. **Build action groups via `useMemo`** (placed near the other memos, around line 460-480):
+```text
+const handleMoreSectionSelect = useCallback((sectionId: string) => {
+  setActiveTab('more');
+  setMoreSubSection(sectionId);
+  scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+}, []);
+```
 
-| Group | Title | Actions |
-|-------|-------|---------|
-| quick-actions | Quick Actions | Design (`Palette`, calls `handleCustomize`), Live Preview (`Eye`, toggles `setShowPreview`), Wise AI (`MessageSquare`, calls `setShowChat(true)`), Versions (`Clock`, calls `setShowVersionHistory(true)`, conditional on `user && currentResumeId`) |
-| ai-features | AI Features | AI Enhance (`Sparkles`, calls `setShowTailor(true)`), Tailor to Job (`Target`/`Briefcase`, calls `handleTailor`), ATS Check (`BarChart3`, calls `setShowJobSheet(true)`), Proofread (`Scissors`, calls `handleProofread`) |
+2. **Pass it to StepperNav** as the new `onMoreSectionSelect` prop (line ~870-877).
 
-3. **Update the header right section** (lines 687-743):
-   - Wrap existing buttons (Design, Live Preview, Wise AI) in `<div className="hidden md:flex items-center gap-1.5">` so they remain visible on desktop only.
-   - Add a new `<div className="flex md:hidden">` containing the `ActionsPanel` with trigger:
-     ```tsx
-     <ActionsPanel
-       trigger={
-         <button className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation">
-           <Sparkles className="w-5 h-5 text-primary" />
-           <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
-         </button>
-       }
-       title="Editor Tools"
-       groups={editorToolGroups}
-     />
-     ```
+### Logic Preservation
 
-4. **No handler changes.** Every `onClick` in the groups calls the exact same existing functions (`handleCustomize`, `setShowPreview`, `setShowChat`, `setShowVersionHistory`, `setShowTailor`, `handleTailor`, `setShowJobSheet`, `handleProofread`).
-
-### Visual Result
-
-- **Mobile**: One "Tools" sparkle button in the header opens a full-width bottom panel with all editor actions grouped logically.
-- **Desktop (md+)**: Existing Design, Live Preview, and Wise AI buttons remain visible as before -- no change to desktop experience.
+- `handleTabChange` is untouched
+- `activeTab` and `moreSubSection` state management is unchanged
+- The "More" step in the stepper array remains
+- All section rendering in `renderEditorContent` stays identical
+- The `AddSectionSheet` grid inside the "More" tab still works as before
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Add ActionsPanel import, build `editorToolGroups` memo, wrap existing header buttons in `hidden md:flex`, add mobile-only ActionsPanel trigger |
+| `src/components/editor/StepperNav.tsx` | Add `onMoreSectionSelect` prop, FloatingPanel trigger and content with section grid |
+| `src/pages/EditorPage.tsx` | Add `handleMoreSectionSelect` callback, pass to StepperNav |
 
