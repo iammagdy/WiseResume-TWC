@@ -1,102 +1,64 @@
 
 
-## Expand Resume Editor "More" Sections
+## Enhance Design Customization with Line Spacing and Page Format
 
-### Current State
+### What Already Exists
 
-The editor already has 6 "More" sub-sections: Awards, Projects, Publications, Volunteering, Hobbies, and References -- all with full form components and TypeScript types. What's **missing** from the user's request:
+The app already has a comprehensive "Customize Template" sheet (`CustomizeSheet.tsx`) with:
+- Color picker (8 preset swatches + custom hex input)
+- Font selectors (heading + body, 6 font options)
+- Font size control (Small / Medium / Large)
+- Layout control (Single / Two Column)
+- Spacing control (Compact / Normal / Spacious)
+- Margins control (Narrow / Normal / Wide)
+- Reset to Default button
+- Live mini-preview
 
-1. **Certifications section** -- type exists (`Certification` in resume.ts), but no `CertificationsSection` editor component
-2. **Languages section** -- neither the type nor the component exist
-3. **Item count badges** on the AddSectionSheet grid tiles
-4. **AI Assist buttons** on each "More" sub-section's SectionCard
-5. **Drag-and-drop reordering** within each section's entry list
-
-Drag-and-drop reordering is a significant feature that would require adding a drag library. To keep the scope manageable and avoid introducing instability in the editor (which has had render-loop issues), I recommend implementing **manual reorder buttons** (up/down arrows) instead. This is simpler, touch-friendly, and doesn't require any new dependencies.
+It's accessed from the AI Studio bar. This plan adds the two missing controls and a quicker access point.
 
 ### Changes
 
-#### 1. New Type: `Language` in `src/types/resume.ts`
+#### 1. Add `lineHeight` and `pageFormat` to the type system
 
-Add the `Language` interface and update `ResumeData` to include `languages?: Language[]`:
+**File: `src/types/resume.ts`** -- Update `TemplateCustomization`:
+- Add `lineHeight: 'single' | '1.15' | '1.5' | 'double'`
+- Add `pageFormat: 'a4' | 'letter'`
 
-```text
-interface Language {
-  id: string;
-  name: string;
-  proficiency: 'native' | 'fluent' | 'professional' | 'basic';
-}
-```
+#### 2. Update defaults and CSS application
 
-Also add `'languages'` to the `SectionId` union type and `'certifications'` if not already there.
+**File: `src/lib/templateCustomization.ts`**:
+- Add `lineHeight: '1.15'` and `pageFormat: 'a4'` to `getDefaultCustomization()`
+- Add a `LINE_HEIGHT_VALUES` map: `{ single: 1, '1.15': 1.15, '1.5': 1.5, double: 2 }`
+- Add a `PAGE_FORMAT_PX` map: `{ a4: { width: 595, height: 842 }, letter: { width: 612, height: 792 } }` (PDF point sizes, also exported for PDF generation)
+- Update `applyCustomizationCSS()` to include `lineHeight` in the returned style object
 
-#### 2. New Component: `src/components/editor/CertificationsSection.tsx`
+#### 3. Add controls to the CustomizeSheet UI
 
-Follows the exact same pattern as `AwardsSection`:
-- Reads `certifications` from `useResumeStore`
-- Accordion-style expand/collapse per entry
-- Fields: Name, Issuing Organization, Date, Expiry Date (optional), Credential ID (optional), Credential URL (optional)
-- Add/Delete buttons with haptic feedback
-- 44px minimum touch targets, h-12 inputs
+**File: `src/components/editor/CustomizeSheet.tsx`**:
+- Add a "Line Spacing" segmented control under the existing "Fonts" accordion section with options: Single, 1.15, 1.5, Double
+- Add a "Page Format" segmented control under the "Layout" accordion section with options: A4, Letter
+- Both use the existing `SegmentedControl` component already in the file
 
-#### 3. New Component: `src/components/editor/LanguagesSection.tsx`
+#### 4. Add a "Design" shortcut button in the editor header
 
-Simpler card-based layout (similar to HobbiesSection):
-- Reads `languages` from `useResumeStore`
-- Each entry: language name input + proficiency dropdown (Native, Fluent, Professional, Basic)
-- Add/Delete with haptic feedback
-- Uses a simple `<select>` or styled radio group for proficiency level
-
-#### 4. Update `src/components/editor/AddSectionSheet.tsx`
-
-- Add Certifications and Languages to the `OPTIONAL_SECTIONS` array (with `Award` icon for Certifications, `Globe` icon for Languages)
-- Show item count badges: a small pill showing the number of entries (e.g., "3") next to the check icon for sections with content
-
-#### 5. Update `src/pages/EditorPage.tsx`
-
-- Import `CertificationsSection` and `LanguagesSection`
-- Add routing for `moreSubSection === 'certifications'` and `moreSubSection === 'languages'` in the "more" tab
-- Add `SectionAIAction` to each "More" sub-section's `SectionCard` (Awards, Projects, Publications, Volunteering, Certifications, Languages) -- Hobbies and References don't benefit from AI assist
-
-#### 6. Update `src/components/editor/InlineAIButton.tsx`
-
-- Expand `SectionType` union to include the new section types: `'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages'`
-- Add AI action configs for each new section type (e.g., "Generate" and "Improve" actions)
-
-#### 7. Update `src/components/editor/SectionAIAction.tsx`
-
-- Expand the `contentMap` and `onApply` switch to handle the new section types, mapping them to the correct resume data fields
-
-#### 8. Add Reorder Controls to All "More" Sections
-
-Add up/down arrow buttons to each entry's header row in all 8 "More" section components (Awards, Projects, Publications, Volunteering, Hobbies, References, Certifications, Languages). These swap adjacent entries in the array via `updateResume`. No new dependencies needed.
+**File: `src/pages/EditorPage.tsx`**:
+- Add a `Palette` icon button next to the Preview button in the header bar
+- Tapping it opens the existing `CustomizeSheet` directly (reuses `handleCustomize`)
+- Styled consistently with the Preview button (48px touch target, icon + label)
 
 ### What Does NOT Change
 
-- Contact, Summary, Work, Education, Skills sections -- completely untouched
-- StepperNav and the 6-step structure
-- AI Studio bar and all sheet functionality
-- Bottom tab bar
-- Progress tracking and completion percentages
-- Auto-save logic
-- Template rendering
-- Live Preview feature
+- All existing editor sections (Contact, Summary, Work, Education, Skills, More)
+- Mobile bottom navigation bar
+- AI features and Wise AI chat
+- Progress tracking
+- Form inputs and validation
+- Template rendering logic (templates already read from `customization` prop)
+- The existing CustomizeSheet access from the AI Studio bar (still works)
 
-### File Summary
+### Technical Notes
 
-| File | Action |
-|------|--------|
-| `src/types/resume.ts` | Add `Language` interface, update `ResumeData` and `SectionId` |
-| `src/components/editor/CertificationsSection.tsx` | Create new |
-| `src/components/editor/LanguagesSection.tsx` | Create new |
-| `src/components/editor/AddSectionSheet.tsx` | Add 2 new tiles + item count badges |
-| `src/pages/EditorPage.tsx` | Add imports + 2 new routing entries + AI actions on More sub-sections |
-| `src/components/editor/InlineAIButton.tsx` | Expand `SectionType` + add action configs |
-| `src/components/editor/SectionAIAction.tsx` | Expand content map + apply handlers |
-| `src/components/editor/AwardsSection.tsx` | Add reorder (up/down) buttons |
-| `src/components/editor/ProjectsSection.tsx` | Add reorder buttons |
-| `src/components/editor/PublicationsSection.tsx` | Add reorder buttons |
-| `src/components/editor/VolunteeringSection.tsx` | Add reorder buttons |
-| `src/components/editor/HobbiesSection.tsx` | Add reorder buttons |
-| `src/components/editor/ReferencesSection.tsx` | Add reorder buttons |
-
+- The `lineHeight` CSS property is applied via `applyCustomizationCSS()`, which all templates already call
+- The `pageFormat` value is consumed by the PDF generator (`pdfGenerator.ts`) when creating pages -- this will need a small update to read the format from customization instead of hardcoding A4
+- All new controls use the existing `SegmentedControl` component and `haptics.selection()` pattern
+- No new dependencies needed
