@@ -1,6 +1,6 @@
-import { useState, memo } from 'react';
+import { useState, memo, useCallback } from 'react';
 
-import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin, ArrowUp, ArrowDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,7 +135,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end">
-        <Button variant="outline" size="sm" onClick={addExperience} className="gap-2">
+        <Button variant="outline" size="sm" onClick={addExperience} className="gap-2 w-full sm:w-auto min-h-[56px] sm:min-h-0">
           <Plus className="w-4 h-4" />
           Add
         </Button>
@@ -192,16 +192,15 @@ export const ExperienceSection = memo(function ExperienceSection() {
                 {/* Header - Always visible */}
                 <button
                   onClick={() => setExpandedId(expandedId === exp.id ? null : exp.id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[72px]"
+                  className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[80px] sm:min-h-[72px]"
                 >
                   <div className="text-left flex-1 min-w-0 pr-3">
-                    <p className="font-semibold text-sm truncate">
+                    <p className="font-semibold text-base sm:text-sm truncate">
                       {exp.position || `Position ${index + 1}`}
                     </p>
                     <p className="text-sm text-muted-foreground truncate">
                       {exp.company || 'Company name'}
                     </p>
-                    {/* Date range and duration */}
                     {(exp.startDate || exp.endDate || exp.current) && (
                       <p className="text-xs text-muted-foreground/70 mt-0.5 flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
@@ -311,12 +310,44 @@ export const ExperienceSection = memo(function ExperienceSection() {
                           />
                         </div>
 
-                        <div className="flex justify-end pt-2">
+                        {/* Mobile reorder buttons */}
+                        <div className="flex gap-2 pt-2 sm:hidden">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={index === 0}
+                            onClick={() => {
+                              const reordered = [...experience];
+                              [reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]];
+                              updateResume({ experience: reordered });
+                            }}
+                            className="flex-1 min-h-[44px] gap-1.5"
+                          >
+                            <ArrowUp className="w-4 h-4" />
+                            Move Up
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={index === experience.length - 1}
+                            onClick={() => {
+                              const reordered = [...experience];
+                              [reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]];
+                              updateResume({ experience: reordered });
+                            }}
+                            className="flex-1 min-h-[44px] gap-1.5"
+                          >
+                            <ArrowDown className="w-4 h-4" />
+                            Move Down
+                          </Button>
+                        </div>
+
+                        <div className="flex justify-end sm:justify-end pt-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => deleteExperience(exp.id)}
-                            className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 w-full sm:w-auto min-h-[44px]"
                           >
                             <Trash2 className="w-4 h-4" />
                             Remove
