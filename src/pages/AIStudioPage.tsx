@@ -21,6 +21,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { AIEngineBadge } from '@/components/editor/ai/AIEngineBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
@@ -123,14 +124,21 @@ export default function AIStudioPage() {
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="px-4 pt-6 pb-4"
+        className="px-4 pt-4 pb-3 sm:pt-6 sm:pb-4"
       >
         <h1 className="text-fluid-xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent animate-gradient-x">
           AI Studio
         </h1>
         <div className="flex items-center justify-between mt-2">
           <AIEngineBadge showSettingsLink />
-          <AICreditsIndicator />
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div><AICreditsIndicator /></div>
+              </TooltipTrigger>
+              <TooltipContent>AI Credits Remaining</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </motion.div>
 
@@ -144,9 +152,17 @@ export default function AIStudioPage() {
         {currentResumeId && resumeData ? (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-surface border border-border/50">
             <FileSearch className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-sm truncate">
+            <span className="text-[15px] sm:text-sm truncate flex-1">
               Working on: <span className="font-medium">{resumeData.title}</span>
             </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="shrink-0 min-h-[44px] text-xs text-primary"
+              onClick={() => navigate('/dashboard')}
+            >
+              Change
+            </Button>
           </div>
         ) : (
           <Button
@@ -195,7 +211,7 @@ export default function AIStudioPage() {
             {SUGGESTIONS.slice(0, 3).map(s => (
               <span
                 key={s}
-                className="text-xs px-2.5 py-1 rounded-full bg-primary/5 border border-primary/10 text-muted-foreground"
+                className="text-sm px-3 py-1.5 min-h-[36px] flex items-center rounded-full bg-primary/5 border border-primary/10 text-muted-foreground"
               >
                 {s}
               </span>
@@ -214,26 +230,26 @@ export default function AIStudioPage() {
         <h2 className="text-sm font-semibold text-muted-foreground px-1">Featured Tools</h2>
         <button
           onClick={() => requireResume(() => setShowTailor(true))}
-          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[72px]"
+          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
         >
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Wand2 className="w-6 h-6 text-primary" />
+            <Wand2 className="w-7 h-7 text-primary" />
           </div>
           <div className="text-left flex-1 min-w-0">
-            <p className="font-semibold text-sm">Smart Tailor</p>
-            <p className="text-xs text-muted-foreground">Adapt your resume to any job description</p>
+            <p className="font-semibold text-base sm:text-sm">Smart Tailor</p>
+            <p className="text-sm sm:text-xs text-muted-foreground">Adapt your resume to any job description</p>
           </div>
         </button>
         <button
           onClick={() => requireResume(() => setShowJobSheet(true))}
-          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[72px]"
+          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
         >
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Target className="w-6 h-6 text-primary" />
+            <Target className="w-7 h-7 text-primary" />
           </div>
           <div className="text-left flex-1 min-w-0">
-            <p className="font-semibold text-sm">Job Match Analysis</p>
-            <p className="text-xs text-muted-foreground">Check ATS compatibility and match score</p>
+            <p className="font-semibold text-base sm:text-sm">Job Match Analysis</p>
+            <p className="text-sm sm:text-xs text-muted-foreground">Check ATS compatibility and match score</p>
           </div>
         </button>
       </motion.div>
@@ -269,14 +285,14 @@ export default function AIStudioPage() {
                 <button
                   key={tool.id}
                   onClick={() => handleSecondaryAction(tool.id)}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[88px]"
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[100px]"
                 >
                   <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
-                    <tool.icon className={cn('w-5 h-5', tool.color)} />
+                    <tool.icon className={cn('w-6 h-6', tool.color)} />
                   </div>
                   <div className="text-center">
-                    <span className="text-xs font-medium block">{tool.label}</span>
-                    <span className="text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
+                    <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
+                    <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
                   </div>
                 </button>
               ))}
