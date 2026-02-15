@@ -1,6 +1,9 @@
-import { memo } from 'react';
-import { Check, User, AlignLeft, Briefcase, GraduationCap, Wrench, Plus } from 'lucide-react';
+import { memo, useState } from 'react';
+import { Check, User, AlignLeft, Briefcase, GraduationCap, Wrench, Plus, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import haptics from '@/lib/haptics';
 
 interface StepperNavProps {
   steps: { id: string; label: string }[];
@@ -31,8 +34,124 @@ export const StepperNav = memo(function StepperNav({
   onStepClick,
   justCompletedStep,
 }: StepperNavProps) {
+  const isMobile = useIsMobile();
+  const [showSheet, setShowSheet] = useState(false);
   const activeIndex = steps.findIndex(s => s.id === activeStep);
+  const activeStepData = steps[activeIndex];
+  const ActiveIcon = STEP_ICONS[activeStep] || Plus;
+  const activeCompleted = completedSteps[activeStep];
+  const activeScore = sectionScores?.[activeStep] ?? (activeCompleted ? 100 : 0);
+  const activeInProgress = activeScore > 0 && activeScore < 100;
 
+  if (isMobile) {
+    return (
+      <div className="px-3 py-2">
+        {/* Mobile dropdown trigger */}
+        <button
+          onClick={() => { setShowSheet(true); haptics.light(); }}
+          className="w-full flex items-center gap-3 px-4 min-h-[56px] rounded-xl bg-card border border-border active:scale-[0.98] transition-transform touch-manipulation"
+        >
+          <div className={cn(
+            'w-9 h-9 rounded-full flex items-center justify-center border-2 shrink-0',
+            activeCompleted ? 'border-success bg-success/10' :
+            activeInProgress ? 'border-warning bg-warning/10' :
+            'border-primary bg-primary/10'
+          )}>
+            {activeCompleted ? (
+              <Check className="w-4 h-4 text-success" />
+            ) : (
+              <ActiveIcon className={cn('w-4 h-4', activeInProgress ? 'text-warning' : 'text-primary')} />
+            )}
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <span className={cn(
+              'text-sm font-semibold',
+              activeCompleted ? 'text-success' : activeInProgress ? 'text-warning' : 'text-primary'
+            )}>
+              {activeStepData?.label}
+            </span>
+            <p className="text-[11px] text-muted-foreground">
+              Step {activeIndex + 1} of {steps.length}
+            </p>
+          </div>
+          {activeInProgress && !activeCompleted && (
+            <span className="text-[10px] font-bold bg-warning text-warning-foreground rounded-full px-1.5 py-0.5">
+              {activeScore}%
+            </span>
+          )}
+          <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
+        </button>
+
+        {/* Bottom sheet with all sections */}
+        <Sheet open={showSheet} onOpenChange={setShowSheet}>
+          <SheetContent side="bottom" className="px-4 pb-safe">
+            <div className="pt-2 pb-4">
+              <h3 className="text-base font-semibold text-foreground mb-3">Resume Sections</h3>
+              <div className="flex flex-col gap-2">
+                {steps.map((step, i) => {
+                  const Icon = STEP_ICONS[step.id] || Plus;
+                  const isActive = step.id === activeStep;
+                  const isCompleted = completedSteps[step.id];
+                  const score = sectionScores?.[step.id] ?? (isCompleted ? 100 : 0);
+                  const isInProgress = score > 0 && score < 100;
+
+                  return (
+                    <button
+                      key={step.id}
+                      onClick={() => {
+                        onStepClick(step.id);
+                        setShowSheet(false);
+                        haptics.light();
+                      }}
+                      className={cn(
+                        'flex items-center gap-3 px-4 min-h-[56px] rounded-xl border transition-colors touch-manipulation active:scale-[0.98]',
+                        isActive
+                          ? 'bg-primary/10 border-primary/30'
+                          : 'bg-card border-border hover:bg-muted/50'
+                      )}
+                    >
+                      <div className={cn(
+                        'w-9 h-9 rounded-full flex items-center justify-center border-2 shrink-0',
+                        isCompleted ? 'border-success bg-success/10' :
+                        isInProgress ? 'border-warning bg-warning/10' :
+                        isActive ? 'border-primary bg-primary/10' :
+                        'border-border bg-card'
+                      )}>
+                        {isCompleted ? (
+                          <Check className="w-4 h-4 text-success" />
+                        ) : (
+                          <Icon className={cn(
+                            'w-4 h-4',
+                            isActive ? 'text-primary' : isInProgress ? 'text-warning' : 'text-muted-foreground'
+                          )} />
+                        )}
+                      </div>
+                      <span className={cn(
+                        'flex-1 text-left text-sm font-medium',
+                        isActive ? 'text-primary' : isCompleted ? 'text-success' : isInProgress ? 'text-warning' : 'text-foreground'
+                      )}>
+                        {step.label}
+                      </span>
+                      {isInProgress && !isCompleted && (
+                        <span className="text-[10px] font-bold bg-warning text-warning-foreground rounded-full px-1.5 py-0.5">
+                          {score}%
+                        </span>
+                      )}
+                      {isCompleted && (
+                        <Check className="w-4 h-4 text-success shrink-0" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
+
+  // Desktop: existing horizontal stepper (unchanged)
   return (
     <div className="px-2 py-3 relative">
       {/* Confetti keyframes */}
