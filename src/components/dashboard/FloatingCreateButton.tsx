@@ -63,13 +63,22 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
       {/* Popup menu (mobile only) */}
       <AnimatePresence>
         {menuOpen && isMobile && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 10 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-            className="absolute bottom-[calc(100%+12px)] right-0 flex flex-col items-end gap-3"
-          >
+          <>
+            {/* Backdrop overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-background/60 backdrop-blur-sm -z-10"
+              onClick={() => setMenuOpen(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 10 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+              className="absolute bottom-[calc(100%+12px)] right-0 flex flex-col items-end gap-3"
+            >
             {menuItems.map((item, index) => (
               <motion.button
                 key={item.id}
@@ -92,6 +101,7 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
               </motion.button>
             ))}
           </motion.div>
+          </>
         )}
       </AnimatePresence>
 
