@@ -119,7 +119,7 @@ export function VersionCompareSheet({ open, onOpenChange, masterResume, tailored
   const handleUseVersion = (resume: DatabaseResume) => {
     haptics.medium();
     onOpenChange(false);
-    navigate(`/editor?id=${resume.id}`);
+    navigate(`/resume/${resume.id}`);
   };
 
   const versionLabel = (r: DatabaseResume) =>

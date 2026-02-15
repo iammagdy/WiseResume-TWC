@@ -133,7 +133,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   const handleCardClick = () => {
     if (!isDragging) {
       haptics.light();
-      onEdit(resume.id);
+      navigateToEditor(`/resume/${resume.id}`);
     }
   };
 

@@ -36,7 +36,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
   const handleTap = (resumeId: string) => {
     haptics.selection();
     onOpenChange(false);
-    navigate(`/editor?id=${resumeId}`);
+    navigate(`/resume/${resumeId}`);
   };
 
   const handleSetMaster = (resumeId: string, e: React.MouseEvent) => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2 } from 'lucide-react';
+import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -15,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
-import { useResume, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
+import { useResume, useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeScore } from '@/hooks/useResumeScore';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
@@ -25,14 +25,17 @@ import { downloadFile } from '@/lib/downloadUtils';
 import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
+import { calcOverallScore, calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, getSectionStatus } from '@/lib/resumeCompletionRules';
+import { ProgressBar } from '@/components/editor/ProgressBar';
 
 export default function ResumeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: dbResume, isLoading } = useResume(id || null);
+  const { data: allResumes = [] } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
-  const { scoreResume, getCachedScore, scoringId } = useResumeScore();
+  const { getCachedScore } = useResumeScore();
   const { createShare } = useResumeShareMutations();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -58,6 +61,21 @@ export default function ResumeDetailPage() {
   const resumeData = dbToResumeData(dbResume);
   const templateInfo = templates.find(t => t.id === dbResume.template_id);
   const healthScore = getCachedScore(dbResume.id, dbResume.updated_at);
+  const isTailored = !!dbResume.parent_resume_id;
+  const isMaster = !!dbResume.is_primary;
+
+  // Quick stats
+  const completionScore = calcOverallScore(resumeData);
+  const sectionScores = [
+    calcContactScore(resumeData.contactInfo),
+    calcSummaryScore(resumeData.summary),
+    calcExperienceScore(resumeData.experience),
+    calcEducationScore(resumeData.education),
+    calcSkillsScore(resumeData.skills),
+  ];
+  const completedSections = sectionScores.filter(s => getSectionStatus(s) === 'complete').length;
+  const totalSections = sectionScores.length;
+  const tailoredCount = allResumes.filter(r => r.parent_resume_id === dbResume.id).length;
 
   const handleEdit = () => {
     setCurrentResume(resumeData);
@@ -120,13 +138,42 @@ export default function ResumeDetailPage() {
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="w-12 h-12" aria-label="Go back">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="w-12 h-12" aria-label="Go back">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h1 className="text-lg font-bold text-foreground truncate flex-1">{dbResume.title}</h1>
+        {isMaster && (
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary shrink-0">
+            <Crown className="w-3 h-3" />
+            Master
+          </Badge>
+        )}
+        {isTailored && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0">
+            <GitBranch className="w-3 h-3" />
+            Tailored
+          </Badge>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+        {/* Tailored Context */}
+        {isTailored && (dbResume.target_job_title || dbResume.target_company) && (
+          <div className="glass-elevated rounded-2xl p-4 border border-primary/20">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Tailored for</p>
+            <p className="text-sm font-semibold text-foreground">
+              {dbResume.target_job_title}
+              {dbResume.target_company ? ` @ ${dbResume.target_company}` : ''}
+            </p>
+            <button
+              onClick={() => navigate(`/resume/${dbResume.parent_resume_id}`)}
+              className="text-xs text-primary mt-2 hover:underline"
+            >
+              ← View Original Resume
+            </button>
+          </div>
+        )}
+
         {/* Template Preview */}
         <div className="max-w-xs mx-auto rounded-2xl overflow-hidden border border-border shadow-lg">
           <TemplateThumbnail templateId={dbResume.template_id as TemplateId} resume={resumeData} />
@@ -138,6 +185,25 @@ export default function ResumeDetailPage() {
             <ScoreRing score={healthScore.overallScore} size={72} />
           </div>
         )}
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="glass-elevated rounded-2xl p-3 text-center">
+            <p className="text-xl font-bold text-foreground">{completionScore}%</p>
+            <p className="text-[11px] text-muted-foreground">Complete</p>
+          </div>
+          <div className="glass-elevated rounded-2xl p-3 text-center">
+            <p className="text-xl font-bold text-foreground">{completedSections}/{totalSections}</p>
+            <p className="text-[11px] text-muted-foreground">Sections</p>
+          </div>
+          <div className="glass-elevated rounded-2xl p-3 text-center">
+            <p className="text-xl font-bold text-foreground">{tailoredCount}</p>
+            <p className="text-[11px] text-muted-foreground">Tailored</p>
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <ProgressBar resume={resumeData} />
 
         {/* Metadata */}
         <div className="glass-elevated rounded-2xl p-4 space-y-2">
