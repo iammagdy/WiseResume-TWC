@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, ChevronUp, BarChart3, Undo2, Redo2 } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
@@ -65,6 +65,7 @@ import { cn } from '@/lib/utils';
 import { useProofread } from '@/hooks/useProofread';
 import { ProofreadButton } from '@/components/editor/ProofreadButton';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
+import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
 export default function EditorPage() {
@@ -277,11 +278,32 @@ export default function EditorPage() {
   // Network status for enhanced save indicator
   const { isOnline } = useNetworkStatus();
 
+  // Undo/Redo system
+  const { canUndo, canRedo, undoDescription, redoDescription, undo, redo } = useUndoRedo(currentResume);
+
+  const handleUndo = useCallback(() => {
+    const snapshot = undo();
+    if (snapshot) {
+      useResumeStore.getState().setCurrentResume(snapshot);
+      toast(`Undo: ${undoDescription}`, { duration: 1500 });
+    }
+  }, [undo, undoDescription]);
+
+  const handleRedo = useCallback(() => {
+    const snapshot = redo();
+    if (snapshot) {
+      useResumeStore.getState().setCurrentResume(snapshot);
+      toast(`Redo: ${redoDescription}`, { duration: 1500 });
+    }
+  }, [redo, redoDescription]);
+
   // Keyboard shortcuts
   const [showExport, setShowExport] = useState(false);
   useEditorShortcuts({
     onSave: saveToCloud,
     onExport: () => setShowExport(true),
+    onUndo: handleUndo,
+    onRedo: handleRedo,
     resumeId: currentResumeId,
   });
 
@@ -611,24 +633,51 @@ export default function EditorPage() {
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <button 
-              onClick={handleBack}
-              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <h1 className="text-h3 truncate">Edit Resume</h1>
-            <OfflineIndicator isSyncing={isSyncing} />
-            {user && currentResumeId && (
-              <button
-                onClick={() => setShowVersionHistory(true)}
-                className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex"
-                aria-label="Version history"
+              <button 
+                onClick={handleBack}
+                className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+                aria-label="Go back"
               >
-                <Clock className="w-4 h-4 text-muted-foreground" />
+                <ArrowLeft className="w-6 h-6" />
               </button>
-            )}
+              <h1 className="text-h3 truncate">Edit Resume</h1>
+              <OfflineIndicator isSyncing={isSyncing} />
+              {/* Undo/Redo buttons */}
+              <div className="flex items-center gap-0.5">
+                <button
+                  onClick={handleUndo}
+                  disabled={!canUndo}
+                  className={cn(
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                    canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                  )}
+                  aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                  title={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                >
+                  <Undo2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={handleRedo}
+                  disabled={!canRedo}
+                  className={cn(
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                    canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                  )}
+                  aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                  title={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                >
+                  <Redo2 className="w-4 h-4" />
+                </button>
+              </div>
+              {user && currentResumeId && (
+                <button
+                  onClick={() => setShowVersionHistory(true)}
+                  className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex"
+                  aria-label="Version history"
+                >
+                  <Clock className="w-4 h-4 text-muted-foreground" />
+                </button>
+              )}
           </div>
           <div className="flex items-center gap-1.5">
             {/* Design shortcut */}

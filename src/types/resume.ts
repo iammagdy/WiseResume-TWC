@@ -262,7 +262,7 @@ export interface PDFOptions {
   showBranding?: boolean; // WiseResume prestige stamp
 }
 
-export type ExportType = 'resume' | 'cover-letter' | 'combined' | 'one-page' | 'docx';
+export type ExportType = 'resume' | 'cover-letter' | 'combined' | 'one-page' | 'docx' | 'ats-pdf' | 'linkedin' | 'plain-text' | 'share-link';
 
 export interface CoverLetterHistory {
   id: string;
