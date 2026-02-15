@@ -1,176 +1,101 @@
 
 
-## Mobile Performance & Resilience Audit
+## PDF Generator Pipeline Audit
 
-### Current State
+### Pipeline Architecture
 
-The app already has strong performance foundations: route-level code splitting via `lazyWithRetry`, lazy-loaded editor sections, lazy-loaded sheet/dialog components, `useDeferredValue` for search, `React.memo` on `ResumeListCard`, `useShallow` Zustand selectors in the Editor, and templates lazy-loaded in `LivePreviewPanel`. The architecture is solid.
+The PDF generation follows this path:
 
-### Identified Bottlenecks & Proposed Fixes
-
----
-
-### 1. DashboardPage: `LinkedInImportSheet` and `AnalyzeJobSheet` Always Rendered
-
-**Problem:** `LinkedInImportSheet` (line 680) is rendered unconditionally -- not wrapped in `{showLinkedInImport && ...}` or `<Suspense>`. Although it's declared with `lazy()` at the top, the JSX mounts it every render. `AnalyzeJobSheet` (line 730) has the same issue.
-
-**Fix:** Wrap both in conditional rendering gates:
-```tsx
-{showLinkedInImport && (
-  <Suspense fallback={null}>
-    <LinkedInImportSheet ... />
-  </Suspense>
-)}
-{showAnalyzeJob && (
-  <Suspense fallback={null}>
-    <AnalyzeJobSheet ... />
-  </Suspense>
-)}
+```text
+ResumeData (Zustand store)
+  -> Template component renders HTML (e.g., ModernTemplate)
+  -> html2canvas captures the rendered DOM as a canvas
+  -> pdf-lib slices the canvas into pages using smart breaks
+  -> Page footer (numbers + branding) added
+  -> PDF blob returned for download
 ```
-**Impact:** Eliminates unnecessary chunk loads on dashboard entry.
+
+Settings that affect export: templateId, customization (accent color, fonts, spacing, margins, line height, page format A4/Letter), page break mode (auto/manual), PDF options (page numbers, branding badge), and export type (design-enhanced, ATS-optimized, one-page, cover letter, combined, DOCX, plain text, LinkedIn).
+
+### Bugs Found
 
 ---
 
-### 2. `pdfGenerator.ts` Eagerly Imported in Multiple Pages
+#### BUG 1 (Critical): 28 of 30 templates silently drop extra sections
 
-**Problem:** `pdfGenerator.ts` (1119 lines) imports `html2canvas` and `pdf-lib` at the top level. It's eagerly imported in `PreviewPage`, `ResumeDetailPage`, `LivePreviewPanel`, and `ShareSheet`. These are heavy libraries (~200KB combined) that load even if the user never exports.
+Only `ModernTemplate` renders all resume sections (Awards, Projects, Volunteering, Publications, Hobbies, References). The `CreativeTemplate` renders Certifications but nothing else. All other 28 templates only render Summary, Experience, Education, Skills, and (in some cases) Certifications.
 
-**Fix:** Convert static imports to dynamic `import()` at call sites. The `ResumeListCard` already does this correctly (line 361: `const { generatePDF } = await import('@/lib/pdfGenerator')`). Apply the same pattern to:
-- `PreviewPage.tsx` line 30: move the import inside the export handler function
-- `LivePreviewPanel.tsx` line 6: move inside the download handler
-- `ShareSheet.tsx` line 7: move inside the share handler
+If a user adds Projects, Awards, Languages, Publications, Volunteering, Hobbies, or References and uses any template other than Modern, those sections are invisible in both preview and PDF.
 
-`ResumeDetailPage.tsx` can remain since it's already a lazy route.
+**Impact:** Data loss in export. Users may submit resumes missing sections they explicitly added.
 
-**Impact:** Removes ~200KB from the initial chunk of the Editor and Preview routes.
+**Fix:** Add the missing extra sections to all templates. To keep this manageable and targeted, I will add a reusable `ExtraSections` component that renders the 7 missing section types (Awards, Projects, Publications, Volunteering, Hobbies, References, Languages) in a template-neutral style, then import it into each template file. Each template will call `<ExtraSections resume={resume} />` at the bottom. Templates that already render specific sections (like CreativeTemplate with certifications) will keep their existing rendering.
 
----
-
-### 3. `framer-motion` Imported in 78+ Components
-
-**Problem:** `framer-motion` is used in 78 component files. At ~130KB minified, it's likely the largest single dependency in the bundle. Since it's used everywhere including the landing page (`Index.tsx`), it cannot be lazy-loaded. However, some uses are trivial (e.g., just `motion.div` with `initial/animate` for a simple fade) and could use CSS instead.
-
-**Fix (targeted):** No changes recommended for now. The library is too widely used to remove, and tree-shaking already handles unused exports. This is an acceptable cost for the animation quality it provides.
-
-**Status:** Acceptable, monitor bundle size.
+This approach:
+- Adds all missing sections without modifying existing template layouts
+- Keeps template-specific styling for sections they already handle
+- Is a single shared component, easy to maintain
 
 ---
 
-### 4. `DashboardPage`: Background Resume Scoring Runs Eagerly
+#### BUG 2 (Medium): `LivePreviewPanel` filterResume and SECTION_LABELS missing `languages`
 
-**Problem:** The `useEffect` at line 121 iterates all resumes and calls `scoreResume()` for each one sequentially after a 1-second delay. On a throttled mobile CPU with many resumes, this can cause jank during initial dashboard load.
+`LivePreviewPanel.tsx` line 50-62: `SECTION_LABELS` doesn't include `languages`. Line 77-93: `filterResume` doesn't handle `languages`. If a user toggles section visibility in the live preview, languages won't be affected.
 
-**Fix:** Add a `requestIdleCallback` wrapper around the scoring loop so it yields to the main thread between scores:
-```tsx
-const scoreNext = async () => {
-  for (const resume of resumes) {
-    if (cancelled) break;
-    // Yield to main thread between scores
-    await new Promise(r => 
-      'requestIdleCallback' in window 
-        ? requestIdleCallback(r) 
-        : setTimeout(r, 50)
-    );
-    // ...existing scoring logic
-  }
-};
-```
-**Impact:** Eliminates scroll jank during background scoring on low-end devices.
+**Fix:** Add `languages: 'Languages'` to `SECTION_LABELS` and add `languages: hidden.has('languages') ? [] : resume.languages` to `filterResume`.
 
 ---
 
-### 5. Editor `renderEditorContent` Recreates on Every Render
+#### BUG 3 (Medium): PreviewPage `availableSections` fallback is incomplete
 
-**Problem:** `renderEditorContent` at line 566 is wrapped in `useCallback` but has `[activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate]` as dependencies. Since `sectionScores` is a new object on every `currentResume` change (even if scores haven't changed), the callback recreates frequently.
+`PreviewPage.tsx` lines 158-164: The fallback only lists summary, experience, education, skills, and certifications. It misses awards, projects, publications, volunteering, hobbies, references, and languages. This means manual page breaks can't target these sections when the DOM scan fails.
 
-**Fix:** No change needed. The `useMemo` on `sectionScores` (line 379) already memoizes the object, and the section components are lazy-loaded with Suspense. The render cost is minimal since only the active tab's component mounts.
-
-**Status:** Acceptable.
+**Fix:** Add the missing sections to the fallback list.
 
 ---
 
-### 6. `ResumeListCard`: `resumeForProgress` Recalculated on Every Render
+#### BUG 4 (Low): PreviewPage template picker only shows 12 of 30 templates
 
-**Problem:** Line 89: `const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume])`. The `resume` object from the query changes reference on every refetch even if data hasn't changed, causing `dbToResumeData` to run unnecessarily.
+`PreviewPage.tsx` lines 65-78: The `templates` array for the template selector dropdown only includes 12 templates. Users who arrive at Preview with one of the other 18 templates can see their resume but can't switch back if they change templates.
 
-**Fix:** Use a stable key like `resume.updated_at`:
-```tsx
-const resumeForProgress = useMemo(
-  () => dbToResumeData(resume), 
-  [resume.id, resume.updated_at]
-);
-```
-**Impact:** Prevents unnecessary progress bar recalculations after pull-to-refresh.
+**Fix:** Extend the `templates` array to include all 30 templates.
 
 ---
 
-### 7. Network Resilience: `lazyWithRetry` Does Not Wait for Network
+#### BUG 5 (Low): Static import of pdfGenerator in PreviewPage negates dynamic import optimization
 
-**Problem:** If a user is offline when navigating to a new route, `lazyWithRetry` retries after 1.5s blindly. If still offline, the error propagates to ErrorBoundary.
+`PreviewPage.tsx` line 51 has `import { getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator'`. Since `pdfGenerator.ts` imports `html2canvas` and `pdf-lib` at the top level, this static import pulls ~200KB into the PreviewPage chunk even though the export handler uses dynamic `import()`.
 
-**Fix:** Enhance `lazyWithRetry` to check `navigator.onLine` and wait for the `online` event before retrying:
-```tsx
-export function lazyWithRetry<T extends ComponentType<any>>(
-  factory: () => Promise<{ default: T }>
-) {
-  return lazy(() =>
-    factory().catch(() => {
-      return new Promise<{ default: T }>((resolve, reject) => {
-        const attemptRetry = () => {
-          setTimeout(() => factory().then(resolve).catch(reject), 1500);
-        };
-        if (!navigator.onLine) {
-          const handler = () => {
-            window.removeEventListener('online', handler);
-            attemptRetry();
-          };
-          window.addEventListener('online', handler);
-          // Timeout after 30s even if still offline
-          setTimeout(() => {
-            window.removeEventListener('online', handler);
-            factory().then(resolve).catch(reject);
-          }, 30000);
-        } else {
-          attemptRetry();
-        }
-      });
-    })
-  );
-}
-```
-**Impact:** Prevents error screens when user temporarily loses connectivity during navigation.
+**Fix:** Move `getSectionsInDOMOrder` and `PdfGenerationError` to a separate lightweight utility file (e.g., `pdfUtils.ts`) that doesn't import the heavy libraries, or inline the small `PdfGenerationError` class and dynamically import `getSectionsInDOMOrder`.
 
 ---
 
-### 8. PreviewPage: Missing Lazy Templates (Only 12 of 29)
+### Implementation Plan
 
-**Problem:** `PreviewPage` only lazy-loads 12 templates (lines 11-22), but `LivePreviewPanel` loads all 29. If a user selects a template not in PreviewPage's list (e.g., Corporate, Banking, Federal, etc.), the preview may fail or show a blank.
+#### Step 1: Create shared `ExtraSections` component
+Create `src/components/templates/shared/ExtraSections.tsx` that renders Awards, Projects, Publications, Volunteering, Hobbies, References, and Languages sections with neutral styling and proper `data-section` and `data-break-avoid` attributes.
 
-**Fix:** Add the missing 17 template lazy imports to `PreviewPage`, matching `LivePreviewPanel`'s full list.
+#### Step 2: Add `ExtraSections` to all templates missing extra sections
+Import and render `<ExtraSections>` in all 28 templates that are missing these sections. Skip sections already handled by a specific template (e.g., CreativeTemplate handles certifications).
 
-**Impact:** Prevents blank preview for users with non-standard templates.
+#### Step 3: Fix `LivePreviewPanel` languages support
+Add `languages` to `SECTION_LABELS` and `filterResume`.
 
----
+#### Step 4: Fix PreviewPage `availableSections` fallback
+Add all missing section types to the fallback logic.
 
-### Summary of Changes
+#### Step 5: Extend PreviewPage template picker to all 30 templates
+Update the `templates` array to include all 30 templates.
 
-| File | Change | Priority | Effort |
-|------|--------|----------|--------|
-| `src/pages/DashboardPage.tsx` | Gate `LinkedInImportSheet` and `AnalyzeJobSheet` rendering | High | Small |
-| `src/pages/PreviewPage.tsx` | Dynamic import `pdfGenerator` in export handler | High | Small |
-| `src/components/editor/LivePreviewPanel.tsx` | Dynamic import `pdfGenerator` in download handler | High | Small |
-| `src/components/editor/ShareSheet.tsx` | Dynamic import `pdfGenerator` in share handler | High | Small |
-| `src/pages/DashboardPage.tsx` | Add `requestIdleCallback` to background scoring | Medium | Small |
-| `src/components/dashboard/ResumeListCard.tsx` | Stabilize `resumeForProgress` memoization key | Medium | Tiny |
-| `src/lib/lazyWithRetry.ts` | Network-aware retry with `online` event listener | Medium | Small |
-| `src/pages/PreviewPage.tsx` | Add missing 17 template lazy imports | High | Small |
+#### Step 6: Extract lightweight PDF utilities
+Move `getSectionsInDOMOrder`, `PdfGenerationError`, `estimatePageCount`, and `estimateOnePageScale` to a new `src/lib/pdfUtils.ts` file that doesn't import `html2canvas` or `pdf-lib`. Update imports in `PreviewPage.tsx` and `ExportOptionsSheet.tsx`.
 
 ### What Won't Change
-
-- No business logic modifications
-- No changes to data models or API calls
-- `framer-motion` stays (too deeply integrated, acceptable bundle cost)
-- Editor's Zustand selectors and `useShallow` patterns are already optimized
-- Template lazy-loading in `LivePreviewPanel` is already correct
-- All existing features preserved
+- No changes to the core PDF generation algorithm (html2canvas -> pdf-lib pipeline)
+- No changes to page break logic, smart break positioning, or template-aware pagination
+- No changes to data models, types, or store
+- No changes to export UX, error handling, or download utilities
+- No changes to customization CSS injection system
+- All existing template layouts preserved; extra sections appended at bottom
+- All 30 template lazy-loading maps remain intact
 
