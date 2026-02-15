@@ -96,6 +96,119 @@ export async function generateAndDownloadDOCX(resume: ResumeData): Promise<boole
     }
   }
 
+  // Projects
+  if (resume.projects?.length) {
+    sections.push(makeSectionHeading('PROJECTS', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
+    for (const proj of resume.projects) {
+      sections.push(new Paragraph({
+        children: [
+          new TextRun({ text: proj.name, bold: true, size: 22 }),
+          new TextRun({ text: ` — ${proj.role}`, size: 22 }),
+        ],
+        spacing: { before: 120 },
+      }));
+      if (proj.description) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: proj.description, size: 22 })], spacing: { after: 60 } }));
+      }
+      if (proj.technologies?.length) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: `Technologies: ${proj.technologies.join(', ')}`, italics: true, size: 20, color: '666666' })], spacing: { after: 80 } }));
+      }
+    }
+  }
+
+  // Awards
+  if (resume.awards?.length) {
+    sections.push(makeSectionHeading('AWARDS', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
+    for (const award of resume.awards) {
+      sections.push(new Paragraph({
+        children: [
+          new TextRun({ text: award.title, bold: true, size: 22 }),
+          new TextRun({ text: ` — ${award.issuer}`, size: 22 }),
+          new TextRun({ text: ` (${award.date})`, italics: true, size: 20, color: '666666' }),
+        ],
+        spacing: { after: 40 },
+      }));
+      if (award.description) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: award.description, size: 22 })], spacing: { after: 80 } }));
+      }
+    }
+  }
+
+  // Languages
+  if (resume.languages?.length) {
+    sections.push(makeSectionHeading('LANGUAGES', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
+    sections.push(new Paragraph({
+      children: [new TextRun({ text: resume.languages.map(l => `${l.name} (${l.proficiency})`).join(' • '), size: 22 })],
+      spacing: { after: 200 },
+    }));
+  }
+
+  // Publications
+  if (resume.publications?.length) {
+    sections.push(makeSectionHeading('PUBLICATIONS', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
+    for (const pub of resume.publications) {
+      sections.push(new Paragraph({
+        children: [
+          new TextRun({ text: pub.title, bold: true, size: 22 }),
+          new TextRun({ text: ` — ${pub.publisher}`, size: 22 }),
+          new TextRun({ text: ` (${pub.date})`, italics: true, size: 20, color: '666666' }),
+        ],
+        spacing: { after: 40 },
+      }));
+      if (pub.url) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: pub.url, size: 20, color: '0066CC' })], spacing: { after: 80 } }));
+      }
+    }
+  }
+
+  // Volunteering
+  if (resume.volunteering?.length) {
+    sections.push(makeSectionHeading('VOLUNTEERING', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
+    for (const vol of resume.volunteering) {
+      sections.push(new Paragraph({
+        children: [
+          new TextRun({ text: vol.role, bold: true, size: 22 }),
+          new TextRun({ text: ` — ${vol.organization}`, size: 22 }),
+        ],
+        spacing: { before: 120 },
+      }));
+      sections.push(new Paragraph({
+        children: [new TextRun({ text: `${vol.startDate} – ${vol.endDate || 'Present'}`, italics: true, size: 20, color: '666666' })],
+        spacing: { after: 80 },
+      }));
+      if (vol.description) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: vol.description, size: 22 })], spacing: { after: 60 } }));
+      }
+    }
+  }
+
+  // Hobbies
+  if (resume.hobbies?.length) {
+    sections.push(makeSectionHeading('HOBBIES & INTERESTS', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
+    sections.push(new Paragraph({
+      children: [new TextRun({ text: resume.hobbies.join(' • '), size: 22 })],
+      spacing: { after: 200 },
+    }));
+  }
+
+  // References
+  if (resume.references?.length) {
+    sections.push(makeSectionHeading('REFERENCES', { Paragraph, TextRun, HeadingLevel, BorderStyle }));
+    for (const ref of resume.references) {
+      sections.push(new Paragraph({
+        children: [
+          new TextRun({ text: ref.name, bold: true, size: 22 }),
+          new TextRun({ text: ` — ${ref.title}, ${ref.company}`, size: 22 }),
+        ],
+        spacing: { before: 120, after: 40 },
+      }));
+      const contactDetails = [ref.email, ref.phone].filter(Boolean).join(' | ');
+      if (contactDetails) {
+        sections.push(new Paragraph({ children: [new TextRun({ text: contactDetails, size: 20, color: '444444' })], spacing: { after: 80 } }));
+      }
+    }
+  }
+
   const doc = new Document({ sections: [{ children: sections }] });
   const blob = await Packer.toBlob(doc);
   const baseName = resume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume';
