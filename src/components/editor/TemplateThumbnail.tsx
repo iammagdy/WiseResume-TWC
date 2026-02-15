@@ -40,7 +40,7 @@ interface TemplateThumbnailProps {
   resume: ResumeData;
 }
 
-const templateComponents: Record<TemplateId, React.LazyExoticComponent<React.ComponentType<{ resume: ResumeData }>>> = {
+export const templateComponents: Record<TemplateId, React.LazyExoticComponent<React.ComponentType<{ resume: ResumeData }>>> = {
   modern: ModernTemplate,
   classic: ClassicTemplate,
   minimal: MinimalTemplate,

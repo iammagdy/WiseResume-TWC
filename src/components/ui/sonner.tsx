@@ -27,10 +27,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       richColors={false}
       duration={4000}
       icons={{
-        success: <CheckCircle2 className="h-4 w-4 text-[hsl(var(--success))]" />,
-        error: <XCircle className="h-4 w-4 text-[hsl(var(--destructive))]" />,
-        warning: <AlertTriangle className="h-4 w-4 text-[hsl(var(--warning))]" />,
-        info: <Info className="h-4 w-4 text-[hsl(var(--secondary))]" />,
+        success: <CheckCircle2 className="h-5 w-5 text-[hsl(var(--success))]" />,
+        error: <XCircle className="h-5 w-5 text-[hsl(var(--destructive))]" />,
+        warning: <AlertTriangle className="h-5 w-5 text-[hsl(var(--warning))]" />,
+        info: <Info className="h-5 w-5 text-[hsl(var(--secondary))]" />,
       }}
       toastOptions={{
         classNames: {
