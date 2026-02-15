@@ -217,7 +217,22 @@ export function AIEnhanceSheet({ open, onOpenChange }: AIEnhanceSheetProps) {
 
           {/* Section Selector */}
           <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Sections to Enhance</p>
+            <div className="flex items-center justify-between mb-2 px-1">
+              <p className="text-xs font-medium text-muted-foreground">Sections to Enhance</p>
+              {availableSections.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptics.light();
+                    const allSelected = availableSections.every(s => selectedSections.has(s.id));
+                    setSelectedSections(allSelected ? new Set() : new Set(availableSections.map(s => s.id)));
+                  }}
+                  className="text-xs text-primary font-medium min-h-[44px] min-w-[44px] flex items-center justify-end active:scale-95 transition-transform touch-manipulation"
+                >
+                  {availableSections.every(s => selectedSections.has(s.id)) ? 'Deselect All' : 'Select All'}
+                </button>
+              )}
+            </div>
             {availableSections.length === 0 ? (
               <p className="text-sm text-muted-foreground/60 px-1">No sections with content found. Add content to your resume first.</p>
             ) : (
