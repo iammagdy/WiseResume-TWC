@@ -116,7 +116,7 @@ export function ActivityTimeline() {
         return (
           <div
             key={entry.id}
-            className={`glass-surface rounded-2xl p-3.5 border border-border/20 transition-transform active:scale-[0.98] ${isResume ? 'cursor-pointer' : ''}`}
+            className={`glass-surface rounded-2xl p-3.5 border border-border/20 transition-transform active:scale-[0.98] min-h-[80px] cursor-pointer`}
             onClick={isResume && entry.resumeId ? () => navigate(`/editor?id=${entry.resumeId}`) : undefined}
           >
             <div className="flex items-start gap-3">
