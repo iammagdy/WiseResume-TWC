@@ -1,66 +1,69 @@
 
 
-## Dashboard Mobile Optimization
+## AI Studio Mobile Optimization
 
 ### Overview
 
-The dashboard already has responsive foundations (single-column on mobile via `space-y-4`, 44px menu touch targets, swipe gestures). This plan addresses the specific requests: simplifying the stats section, improving resume card progress bars, and ensuring single-column layout on tablet.
+The AI Studio page already has a solid mobile layout with touch-manipulation, glass-elevated cards, and stacked tools. This plan addresses the specific gaps: suggestion chip sizing, tool card sizing, header compactness, "Working on" bar improvements, and credits tooltip.
 
 ### What's Already Done (No Changes Needed)
 
-- Resume cards: swipe gestures, 44px three-dot menu, haptic feedback
-- Search input: h-12 (48px), text-base (16px), rounded-full
-- Floating Create Button: 56px FAB with pulse animation
-- Pull-to-refresh, skeleton loading states
-- Mobile: already `space-y-4` vertical stack (single column)
+- Chat section: Full-width tappable card with icon, title, and suggestion chips
+- Featured tools: Already stacked vertically with `min-h-[72px]` and `active:scale-[0.98]`
+- More AI Tools grid: Already `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`
+- Touch targets: All buttons have `touch-manipulation` and `active:scale` feedback
+- Credits indicator: Already shows remaining count with Zap icon
+- Bottom nav clearance: `pb-20` already applied
 
 ### Changes Required
 
-**File 1: `src/components/dashboard/DashboardStats.tsx`**
+**File 1: `src/pages/AIStudioPage.tsx`**
 
-Simplify the stats section per spec:
-- Remove the `ScoreRing` (72px AVG ring) entirely from the stats row
-- Remove the "Top Score" stat tile with Award icon
-- Replace the current stats grid with a simpler inline layout:
-  - Desktop (>=768px): Single row -- greeting on left, "X Resumes" and "Best: Y%" as inline badges on the right
-  - Mobile (<640px): Greeting on its own line, then a compact "X Resumes | Best: Y%" line below
-- Keep the greeting, streak badge, and motivational subtitle (empty state) unchanged
-- Remove imports for `ScoreRing`, `Award`, `TooltipProvider`, `Tooltip`, `TooltipTrigger`, `TooltipContent` (no longer needed)
+1. **Quick suggestion chips** (lines 196-203):
+   - Increase chip sizing from `text-xs px-2.5 py-1` to `text-sm px-3 py-1.5 min-h-[36px]` for comfortable mobile tapping
+   - Chips already wrap via `flex-wrap` -- no layout change needed
 
-**File 2: `src/components/dashboard/ResumeListCard.tsx`**
+2. **Featured tool cards** (lines 215-238):
+   - Increase `min-h` from `72px` to `min-h-[100px] sm:min-h-[72px]` on mobile
+   - Increase icon from `w-6 h-6` to `w-7 h-7` (28px)
+   - Increase title from `text-sm` to `text-base sm:text-sm` (16px on mobile)
+   - Increase description from `text-xs` to `text-sm sm:text-xs` (14px on mobile)
 
-Improve resume card progress bar and text sizing:
-- Change progress bar height from `h-1.5` to `h-2` (8px) for better mobile visibility
-- Change completion percentage font from `text-xs` to `text-sm` (~14px) for readability
-- Change resume title from `text-base sm:text-sm` to `text-lg sm:text-base` (18px on mobile)
-- Change "No target job set" text to ensure no awkward wrapping: keep `text-sm` (14px) and add `whitespace-nowrap`
-- Change AI suggestion text from `text-xs` to `text-sm` (14px), and add `line-clamp-2` for max 2 lines with ellipsis
-- Change "Edited X ago" from `text-xs` to `text-[13px]` for the requested 13px minimum
-- Change card min-height from `min-h-[120px]` to `min-h-[180px] sm:min-h-[120px]` for mobile comfort
-- Add `text-[13px]` to the tailored versions badge for readability
+3. **Secondary tool cards** (lines 269-281):
+   - Increase `min-h` from `88px` to `min-h-[100px]`
+   - Increase icon from `w-5 h-5` to `w-6 h-6` (24px)
+   - Increase label from `text-xs` to `text-sm sm:text-xs` (~15px on mobile)
+   - Increase description from `text-[10px]` to `text-xs sm:text-[10px]` (13px on mobile)
 
-**File 3: `src/pages/DashboardPage.tsx`**
+4. **Header** (lines 123-135):
+   - Reduce mobile padding from `pt-6 pb-4` to `pt-4 pb-3 sm:pt-6 sm:pb-4`
 
-Fix resume grid for tablet single-column:
-- Change the grid from `md:grid md:grid-cols-2 lg:grid-cols-3` to `lg:grid lg:grid-cols-2 xl:grid-cols-3` so tablet (640-1023px) stays single-column and only desktop (>=1024px) goes to 2 columns
+5. **"Working on" bar** (lines 144-160):
+   - Increase font from `text-sm` to `text-[15px] sm:text-sm` for mobile prominence
+   - Add a "Change" button (navigates to `/dashboard`) next to the resume title, min-h 44px, visible only when a resume is selected
+
+6. **Credits indicator** -- wrap the `AICreditsIndicator` in a `Tooltip` with content "AI Credits Remaining"
+
+**File 2: `src/components/editor/ai/AICreditsIndicator.tsx`**
+
+- No changes needed -- the tooltip will be applied at the usage site in AIStudioPage
 
 ### What Does NOT Change
 
-- All resume CRUD operations (click, rename, duplicate, delete)
-- Swipe gesture logic and confirmation dialogs
-- Search functionality
-- Floating Create Button
-- ResumeGroup hierarchy and tailored version display
-- Health score calculation and background scoring
-- Onboarding flow
-- LinkedIn import
-- All data loading, saving, and API calls
+- All AI tool functionality and API calls
+- Sheet opening/closing logic
+- Chat (AgenticChatSheet) behavior
+- Resume context detection and guard logic
+- Navigation and routing
+- Lazy-loaded sheets and Suspense boundaries
+- Error boundaries
+- Haptic feedback patterns
+- Desktop layouts (all changes use responsive `sm:` prefixes)
 
 ### Technical Notes
 
-- Removing the ScoreRing from DashboardStats does NOT remove it from ResumeListCard -- each card still shows its individual score ring
-- The "Best: Y%" stat replaces both the AVG ring and Top Score tile, reducing visual clutter
-- Grid breakpoint change from `md:` to `lg:` shifts the 2-column threshold from 768px to 1024px, making tablet single-column
-- Progress bar `h-2` (8px) matches the minimum height requested in the spec
-- `line-clamp-2` uses `-webkit-line-clamp` which is well-supported in all modern browsers
+- All changes are CSS class adjustments and one small "Change" button addition
+- The "Change" button reuses the existing `navigate('/dashboard')` pattern already used in the empty-state button
+- Tooltip wrapping uses existing `Tooltip`/`TooltipTrigger`/`TooltipContent` from `@/components/ui/tooltip`
+- No new dependencies or state variables needed (except the Tooltip imports)
 
