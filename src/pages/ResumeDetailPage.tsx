@@ -1,4 +1,4 @@
-import { useState, useRef, lazy, Suspense } from 'react';
+import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { templateComponents } from '@/components/editor/TemplateThumbnail';
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
 import { useResume, useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
-import { useResumeScore } from '@/hooks/useResumeScore';
+import { useResumeScore, clearCachedScore } from '@/hooks/useResumeScore';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -28,6 +28,9 @@ import { toast } from 'sonner';
 import { TemplateId } from '@/types/resume';
 import { calcOverallScore, calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, getSectionStatus } from '@/lib/resumeCompletionRules';
 import { ProgressBar } from '@/components/editor/ProgressBar';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
 
 export default function ResumeDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +43,7 @@ export default function ResumeDetailPage() {
   const { createShare } = useResumeShareMutations();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showEnhance, setShowEnhance] = useState(false);
   const hiddenTemplateRef = useRef<HTMLDivElement>(null);
 
   if (isLoading) {
@@ -189,12 +193,12 @@ export default function ResumeDetailPage() {
               <p className="text-sm font-semibold text-muted-foreground tracking-wide">ATS Score</p>
               <Button
                 size="sm"
-                className="gap-2"
+                className="gap-2 min-h-[44px] active:scale-95 transition-transform"
                 onClick={() => {
                   setCurrentResume(resumeData);
                   setCurrentResumeId(dbResume.id);
                   setSelectedTemplate(dbResume.template_id as TemplateId);
-                  navigate('/ai-studio?action=enhance');
+                  setShowEnhance(true);
                 }}
               >
                 <Zap className="w-4 h-4" />
@@ -290,6 +294,28 @@ export default function ResumeDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* AI Enhance Sheet (inline, no navigation) */}
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          {showEnhance && (
+            <AIEnhanceSheet
+              open={showEnhance}
+              onOpenChange={(open) => {
+                setShowEnhance(open);
+                if (!open) {
+                  // Clear stale cache and re-score with enhanced content
+                  clearCachedScore(dbResume.id, dbResume.updated_at);
+                  const updatedResume = useResumeStore.getState().currentResume;
+                  if (updatedResume) {
+                    scoreResume(dbResume.id, updatedResume, dbResume.updated_at);
+                  }
+                }
+              }}
+            />
+          )}
+        </Suspense>
+      </ErrorBoundary>
 
       {/* Hidden off-screen template for PDF generation */}
       {(() => {
