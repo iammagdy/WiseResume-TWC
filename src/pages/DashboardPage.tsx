@@ -357,7 +357,7 @@ export default function DashboardPage() {
                 </motion.button>
               </PopoverTrigger>
               <PopoverContent align="end" side="bottom" className="w-80 p-0">
-                <div className="border-b border-border flex flex-col gap-3 p-3">
+                <div className="flex flex-col gap-3 p-3">
                   <div className="flex flex-row items-center gap-3">
                     <Avatar className="w-10 h-10 border-2 border-primary/20">
                       {profile?.avatarUrl && (
@@ -376,7 +376,16 @@ export default function DashboardPage() {
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-row flex-wrap gap-3 py-0.5">
+                  <div className="flex flex-row flex-wrap gap-2 py-0.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="active:scale-95 touch-manipulation"
+                      onClick={() => { haptics.light(); navigate('/profile'); }}
+                    >
+                      <User className="w-4 h-4" />
+                      <span>Manage Account</span>
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -384,7 +393,7 @@ export default function DashboardPage() {
                       onClick={() => { haptics.light(); navigate('/settings'); }}
                     >
                       <Settings className="w-4 h-4" />
-                      <span>Manage Account</span>
+                      <span>Settings</span>
                     </Button>
                     <Button
                       variant="outline"
@@ -401,19 +410,6 @@ export default function DashboardPage() {
                     </Button>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="lg"
-                  className="h-16 w-full justify-start gap-3 rounded-none rounded-b-xl px-3 sm:h-14 active:scale-95 touch-manipulation"
-                  onClick={() => { haptics.light(); navigate('/auth'); }}
-                >
-                  <div className="w-10 h-10 flex items-center justify-center">
-                    <div className="border border-dashed border-border bg-muted/50 w-7 h-7 flex items-center justify-center rounded-full">
-                      <Plus className="w-5 h-5" />
-                    </div>
-                  </div>
-                  <span>Add account</span>
-                </Button>
               </PopoverContent>
             </Popover>
           </div>
