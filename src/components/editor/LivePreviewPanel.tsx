@@ -2,7 +2,7 @@ import { memo, useState, useCallback, Suspense, lazy, useRef, CSSProperties } fr
 import { ZoomIn, ZoomOut, Download, Loader2, Eye, EyeOff, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
-import { applyCustomizationCSS } from '@/lib/templateCustomization';
+import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
 import { generatePDF } from '@/lib/pdfGenerator';
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
@@ -255,6 +255,9 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               ...customizationStyle,
             } as CSSProperties}
           >
+            {currentResume.customization && (
+              <style dangerouslySetInnerHTML={{ __html: generateCustomizationCSS(currentResume.customization) }} />
+            )}
             <Suspense fallback={<PreviewSkeleton />}>
               <TemplateComponent resume={filteredResume} />
             </Suspense>

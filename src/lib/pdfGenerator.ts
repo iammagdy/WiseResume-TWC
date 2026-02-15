@@ -2,7 +2,7 @@ import html2canvas from 'html2canvas';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions, SectionId } from '@/types/resume';
 import { TemplateConfig, getTemplateConfig } from '@/lib/templateConfig';
-import { PAGE_FORMAT_PX } from '@/lib/templateCustomization';
+import { PAGE_FORMAT_PX, generateCustomizationCSS } from '@/lib/templateCustomization';
 import type { OnProgressCallback } from '@/hooks/useExportProgress';
 
 /** Typed error class for programmatic handling of PDF generation failures. */
@@ -537,6 +537,17 @@ function prepareForCapture(sourceElement: HTMLElement, pageWidth: number = DEFAU
     minHeight: sourceElement.style.minHeight,
   };
 
+  // Inject customization CSS for PDF capture
+  const customizationStyle = document.createElement('style');
+  customizationStyle.setAttribute('data-pdf-customization', 'true');
+  const resumeData = (sourceElement as any).__resumeData as import('@/types/resume').ResumeData | undefined;
+  // Try to find customization from the style tag already in the element
+  const existingStyle = sourceElement.querySelector('style');
+  if (existingStyle) {
+    customizationStyle.textContent = existingStyle.textContent;
+  }
+  sourceElement.appendChild(customizationStyle);
+
   // Force exact PDF-width layout (prevents mobile reflow at smaller widths)
   sourceElement.style.width = `${pageWidth}px`;
   sourceElement.style.maxWidth = `${pageWidth}px`;
@@ -567,6 +578,9 @@ function prepareForCapture(sourceElement: HTMLElement, pageWidth: number = DEFAU
     parentOverflows.forEach(({ el, overflow }) => {
       el.style.overflow = overflow;
     });
+    // Remove injected customization style
+    const injectedStyle = sourceElement.querySelector('[data-pdf-customization]');
+    if (injectedStyle) injectedStyle.remove();
   };
 }
 
