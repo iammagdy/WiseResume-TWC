@@ -48,72 +48,59 @@ export function ResumeGroup({
   return (
     <div className="space-y-2">
       {/* Master Resume Card */}
-      <div className="relative">
-        {hasTailored && (
-          <button
-            onClick={toggleExpand}
-            className={cn(
-              'absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full',
-              'w-8 h-8 flex items-center justify-center',
-              'text-muted-foreground hover:text-foreground transition-colors',
-              'z-10'
-            )}
-          >
-            {isExpanded ? (
-              <ChevronDown className="w-5 h-5" />
-            ) : (
-              <ChevronRight className="w-5 h-5" />
-            )}
-          </button>
-        )}
+      <div>
+        <ResumeListCard
+          resume={masterResume}
+          onEdit={onEdit}
+          onDuplicate={onDuplicate}
+          onDelete={onDelete}
+          onRename={onRename}
+          onInterview={onInterview}
+          showMasterBadge={hasTailored}
+          healthScore={healthScores[masterResume.id]}
+          isScoring={scoringId === masterResume.id}
+        />
         
-        <div className="relative">
-          <ResumeListCard
-            resume={masterResume}
-            onEdit={onEdit}
-            onDuplicate={onDuplicate}
-            onDelete={onDelete}
-            onRename={onRename}
-            onInterview={onInterview}
-            showMasterBadge={hasTailored}
-            healthScore={healthScores[masterResume.id]}
-            isScoring={scoringId === masterResume.id}
-          />
-          
-          {/* Tailored count badge */}
-          {hasTailored && !isExpanded && (
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-              <div
-                className={cn(
-                  'px-2 py-0.5 rounded-full',
-                  'bg-secondary text-secondary-foreground',
-                  'text-xs font-medium',
-                  'border border-border shadow-sm',
-                  'cursor-pointer hover:bg-secondary/80 transition-colors'
-                )}
-                onClick={toggleExpand}
-              >
-                <GitBranch className="w-3 h-3 inline mr-1" />
-                {tailoredVersions.length} tailored version{tailoredVersions.length > 1 ? 's' : ''}
-              </div>
-              {tailoredVersions.length >= 2 && (
-                <button
-                  className={cn(
-                    'px-2 py-0.5 rounded-full',
-                    'bg-primary/10 text-primary',
-                    'text-xs font-medium',
-                    'border border-primary/20 shadow-sm',
-                    'cursor-pointer hover:bg-primary/20 transition-colors'
-                  )}
-                  onClick={(e) => { e.stopPropagation(); haptics.light(); setShowCompare(true); }}
-                >
-                  <GitCompare className="w-3 h-3 inline mr-1" />
-                  Compare
-                </button>
+        {/* Tailored count badge - static below card */}
+        {hasTailored && (
+          <div className="mt-2 flex items-center justify-center gap-1.5">
+            <button
+              className={cn(
+                'px-3 py-1.5 rounded-full min-h-[36px]',
+                'bg-secondary text-secondary-foreground',
+                'text-xs font-medium',
+                'border border-border shadow-sm',
+                'cursor-pointer hover:bg-secondary/80 transition-colors',
+                'flex items-center gap-1.5 touch-manipulation'
               )}
-            </div>
-          )}
-        </div>
+              onClick={toggleExpand}
+            >
+              <GitBranch className="w-3 h-3" />
+              {tailoredVersions.length} tailored version{tailoredVersions.length > 1 ? 's' : ''}
+              {isExpanded ? (
+                <ChevronDown className="w-3.5 h-3.5 ml-0.5" />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+              )}
+            </button>
+            {tailoredVersions.length >= 2 && (
+              <button
+                className={cn(
+                  'px-3 py-1.5 rounded-full min-h-[36px]',
+                  'bg-primary/10 text-primary',
+                  'text-xs font-medium',
+                  'border border-primary/20 shadow-sm',
+                  'cursor-pointer hover:bg-primary/20 transition-colors',
+                  'flex items-center gap-1.5 touch-manipulation'
+                )}
+                onClick={(e) => { e.stopPropagation(); haptics.light(); setShowCompare(true); }}
+              >
+                <GitCompare className="w-3 h-3" />
+                Compare
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tailored Versions */}

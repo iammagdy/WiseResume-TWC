@@ -613,7 +613,13 @@ export default function DashboardPage() {
 
       {/* Floating Create Button */}
       {resumes && resumes.length > 0 && (
-        <FloatingCreateButton onClick={handleCreateNew} pulse={tipVisible} isLoading={isCreating} />
+        <FloatingCreateButton
+          onClick={handleCreateNew}
+          onTailor={() => navigate('/ai-studio')}
+          onAnalyzeJob={() => navigate('/applications')}
+          pulse={tipVisible}
+          isLoading={isCreating}
+        />
       )}
 
 
