@@ -64,6 +64,8 @@ import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Separator } from '@/components/ui/separator';
 import { Target } from 'lucide-react';
 import { useProofread } from '@/hooks/useProofread';
 import { ProofreadButton } from '@/components/editor/ProofreadButton';
@@ -164,6 +166,7 @@ export default function EditorPage() {
     return false;
   });
   const [showATSBadge, setShowATSBadge] = useState(false);
+  const [showToolsSheet, setShowToolsSheet] = useState(false);
   const isMobile = useIsMobile();
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -759,21 +762,58 @@ export default function EditorPage() {
               <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
             </button>
           </div>
-          {/* Mobile-only: consolidated tools trigger */}
+          {/* Mobile-only: consolidated tools trigger (Sheet-based for portal rendering) */}
           <div className="flex md:hidden">
-            <ActionsPanel
-              trigger={
-                <button
-                  className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
-                  aria-label="Editor tools"
-                >
-                  <Sparkles className="w-5 h-5 text-primary" />
-                  <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
-                </button>
-              }
-              title="Editor Tools"
-              groups={editorToolGroups}
-            />
+            <button
+              onClick={() => { haptics.light(); setShowToolsSheet(true); }}
+              className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
+              aria-label="Editor tools"
+            >
+              <Sparkles className="w-5 h-5 text-primary" />
+              <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
+            </button>
+            <Sheet open={showToolsSheet} onOpenChange={setShowToolsSheet}>
+              <SheetContent side="bottom" className="pb-safe max-h-[80dvh] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Editor Tools</SheetTitle>
+                </SheetHeader>
+                <div className="pt-4 space-y-1">
+                  {editorToolGroups.map((group, groupIndex) => (
+                    <div key={group.id}>
+                      {groupIndex > 0 && <Separator className="my-1" />}
+                      {group.title && (
+                        <p className="px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                          {group.title}
+                        </p>
+                      )}
+                      {group.actions.map((action) => {
+                        const Icon = action.icon;
+                        const isDestructive = action.variant === 'destructive';
+                        return (
+                          <button
+                            key={action.id}
+                            className={cn(
+                              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all min-h-[48px] touch-manipulation active:scale-95 hover:bg-muted",
+                              isDestructive && "text-destructive hover:bg-destructive/10"
+                            )}
+                            onClick={() => {
+                              haptics.light();
+                              setShowToolsSheet(false);
+                              action.onClick();
+                            }}
+                          >
+                            {Icon && (
+                              <Icon className={cn("h-4 w-4 shrink-0", isDestructive ? "text-destructive" : "text-muted-foreground")} />
+                            )}
+                            <span className="truncate">{action.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </header>
