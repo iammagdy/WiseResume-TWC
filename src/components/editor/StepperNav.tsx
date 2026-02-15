@@ -94,7 +94,7 @@ export const StepperNav = memo(function StepperNav({
               {activeMoreDef ? activeMoreDef.label : activeStepData?.label}
             </span>
             <p className="text-[11px] text-muted-foreground">
-              {steps.filter(s => s.id !== 'more' && completedSteps[s.id]).length} of {steps.filter(s => s.id !== 'more').length} complete
+              {steps.filter(s => (s.id === 'more' ? !!activeMoreSection : true) && completedSteps[s.id]).length} of {steps.filter(s => (s.id === 'more' ? !!activeMoreSection : true)).length} complete
             </p>
           </div>
           {activeCompleted ? (
