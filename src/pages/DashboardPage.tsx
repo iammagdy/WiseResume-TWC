@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, LogIn, Home, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -16,13 +16,7 @@ import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 import { DailyTipCard } from '@/components/dashboard/DailyTipCard';
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 
 // Lazy-loaded dialogs
@@ -331,12 +325,12 @@ export default function DashboardPage() {
             <AppLogo size="sm" showTagline={false} hideText />
           </button>
           <div className="flex items-center gap-2">
-            <DropdownMenu onOpenChange={(open) => {
+            <Popover onOpenChange={(open) => {
               if (open && !localStorage.getItem('wr-profile-pulse-seen')) {
                 localStorage.setItem('wr-profile-pulse-seen', 'true');
               }
             }}>
-              <DropdownMenuTrigger asChild>
+              <PopoverTrigger asChild>
                 <motion.button
                   className="touch-manipulation relative touch-ripple min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full"
                   whileTap={{ scale: 0.9 }}
@@ -361,38 +355,67 @@ export default function DashboardPage() {
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-destructive border border-background" />
                   )}
                 </motion.button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => { haptics.light(); navigate('/settings'); }}>
-                  <User className="w-4 h-4 mr-2" />
-                  My Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { haptics.light(); navigate('/settings'); }}>
-                  <Settings className="w-4 h-4 mr-2" />
-                  Account Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { haptics.light(); navigate('/'); }}>
-                  <Home className="w-4 h-4 mr-2" />
-                  About WiseResume
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                {user ? (
-                  <DropdownMenuItem onClick={async () => {
-                    haptics.warning();
-                    await supabase.auth.signOut();
-                    navigate('/auth');
-                  }}>
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => { haptics.light(); navigate('/auth'); }}>
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Sign In
-                  </DropdownMenuItem>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </PopoverTrigger>
+              <PopoverContent align="end" side="bottom" className="w-80 p-0">
+                <div className="border-b border-border flex flex-col gap-3 p-3">
+                  <div className="flex flex-row items-center gap-3">
+                    <Avatar className="w-10 h-10 border-2 border-primary/20">
+                      {profile?.avatarUrl && (
+                        <AvatarImage src={profile.avatarUrl} alt={profile.fullName || 'Profile'} />
+                      )}
+                      <AvatarFallback className="bg-primary/10 text-primary text-sm font-semibold">
+                        {profile?.fullName
+                          ? profile.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+                          : <User className="w-5 h-5" />}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium leading-5 block truncate">{profile?.fullName || 'User'}</span>
+                      {user?.email && (
+                        <span className="text-muted-foreground text-sm font-normal leading-4 block truncate">{user.email}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-row flex-wrap gap-3 py-0.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="active:scale-95 touch-manipulation"
+                      onClick={() => { haptics.light(); navigate('/settings'); }}
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Manage Account</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 active:scale-95 touch-manipulation"
+                      onClick={async () => {
+                        haptics.warning();
+                        await supabase.auth.signOut();
+                        navigate('/auth');
+                      }}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Sign Out</span>
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="lg"
+                  className="h-16 w-full justify-start gap-3 rounded-none rounded-b-xl px-3 sm:h-14 active:scale-95 touch-manipulation"
+                  onClick={() => { haptics.light(); navigate('/auth'); }}
+                >
+                  <div className="w-10 h-10 flex items-center justify-center">
+                    <div className="border border-dashed border-border bg-muted/50 w-7 h-7 flex items-center justify-center rounded-full">
+                      <Plus className="w-5 h-5" />
+                    </div>
+                  </div>
+                  <span>Add account</span>
+                </Button>
+              </PopoverContent>
+            </Popover>
           </div>
         </header>
 
