@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import {
   Send,
-  Bot,
+  
   User,
   Sparkles,
   Wrench,
@@ -32,6 +32,7 @@ import { AIProviderBadge } from '@/components/editor/ai/AIProviderBadge';
 import { SuggestionProposal } from '@/lib/agenticChat';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { AppIcon } from '@/components/brand/AppIcon';
 
 interface AgenticChatSheetProps {
   open: boolean;
@@ -175,8 +176,8 @@ function GuestShowcase({ onClose, onSignIn }: { onClose: () => void; onSignIn: (
     <>
       <div className="flex-1 overflow-y-auto px-4 py-6 min-h-0">
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mb-4 opacity-80">
-            <Sparkles className="w-8 h-8 text-primary-foreground" />
+          <div className="mb-4">
+            <AppIcon size={56} showSparkle />
           </div>
           <h3 className="text-lg font-semibold mb-1">Your AI Resume Assistant</h3>
           <p className="text-sm text-muted-foreground mb-6 max-w-[280px]">
@@ -270,9 +271,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
         <SheetHeader className="px-4 pt-4 pb-3 shrink-0 border-b border-border">
           <div className="flex items-center justify-between gap-2">
             <SheetTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center shrink-0">
-                <Bot className="w-4 h-4 text-primary-foreground" />
-              </div>
+              <AppIcon size={32} showSparkle className="shrink-0" />
               <span className="font-semibold">Wise AI</span>
               {isAuthenticated && (
                 <AIProviderBadge size="xs" showSettingsLink />
@@ -334,9 +333,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                         )}
                       >
                         {msg.role === 'assistant' && (
-                          <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center shrink-0 mt-0.5">
-                            <Bot className="w-3.5 h-3.5 text-primary-foreground" />
-                          </div>
+                          <AppIcon size={28} showSparkle={false} className="shrink-0 mt-0.5" />
                         )}
                         <div
                           className={cn(
@@ -383,9 +380,7 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
                       animate={{ opacity: 1, y: 0 }}
                       className="flex gap-2 items-start"
                     >
-                      <div className="w-7 h-7 rounded-full gradient-primary flex items-center justify-center shrink-0">
-                        <Bot className="w-3.5 h-3.5 text-primary-foreground" />
-                      </div>
+                      <AppIcon size={28} showSparkle={false} className="shrink-0" />
                       <div className="glass-surface rounded-2xl rounded-bl-md px-4 py-3">
                         <div className="flex gap-1.5">
                           <span className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce [animation-delay:0ms]" />
