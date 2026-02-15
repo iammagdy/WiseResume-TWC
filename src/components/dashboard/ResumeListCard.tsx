@@ -308,7 +308,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="min-w-[44px] min-h-[44px] h-10 w-10 flex-shrink-0"
+                className="min-w-[44px] min-h-[44px] h-11 w-11 flex-shrink-0"
                 onClick={(e) => {
                   e.stopPropagation();
                 }}
