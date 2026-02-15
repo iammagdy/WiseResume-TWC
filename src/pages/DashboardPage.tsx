@@ -29,6 +29,7 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
 const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
 import { LinkedInImportSheet } from '@/components/settings/LinkedInImportSheet';
+import { AnalyzeJobSheet } from '@/components/dashboard/AnalyzeJobSheet';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
@@ -69,6 +70,7 @@ export default function DashboardPage() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [showLinkedInImport, setShowLinkedInImport] = useState(false);
+  const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
   
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tipVisible, setTipVisible] = useState(true);
@@ -611,7 +613,7 @@ export default function DashboardPage() {
         <FloatingCreateButton
           onClick={handleCreateNew}
           onTailor={() => navigate('/ai-studio')}
-          onAnalyzeJob={() => navigate('/applications')}
+          onAnalyzeJob={() => setShowAnalyzeJob(true)}
           pulse={tipVisible}
           isLoading={isCreating}
         />
@@ -707,6 +709,9 @@ export default function DashboardPage() {
         }}
         linkedinUsername={profile?.linkedinUrl?.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '')}
       />
+
+      {/* Analyze Job Sheet */}
+      <AnalyzeJobSheet open={showAnalyzeJob} onOpenChange={setShowAnalyzeJob} />
 
     </div>
   );
