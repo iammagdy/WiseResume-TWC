@@ -570,7 +570,7 @@ export default function EditorPage() {
             </SectionCard>
           ) : (
             <div className="space-y-3">
-              <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation">
+              <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation min-h-[44px]">
                 <ChevronLeft className="w-4 h-4" /> All Sections
               </button>
               <Suspense fallback={<SectionSkeleton />}>
@@ -699,7 +699,7 @@ export default function EditorPage() {
                   onClick={handleUndo}
                   disabled={!canUndo}
                   className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
                     canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
                   )}
                   aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
@@ -711,7 +711,7 @@ export default function EditorPage() {
                   onClick={handleRedo}
                   disabled={!canRedo}
                   className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[36px] min-h-[36px] flex items-center justify-center',
+                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
                     canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
                   )}
                   aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
@@ -723,7 +723,7 @@ export default function EditorPage() {
               {user && currentResumeId && (
                 <button
                   onClick={() => setShowVersionHistory(true)}
-                  className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex"
+                  className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex min-w-[44px] min-h-[44px] items-center justify-center"
                   aria-label="Version history"
                 >
                   <Clock className="w-4 h-4 text-muted-foreground" />
@@ -882,7 +882,7 @@ export default function EditorPage() {
           <div className="flex items-center gap-2 mt-1">
             <button
               onClick={() => { setShowATSBadge(v => !v); haptics.light(); }}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95"
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[44px]"
               aria-expanded={showATSBadge}
               aria-label="Toggle completeness breakdown"
             >
@@ -922,7 +922,7 @@ export default function EditorPage() {
             </div>
             <button
               onClick={() => { navigate(`/editor?id=${resumeFromDb.parent_resume_id}`); haptics.light(); }}
-              className="text-[11px] font-medium text-primary hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[36px] flex items-center"
+              className="text-[11px] font-medium text-primary hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
             >
               View Original
             </button>

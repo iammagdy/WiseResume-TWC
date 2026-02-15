@@ -71,7 +71,7 @@ export const SectionEmptyState = memo(function SectionEmptyState({
         transition={{ delay: 0.2, duration: 0.3 }}
       >
         <Collapsible open={showExample} onOpenChange={setShowExample}>
-          <CollapsibleTrigger className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto mt-1">
+          <CollapsibleTrigger className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors mx-auto mt-1 min-h-[44px] px-3">
             {showExample ? 'Hide Example' : 'Show Example'}
             {showExample ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
           </CollapsibleTrigger>
@@ -98,7 +98,7 @@ export const SectionEmptyState = memo(function SectionEmptyState({
               variant={action.variant || 'outline'}
               size="sm"
               onClick={action.onClick}
-              className={cn('gap-2', action.variant === 'default' && 'min-w-[140px]')}
+              className={cn('gap-2 min-h-[44px]', action.variant === 'default' && 'min-w-[140px]')}
             >
               {ActionIcon && <ActionIcon className="w-4 h-4" />}
               {action.label}
