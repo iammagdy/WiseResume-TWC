@@ -23,6 +23,7 @@ export function useNotifications() {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
+        .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
       return (data || []) as unknown as Notification[];
@@ -40,6 +41,7 @@ export function useUnreadNotificationCount() {
       const { count, error } = await supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user!.id)
         .eq('is_read', false);
       if (error) throw error;
       return count || 0;
@@ -72,6 +74,7 @@ export function useNotificationMutations() {
       const { error } = await supabase
         .from('notifications')
         .update({ is_read: true })
+        .eq('user_id', user!.id)
         .eq('is_read', false);
       if (error) throw error;
     },
@@ -100,7 +103,7 @@ export function useNotificationMutations() {
       const { error } = await supabase
         .from('notifications')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // delete all rows
+        .eq('user_id', user!.id);
       if (error) throw error;
     },
     onSuccess: () => {

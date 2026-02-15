@@ -18,8 +18,8 @@ interface StatusFilterProps {
 
 export function StatusFilter({ value, onChange }: StatusFilterProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-      {STATUSES.map((s) => (
+    <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x snap-mandatory px-1 -mx-1">
+      {STATUSES.map((s, i) => (
         <button
           key={s.value}
           onClick={() => {
@@ -27,7 +27,8 @@ export function StatusFilter({ value, onChange }: StatusFilterProps) {
             onChange(s.value);
           }}
           className={cn(
-            'shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation',
+            'shrink-0 min-w-fit px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation snap-start',
+            i === STATUSES.length - 1 && 'mr-4',
             value === s.value
               ? s.color
               : 'bg-muted/50 text-muted-foreground hover:bg-muted'
