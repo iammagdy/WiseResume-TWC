@@ -1,34 +1,43 @@
 
 
-## Add "Select All" Toggle to AI Enhance Sheet
+## Fix Score Rollback on Cancel and Ensure Real AI Scoring
 
-### Change
+### Root Cause
+
+1. **Score drops on cancel**: When the user closes the AIEnhanceSheet (even without applying anything), the `onOpenChange` handler always clears the score cache and re-calls the `score-resume` edge function. Since the AI model is non-deterministic (temperature: 0.2), the same resume can get 85% one time and 78% the next.
+
+2. **No distinction between "applied changes" vs "cancelled"**: The sheet's `onOpenChange(false)` fires identically whether the user applied 4 enhancements or simply swiped down to dismiss.
+
+### Solution
+
+Track whether any enhancements were actually applied. Only clear the cache and re-score if changes were made. If the user cancels, preserve the existing score.
+
+### Changes
 
 **File: `src/components/editor/ai/AIEnhanceSheet.tsx`**
+- Add a new optional prop: `onEnhanced?: () => void`
+- Call `onEnhanced()` whenever a section result is applied (inside `applyResult`) -- this signals to the parent that real changes happened
 
-Add a "Select All / Deselect All" toggle button in the "Sections to Enhance" header row. This sits next to the existing label and lets users toggle all available sections with one tap instead of selecting them individually.
+**File: `src/pages/ResumeDetailPage.tsx`**
+- Add a ref `enhancedRef = useRef(false)` to track if any enhancements were applied during the sheet session
+- Pass `onEnhanced={() => { enhancedRef.current = true }}` to `AIEnhanceSheet`
+- In `onOpenChange(false)`:
+  - If `enhancedRef.current` is true: clear cache, re-score with updated resume, reset the ref
+  - If `enhancedRef.current` is false (user cancelled): do nothing, keep existing score
+- Store the previous `healthScore` in a ref before opening the sheet, so if re-scoring fails, we can restore it
 
-**Specific edits (lines 219-220):**
-- Change the header from a single `<p>` to a flex row with the label on the left and a "Select All" / "Deselect All" text button on the right
-- The button checks if all `availableSections` are already selected; if yes, it clears the set; if no, it adds all of them
-- Includes `haptics.light()` feedback on tap
+### Flow After Fix
 
-### Layout
-
-```text
-Sections to Enhance          [Select All]   <-- clickable text button
-[x] Summary
-[x] Experience
-[x] Skills
-[x] Education
-```
-
-When all are selected, the button text changes to "Deselect All".
+| Action | Result |
+|--------|--------|
+| User sees 85%, taps "Improve Score" | Sheet opens, score stays 85% |
+| User cancels/dismisses sheet | Sheet closes, score stays 85% (no re-score) |
+| User applies 3 sections, then closes | Cache cleared, AI re-scores with enhanced content, new score displayed |
+| Re-score fails (network error, rate limit) | Previous 85% score is restored |
 
 ### Technical Details
 
-- The toggle logic: `allSelected = availableSections.every(s => selectedSections.has(s.id))`
-- Select all: `setSelectedSections(new Set(availableSections.map(s => s.id)))`
-- Deselect all: `setSelectedSections(new Set())`
-- Styled as a small text button (`text-xs text-primary`) with 44px min touch target
+- The `score-resume` edge function already calls the real AI (gemini-2.5-flash-lite) -- the scoring IS real. The issue was only that re-scoring on cancel produced a slightly different result due to AI non-determinism.
+- The `enhancedRef` pattern avoids unnecessary state re-renders and is reset to `false` each time the sheet opens.
+- No changes needed to the edge function itself -- it already produces genuine AI-powered scores.
 
