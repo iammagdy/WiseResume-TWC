@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { haptics } from '@/lib/haptics';
 import { AIProviderFooter } from '@/components/editor/ai/AIProviderBadge';
 
-export type SectionType = 'contact' | 'summary' | 'experience' | 'education' | 'skills';
+export type SectionType = 'contact' | 'summary' | 'experience' | 'education' | 'skills' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
 
 interface AIActionConfig {
   id: string;
@@ -37,6 +37,29 @@ const sectionActions: Record<SectionType, AIActionConfig[]> = {
   contact: [
     { id: 'improve', label: 'Format & Validate', icon: <CheckCircle className="w-4 h-4" /> },
     { id: 'generate', label: 'Suggest Links', icon: <Wand2 className="w-4 h-4" /> },
+  ],
+  awards: [
+    { id: 'generate', label: 'Generate', icon: <Wand2 className="w-4 h-4" /> },
+    { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" /> },
+  ],
+  projects: [
+    { id: 'generate', label: 'Generate Description', icon: <Wand2 className="w-4 h-4" /> },
+    { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" /> },
+  ],
+  publications: [
+    { id: 'generate', label: 'Generate Abstract', icon: <Wand2 className="w-4 h-4" /> },
+    { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" /> },
+  ],
+  volunteering: [
+    { id: 'generate', label: 'Generate Description', icon: <Wand2 className="w-4 h-4" /> },
+    { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" /> },
+  ],
+  certifications: [
+    { id: 'generate', label: 'Suggest Certifications', icon: <Wand2 className="w-4 h-4" /> },
+    { id: 'improve', label: 'Improve', icon: <Sparkles className="w-4 h-4" /> },
+  ],
+  languages: [
+    { id: 'generate', label: 'Suggest Languages', icon: <Wand2 className="w-4 h-4" /> },
   ],
 };
 

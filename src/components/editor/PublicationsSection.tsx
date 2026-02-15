@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { Plus, Trash2, ChevronDown, ChevronUp, BookOpen, Calendar, Link } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, BookOpen, Calendar, Link, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,9 @@ export const PublicationsSection = memo(function PublicationsSection() {
   const updatePub = (id: string, u: Partial<Publication>) => { updateResume({ publications: publications.map(p => p.id === id ? { ...p, ...u } : p) }); };
   const deletePub = (id: string) => { haptics.light(); updateResume({ publications: publications.filter(p => p.id !== id) }); };
 
+  const moveUp = (index: number) => { if (index === 0) return; haptics.light(); const arr = [...publications]; [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]]; updateResume({ publications: arr }); };
+  const moveDown = (index: number) => { if (index >= publications.length - 1) return; haptics.light(); const arr = [...publications]; [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]]; updateResume({ publications: arr }); };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-end"><Button variant="outline" size="sm" onClick={addPublication} className="gap-2 active:scale-95 transition-transform"><Plus className="w-4 h-4" />Add</Button></div>
@@ -28,7 +31,11 @@ export const PublicationsSection = memo(function PublicationsSection() {
           {publications.map((pub, i) => (
             <div key={pub.id} className="rounded-xl border border-border overflow-hidden">
               <button onClick={() => setExpandedId(expandedId === pub.id ? null : pub.id)} className="w-full p-4 flex items-center justify-between hover:bg-muted/50 touch-manipulation active:bg-muted/70 min-h-[72px]">
-                <div className="text-left flex-1 min-w-0 pr-3"><p className="font-semibold text-sm truncate">{pub.title || `Publication ${i + 1}`}</p><p className="text-sm text-muted-foreground truncate">{pub.publisher || 'Publisher'}</p></div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button onClick={e => { e.stopPropagation(); moveUp(i); }} disabled={i === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
+                  <button onClick={e => { e.stopPropagation(); moveDown(i); }} disabled={i === publications.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
+                </div>
+                <div className="text-left flex-1 min-w-0 px-3"><p className="font-semibold text-sm truncate">{pub.title || `Publication ${i + 1}`}</p><p className="text-sm text-muted-foreground truncate">{pub.publisher || 'Publisher'}</p></div>
                 <div className="shrink-0 w-10 h-10 flex items-center justify-center">{expandedId === pub.id ? <ChevronUp className="w-5 h-5 text-muted-foreground" /> : <ChevronDown className="w-5 h-5 text-muted-foreground" />}</div>
               </button>
               {expandedId === pub.id && (

@@ -21,33 +21,20 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
   const { enhance, isEnhancing } = useAIEnhance({
     section,
     onApply: (content) => {
-      switch (section) {
-        case 'contact':
-          if (content && typeof content === 'object') {
-            updateResume({ contactInfo: content as any });
-          }
-          break;
-        case 'summary':
-          if (typeof content === 'string') {
-            updateResume({ summary: content });
-          }
-          break;
-        case 'experience':
-          if (Array.isArray(content)) {
-            updateResume({ experience: content });
-          }
-          break;
-        case 'education':
-          if (Array.isArray(content)) {
-            updateResume({ education: content });
-          }
-          break;
-        case 'skills':
-          if (Array.isArray(content)) {
-            updateResume({ skills: content });
-          }
-          break;
-      }
+      const applyMap: Record<string, () => void> = {
+        contact: () => { if (content && typeof content === 'object') updateResume({ contactInfo: content as any }); },
+        summary: () => { if (typeof content === 'string') updateResume({ summary: content }); },
+        experience: () => { if (Array.isArray(content)) updateResume({ experience: content }); },
+        education: () => { if (Array.isArray(content)) updateResume({ education: content }); },
+        skills: () => { if (Array.isArray(content)) updateResume({ skills: content }); },
+        awards: () => { if (Array.isArray(content)) updateResume({ awards: content }); },
+        projects: () => { if (Array.isArray(content)) updateResume({ projects: content }); },
+        publications: () => { if (Array.isArray(content)) updateResume({ publications: content }); },
+        volunteering: () => { if (Array.isArray(content)) updateResume({ volunteering: content }); },
+        certifications: () => { if (Array.isArray(content)) updateResume({ certifications: content }); },
+        languages: () => { if (Array.isArray(content)) updateResume({ languages: content }); },
+      };
+      applyMap[section]?.();
       toast.success('AI suggestion applied!');
     },
   });
@@ -61,6 +48,12 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
       experience: currentResume.experience,
       education: currentResume.education,
       skills: currentResume.skills,
+      awards: currentResume.awards || [],
+      projects: currentResume.projects || [],
+      publications: currentResume.publications || [],
+      volunteering: currentResume.volunteering || [],
+      certifications: currentResume.certifications || [],
+      languages: currentResume.languages || [],
     };
 
     const result = await enhance(
@@ -70,35 +63,21 @@ export const SectionAIAction = memo(function SectionAIAction({ section }: Sectio
       jobDescription || undefined,
     );
 
-    // Auto-apply if result returned
     if (result?.improved) {
-      switch (section) {
-        case 'contact':
-          if (result.improved && typeof result.improved === 'object') {
-            updateResume({ contactInfo: result.improved as any });
-          }
-          break;
-        case 'summary':
-          if (typeof result.improved === 'string') {
-            updateResume({ summary: result.improved });
-          }
-          break;
-        case 'experience':
-          if (Array.isArray(result.improved)) {
-            updateResume({ experience: result.improved });
-          }
-          break;
-        case 'education':
-          if (Array.isArray(result.improved)) {
-            updateResume({ education: result.improved });
-          }
-          break;
-        case 'skills':
-          if (Array.isArray(result.improved)) {
-            updateResume({ skills: result.improved });
-          }
-          break;
-      }
+      const applyMap: Record<string, () => void> = {
+        contact: () => { if (result.improved && typeof result.improved === 'object') updateResume({ contactInfo: result.improved as any }); },
+        summary: () => { if (typeof result.improved === 'string') updateResume({ summary: result.improved }); },
+        experience: () => { if (Array.isArray(result.improved)) updateResume({ experience: result.improved }); },
+        education: () => { if (Array.isArray(result.improved)) updateResume({ education: result.improved }); },
+        skills: () => { if (Array.isArray(result.improved)) updateResume({ skills: result.improved }); },
+        awards: () => { if (Array.isArray(result.improved)) updateResume({ awards: result.improved }); },
+        projects: () => { if (Array.isArray(result.improved)) updateResume({ projects: result.improved }); },
+        publications: () => { if (Array.isArray(result.improved)) updateResume({ publications: result.improved }); },
+        volunteering: () => { if (Array.isArray(result.improved)) updateResume({ volunteering: result.improved }); },
+        certifications: () => { if (Array.isArray(result.improved)) updateResume({ certifications: result.improved }); },
+        languages: () => { if (Array.isArray(result.improved)) updateResume({ languages: result.improved }); },
+      };
+      applyMap[section]?.();
       toast.success('AI suggestion applied!');
     }
   };

@@ -87,6 +87,12 @@ export interface Hobby {
   visible: boolean;
 }
 
+export interface Language {
+  id: string;
+  name: string;
+  proficiency: 'native' | 'fluent' | 'professional' | 'basic';
+}
+
 export interface Reference {
   id: string;
   name: string;
@@ -122,6 +128,7 @@ export interface ResumeData {
   volunteering?: Volunteering[];
   hobbies?: Hobby[];
   references?: Reference[];
+  languages?: Language[];
   templateId: string;
   customization?: TemplateCustomization;
   createdAt?: string;
@@ -152,7 +159,7 @@ export interface GapAnalysis {
 
 export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'developer' | 'creative' | 'executive' | 'compact' | 'academic' | 'healthcare' | 'sales' | 'elegant' | 'corporate' | 'banking' | 'consulting' | 'federal' | 'legal' | 'marketing' | 'designer' | 'portfolio' | 'startup' | 'infographic' | 'data-science' | 'devops' | 'cyber' | 'product' | 'clean' | 'swiss' | 'mono' | 'zen';
 
-export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'hobbies' | 'references';
+export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'hobbies' | 'references' | 'languages';
 
 export type TailorSectionId = 'summary' | 'skills' | 'experience' | 'education';
 
