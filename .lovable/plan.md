@@ -1,69 +1,97 @@
 
 
-## AI Studio Mobile Optimization
+## Onboarding Tour, Visual Indicators, and Progress Bar Unification
 
 ### Overview
 
-The AI Studio page already has a solid mobile layout with touch-manipulation, glass-elevated cards, and stacked tools. This plan addresses the specific gaps: suggestion chip sizing, tool card sizing, header compactness, "Working on" bar improvements, and credits tooltip.
+This plan covers three areas: (1) an AI Studio onboarding tour for first-time users, (2) visual indicators like pulse animations and AI tip badges, and (3) unifying the progress bar between dashboard and editor so they look and calculate the same way.
 
-### What's Already Done (No Changes Needed)
+---
 
-- Chat section: Full-width tappable card with icon, title, and suggestion chips
-- Featured tools: Already stacked vertically with `min-h-[72px]` and `active:scale-[0.98]`
-- More AI Tools grid: Already `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4`
-- Touch targets: All buttons have `touch-manipulation` and `active:scale` feedback
-- Credits indicator: Already shows remaining count with Zap icon
-- Bottom nav clearance: `pb-20` already applied
+### Part 1: Onboarding Tour for AI Studio
 
-### Changes Required
+**Current State**: The app already has an `AIIntroTooltip` modal in the editor (shown on first visit, persisted via `hasSeenAIIntro` in `settingsStore`). There is no equivalent for the AI Studio tab.
 
-**File 1: `src/pages/AIStudioPage.tsx`**
+**Changes**:
 
-1. **Quick suggestion chips** (lines 196-203):
-   - Increase chip sizing from `text-xs px-2.5 py-1` to `text-sm px-3 py-1.5 min-h-[36px]` for comfortable mobile tapping
-   - Chips already wrap via `flex-wrap` -- no layout change needed
+**File: `src/store/settingsStore.ts`**
+- Add `hasSeenAIStudioTour: boolean` (default `false`) and its setter to the settings store
 
-2. **Featured tool cards** (lines 215-238):
-   - Increase `min-h` from `72px` to `min-h-[100px] sm:min-h-[72px]` on mobile
-   - Increase icon from `w-6 h-6` to `w-7 h-7` (28px)
-   - Increase title from `text-sm` to `text-base sm:text-sm` (16px on mobile)
-   - Increase description from `text-xs` to `text-sm sm:text-xs` (14px on mobile)
+**File: `src/components/ai-studio/AIStudioTourModal.tsx`** (new)
+- Create a multi-step welcome modal (3 steps):
+  1. "Welcome to AI Studio" -- highlights the chat feature with animated Sparkles icon
+  2. "Your AI Toolkit" -- shows featured tools (Tailor, Enhance, Proofread)
+  3. "Try it now" -- encourages tapping a suggestion chip, with a "Got It!" dismiss button
+- Uses framer-motion for step transitions
+- Glass-elevated card design matching existing `AIIntroTooltip` style
+- Dismissal sets `hasSeenAIStudioTour: true` in settings store
 
-3. **Secondary tool cards** (lines 269-281):
-   - Increase `min-h` from `88px` to `min-h-[100px]`
-   - Increase icon from `w-5 h-5` to `w-6 h-6` (24px)
-   - Increase label from `text-xs` to `text-sm sm:text-xs` (~15px on mobile)
-   - Increase description from `text-[10px]` to `text-xs sm:text-[10px]` (13px on mobile)
+**File: `src/pages/AIStudioPage.tsx`**
+- Import and render `AIStudioTourModal` when `!hasSeenAIStudioTour` (with 800ms delay after mount)
+- On dismiss, call `setHasSeenAIStudioTour(true)`
 
-4. **Header** (lines 123-135):
-   - Reduce mobile padding from `pt-6 pb-4` to `pt-4 pb-3 sm:pt-6 sm:pb-4`
+---
 
-5. **"Working on" bar** (lines 144-160):
-   - Increase font from `text-sm` to `text-[15px] sm:text-sm` for mobile prominence
-   - Add a "Change" button (navigates to `/dashboard`) next to the resume title, min-h 44px, visible only when a resume is selected
+### Part 2: Visual Indicators
 
-6. **Credits indicator** -- wrap the `AICreditsIndicator` in a `Tooltip` with content "AI Credits Remaining"
+**File: `src/pages/AIStudioPage.tsx`**
+- Add pulse animation to the Wise AI Chat card on first visit (when `!hasSeenAIStudioTour`): a subtle pulsing glow ring around the card using `animate` from framer-motion
+- Update chat input placeholder examples to cycle through suggestions: "Ask AI to edit your resume...", "Try: Write a summary for a software engineer", etc.
+- Add "AI is thinking..." spinner state to the chat button area when chat sheet is opening (use existing loading pattern)
 
-**File 2: `src/components/editor/ai/AICreditsIndicator.tsx`**
+**File: `src/components/editor/AIFloatingButton.tsx`**
+- Add pulse animation on first visit: check `hasSeenAIIntro` from settings store; if false, add a more prominent pulse ring (already has a subtle one -- increase opacity from 0.5 to 0.7 and scale from 1.2 to 1.4)
 
-- No changes needed -- the tooltip will be applied at the usage site in AIStudioPage
+**File: `src/components/editor/ai/AICreditsIndicator.tsx`**
+- No changes needed -- credits display already exists with Zap icon
+
+---
+
+### Part 3: Progress Bar Unification
+
+**Current Inconsistency**:
+- Dashboard `ResumeListCard` uses the generic `<Progress>` (Radix) component with `gradient-primary` fill (pink/red gradient) and its own simple `calculateResumeCompletion()` function (checks 5 sections: contact, summary, experience, education, skills -- binary yes/no)
+- Editor uses `<ProgressBar>` component with dynamic color gradient (red at 0-33%, amber at 34-66%, green at 67-100%) and `calcOverallScore()` from `resumeCompletionRules.ts` (granular per-section scoring)
+
+**Solution**: Replace the dashboard card's progress bar with the editor's `ProgressBar` component and scoring logic.
+
+**File: `src/components/dashboard/ResumeListCard.tsx`**
+- Remove the `calculateResumeCompletion()` function and `getCompletionTextColor()` function
+- Remove import of `Progress` from `@/components/ui/progress`
+- Import `ProgressBar` from `@/components/editor/ProgressBar` and `dbToResumeData` from `@/hooks/useResumes`
+- Convert the `DatabaseResume` to `ResumeData` using `dbToResumeData()` (already available)
+- Replace the `<Progress>` + percentage span block (lines 298-310) with:
+  ```
+  <ProgressBar resume={resumeData} className="mb-2" />
+  ```
+  This gives the card the same dynamic color bar (red/amber/green), same percentage calculation, and same "X% Complete" label as the editor
+- The `ProgressBar` component already has `h-3` (close to 8px) bar height and handles all the color logic
+- Remove `completionPercentage` useMemo since it's no longer needed
+
+**File: `src/components/editor/ProgressBar.tsx`**
+- Change bar height from `h-3` to `h-2.5` (10px) to better match the spec while staying consistent
+- Add an optional `compact` prop: when true, uses `h-2` (8px) for card contexts and hides the "Resume" and "Complete" text labels (just shows percentage)
+- Dashboard cards will use `<ProgressBar resume={data} compact />`
+
+---
 
 ### What Does NOT Change
 
-- All AI tool functionality and API calls
-- Sheet opening/closing logic
-- Chat (AgenticChatSheet) behavior
-- Resume context detection and guard logic
-- Navigation and routing
-- Lazy-loaded sheets and Suspense boundaries
-- Error boundaries
-- Haptic feedback patterns
-- Desktop layouts (all changes use responsive `sm:` prefixes)
+- All resume scoring logic in `resumeCompletionRules.ts` (the source of truth)
+- Editor ProgressBar confetti animation and color gradient logic
+- Dashboard card swipe gestures, menu actions, and data loading
+- AI tool functionality, API calls, and sheet behaviors
+- Onboarding carousel (existing 4-screen flow)
+- Score ring on individual cards (health score from background scoring)
 
-### Technical Notes
+### Files Summary
 
-- All changes are CSS class adjustments and one small "Change" button addition
-- The "Change" button reuses the existing `navigate('/dashboard')` pattern already used in the empty-state button
-- Tooltip wrapping uses existing `Tooltip`/`TooltipTrigger`/`TooltipContent` from `@/components/ui/tooltip`
-- No new dependencies or state variables needed (except the Tooltip imports)
+| File | Action |
+|------|--------|
+| `src/store/settingsStore.ts` | Add `hasSeenAIStudioTour` state |
+| `src/components/ai-studio/AIStudioTourModal.tsx` | New -- 3-step tour modal |
+| `src/pages/AIStudioPage.tsx` | Render tour modal, add pulse on chat card |
+| `src/components/editor/AIFloatingButton.tsx` | Increase pulse prominence on first visit |
+| `src/components/editor/ProgressBar.tsx` | Add `compact` prop for card usage |
+| `src/components/dashboard/ResumeListCard.tsx` | Replace Progress with ProgressBar, remove local calculation |
 
