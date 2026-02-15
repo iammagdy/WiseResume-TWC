@@ -1,67 +1,63 @@
 
 
-## Fix: Settings "Jump to Section" Panel Positioning on Mobile
+## Landing Page Audit and Optimization
 
-### Problem
+### Current Page Structure (Index.tsx)
 
-The "Jump to Section" button in the Settings header uses a `FloatingPanelRoot` / `FloatingPanelContent` component. The header has the `glass-header backdrop-blur-xl` class, which applies `backdrop-filter`. In CSS, `backdrop-filter` creates a new containing block, causing `fixed`-positioned children (the FloatingPanel overlay and content) to render relative to the header instead of the viewport -- pushing the panel off-screen on mobile.
+The landing page is a self-contained component with these sections in order:
 
-This is the exact same root cause fixed in the Editor's "More Sections", Tools menu, and Dashboard resume card actions.
+1. **Hero** (lines 75-138) -- AppIcon, headline, CTA, trust badges
+2. **Steps Row** (lines 141-167) -- Create / AI Polish / Export
+3. **EditorDemo** (lines 170-173) -- Animated phone mockup showing AI bullet transformation
+4. **Social Proof Bar** (lines 176-194) -- Rating, resumes count, "Free forever"
+5. **Competitor Comparison** (lines 197-234) -- "Why WiseResume?" table (us vs. others)
+6. **AI Bullet Transform** (lines 237-266) -- Static before/after card
+7. **Features Grid** (lines 269-290) -- 6 feature cards
+8. **Template Preview** (lines 293-327) -- 3 mini template thumbnails
+9. **Bottom CTA** (lines 330-354) -- Repeated "Get Started Free"
 
-### Audit Results (Other Settings Elements)
+### Issues Found
 
-- **Header layout**: Back button (48px touch target) + "Settings" title + trigger fit at 360px with no overflow.
-- **Section jump bar (horizontal chips)**: Uses `overflow-x-auto` with `-webkit-overflow-scrolling: touch`, works correctly.
-- **Section cards**: All use `glass-elevated` with proper `px-4`/`px-5` padding, no horizontal overflow.
-- **Controls** (switches, collapsibles, time inputs, buttons): All have comfortable touch targets (44px+), proper spacing.
-- **Nested sheets** (EditProfile, AISettings, Help, BiometricSetup, etc.): All use portal-based `Sheet` components -- already work correctly.
-- **Scroll-to-top FAB**: Uses `fixed` positioning outside the glass header, works fine.
-- **Footer links and social icons**: Properly spaced, no overflow.
+**1. Redundant Section: AI Bullet Transform (lines 237-266)**
+The static "AI Bullet Transformation" card shows the exact same before/after content as the animated EditorDemo above it. The EditorDemo already demonstrates this interactively with typing animation, AI shimmer, and score ring. The static card adds no new information and lengthens the page unnecessarily.
+- **Action**: Remove this section entirely.
 
-Only the "Jump to Section" FloatingPanel has the off-screen rendering bug.
+**2. One-Sided Competitor Comparison**
+The comparison table marks every row as a checkmark for WiseResume and an X for "Others". This looks untrustworthy -- no competitor has zero overlap. The first row ("Generic templates only") even implies *others* have templates but marks it X.
+- **Action**: Remove this section. The Features Grid already communicates what WiseResume offers. Alternatively, replace with a shorter, more honest differentiator (but removal is simpler and cleaner).
 
-### Fix
+**3. Template Preview is Minimal but Fine**
+Only 3 thumbnail placeholders. The TemplateGallery component exists with 6 rich previews but is unused on this page.
+- **Action**: Keep as-is. The lightweight thumbnails load fast and the "Browse All 12" link drives engagement without bloating the page.
 
-**File: `src/pages/SettingsPage.tsx`**
+**4. Unused Imports in Index.tsx**
+`BarChart3` icon is imported but never used.
+- **Action**: Remove unused import.
 
-1. Replace the `FloatingPanelRoot` / `FloatingPanelTrigger` / `FloatingPanelContent` / `FloatingPanelBody` imports with `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle` imports.
-2. Remove the `useFloatingPanel` import (only used by `SectionJumpButton`).
-3. Add a `showJumpSheet` state variable.
-4. Replace the FloatingPanel JSX block (lines 294-316) with:
-   - A trigger button (same visual styling: Menu icon + optional "Sections" label) that sets `showJumpSheet = true`.
-   - A `<Sheet side="bottom">` containing the section list with the same `SECTIONS.map(...)` rendering.
-5. Simplify `SectionJumpButton` to accept an `onClose` callback prop instead of using `useFloatingPanel().closeFloatingPanel()`, since it will no longer be inside a FloatingPanel context.
-6. The Sheet content uses `pb-safe`, `max-h-[70dvh]`, and proper touch targets.
+**5. Mobile Layout is Already Good**
+- No horizontal overflow at 360px (verified: all sections use `px-4`, `max-w-md mx-auto`)
+- Hero CTA is above the fold with proper sizing (h-14, text-lg)
+- Features grid uses `grid-cols-1 xs:grid-cols-2` correctly
+- Touch targets meet 44px minimum
+- No fixes needed for mobile layout
 
-### What stays the same
+### Resulting Page Flow (After Changes)
 
-- `SECTIONS` array unchanged
-- `scrollToSection` function unchanged
-- `activeSection` tracking via IntersectionObserver unchanged
-- Section jump bar (horizontal chips below header) unchanged
-- All settings logic, handlers, and sheet states unchanged
-- All other components on the page untouched
+1. **Hero** -- Headline + primary CTA (above the fold)
+2. **Steps Row** -- How it works in 3 steps
+3. **EditorDemo** -- Interactive AI demo (the wow moment)
+4. **Social Proof Bar** -- Trust signals
+5. **Features Grid** -- What you get (6 cards)
+6. **Template Preview** -- Visual proof of quality
+7. **Bottom CTA** -- Final conversion push
 
-### Technical Details
+This cuts 2 sections, shortening the page by ~30% while removing zero unique value. The conversion flow becomes: hook (hero) -> show (demo) -> prove (social proof) -> list (features) -> convert (bottom CTA).
 
-```text
-Before:
-  header (glass-header backdrop-blur-xl)
-    +-- FloatingPanelRoot
-          +-- FloatingPanelTrigger (button)
-          +-- FloatingPanelContent (fixed overlay -- BROKEN by backdrop-filter)
-
-After:
-  header (glass-header backdrop-blur-xl)
-    +-- trigger button (sets showJumpSheet=true)
-  Sheet (portal at document root -- always renders correctly)
-    +-- section list
-```
-
-### Summary
+### Technical Changes
 
 | File | Change |
 |------|--------|
-| `src/pages/SettingsPage.tsx` | Replace FloatingPanel with Sheet for "Jump to Section" menu; simplify `SectionJumpButton` to use `onClose` prop instead of `useFloatingPanel` hook |
+| `src/pages/Index.tsx` | Remove the `competitors` array and the competitor comparison section (lines 26-34, 196-234). Remove the static AI Bullet Transform section (lines 236-266). Remove unused `BarChart3` import. |
 
-1 component swap. Zero logic changes. Same proven pattern as all previous fixes.
+No logic, routing, auth, or handler changes. All remaining sections keep their exact current code.
+
