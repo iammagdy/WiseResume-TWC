@@ -1,47 +1,47 @@
 
-## Fix: Tools Panel Positioning on Mobile
+## Dashboard Resume Card Actions -- Fix FloatingPanel Positioning on Mobile
 
-### Issue Found
+### Problem
 
-The **Tools button** in the Editor header opens a FloatingPanel (via `ActionsPanel`) that renders incorrectly on mobile. The panel appears behind/above the viewport instead of in front of the user.
+The `ResumeListCard` component uses `ActionsPanel` (which wraps `FloatingPanel`) for its three-dot menu. The card itself has the `glass-elevated` class, which applies `backdrop-filter`. In CSS, `backdrop-filter` creates a new containing block, causing `fixed`-positioned children (the FloatingPanel overlay and content) to render relative to the card instead of the viewport -- pushing the panel off-screen on mobile.
 
-**Root cause**: The header element has the `glass` class which applies `backdrop-filter`. In CSS, `backdrop-filter` creates a new containing block, causing `fixed`-positioned children (the FloatingPanel overlay and content) to behave like `absolute` -- they position relative to the header instead of the viewport.
+This is the exact same root cause that was previously fixed in the Editor's "More Sections" panel and Tools menu by converting from FloatingPanel to Sheet.
 
-This is the exact same bug that was fixed for "More Sections" in the previous change (converting FloatingPanel to Sheet).
+### Audit Results (Other Dashboard Elements)
 
-### Other Audit Results (No Issues)
+- **Header**: No horizontal overflow at 360px. Logo and profile avatar fit cleanly with proper padding.
+- **Search bar**: Full-width with comfortable padding (`px-4`), `rounded-full h-12`, no overflow.
+- **Action cards grid**: `grid grid-cols-2 gap-2 px-4` works well at 360px.
+- **Resume list container**: `px-4 pb-4` with `space-y-4` provides proper spacing and no horizontal scroll.
+- **Card layout**: Title truncates correctly, progress bar fits, swipe actions work, tap targets are 44px+.
+- **FloatingCreateButton**: Already uses portal positioning (FAB), works correctly.
 
-- **More Sections panel**: Works correctly (Sheet-based, portal rendering) -- verified by testing
-- **Section labels**: "Awards" and other sub-sections display the correct label and icon in the dropdown trigger -- verified by testing
-- **Header layout**: No horizontal scroll at 360px; title truncates correctly; back button and Tools trigger are properly sized (48px touch targets)
-- **Editor content area**: Stacks vertically, no horizontal scroll, proper padding
-- **StepperNav mobile dropdown**: Section switching works correctly with proper labels and completion indicators
+Only the ActionsPanel inside `ResumeListCard` has the off-screen rendering bug.
 
-### Planned Change
+### Fix
 
-**File: `src/pages/EditorPage.tsx`**
+**File: `src/components/dashboard/ResumeListCard.tsx`**
 
-Replace the mobile `ActionsPanel` (FloatingPanel-based, lines 762-777) with a `Sheet` (portal-based bottom sheet). The Sheet renders at the document root via React portal, bypassing the CSS containing block issue.
-
-Specifically:
-1. Add a `showToolsSheet` state variable
-2. Replace `<ActionsPanel>` with a simple trigger button + `<Sheet>` that renders the same grouped actions
-3. Reuse the existing `editorToolGroups` data -- no logic changes
-4. The Sheet content uses `pb-safe`, proper touch targets (`min-h-[48px]`), and haptic feedback
-5. Desktop tools (lines 720-761) remain completely unchanged
+1. Replace the `ActionsPanel` import with `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle` imports (plus `Separator`).
+2. Add a `showActionsSheet` state variable.
+3. Replace the `<ActionsPanel>` JSX (lines 306-380) with:
+   - A trigger button (same styling as current) that sets `showActionsSheet = true`
+   - A `<Sheet>` with `side="bottom"` that renders the same grouped actions
+4. Reuse the existing inline `groups` data -- all handler functions remain untouched.
+5. Sheet content uses `pb-safe`, `max-h-[80dvh]`, proper 48px touch targets, and haptic feedback on each action.
 
 ### What stays the same
 
-- `editorToolGroups` memo and all handler functions unchanged
-- Desktop tool buttons (hidden on mobile) unchanged
-- All section logic, data, and navigation unchanged
-- `ActionsPanel` component itself is not modified (still available for other uses)
-- No props, types, or exports renamed
+- All handler functions (`onEdit`, `onDuplicate`, `onDelete`, `onRename`, `onInterview`, download, share) unchanged
+- Props interface unchanged
+- Card layout, swipe gestures, progress bar, ATS score -- all unchanged
+- `ResumeGroup` component unchanged (it renders `ResumeListCard` which gets the fix automatically)
+- `ActionsPanel` component itself is not modified (still available elsewhere)
 
 ### Summary
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Replace mobile `ActionsPanel` with `Sheet` for Tools menu (same pattern as "More Sections" fix) |
+| `src/components/dashboard/ResumeListCard.tsx` | Replace `ActionsPanel` with portal-based `Sheet` for the three-dot menu |
 
-1 component swap. Zero logic changes.
+1 component swap. Zero logic changes. Same pattern as the Editor fixes.
