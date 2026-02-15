@@ -176,7 +176,7 @@ export const StepperNav = memo(function StepperNav({
         </Sheet>
 
         {/* More sections - Sheet on mobile (portal-based, avoids CSS containing block issues) */}
-        {onMoreSectionSelect && (
+        {onMoreSectionSelect && !activeMoreSection && (
           <div className="mt-2">
             <button
               onClick={() => { setShowMoreSheet(true); haptics.light(); }}
