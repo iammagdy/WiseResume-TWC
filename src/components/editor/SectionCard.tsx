@@ -35,7 +35,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
             status === 'complete' ? 'text-success' : 'text-primary'
           )} />
         </div>
-        <h3 className="text-h3 !text-sm flex-1">{title}</h3>
+        <h2 className="text-h3 !text-sm flex-1">{title}</h2>
         {action && <div className="shrink-0">{action}</div>}
       </div>
 
