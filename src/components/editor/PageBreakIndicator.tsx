@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils';
-import { findSmartBreakPositions } from '@/lib/pdfGenerator';
+import { findSmartBreakPositionsTagged, TaggedBreakPosition } from '@/lib/pdfGenerator';
 import { useState, useEffect, RefObject, useMemo, useCallback, useRef } from 'react';
 import { TemplateConfig } from '@/lib/templateConfig';
 
@@ -25,7 +25,7 @@ export function PageBreakIndicator({
   templateConfig,
   className 
 }: PageBreakIndicatorProps) {
-  const [breaks, setBreaks] = useState<number[]>([]);
+  const [breaks, setBreaks] = useState<TaggedBreakPosition[]>([]);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Create a stable key that changes when manual break sections change
@@ -34,8 +34,6 @@ export function PageBreakIndicator({
     [manualBreakSections]
   );
 
-  const isManualMode = manualBreakSections && manualBreakSections.length > 0;
-  
   // Don't show indicators for fixed-sidebar templates (single-page optimized)
   const shouldShowIndicators = !templateConfig?.singlePageOptimized && 
     templateConfig?.layout !== 'fixed-sidebar';
@@ -58,7 +56,6 @@ export function PageBreakIndicator({
       const sourceHeightPerPage = PRINTABLE_HEIGHT / scaleFactor;
 
       // SINGLE-PAGE GUARD: Don't show any breaks if content fits on one page
-      // Use 5% buffer to avoid false positives from minor measurement differences
       const isSinglePage = containerHeight <= sourceHeightPerPage * 1.05;
       
       if (isSinglePage && !manualBreakSections?.length) {
@@ -66,8 +63,7 @@ export function PageBreakIndicator({
         return;
       }
 
-      // Pass the current manualBreakSections
-      const newBreaks = findSmartBreakPositions(
+      const newBreaks = findSmartBreakPositionsTagged(
         element,
         sourceHeightPerPage,
         containerHeight,
@@ -117,13 +113,13 @@ export function PageBreakIndicator({
 
   return (
     <div className={cn("absolute inset-0 pointer-events-none", className)}>
-      {breaks.map((breakPosition, index) => (
+      {breaks.map((breakItem, index) => (
         <div
           key={`${breakKey}-${index}`}
           className="absolute left-0 right-0 z-10"
-          style={{ top: `${breakPosition}px` }}
+          style={{ top: `${breakItem.position}px` }}
         >
-          {isManualMode ? (
+          {breakItem.type === 'manual' ? (
             // Enhanced visual for manual breaks
             <>
               {/* Gradient page boundary line */}
@@ -140,7 +136,7 @@ export function PageBreakIndicator({
               <div className="h-4 bg-gradient-to-b from-primary/10 to-transparent" />
             </>
           ) : (
-            // Original dashed line for auto breaks
+            // Subtle dashed line for auto breaks
             <div className="flex items-center gap-2">
               <div className="flex-1 border-t-2 border-dashed border-amber-500/60" />
               <span className="px-2 py-0.5 text-xs font-medium rounded-full whitespace-nowrap shadow-sm text-amber-600 bg-amber-100">
