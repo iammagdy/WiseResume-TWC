@@ -1,101 +1,77 @@
 
 
-## Fix Speech Recognition and Enhance Voice Feedback
+## Fix Dashboard Resume Card Layout and Floating Button
 
-### Root Cause Analysis
+### Problems Identified
 
-The current speech recognition relies **entirely on ElevenLabs Scribe** (realtime WebSocket STT). When the ElevenLabs WebSocket connection fails silently (network issues, token problems, or browser WebSocket limitations in the preview iframe), the UI shows "Listening..." but no audio is processed. There is **no fallback** to the browser's built-in Web Speech API.
+1. **Chevron button off-screen**: In `ResumeGroup.tsx`, the expand/collapse button uses `absolute left-0 -translate-x-full` which places it completely outside the visible area on mobile.
 
-Additionally:
-- `speechSupported` is hardcoded to `true` -- it never checks actual browser capability
-- There is no timeout for "no speech detected"
-- Errors during WebSocket setup may not surface to the user clearly
-- No debug logging exists for diagnosing connection issues
+2. **Overlapping badges**: The "3 tailored versions" and "Compare" badges at the bottom of the card overlap with the ATS score bar because they use `absolute -bottom-2` positioning which collides with the score breakdown area.
 
-### What Changes
+3. **Floating button too wide on mobile**: The "New Resume" FAB shows full text on all screen sizes. On mobile it should be a compact circle with just the `+` icon, and tapping it should open a radial/popup menu with options.
 
 ---
 
-#### 1. Add Web Speech API Fallback (`src/hooks/useWebSpeechFallback.ts` -- NEW)
+### Fix 1: Move Chevron Inside the Card
 
-A new hook that uses the browser's native `SpeechRecognition` API as a fallback:
+**File: `src/components/dashboard/ResumeGroup.tsx`**
 
-- Initializes `SpeechRecognition` only on user gesture (click)
-- Handles `onresult` for both interim and final transcripts
-- Auto-restarts on `onend` if user intends to keep listening (via `isListeningRef`)
-- 10-second timeout: if no speech detected, calls `onNoSpeech` callback
-- Error handling for "not-allowed", "no-speech", "network" errors
-- Provides `audioLevel` approximation (binary: 0 when silent, 0.5 when speech detected)
-- Browser compatibility check via `window.SpeechRecognition || window.webkitSpeechRecognition`
+- Remove the `absolute left-0 -translate-x-full` chevron button that sits outside the card
+- Instead, place the expand/collapse toggle **inline** within the tailored count badge at the bottom of the card
+- Make the "X tailored versions" badge itself act as the toggle (it already has `onClick={toggleExpand}`)
+- Add the chevron icon inside the badge so users see a clear expand/collapse indicator
+- Remove the separate floating chevron button entirely
 
-#### 2. Update ElevenLabs Scribe Hook (`src/hooks/useElevenLabsScribe.ts`)
+### Fix 2: Fix Badge Overlap with ATS Score
 
-- Add console logging at every step: token fetch, WebSocket open, audio processing, message received, errors
-- Add a `connectionTimeout` (5 seconds) -- if WebSocket doesn't open in time, reject with error
-- Add `onConnected` callback so the voice interview hook knows when audio is actually flowing
-- Return a `connectionFailed` state so the caller can switch to fallback
+**File: `src/components/dashboard/ResumeGroup.tsx`**
 
-#### 3. Update Voice Interview Hook (`src/hooks/useVoiceInterview.ts`)
+- Change the tailored versions badge from `absolute -bottom-2` to a **static element** placed below the card content
+- Use a flex row with proper spacing (`mt-2`) instead of absolute positioning
+- This prevents the badge from overlapping the ATS score bar or progress indicators
 
-- Replace hardcoded `speechSupported = true` with actual browser capability check
-- Add fallback logic: try ElevenLabs Scribe first, on failure automatically switch to Web Speech API
-- Add 10-second "no speech detected" timeout with toast message: "No speech detected. Please speak clearly or use the Type button"
-- Track which STT engine is active (`elevenlabs` | `webspeech` | `none`)
-- Add `sttEngine` to returned state for UI display
+### Fix 3: Compact FAB with Popup Menu on Mobile
 
-#### 4. Enhance Interview Toggle (`src/components/interview/InterviewToggle.tsx`)
+**File: `src/components/dashboard/FloatingCreateButton.tsx`**
 
-- Show "Detecting speech..." text when `audioLevel > 0` and listening
-- Show "No speech detected" message after timeout with hint to use Type button
-- Add small VU meter indicator (3 bars that respond to `audioLevel`) below the main button when listening
-- Show STT engine badge ("ElevenLabs" or "Browser") as a tiny label
+- On mobile (below `sm` breakpoint): render as a 56x56 circle with only the `+` icon, no text
+- On desktop: keep current pill shape with "New Resume" text
+- On tap (mobile): open a small popup menu above the button with 3 circular action buttons:
+  - "New Resume" (FileText icon) -- opens CreateResumeDialog
+  - "Tailor Resume" (GitBranch icon) -- navigates to AI Studio tailor flow
+  - "Analyze Job" (Target icon) -- navigates to job analysis
+- Each menu item is a 48px circle with icon + small label below
+- Menu dismisses on outside tap or selection
+- Wire actions: "New Resume" calls existing `onClick`, "Tailor Resume" navigates to `/ai-studio`, "Analyze Job" navigates to `/applications`
 
-#### 5. Add Mic Test to Interview Setup (`src/components/interview/InterviewSetup.tsx`)
+**File: `src/pages/DashboardPage.tsx`**
 
-- Add a "Test Microphone" button below the voice gender selector
-- On tap: requests mic permission, captures 3 seconds of audio, shows VU meter animation
-- Shows success ("Microphone working!") or failure ("Microphone not detected") message
-- If mic test fails, automatically show text input recommendation
-
-#### 6. Enhanced Error Messages (`src/pages/InterviewPage.tsx`)
-
-- Map specific error types to user-friendly messages:
-  - "Microphone blocked" -- when permission denied
-  - "No speech detected" -- after timeout
-  - "Speech recognition unavailable" -- when neither ElevenLabs nor Web Speech API works
-- Show a dismissible tooltip near the mic button when speech recognition fails: "Having trouble? Make sure your microphone is working and you're speaking clearly. You can also use the Type button"
-- Auto-show text input when speech recognition fails
+- Update `FloatingCreateButton` usage to pass a `navigate` function for the new menu actions
+- Add `onTailor` and `onAnalyzeJob` callbacks
 
 ---
 
-### What Does NOT Change
+### Technical Details
 
-- Text input mode and all text-based interview flow
-- AI question generation and feedback system
-- Interview summary page and scoring
-- Session history and saving
-- All UI layouts and styling (only additions, no modifications to existing styles)
-- Edge function logic (token generation works correctly)
+**ResumeGroup badge layout change (before vs after)**:
 
----
+Before: Badge uses `absolute -bottom-2 left-1/2 -translate-x-1/2` causing overlap with content below.
+
+After: Badge is a static `div` with `mt-2 flex items-center justify-center gap-1.5` placed inside the normal document flow, pushing content down naturally.
+
+**FloatingCreateButton mobile menu**: Uses `AnimatePresence` + `motion.div` for a small popup that appears above the FAB. Each option is a `button` with `min-w-[48px] min-h-[48px]` touch target. The popup uses a backdrop overlay for dismissal.
 
 ### Files Summary
 
 | File | Action |
 |------|--------|
-| `src/hooks/useWebSpeechFallback.ts` | New -- Web Speech API fallback hook |
-| `src/hooks/useElevenLabsScribe.ts` | Add logging, connection timeout, connected callback |
-| `src/hooks/useVoiceInterview.ts` | Add fallback logic, no-speech timeout, engine tracking |
-| `src/components/interview/InterviewToggle.tsx` | Add VU meter, "detecting speech" text, engine badge |
-| `src/components/interview/InterviewSetup.tsx` | Add "Test Microphone" button |
-| `src/pages/InterviewPage.tsx` | Enhanced error handling, auto-show text input on failure |
+| `src/components/dashboard/ResumeGroup.tsx` | Remove off-screen chevron, make badge inline, fix overlap |
+| `src/components/dashboard/FloatingCreateButton.tsx` | Icon-only on mobile, add popup menu with 3 actions |
+| `src/pages/DashboardPage.tsx` | Pass new callbacks to FloatingCreateButton |
 
 ### Implementation Order
 
-1. `useWebSpeechFallback.ts` (new fallback hook)
-2. `useElevenLabsScribe.ts` (add logging + timeout)
-3. `useVoiceInterview.ts` (integrate fallback + no-speech timeout)
-4. `InterviewToggle.tsx` (VU meter + detecting text)
-5. `InterviewSetup.tsx` (mic test button)
-6. `InterviewPage.tsx` (error handling + auto text input)
+1. `ResumeGroup.tsx` (fix chevron + badge positioning)
+2. `FloatingCreateButton.tsx` (compact mobile FAB + popup menu)
+3. `DashboardPage.tsx` (wire new callbacks)
 
