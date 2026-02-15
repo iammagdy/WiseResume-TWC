@@ -1,50 +1,176 @@
 
 
-## Full-App Functional Regression Test Report
+## Mobile Performance & Resilience Audit
 
-### Flows Tested
+### Current State
 
-| Flow | Desktop (1280px) | Mobile (360px) | Result |
-|------|-----------------|----------------|--------|
-| Auth redirect (/ to /dashboard) | Tested | Tested | PASS -- authenticated users auto-redirect to dashboard |
-| Dashboard / Resume list | Tested | Tested | PASS -- resumes load, stats visible, search bar works |
-| Three-dot action sheet | Tested | Tested | PASS -- all 8 actions (Preview, Rename, Edit, Download, Share, Duplicate, Interview, Delete) render with proper touch targets |
-| Resume Detail Page | Tested | Tested | PASS -- preview renders, ATS score ring, action grid visible |
-| Editor (Contact) | Tested | Tested | PASS -- all fields populated, editable, no overflow |
-| Editor (Summary) | Tested | Tested | PASS -- collapsible tips working, length nudge visible, char count shown |
-| Editor (Experience) | N/A | Tested | PASS -- timeline, gap detection, job entries all render |
-| Editor section navigation | Tested | Tested | PASS -- Previous/Next buttons work, stepper visible |
-| AI Studio | N/A | Tested | PASS -- credits, chat, featured tools render |
-| Settings | Tested | Tested | PASS -- section jump bar, theme toggle, profile card all render |
-| Jobs / Applications | Tested | N/A | PASS -- tabs, stats, activity timeline all render |
-| Bottom nav (all 5 tabs) | Tested | Tested | PASS -- correct tab highlights, all views load without error |
+The app already has strong performance foundations: route-level code splitting via `lazyWithRetry`, lazy-loaded editor sections, lazy-loaded sheet/dialog components, `useDeferredValue` for search, `React.memo` on `ResumeListCard`, `useShallow` Zustand selectors in the Editor, and templates lazy-loaded in `LivePreviewPanel`. The architecture is solid.
 
-### Console Errors Found
+### Identified Bottlenecks & Proposed Fixes
 
-| Error | Source | Severity | App Bug? |
-|-------|--------|----------|----------|
-| `manifest.json` CORS redirect to `lovable.dev/auth-bridge` | Lovable platform infra | Low | NO -- platform-level, not fixable in app code |
-| `postMessage` origin mismatch warnings | Lovable preview iframe | Low | NO -- expected in sandbox environment |
+---
 
-### Bugs / Regressions Found
+### 1. DashboardPage: `LinkedInImportSheet` and `AnalyzeJobSheet` Always Rendered
 
-**None.** All core flows complete without runtime errors, blank screens, stuck spinners, or broken navigation. No regressions were introduced by the recent UI refactors.
+**Problem:** `LinkedInImportSheet` (line 680) is rendered unconditionally -- not wrapped in `{showLinkedInImport && ...}` or `<Suspense>`. Although it's declared with `lazy()` at the top, the JSX mounts it every render. `AnalyzeJobSheet` (line 730) has the same issue.
 
-### Mobile-Specific Observations (360px)
+**Fix:** Wrap both in conditional rendering gates:
+```tsx
+{showLinkedInImport && (
+  <Suspense fallback={null}>
+    <LinkedInImportSheet ... />
+  </Suspense>
+)}
+{showAnalyzeJob && (
+  <Suspense fallback={null}>
+    <AnalyzeJobSheet ... />
+  </Suspense>
+)}
+```
+**Impact:** Eliminates unnecessary chunk loads on dashboard entry.
 
-- No horizontal scroll detected on any page
-- Bottom nav renders all 5 tabs without truncation
-- Touch targets are adequate (buttons, action sheet items all tappable)
-- Safe areas do not cause double-padding (body safe-area padding was correctly removed)
-- FAB button visible and not overlapping bottom nav
-- Editor fields do not overflow their containers
-- Collapsible tips section works correctly on mobile
+---
 
-### Confidence Assessment
+### 2. `pdfGenerator.ts` Eagerly Imported in Multiple Pages
 
-The app is **functionally ready** for small-screen mobile usage and APK wrapping. All core flows (dashboard, editor, AI studio, settings, jobs) work correctly on both desktop and 360px mobile viewports. The only errors are platform-level (manifest CORS) and do not affect user experience.
+**Problem:** `pdfGenerator.ts` (1119 lines) imports `html2canvas` and `pdf-lib` at the top level. It's eagerly imported in `PreviewPage`, `ResumeDetailPage`, `LivePreviewPanel`, and `ShareSheet`. These are heavy libraries (~200KB combined) that load even if the user never exports.
 
-### No Code Changes Needed
+**Fix:** Convert static imports to dynamic `import()` at call sites. The `ResumeListCard` already does this correctly (line 361: `const { generatePDF } = await import('@/lib/pdfGenerator')`). Apply the same pattern to:
+- `PreviewPage.tsx` line 30: move the import inside the export handler function
+- `LivePreviewPanel.tsx` line 6: move inside the download handler
+- `ShareSheet.tsx` line 7: move inside the share handler
 
-No regressions were found that require fixes. The recent refactors (FloatingPanels, APK readiness fixes, collapsible tips, openExternal utility, safe-area adjustments, user-select CSS) are all working as intended.
+`ResumeDetailPage.tsx` can remain since it's already a lazy route.
+
+**Impact:** Removes ~200KB from the initial chunk of the Editor and Preview routes.
+
+---
+
+### 3. `framer-motion` Imported in 78+ Components
+
+**Problem:** `framer-motion` is used in 78 component files. At ~130KB minified, it's likely the largest single dependency in the bundle. Since it's used everywhere including the landing page (`Index.tsx`), it cannot be lazy-loaded. However, some uses are trivial (e.g., just `motion.div` with `initial/animate` for a simple fade) and could use CSS instead.
+
+**Fix (targeted):** No changes recommended for now. The library is too widely used to remove, and tree-shaking already handles unused exports. This is an acceptable cost for the animation quality it provides.
+
+**Status:** Acceptable, monitor bundle size.
+
+---
+
+### 4. `DashboardPage`: Background Resume Scoring Runs Eagerly
+
+**Problem:** The `useEffect` at line 121 iterates all resumes and calls `scoreResume()` for each one sequentially after a 1-second delay. On a throttled mobile CPU with many resumes, this can cause jank during initial dashboard load.
+
+**Fix:** Add a `requestIdleCallback` wrapper around the scoring loop so it yields to the main thread between scores:
+```tsx
+const scoreNext = async () => {
+  for (const resume of resumes) {
+    if (cancelled) break;
+    // Yield to main thread between scores
+    await new Promise(r => 
+      'requestIdleCallback' in window 
+        ? requestIdleCallback(r) 
+        : setTimeout(r, 50)
+    );
+    // ...existing scoring logic
+  }
+};
+```
+**Impact:** Eliminates scroll jank during background scoring on low-end devices.
+
+---
+
+### 5. Editor `renderEditorContent` Recreates on Every Render
+
+**Problem:** `renderEditorContent` at line 566 is wrapped in `useCallback` but has `[activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate]` as dependencies. Since `sectionScores` is a new object on every `currentResume` change (even if scores haven't changed), the callback recreates frequently.
+
+**Fix:** No change needed. The `useMemo` on `sectionScores` (line 379) already memoizes the object, and the section components are lazy-loaded with Suspense. The render cost is minimal since only the active tab's component mounts.
+
+**Status:** Acceptable.
+
+---
+
+### 6. `ResumeListCard`: `resumeForProgress` Recalculated on Every Render
+
+**Problem:** Line 89: `const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume])`. The `resume` object from the query changes reference on every refetch even if data hasn't changed, causing `dbToResumeData` to run unnecessarily.
+
+**Fix:** Use a stable key like `resume.updated_at`:
+```tsx
+const resumeForProgress = useMemo(
+  () => dbToResumeData(resume), 
+  [resume.id, resume.updated_at]
+);
+```
+**Impact:** Prevents unnecessary progress bar recalculations after pull-to-refresh.
+
+---
+
+### 7. Network Resilience: `lazyWithRetry` Does Not Wait for Network
+
+**Problem:** If a user is offline when navigating to a new route, `lazyWithRetry` retries after 1.5s blindly. If still offline, the error propagates to ErrorBoundary.
+
+**Fix:** Enhance `lazyWithRetry` to check `navigator.onLine` and wait for the `online` event before retrying:
+```tsx
+export function lazyWithRetry<T extends ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(() =>
+    factory().catch(() => {
+      return new Promise<{ default: T }>((resolve, reject) => {
+        const attemptRetry = () => {
+          setTimeout(() => factory().then(resolve).catch(reject), 1500);
+        };
+        if (!navigator.onLine) {
+          const handler = () => {
+            window.removeEventListener('online', handler);
+            attemptRetry();
+          };
+          window.addEventListener('online', handler);
+          // Timeout after 30s even if still offline
+          setTimeout(() => {
+            window.removeEventListener('online', handler);
+            factory().then(resolve).catch(reject);
+          }, 30000);
+        } else {
+          attemptRetry();
+        }
+      });
+    })
+  );
+}
+```
+**Impact:** Prevents error screens when user temporarily loses connectivity during navigation.
+
+---
+
+### 8. PreviewPage: Missing Lazy Templates (Only 12 of 29)
+
+**Problem:** `PreviewPage` only lazy-loads 12 templates (lines 11-22), but `LivePreviewPanel` loads all 29. If a user selects a template not in PreviewPage's list (e.g., Corporate, Banking, Federal, etc.), the preview may fail or show a blank.
+
+**Fix:** Add the missing 17 template lazy imports to `PreviewPage`, matching `LivePreviewPanel`'s full list.
+
+**Impact:** Prevents blank preview for users with non-standard templates.
+
+---
+
+### Summary of Changes
+
+| File | Change | Priority | Effort |
+|------|--------|----------|--------|
+| `src/pages/DashboardPage.tsx` | Gate `LinkedInImportSheet` and `AnalyzeJobSheet` rendering | High | Small |
+| `src/pages/PreviewPage.tsx` | Dynamic import `pdfGenerator` in export handler | High | Small |
+| `src/components/editor/LivePreviewPanel.tsx` | Dynamic import `pdfGenerator` in download handler | High | Small |
+| `src/components/editor/ShareSheet.tsx` | Dynamic import `pdfGenerator` in share handler | High | Small |
+| `src/pages/DashboardPage.tsx` | Add `requestIdleCallback` to background scoring | Medium | Small |
+| `src/components/dashboard/ResumeListCard.tsx` | Stabilize `resumeForProgress` memoization key | Medium | Tiny |
+| `src/lib/lazyWithRetry.ts` | Network-aware retry with `online` event listener | Medium | Small |
+| `src/pages/PreviewPage.tsx` | Add missing 17 template lazy imports | High | Small |
+
+### What Won't Change
+
+- No business logic modifications
+- No changes to data models or API calls
+- `framer-motion` stays (too deeply integrated, acceptable bundle cost)
+- Editor's Zustand selectors and `useShallow` patterns are already optimized
+- Template lazy-loading in `LivePreviewPanel` is already correct
+- All existing features preserved
 
