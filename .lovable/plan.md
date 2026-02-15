@@ -1,34 +1,47 @@
 
+## Fix: Tools Panel Positioning on Mobile
 
-## Fix: "More Sections" Panel Positioning and Section Label Display
+### Issue Found
 
-### Problem 1: FloatingPanel appears off-screen on mobile
+The **Tools button** in the Editor header opens a FloatingPanel (via `ActionsPanel`) that renders incorrectly on mobile. The panel appears behind/above the viewport instead of in front of the user.
 
-The "More Sections" panel uses a FloatingPanel with CSS `fixed` positioning. However, ancestor elements in the Editor (like the header's `backdrop-filter` via the `glass` class) can create a new containing block in some browsers, causing the `fixed` panel to behave like `absolute` -- rendering it at the bottom of the document rather than the bottom of the viewport.
+**Root cause**: The header element has the `glass` class which applies `backdrop-filter`. In CSS, `backdrop-filter` creates a new containing block, causing `fixed`-positioned children (the FloatingPanel overlay and content) to behave like `absolute` -- they position relative to the header instead of the viewport.
 
-**Fix**: Convert the mobile "More Sections" from FloatingPanel to a Sheet (bottom sheet), matching the exact pattern already used for the main section selector directly above it in StepperNav. Sheets use React portals, so they always render at the document root regardless of ancestor CSS properties. The desktop FloatingPanel remains unchanged.
+This is the exact same bug that was fixed for "More Sections" in the previous change (converting FloatingPanel to Sheet).
 
-### Problem 2: Added section name not reflected correctly
+### Other Audit Results (No Issues)
 
-When the user taps "Awards" from the More panel, the editor sets `activeTab = 'more'`. The StepperNav mobile dropdown trigger displays the active step's label, which is `"More"` -- not `"Awards"`. The user expects to see the actual section name.
+- **More Sections panel**: Works correctly (Sheet-based, portal rendering) -- verified by testing
+- **Section labels**: "Awards" and other sub-sections display the correct label and icon in the dropdown trigger -- verified by testing
+- **Header layout**: No horizontal scroll at 360px; title truncates correctly; back button and Tools trigger are properly sized (48px touch targets)
+- **Editor content area**: Stacks vertically, no horizontal scroll, proper padding
+- **StepperNav mobile dropdown**: Section switching works correctly with proper labels and completion indicators
 
-**Fix**: Pass the active sub-section ID from EditorPage to StepperNav as a new optional prop (`activeMoreSection`). StepperNav already has a `MORE_SECTIONS` array with label mappings. When `activeStep === 'more'` and an `activeMoreSection` is set, display that section's label (e.g., "Awards") and icon instead of generic "More".
-
-### Changes
-
-**File: `src/components/editor/StepperNav.tsx`**
-
-1. Add optional prop `activeMoreSection?: string | null` to the interface.
-2. Replace the mobile "More Sections" FloatingPanel (lines 170-198) with a Sheet, matching the existing section selector pattern (bottom sheet with grid of section buttons).
-3. In the mobile dropdown trigger (line 85), when `activeStep === 'more'` and `activeMoreSection` is set, look up the label and icon from `MORE_SECTIONS` and display them instead of "More" / Plus icon.
+### Planned Change
 
 **File: `src/pages/EditorPage.tsx`**
 
-4. Pass `activeMoreSection={moreSubSection}` to the StepperNav component (line 876-884).
+Replace the mobile `ActionsPanel` (FloatingPanel-based, lines 762-777) with a `Sheet` (portal-based bottom sheet). The Sheet renders at the document root via React portal, bypassing the CSS containing block issue.
+
+Specifically:
+1. Add a `showToolsSheet` state variable
+2. Replace `<ActionsPanel>` with a simple trigger button + `<Sheet>` that renders the same grouped actions
+3. Reuse the existing `editorToolGroups` data -- no logic changes
+4. The Sheet content uses `pb-safe`, proper touch targets (`min-h-[48px]`), and haptic feedback
+5. Desktop tools (lines 720-761) remain completely unchanged
 
 ### What stays the same
 
-- All section IDs, data structures, and handlers (`handleMoreSectionSelect`, `setMoreSubSection`, `onMoreSectionSelect`) remain untouched
-- The desktop FloatingPanel for "More Sections" is not changed
-- No business logic or save/navigation behavior is modified
-- The `MORE_SECTIONS` array and its labels are reused as-is
+- `editorToolGroups` memo and all handler functions unchanged
+- Desktop tool buttons (hidden on mobile) unchanged
+- All section logic, data, and navigation unchanged
+- `ActionsPanel` component itself is not modified (still available for other uses)
+- No props, types, or exports renamed
+
+### Summary
+
+| File | Change |
+|------|--------|
+| `src/pages/EditorPage.tsx` | Replace mobile `ActionsPanel` with `Sheet` for Tools menu (same pattern as "More Sections" fix) |
+
+1 component swap. Zero logic changes.
