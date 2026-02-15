@@ -1,91 +1,50 @@
 
 
-## Mobile UX Audit: Duplicate Actions and AI Feature Cleanup
+## Fix: Bottom Action Buttons Overflowing on Small Screens
 
-### Audit Findings
+### Root Cause
 
-After tracing every interactive element on the Editor at 360px width, the current state is already well-organized with minimal duplication. Here is the complete inventory:
+The "Previous" and "Preview & Export" buttons in the Editor (lines 611-652 of `EditorPage.tsx`) use `flex-1` inside a `flex-col xs:flex-row` container. At the `xs` breakpoint (375px+), they go side-by-side. However, `flex-1` alone does not constrain the minimum width of a flex child -- the button's content (icon + "Preview & Export" text) establishes a minimum intrinsic width that can push beyond the container.
 
-#### AI and Tool Entry Points on Mobile
+The missing piece is `min-w-0` on each button, which allows flex items to shrink below their content size.
 
-| Action | Entry Point(s) | Duplicate? |
-|--------|---------------|------------|
-| **Wise AI Chat** | Mobile Tools Sheet only | No |
-| **Tailor to Job** | Mobile Tools Sheet only | No |
-| **ATS Check** | Mobile Tools Sheet only | No |
-| **Proofread** | Mobile Tools Sheet + Proofread FAB (floating button, bottom-right) | **Yes -- dual entry** |
-| **Design/Customize** | Mobile Tools Sheet only | No |
-| **Live Preview** | Mobile Tools Sheet only | No |
-| **Versions** | Mobile Tools Sheet only | No |
-| **Per-section AI Assist** | Inline button per SectionCard header | No (contextual, correct) |
+### Changes
 
-#### Non-AI Duplicates
+**File: `src/pages/EditorPage.tsx` (lines 611-651)**
 
-| Function | Entry Point(s) | Duplicate? |
-|----------|---------------|------------|
-| **Preview & Export** | Bottom "Next" button chain (last step becomes "Preview & Export") | No |
-| **Add More Sections** | StepperNav "More Sections" button + "More" tab in stepper dropdown | **Intentional dual -- different flows** |
+1. Add `min-w-0` to all three buttons (Previous, Preview & Export, Next) so they respect `flex-1` shrinking
+2. Add `overflow-hidden` to the container to prevent any residual overflow
+3. Add `text-sm` to the "Preview & Export" button specifically, since its label is the longest and needs to fit in half the width on 375px screens
 
-### Issue: Proofread Dual Entry
+```
+Before:
+  <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2">
+    <Button className="flex-1 min-h-[56px] sm:h-12" ...>Previous</Button>
+    <Button className="flex-1 min-h-[56px] sm:h-12 gradient-primary ..." ...>Preview & Export</Button>
+    <Button className="flex-1 min-h-[56px] sm:h-12" ...>Next</Button>
 
-The **Proofread** action appears in two places simultaneously on mobile:
-1. Inside the **Tools Sheet** as "Proofread" row (requires opening sheet first)
-2. As the **Proofread FAB** (floating action button) at `bottom-40 right-4`, always visible when issues exist
+After:
+  <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2 overflow-hidden">
+    <Button className="flex-1 min-w-0 min-h-[56px] sm:h-12" ...>Previous</Button>
+    <Button className="flex-1 min-w-0 min-h-[56px] sm:h-12 text-sm gradient-primary ..." ...>Preview & Export</Button>
+    <Button className="flex-1 min-w-0 min-h-[56px] sm:h-12" ...>Next</Button>
+```
 
-**Assessment**: This is actually **intentional and useful** -- the FAB acts as a persistent notification badge showing issue count, while the Tools Sheet provides the organized list. The FAB disappears when there are 0 issues. No change needed here.
+### Similar Patterns Checked
 
-### True Issues Found
-
-After careful review, the Editor on 360px mobile is **already clean** with no confusing duplicates. However, there are two UX improvements worth making:
-
-#### 1. Proofread FAB overlaps with content on very small screens
-On 360px width, the Proofread FAB at `bottom-40 right-4` can overlap the Previous/Next navigation buttons when the user scrolls to the bottom of a section. The FAB should use a slightly higher z-index and a safe position.
-
-#### 2. "More Sections" button always visible even when user is already inside a More sub-section
-When the user is editing Projects (a "More" sub-section), the "More Sections" button still appears below the stepper dropdown. This is slightly redundant since the user already has the "All Sections" back button. On mobile, the "More Sections" button should hide when `activeMoreSection` is set.
-
-### Proposed Changes
-
-**File: `src/components/editor/StepperNav.tsx`**
-
-1. **Hide "More Sections" button when already inside a sub-section**: When `activeMoreSection` is set (user is editing Projects, Awards, etc.), hide the "More Sections" button on mobile since the "All Sections" back link already provides navigation. This reduces visual clutter.
-
-**File: `src/components/editor/ProofreadButton.tsx`**
-
-2. **Adjust FAB position for better mobile clearance**: Change `bottom-40` to `bottom-24` on mobile so it sits above the Previous/Next buttons without overlapping. Add `sm:bottom-36` for larger screens.
+No other bottom button rows in the app use this same pattern -- the Editor is the only place with this specific side-by-side `flex-1` layout for navigation buttons. Other button pairs (TailorHistorySheet, CoverLetterHistorySheet) use `sticky bottom-0` with proper constraints already.
 
 ### What Stays the Same
 
-- All handlers, navigation logic, data models unchanged
-- All component names and props unchanged
-- Tools Sheet content and organization unchanged
-- Per-section AI Assist buttons unchanged (they are correctly contextual)
-- Desktop layout unchanged
-- AI Studio page unchanged (separate tab, no overlap with Editor)
+- All button handlers, navigation logic, and routes unchanged
+- No component or prop renames
+- No changes to the data model or API calls
 
-### Standardized Rule Set (for comments/future work)
-
-```
-/*
- * Mobile Editor UX Rules:
- * 1. Global actions (Design, Preview, Wise AI, Tailor, ATS, Proofread, Versions)
- *    live exclusively in the mobile Tools Sheet (sparkles button, top-right).
- * 2. Contextual AI (Improve, Generate, ATS Optimize per section)
- *    lives in the per-section InlineAIButton inside each SectionCard header.
- * 3. The Proofread FAB is the ONLY exception: it may float as a notification
- *    badge when issues > 0, since it serves as an alert, not a primary action.
- * 4. Never place the same AI action in both the Tools Sheet AND the header bar
- *    on the same screen at < 768px.
- * 5. "More Sections" picker should hide when user is already editing a sub-section.
- */
-```
-
-### Technical Summary
+### Summary
 
 | File | Change |
 |------|--------|
-| `src/components/editor/StepperNav.tsx` | Hide "More Sections" button when `activeMoreSection` is set on mobile |
-| `src/components/editor/ProofreadButton.tsx` | Adjust FAB bottom position from `bottom-40` to `bottom-24` to avoid overlapping nav buttons |
+| `src/pages/EditorPage.tsx` | Add `min-w-0` to all 3 nav buttons, `overflow-hidden` to container, `text-sm` to "Preview & Export" button |
 
-2 targeted layout tweaks. Zero logic changes. No duplicates introduced or removed (none existed). Adds clarity by hiding redundant navigation when context already provides it.
+One file, 4 class additions. Ensures buttons shrink properly within their flex container on 360-375px screens.
 
