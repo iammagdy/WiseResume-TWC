@@ -1,100 +1,91 @@
 
 
-## Fix: "New Section / More" Content Not Rendering
+## Mobile UX Audit: Duplicate Actions and AI Feature Cleanup
 
-### Root Cause Analysis
+### Audit Findings
 
-After tracing the entire section flow end-to-end, the architecture works as follows:
+After tracing every interactive element on the Editor at 360px width, the current state is already well-organized with minimal duplication. Here is the complete inventory:
 
-1. **Steps** are static: `[contact, summary, experience, education, skills, more]`
-2. **"More" tab** uses a secondary state `moreSubSection` to select which optional section to show
-3. **Two entry points** set this state:
-   - `AddSectionSheet` (inside the More tab content): calls `setMoreSubSection(s)` directly
-   - `StepperNav "More Sections"` button/sheet: calls `handleMoreSectionSelect(sectionId)` which sets BOTH `activeTab='more'` AND `moreSubSection`
+#### AI and Tool Entry Points on Mobile
 
-4. **Content rendering** (lines 565-588 of EditorPage.tsx): When `activeTab === 'more'`, it checks `moreSubSection` and renders the matching component via a chain of `{moreSubSection === 'awards' && ...}` conditionals
+| Action | Entry Point(s) | Duplicate? |
+|--------|---------------|------------|
+| **Wise AI Chat** | Mobile Tools Sheet only | No |
+| **Tailor to Job** | Mobile Tools Sheet only | No |
+| **ATS Check** | Mobile Tools Sheet only | No |
+| **Proofread** | Mobile Tools Sheet + Proofread FAB (floating button, bottom-right) | **Yes -- dual entry** |
+| **Design/Customize** | Mobile Tools Sheet only | No |
+| **Live Preview** | Mobile Tools Sheet only | No |
+| **Versions** | Mobile Tools Sheet only | No |
+| **Per-section AI Assist** | Inline button per SectionCard header | No (contextual, correct) |
 
-The chain of conditionals works correctly for all 8 sections. However, the fragility is that:
-- There is **no fallback** if `moreSubSection` has an unrecognized value (silent blank render)
-- The section mapping is **duplicated in 3 places**: EditorPage rendering, AddSectionSheet definition, and StepperNav MORE_SECTIONS -- any ID mismatch between them causes a silent failure
-- The `renderEditorContent` callback depends on `moreSubSection` in its `useCallback` deps, which is correct
+#### Non-AI Duplicates
 
-**Most likely root cause**: The content renders correctly when `handleMoreSectionSelect` is called (sets both states atomically), but if a user navigates to "More" via the section dropdown (which only calls `handleTabChange('more')` without touching `moreSubSection`), and `moreSubSection` is null, they see the AddSectionSheet picker -- not a blank screen. This flow actually works.
+| Function | Entry Point(s) | Duplicate? |
+|----------|---------------|------------|
+| **Preview & Export** | Bottom "Next" button chain (last step becomes "Preview & Export") | No |
+| **Add More Sections** | StepperNav "More Sections" button + "More" tab in stepper dropdown | **Intentional dual -- different flows** |
 
-The real risk is an **edge case where `moreSubSection` gets set to a value that doesn't match any conditional** (e.g., from a stale store or URL param), resulting in a blank content area with only the "All Sections" back button visible. The fix is to add robustness via a config-driven lookup.
+### Issue: Proofread Dual Entry
+
+The **Proofread** action appears in two places simultaneously on mobile:
+1. Inside the **Tools Sheet** as "Proofread" row (requires opening sheet first)
+2. As the **Proofread FAB** (floating action button) at `bottom-40 right-4`, always visible when issues exist
+
+**Assessment**: This is actually **intentional and useful** -- the FAB acts as a persistent notification badge showing issue count, while the Tools Sheet provides the organized list. The FAB disappears when there are 0 issues. No change needed here.
+
+### True Issues Found
+
+After careful review, the Editor on 360px mobile is **already clean** with no confusing duplicates. However, there are two UX improvements worth making:
+
+#### 1. Proofread FAB overlaps with content on very small screens
+On 360px width, the Proofread FAB at `bottom-40 right-4` can overlap the Previous/Next navigation buttons when the user scrolls to the bottom of a section. The FAB should use a slightly higher z-index and a safe position.
+
+#### 2. "More Sections" button always visible even when user is already inside a More sub-section
+When the user is editing Projects (a "More" sub-section), the "More Sections" button still appears below the stepper dropdown. This is slightly redundant since the user already has the "All Sections" back button. On mobile, the "More Sections" button should hide when `activeMoreSection` is set.
 
 ### Proposed Changes
 
-**File: `src/pages/EditorPage.tsx`**
+**File: `src/components/editor/StepperNav.tsx`**
 
-1. **Create a section component map** replacing the chain of 8 conditionals with a single config-driven lookup. This eliminates the possibility of ID mismatches causing blank renders:
+1. **Hide "More Sections" button when already inside a sub-section**: When `activeMoreSection` is set (user is editing Projects, Awards, etc.), hide the "More Sections" button on mobile since the "All Sections" back link already provides navigation. This reduces visual clutter.
 
-```typescript
-const MORE_SECTION_COMPONENTS: Record<string, {
-  icon: typeof Trophy;
-  title: string;
-  hasAI: boolean;
-  Component: React.LazyExoticComponent<React.ComponentType>;
-}> = {
-  awards: { icon: Trophy, title: 'Awards & Achievements', hasAI: true, Component: AwardsSection },
-  projects: { icon: Rocket, title: 'Projects', hasAI: true, Component: ProjectsSection },
-  certifications: { icon: Award, title: 'Certifications', hasAI: true, Component: CertificationsSection },
-  publications: { icon: BookOpen, title: 'Publications', hasAI: true, Component: PublicationsSection },
-  volunteering: { icon: Heart, title: 'Volunteering', hasAI: true, Component: VolunteeringSection },
-  languages: { icon: Globe, title: 'Languages', hasAI: true, Component: LanguagesSection },
-  hobbies: { icon: Palette, title: 'Hobbies & Interests', hasAI: false, Component: HobbiesSection },
-  references: { icon: Users, title: 'References', hasAI: false, Component: ReferencesSection },
-};
-```
+**File: `src/components/editor/ProofreadButton.tsx`**
 
-2. **Replace the conditional chain** (lines 576-584) with a config lookup:
-
-```tsx
-{(() => {
-  const config = MORE_SECTION_COMPONENTS[moreSubSection!];
-  if (!config) {
-    // Fallback: unknown sub-section, reset to picker
-    setMoreSubSection(null);
-    return null;
-  }
-  const { icon, title, hasAI, Component } = config;
-  return (
-    <SectionCard icon={icon} title={title} action={hasAI ? <SectionAIAction section={moreSubSection!} /> : undefined}>
-      <Component />
-    </SectionCard>
-  );
-})()}
-```
-
-3. **Add a guard in `handleTabChange`**: When switching TO the "more" tab via the section dropdown (not via "More Sections"), reset `moreSubSection` to null so users always see the section picker first:
-
-```typescript
-const handleTabChange = useCallback((newTab: string) => {
-  if (newTab !== 'more') {
-    // Clear sub-section when leaving More
-    setMoreSubSection(null);
-  }
-  setActiveTab(newTab);
-  scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-}, []);
-```
-
-This way, tapping "More" in the section dropdown always shows the AddSectionSheet picker, while tapping a specific section via "More Sections" sheet goes directly to that section.
+2. **Adjust FAB position for better mobile clearance**: Change `bottom-40` to `bottom-24` on mobile so it sits above the Previous/Next buttons without overlapping. Add `sm:bottom-36` for larger screens.
 
 ### What Stays the Same
 
-- All 8 lazy-loaded section components (unchanged)
-- All handlers (handleMoreSectionSelect, etc.)
-- StepperNav component (unchanged)
-- AddSectionSheet component (unchanged)
-- Data model, types, API calls (unchanged)
-- All built-in sections (Contact, Summary, Work, Education, Skills) (unchanged)
+- All handlers, navigation logic, data models unchanged
+- All component names and props unchanged
+- Tools Sheet content and organization unchanged
+- Per-section AI Assist buttons unchanged (they are correctly contextual)
+- Desktop layout unchanged
+- AI Studio page unchanged (separate tab, no overlap with Editor)
+
+### Standardized Rule Set (for comments/future work)
+
+```
+/*
+ * Mobile Editor UX Rules:
+ * 1. Global actions (Design, Preview, Wise AI, Tailor, ATS, Proofread, Versions)
+ *    live exclusively in the mobile Tools Sheet (sparkles button, top-right).
+ * 2. Contextual AI (Improve, Generate, ATS Optimize per section)
+ *    lives in the per-section InlineAIButton inside each SectionCard header.
+ * 3. The Proofread FAB is the ONLY exception: it may float as a notification
+ *    badge when issues > 0, since it serves as an alert, not a primary action.
+ * 4. Never place the same AI action in both the Tools Sheet AND the header bar
+ *    on the same screen at < 768px.
+ * 5. "More Sections" picker should hide when user is already editing a sub-section.
+ */
+```
 
 ### Technical Summary
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Add `MORE_SECTION_COMPONENTS` config map; replace 8-line conditional chain with config lookup + fallback; clear `moreSubSection` on tab change away from "more" |
+| `src/components/editor/StepperNav.tsx` | Hide "More Sections" button when `activeMoreSection` is set on mobile |
+| `src/components/editor/ProofreadButton.tsx` | Adjust FAB bottom position from `bottom-40` to `bottom-24` to avoid overlapping nav buttons |
 
-3 targeted changes. Zero logic changes to existing sections. Adds a fallback for unknown sub-section IDs that prevents blank renders.
+2 targeted layout tweaks. Zero logic changes. No duplicates introduced or removed (none existed). Adds clarity by hiding redundant navigation when context already provides it.
 
