@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Loader2, FileText, GitBranch, Target, X } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
@@ -58,7 +59,7 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
     }
   };
 
-  return (
+  return createPortal(
     <div ref={containerRef} className="fixed bottom-24 sm:bottom-20 right-4 pr-safe z-50">
       {/* Popup menu (mobile only) */}
       <AnimatePresence>
@@ -145,6 +146,7 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
           </span>
         )}
       </motion.button>
-    </div>
+    </div>,
+    document.body
   );
 }
