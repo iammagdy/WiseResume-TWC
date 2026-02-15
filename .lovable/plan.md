@@ -1,64 +1,33 @@
 
 
-## Enhance Design Customization with Line Spacing and Page Format
+## Fix Preview Centering and PDF Download
 
-### What Already Exists
+### Issue 1: Preview Content Shifted Right
 
-The app already has a comprehensive "Customize Template" sheet (`CustomizeSheet.tsx`) with:
-- Color picker (8 preset swatches + custom hex input)
-- Font selectors (heading + body, 6 font options)
-- Font size control (Small / Medium / Large)
-- Layout control (Single / Two Column)
-- Spacing control (Compact / Normal / Spacious)
-- Margins control (Narrow / Normal / Wide)
-- Reset to Default button
-- Live mini-preview
+**Root cause:** In `LivePreviewPanel.tsx` (line 228-235), the zoom container uses `width: ${100/zoom}%` combined with `transform: scale(zoom)` and `transform-origin: top center`. At 75% zoom, the container width becomes 133%, which pushes content to the right since the parent `overflow-auto` div starts scrolling horizontally rather than centering.
 
-It's accessed from the AI Studio bar. This plan adds the two missing controls and a quicker access point.
+**Fix:** Add `display: flex; justify-content: center` to the scrollable container (line 228), and set a fixed `max-width: 612px` on the inner resume wrapper instead of relying on the inverse-zoom width trick. The zoom container should center itself within the scroll area.
 
-### Changes
+Specifically in `LivePreviewPanel.tsx`:
+- Change the scroll container (line 228) to use `flex justify-center` so the scaled content centers horizontally
+- Keep the `transform: scale(zoom)` and `transform-origin: top center` approach but ensure the wrapper is centered within the flex parent
 
-#### 1. Add `lineHeight` and `pageFormat` to the type system
+### Issue 2: PDF Download Has Overlapping Text
 
-**File: `src/types/resume.ts`** -- Update `TemplateCustomization`:
-- Add `lineHeight: 'single' | '1.15' | '1.5' | 'double'`
-- Add `pageFormat: 'a4' | 'letter'`
+**Root cause:** When the user clicks "Download PDF", the `handleDownload` function passes `resumeRef.current` to `generatePDF`. This element is inside a parent div that has `transform: scale(0.75)` applied (the zoom). The `prepareForCapture` function in `pdfGenerator.ts` only resets the transform on the source element itself (line 532), NOT on its parent container. So `html2canvas` captures the element while its parent still has a CSS scale transform active, causing text to render at one size but position at another -- resulting in the overlapping text shown in the screenshot.
 
-#### 2. Update defaults and CSS application
+**Fix:** Before calling `generatePDF`, temporarily reset the parent zoom container's transform to `scale(1)` (or `none`), then restore it after capture completes. This ensures html2canvas sees the element at its true layout dimensions without any interfering transforms.
 
-**File: `src/lib/templateCustomization.ts`**:
-- Add `lineHeight: '1.15'` and `pageFormat: 'a4'` to `getDefaultCustomization()`
-- Add a `LINE_HEIGHT_VALUES` map: `{ single: 1, '1.15': 1.15, '1.5': 1.5, double: 2 }`
-- Add a `PAGE_FORMAT_PX` map: `{ a4: { width: 595, height: 842 }, letter: { width: 612, height: 792 } }` (PDF point sizes, also exported for PDF generation)
-- Update `applyCustomizationCSS()` to include `lineHeight` in the returned style object
+Specifically in `LivePreviewPanel.tsx`:
+- In `handleDownload`, before calling `generatePDF`, find the zoom wrapper (parent of `resumeRef.current`) and temporarily set its `transform` to `none` and `width` to `auto`
+- After the PDF is generated, restore the original transform and width
+- This is a 5-line change in the `handleDownload` callback
 
-#### 3. Add controls to the CustomizeSheet UI
+### Files Modified
 
-**File: `src/components/editor/CustomizeSheet.tsx`**:
-- Add a "Line Spacing" segmented control under the existing "Fonts" accordion section with options: Single, 1.15, 1.5, Double
-- Add a "Page Format" segmented control under the "Layout" accordion section with options: A4, Letter
-- Both use the existing `SegmentedControl` component already in the file
+| File | Change |
+|------|--------|
+| `src/components/editor/LivePreviewPanel.tsx` | Center the scroll container with flexbox; reset parent zoom transform before PDF capture |
 
-#### 4. Add a "Design" shortcut button in the editor header
+No other files need modification. The `pdfGenerator.ts` logic is correct -- the issue is purely that the LivePreviewPanel's zoom transform interferes with capture.
 
-**File: `src/pages/EditorPage.tsx`**:
-- Add a `Palette` icon button next to the Preview button in the header bar
-- Tapping it opens the existing `CustomizeSheet` directly (reuses `handleCustomize`)
-- Styled consistently with the Preview button (48px touch target, icon + label)
-
-### What Does NOT Change
-
-- All existing editor sections (Contact, Summary, Work, Education, Skills, More)
-- Mobile bottom navigation bar
-- AI features and Wise AI chat
-- Progress tracking
-- Form inputs and validation
-- Template rendering logic (templates already read from `customization` prop)
-- The existing CustomizeSheet access from the AI Studio bar (still works)
-
-### Technical Notes
-
-- The `lineHeight` CSS property is applied via `applyCustomizationCSS()`, which all templates already call
-- The `pageFormat` value is consumed by the PDF generator (`pdfGenerator.ts`) when creating pages -- this will need a small update to read the format from customization instead of hardcoding A4
-- All new controls use the existing `SegmentedControl` component and `haptics.selection()` pattern
-- No new dependencies needed
