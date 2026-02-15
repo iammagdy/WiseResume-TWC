@@ -18,9 +18,10 @@ interface ProgressBarProps {
   resume: ResumeData;
   className?: string;
   variant?: 'bar' | 'ring';
+  compact?: boolean;
 }
 
-export const ProgressBar = memo(function ProgressBar({ resume, className, variant = 'bar' }: ProgressBarProps) {
+export const ProgressBar = memo(function ProgressBar({ resume, className, variant = 'bar', compact = false }: ProgressBarProps) {
   const progress = calcOverallScore(resume);
   const isComplete = progress >= 100;
   const color = getProgressColor(progress);
@@ -57,19 +58,20 @@ export const ProgressBar = memo(function ProgressBar({ resume, className, varian
       <span
         className={cn(
           'text-sm font-bold whitespace-nowrap flex items-center gap-1.5 transition-colors duration-500',
-          isComplete && 'text-success'
+          isComplete && 'text-success',
+          compact && 'text-xs'
         )}
         style={{
           color: isComplete ? undefined : color,
           animation: showConfetti ? 'progress-text-pulse 400ms ease-out' : undefined,
         }}
       >
-        {isComplete && <Sparkles className="w-3.5 h-3.5" />}
-        <span className="hidden min-[375px]:inline">Resume </span>{progress}%<span className="hidden min-[375px]:inline"> Complete</span>
+        {isComplete && !compact && <Sparkles className="w-3.5 h-3.5" />}
+        {!compact && <span className="hidden min-[375px]:inline">Resume </span>}{progress}%{!compact && <span className="hidden min-[375px]:inline"> Complete</span>}
       </span>
 
       {/* Animated bar */}
-      <div className="flex-1 h-3 rounded-full bg-secondary/30 overflow-hidden relative">
+      <div className={cn('flex-1 rounded-full bg-secondary/30 overflow-hidden relative', compact ? 'h-2' : 'h-2.5')}>
         <div
           className="h-full rounded-full"
           style={{

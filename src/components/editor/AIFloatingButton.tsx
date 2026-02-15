@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, FileText, ScanSearch, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
+import { useSettingsStore } from '@/store/settingsStore';
 
 interface AIFloatingButtonProps {
   onClick: () => void;
@@ -24,6 +25,8 @@ export function AIFloatingButton({
   onExport,
 }: AIFloatingButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const hasSeenAIIntro = useSettingsStore(s => s.hasSeenAIIntro);
+  const isFirstVisit = !hasSeenAIIntro;
 
   const handleMainClick = () => {
     haptics.medium();
@@ -116,11 +119,11 @@ export function AIFloatingButton({
           <motion.span
             className="absolute inset-0 rounded-full gradient-primary"
             animate={{
-              scale: [1, 1.2, 1],
-              opacity: [0.5, 0, 0.5],
+              scale: [1, isFirstVisit ? 1.4 : 1.2, 1],
+              opacity: [isFirstVisit ? 0.7 : 0.5, 0, isFirstVisit ? 0.7 : 0.5],
             }}
             transition={{
-              duration: 2,
+              duration: isFirstVisit ? 1.5 : 2,
               repeat: Infinity,
               ease: 'easeInOut',
             }}

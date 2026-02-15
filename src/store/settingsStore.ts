@@ -40,6 +40,7 @@ interface SettingsState {
   hasSeenPreviewHint: boolean;
   hasSeenTailorHint: boolean;
   hasSeenInterviewHint: boolean;
+  hasSeenAIStudioTour: boolean;
   
   // Integrations
   elevenlabsApiKey: string;
@@ -72,6 +73,7 @@ interface SettingsState {
   setHasSeenPreviewHint: (value: boolean) => void;
   setHasSeenTailorHint: (value: boolean) => void;
   setHasSeenInterviewHint: (value: boolean) => void;
+  setHasSeenAIStudioTour: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
   setAutoProofread: (value: boolean) => void;
   
@@ -108,6 +110,7 @@ const defaultSettings = {
   hasSeenPreviewHint: false,
   hasSeenTailorHint: false,
   hasSeenInterviewHint: false,
+  hasSeenAIStudioTour: false,
   elevenlabsApiKey: '',
   autoProofread: true,
   // AI Provider defaults
@@ -148,6 +151,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenPreviewHint: (value) => set({ hasSeenPreviewHint: value }),
       setHasSeenTailorHint: (value) => set({ hasSeenTailorHint: value }),
       setHasSeenInterviewHint: (value) => set({ hasSeenInterviewHint: value }),
+      setHasSeenAIStudioTour: (value) => set({ hasSeenAIStudioTour: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       setAutoProofread: (value) => set({ autoProofread: value }),
       
