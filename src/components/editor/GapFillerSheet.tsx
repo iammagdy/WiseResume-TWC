@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, MoreHorizontal, Check, X } from 'lucide-react';
 import { GapInfo } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { useSettingsStore } from '@/store/settingsStore';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
