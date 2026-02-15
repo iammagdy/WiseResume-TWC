@@ -28,8 +28,8 @@ import { calculateProfileCompletion } from '@/hooks/useProfile';
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
 const OnboardingCarousel = lazy(() => import('@/components/onboarding/OnboardingCarousel').then(m => ({ default: m.OnboardingCarousel })));
-import { LinkedInImportSheet } from '@/components/settings/LinkedInImportSheet';
-import { AnalyzeJobSheet } from '@/components/dashboard/AnalyzeJobSheet';
+const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImportSheet').then(m => ({ default: m.LinkedInImportSheet })));
+const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
