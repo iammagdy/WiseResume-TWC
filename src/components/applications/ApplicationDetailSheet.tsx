@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { JobApplication, ApplicationStatus, useJobApplicationMutations } from '@/hooks/useJobApplications';
 import { Briefcase, ExternalLink, Calendar, FileText, Clock, Bell } from 'lucide-react';
+import { openExternal } from '@/lib/openExternal';
 import { formatDistanceToNow, differenceInDays, differenceInHours, format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useNavigate } from 'react-router-dom';
@@ -110,15 +111,13 @@ export function ApplicationDetailSheet({ application, open, onOpenChange }: Appl
             )}
 
             {application.url && (
-              <a
-                href={application.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-sm text-primary hover:underline"
+              <button
+                onClick={() => openExternal(application.url!)}
+                className="flex items-center gap-2 text-sm text-primary hover:underline touch-manipulation"
               >
                 <ExternalLink className="w-4 h-4 shrink-0" />
                 View Job Posting
-              </a>
+              </button>
             )}
 
             {linkedResume && (

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { Pencil, Sparkles, Download, LayoutGrid, Wand2, Target, Mic, Users, Shield } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { EditorDemo } from '@/components/landing/EditorDemo';
@@ -35,6 +35,9 @@ const Index = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const prefersReducedMotion = useReducedMotion();
+
+  // Authenticated users go straight to dashboard
+  if (user) return <Navigate to="/dashboard" replace />;
 
   const fade = (delay: number) =>
     prefersReducedMotion

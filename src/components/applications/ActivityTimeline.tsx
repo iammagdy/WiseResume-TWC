@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Scissors, Mail, CheckCircle2, ExternalLink, Clock, FileText, FilePlus2, Send } from 'lucide-react';
+import { openExternal } from '@/lib/openExternal';
 import { Badge } from '@/components/ui/badge';
 import { haptics } from '@/lib/haptics';
 
@@ -166,15 +167,12 @@ export function ActivityTimeline() {
               </div>
             </div>
             {entry.url && (
-              <a
-                href={entry.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 p-2 rounded-lg hover:bg-muted/50 text-muted-foreground"
-                onClick={e => e.stopPropagation()}
+              <button
+                onClick={e => { e.stopPropagation(); openExternal(entry.url!); }}
+                className="shrink-0 p-2 rounded-lg hover:bg-muted/50 text-muted-foreground touch-manipulation"
               >
                 <ExternalLink className="w-4 h-4" />
-              </a>
+              </button>
             )}
           </div>
         );

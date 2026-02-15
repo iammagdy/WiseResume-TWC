@@ -1,6 +1,7 @@
 import React, { createContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { Capacitor } from '@capacitor/core';
 
 const SESSION_CACHE_KEY = 'sb-auth-session-cache';
 
@@ -69,6 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const resolveInitialLoad = (user: User | null, session: Session | null) => {
       if (!initialResolved) {
         initialResolved = true;
+        // Signal that auth is ready — native splash screen can hide
+        if (Capacitor.isNativePlatform()) {
+          window.dispatchEvent(new CustomEvent('app:auth-ready'));
+        }
       }
       activeUserIdRef.current = user?.id ?? null;
       cacheSession(user, session);

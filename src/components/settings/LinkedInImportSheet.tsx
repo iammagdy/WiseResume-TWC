@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { openExternal } from '@/lib/openExternal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Linkedin, 
@@ -371,15 +372,15 @@ export function LinkedInImportSheet({
                   </ol>
                   
                   {linkedinUsername ? (
-                    <a href={`https://linkedin.com/in/${linkedinUsername}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                    <button onClick={() => openExternal(`https://linkedin.com/in/${linkedinUsername}`)} className="inline-flex items-center gap-2 text-sm text-primary hover:underline touch-manipulation">
                       <ExternalLink className="w-3.5 h-3.5" />
                       Open Your LinkedIn Profile
-                    </a>
+                    </button>
                   ) : (
-                    <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline">
+                    <button onClick={() => openExternal('https://linkedin.com')} className="inline-flex items-center gap-2 text-sm text-primary hover:underline touch-manipulation">
                       <ExternalLink className="w-3.5 h-3.5" />
                       Go to LinkedIn
-                    </a>
+                    </button>
                   )}
                 </div>
 
