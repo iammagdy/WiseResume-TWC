@@ -1,40 +1,34 @@
 
 
-## Editor Mobile Polish -- Minor Fixes
+## Fix: "More Sections" Panel Positioning and Section Label Display
 
-### Audit Summary
+### Problem 1: FloatingPanel appears off-screen on mobile
 
-The Editor screen is already well-built for mobile. After reviewing the header, tools panel, stepper nav, progress bar, ATS score, editor canvas, and all FloatingPanel usages, only 3 minor styling issues were found.
+The "More Sections" panel uses a FloatingPanel with CSS `fixed` positioning. However, ancestor elements in the Editor (like the header's `backdrop-filter` via the `glass` class) can create a new containing block in some browsers, causing the `fixed` panel to behave like `absolute` -- rendering it at the bottom of the document rather than the bottom of the viewport.
 
-### Issues and Fixes
+**Fix**: Convert the mobile "More Sections" from FloatingPanel to a Sheet (bottom sheet), matching the exact pattern already used for the main section selector directly above it in StepperNav. Sheets use React portals, so they always render at the document root regardless of ancestor CSS properties. The desktop FloatingPanel remains unchanged.
 
-| # | Issue | File | Line(s) | Fix |
-|---|-------|------|---------|-----|
-| 1 | ATS completeness text can overflow horizontally at 320px | `EditorPage.tsx` | 836 | Add `min-w-0 truncate` to the paragraph element |
-| 2 | Editor scroll container missing bottom safe area padding | `EditorPage.tsx` | 914 | Add `pb-safe` to the scroll container |
-| 3 | "More Sections" grid buttons lack centered text alignment on narrow 2-col layout | `StepperNav.tsx` | 186 | Add `text-center` to the button className |
+### Problem 2: Added section name not reflected correctly
 
-### Details
+When the user taps "Awards" from the More panel, the editor sets `activeTab = 'more'`. The StepperNav mobile dropdown trigger displays the active step's label, which is `"More"` -- not `"Awards"`. The user expects to see the actual section name.
 
-**Fix 1 -- ATS score text overflow**
-- Problem: On 320px screens, the "X of Y sections completed" paragraph sits beside the completeness button in a `flex` row with no overflow protection.
-- Change: Add `min-w-0 truncate` to `<p>` at line 836.
-- Result: Text truncates gracefully instead of causing horizontal scroll.
+**Fix**: Pass the active sub-section ID from EditorPage to StepperNav as a new optional prop (`activeMoreSection`). StepperNav already has a `MORE_SECTIONS` array with label mappings. When `activeStep === 'more'` and an `activeMoreSection` is set, display that section's label (e.g., "Awards") and icon instead of generic "More".
 
-**Fix 2 -- Editor content bottom safe area**
-- Problem: The editor scroll container (`px-4 py-4 pb-4`) doesn't account for the home indicator on modern phones. Content at the bottom of a section can be hidden behind the system bar.
-- Change: Add `pb-safe` to the scroll container class at line 914.
-- Result: Content respects the bottom safe area and remains fully visible.
+### Changes
 
-**Fix 3 -- More Sections button text alignment**
-- Problem: In the mobile 2-column grid for "More Sections", buttons use `flex items-center` but on very narrow screens the truncated label can look left-heavy.
-- Change: No structural change -- just confirming alignment is acceptable. On review, the `items-center` with icon + label is actually correct for this layout. Skipping this fix as it would make the buttons look inconsistent with the horizontal icon+label pattern.
+**File: `src/components/editor/StepperNav.tsx`**
 
-### Revised Summary -- 2 Actual Changes
+1. Add optional prop `activeMoreSection?: string | null` to the interface.
+2. Replace the mobile "More Sections" FloatingPanel (lines 170-198) with a Sheet, matching the existing section selector pattern (bottom sheet with grid of section buttons).
+3. In the mobile dropdown trigger (line 85), when `activeStep === 'more'` and `activeMoreSection` is set, look up the label and icon from `MORE_SECTIONS` and display them instead of "More" / Plus icon.
 
-| File | Change |
-|------|--------|
-| `src/pages/EditorPage.tsx` line 836 | Add `min-w-0 truncate` to ATS completeness paragraph |
-| `src/pages/EditorPage.tsx` line 914 | Add `pb-safe` to editor scroll container |
+**File: `src/pages/EditorPage.tsx`**
 
-2 small class-string changes. Zero logic changes. Zero structural changes.
+4. Pass `activeMoreSection={moreSubSection}` to the StepperNav component (line 876-884).
+
+### What stays the same
+
+- All section IDs, data structures, and handlers (`handleMoreSectionSelect`, `setMoreSubSection`, `onMoreSectionSelect`) remain untouched
+- The desktop FloatingPanel for "More Sections" is not changed
+- No business logic or save/navigation behavior is modified
+- The `MORE_SECTIONS` array and its labels are reused as-is
