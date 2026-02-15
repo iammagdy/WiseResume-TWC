@@ -39,7 +39,7 @@ export default function ApplicationTrackerPage() {
   const [reminderDate, setReminderDate] = useState('');
   const [showFollowUp, setShowFollowUp] = useState(false);
 
-  if (!user) { navigate('/auth'); return null; }
+  // Auth guard handled by ProtectedRoute
   if (isLoading) return <DetailSkeleton />;
   if (!app) return (
     <div className="flex-1 flex items-center justify-center p-6">

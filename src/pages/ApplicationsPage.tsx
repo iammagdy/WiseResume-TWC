@@ -144,10 +144,7 @@ export default function ApplicationsPage() {
     toast.success('Activity refreshed');
   }, [queryClient]);
 
-  // Auth guard
-  if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
+  // Auth guard handled by ProtectedRoute
 
   const TABS: { key: TabKey; label: string }[] = [
     { key: 'applications', label: 'My Applications' },

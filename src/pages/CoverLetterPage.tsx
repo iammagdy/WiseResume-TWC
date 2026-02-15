@@ -35,7 +35,7 @@ export default function CoverLetterPage() {
   const [generating, setGenerating] = useState(false);
   const [viewingLetter, setViewingLetter] = useState<string | null>(null);
 
-  if (!user) { navigate('/auth'); return null; }
+  // Auth guard handled by ProtectedRoute
 
   const selectedResume = resumes?.find(r => r.id === selectedResumeId);
 

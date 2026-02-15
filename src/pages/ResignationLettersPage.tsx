@@ -9,7 +9,7 @@ import { useResignationLetters, useResignationLetterMutations } from '@/hooks/us
 import { useAuth } from '@/hooks/useAuth';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { Navigate } from 'react-router-dom';
+
 import { format } from 'date-fns';
 import {
   AlertDialog,
@@ -44,7 +44,7 @@ export default function ResignationLettersPage() {
     setDeleteId(null);
   }, [deleteId, deleteLetter]);
 
-  if (!authLoading && !user) return <Navigate to="/auth" replace />;
+  // Auth guard handled by ProtectedRoute
 
   const filtered = letters?.filter((l) => {
     if (!searchQuery) return true;

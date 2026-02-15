@@ -178,7 +178,7 @@ export default function ResignationLetterEditPage() {
     });
   }, [id, deleteLetter, navigate]);
 
-  if (!authLoading && !user) return <Navigate to="/auth" replace />;
+  // Auth guard handled by ProtectedRoute
   if (isLoading || authLoading) return <DetailSkeleton />;
   if (!letter) {
     return (

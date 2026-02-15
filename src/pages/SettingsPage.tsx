@@ -307,55 +307,47 @@ export default function SettingsPage() {
               );
             })()}
           </AnimatePresence>
-          {/* 1. Profile Section - Auth vs Guest */}
-          {user ? (
-            <button
-              onClick={handleOpenEditProfile}
-              className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
-            >
-              <Avatar className="h-14 w-14">
-                <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
-                <AvatarFallback className="bg-primary text-primary-foreground">
-                  {getInitials()}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{displayName}</p>
-                {profile?.jobTitle ? (
-                  <p className="text-sm text-muted-foreground truncate">{profile.jobTitle}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground truncate">
-                    Tap to complete your profile
-                  </p>
-                )}
-                <div className="mt-1.5 flex items-center gap-1.5">
-                  <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1 font-normal">
-                    <ProviderIcon className="w-3 h-3" />
-                    {providerLabel}
-                  </Badge>
-                </div>
-                {profileCompletion < 100 && (
-                  <div className="mt-2 flex items-center gap-2">
-                    <Progress value={profileCompletion} className="h-1.5 flex-1" />
-                    <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
-                  </div>
-                )}
-                {profileCompletion === 100 && (
-                  <div className="mt-1 flex items-center gap-1 text-xs text-primary">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Profile complete</span>
-                  </div>
-                )}
+          {/* 1. Profile Section */}
+          <button
+            onClick={handleOpenEditProfile}
+            className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
+          >
+            <Avatar className="h-14 w-14">
+              <AvatarImage src={profile?.avatarUrl || user?.user_metadata?.avatar_url} />
+              <AvatarFallback className="bg-primary text-primary-foreground">
+                {getInitials()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium truncate">{displayName}</p>
+              {profile?.jobTitle ? (
+                <p className="text-sm text-muted-foreground truncate">{profile.jobTitle}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground truncate">
+                  Tap to complete your profile
+                </p>
+              )}
+              <div className="mt-1.5 flex items-center gap-1.5">
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1 font-normal">
+                  <ProviderIcon className="w-3 h-3" />
+                  {providerLabel}
+                </Badge>
               </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
-            </button>
-          ) : (
-            <div className="text-center py-4">
-              <Button onClick={() => navigate('/auth')} className="w-full">
-                Sign in to access settings
-              </Button>
+              {profileCompletion < 100 && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Progress value={profileCompletion} className="h-1.5 flex-1" />
+                  <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
+                </div>
+              )}
+              {profileCompletion === 100 && (
+                <div className="mt-1 flex items-center gap-1 text-xs text-primary">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Profile complete</span>
+                </div>
+              )}
             </div>
-          )}
+            <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
+          </button>
 
           <Separator className="opacity-10" />
 

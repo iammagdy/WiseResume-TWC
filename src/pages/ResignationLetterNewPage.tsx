@@ -89,7 +89,7 @@ export default function ResignationLetterNewPage() {
     }
   });
 
-  if (!authLoading && !user) return <Navigate to="/auth" replace />;
+  // Auth guard handled by ProtectedRoute
 
   const toggleAddition = (id: string) => {
     haptics.selection();

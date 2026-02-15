@@ -11,7 +11,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { generateCoverLetter } from '@/lib/aiTailor';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { Navigate } from 'react-router-dom';
+
 import { DetailSkeleton } from '@/components/layout/PageSkeletons';
 import {
   Sheet,
@@ -161,7 +161,7 @@ export default function CoverLetterEditPage() {
     });
   }, [id, deleteCoverLetter, navigate]);
 
-  if (!authLoading && !user) return <Navigate to="/auth" replace />;
+  // Auth guard handled by ProtectedRoute
 
   if (isLoading || authLoading) return <DetailSkeleton />;
   if (!letter) {

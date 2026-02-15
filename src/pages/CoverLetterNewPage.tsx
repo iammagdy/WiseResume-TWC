@@ -12,7 +12,7 @@ import { useCoverLetterMutations } from '@/hooks/useCoverLetters';
 import { generateCoverLetter } from '@/lib/aiTailor';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { Navigate } from 'react-router-dom';
+
 import { cn } from '@/lib/utils';
 
 type Tone = 'professional' | 'enthusiastic' | 'conversational';
@@ -32,7 +32,7 @@ export default function CoverLetterNewPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [generating, setGenerating] = useState(false);
 
-  if (!authLoading && !user) return <Navigate to="/auth" replace />;
+  // Auth guard handled by ProtectedRoute
 
   const selectedResume = resumes?.find((r) => r.id === selectedResumeId);
 
