@@ -93,3 +93,53 @@ export function headingStyle(c: TemplateCustomization | undefined): CSSPropertie
     color: c.accentColor,
   };
 }
+
+/**
+ * Generates a CSS string that overrides hardcoded template colors and fonts
+ * using the user's customization choices. Injected as a <style> tag inside
+ * the resume wrapper so it applies regardless of template-specific Tailwind classes.
+ */
+export function generateCustomizationCSS(c: TemplateCustomization | undefined): string {
+  if (!c) return '';
+
+  const accent = c.accentColor || '#1e40af';
+  const fontBody = c.fontBody || 'Inter';
+  const fontHeading = c.fontHeading || 'Inter';
+
+  return `
+    [data-resume-template] {
+      font-family: ${fontBody} !important;
+    }
+    [data-resume-template] h1,
+    [data-resume-template] h2,
+    [data-resume-template] h3 {
+      font-family: ${fontHeading} !important;
+    }
+    [data-resume-template] h2 {
+      color: ${accent} !important;
+    }
+    [data-resume-template] h1 {
+      color: ${accent} !important;
+    }
+    [data-resume-template] header {
+      border-color: ${accent} !important;
+    }
+    [data-resume-template] [class*="border-"] {
+      border-color: ${accent} !important;
+    }
+    [data-resume-template] [class*="bg-"][class*="-600"],
+    [data-resume-template] [class*="bg-"][class*="-700"],
+    [data-resume-template] [class*="bg-"][class*="-800"],
+    [data-resume-template] [class*="bg-"][class*="-900"] {
+      background-color: ${accent} !important;
+    }
+    [data-resume-template] [class*="text-"][class*="-600"],
+    [data-resume-template] [class*="text-"][class*="-700"],
+    [data-resume-template] [class*="text-"][class*="-800"] {
+      color: ${accent} !important;
+    }
+    [data-resume-template] .divide-y > * + * {
+      border-color: ${accent}33 !important;
+    }
+  `;
+}
