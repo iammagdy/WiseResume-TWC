@@ -94,7 +94,7 @@ export const StepperNav = memo(function StepperNav({
               {activeMoreDef ? activeMoreDef.label : activeStepData?.label}
             </span>
             <p className="text-[11px] text-muted-foreground">
-              {steps.filter(s => completedSteps[s.id]).length} of {steps.length} complete
+              {steps.filter(s => s.id !== 'more' && completedSteps[s.id]).length} of {steps.filter(s => s.id !== 'more').length} complete
             </p>
           </div>
           {activeCompleted ? (
@@ -116,7 +116,11 @@ export const StepperNav = memo(function StepperNav({
               <h3 className="text-base font-semibold text-foreground mb-3">Resume Sections</h3>
               <div className="flex flex-col gap-2">
                 {steps.map((step, i) => {
-                  const Icon = STEP_ICONS[step.id] || Plus;
+                  const moreDef = step.id === 'more' && activeMoreSection
+                    ? MORE_SECTIONS.find(s => s.id === activeMoreSection)
+                    : null;
+                  const Icon = moreDef ? moreDef.icon : (STEP_ICONS[step.id] || Plus);
+                  const displayLabel = moreDef ? moreDef.label : step.label;
                   const isActive = step.id === activeStep;
                   const isCompleted = completedSteps[step.id];
                   const score = sectionScores?.[step.id] ?? (isCompleted ? 100 : 0);
@@ -157,7 +161,7 @@ export const StepperNav = memo(function StepperNav({
                         'flex-1 text-left text-sm font-medium',
                         isActive ? 'text-primary' : isCompleted ? 'text-success' : isInProgress ? 'text-warning' : 'text-foreground'
                       )}>
-                        {step.label}
+                        {displayLabel}
                       </span>
                       {isInProgress && !isCompleted && (
                         <span className="text-[10px] font-bold bg-warning text-warning-foreground rounded-full px-1.5 py-0.5">
