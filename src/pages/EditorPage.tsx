@@ -63,6 +63,8 @@ import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import haptics from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
+import { Target } from 'lucide-react';
 import { useProofread } from '@/hooks/useProofread';
 import { ProofreadButton } from '@/components/editor/ProofreadButton';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
@@ -478,6 +480,31 @@ export default function EditorPage() {
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
   const handleProofread = useCallback(() => setShowProofread(true), []);
 
+  // Mobile-only editor tools panel groups
+  const editorToolGroups = useMemo((): ActionsPanelGroup[] => {
+    const quickActions: ActionsPanelGroup = {
+      id: 'quick-actions',
+      title: 'Quick Actions',
+      actions: [
+        { id: 'design', label: 'Design', icon: Palette, onClick: handleCustomize },
+        { id: 'preview', label: 'Live Preview', icon: Eye, onClick: () => setShowPreview(v => !v) },
+        { id: 'wise-ai', label: 'Wise AI', icon: MessageSquare, onClick: () => setShowChat(true) },
+        ...(user && currentResumeId ? [{ id: 'versions', label: 'Versions', icon: Clock, onClick: () => setShowVersionHistory(true) }] : []),
+      ],
+    };
+    const aiFeatures: ActionsPanelGroup = {
+      id: 'ai-features',
+      title: 'AI Features',
+      actions: [
+        { id: 'ai-enhance', label: 'AI Enhance', icon: Sparkles, onClick: () => setShowTailor(true) },
+        { id: 'tailor', label: 'Tailor to Job', icon: Target, onClick: handleTailor },
+        { id: 'ats-check', label: 'ATS Check', icon: BarChart3, onClick: () => setShowJobSheet(true) },
+        { id: 'proofread', label: 'Proofread', icon: Scissors, onClick: handleProofread },
+      ],
+    };
+    return [quickActions, aiFeatures];
+  }, [user, currentResumeId, handleCustomize, handleTailor, handleProofread]);
+
   // Extract editor content into a render function for reuse in both layouts
   const renderEditorContent = useCallback(() => (
     <>
@@ -684,7 +711,8 @@ export default function EditorPage() {
                 </button>
               )}
           </div>
-          <div className="flex items-center gap-1.5">
+          {/* Desktop buttons - hidden on mobile */}
+          <div className="hidden md:flex items-center gap-1.5">
             {/* Design shortcut */}
             <button
               onClick={() => { handleCustomize(); haptics.light(); }}
@@ -695,51 +723,51 @@ export default function EditorPage() {
               <span className="text-[9px] font-medium leading-none">Design</span>
             </button>
             {/* Live Preview Toggle */}
-            {!isMobile && (
-              <button
-                onClick={() => {
-                  setShowPreview(v => {
-                    const next = !v;
-                    localStorage.setItem('wr-live-preview', String(next));
-                    return next;
-                  });
-                  haptics.light();
-                }}
-                className={cn(
-                  'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
-                  showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
-                )}
-                aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
-              >
-                {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
-                <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Live'}</span>
-              </button>
-            )}
-            {/* Mobile Preview Toggle */}
-            {isMobile && (
-              <button
-                onClick={() => { setShowPreview(v => !v); haptics.light(); }}
-                className={cn(
-                  'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
-                  showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
-                )}
-                aria-label={showPreview ? 'Close preview' : 'Open preview'}
-              >
-                <Eye className="w-5 h-5" />
-                <span className="text-[9px] font-medium leading-none">Preview</span>
-              </button>
-            )}
             <button
-                    onClick={() => setShowChat(true)}
-                    className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
-                    aria-label="Open Wise AI Chat"
-                  >
-                    <span className="relative">
-                      <MessageSquare className="w-5 h-5 text-primary" />
-                      <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
-                    </span>
-                    <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
-                  </button>
+              onClick={() => {
+                setShowPreview(v => {
+                  const next = !v;
+                  localStorage.setItem('wr-live-preview', String(next));
+                  return next;
+                });
+                haptics.light();
+              }}
+              className={cn(
+                'keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95',
+                showPreview ? 'bg-primary/15 text-primary' : 'hover:bg-muted text-muted-foreground'
+              )}
+              aria-label={showPreview ? 'Hide live preview' : 'Show live preview'}
+            >
+              {showPreview ? <PanelLeftClose className="w-5 h-5" /> : <PanelLeft className="w-5 h-5" />}
+              <span className="text-[9px] font-medium leading-none">{showPreview ? 'Hide' : 'Live'}</span>
+            </button>
+            <button
+              onClick={() => setShowChat(true)}
+              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
+              aria-label="Open Wise AI Chat"
+            >
+              <span className="relative">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+              </span>
+              <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
+            </button>
+          </div>
+          {/* Mobile-only: consolidated tools trigger */}
+          <div className="flex md:hidden">
+            <ActionsPanel
+              trigger={
+                <button
+                  className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
+                  aria-label="Editor tools"
+                >
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
+                </button>
+              }
+              title="Editor Tools"
+              groups={editorToolGroups}
+            />
           </div>
         </div>
       </header>
