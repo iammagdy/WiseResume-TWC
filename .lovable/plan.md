@@ -1,63 +1,68 @@
 
 
-## Landing Page Audit and Optimization
+## Editor Tab Usability Audit -- Findings and Improvements
 
-### Current Page Structure (Index.tsx)
+### Audit Summary
 
-The landing page is a self-contained component with these sections in order:
+After reviewing the Editor page, StepperNav, section components (Contact, Summary, Experience), SectionCard, InlineAIButton, AIIntroTooltip, NextStepBanner, form-field component, and the mobile tools sheet, the Editor is already well-structured for mobile. However, there are several small friction points worth addressing.
 
-1. **Hero** (lines 75-138) -- AppIcon, headline, CTA, trust badges
-2. **Steps Row** (lines 141-167) -- Create / AI Polish / Export
-3. **EditorDemo** (lines 170-173) -- Animated phone mockup showing AI bullet transformation
-4. **Social Proof Bar** (lines 176-194) -- Rating, resumes count, "Free forever"
-5. **Competitor Comparison** (lines 197-234) -- "Why WiseResume?" table (us vs. others)
-6. **AI Bullet Transform** (lines 237-266) -- Static before/after card
-7. **Features Grid** (lines 269-290) -- 6 feature cards
-8. **Template Preview** (lines 293-327) -- 3 mini template thumbnails
-9. **Bottom CTA** (lines 330-354) -- Repeated "Get Started Free"
+### Findings
 
-### Issues Found
+**1. Mobile Tools Sheet lacks descriptions**
+The "Editor Tools" bottom sheet (lines 780-816 of EditorPage.tsx) shows action labels ("Design", "Live Preview", "Wise AI", "AI Enhance", "Tailor to Job", "ATS Check", "Proofread") but no descriptions. Users unfamiliar with these tools may hesitate to tap, especially AI actions where they fear overwriting content.
 
-**1. Redundant Section: AI Bullet Transform (lines 237-266)**
-The static "AI Bullet Transformation" card shows the exact same before/after content as the animated EditorDemo above it. The EditorDemo already demonstrates this interactively with typing animation, AI shimmer, and score ring. The static card adds no new information and lengthens the page unnecessarily.
-- **Action**: Remove this section entirely.
+**Fix**: Add short `description` strings to the `editorToolGroups` data (lines 493-514) and render them as subtitle text below each label in the tools sheet.
 
-**2. One-Sided Competitor Comparison**
-The comparison table marks every row as a checkmark for WiseResume and an X for "Others". This looks untrustworthy -- no competitor has zero overlap. The first row ("Generic templates only") even implies *others* have templates but marks it X.
-- **Action**: Remove this section. The Features Grid already communicates what WiseResume offers. Alternatively, replace with a shorter, more honest differentiator (but removal is simpler and cleaner).
+**2. "AI Enhance" and "Tailor to Job" feel like duplicates**
+Both open the TailorSheet (`setShowTailor(true)`), which is confusing. "AI Enhance" (line 508) and "Tailor" (line 509) trigger the same handler.
 
-**3. Template Preview is Minimal but Fine**
-Only 3 thumbnail placeholders. The TemplateGallery component exists with 6 rich previews but is unused on this page.
-- **Action**: Keep as-is. The lightweight thumbnails load fast and the "Browse All 12" link drives engagement without bloating the page.
+**Fix**: Remove the duplicate "AI Enhance" entry from the tools sheet. Keep "Tailor to Job" as the single entry, with a clear description. This reduces confusion without changing any logic.
 
-**4. Unused Imports in Index.tsx**
-`BarChart3` icon is imported but never used.
-- **Action**: Remove unused import.
+**3. Tools sheet groups lack visual hierarchy**
+The group titles ("Quick Actions", "AI Features") use tiny uppercase text that blends in. The actions themselves have no icons rendered distinctly -- they are muted-foreground gray without color differentiation.
 
-**5. Mobile Layout is Already Good**
-- No horizontal overflow at 360px (verified: all sections use `px-4`, `max-w-md mx-auto`)
-- Hero CTA is above the fold with proper sizing (h-14, text-lg)
-- Features grid uses `grid-cols-1 xs:grid-cols-2` correctly
-- Touch targets meet 44px minimum
-- No fixes needed for mobile layout
+**Fix**: Add color to tool icons (matching the AIAssistantBar's secondary tools pattern) to help users scan the list quickly.
 
-### Resulting Page Flow (After Changes)
+**4. Save status is only visible in the progress bar area**
+When a user edits a field and moves on, the only save feedback is a tiny "Saved" badge that appears for 2 seconds in the progress bar. On mobile, this may already have scrolled out of view.
 
-1. **Hero** -- Headline + primary CTA (above the fold)
-2. **Steps Row** -- How it works in 3 steps
-3. **EditorDemo** -- Interactive AI demo (the wow moment)
-4. **Social Proof Bar** -- Trust signals
-5. **Features Grid** -- What you get (6 cards)
-6. **Template Preview** -- Visual proof of quality
-7. **Bottom CTA** -- Final conversion push
+**No code change needed**: The form-field component already shows inline "Saved" badges per field (via `useSavedIndicator`), and the header shows cloud save status. This is adequate -- no change.
 
-This cuts 2 sections, shortening the page by ~30% while removing zero unique value. The conversion flow becomes: hook (hero) -> show (demo) -> prove (social proof) -> list (features) -> convert (bottom CTA).
+**5. "More Sections" button placement on mobile**
+The "More Sections" button appears below the stepper dropdown as a separate full-width button. This is fine and clearly visible. No change needed.
 
-### Technical Changes
+**6. Section navigation Previous/Next buttons**
+These are well-implemented at 56px height with clear labels. The final step shows "Preview & Export" with a gradient. No change needed.
+
+### Proposed Changes
+
+**File: `src/pages/EditorPage.tsx`**
+
+1. **Add descriptions to tool actions** (lines 493-514): Add a `description` field to each action in `editorToolGroups`.
+
+2. **Remove duplicate "AI Enhance" action**: Remove the "AI Enhance" entry (line 508) that duplicates "Tailor to Job".
+
+3. **Render descriptions in the tools sheet** (lines 789-809): Show the description as a secondary line of text below each action label.
+
+4. **Add distinct icon colors**: Apply color classes to tool icons (e.g., Palette = pink, Eye = blue, MessageSquare = primary, Target = amber, BarChart3 = emerald, Scissors = red).
+
+### What stays the same
+
+- All handler functions unchanged
+- All sheet components unchanged
+- StepperNav, SectionCard, form fields, AI actions -- all unchanged
+- Navigation, save logic, undo/redo -- all unchanged
+- Only the mobile tools sheet gets clearer labels, descriptions, and visual hierarchy
+
+### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/pages/Index.tsx` | Remove the `competitors` array and the competitor comparison section (lines 26-34, 196-234). Remove the static AI Bullet Transform section (lines 236-266). Remove unused `BarChart3` import. |
+| `src/pages/EditorPage.tsx` | Add descriptions and icon colors to `editorToolGroups`; remove duplicate "AI Enhance"; render description text in tools sheet |
 
-No logic, routing, auth, or handler changes. All remaining sections keep their exact current code.
+### Remaining UX Issues (Require Larger Changes -- Not in Scope)
+
+- **No "your changes are reversible" reassurance on AI actions**: The InlineAIButton opens an AIEnhanceDialog with Apply/Discard, which is good, but the initial button doesn't communicate this. A future improvement could add a tooltip or subtitle "Preview changes before applying".
+- **ExperienceSection date inputs are freeform text**: Users type "Jan 2020" manually. A date picker would improve UX but requires new dependencies/logic.
+- **Timeline gaps feature is powerful but potentially confusing**: The gap detection and filler tools are advanced features that could overwhelm new users. Consider progressive disclosure in a future iteration.
 
