@@ -1,56 +1,66 @@
 
 
-## Mobile Optimization: Skills Section and Preview Panel (Incremental)
+## Dashboard Mobile Optimization
 
 ### Overview
 
-Both the Skills section and Preview panel are already heavily mobile-optimized. This plan covers the small remaining gaps to match the full specification.
+The dashboard already has responsive foundations (single-column on mobile via `space-y-4`, 44px menu touch targets, swipe gestures). This plan addresses the specific requests: simplifying the stats section, improving resume card progress bars, and ensuring single-column layout on tablet.
 
 ### What's Already Done (No Changes Needed)
 
-- **Skills chips**: Already `min-h-[44px]` with `touch-manipulation active:scale-95` and `text-sm` (14px)
-- **Remove X button**: Already `min-w-[32px] min-h-[32px]` touch area wrapping the 16px icon
-- **Add skill input**: Already `h-12 text-base` (48px, 16px font -- prevents iOS zoom)
-- **Add button**: Already `h-12 min-h-[48px]`
-- **Common skills**: Already `grid grid-cols-2 sm:flex sm:flex-wrap` with `min-h-[44px]` and `touch-manipulation`
-- **Suggested skills**: Already same grid/touch pattern
-- **Preview on mobile**: Already uses `LivePreviewSheet` -- a Vaul `Drawer` at `h-[95dvh]` with swipe-down-to-close
-- **Zoom controls**: Already present with 50/75/100/125% buttons
-- **PDF download**: Already in toolbar with spinner state
-- **Section visibility toggles**: Already implemented
-- **Close button**: Already present with `min-w-[36px] min-h-[36px]`
+- Resume cards: swipe gestures, 44px three-dot menu, haptic feedback
+- Search input: h-12 (48px), text-base (16px), rounded-full
+- Floating Create Button: 56px FAB with pulse animation
+- Pull-to-refresh, skeleton loading states
+- Mobile: already `space-y-4` vertical stack (single column)
 
 ### Changes Required
 
-**File 1: `src/components/editor/SkillsSection.tsx`**
+**File 1: `src/components/dashboard/DashboardStats.tsx`**
 
-Minor spacing and touch refinements:
-- Change outer container from `space-y-4` to `space-y-5` for consistent 20px vertical spacing (matches Contact and Summary sections)
-- Increase the X button touch area from `min-w-[32px] min-h-[32px]` to `min-w-[36px] min-h-[36px]` for a more comfortable removal target
+Simplify the stats section per spec:
+- Remove the `ScoreRing` (72px AVG ring) entirely from the stats row
+- Remove the "Top Score" stat tile with Award icon
+- Replace the current stats grid with a simpler inline layout:
+  - Desktop (>=768px): Single row -- greeting on left, "X Resumes" and "Best: Y%" as inline badges on the right
+  - Mobile (<640px): Greeting on its own line, then a compact "X Resumes | Best: Y%" line below
+- Keep the greeting, streak badge, and motivational subtitle (empty state) unchanged
+- Remove imports for `ScoreRing`, `Award`, `TooltipProvider`, `Tooltip`, `TooltipTrigger`, `TooltipContent` (no longer needed)
 
-**File 2: `src/components/editor/LivePreviewPanel.tsx`**
+**File 2: `src/components/dashboard/ResumeListCard.tsx`**
 
-Mobile toolbar touch target improvements:
-- Increase zoom button `min-h` from `36px` to `40px` to match the spec
-- Increase section toggle and close buttons from `min-w-[36px] min-h-[36px]` to `min-w-[44px] min-h-[44px]` to meet the 44px mobile standard
-- Add safe-area top padding to the toolbar on mobile: `pt-[env(safe-area-inset-top)]` so notched phones don't obscure controls
-- Make section visibility toggle chips `min-h-[36px]` (up from 32px) for easier tapping
+Improve resume card progress bar and text sizing:
+- Change progress bar height from `h-1.5` to `h-2` (8px) for better mobile visibility
+- Change completion percentage font from `text-xs` to `text-sm` (~14px) for readability
+- Change resume title from `text-base sm:text-sm` to `text-lg sm:text-base` (18px on mobile)
+- Change "No target job set" text to ensure no awkward wrapping: keep `text-sm` (14px) and add `whitespace-nowrap`
+- Change AI suggestion text from `text-xs` to `text-sm` (14px), and add `line-clamp-2` for max 2 lines with ellipsis
+- Change "Edited X ago" from `text-xs` to `text-[13px]` for the requested 13px minimum
+- Change card min-height from `min-h-[120px]` to `min-h-[180px] sm:min-h-[120px]` for mobile comfort
+- Add `text-[13px]` to the tailored versions badge for readability
+
+**File 3: `src/pages/DashboardPage.tsx`**
+
+Fix resume grid for tablet single-column:
+- Change the grid from `md:grid md:grid-cols-2 lg:grid-cols-3` to `lg:grid lg:grid-cols-2 xl:grid-cols-3` so tablet (640-1023px) stays single-column and only desktop (>=1024px) goes to 2 columns
 
 ### What Does NOT Change
 
-- All skill add/remove/reorder logic
-- AI skill suggestions and gap analysis features
-- Auto-save behavior
-- Preview Drawer component and its swipe-down-to-close behavior
-- Zoom calculation and resume rendering
-- PDF generation pipeline
-- Desktop layouts for both components
-- Template rendering and section filtering
-- All other editor sections and pages
+- All resume CRUD operations (click, rename, duplicate, delete)
+- Swipe gesture logic and confirmation dialogs
+- Search functionality
+- Floating Create Button
+- ResumeGroup hierarchy and tailored version display
+- Health score calculation and background scoring
+- Onboarding flow
+- LinkedIn import
+- All data loading, saving, and API calls
 
 ### Technical Notes
 
-- All changes are CSS class adjustments only -- no logic or data flow modifications
-- The Drawer component from Vaul already provides swipe-down-to-close, backdrop overlay, and smooth animations -- no custom implementation needed
-- Safe-area padding uses the CSS `env()` function which gracefully falls back to 0 on non-notched devices
-- The zoom buttons remain functional at all sizes; `min-h-[40px]` with `min-w-[40px]` is comfortable for thumb tapping
+- Removing the ScoreRing from DashboardStats does NOT remove it from ResumeListCard -- each card still shows its individual score ring
+- The "Best: Y%" stat replaces both the AVG ring and Top Score tile, reducing visual clutter
+- Grid breakpoint change from `md:` to `lg:` shifts the 2-column threshold from 768px to 1024px, making tablet single-column
+- Progress bar `h-2` (8px) matches the minimum height requested in the spec
+- `line-clamp-2` uses `-webkit-line-clamp` which is well-supported in all modern browsers
+
