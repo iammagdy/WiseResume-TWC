@@ -1,103 +1,93 @@
 
 
-## Fix Jobs Tab UX Issues
+## Add CV Filename to Editor Header and Route Through Preview Screen
 
-This plan addresses 4 main areas: notification badge sync, stats restructuring, saved job actions, and mobile filter visibility.
+### Overview
 
----
-
-### 1. Fix Notification Badge Sync
-
-**Root cause**: The `useUnreadNotificationCount` and `useNotifications` hooks don't filter by `user_id` explicitly -- they rely solely on Row Level Security (RLS). The count query uses `head: true` mode which can behave inconsistently.
-
-**File: `src/hooks/useNotifications.ts`**
-
-- Add `.eq('user_id', user.id)` filter to both `useNotifications` and `useUnreadNotificationCount` queries
-- This ensures badge count and notification list always match for the logged-in user
-- Also add `user_id` filter to `markAllAsRead` and `clearAll` mutations for safety
+Two changes: (1) show the actual resume name in the editor header instead of generic "Edit Resume", and (2) redirect resume clicks to the existing Preview/Detail screen (`/resume/:id`) before entering the editor.
 
 ---
 
-### 2. Restructure Stats Cards to Separate Resume vs Application Tracking
+### Part 1: Show Resume Name in Editor Header
 
-**File: `src/hooks/useJobActivityStats.ts`**
+**File: `src/pages/EditorPage.tsx`**
 
-- Add new stats fields: `applicationsSubmitted`, `interviewsScheduled`, `offersReceived`
-- Query `job_applications` table to count by status (`applied`/`screening` = submitted, `interviewing` = scheduled, `offer` = received)
+Replace the static `<h1>Edit Resume</h1>` (line 643) with the actual resume title from `resumeFromDb` or `currentResume`:
 
-**File: `src/components/applications/JobActivityStats.tsx`**
+- Display: `resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'`
+- For tailored resumes (when `resumeFromDb?.parent_resume_id` exists), the existing Tailored Indicator Banner already shows the job context below the header -- no duplication needed
+- The title will be truncated with `truncate` class on mobile (already applied)
+- Keep font size at `text-h3` for consistency
 
-- Split the 2x2 grid into two labeled sections:
-  - **Resume Stats**: "Resumes Created" and "Tailored Versions" (existing)
-  - **Application Stats**: "Applications Submitted", "Interviews Scheduled", "Offers Received"
-- Each section has a small header label (e.g., "Resume Activity", "Application Tracking")
-- Resume section: 2-column grid (same as current)
-- Application section: 3-column compact row below
+This works from ALL entry points because `resumeFromDb` is fetched via `useResume(currentResumeId)` regardless of how the user arrived.
 
 ---
 
-### 3. Add Action Buttons to Saved Job Cards
+### Part 2: Route Resume Clicks Through Preview Screen
 
-**File: `src/pages/ApplicationsPage.tsx`**
+The app already has a fully-featured `ResumeDetailPage` at `/resume/:id` with:
+- Template thumbnail preview
+- Health score ring
+- Metadata (template, created date, last edited)
+- Action grid (Edit, Preview, Download, Share, Duplicate, Delete)
 
-Update the `JobCard` component in the Saved Jobs tab:
+Currently, most entry points bypass it and go straight to `/editor`. We need to update navigation in these files:
 
-- Add a row of action buttons below each job card's info:
-  - **"Tailor Resume"** -- navigates to `/editor` with the job context (or opens AI Studio tailor flow)
-  - **"Mark as Applied"** -- creates a `job_application` entry with `status: 'applied'`, linking the job, and shows a success toast
-  - **"View Details"** -- navigates to `/job/{id}` (existing behavior, keeps the card tap)
-- Add a "Resume Tailored" badge on saved jobs that have a matching tailored resume (check if any resume's `target_job_title` matches the job title)
-- The "Mark as Applied" button uses `useJobApplicationMutations().createApplication` to create an application entry linked to the saved job
+**File: `src/pages/DashboardPage.tsx`**
+- Change `handleResumeClick` (around line 178-184) to navigate to `/resume/${resumeId}` instead of setting store state and navigating to `/editor`
+- Keep the "Create from scratch" flow going to `/editor` (new resumes have no ID yet)
 
----
+**File: `src/components/dashboard/ResumeListCard.tsx`**
+- Update the card's main click/tap handler to navigate to `/resume/${resume.id}` instead of calling `onEdit(resume.id)`
+- Keep the "Edit" action in the dropdown menu calling `onEdit` (which navigates to editor)
 
-### 4. Fix "Rejected" Filter Visibility on Mobile
-
-**File: `src/components/applications/StatusFilter.tsx`**
-
-- Add horizontal padding (`px-4`) to the scrollable container and `snap-x` for smooth scrolling
-- Add right padding after the last item so "Rejected" isn't clipped at the edge
-- Increase minimum button width with `min-w-fit` to prevent text truncation
-
----
-
-### 5. Improve Empty States with Clear CTAs
-
-**File: `src/pages/ApplicationsPage.tsx`**
-
-- **Empty Saved Jobs**: Replace generic empty state with two CTA buttons:
-  - "Search for Jobs" (opens `JobSearchSheet`)
-  - "Add Job Manually" (opens `SaveJobSheet`)
-- **Empty My Applications**: Add message "Get started by saving jobs you're interested in" with a button to switch to the Saved Jobs tab
-
----
-
-### 6. Improve Activity Timeline Labels
+**File: `src/components/applications/ResumeListSheet.tsx`**
+- Change resume item click to navigate to `/resume/${resumeId}` instead of `/editor?id=...`
 
 **File: `src/components/applications/ActivityTimeline.tsx`**
+- Change resume entry click to navigate to `/resume/${entry.resumeId}` instead of `/editor?id=...`
 
-- Add an "Apply" action button on timeline entries of type `resume_tailored` that navigates to the applications flow
-- This connects the tailoring action to the application tracking workflow
+**File: `src/components/dashboard/VersionCompareSheet.tsx`**
+- Change "Use this version" to navigate to `/resume/${resume.id}` instead of `/editor?id=...`
+
+**Files NOT changed** (these are intentional direct-to-editor flows):
+- Upload flow (new resume, goes to editor)
+- Template selection (applying template, goes to editor)
+- Profile page Master CV edit (explicit edit action)
+- "Tailor Resume" buttons on jobs (opens editor with tailor sheet)
+- Preview page "Back to Editor" button
+- Existing ResumeDetailPage "Edit" button (already navigates to editor)
+
+---
+
+### Part 3: Enhance ResumeDetailPage for Tailored Resumes
+
+**File: `src/pages/ResumeDetailPage.tsx`**
+
+- Add tailored resume context: if `dbResume.parent_resume_id` exists, show a "Tailored" badge with target job title and company
+- Add a "View Original" link to navigate to `/resume/${dbResume.parent_resume_id}`
+- Add quick stats panel showing: completion percentage, sections completed count, number of tailored versions (query child resumes count)
 
 ---
 
 ### Files Summary
 
-| File | Changes |
-|------|---------|
-| `src/hooks/useNotifications.ts` | Add `user_id` filter to queries and mutations |
-| `src/hooks/useJobActivityStats.ts` | Add application-specific stats (submitted, interviews, offers) |
-| `src/components/applications/JobActivityStats.tsx` | Split into Resume Stats + Application Stats sections |
-| `src/pages/ApplicationsPage.tsx` | Add job card actions, improve empty states |
-| `src/components/applications/StatusFilter.tsx` | Fix horizontal scroll and padding for mobile |
-| `src/components/applications/ActivityTimeline.tsx` | Add "Apply" action on tailored resume entries |
+| File | Change |
+|------|--------|
+| `src/pages/EditorPage.tsx` | Replace "Edit Resume" with actual resume title |
+| `src/pages/DashboardPage.tsx` | Navigate to `/resume/:id` instead of `/editor` |
+| `src/components/dashboard/ResumeListCard.tsx` | Card tap goes to `/resume/:id` |
+| `src/components/applications/ResumeListSheet.tsx` | Resume click goes to `/resume/:id` |
+| `src/components/applications/ActivityTimeline.tsx` | Resume entry click goes to `/resume/:id` |
+| `src/components/dashboard/VersionCompareSheet.tsx` | Version click goes to `/resume/:id` |
+| `src/pages/ResumeDetailPage.tsx` | Add tailored resume context and quick stats |
 
 ### Implementation Order
 
-1. `useNotifications.ts` -- fix badge sync (critical)
-2. `useJobActivityStats.ts` -- add application stats
-3. `JobActivityStats.tsx` -- restructure stats display
-4. `StatusFilter.tsx` -- fix mobile scroll
-5. `ApplicationsPage.tsx` -- job card actions + empty states
-6. `ActivityTimeline.tsx` -- add apply action to tailored entries
-
+1. `EditorPage.tsx` -- update header title (quick win)
+2. `ResumeDetailPage.tsx` -- enhance with tailored context and stats
+3. `DashboardPage.tsx` -- redirect to preview
+4. `ResumeListCard.tsx` -- redirect to preview
+5. `ResumeListSheet.tsx` -- redirect to preview
+6. `ActivityTimeline.tsx` -- redirect to preview
+7. `VersionCompareSheet.tsx` -- redirect to preview
