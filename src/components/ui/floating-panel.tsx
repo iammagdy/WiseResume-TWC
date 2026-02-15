@@ -407,7 +407,7 @@ export function FloatingPanelButton({
     <button
       type="button"
       className={cn(
-        "flex w-full items-center gap-2 rounded-md px-4 py-2 text-left text-sm hover:bg-muted transition-colors",
+        "flex w-full items-center gap-2 rounded-md px-4 py-2 text-left text-sm hover:bg-muted transition-all min-h-[44px] touch-manipulation active:scale-95",
         className
       )}
       onClick={onClick}
