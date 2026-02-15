@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense, useCallback } from 'react';
+import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -25,6 +25,8 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/comp
 import { useResumeStore } from '@/store/resumeStore';
 import { useResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
+import { useSettingsStore } from '@/store/settingsStore';
+import { AIStudioTourModal } from '@/components/ai-studio/AIStudioTourModal';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
@@ -52,6 +54,13 @@ const SUGGESTIONS = [
   'What can I improve?',
 ];
 
+const PLACEHOLDER_EXAMPLES = [
+  'Ask AI to edit your resume...',
+  'Try: "Write a summary for a PM"',
+  'Try: "Add metrics to my bullets"',
+  'Try: "Proofread my experience"',
+];
+
 const secondaryTools = [
   { id: 'proofread', icon: SpellCheck, label: 'Proofread', desc: 'Fix grammar & typos', color: 'text-red-500' },
   { id: 'ideas', icon: Lightbulb, label: 'Ideas', desc: 'Content suggestions', color: 'text-yellow-500' },
@@ -70,6 +79,16 @@ export default function AIStudioPage() {
   const { user } = useAuth();
   const currentResumeId = useResumeStore(s => s.currentResumeId);
   const { data: resumeData } = useResume(currentResumeId);
+  const hasSeenAIStudioTour = useSettingsStore(s => s.hasSeenAIStudioTour);
+  const setHasSeenAIStudioTour = useSettingsStore(s => s.setHasSeenAIStudioTour);
+  const isFirstVisit = !hasSeenAIStudioTour;
+
+  // Cycling placeholder
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDER_EXAMPLES.length), 3000);
+    return () => clearInterval(t);
+  }, []);
 
   // Sheet states
   const [showChat, setShowChat] = useState(false);
@@ -196,8 +215,21 @@ export default function AIStudioPage() {
             }
             setShowChat(true);
           }}
-          className="w-full p-4 rounded-2xl glass-elevated border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation"
+          className={cn(
+            'w-full p-4 rounded-2xl glass-elevated border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden',
+            isFirstVisit && 'ring-2 ring-primary/40 animate-pulse'
+          )}
         >
+          {/* Cycling placeholder hint */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center">
+              <Sparkles className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div className="text-left flex-1 min-w-0">
+              <p className="font-semibold text-sm">Wise AI Chat</p>
+              <p className="text-xs text-muted-foreground truncate">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
+            </div>
+          </div>
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
@@ -333,6 +365,11 @@ export default function AIStudioPage() {
           {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
         </Suspense>
       </ErrorBoundary>
+
+      {/* Onboarding Tour */}
+      {isFirstVisit && (
+        <AIStudioTourModal onDismiss={() => setHasSeenAIStudioTour(true)} />
+      )}
     </div>
   );
 }
