@@ -1,48 +1,103 @@
 
 
-## Add Tailored Resume Indicator Banner in Editor
+## Fix Jobs Tab UX Issues
 
-### What It Does
+This plan addresses 4 main areas: notification badge sync, stats restructuring, saved job actions, and mobile filter visibility.
 
-When a user opens a tailored resume (one with a `parent_resume_id`), a compact banner appears just below the editor header showing:
-- A "Tailored" label with a scissors icon
-- The target job title and company (e.g., "Frontend Developer @ Google")
-- A tap action to navigate back to the parent (original) resume
+---
 
-This gives users instant context about which tailored CV they're editing and what job it was tailored for.
+### 1. Fix Notification Badge Sync
 
-### What Changes
+**Root cause**: The `useUnreadNotificationCount` and `useNotifications` hooks don't filter by `user_id` explicitly -- they rely solely on Row Level Security (RLS). The count query uses `head: true` mode which can behave inconsistently.
 
-#### 1. Editor Page (`src/pages/EditorPage.tsx`)
+**File: `src/hooks/useNotifications.ts`**
 
-- Read `parent_resume_id`, `target_job_title`, and `target_company` from `resumeFromDb` (already fetched via `useResume`)
-- Add a new banner component rendered between the header and the StepperNav when `parent_resume_id` is not null
-- Banner layout:
-  - Left: Scissors icon + "Tailored" badge (purple/primary tint)
-  - Center: Job title and company text, truncated on mobile
-  - Right: "View Original" link button that navigates to `/editor?id={parent_resume_id}`
-- Styled as a slim, dismissible bar with `bg-primary/10 border-b border-primary/20`
-- 36px height, compact text (`text-xs`), full-width
+- Add `.eq('user_id', user.id)` filter to both `useNotifications` and `useUnreadNotificationCount` queries
+- This ensures badge count and notification list always match for the logged-in user
+- Also add `user_id` filter to `markAllAsRead` and `clearAll` mutations for safety
 
-### What Does NOT Change
+---
 
-- Resume data loading or store logic
-- StepperNav, section cards, or any editing functionality
-- Header layout (banner is added below, not inside the header)
-- Navigation flow from Jobs tab (already navigates to `/editor?id=...`)
+### 2. Restructure Stats Cards to Separate Resume vs Application Tracking
+
+**File: `src/hooks/useJobActivityStats.ts`**
+
+- Add new stats fields: `applicationsSubmitted`, `interviewsScheduled`, `offersReceived`
+- Query `job_applications` table to count by status (`applied`/`screening` = submitted, `interviewing` = scheduled, `offer` = received)
+
+**File: `src/components/applications/JobActivityStats.tsx`**
+
+- Split the 2x2 grid into two labeled sections:
+  - **Resume Stats**: "Resumes Created" and "Tailored Versions" (existing)
+  - **Application Stats**: "Applications Submitted", "Interviews Scheduled", "Offers Received"
+- Each section has a small header label (e.g., "Resume Activity", "Application Tracking")
+- Resume section: 2-column grid (same as current)
+- Application section: 3-column compact row below
+
+---
+
+### 3. Add Action Buttons to Saved Job Cards
+
+**File: `src/pages/ApplicationsPage.tsx`**
+
+Update the `JobCard` component in the Saved Jobs tab:
+
+- Add a row of action buttons below each job card's info:
+  - **"Tailor Resume"** -- navigates to `/editor` with the job context (or opens AI Studio tailor flow)
+  - **"Mark as Applied"** -- creates a `job_application` entry with `status: 'applied'`, linking the job, and shows a success toast
+  - **"View Details"** -- navigates to `/job/{id}` (existing behavior, keeps the card tap)
+- Add a "Resume Tailored" badge on saved jobs that have a matching tailored resume (check if any resume's `target_job_title` matches the job title)
+- The "Mark as Applied" button uses `useJobApplicationMutations().createApplication` to create an application entry linked to the saved job
+
+---
+
+### 4. Fix "Rejected" Filter Visibility on Mobile
+
+**File: `src/components/applications/StatusFilter.tsx`**
+
+- Add horizontal padding (`px-4`) to the scrollable container and `snap-x` for smooth scrolling
+- Add right padding after the last item so "Rejected" isn't clipped at the edge
+- Increase minimum button width with `min-w-fit` to prevent text truncation
+
+---
+
+### 5. Improve Empty States with Clear CTAs
+
+**File: `src/pages/ApplicationsPage.tsx`**
+
+- **Empty Saved Jobs**: Replace generic empty state with two CTA buttons:
+  - "Search for Jobs" (opens `JobSearchSheet`)
+  - "Add Job Manually" (opens `SaveJobSheet`)
+- **Empty My Applications**: Add message "Get started by saving jobs you're interested in" with a button to switch to the Saved Jobs tab
+
+---
+
+### 6. Improve Activity Timeline Labels
+
+**File: `src/components/applications/ActivityTimeline.tsx`**
+
+- Add an "Apply" action button on timeline entries of type `resume_tailored` that navigates to the applications flow
+- This connects the tailoring action to the application tracking workflow
+
+---
 
 ### Files Summary
 
-| File | Action |
-|------|--------|
-| `src/pages/EditorPage.tsx` | Add tailored resume indicator banner below header |
+| File | Changes |
+|------|---------|
+| `src/hooks/useNotifications.ts` | Add `user_id` filter to queries and mutations |
+| `src/hooks/useJobActivityStats.ts` | Add application-specific stats (submitted, interviews, offers) |
+| `src/components/applications/JobActivityStats.tsx` | Split into Resume Stats + Application Stats sections |
+| `src/pages/ApplicationsPage.tsx` | Add job card actions, improve empty states |
+| `src/components/applications/StatusFilter.tsx` | Fix horizontal scroll and padding for mobile |
+| `src/components/applications/ActivityTimeline.tsx` | Add "Apply" action on tailored resume entries |
 
-### Technical Details
+### Implementation Order
 
-The `resumeFromDb` object (from `useResume(currentResumeId)`) already contains:
-- `parent_resume_id: string | null`
-- `target_job_title: string | null`
-- `target_company: string | null`
-
-The banner conditionally renders when `resumeFromDb?.parent_resume_id` is truthy. No new database queries or hooks needed.
+1. `useNotifications.ts` -- fix badge sync (critical)
+2. `useJobActivityStats.ts` -- add application stats
+3. `JobActivityStats.tsx` -- restructure stats display
+4. `StatusFilter.tsx` -- fix mobile scroll
+5. `ApplicationsPage.tsx` -- job card actions + empty states
+6. `ActivityTimeline.tsx` -- add apply action to tailored entries
 
