@@ -1045,8 +1045,18 @@
     0 8px 32px -8px hsl(var(--background) / 0.6),
     0 2px 8px -2px hsl(var(--background) / 0.3) !important;
   animation: toast-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  padding: 14px 16px !important;
+  padding: 14px 18px 14px 14px !important;
   gap: 12px !important;
+  min-height: 48px !important;
+  align-items: center !important;
+}
+
+.toast-premium [data-close-button] {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.5;
 }
 
 /* Progress bar */
