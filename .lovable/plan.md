@@ -1,101 +1,111 @@
 
+## Mobile Export Module Audit
 
-## PDF Generator Pipeline Audit
-
-### Pipeline Architecture
-
-The PDF generation follows this path:
+### Pipeline Summary
 
 ```text
 ResumeData (Zustand store)
-  -> Template component renders HTML (e.g., ModernTemplate)
-  -> html2canvas captures the rendered DOM as a canvas
-  -> pdf-lib slices the canvas into pages using smart breaks
-  -> Page footer (numbers + branding) added
-  -> PDF blob returned for download
+  -> Template component renders HTML (with ExtraSections for extras)
+  -> html2canvas captures rendered DOM at 2x scale
+  -> pdf-lib slices canvas into pages with smart breaks
+  -> Footer (page numbers + branding) added
+  -> Blob returned
+  -> downloadFile() dispatches per-platform: iOS (share/open/data-url), Android (window.open), Desktop (anchor click)
 ```
-
-Settings that affect export: templateId, customization (accent color, fonts, spacing, margins, line height, page format A4/Letter), page break mode (auto/manual), PDF options (page numbers, branding badge), and export type (design-enhanced, ATS-optimized, one-page, cover letter, combined, DOCX, plain text, LinkedIn).
 
 ### Bugs Found
 
 ---
 
-#### BUG 1 (Critical): 28 of 30 templates silently drop extra sections
+#### BUG 1 (Medium): Android download uses `window.open` -- no filename, potential popup block
 
-Only `ModernTemplate` renders all resume sections (Awards, Projects, Volunteering, Publications, Hobbies, References). The `CreativeTemplate` renders Certifications but nothing else. All other 28 templates only render Summary, Experience, Education, Skills, and (in some cases) Certifications.
+`downloadMobile()` in `src/lib/downloadUtils.ts` (line 99-105) calls `window.open(url, '_blank')` which:
+- Opens the PDF in a browser tab but the user cannot save it with the correct filename (Chrome shows it as a random blob URL)
+- May be blocked by popup blockers on some Android browsers
+- Does not use the `fileName` parameter at all
 
-If a user adds Projects, Awards, Languages, Publications, Volunteering, Hobbies, or References and uses any template other than Modern, those sections are invisible in both preview and PDF.
+**Fix:** Use the `<a download>` pattern (same as desktop) for Android Chrome, which triggers a proper named download. Only fall back to `window.open` if the anchor click fails.
 
-**Impact:** Data loss in export. Users may submit resumes missing sections they explicitly added.
-
-**Fix:** Add the missing extra sections to all templates. To keep this manageable and targeted, I will add a reusable `ExtraSections` component that renders the 7 missing section types (Awards, Projects, Publications, Volunteering, Hobbies, References, Languages) in a template-neutral style, then import it into each template file. Each template will call `<ExtraSections resume={resume} />` at the bottom. Templates that already render specific sections (like CreativeTemplate with certifications) will keep their existing rendering.
-
-This approach:
-- Adds all missing sections without modifying existing template layouts
-- Keeps template-specific styling for sections they already handle
-- Is a single shared component, easy to maintain
-
----
-
-#### BUG 2 (Medium): `LivePreviewPanel` filterResume and SECTION_LABELS missing `languages`
-
-`LivePreviewPanel.tsx` line 50-62: `SECTION_LABELS` doesn't include `languages`. Line 77-93: `filterResume` doesn't handle `languages`. If a user toggles section visibility in the live preview, languages won't be affected.
-
-**Fix:** Add `languages: 'Languages'` to `SECTION_LABELS` and add `languages: hidden.has('languages') ? [] : resume.languages` to `filterResume`.
-
----
-
-#### BUG 3 (Medium): PreviewPage `availableSections` fallback is incomplete
-
-`PreviewPage.tsx` lines 158-164: The fallback only lists summary, experience, education, skills, and certifications. It misses awards, projects, publications, volunteering, hobbies, references, and languages. This means manual page breaks can't target these sections when the DOM scan fails.
-
-**Fix:** Add the missing sections to the fallback list.
-
----
-
-#### BUG 4 (Low): PreviewPage template picker only shows 12 of 30 templates
-
-`PreviewPage.tsx` lines 65-78: The `templates` array for the template selector dropdown only includes 12 templates. Users who arrive at Preview with one of the other 18 templates can see their resume but can't switch back if they change templates.
-
-**Fix:** Extend the `templates` array to include all 30 templates.
+```typescript
+function downloadMobile(blob: Blob, fileName: string): DownloadResult {
+  // Try anchor download first (works on most Android browsers)
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return { success: true, method: 'anchor' };
+  } catch {
+    // Fallback to window.open
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return { success: true, method: 'open' };
+  }
+}
+```
 
 ---
 
-#### BUG 5 (Low): Static import of pdfGenerator in PreviewPage negates dynamic import optimization
+#### BUG 2 (Medium): DOCX export missing extra sections
 
-`PreviewPage.tsx` line 51 has `import { getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator'`. Since `pdfGenerator.ts` imports `html2canvas` and `pdf-lib` at the top level, this static import pulls ~200KB into the PreviewPage chunk even though the export handler uses dynamic `import()`.
+`src/lib/docxGenerator.ts` only exports: Contact, Summary, Experience, Education, Skills, Certifications.
 
-**Fix:** Move `getSectionsInDOMOrder` and `PdfGenerationError` to a separate lightweight utility file (e.g., `pdfUtils.ts`) that doesn't import the heavy libraries, or inline the small `PdfGenerationError` class and dynamically import `getSectionsInDOMOrder`.
+Missing from DOCX: Projects, Awards, Languages, Publications, Volunteering, Hobbies, References.
+
+Users who add these sections and export as DOCX will silently lose that data.
+
+**Fix:** Add the missing sections to `generateAndDownloadDOCX()` after the Certifications block, following the same pattern (heading + paragraphs).
 
 ---
+
+#### BUG 3 (Low): Plain text export missing Volunteering, Publications, Hobbies, References
+
+`generatePlainText()` in `src/lib/shareUtils.ts` includes Projects, Awards, Languages but omits Volunteering, Publications, Hobbies, and References.
+
+**Fix:** Add the missing sections after the Languages block.
+
+---
+
+#### BUG 4 (Low): `ResumeDetailPage` statically imports `generatePDF` from `pdfGenerator`
+
+Line 24: `import { generatePDF } from '@/lib/pdfGenerator'` -- this pulls the heavy `html2canvas` + `pdf-lib` bundle (~200KB) into the ResumeDetailPage chunk even though it's a lazy route. Not a bug per se, but a performance regression that was supposed to be fixed.
+
+**Fix:** Convert to dynamic import inside `handleDownload`:
+```typescript
+const { generatePDF } = await import('@/lib/pdfGenerator');
+```
+
+---
+
+### What's Already Working Well
+
+- **iOS download flow**: Robust 3-tier fallback (navigator.share -> window.open -> data URL anchor) with proper AbortError handling for cancelled shares
+- **Export progress UI**: Clear stage-based progress bar (Preparing -> Capturing -> Paginating -> Embedding -> Finalizing -> Downloading) with percentage
+- **Error handling**: Typed `PdfGenerationError` with codes (EMPTY_CANVAS, MISSING_ELEMENT, CAPTURE_FAILED), retry logic (up to 2 retries), and human-readable toast messages with retry action
+- **Button disable during generation**: `isGenerating` state properly disables all export buttons during PDF generation, preventing double-taps
+- **iOS "Save to Files" button**: Dedicated button for iOS users that triggers `navigator.share` with a "Save to Files" hint toast
+- **Mobile capture preparation**: `prepareForCapture()` fixes element width to 612px, removes CSS transforms, makes parent containers overflow:visible, and scrolls to top -- all critical for iOS Safari compatibility
+- **Template preview rendering**: All 30 templates now render in preview with ExtraSections component appended
+- **Page break intelligence**: Smart break algorithm avoids cutting through `data-break-avoid` blocks and protects section header orphaning
 
 ### Implementation Plan
 
-#### Step 1: Create shared `ExtraSections` component
-Create `src/components/templates/shared/ExtraSections.tsx` that renders Awards, Projects, Publications, Volunteering, Hobbies, References, and Languages sections with neutral styling and proper `data-section` and `data-break-avoid` attributes.
-
-#### Step 2: Add `ExtraSections` to all templates missing extra sections
-Import and render `<ExtraSections>` in all 28 templates that are missing these sections. Skip sections already handled by a specific template (e.g., CreativeTemplate handles certifications).
-
-#### Step 3: Fix `LivePreviewPanel` languages support
-Add `languages` to `SECTION_LABELS` and `filterResume`.
-
-#### Step 4: Fix PreviewPage `availableSections` fallback
-Add all missing section types to the fallback logic.
-
-#### Step 5: Extend PreviewPage template picker to all 30 templates
-Update the `templates` array to include all 30 templates.
-
-#### Step 6: Extract lightweight PDF utilities
-Move `getSectionsInDOMOrder`, `PdfGenerationError`, `estimatePageCount`, and `estimateOnePageScale` to a new `src/lib/pdfUtils.ts` file that doesn't import `html2canvas` or `pdf-lib`. Update imports in `PreviewPage.tsx` and `ExportOptionsSheet.tsx`.
+| File | Change | Priority |
+|------|--------|----------|
+| `src/lib/downloadUtils.ts` | Fix Android download to use anchor pattern with filename | High |
+| `src/lib/docxGenerator.ts` | Add Projects, Awards, Languages, Publications, Volunteering, Hobbies, References sections | High |
+| `src/lib/shareUtils.ts` | Add Volunteering, Publications, Hobbies, References to `generatePlainText()` | Medium |
+| `src/pages/ResumeDetailPage.tsx` | Convert static `generatePDF` import to dynamic import | Low |
 
 ### What Won't Change
-- No changes to the core PDF generation algorithm (html2canvas -> pdf-lib pipeline)
-- No changes to page break logic, smart break positioning, or template-aware pagination
-- No changes to data models, types, or store
-- No changes to export UX, error handling, or download utilities
-- No changes to customization CSS injection system
-- All existing template layouts preserved; extra sections appended at bottom
-- All 30 template lazy-loading maps remain intact
 
+- Core PDF generation algorithm (html2canvas -> pdf-lib pipeline)
+- iOS download flow (already robust with 3-tier fallback)
+- Export progress UI and error handling
+- Page break logic and template-aware pagination
+- Button disable behavior during generation
+- All public function signatures remain identical
