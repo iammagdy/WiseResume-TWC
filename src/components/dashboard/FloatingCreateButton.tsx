@@ -13,7 +13,7 @@ export function FloatingCreateButton({ onClick, pulse = false, isLoading = false
   return (
     <motion.button
       className={cn(
-        'fixed bottom-20 right-4 pr-safe z-50 h-14 px-5 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center gap-2 touch-manipulation',
+        'fixed bottom-24 sm:bottom-20 right-4 pr-safe z-50 h-16 sm:h-14 px-6 sm:px-5 rounded-full gradient-primary backdrop-blur-md border border-primary/20 flex items-center gap-2 touch-manipulation',
         isLoading && 'pointer-events-none opacity-90'
       )}
       initial={{ scale: 0, opacity: 0 }}
@@ -37,9 +37,9 @@ export function FloatingCreateButton({ onClick, pulse = false, isLoading = false
         />
       )}
       {isLoading ? (
-        <Loader2 className="w-5 h-5 text-primary-foreground relative z-10 animate-spin" />
+        <Loader2 className="w-6 h-6 sm:w-5 sm:h-5 text-primary-foreground relative z-10 animate-spin" />
       ) : (
-        <Plus className="w-5 h-5 text-primary-foreground relative z-10" />
+        <Plus className="w-6 h-6 sm:w-5 sm:h-5 text-primary-foreground relative z-10" />
       )}
       <span className="text-sm font-semibold text-primary-foreground relative z-10">
         {isLoading ? 'Creating…' : 'New Resume'}

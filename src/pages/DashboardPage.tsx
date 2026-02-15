@@ -425,7 +425,7 @@ export default function DashboardPage() {
                     placeholder="Search resumes..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 rounded-full h-11 glass-input"
+                    className="pl-10 rounded-full h-12 sm:h-11 text-base glass-input"
                   />
                 </div>
               </div>

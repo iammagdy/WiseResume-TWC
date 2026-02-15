@@ -125,7 +125,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                 >
                   <Icon
                     className={cn(
-                      'w-5 h-5 transition-colors duration-200',
+                      'w-6 h-6 sm:w-5 sm:h-5 transition-colors duration-200',
                       active ? 'text-primary' : 'text-muted-foreground'
                     )}
                     aria-hidden="true"
@@ -134,7 +134,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
               </div>
               <span
                 className={cn(
-                  'text-[10px] whitespace-nowrap relative z-10 transition-colors duration-200',
+                  'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
                   active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
                 )}
               >
