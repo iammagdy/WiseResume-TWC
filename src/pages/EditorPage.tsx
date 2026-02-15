@@ -18,7 +18,7 @@ import { SummarySection } from '@/components/editor/SummarySection';
 import { ExperienceSection } from '@/components/editor/ExperienceSection';
 import { EducationSection } from '@/components/editor/EducationSection';
 import { SkillsSection } from '@/components/editor/SkillsSection';
-import { AIAssistantBar } from '@/components/editor/AIAssistantBar';
+// AIAssistantBar moved to AI Studio tab
 import { SectionAIAction } from '@/components/editor/SectionAIAction';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
 import { AwardsSection } from '@/components/editor/AwardsSection';
@@ -502,15 +502,15 @@ export default function EditorPage() {
               <span className="text-[9px] font-medium leading-none">Preview</span>
             </button>
             <button
-                    onClick={() => setShowChat(true)}
+                    onClick={() => navigate('/ai-studio')}
                     className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[54px] min-h-[54px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
-                    aria-label="Open Wise AI"
+                    aria-label="Open AI Studio"
                   >
                     <span className="relative">
                       <Sparkles className="w-5 h-5 text-primary" />
                       <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
                     </span>
-                    <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
+                    <span className="text-[9px] font-medium leading-none text-primary">AI Studio</span>
                   </button>
           </div>
         </div>
@@ -705,29 +705,7 @@ export default function EditorPage() {
           <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
         )}
 
-        {/* Bottom Fixed Section - AI Studio Bar */}
-        <div className="sticky bottom-0 z-30 glass border-t border-border shrink-0">
-          {/* AI Studio Bar */}
-          <AIAssistantBar
-            matchScore={matchScore}
-            jobDescription={jobDescription}
-            currentTemplate={selectedTemplate}
-            onChangeTemplate={handleChangeTemplate}
-            onTailor={handleTailor}
-            onAnalyze={handleAnalyze}
-            onImprove={handleImproveSection}
-            onRecruiterSim={handleRecruiterSim}
-            onAIDetector={handleAIDetector}
-            onLinkedIn={handleLinkedIn}
-            onOnePage={handleOnePage}
-            onCareerPath={handleCareerPath}
-            onGetIdeas={handleGetIdeas}
-            onCustomize={handleCustomize}
-            onProofread={handleProofread}
-            proofreadIssueCount={proofreadIssueCount}
-            className="pt-3 pb-3"
-          />
-        </div>
+        {/* AI Studio Bar removed — now lives at /ai-studio tab */}
 
         {/* Proofread FAB */}
         <ProofreadButton
