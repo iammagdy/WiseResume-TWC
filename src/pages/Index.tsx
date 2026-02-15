@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Pencil, Sparkles, Download, BarChart3, LayoutGrid, Wand2, Target, Mic, Users, Check, X, Shield, Zap } from 'lucide-react';
+import { Pencil, Sparkles, Download, LayoutGrid, Wand2, Target, Mic, Users, Shield } from 'lucide-react';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { EditorDemo } from '@/components/landing/EditorDemo';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
@@ -23,15 +23,6 @@ const features = [
   { icon: LayoutGrid, title: '12 Professional Templates', desc: 'Designs for every industry, fully customizable', iconColor: 'text-violet-500', gradient: 'from-violet-500/20 to-violet-500/5' },
 ];
 
-const competitors = [
-  { label: 'Generic templates only', us: true, them: false },
-  { label: 'AI-powered writing', us: true, them: false },
-  { label: 'ATS score checker', us: true, them: false },
-  { label: 'Job-specific tailoring', us: true, them: false },
-  { label: 'Voice mock interviews', us: true, them: false },
-  { label: 'AI recruiter feedback', us: true, them: false },
-  { label: 'Free forever', us: true, them: false },
-];
 
 const templatePreviews = [
   { name: 'Modern', accent: '#8B5CF6' },
@@ -193,77 +184,6 @@ const Index = () => {
           </div>
         </motion.section>
 
-        {/* Why We're Different - Comparison */}
-        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
-          <motion.h2
-            className="text-2xl font-bold text-foreground text-center mb-2"
-            {...inView(0)}
-          >
-            Why WiseResume?
-          </motion.h2>
-          <p className="text-sm text-muted-foreground text-center mb-6">See what sets us apart from the rest</p>
-
-          <Card className="max-w-md mx-auto p-0 overflow-hidden border-border/30 bg-card/50 backdrop-blur-sm">
-            {/* Header */}
-            <div className="grid grid-cols-3 text-center text-xs font-semibold border-b border-border/20 bg-muted/30">
-              <div className="py-3 px-2">Feature</div>
-              <div className="py-3 px-2 text-primary">WiseResume</div>
-              <div className="py-3 px-2 text-muted-foreground">Others</div>
-            </div>
-            {/* Rows */}
-            {competitors.map((row, i) => (
-              <motion.div
-                key={row.label}
-                className="grid grid-cols-3 text-center items-center border-b border-border/10 last:border-0"
-                {...inView(0.05 * i)}
-              >
-                <div className="py-2.5 px-3 text-xs text-foreground text-left">{row.label}</div>
-                <div className="py-2.5 flex justify-center">
-                  <div className="w-6 h-6 rounded-full bg-success/15 flex items-center justify-center">
-                    <Check className="w-3.5 h-3.5 text-success" />
-                  </div>
-                </div>
-                <div className="py-2.5 flex justify-center">
-                  <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center">
-                    <X className="w-3.5 h-3.5 text-destructive/60" />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </Card>
-        </motion.section>
-
-        {/* AI Bullet Transform Demo */}
-        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
-          <Card className="max-w-md mx-auto p-5 border-border/30 bg-card/50 backdrop-blur-sm overflow-hidden">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <span className="text-lg">✨</span>
-              </div>
-              <div>
-                <h3 className="font-semibold text-sm">AI Bullet Transformation</h3>
-                <p className="text-xs text-muted-foreground">From vague to impactful</p>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="p-3 rounded-lg bg-destructive/5 border border-destructive/20">
-                <p className="text-xs text-destructive font-medium mb-1">Before</p>
-                <p className="text-sm text-muted-foreground">"Worked on frontend development"</p>
-              </div>
-              <div className="flex justify-center">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center animate-bounce">
-                  <Zap className="w-4 h-4 text-primary" />
-                </div>
-              </div>
-              <div className="p-3 rounded-lg bg-success/5 border border-success/20">
-                <p className="text-xs text-success font-medium mb-1">After</p>
-                <p className="text-sm text-foreground">
-                  "Built <span className="text-primary font-medium">15+ React components</span> serving <span className="text-primary font-medium">50K+ users</span>, reducing load time by <span className="text-primary font-medium">40%</span>"
-                </p>
-              </div>
-            </div>
-          </Card>
-        </motion.section>
 
         {/* Features - 6 items */}
         <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
