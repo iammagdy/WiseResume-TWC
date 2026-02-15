@@ -1,6 +1,6 @@
 import { useState, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText } from 'lucide-react';
+import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -36,7 +36,7 @@ export default function ResumeDetailPage() {
   const { data: allResumes = [] } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
-  const { getCachedScore } = useResumeScore();
+  const { getCachedScore, scoreResume, scoringId } = useResumeScore();
   const { createShare } = useResumeShareMutations();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -181,19 +181,46 @@ export default function ResumeDetailPage() {
           <TemplateThumbnail templateId={dbResume.template_id as TemplateId} resume={resumeData} />
         </div>
 
-        {/* Health Score */}
-        {healthScore && (
-          <div className="flex items-center justify-center">
-            <ScoreRing score={healthScore.overallScore} size={72} />
-          </div>
-        )}
+        {/* ATS Score Section */}
+        <div className="flex flex-col items-center gap-3">
+          {healthScore ? (
+            <>
+              <ScoreRing score={healthScore.overallScore} size={80} />
+              <p className="text-sm font-semibold text-muted-foreground tracking-wide">ATS Score</p>
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  setCurrentResume(resumeData);
+                  setCurrentResumeId(dbResume.id);
+                  setSelectedTemplate(dbResume.template_id as TemplateId);
+                  navigate('/ai-studio?action=enhance');
+                }}
+              >
+                <Zap className="w-4 h-4" />
+                Improve Score
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              disabled={scoringId === dbResume.id}
+              onClick={() => scoreResume(dbResume.id, resumeData, dbResume.updated_at)}
+            >
+              {scoringId === dbResume.id ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <BarChart3 className="w-4 h-4" />
+              )}
+              {scoringId === dbResume.id ? 'Scoring…' : 'Score Resume'}
+            </Button>
+          )}
+        </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="glass-elevated rounded-2xl p-3 text-center">
-            <p className="text-xl font-bold text-foreground">{completionScore}%</p>
-            <p className="text-[11px] text-muted-foreground">Complete</p>
-          </div>
+        <div className="grid grid-cols-2 gap-3">
           <div className="glass-elevated rounded-2xl p-3 text-center">
             <p className="text-xl font-bold text-foreground">{completedSections}/{totalSections}</p>
             <p className="text-[11px] text-muted-foreground">Sections</p>
