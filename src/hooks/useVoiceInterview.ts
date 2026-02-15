@@ -2,10 +2,14 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { ResumeData } from '@/types/resume';
 import { useElevenLabsScribe } from './useElevenLabsScribe';
+import { useWebSpeechFallback, isWebSpeechSupported } from './useWebSpeechFallback';
+import { toast } from 'sonner';
 
 export type InterviewStatus = 'idle' | 'listening' | 'thinking' | 'speaking' | 'ready';
 
 export type VoiceGender = 'male' | 'female';
+
+export type SttEngine = 'elevenlabs' | 'webspeech' | 'none';
 
 export interface TranscriptEntry {
   id: string;
@@ -28,11 +32,11 @@ export interface RoleAnalysis {
   industryInsights: string;
 }
 
-const SILENCE_TIMEOUT_MS = 1500; // Reduced from 3000 for faster response
+const SILENCE_TIMEOUT_MS = 1500;
 const MAX_TEXT_LENGTH = 2000;
-const COUNTDOWN_SECONDS = 1; // Reduced from 3 for snappier flow
+const COUNTDOWN_SECONDS = 1;
+const NO_SPEECH_TIMEOUT_MS = 10000;
 
-// Keywords for voice gender selection
 const FEMALE_VOICE_KEYWORDS = ['female', 'samantha', 'zira', 'karen', 'fiona', 'moira', 'tessa', 'victoria', 'google uk english female', 'google us english female', 'microsoft zira'];
 const MALE_VOICE_KEYWORDS = ['male', 'daniel', 'david', 'james', 'alex', 'fred', 'google uk english male', 'google us english male', 'microsoft david'];
 
@@ -88,7 +92,6 @@ function playBeep(): Promise<void> {
         oscillator.stop(ctx.currentTime + 0.2);
 
         setTimeout(() => {
-          // Clean up nodes to prevent memory accumulation
           oscillator.disconnect();
           gain.disconnect();
           resolve();
@@ -148,6 +151,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [isAnalyzingRole, setIsAnalyzingRole] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [sttEngine, setSttEngine] = useState<SttEngine>('none');
 
   const messagesRef = useRef<{ role: string; content: string }[]>([]);
   const jobDescriptionRef = useRef<string>('');
@@ -159,46 +163,91 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const stopListeningRef = useRef<() => Promise<void>>();
   const startListeningAfterSpeakRef = useRef<() => Promise<void>>();
   const answerCountRef = useRef(0);
+  const noSpeechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const usingFallbackRef = useRef(false);
+
+  // Shared transcript handlers
+  const handlePartialTranscript = useCallback((text: string) => {
+    setInterimText(text);
+    // Reset silence timer on partial transcripts
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+      setSilenceDetected(false);
+    }
+    // Reset no-speech timer
+    if (noSpeechTimerRef.current) {
+      clearTimeout(noSpeechTimerRef.current);
+      noSpeechTimerRef.current = null;
+    }
+  }, []);
+
+  const handleCommittedTranscript = useCallback((text: string) => {
+    setInterimText('');
+    finalTextRef.current += text + ' ';
+
+    if (finalTextRef.current.length > MAX_TEXT_LENGTH) {
+      stopListeningRef.current?.();
+      return;
+    }
+
+    setSilenceDetected(true);
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+    silenceTimerRef.current = setTimeout(() => {
+      stopListeningRef.current?.();
+    }, SILENCE_TIMEOUT_MS);
+  }, []);
+
+  const handleSttError = useCallback((msg: string) => {
+    console.error('STT error:', msg);
+    setError(msg);
+  }, []);
+
+  const handleAudioLevel = useCallback((level: number) => {
+    setAudioLevel(level);
+  }, []);
+
+  const handleNoSpeech = useCallback(() => {
+    toast.info('No speech detected', {
+      description: 'Please speak clearly or use the Type button.',
+    });
+  }, []);
 
   // ElevenLabs Scribe hook
   const scribe = useElevenLabsScribe({
-    onPartialTranscript: (text) => {
-      setInterimText(text);
-      // Reset silence timer on partial transcripts
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-        setSilenceDetected(false);
-      }
-    },
-    onCommittedTranscript: (text) => {
-      setInterimText('');
-      finalTextRef.current += text + ' ';
-
-      // Check max length
-      if (finalTextRef.current.length > MAX_TEXT_LENGTH) {
-        stopListeningRef.current?.();
-        return;
-      }
-
-      // Start silence timer
-      setSilenceDetected(true);
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = setTimeout(() => {
-        stopListeningRef.current?.();
-      }, SILENCE_TIMEOUT_MS);
-    },
+    onPartialTranscript: handlePartialTranscript,
+    onCommittedTranscript: handleCommittedTranscript,
     onError: (msg) => {
-      console.error('Scribe error:', msg);
-      setError(msg);
+      handleSttError(msg);
+      // If ElevenLabs fails on connect, try fallback
+      if (!usingFallbackRef.current && isWebSpeechSupported()) {
+        console.log('[VoiceInterview] ElevenLabs failed, switching to Web Speech API fallback');
+        usingFallbackRef.current = true;
+        setSttEngine('webspeech');
+        toast.info('Switched to browser speech recognition');
+        if (isListeningRef.current) {
+          webSpeech.connect();
+        }
+      }
     },
-    onAudioLevel: (level) => {
-      setAudioLevel(level);
+    onAudioLevel: handleAudioLevel,
+    onConnected: () => {
+      console.log('[VoiceInterview] ElevenLabs connected successfully');
+      setSttEngine('elevenlabs');
     },
   });
 
-  // Speech is always supported with ElevenLabs Scribe (just needs mic)
-  const speechSupported = true;
+  // Web Speech fallback hook
+  const webSpeech = useWebSpeechFallback({
+    onPartialTranscript: handlePartialTranscript,
+    onCommittedTranscript: handleCommittedTranscript,
+    onError: handleSttError,
+    onAudioLevel: handleAudioLevel,
+    onNoSpeech: handleNoSpeech,
+  });
+
+  // Check if speech is actually supported
+  const speechSupported = isWebSpeechSupported() || true; // ElevenLabs works if mic is available
 
   useEffect(() => {
     // Pre-load voices
@@ -211,6 +260,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (noSpeechTimerRef.current) clearTimeout(noSpeechTimerRef.current);
       window.speechSynthesis.cancel();
     };
   }, []);
@@ -244,14 +294,12 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       utteranceRef.current = utterance;
 
       utterance.onend = async () => {
-        // Reduced countdown for snappier experience
         for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
           setCountdown(i);
           await new Promise(r => setTimeout(r, 1000));
         }
         setCountdown(null);
         await playBeep();
-        // Auto-start listening after beep (user's turn)
         startListeningAfterSpeakRef.current?.();
         resolve();
       };
@@ -319,10 +367,19 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setSilenceDetected(false);
   }, []);
 
+  const disconnectCurrentSTT = useCallback(() => {
+    scribe.disconnect();
+    webSpeech.disconnect();
+  }, [scribe, webSpeech]);
+
   const stopListening = useCallback(async () => {
     clearSilenceTimer();
     isListeningRef.current = false;
-    scribe.disconnect();
+    if (noSpeechTimerRef.current) {
+      clearTimeout(noSpeechTimerRef.current);
+      noSpeechTimerRef.current = null;
+    }
+    disconnectCurrentSTT();
 
     const userText = finalTextRef.current.trim();
     finalTextRef.current = '';
@@ -336,7 +393,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     addEntry('user', userText);
     messagesRef.current.push({ role: 'user', content: userText });
     await callAI();
-  }, [addEntry, callAI, clearSilenceTimer, scribe]);
+  }, [addEntry, callAI, clearSilenceTimer, disconnectCurrentSTT]);
 
   useEffect(() => {
     stopListeningRef.current = stopListening;
@@ -351,8 +408,23 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setStatus('listening');
     setInterimText('');
 
-    await scribe.connect();
-  }, [clearSilenceTimer, scribe]);
+    // Start no-speech timeout
+    noSpeechTimerRef.current = setTimeout(() => {
+      if (isListeningRef.current && !finalTextRef.current.trim()) {
+        handleNoSpeech();
+      }
+    }, NO_SPEECH_TIMEOUT_MS);
+
+    // Try ElevenLabs first, unless we already know it failed
+    if (usingFallbackRef.current) {
+      console.log('[VoiceInterview] Using Web Speech fallback');
+      setSttEngine('webspeech');
+      await webSpeech.connect();
+    } else {
+      console.log('[VoiceInterview] Trying ElevenLabs Scribe...');
+      await scribe.connect();
+    }
+  }, [clearSilenceTimer, scribe, webSpeech, handleNoSpeech]);
 
   useEffect(() => {
     startListeningAfterSpeakRef.current = startListening;
@@ -401,6 +473,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       setScores([]);
       setLatestScore(null);
       setAudioLevel(0);
+      setSttEngine('none');
+      usingFallbackRef.current = false;
       answerCountRef.current = 0;
       messagesRef.current = [];
       jobDescriptionRef.current = jobDescription || '';
@@ -422,7 +496,11 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const endInterviewFn = useCallback(async () => {
     isListeningRef.current = false;
     clearSilenceTimer();
-    scribe.disconnect();
+    if (noSpeechTimerRef.current) {
+      clearTimeout(noSpeechTimerRef.current);
+      noSpeechTimerRef.current = null;
+    }
+    disconnectCurrentSTT();
     window.speechSynthesis.cancel();
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -435,12 +513,16 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     });
     await callAI(true);
     setIsStarted(false);
-  }, [callAI, clearSilenceTimer, scribe]);
+  }, [callAI, clearSilenceTimer, disconnectCurrentSTT]);
 
   const resetInterview = useCallback(() => {
     isListeningRef.current = false;
     clearSilenceTimer();
-    scribe.disconnect();
+    if (noSpeechTimerRef.current) {
+      clearTimeout(noSpeechTimerRef.current);
+      noSpeechTimerRef.current = null;
+    }
+    disconnectCurrentSTT();
     window.speechSynthesis.cancel();
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus('idle');
@@ -455,11 +537,13 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setRoleAnalysis(null);
     setCountdown(null);
     setAudioLevel(0);
+    setSttEngine('none');
+    usingFallbackRef.current = false;
     answerCountRef.current = 0;
     messagesRef.current = [];
     jobDescriptionRef.current = '';
     finalTextRef.current = '';
-  }, [clearSilenceTimer, scribe]);
+  }, [clearSilenceTimer, disconnectCurrentSTT]);
 
   const dismissScore = useCallback(() => {
     setLatestScore(null);
@@ -482,6 +566,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     dismissScore,
     countdown,
     audioLevel,
+    sttEngine,
     roleAnalysis,
     isAnalyzingRole,
     analyzeRole,

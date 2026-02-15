@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -20,6 +20,8 @@ interface InterviewSetupProps {
 export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoiceGenderChange, onStart }: InterviewSetupProps) {
   const [mode, setMode] = useState<InterviewMode>('general');
   const [jobDescription, setJobDescription] = useState('');
+  const [micTestStatus, setMicTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
+  const [micLevel, setMicLevel] = useState(0);
 
   const handleStart = () => {
     haptics.medium();
@@ -41,6 +43,43 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
     haptics.selection();
     onVoiceGenderChange(gender);
   };
+
+  const handleMicTest = useCallback(async () => {
+    setMicTestStatus('testing');
+    setMicLevel(0);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      let maxLevel = 0;
+      const startTime = Date.now();
+      const tick = () => {
+        if (Date.now() - startTime > 3000) {
+          stream.getTracks().forEach(t => t.stop());
+          ctx.close().catch(() => {});
+          setMicTestStatus(maxLevel > 0.05 ? 'success' : 'failed');
+          setMicLevel(0);
+          return;
+        }
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const avg = sum / dataArray.length / 255;
+        const level = Math.min(1, avg * 3);
+        if (level > maxLevel) maxLevel = level;
+        setMicLevel(level);
+        requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      setMicTestStatus('failed');
+      setMicLevel(0);
+    }
+  }, []);
 
   return (
     <motion.div
@@ -158,6 +197,53 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
             <User className="w-4 h-4" />
             Male
           </button>
+        </div>
+
+        {/* Mic Test Button */}
+        <div className="mt-3">
+          <button
+            onClick={handleMicTest}
+            disabled={micTestStatus === 'testing'}
+            className={cn(
+              'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all touch-manipulation w-full justify-center',
+              micTestStatus === 'idle' && 'bg-muted/40 border border-border/40 text-muted-foreground hover:border-primary/40 hover:text-foreground',
+              micTestStatus === 'testing' && 'bg-primary/10 border border-primary/30 text-primary',
+              micTestStatus === 'success' && 'bg-[hsl(142_70%_50%/0.1)] border border-[hsl(142_70%_50%/0.3)] text-[hsl(142_70%_50%)]',
+              micTestStatus === 'failed' && 'bg-destructive/10 border border-destructive/30 text-destructive',
+            )}
+          >
+            {micTestStatus === 'idle' && <><Mic className="w-4 h-4" /> Test Microphone</>}
+            {micTestStatus === 'testing' && (
+              <>
+                <Mic className="w-4 h-4" />
+                Testing...
+                <div className="flex items-end gap-[2px] h-3 ml-1">
+                  {[0.2, 0.4, 0.6, 0.4, 0.2].map((t, i) => (
+                    <motion.div
+                      key={i}
+                      className="w-[2px] rounded-full bg-primary"
+                      animate={{ height: micLevel > t ? `${4 + micLevel * 8}px` : '2px' }}
+                      transition={{ duration: 0.1 }}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+            {micTestStatus === 'success' && <><CheckCircle2 className="w-4 h-4" /> Microphone working!</>}
+            {micTestStatus === 'failed' && <><XCircle className="w-4 h-4" /> Microphone not detected</>}
+          </button>
+          <AnimatePresence>
+            {micTestStatus === 'failed' && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="text-[11px] text-muted-foreground mt-1.5 text-center"
+              >
+                You can still use the Type button during the interview.
+              </motion.p>
+            )}
+          </AnimatePresence>
         </div>
       </div>
 

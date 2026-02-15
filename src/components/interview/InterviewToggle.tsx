@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Loader2, Volume2, Hand } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
-import type { InterviewStatus } from '@/hooks/useVoiceInterview';
+import type { InterviewStatus, SttEngine } from '@/hooks/useVoiceInterview';
 
 interface InterviewToggleProps {
   status: InterviewStatus;
@@ -10,9 +10,10 @@ interface InterviewToggleProps {
   disabled?: boolean;
   silenceDetected?: boolean;
   audioLevel?: number;
+  sttEngine?: SttEngine;
 }
 
-export function InterviewToggle({ status, onPress, disabled, silenceDetected, audioLevel = 0 }: InterviewToggleProps) {
+export function InterviewToggle({ status, onPress, disabled, silenceDetected, audioLevel = 0, sttEngine }: InterviewToggleProps) {
   const isListening = status === 'listening';
   const isThinking = status === 'thinking';
   const isSpeaking = status === 'speaking';
@@ -199,6 +200,25 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
         />
       </motion.button>
 
+      {/* VU meter bars when listening */}
+      {isListening && (
+        <div className="absolute" style={{ bottom: 55, right: -10 }}>
+          <div className="flex items-end gap-[2px] h-4">
+            {[0.3, 0.5, 0.7, 0.5, 0.3].map((threshold, i) => (
+              <motion.div
+                key={i}
+                className="w-[3px] rounded-full bg-primary/70"
+                animate={{
+                  height: amplifiedLevel > threshold ? `${8 + amplifiedLevel * 8}px` : '3px',
+                  opacity: amplifiedLevel > threshold ? 0.9 : 0.3,
+                }}
+                transition={{ duration: 0.1 }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Status label */}
       <motion.div
         key={`${status}-${silenceDetected}`}
@@ -220,7 +240,7 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
           {isListening && silenceDetected
             ? 'Sending soon…'
             : isListening
-            ? 'Listening...'
+            ? (amplifiedLevel > 0.1 ? 'Detecting speech...' : 'Listening...')
             : isThinking
             ? 'Analyzing...'
             : isSpeaking
@@ -245,6 +265,15 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
             className="text-[10px] text-muted-foreground"
           >
             Tap to interrupt
+          </motion.span>
+        )}
+        {isListening && sttEngine && sttEngine !== 'none' && (
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.4 }}
+            className="text-[9px] text-muted-foreground mt-0.5"
+          >
+            {sttEngine === 'elevenlabs' ? 'ElevenLabs' : 'Browser STT'}
           </motion.span>
         )}
       </motion.div>
