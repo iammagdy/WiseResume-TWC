@@ -86,7 +86,7 @@ export const ResumeListCard = memo(function ResumeListCard({
 
   const hasTargetJob = resume.target_job_title || resume.target_company;
   const matchScore = resume.job_match_score;
-  const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume]);
+  const resumeForProgress = useMemo(() => dbToResumeData(resume), [resume.id, resume.updated_at]);
 
   const handleDragStart = () => {
     setIsDragging(true);

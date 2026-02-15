@@ -126,6 +126,13 @@ export default function DashboardPage() {
     const scoreNext = async () => {
       for (const resume of resumes) {
         if (cancelled) break;
+        // Yield to main thread between scores to avoid jank on low-end devices
+        await new Promise<void>(r =>
+          'requestIdleCallback' in window
+            ? (window as any).requestIdleCallback(r)
+            : setTimeout(r, 50)
+        );
+        if (cancelled) break;
         const cached = getCachedScore(resume.id, resume.updated_at);
         if (cached) {
           setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
@@ -676,58 +683,66 @@ export default function DashboardPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* LinkedIn Import Sheet */}
-      <LinkedInImportSheet
-        open={showLinkedInImport}
-        onOpenChange={setShowLinkedInImport}
-        onImport={async (data) => {
-          // Create a new resume from LinkedIn data
-          if (!user) return;
-          const contactInfo = {
-            fullName: '',
-            email: user.email || '',
-            phone: '',
-            location: '',
-          };
-          const newResume = {
-            title: 'LinkedIn Import',
-            user_id: user.id,
-            contact_info: contactInfo,
-            summary: data.summary || '',
-            experience: (data.experience || []).map((exp, i) => ({
-              id: String(i + 1),
-              company: exp.company,
-              position: exp.title,
-              startDate: exp.startDate,
-              endDate: exp.endDate,
-              current: exp.current,
-              description: exp.description,
-              achievements: [],
-            })),
-            education: (data.education || []).map((edu, i) => ({
-              id: String(i + 1),
-              institution: edu.institution,
-              degree: edu.degree,
-              field: edu.field || '',
-              startDate: edu.startYear || '',
-              endDate: edu.endYear || '',
-            })),
-            skills: data.skills || [],
-            template_id: 'modern',
-          };
-          const { data: created, error } = await supabase.from('resumes').insert(newResume).select().single();
-          if (created && !error) {
-            haptics.success();
-            toast.success('Resume created from LinkedIn!');
-            refetch();
-            navigate(`/editor`);
-          }
-        }}
-        linkedinUsername={profile?.linkedinUrl?.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '')}
-      />
+      {/* LinkedIn Import Sheet - only mount when open */}
+      {showLinkedInImport && (
+        <Suspense fallback={null}>
+          <LinkedInImportSheet
+            open={showLinkedInImport}
+            onOpenChange={setShowLinkedInImport}
+            onImport={async (data) => {
+              // Create a new resume from LinkedIn data
+              if (!user) return;
+              const contactInfo = {
+                fullName: '',
+                email: user.email || '',
+                phone: '',
+                location: '',
+              };
+              const newResume = {
+                title: 'LinkedIn Import',
+                user_id: user.id,
+                contact_info: contactInfo,
+                summary: data.summary || '',
+                experience: (data.experience || []).map((exp, i) => ({
+                  id: String(i + 1),
+                  company: exp.company,
+                  position: exp.title,
+                  startDate: exp.startDate,
+                  endDate: exp.endDate,
+                  current: exp.current,
+                  description: exp.description,
+                  achievements: [],
+                })),
+                education: (data.education || []).map((edu, i) => ({
+                  id: String(i + 1),
+                  institution: edu.institution,
+                  degree: edu.degree,
+                  field: edu.field || '',
+                  startDate: edu.startYear || '',
+                  endDate: edu.endYear || '',
+                })),
+                skills: data.skills || [],
+                template_id: 'modern',
+              };
+              const { data: created, error } = await supabase.from('resumes').insert(newResume).select().single();
+              if (created && !error) {
+                haptics.success();
+                toast.success('Resume created from LinkedIn!');
+                refetch();
+                navigate(`/editor`);
+              }
+            }}
+            linkedinUsername={profile?.linkedinUrl?.replace(/.*linkedin\.com\/in\//, '').replace(/\/$/, '')}
+          />
+        </Suspense>
+      )}
 
-      {/* Analyze Job Sheet */}
-      <AnalyzeJobSheet open={showAnalyzeJob} onOpenChange={setShowAnalyzeJob} />
+      {/* Analyze Job Sheet - only mount when open */}
+      {showAnalyzeJob && (
+        <Suspense fallback={null}>
+          <AnalyzeJobSheet open={showAnalyzeJob} onOpenChange={setShowAnalyzeJob} />
+        </Suspense>
+      )}
 
     </div>
   );

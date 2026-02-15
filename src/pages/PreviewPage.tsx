@@ -8,18 +8,39 @@ import { useResumeStore } from '@/store/resumeStore';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
 
 // Lazy-loaded templates (only the selected one loads)
-const ModernTemplate = lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate })));
-const ClassicTemplate = lazy(() => import('@/components/templates/ClassicTemplate').then(m => ({ default: m.ClassicTemplate })));
-const MinimalTemplate = lazy(() => import('@/components/templates/MinimalTemplate').then(m => ({ default: m.MinimalTemplate })));
-const ProfessionalTemplate = lazy(() => import('@/components/templates/ProfessionalTemplate').then(m => ({ default: m.ProfessionalTemplate })));
-const DeveloperTemplate = lazy(() => import('@/components/templates/DeveloperTemplate').then(m => ({ default: m.DeveloperTemplate })));
-const CreativeTemplate = lazy(() => import('@/components/templates/CreativeTemplate').then(m => ({ default: m.CreativeTemplate })));
-const ExecutiveTemplate = lazy(() => import('@/components/templates/ExecutiveTemplate').then(m => ({ default: m.ExecutiveTemplate })));
-const CompactTemplate = lazy(() => import('@/components/templates/CompactTemplate').then(m => ({ default: m.CompactTemplate })));
-const AcademicTemplate = lazy(() => import('@/components/templates/AcademicTemplate').then(m => ({ default: m.AcademicTemplate })));
-const HealthcareTemplate = lazy(() => import('@/components/templates/HealthcareTemplate').then(m => ({ default: m.HealthcareTemplate })));
-const SalesTemplate = lazy(() => import('@/components/templates/SalesTemplate').then(m => ({ default: m.SalesTemplate })));
-const ElegantTemplate = lazy(() => import('@/components/templates/ElegantTemplate').then(m => ({ default: m.ElegantTemplate })));
+// Lazy-loaded templates — full set matching LivePreviewPanel
+const templateComponentMap: Record<string, ReturnType<typeof lazy>> = {
+  modern: lazy(() => import('@/components/templates/ModernTemplate').then(m => ({ default: m.ModernTemplate }))),
+  classic: lazy(() => import('@/components/templates/ClassicTemplate').then(m => ({ default: m.ClassicTemplate }))),
+  minimal: lazy(() => import('@/components/templates/MinimalTemplate').then(m => ({ default: m.MinimalTemplate }))),
+  professional: lazy(() => import('@/components/templates/ProfessionalTemplate').then(m => ({ default: m.ProfessionalTemplate }))),
+  developer: lazy(() => import('@/components/templates/DeveloperTemplate').then(m => ({ default: m.DeveloperTemplate }))),
+  creative: lazy(() => import('@/components/templates/CreativeTemplate').then(m => ({ default: m.CreativeTemplate }))),
+  executive: lazy(() => import('@/components/templates/ExecutiveTemplate').then(m => ({ default: m.ExecutiveTemplate }))),
+  compact: lazy(() => import('@/components/templates/CompactTemplate').then(m => ({ default: m.CompactTemplate }))),
+  academic: lazy(() => import('@/components/templates/AcademicTemplate').then(m => ({ default: m.AcademicTemplate }))),
+  healthcare: lazy(() => import('@/components/templates/HealthcareTemplate').then(m => ({ default: m.HealthcareTemplate }))),
+  sales: lazy(() => import('@/components/templates/SalesTemplate').then(m => ({ default: m.SalesTemplate }))),
+  elegant: lazy(() => import('@/components/templates/ElegantTemplate').then(m => ({ default: m.ElegantTemplate }))),
+  corporate: lazy(() => import('@/components/templates/CorporateTemplate').then(m => ({ default: m.CorporateTemplate }))),
+  banking: lazy(() => import('@/components/templates/BankingTemplate').then(m => ({ default: m.BankingTemplate }))),
+  consulting: lazy(() => import('@/components/templates/ConsultingTemplate').then(m => ({ default: m.ConsultingTemplate }))),
+  federal: lazy(() => import('@/components/templates/FederalTemplate').then(m => ({ default: m.FederalTemplate }))),
+  legal: lazy(() => import('@/components/templates/LegalTemplate').then(m => ({ default: m.LegalTemplate }))),
+  marketing: lazy(() => import('@/components/templates/MarketingTemplate').then(m => ({ default: m.MarketingTemplate }))),
+  designer: lazy(() => import('@/components/templates/DesignerTemplate').then(m => ({ default: m.DesignerTemplate }))),
+  portfolio: lazy(() => import('@/components/templates/PortfolioTemplate').then(m => ({ default: m.PortfolioTemplate }))),
+  startup: lazy(() => import('@/components/templates/StartupTemplate').then(m => ({ default: m.StartupTemplate }))),
+  infographic: lazy(() => import('@/components/templates/InfographicTemplate').then(m => ({ default: m.InfographicTemplate }))),
+  'data-science': lazy(() => import('@/components/templates/DataScienceTemplate').then(m => ({ default: m.DataScienceTemplate }))),
+  devops: lazy(() => import('@/components/templates/DevOpsTemplate').then(m => ({ default: m.DevOpsTemplate }))),
+  cyber: lazy(() => import('@/components/templates/CyberTemplate').then(m => ({ default: m.CyberTemplate }))),
+  product: lazy(() => import('@/components/templates/ProductTemplate').then(m => ({ default: m.ProductTemplate }))),
+  clean: lazy(() => import('@/components/templates/CleanTemplate').then(m => ({ default: m.CleanTemplate }))),
+  swiss: lazy(() => import('@/components/templates/SwissTemplate').then(m => ({ default: m.SwissTemplate }))),
+  mono: lazy(() => import('@/components/templates/MonoTemplate').then(m => ({ default: m.MonoTemplate }))),
+  zen: lazy(() => import('@/components/templates/ZenTemplate').then(m => ({ default: m.ZenTemplate }))),
+};
 
 // Lazy-loaded sheets
 const PageBreakSheet = lazy(() => import('@/components/editor/PageBreakSheet').then(m => ({ default: m.PageBreakSheet })));
@@ -27,7 +48,7 @@ const ExportOptionsSheet = lazy(() => import('@/components/editor/ExportOptionsS
 const ResumePhotoSheet = lazy(() => import('@/components/editor/ResumePhotoSheet').then(m => ({ default: m.ResumePhotoSheet })));
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
 const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
-import { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF, getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator';
+import { getSectionsInDOMOrder, PdfGenerationError } from '@/lib/pdfGenerator';
 import { getTemplateConfig, filterBreakableSections } from '@/lib/templateConfig';
 import { downloadFile } from '@/lib/downloadUtils';
 // docxGenerator is dynamically imported when needed to avoid Vite pre-bundle issues
@@ -202,6 +223,7 @@ export default function PreviewPage() {
 
     const tryExport = async (): Promise<void> => {
       try {
+        const { generatePDF, generateCoverLetterPDF, generateCombinedPDF, generateOnePagePDF } = await import('@/lib/pdfGenerator');
         const baseName = currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Document';
         const pdfOptions = { showPageNumbers, pageNumberFormat: 'full' as const, showBranding };
 
@@ -383,6 +405,7 @@ export default function PreviewPage() {
   const handleSaveToFiles = async () => {
     setIsGenerating(true);
     try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
       const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true });
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
@@ -409,6 +432,7 @@ export default function PreviewPage() {
   const handleShare = async () => {
     if (navigator.share) {
       try {
+        const { generatePDF } = await import('@/lib/pdfGenerator');
         const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, manualBreakSections, { showPageNumbers: true });
         const file = new File([pdfBlob], 'Resume.pdf', { type: 'application/pdf' });
         await navigator.share({ title: 'My Resume', files: [file] });
@@ -422,20 +446,7 @@ export default function PreviewPage() {
     }
   };
 
-  const TemplateComponent = {
-    modern: ModernTemplate,
-    classic: ClassicTemplate,
-    minimal: MinimalTemplate,
-    professional: ProfessionalTemplate,
-    developer: DeveloperTemplate,
-    creative: CreativeTemplate,
-    executive: ExecutiveTemplate,
-    compact: CompactTemplate,
-    academic: AcademicTemplate,
-    healthcare: HealthcareTemplate,
-    sales: SalesTemplate,
-    elegant: ElegantTemplate,
-  }[selectedTemplate];
+  const TemplateComponent = templateComponentMap[selectedTemplate];
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">

@@ -4,7 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Badge } from '@/components/ui/badge';
 import { haptics } from '@/lib/haptics';
 import { shareAsPDF, shareAsLink, shareAsText } from '@/lib/shareUtils';
-import { generatePDF } from '@/lib/pdfGenerator';
+// pdfGenerator is dynamically imported in handleSharePDF to reduce initial bundle
 import type { ResumeData, TemplateId, SectionId } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { useShareComments } from '@/hooks/useShareComments';
@@ -40,6 +40,7 @@ export function ShareSheet({
     haptics.medium();
     setIsGeneratingPDF(true);
     try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
       const pdfBlob = await generatePDF(resume, templateId, resumeRef.current, manualBreakSections, { showPageNumbers: true });
       const fileName = `${resume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       const shared = await shareAsPDF(pdfBlob, fileName);
