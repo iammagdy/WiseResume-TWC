@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Loader2, Check, Minimize2, FileType } from 'lucide-react';
+import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ExportType, CoverLetterContext } from '@/types/resume';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSettingsStore } from '@/store/settingsStore';
 import { estimateOnePageScale } from '@/lib/pdfGenerator';
 import { cn } from '@/lib/utils';
@@ -173,6 +174,14 @@ export function ExportOptionsSheet({
                       >
                         {onePageScale >= 100 ? 'No scaling needed' : `${onePageScale}% scale`}
                       </Badge>
+                    )}
+                    {option.id === 'one-page' && onePageScale !== null && onePageScale < 50 && (
+                      <Alert variant="destructive" className="mt-2 py-2 px-3">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription className="text-xs">
+                          Text may be too small to read comfortably at this scale. Consider using the AI One-Page Wizard to condense content first.
+                        </AlertDescription>
+                      </Alert>
                     )}
                   </div>
                 </div>
