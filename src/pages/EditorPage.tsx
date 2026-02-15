@@ -489,6 +489,17 @@ export default function EditorPage() {
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  // Tool descriptions & icon colors for mobile tools sheet
+  const toolMeta: Record<string, { description: string; iconColor: string }> = {
+    'design': { description: 'Change template & colors', iconColor: 'text-pink-500' },
+    'preview': { description: 'See your resume live', iconColor: 'text-blue-500' },
+    'wise-ai': { description: 'Chat with AI assistant', iconColor: 'text-primary' },
+    'versions': { description: 'Browse saved versions', iconColor: 'text-muted-foreground' },
+    'tailor': { description: 'Match resume to a job post', iconColor: 'text-amber-500' },
+    'ats-check': { description: 'Score against ATS systems', iconColor: 'text-emerald-500' },
+    'proofread': { description: 'Fix grammar & typos', iconColor: 'text-red-500' },
+  };
+
   // Mobile-only editor tools panel groups
   const editorToolGroups = useMemo((): ActionsPanelGroup[] => {
     const quickActions: ActionsPanelGroup = {
@@ -505,7 +516,6 @@ export default function EditorPage() {
       id: 'ai-features',
       title: 'AI Features',
       actions: [
-        { id: 'ai-enhance', label: 'AI Enhance', icon: Sparkles, onClick: () => setShowTailor(true) },
         { id: 'tailor', label: 'Tailor to Job', icon: Target, onClick: handleTailor },
         { id: 'ats-check', label: 'ATS Check', icon: BarChart3, onClick: () => setShowJobSheet(true) },
         { id: 'proofread', label: 'Proofread', icon: Scissors, onClick: handleProofread },
@@ -788,12 +798,13 @@ export default function EditorPage() {
                       )}
                       {group.actions.map((action) => {
                         const Icon = action.icon;
+                        const meta = toolMeta[action.id];
                         const isDestructive = action.variant === 'destructive';
                         return (
                           <button
                             key={action.id}
                             className={cn(
-                              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all min-h-[48px] touch-manipulation active:scale-95 hover:bg-muted",
+                              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all min-h-[48px] touch-manipulation active:scale-95 hover:bg-muted",
                               isDestructive && "text-destructive hover:bg-destructive/10"
                             )}
                             onClick={() => {
@@ -803,9 +814,14 @@ export default function EditorPage() {
                             }}
                           >
                             {Icon && (
-                              <Icon className={cn("h-4 w-4 shrink-0", isDestructive ? "text-destructive" : "text-muted-foreground")} />
+                              <Icon className={cn("h-5 w-5 shrink-0", isDestructive ? "text-destructive" : meta?.iconColor || "text-muted-foreground")} />
                             )}
-                            <span className="truncate">{action.label}</span>
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate font-medium">{action.label}</span>
+                              {meta?.description && (
+                                <span className="text-xs text-muted-foreground truncate">{meta.description}</span>
+                              )}
+                            </div>
                           </button>
                         );
                       })}
