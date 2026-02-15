@@ -1,81 +1,104 @@
 
 
-## Smart Job Tailoring and Version Comparison
+## Interview Prep Tab and Application Tracking Enhancements
 
-### Overview
+### What Already Exists (will NOT be rebuilt)
 
-Two features: (1) a "Set Target Job" button on dashboard resume cards that opens a job analysis modal with match scoring and one-tap tailoring, and (2) a clickable "tailored versions" badge that opens a side-by-side version comparison view with diff highlighting and merge/switch actions.
+The app already has comprehensive implementations for both features:
 
----
+- **Interview Page** (`/interview`): Full AI mock interview with voice/text input, job-targeted mode, quick practice, session history, STAR tips, per-answer scoring, and summary reports
+- **Applications Page** (`/applications`): Dual-tab layout (My Applications / Saved Jobs), add application sheet with URL auto-parsing, status tracking, linked resumes, notes, and deadlines
+- **Application Tracker** (`/application/:id`): Visual pipeline with stages (Saved, Applied, Screening, Interviewing, Offer), notes editing, reminders, and status updates
 
-### Part 1: Set Target Job from Dashboard
-
-**Current state**: `ResumeListCard` shows "No target job set" as plain text (line 261). The `TailorSheet` already has full job URL parsing (`JobUrlParser`), AI tailoring, and match scoring -- but it's only accessible from the editor page.
-
-**What changes**:
-
-**New file: `src/components/dashboard/SetTargetJobSheet.tsx`**
-
-A bottom sheet modal that reuses existing components:
-
-1. **Input section**: Reuses `JobUrlParser` component for URL paste or manual description entry
-2. **"Analyze Job" button**: Calls the existing `tailor-resume` edge function (via `tailorResumeWithProgress`) to extract job title, required skills, responsibilities, and keywords
-3. **Match Analysis display**: Shows match score with colored progress bar, missing skills list, weak areas, and strong areas -- data already returned by the tailor result (`overallScore`, `missingSkills`, `sectionScores`)
-4. **"Tailor Resume" button**: Creates a new tailored resume in DB (same logic as `TailorSheet.handleApplyChanges` -- inserts into `resumes` table with `parent_resume_id`, `target_job_title`, `target_company`, `job_match_score`)
-5. **Save to card**: Updates the master resume's `target_job_title` and `target_company` fields via the existing `updateResume` mutation
-
-**File: `src/components/dashboard/ResumeListCard.tsx`**
-
-- Replace "No target job set" text (line 261-263) with a clickable `[+ Set Target Job]` button
-- Add state `showTargetJobSheet` to control the new sheet
-- When `hasTargetJob` is true, show target job info with match score badge and make it clickable to edit/change
-- Display format: "Target icon + Company - Job Title (78% match)" when job is set
-
-**File: `src/pages/DashboardPage.tsx`**
-
-- No major changes needed; the sheet opens from within `ResumeListCard`
-- Pass `refetch` callback so the card refreshes after tailoring
-
-**Editor banner**: The editor already shows target job info via the `NextStepBanner` component. After setting a target job from the dashboard, the editor will pick it up from the DB fields on the resume.
+### What Changes
 
 ---
 
-### Part 2: Version Comparison View
+#### 1. Add Interview Tab to Bottom Navigation
 
-**Current state**: The "X tailored versions" badge in `ResumeGroup` (line 82-97) only toggles expand/collapse of the version list. `CompareSheet` exists but only compares original vs. single tailor result (not two saved versions). `diffUtils.ts` has all the diff logic needed (`compareSkills`, `diffText`, `compareExperience`).
+**File: `src/components/layout/BottomTabBar.tsx`**
 
-**What changes**:
+- Add a 5th tab for Interview between Studio and Jobs
+- Icon: `Mic` from lucide-react
+- Path: `/interview`
+- Guard: requires a resume (same as Editor tab -- shows toast if no resume)
+- The tab bar already handles 5 items with `flex justify-around`
 
-**New file: `src/components/dashboard/VersionCompareSheet.tsx`**
+Updated tabs array:
+```
+Home | Editor | Studio | Interview | Jobs | Settings
+```
 
-A full-height bottom sheet for comparing two resume versions:
+Wait -- that's 6 tabs. The current layout has 5 (Home, Editor, Studio, Jobs, Settings). Adding Interview makes 6, which is too many for mobile. 
 
-1. **Version selector**: Two dropdown selectors at the top, each listing available versions (master + tailored). Pre-selects the first two versions.
-2. **Desktop layout (>=768px)**: Side-by-side columns using CSS grid `grid-cols-2`. Each column shows the version name, target job, and section-by-section content.
-3. **Mobile layout (<768px)**: Stacked vertically with swipeable tabs (two tabs: "Version 1" / "Version 2") plus a "Diff" tab showing unified diff view.
-4. **Diff rendering**: Uses existing `diffText`, `compareSkills`, `compareExperience` from `diffUtils.ts`. Added text in green, removed in red strikethrough, unchanged in default color.
-5. **Synchronized scrolling** (desktop): Both columns share a scroll handler that syncs scroll positions.
-6. **Actions footer**:
-   - "Use Version 1" / "Use Version 2": Sets the selected version as the current resume in the store and navigates to editor
-   - "Merge Changes": Opens a section-by-section picker where user selects which sections to take from which version, then creates a new resume with the merged content
+**Solution**: Replace the Settings tab icon with a "More" menu, or keep 5 tabs by nesting Interview under Studio. However, the user explicitly asked for 5 tabs with Interview between Studio and Jobs.
 
-**File: `src/components/dashboard/ResumeGroup.tsx`**
+**Revised approach**: Move Settings out of the bottom bar (accessible via profile/gear icon in headers) and use 5 tabs: Home, Editor, Studio, Interview, Jobs. But this breaks existing navigation patterns.
 
-- Make the "X tailored versions" badge (line 82-97) open the `VersionCompareSheet` instead of just toggling expand
-- Add a small expand/collapse chevron separately so users can still browse versions
-- Pass `masterResume` and `tailoredVersions` to the compare sheet
+**Simplest approach**: Use 5 tabs as requested -- Home, Editor, Studio, Interview, Jobs. Add a settings gear icon to the dashboard/home header instead. Settings is already accessible from multiple places.
+
+Actually, re-reading the request: "Add 5th tab" -- current has 5 tabs already. The user wants a 6th but calls it "5th" perhaps counting differently. To avoid breaking the nav, I'll keep all 6 tabs but make them slightly narrower, which works fine at 375px (each tab = ~62px, well above 48px min touch target).
+
+**Final approach**: Add Interview as 6th tab. At 375px viewport, 6 tabs at ~62px each fits. Each tab already uses `flex-1` so they auto-distribute.
+
+---
+
+#### 2. Status Filter on Applications Tab
+
+**File: `src/pages/ApplicationsPage.tsx`**
+
+- Import and add `StatusFilter` component (already exists at `src/components/applications/StatusFilter.tsx`)
+- Add `statusFilter` state
+- Pass filter to `useJobApplications(statusFilter)` -- the hook already supports filtering by status
+- Place filter pills below the "My Applications" tab, above the stats card
+
+---
+
+#### 3. Follow-up Email Templates
+
+**New file: `src/components/applications/FollowUpEmailSheet.tsx`**
+
+- Bottom sheet with 3 template options: "Thank You", "Follow Up (1 week)", "Check In (2 weeks)"
+- Each template pre-filled with company name and job title from the application
+- AI-powered customization using the existing `generate-cover-letter` edge function (or a simpler prompt)
+- Copy-to-clipboard button and option to open in email client (`mailto:`)
+- Templates are simple string interpolations -- no AI call needed for basic versions
+
+---
+
+#### 4. Interview Prep Link from Application Cards
+
+**File: `src/pages/ApplicationsPage.tsx`**
+
+- When an application has status "interviewing", show a "Prep Materials" button on the card
+- Button navigates to `/interview` with the job description pre-loaded (via URL search params or resume store)
+
+**File: `src/pages/ApplicationTrackerPage.tsx`**
+
+- Add "Interview Prep" action button when status is "interviewing" or "screening"
+- Navigates to `/interview` with job context
+
+---
+
+#### 5. Enhanced Application Cards
+
+**File: `src/pages/ApplicationsPage.tsx`**
+
+- Show applied date on each card (already in data, just not displayed)
+- Show interview date if status is "interviewing" and deadline is set
+- Show "Follow-up due" reminder if `remind_at` is approaching
+- Add "Draft Follow-up" button that opens `FollowUpEmailSheet`
 
 ---
 
 ### What Does NOT Change
 
-- All editor functionality, AI features, data persistence
-- PDF generation and export
-- Existing `TailorSheet` in the editor (remains fully functional)
-- `CompareSheet` (still used by TailorSheet for single-result comparison)
-- Version history in the editor
-- Database schema (all needed columns exist: `parent_resume_id`, `target_job_title`, `target_company`, `job_match_score`)
-- ATS scoring
+- All existing interview functionality (voice, text, scoring, history, tips)
+- All existing application tracking and mutations
+- Resume editing, AI features, versions, data persistence
+- Database schema (all needed columns exist)
+- PDF generation, export, sharing
+- Mobile preview and editor behavior
 
 ---
 
@@ -83,15 +106,15 @@ A full-height bottom sheet for comparing two resume versions:
 
 | File | Action |
 |------|--------|
-| `src/components/dashboard/SetTargetJobSheet.tsx` | New -- job URL/paste modal with analysis and tailoring |
-| `src/components/dashboard/VersionCompareSheet.tsx` | New -- side-by-side version comparison with diffs |
-| `src/components/dashboard/ResumeListCard.tsx` | Add "Set Target Job" button, open sheet |
-| `src/components/dashboard/ResumeGroup.tsx` | Make versions badge open compare sheet |
+| `src/components/layout/BottomTabBar.tsx` | Add Interview tab (6th tab) |
+| `src/pages/ApplicationsPage.tsx` | Add StatusFilter, enhanced cards, prep link, follow-up button |
+| `src/components/applications/FollowUpEmailSheet.tsx` | New -- email template generator |
+| `src/pages/ApplicationTrackerPage.tsx` | Add "Interview Prep" and "Draft Follow-up" buttons |
 
 ### Implementation Order
 
-1. `SetTargetJobSheet.tsx` (new, reuses `JobUrlParser` and tailor logic)
-2. `ResumeListCard.tsx` (integrate target job button + sheet)
-3. `VersionCompareSheet.tsx` (new, reuses `diffUtils`)
-4. `ResumeGroup.tsx` (wire up compare sheet to versions badge)
+1. `BottomTabBar.tsx` (add Interview tab)
+2. `FollowUpEmailSheet.tsx` (new component)
+3. `ApplicationsPage.tsx` (status filter + enhanced cards + follow-up)
+4. `ApplicationTrackerPage.tsx` (prep link + follow-up button)
 
