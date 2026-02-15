@@ -1,51 +1,50 @@
 
 
-## Replace ResumeListCard Three-Dot Menu with ActionsPanel
+## Consolidate Editor Header into Mobile ActionsPanel
 
 ### Overview
 
-Swap the `DropdownMenu` kebab menu in `ResumeListCard` with the reusable `ActionsPanel` component (wrapping `FloatingPanel`). All existing handlers, props, and business logic remain identical -- only the menu container changes.
+Replace the row of individual header buttons (Design, Preview, Wise AI) with a single compact trigger button on mobile that opens an "Editor Tools" ActionsPanel. On desktop (md+), keep the existing buttons visible.
 
 ### What Changes
 
-The three-dot menu (lines 312-430) is replaced by an `ActionsPanel` with the same trigger button and three action groups.
+**File: `src/pages/EditorPage.tsx`**
 
-### Technical Details
+1. **Add import** for `ActionsPanel` and `ActionsPanelGroup` from `@/components/ActionsPanel`, plus additional icons (`Wand2` or `Sparkles`, `BarChart3`, `Target`, `Palette`, `Eye`, `MessageSquare`, `Clock`) -- most already imported.
 
-**File: `src/components/dashboard/ResumeListCard.tsx`**
-
-1. **Update imports** (lines 25-31): Remove `DropdownMenu`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuTrigger`. Add `import { ActionsPanel } from '@/components/ActionsPanel'` and the types `ActionsPanelGroup`.
-
-2. **Remove `isMenuOpen` state** (line 74): No longer needed since ActionsPanel manages its own open state internally.
-
-3. **Replace the menu block** (lines 312-430) with a single `<ActionsPanel>` using the three-dot button as the trigger and the following groups built via `useMemo`:
+2. **Build action groups via `useMemo`** (placed near the other memos, around line 460-480):
 
 | Group | Title | Actions |
 |-------|-------|---------|
-| view-edit | View and Edit | Preview (Eye icon), Rename (Pencil, conditional on `onRename`), Edit (Edit2 icon) |
-| actions | Actions | Download PDF (Download icon), Share (Share2 icon), Duplicate (Copy icon), Practice Interview (Mic, conditional on `onInterview`) |
-| manage | Manage | Delete (Trash2 icon, variant: destructive) |
+| quick-actions | Quick Actions | Design (`Palette`, calls `handleCustomize`), Live Preview (`Eye`, toggles `setShowPreview`), Wise AI (`MessageSquare`, calls `setShowChat(true)`), Versions (`Clock`, calls `setShowVersionHistory(true)`, conditional on `user && currentResumeId`) |
+| ai-features | AI Features | AI Enhance (`Sparkles`, calls `setShowTailor(true)`), Tailor to Job (`Target`/`Briefcase`, calls `handleTailor`), ATS Check (`BarChart3`, calls `setShowJobSheet(true)`), Proofread (`Scissors`, calls `handleProofread`) |
 
-4. **Move handler logic into group builder**: Each action's `onClick` calls the exact same code currently inside each `DropdownMenuItem` (e.g., the async PDF download, clipboard share, navigate to preview, etc.). The `e.stopPropagation()` calls move to the trigger button only since ActionsPanel buttons don't bubble through the card. Haptic calls are handled by ActionsPanel automatically.
+3. **Update the header right section** (lines 687-743):
+   - Wrap existing buttons (Design, Live Preview, Wise AI) in `<div className="hidden md:flex items-center gap-1.5">` so they remain visible on desktop only.
+   - Add a new `<div className="flex md:hidden">` containing the `ActionsPanel` with trigger:
+     ```tsx
+     <ActionsPanel
+       trigger={
+         <button className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation">
+           <Sparkles className="w-5 h-5 text-primary" />
+           <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
+         </button>
+       }
+       title="Editor Tools"
+       groups={editorToolGroups}
+     />
+     ```
 
-5. **Trigger element**: Same `Button variant="ghost" size="icon"` with `MoreVertical` icon, wrapped as the `trigger` prop. The `onClick` with `e.stopPropagation()` stays on this button to prevent card navigation.
+4. **No handler changes.** Every `onClick` in the groups calls the exact same existing functions (`handleCustomize`, `setShowPreview`, `setShowChat`, `setShowVersionHistory`, `setShowTailor`, `handleTailor`, `setShowJobSheet`, `handleProofread`).
 
-### Action Mapping (handler preservation)
+### Visual Result
 
-| Action | Handler (unchanged) |
-|--------|-------------------|
-| Preview | `navigateToEditor(\`/resume/${resume.id}\`)` |
-| Rename | `setIsRenaming(true)` |
-| Edit | `onEdit(resume.id)` |
-| Download PDF | async import pdfGenerator + downloadUtils, same try/catch with toast |
-| Share | `navigator.clipboard.writeText(...)` with toast |
-| Duplicate | `onDuplicate(resume.id)` |
-| Practice Interview | `onInterview(resume.id)` |
-| Delete | `onDelete(resume.id)` with `haptics.warning()` |
+- **Mobile**: One "Tools" sparkle button in the header opens a full-width bottom panel with all editor actions grouped logically.
+- **Desktop (md+)**: Existing Design, Live Preview, and Wise AI buttons remain visible as before -- no change to desktop experience.
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/dashboard/ResumeListCard.tsx` | Replace DropdownMenu with ActionsPanel, remove dropdown imports, add ActionsPanel import |
+| `src/pages/EditorPage.tsx` | Add ActionsPanel import, build `editorToolGroups` memo, wrap existing header buttons in `hidden md:flex`, add mobile-only ActionsPanel trigger |
 
