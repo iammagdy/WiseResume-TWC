@@ -1,61 +1,70 @@
 
 
-## Feature: Dedicated AI Enhance Sheet
+## Mobile Optimization: Section Navigation and Form Fields (Incremental)
 
 ### Overview
 
-Create a new `AIEnhanceSheet` component that provides section-by-section writing enhancement (power verbs, metrics, conciseness) without requiring a job description. Wire it into the AI Studio page to replace the current "Enhance" button that incorrectly opens the Tailor sheet.
+Most requested optimizations are already in place. This plan covers the remaining gaps to bring the mobile experience to full spec.
 
-### Changes
+### What's Already Done (No Changes Needed)
 
-**File 1: `src/components/editor/ai/AIEnhanceSheet.tsx` (NEW)**
+- StepperNav: Mobile dropdown button (56px) with bottom sheet -- already implemented
+- Input height: h-12 (48px) -- already set
+- Font size: text-[16px] on inputs -- already prevents iOS zoom
+- Clear button touch targets: min-w-[48px] min-h-[48px] -- already set
+- Labels: text-sm font-semibold (14px, weight 600) -- already set
+- Textarea: min-h-[120px] on mobile -- already set
+- Section padding: px-3 sm:px-4 -- already responsive
 
-A bottom sheet with the following layout:
+### Changes Required
 
-- **Header**: "AI Enhance" title with Sparkles icon and `AIProviderVia` badge
-- **Enhancement Mode Selector**: A row of tappable chips (min 44px height) for the action types:
-  - "Improve Writing" (`improve`) -- default selected
-  - "Add Metrics" (`add_metrics`)
-  - "Power Bullets" (`generate_bullets`)
-  - "Make Concise" (`shorten`)
-  - "Expand Detail" (`expand`)
-- **Section Selector**: List of available resume sections with checkboxes. Auto-detect which sections have content from the resume store. Sections: Summary, Experience, Skills, Education
-- **"Enhance" button**: Primary gradient button, disabled if no sections selected or if enhancing. Shows spinner when loading
-- **Results area**: After enhancement completes, show results per section using the existing `AIEnhanceDialog` inline pattern (original vs improved, changes badges, apply/discard per section). Each result card shows the section name, a diff view (original crossed out, improved highlighted), and individual Apply/Discard buttons
-- **Props**: `open: boolean`, `onOpenChange: (open: boolean) => void`
+**File 1: `src/components/editor/StepperNav.tsx`**
 
-Internal logic:
-- Reads `currentResume` from `useResumeStore`
-- For each selected section, calls `useAIEnhance` hook (or calls the `enhance-section` edge function directly via supabase) with the chosen action and section content
-- No job description passed (the key differentiator from Tailor)
-- On "Apply", updates the resume store directly via `setCurrentResume` with the improved content for that section
-- Uses `useAICreditsMutations` for credit checks
+Mobile bottom sheet section rows:
+- Change `min-h-[56px]` to `min-h-[64px]` on each section button in the bottom sheet (line 107) for easier tapping
+- Add completion percentage to the trigger button for all sections (not just in-progress): show "100%" with a green badge when completed, and the current score when in-progress
+- Show percentage in trigger subtitle: change "Step X of Y" to include "X of Y complete" count
 
-**File 2: `src/pages/AIStudioPage.tsx` (EDIT)**
+**File 2: `src/components/editor/ProgressBar.tsx`**
 
-- Add lazy import for `AIEnhanceSheet`
-- Add `showEnhance` state variable
-- Change `handleSecondaryAction` case `'enhance'` from `setShowTailor(true)` to `setShowEnhance(true)` (line 101)
-- Add `AIEnhanceSheet` to the Suspense render block alongside other sheets
+Small screen abbreviation:
+- On screens under 375px, abbreviate "Resume 90% Complete" to just the percentage and a shorter label using a responsive class or `useIsMobile`-style approach. Use a CSS `hidden`/`inline` swap at a custom breakpoint for the word "Resume" and "Complete"
 
-**File 3: `src/pages/EditorPage.tsx` (EDIT -- only if Enhance is also triggered from Editor)**
+**File 3: `src/components/ui/form-field.tsx`**
 
-- No changes needed -- the Editor page no longer has the AI bar, and users access Enhance from the Studio tab
+Form field spacing improvements:
+- Change outer container from `space-y-2 sm:space-y-1.5` to `space-y-2` consistently (remove the sm: tightening for more breathing room on all sizes)
+- Add `leading-relaxed` (line-height 1.625) to Textarea for comfortable mobile reading
+- Ensure character counter stays below the input on mobile by keeping the current layout (it's already in a flex row below the input)
+
+**File 4: `src/components/editor/ContactSection.tsx`**
+
+Increase spacing between form field groups:
+- Change `space-y-4` to `space-y-5` for slightly more breathing room between fields on all screens
+
+**File 5: `src/components/editor/SummarySection.tsx`** (and other section files if similar)
+
+Same spacing adjustment:
+- Change `space-y-4` (or whatever the current gap is) to `space-y-5` for consistent field spacing
+
+**File 6: `src/components/ui/textarea.tsx`**
+
+Add line-height for comfortable reading:
+- Add `leading-relaxed` to the textarea base classes so multi-line text has 1.625 line-height
 
 ### What Does NOT Change
 
-- The `enhance-section` edge function -- it already supports all needed actions
-- The `useAIEnhance` hook -- reused as-is
-- The `AIEnhanceDialog` component -- reused for displaying results
-- The Tailor sheet and all other AI tools
-- Resume store, credits system, authentication
+- Desktop horizontal stepper -- completely untouched
+- All data persistence, auto-save, validation logic
+- AI features, keyboard shortcuts, section completion celebrations
 - All other pages and navigation
+- Input component (already at correct height and font size)
+- Clear button sizing (already 48px targets)
 
 ### Technical Notes
 
-- The sheet iterates over selected sections sequentially (not in parallel) to avoid rate limiting on the edge function (20 req/min limit)
-- Each section enhancement is independent -- user can apply/discard individually
-- The `improve` action in the edge function already handles power verbs, better phrasing, and conciseness without needing a job description
-- The `add_metrics` action specifically adds quantifiable achievements -- a key differentiator from Proofread (which fixes grammar) and Tailor (which requires a job description)
-- Touch targets on mode chips and section checkboxes maintain 44px minimum
-- Sheet uses `side="bottom"` with `className="h-[85vh]"` for mobile-friendly interaction
+- StepperNav bottom sheet row height increase from 56px to 64px adds ~48px total across 6 sections, well within sheet height
+- ProgressBar abbreviation uses Tailwind responsive utilities with a custom `@media (max-width: 374px)` or `min-[375px]:` prefix to swap text content
+- `leading-relaxed` on textarea sets `line-height: 1.625` which improves multi-line readability without changing layout
+- `space-y-5` (20px) vs `space-y-4` (16px) matches the requested 20px minimum between fields
+
