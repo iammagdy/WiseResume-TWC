@@ -648,7 +648,7 @@ export default function EditorPage() {
               </h1>
               <OfflineIndicator isSyncing={isSyncing} />
               {/* Undo/Redo buttons */}
-              <div className="flex items-center gap-0.5">
+              <div className="hidden xs:flex items-center gap-0.5">
                 <button
                   onClick={handleUndo}
                   disabled={!canUndo}
@@ -731,7 +731,7 @@ export default function EditorPage() {
             )}
             <button
                     onClick={() => setShowChat(true)}
-                    className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[54px] min-h-[54px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
+                    className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
                     aria-label="Open Wise AI Chat"
                   >
                     <span className="relative">

@@ -62,7 +62,7 @@ export default function ProfilePage() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto">
       {/* Header */}
-      <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
         <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="w-12 h-12" aria-label="Go back">
           <ArrowLeft className="w-5 h-5" />
         </Button>
@@ -95,10 +95,10 @@ export default function ProfilePage() {
 
         {/* Action Buttons */}
         <div className="flex gap-3">
-          <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={() => setEditOpen(true)}>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
           </Button>
-          <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={handleShareProfile}>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={handleShareProfile}>
             <Share2 className="w-4 h-4 mr-2" /> Share
           </Button>
         </div>

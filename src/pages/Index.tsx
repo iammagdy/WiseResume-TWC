@@ -72,7 +72,7 @@ const Index = () => {
     <SpaceBackground>
       <main className="min-h-screen pb-12">
         {/* Hero */}
-        <section className="flex flex-col items-center text-center px-6 pt-16 pb-6">
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-16 pb-6">
           <motion.div className="relative mb-6 animate-float" {...fade(0)}>
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-50 animate-glow-pulse"
@@ -89,7 +89,7 @@ const Index = () => {
           </motion.div>
 
           <motion.h1
-            className="text-[32px] font-bold text-foreground leading-tight mb-2"
+            className="text-fluid-2xl font-bold text-foreground leading-tight mb-2"
             {...fade(0.1)}
           >
             Build Your Dream Resume
@@ -138,7 +138,7 @@ const Index = () => {
         </section>
 
         {/* Steps Row */}
-        <motion.section className="px-6 mb-6" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 mb-6" {...inView(0)}>
           <div className="glass-surface border border-border/30 rounded-2xl p-4 flex items-center justify-around">
             {steps.map((step, i) => (
               <div key={step.label} className="flex items-center">
@@ -168,12 +168,12 @@ const Index = () => {
 
 
         {/* Interactive Editor Demo */}
-        <motion.section className="px-6 mb-8" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
           <EditorDemo />
         </motion.section>
 
         {/* Social Proof Bar */}
-        <motion.section className="px-6 mb-8" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
           <div className="flex items-center justify-center">
             <div className="inline-flex items-center gap-5 sm:gap-8 px-5 py-3 rounded-2xl bg-card/40 backdrop-blur-sm border border-border/20">
               {[
@@ -194,7 +194,7 @@ const Index = () => {
         </motion.section>
 
         {/* Why We're Different - Comparison */}
-        <motion.section className="px-6 mb-8" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
           <motion.h2
             className="text-2xl font-bold text-foreground text-center mb-2"
             {...inView(0)}
@@ -234,7 +234,7 @@ const Index = () => {
         </motion.section>
 
         {/* AI Bullet Transform Demo */}
-        <motion.section className="px-6 mb-8" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
           <Card className="max-w-md mx-auto p-5 border-border/30 bg-card/50 backdrop-blur-sm overflow-hidden">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -266,7 +266,7 @@ const Index = () => {
         </motion.section>
 
         {/* Features - 6 items */}
-        <motion.section className="px-6 mb-8" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
           <motion.h2
             className="text-2xl font-bold text-foreground text-center mb-2"
             {...inView(0)}
@@ -274,7 +274,7 @@ const Index = () => {
             Everything You Need
           </motion.h2>
           <p className="text-sm text-muted-foreground text-center mb-6">Powerful features to land your dream job</p>
-          <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
+          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 max-w-md mx-auto">
             {features.map((f, i) => (
               <motion.div key={f.title} {...inView(0.08 * i)}>
                 <Card className="p-4 border-border/30 bg-card/50 backdrop-blur-sm h-full hover:border-primary/40 transition-colors">
@@ -290,14 +290,14 @@ const Index = () => {
         </motion.section>
 
         {/* Template Preview */}
-        <motion.section className="px-6 mb-8" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 mb-8" {...inView(0)}>
           <p className="text-sm text-muted-foreground mb-3 text-center">Templates</p>
           <div className="relative">
-            <div className="flex gap-3 overflow-x-auto pb-2 -mx-6 px-6 snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 sm:-mx-6 sm:px-6 snap-x snap-mandatory" style={{ WebkitOverflowScrolling: 'touch' }}>
               {templatePreviews.map((t, i) => (
                 <motion.div
                   key={t.name}
-                  className="snap-start shrink-0 w-28"
+                  className="snap-start shrink-0 w-24 xs:w-28"
                   initial={prefersReducedMotion ? undefined : { opacity: 0, x: 30 }}
                   whileInView={prefersReducedMotion ? undefined : { opacity: 1, x: 0 }}
                   viewport={{ once: true }}
@@ -327,7 +327,7 @@ const Index = () => {
         </motion.section>
 
         {/* Bottom CTA */}
-        <motion.section className="px-6 py-12" {...inView(0)}>
+        <motion.section className="px-4 sm:px-6 py-12" {...inView(0)}>
           <div className="max-w-md mx-auto text-center">
             <h2 className="text-2xl font-bold text-foreground mb-3">
               Ready to Land Your Dream Job?
