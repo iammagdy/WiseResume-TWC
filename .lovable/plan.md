@@ -1,101 +1,85 @@
 
-## Final Export Screen Audit -- Findings and Fixes
 
-### Screen Architecture
+## Icon Readability & UX Flow Audit + Page Break Display Bug Fix
 
-The "final screen before download" consists of two layers:
+### Critical Bug: Page Break Indicators Show Auto Breaks as Manual
 
-1. **PreviewPage** (`src/pages/PreviewPage.tsx`) -- Full-page preview with template rendering, template switcher, page break controls, and a bottom action bar with "Download" + chevron for more options.
-2. **ExportOptionsSheet** (`src/components/editor/ExportOptionsSheet.tsx`) -- Bottom sheet listing 10 export types, PDF settings (page numbers, branding badge), progress bar, and the final CTA button.
+**What's happening:** When you set 1 manual page break in the Page Breaks sheet, the badge correctly shows "1". However, the preview shows 7+ purple badges ("Page 4 ends here", "Page 5 ends here", etc.) because `findSmartBreakPositions` returns ALL break positions (your 1 forced break + 6 auto-fill breaks), and `PageBreakIndicator` renders ALL of them with the purple "manual" style.
 
-### Issues Found
+**Root cause:** `PageBreakIndicator` uses a single boolean `isManualMode` to choose styling. When manual mode is on, every break -- including auto-fills between forced breaks -- gets the prominent purple badge. This is misleading.
 
----
+**Fix (2 files):**
 
-#### ISSUE 1 (Bug): Export button incorrectly disabled for Interview Prep when no cover letter exists
+1. **`src/lib/pdfGenerator.ts`** -- Export a new function `findSmartBreakPositionsTagged` (or modify the return type) that returns break positions tagged as `'manual'` or `'auto'`. The existing `findSmartBreakPositions` will remain unchanged for PDF generation (which only needs positions). A new companion function will return `{ position: number, type: 'manual' | 'auto' }[]`.
 
-**Location:** `ExportOptionsSheet.tsx` line 302
-
-The disable condition is:
-```
-disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && !hasCoverLetter)}
-```
-
-`interview-prep` is not a PDF type, not a text type, and not docx. So when `hasCoverLetter` is false, the "Start Practice" button is disabled even though interview prep has nothing to do with cover letters. The button should always be enabled for interview-prep.
-
-**Fix:** Add `&& selectedType !== 'interview-prep'` to the disable condition:
-```
-disabled={isExporting || (!isPdfType && !isTextType && selectedType !== 'docx' && selectedType !== 'interview-prep' && !hasCoverLetter)}
-```
+2. **`src/components/editor/PageBreakIndicator.tsx`** -- Call the tagged version instead. Render forced/manual breaks with the purple badge ("Page X ends here") and auto-fill breaks with the subtle amber dashed line ("Page X ends"). This way, the user clearly sees which breaks they chose vs which ones the system added to prevent content overflow.
 
 ---
 
-#### ISSUE 2 (UX): Bottom action bar has hidden text labels on narrow screens, leaving icon-only buttons that are unclear
+### Icon & UX Audit Findings
 
-**Location:** `PreviewPage.tsx` lines 628-668
+#### 1. Bottom Tab Bar (5 tabs: Home, Editor, Studio, Jobs, Settings)
+- **Home** (Home icon): Clear, universally understood. Size w-6 h-6 on mobile, adequate.
+- **Editor** (FileText icon): Clear with "Editor" label. Adequate.
+- **Studio** (Sparkles icon): Clear with "Studio" label. The glow effect on active state is a nice touch. No issues.
+- **Jobs** (Briefcase icon): Clear with "Jobs" label. No issues.
+- **Settings** (Settings/gear icon): Universally understood. No issues.
+- All tabs have `aria-label`, `min-h-[48px]`, and `active:scale-95` haptic feedback. No changes needed.
 
-The secondary action row uses `<span className="hidden xs:inline ...">` which hides labels below 475px (the `xs` breakpoint). On a 320px iPhone SE, users see four cryptic icon-only buttons (back arrow, mic, share icon, folder icon on iOS) with no labels. This is confusing -- especially the mic icon for "Interview" and the share icon.
+#### 2. Preview Page Bottom Bar (Edit, Save, Interview, Share + Download)
+- **Edit** (ArrowLeft): Already fixed in previous iteration with always-visible labels (`text-xs`). No issues.
+- **Interview** (Mic icon): Label "Interview" visible on all sizes now. No issues.
+- **Share** (Share2 icon): Label visible. No issues.
+- **Save** (FolderDown, iOS only): Label visible. No issues.
+- **Download** (Download icon): Primary CTA, large and prominent. No issues.
 
-**Fix:** Change `hidden xs:inline` to always-visible labels with smaller text on tight screens. Use `text-xs` as default and `sm:text-sm` for larger screens. This ensures labels like "Edit", "Interview", "Share", and "Save" are always readable.
+#### 3. Editor Header Tools
+The Editor page packs many icon buttons in the header. On mobile, the header uses a collapsible approach. Key icons:
+- **Undo/Redo** (Undo2/Redo2): Icon-only but universally understood. Have proper disabled states.
+- **Wise AI** (MessageSquare): Has text label "Wise AI" on larger screens. On narrow screens it may be icon-only but the Sparkles glow makes it distinctive.
+- **Preview** (Eye): Clear in context. Has label on wider screens.
+- **ATS Score** (BarChart3): Displays score number which serves as label.
 
----
+#### 4. Editor StepperNav Section Icons
+All section icons are well-chosen and color-coded:
+- Contact (User), Summary (AlignLeft), Experience (Briefcase), Education (GraduationCap), Skills (Wrench)
+- More sections: Awards (Trophy/amber), Projects (Rocket/blue), Certifications (Award/orange), Publications (BookOpen/emerald), Volunteering (Heart/rose), Languages (Globe/cyan), Hobbies (Palette/purple), References (Users/sky)
+- All have text labels in the sheet/dropdown. No issues.
 
-#### ISSUE 3 (UX): ExportOptionsSheet scrollable list clips at bottom on short phones
+#### 5. Dashboard Resume Card Actions
+The `ResumeListCard` has proper labeled actions in its action sheet: Edit, Duplicate, Delete all with icons + text. Swipe actions also have proper icon+text. No issues.
 
-**Location:** `ExportOptionsSheet.tsx` line 179
+#### 6. User Flow Analysis
 
-The `max-h-[40vh]` for the options list, combined with the toggle switches and CTA button below, can cause the CTA to be pushed offscreen on phones shorter than 667px (iPhone SE, older Androids). The sheet is `max-h-[85vh]` but the internal content doesn't have proper overflow management for the full content block.
+**New User Flow** (Landing -> Auth -> Dashboard -> Create -> Editor -> Preview -> Export):
+- Landing: Clear CTAs. No dead ends.
+- Auth: Clean form, returns to Dashboard on success.
+- Dashboard: "Create Resume" floating button is prominent. No confusion.
+- Editor: StepperNav guides through sections. "Preview & Export" button in header navigates to Preview. Clear.
+- Preview: Download is the primary CTA. Export options sheet shows all formats. No dead ends.
+- Overall flow is logical with no gaps.
 
-**Fix:** Change the outer `space-y-4 pb-6` div (line 177) to use `flex flex-col min-h-0` with the options list as `flex-1 overflow-y-auto` and the button + toggles as `shrink-0`. Add `pb-safe` to the bottom to respect home indicator. This ensures the CTA button is always visible at the bottom regardless of screen height.
+**Returning User Flow** (Dashboard -> Resume Card -> Resume Detail -> Edit -> Preview):
+- Resume card tap navigates to detail page. Detail page has clear "Edit" button. No issues.
 
----
+**Settings Flow** (Settings tab -> adjust options -> back):
+- Settings page has bottom tab bar, so "back" is always available. No dead ends.
 
-#### ISSUE 4 (UX): No summary of what will be exported
-
-Users see export type options but no confirmation of which resume or template they're exporting. On the final screen before download, there's no indicator like "Exporting: Magdy Saber -- Modern template".
-
-**Fix:** Add a small summary line below the sheet title showing the resume name and current template:
-```tsx
-<p className="text-sm text-muted-foreground mt-1">
-  {resumeName} -- {templateName} template
-</p>
-```
-
-This requires passing `resumeName` and `templateName` as new optional props to `ExportOptionsSheet`.
-
----
-
-#### ISSUE 5 (UX): "Download PDF" button label doesn't change when selecting non-default export
-
-When a user selects "PDF (ATS-Optimized)", the button still says "Download PDF" -- this is technically correct but doesn't reassure the user that they selected the ATS version. The label should distinguish between the two PDF types.
-
-**Fix:** Update `getButtonLabel()` to return "Download ATS PDF" for `ats-pdf` and "Download One-Page PDF" for `one-page` to make the action more specific.
-
----
-
-#### ISSUE 6 (Minor): PreviewPage bottom bar second row has `flex-1` on all buttons causing uneven sizing on iOS
-
-On iOS, when the "Save to Files" button appears (4 buttons total), all use `flex-1` which distributes space evenly. But the "Edit" button with back arrow icon looks cramped at 25% width. Non-iOS users see 3 buttons which is fine.
-
-**Fix:** For the iOS case, give "Edit" a fixed `w-auto px-3` instead of `flex-1` since it's a short label, letting the other 3 buttons share remaining space evenly.
+No major icon or flow issues found beyond the page break display bug.
 
 ---
 
 ### Implementation Plan
 
-| File | Change | Priority |
-|------|--------|----------|
-| `ExportOptionsSheet.tsx` line 302 | Fix disabled logic for interview-prep | High (bug) |
-| `ExportOptionsSheet.tsx` line 157-164 | Make button labels more specific for ATS/one-page PDF | Medium |
-| `ExportOptionsSheet.tsx` line 177-179 | Fix layout to keep CTA visible on short phones | Medium |
-| `ExportOptionsSheet.tsx` props + header | Add resume name + template name summary | Medium |
-| `PreviewPage.tsx` lines 628-668 | Show button labels on all screen sizes | Medium |
-| `PreviewPage.tsx` lines 686-696 | Pass resumeName and templateName to ExportOptionsSheet | Medium |
+| Step | File | Change |
+|------|------|--------|
+| 1 | `src/lib/pdfGenerator.ts` | Add exported `findSmartBreakPositionsTagged()` that returns `{ position: number; type: 'manual' \| 'auto' }[]` by tracking which break positions come from `forcedBreaks` vs `computeAutoBreaksInSegment` |
+| 2 | `src/components/editor/PageBreakIndicator.tsx` | Import and use the tagged function. Render manual breaks with purple badge, auto-fill breaks with amber dashed line. Update the `breaks` state to `{ position: number; type: 'manual' \| 'auto' }[]` |
 
 ### What Won't Change
+- Core PDF generation algorithm (unchanged `findSmartBreakPositions` still used by `generatePDF`)
+- No changes to export handlers, data models, types, or routes
+- No changes to template rendering or section ordering
+- All existing icon choices remain (they're well-suited)
+- No flow restructuring needed
 
-- No changes to export business rules or PDF generation logic
-- No changes to the export handler (`handleExport`) or its type signatures
-- No changes to the core `onExport` callback signature
-- Template rendering, page break logic, and download utilities remain untouched
-- All existing `ExportType` values and their behaviors remain identical
