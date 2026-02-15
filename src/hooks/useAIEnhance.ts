@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 
-export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact';
+export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
 export type ActionType = 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
 
 interface EnhanceResult {

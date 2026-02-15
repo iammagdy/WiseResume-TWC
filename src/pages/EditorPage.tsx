@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
@@ -27,6 +27,8 @@ import { PublicationsSection } from '@/components/editor/PublicationsSection';
 import { VolunteeringSection } from '@/components/editor/VolunteeringSection';
 import { HobbiesSection } from '@/components/editor/HobbiesSection';
 import { ReferencesSection } from '@/components/editor/ReferencesSection';
+import { CertificationsSection } from '@/components/editor/CertificationsSection';
+import { LanguagesSection } from '@/components/editor/LanguagesSection';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
@@ -620,10 +622,12 @@ export default function EditorPage() {
                       <button onClick={() => setMoreSubSection(null)} className="text-sm text-primary flex items-center gap-1 active:scale-95 touch-manipulation">
                         <ChevronLeft className="w-4 h-4" /> All Sections
                       </button>
-                      {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements"><AwardsSection /></SectionCard>}
-                      {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects"><ProjectsSection /></SectionCard>}
-                      {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications"><PublicationsSection /></SectionCard>}
-                      {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering"><VolunteeringSection /></SectionCard>}
+                      {moreSubSection === 'awards' && <SectionCard icon={Trophy} title="Awards & Achievements" action={<SectionAIAction section="awards" />}><AwardsSection /></SectionCard>}
+                      {moreSubSection === 'projects' && <SectionCard icon={Rocket} title="Projects" action={<SectionAIAction section="projects" />}><ProjectsSection /></SectionCard>}
+                      {moreSubSection === 'certifications' && <SectionCard icon={Award} title="Certifications" action={<SectionAIAction section="certifications" />}><CertificationsSection /></SectionCard>}
+                      {moreSubSection === 'publications' && <SectionCard icon={BookOpen} title="Publications" action={<SectionAIAction section="publications" />}><PublicationsSection /></SectionCard>}
+                      {moreSubSection === 'volunteering' && <SectionCard icon={Heart} title="Volunteering" action={<SectionAIAction section="volunteering" />}><VolunteeringSection /></SectionCard>}
+                      {moreSubSection === 'languages' && <SectionCard icon={Globe} title="Languages" action={<SectionAIAction section="languages" />}><LanguagesSection /></SectionCard>}
                       {moreSubSection === 'hobbies' && <SectionCard icon={Palette} title="Hobbies & Interests"><HobbiesSection /></SectionCard>}
                       {moreSubSection === 'references' && <SectionCard icon={Users} title="References"><ReferencesSection /></SectionCard>}
                     </div>

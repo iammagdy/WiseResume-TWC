@@ -21,6 +21,7 @@ const SECTION_NAMES: Record<SectionId, string> = {
   volunteering: 'Volunteering',
   hobbies: 'Hobbies',
   references: 'References',
+  languages: 'Languages',
 };
 
 const SECTION_ICONS: Record<SectionId, string> = {
@@ -35,6 +36,7 @@ const SECTION_ICONS: Record<SectionId, string> = {
   volunteering: '🤝',
   hobbies: '🎨',
   references: '👤',
+  languages: '🌍',
 };
 
 /**
