@@ -161,7 +161,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   return (
     <div className={cn('flex flex-col h-full min-h-0 overflow-hidden bg-muted/30', className)}>
       {/* Toolbar */}
-      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-background/80 backdrop-blur-sm">
+      <div className="shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-background/80 backdrop-blur-sm pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-1">
           {/* Zoom controls */}
           {ZOOM_LEVELS.map(level => (
@@ -169,7 +169,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               key={level}
               onClick={() => { setZoom(level); haptics.light(); }}
               className={cn(
-                'px-2 py-1.5 rounded text-xs font-medium transition-colors min-w-[40px] min-h-[36px] touch-manipulation active:scale-95',
+                'px-2 py-1.5 rounded text-xs font-medium transition-colors min-w-[40px] min-h-[40px] touch-manipulation active:scale-95',
                 zoom === level ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'
               )}
             >
@@ -183,7 +183,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           <button
             onClick={() => { setShowSectionToggles(v => !v); haptics.light(); }}
             className={cn(
-              'p-2 rounded-lg transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center touch-manipulation active:scale-95',
+              'p-2 rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95',
               showSectionToggles ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted'
             )}
             aria-label="Toggle section visibility"
@@ -207,7 +207,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
           {onClose && (
             <button
               onClick={() => { onClose(); haptics.light(); }}
-              className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors min-w-[36px] min-h-[36px] flex items-center justify-center touch-manipulation active:scale-95"
+              className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center touch-manipulation active:scale-95"
               aria-label="Close preview"
             >
               <X className="w-4 h-4" />
@@ -224,7 +224,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
               key={section}
               onClick={() => { toggleSection(section); haptics.light(); }}
               className={cn(
-                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors touch-manipulation active:scale-95 min-h-[32px]',
+                'px-2.5 py-1 rounded-full text-xs font-medium transition-colors touch-manipulation active:scale-95 min-h-[36px]',
                 hiddenSections.has(section)
                   ? 'bg-muted text-muted-foreground line-through'
                   : 'bg-primary/10 text-primary'

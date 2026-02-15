@@ -98,7 +98,7 @@ export const SkillsSection = memo(function SkillsSection() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Contextual Nudge */}
       <AIContextualNudge
         show={!!nudge}
@@ -132,7 +132,7 @@ export const SkillsSection = memo(function SkillsSection() {
                 onClick={() => removeSkill(skill)}
               >
                 {skill}
-                <span className="inline-flex items-center justify-center min-w-[32px] min-h-[32px]">
+                <span className="inline-flex items-center justify-center min-w-[36px] min-h-[36px]">
                   <X className="w-4 h-4" />
                 </span>
               </Badge>
