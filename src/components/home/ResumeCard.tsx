@@ -1,15 +1,28 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, Trash2, Sparkles } from 'lucide-react';
+import { ChevronRight, Trash2, Sparkles, MoreVertical, Eye, Edit2, Download, Copy } from 'lucide-react';
 import { ResumeData, JobMatchScore } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { ProgressRing } from './ProgressRing';
 import haptics from '@/lib/haptics';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
 
 interface ResumeCardProps {
   resume: ResumeData;
   matchScore?: JobMatchScore | null;
   onContinue: () => void;
   onDelete?: () => void;
+  onPreview?: () => void;
+  onEdit?: () => void;
+  onDuplicate?: () => void;
+  onDownload?: () => void;
   className?: string;
 }
 
@@ -29,8 +42,13 @@ export function ResumeCard({
   matchScore,
   onContinue,
   onDelete,
+  onPreview,
+  onEdit,
+  onDuplicate,
+  onDownload,
   className,
 }: ResumeCardProps) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const hasName = resume.contactInfo.fullName.trim().length > 0;
   const displayName = hasName ? resume.contactInfo.fullName : 'Untitled Resume';
   
@@ -48,6 +66,7 @@ export function ResumeCard({
   );
 
   const aiSuggestion = getAISuggestion(resume);
+  const hasQuickActions = onPreview || onEdit || onDuplicate || onDownload;
 
   const handleContinue = () => {
     haptics.medium();
@@ -137,8 +156,57 @@ export function ResumeCard({
         </motion.div>
       </button>
 
-      {/* Delete button (optional) */}
-      {onDelete && (
+      {/* Three-dot menu (top-right) */}
+      {hasQuickActions && (
+        <div className="absolute top-2 right-10 z-20">
+          <DropdownMenu open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="min-w-[44px] min-h-[44px] h-9 w-9 rounded-full hover:bg-muted/50"
+                onClick={(e) => { e.stopPropagation(); haptics.light(); }}
+                aria-label="More actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {onPreview && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); haptics.light(); onPreview(); }}>
+                  <Eye className="w-4 h-4 mr-2" />Preview
+                </DropdownMenuItem>
+              )}
+              {onEdit && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); haptics.light(); onEdit(); }}>
+                  <Edit2 className="w-4 h-4 mr-2" />Edit
+                </DropdownMenuItem>
+              )}
+              {onDownload && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); haptics.light(); onDownload(); }}>
+                  <Download className="w-4 h-4 mr-2" />Download PDF
+                </DropdownMenuItem>
+              )}
+              {onDuplicate && (
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); haptics.light(); onDuplicate(); }}>
+                  <Copy className="w-4 h-4 mr-2" />Duplicate
+                </DropdownMenuItem>
+              )}
+              {onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleDelete} className="text-destructive focus:text-destructive">
+                    <Trash2 className="w-4 h-4 mr-2" />Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+
+      {/* Delete button (only if no menu) */}
+      {onDelete && !hasQuickActions && (
         <button
           className="absolute top-3 right-3 p-2 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors touch-manipulation z-20"
           onClick={handleDelete}
