@@ -1,73 +1,57 @@
 
 
-## Implement Standalone "Analyze Job" Sheet from Dashboard FAB
+## Fix PDF Download from Resume Detail Page and Redesign Toast Notifications
 
-### Problem
-Clicking "Analyze Job" from the dashboard FAB currently navigates to the Jobs tab (`/applications`), which is confusing. Instead, it should open an inline sheet (like the reference screenshot) where users can paste a job URL or description, analyze it, and then choose to tailor a resume or save the job.
+### Problem 1: PDF Download Fails
 
-### Solution
-Create a new `AnalyzeJobSheet` component that reuses the existing `JobUrlParser` for input. Unlike `SetTargetJobSheet` (which requires a specific resume), this standalone sheet will:
+**Root cause**: The `handleDownload` in `ResumeDetailPage.tsx` calls `generatePDF(resumeData, templateId, null)` with `null` as the template element. The PDF generator then searches the DOM for `[data-resume-template]` but cannot find one because the detail page only renders a scaled-down `TemplateThumbnail` (which does not carry that attribute). The PreviewPage works because it renders a full-size template with a `ref` that gets passed to `generatePDF`.
 
-1. **Input phase**: Paste job URL or description (same UI as screenshot)
-2. **Analyzing phase**: Show progress while AI parses the job
-3. **Results phase**: Show job details and two action buttons:
-   - "Tailor a Resume" -- opens a resume picker, then navigates to the editor with tailor context
-   - "Save Job for Later" -- saves the job to the `jobs` table and shows success toast
+**Fix**: Render a hidden, off-screen, full-size template on the detail page and pass its ref to `generatePDF`.
 
-### Files to Change
+**File: `src/pages/ResumeDetailPage.tsx`**
+- Add a `useRef<HTMLDivElement>(null)` for the hidden template container
+- Render a hidden div (positioned off-screen with `position: fixed; left: -9999px; top: 0`) containing the full template at 612x792px with `data-resume-template` attribute
+- Use the same lazy-loaded template component pattern from `TemplateThumbnail`
+- Pass this ref to `generatePDF` as the third argument instead of `null`
+- This approach avoids navigating away from the page and provides instant downloads
 
-**New file: `src/components/dashboard/AnalyzeJobSheet.tsx`**
-- Bottom sheet with 3 phases: input, analyzing, results
-- Input phase: Reuses `JobUrlParser` component + "Analyze Job" button (matches the screenshot design)
-- Analyzing phase: Spinner + progress bar (reuse pattern from `SetTargetJobSheet`)
-- Results phase: Displays parsed job title, company, description summary, and key requirements extracted
-- Two CTA buttons:
-  - "Tailor a Resume" -- shows a mini resume picker (list of user's resumes), then navigates to `/editor` with the selected resume and job context pre-loaded
-  - "Save to Jobs" -- calls `useJobMutations().createJob` to save the parsed job, then closes the sheet
-- Uses `parseJobUrl` from `@/lib/aiTailor` for URL parsing, and the `parse-job-url` edge function
-- For manual text input (no URL), extracts job title/company using simple heuristics or stores the raw description
+### Problem 2: Toast Notifications Look Bad
 
-**Modified file: `src/pages/DashboardPage.tsx`**
-- Add state: `const [showAnalyzeJob, setShowAnalyzeJob] = useState(false)`
-- Change FAB's `onAnalyzeJob` from `() => navigate('/applications')` to `() => setShowAnalyzeJob(true)`
-- Render `<AnalyzeJobSheet>` at the bottom of the component tree
-- Pass `resumes` list so the sheet can show a resume picker in the results phase
+**Current state**: The CSS classes (`toast-premium`, `toast-success-accent`, etc.) exist in `index.css` but the visual result is poor -- the toast appears as a dark slab with minimal contrast, no clear visual hierarchy, and the close button is hard to see.
 
-### Component Structure
+**Fix**: Redesign the toast CSS and Sonner configuration for a more polished, premium look.
 
-```text
-AnalyzeJobSheet
-+-- Phase: Input
-|   +-- JobUrlParser (existing component)
-|   +-- "Analyze Job" button
-+-- Phase: Analyzing
-|   +-- Loader + progress message
-+-- Phase: Results
-    +-- Job info card (title, company, description preview)
-    +-- Resume picker (list of user's resumes to tailor)
-    +-- "Tailor Resume" button (primary)
-    +-- "Save Job for Later" button (secondary)
-```
+**File: `src/index.css`** (toast section, lines 969-1119)
+- Increase border radius and add a stronger left-side color accent bar (4px) instead of just a top border
+- Improve background contrast with a slightly lighter card surface
+- Add a subtle glow effect matching the toast type color
+- Increase icon size from `h-4 w-4` to `h-5 w-5`
+- Improve close button visibility
+- Ensure the toast has proper padding and spacing for mobile readability
 
-### User Flow
+**File: `src/components/ui/sonner.tsx`**
+- Update icon sizes from `h-4 w-4` to `h-5 w-5`
+- Change toast position from `top-center` to `top-center` (keep) but add `offset` prop for safe area
+- Update the `toast-premium` class to use a left accent bar pattern instead of top border
+- Add `gap-3` to improve spacing between icon and text
 
-1. User taps "+" FAB on dashboard
-2. User taps "Analyze Job"
-3. Sheet slides up with job URL/description input (matches screenshot)
-4. User pastes URL and taps "Parse" (or pastes text manually)
-5. User taps "Analyze Job" button
-6. Sheet shows analyzing progress
-7. Results appear with job details
-8. User picks a resume and taps "Tailor Resume" -- navigates to editor with job context
-   OR taps "Save Job for Later" -- job saved to Jobs tab, sheet closes
+### Files Summary
 
-### Technical Details
+| File | Change |
+|------|--------|
+| `src/pages/ResumeDetailPage.tsx` | Add hidden off-screen template for PDF generation, pass ref to `generatePDF` |
+| `src/index.css` | Redesign toast styles with left accent bar, better contrast, glow effects |
+| `src/components/ui/sonner.tsx` | Update icon sizes, improve spacing and layout config |
 
-- Reuses `JobUrlParser` for the input UI (same as screenshot)
-- Reuses `parseJobUrl` from `@/lib/aiTailor` for URL parsing
-- Uses `useJobMutations().createJob` from `src/hooks/useJobs.ts` for saving
-- Resume picker uses `useResumes()` to list available resumes
-- Navigation to editor uses existing pattern: set resume in store + navigate with query params
-- All buttons have `active:scale-95` and 44px min touch targets per project guidelines
-- Sheet height: `h-[85vh]` with `overflow-y-auto` and `pb-safe`
+### Implementation Order
 
+1. `ResumeDetailPage.tsx` -- fix PDF download with hidden template
+2. `src/index.css` -- redesign toast CSS
+3. `src/components/ui/sonner.tsx` -- update Sonner config
+
+### Technical Notes
+
+- The hidden template uses `position: fixed; left: -9999px` so it is rendered in the DOM (required for html2canvas) but invisible to the user
+- The template component is lazy-loaded using the same pattern as `TemplateThumbnail`
+- Toast redesign uses a 4px left border accent instead of top border for a more modern notification style
+- All toast type variants (success, error, warning, info) get matching left accent colors and subtle background tints
