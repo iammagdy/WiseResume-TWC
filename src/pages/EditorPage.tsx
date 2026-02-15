@@ -184,11 +184,17 @@ export default function EditorPage() {
   
   // Smart tab change handler with auto-scroll
   const handleTabChange = useCallback((newTab: string) => {
-    if (newTab !== 'more') {
-      // Clear sub-section when leaving More
-      setMoreSubSection(null);
+    const optionalIds = ['awards','projects','certifications','publications','volunteering','languages','hobbies','references'];
+    if (optionalIds.includes(newTab)) {
+      setActiveTab('more');
+      setMoreSubSection(newTab);
+    } else {
+      if (newTab !== 'more') {
+        setMoreSubSection(null);
+      }
+      setActiveTab(newTab);
     }
-    setActiveTab(newTab);
+    haptics.light();
     // Scroll content to top smoothly when switching tabs
     scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
@@ -343,15 +349,31 @@ export default function EditorPage() {
   }, [isSaving]);
 
 
-  // Memoize steps array to prevent StepperNav re-renders
-  const steps = useMemo(() => [
-    { id: 'contact', label: 'Contact' },
-    { id: 'summary', label: 'Summary' },
-    { id: 'experience', label: 'Work' },
-    { id: 'education', label: 'Education' },
-    { id: 'skills', label: 'Skills' },
-    { id: 'more', label: 'More' },
-  ], []);
+  // Memoize steps array – dynamically includes optional sections that have data
+  const steps = useMemo(() => {
+    const base = [
+      { id: 'contact', label: 'Contact' },
+      { id: 'summary', label: 'Summary' },
+      { id: 'experience', label: 'Work' },
+      { id: 'education', label: 'Education' },
+      { id: 'skills', label: 'Skills' },
+    ];
+    if (currentResume) {
+      const MORE_SECTION_META: Record<string, string> = {
+        awards: 'Awards', projects: 'Projects', certifications: 'Certifications',
+        publications: 'Publications', volunteering: 'Volunteering',
+        languages: 'Languages', hobbies: 'Hobbies', references: 'References',
+      };
+      for (const [id, label] of Object.entries(MORE_SECTION_META)) {
+        const data = currentResume[id as keyof typeof currentResume];
+        if (Array.isArray(data) && data.length > 0) {
+          base.push({ id, label });
+        }
+      }
+    }
+    base.push({ id: 'more', label: 'More' });
+    return base;
+  }, [currentResume]);
 
   // Granular section scores
   const sectionScores = useMemo(() => {
@@ -398,14 +420,26 @@ export default function EditorPage() {
     };
   }, [overallScore, sectionScores, currentResume]);
 
-  // Derive boolean completedSteps for StepperNav
-  const sectionStatus = useMemo(() => ({
-    contact: sectionScores.contact >= 100,
-    summary: sectionScores.summary >= 100,
-    experience: sectionScores.experience >= 100,
-    education: sectionScores.education >= 100,
-    skills: sectionScores.skills >= 100,
-  }), [sectionScores]);
+  // Derive boolean completedSteps for StepperNav (includes optional sections)
+  const sectionStatus = useMemo(() => {
+    const status: Record<string, boolean> = {
+      contact: sectionScores.contact >= 100,
+      summary: sectionScores.summary >= 100,
+      experience: sectionScores.experience >= 100,
+      education: sectionScores.education >= 100,
+      skills: sectionScores.skills >= 100,
+    };
+    if (currentResume) {
+      const optionalIds = ['awards','projects','certifications','publications','volunteering','languages','hobbies','references'];
+      for (const id of optionalIds) {
+        const data = currentResume[id as keyof typeof currentResume];
+        if (Array.isArray(data) && data.length > 0) {
+          status[id] = true;
+        }
+      }
+    }
+    return status;
+  }, [sectionScores, currentResume]);
 
   // Section completion celebrations
   const prevCompletedRef = useRef<Record<string, boolean>>({});
