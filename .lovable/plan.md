@@ -1,62 +1,85 @@
 
 
-## Performance Optimization -- Faster Screen Loading
+## Lock Down App: Require Sign-In Before Accessing Any Screen
 
-### Root Causes Identified
+### Overview
 
-1. **EditorPage eagerly imports all section components** (Contact, Summary, Experience, Education, Skills, Awards, Projects, etc.) even though only ONE tab is visible at a time. This forces the browser to download and parse all section code upfront.
+Currently, auth guards are scattered across individual pages -- some redirect to `/auth`, some show partial guest content, and a few have no guard at all. This change introduces a single centralized `ProtectedRoute` wrapper that blocks ALL app routes for unauthenticated users, redirecting them to the sign-in page immediately.
 
-2. **Heavy hooks run before resume data is ready** -- `useProofread`, `useUndoRedo`, and `useOfflineSync` all execute on every render even during the loading/guard phase, wasting CPU cycles.
+### What Changes
 
-3. **DashboardPage eagerly imports several sheet/dialog components** (`LinkedInImportSheet`, `AnalyzeJobSheet`, `AlertDialog` pieces) that are only needed on user interaction.
+**Only 3 routes remain public (no login required):**
+- `/` -- Landing page
+- `/auth` -- Sign-in / Sign-up page
+- `/share/:token` -- Public resume sharing link
 
-4. **EditorPage has 15+ lazy-loaded sheet components** that each create a separate chunk. While individually lazy, the sheer number of `lazy()` calls adds overhead to module resolution.
+**Every other route** requires authentication. Unauthenticated users are instantly redirected to `/auth`.
 
-### Optimization Plan
+### Technical Plan
 
-**1. Lazy-load section components in EditorPage** (Biggest impact)
+**1. Create `src/components/layout/ProtectedRoute.tsx` (new file)**
 
-Convert the 8+ section components (ContactSection, SummarySection, ExperienceSection, EducationSection, SkillsSection, AwardsSection, ProjectsSection, PublicationsSection, VolunteeringSection, HobbiesSection, ReferencesSection, CertificationsSection, LanguagesSection) from eager imports to lazy imports. Since only one tab renders at a time, the user only pays for the active section.
-
-```text
-Before: import { ContactSection } from './ContactSection';
-After:  const ContactSection = lazy(() => import('./ContactSection').then(m => ({ default: m.ContactSection })));
-```
-
-Each section in `renderEditorContent()` will be wrapped in a `<Suspense fallback={<SectionSkeleton />}>` with a lightweight skeleton placeholder.
-
-**2. Defer heavy hooks until resume is loaded**
-
-Move `useProofread`, `useUndoRedo`, and `useOfflineSync` calls below the guard checks by extracting the post-guard editor UI into a separate `EditorContent` component. This prevents these hooks from running during auth checks and loading states.
+A small wrapper component that checks auth state:
+- If `loading` is true, render a skeleton/spinner
+- If no `user`, redirect to `/auth` with `replace`
+- Otherwise, render children via `<Outlet />`
 
 ```text
-EditorPage (guards only)
-  |-- EditorContent (all hooks + UI, only mounts when resume is ready)
+function ProtectedRoute() {
+  const { user, loading } = useAuth();
+  if (loading) return <PageLoadingSpinner />;
+  if (!user) return <Navigate to="/auth" replace />;
+  return <Outlet />;
+}
 ```
 
-**3. Lazy-load DashboardPage dialog imports**
+**2. Update `src/App.tsx` routing**
 
-Convert `LinkedInImportSheet` and `AnalyzeJobSheet` from eager imports to lazy, matching the existing pattern used for `CreateResumeDialog`.
+Wrap all protected routes inside a parent `<Route element={<ProtectedRoute />}>` so the guard applies universally:
 
-**4. Group related lazy sheet imports in EditorPage**
+```text
+<Routes>
+  {/* Public routes */}
+  <Route path="/" element={<Index />} />
+  <Route path="/auth" element={<AppShell><AuthPage /></AppShell>} />
+  <Route path="/share/:token" element={<SharePage />} />
 
-Consolidate the 15 individual `lazy()` sheet imports into 2-3 logical groups using a barrel file pattern, reducing module resolution overhead:
-- AI sheets group (RecruiterSim, AIDetector, LinkedIn, OnePage)
-- Content sheets group (ContentLibrary, VersionHistory, CareerPath)
-- Editor sheets group (Tailor, JobAnalysis, Templates, Customize, Proofread)
+  {/* All protected routes */}
+  <Route element={<ProtectedRoute />}>
+    <Route element={<AppShell />}>
+      <Route path="/dashboard" ... />
+      <Route path="/editor" ... />
+      {/* ... all other app routes ... */}
+    </Route>
+  </Route>
 
-### Files to Modify
+  <Route path="*" element={<NotFound />} />
+</Routes>
+```
+
+**3. Clean up per-page auth guards (optional but recommended)**
+
+Remove the now-redundant individual auth checks from these pages since `ProtectedRoute` handles it globally:
+- `DashboardPage.tsx` -- remove `if (!authLoading && !user) return <Navigate ...>`
+- `ApplicationsPage.tsx` -- remove `if (!user) return <Navigate ...>`
+- `EditorPage.tsx` -- remove `if (!user) return <Navigate ...>`
+- `ProfilePage.tsx` -- remove `useEffect` redirect
+- `CoverLettersPage.tsx`, `CoverLetterNewPage.tsx`, `CoverLetterEditPage.tsx` -- remove guards
+- `ResignationLetterNewPage.tsx`, `ResignationLetterEditPage.tsx` -- remove guards
+- `CareerPage.tsx`, `JobDetailPage.tsx`, `ApplicationTrackerPage.tsx`, `CoverLetterPage.tsx` -- remove guards
+- `SettingsPage.tsx` -- remove guest-mode conditional UI blocks (the "Sign in to..." prompts become unreachable)
+
+### Files to Create/Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Lazy-load section components, extract `EditorContent` component, group sheet imports |
-| `src/pages/DashboardPage.tsx` | Lazy-load `LinkedInImportSheet` and `AnalyzeJobSheet` |
-| `src/components/layout/PageSkeletons.tsx` | Add a lightweight `SectionSkeleton` component for section tab fallbacks |
+| `src/components/layout/ProtectedRoute.tsx` | **New** -- centralized auth guard component |
+| `src/App.tsx` | Wrap protected routes with `ProtectedRoute`, keep `/`, `/auth`, `/share/:token` public |
+| ~12 page files | Remove redundant per-page auth guard code |
 
-### Expected Impact
+### Result
 
-- **Editor initial load**: ~40% faster (sections load on-demand instead of all at once)
-- **Dashboard initial load**: ~15% faster (fewer eager imports)
-- **Memory usage**: Lower baseline since only active section code is in memory
-- **Perceived speed**: Immediate skeleton feedback while sections load
+- Unauthenticated users see ONLY the landing page or the sign-in screen
+- No app structure, navigation, or content is visible before login
+- A single point of control for auth gating (easy to maintain)
 
