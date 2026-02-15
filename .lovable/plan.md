@@ -1,75 +1,51 @@
 
 
-## Add FloatingPanel and ActionsPanel Components
+## Replace ResumeListCard Three-Dot Menu with ActionsPanel
 
 ### Overview
 
-Introduce the Cult UI FloatingPanel as a new primitive component, then build a reusable `ActionsPanel` wrapper on top of it for mobile-first action menus. No existing screens are modified -- this is a foundation-only change.
+Swap the `DropdownMenu` kebab menu in `ResumeListCard` with the reusable `ActionsPanel` component (wrapping `FloatingPanel`). All existing handlers, props, and business logic remain identical -- only the menu container changes.
 
 ### What Changes
 
-Two new files are created:
-
-1. **FloatingPanel primitive** -- the Cult UI component adapted for this project
-2. **ActionsPanel wrapper** -- a strongly-typed, mobile-first action menu built on FloatingPanel
+The three-dot menu (lines 312-430) is replaced by an `ActionsPanel` with the same trigger button and three action groups.
 
 ### Technical Details
 
-**1. File: `src/components/ui/floating-panel.tsx`**
+**File: `src/components/dashboard/ResumeListCard.tsx`**
 
-- Copy the Cult UI FloatingPanel source code
-- Adapt the `motion/react` import to `framer-motion` (the project uses `framer-motion ^12.29.2`, which exports `AnimatePresence`, `motion`, `MotionConfig` from the main entry)
-- Remove the `"use client"` directive (not needed in Vite/React)
-- Keep all composable exports: `FloatingPanelRoot`, `FloatingPanelTrigger`, `FloatingPanelContent`, `FloatingPanelBody`, `FloatingPanelHeader`, `FloatingPanelFooter`, `FloatingPanelButton`, `FloatingPanelCloseButton`, etc.
-- Apply glass-elevated styling to match the Cosmic Glass UI theme
+1. **Update imports** (lines 25-31): Remove `DropdownMenu`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuTrigger`. Add `import { ActionsPanel } from '@/components/ActionsPanel'` and the types `ActionsPanelGroup`.
 
-**2. File: `src/components/ActionsPanel.tsx`**
+2. **Remove `isMenuOpen` state** (line 74): No longer needed since ActionsPanel manages its own open state internally.
 
-Reusable wrapper with this API:
+3. **Replace the menu block** (lines 312-430) with a single `<ActionsPanel>` using the three-dot button as the trigger and the following groups built via `useMemo`:
 
-```typescript
-interface ActionsPanelAction {
-  id: string;
-  label: string;
-  icon?: React.ComponentType<{ className?: string }>;
-  variant?: 'default' | 'ghost' | 'destructive';
-  onClick: () => void;
-}
+| Group | Title | Actions |
+|-------|-------|---------|
+| view-edit | View and Edit | Preview (Eye icon), Rename (Pencil, conditional on `onRename`), Edit (Edit2 icon) |
+| actions | Actions | Download PDF (Download icon), Share (Share2 icon), Duplicate (Copy icon), Practice Interview (Mic, conditional on `onInterview`) |
+| manage | Manage | Delete (Trash2 icon, variant: destructive) |
 
-interface ActionsPanelGroup {
-  id: string;
-  title?: string;
-  actions: ActionsPanelAction[];
-}
+4. **Move handler logic into group builder**: Each action's `onClick` calls the exact same code currently inside each `DropdownMenuItem` (e.g., the async PDF download, clipboard share, navigate to preview, etc.). The `e.stopPropagation()` calls move to the trigger button only since ActionsPanel buttons don't bubble through the card. Haptic calls are handled by ActionsPanel automatically.
 
-interface ActionsPanelProps {
-  trigger: React.ReactNode;
-  title?: string;
-  groups: ActionsPanelGroup[];
-}
-```
+5. **Trigger element**: Same `Button variant="ghost" size="icon"` with `MoreVertical` icon, wrapped as the `trigger` prop. The `onClick` with `e.stopPropagation()` stays on this button to prevent card navigation.
 
-Renders inside `FloatingPanelContent` with:
-- `w-[100vw] max-w-md` for full-width mobile feel
-- `max-h-[80dvh] overflow-y-auto` for scroll safety
-- `pb-safe` for device safe area
-- `backdrop-blur-xl bg-background/95` glass treatment
-- Each action as a `Button` with `min-h-[44px] w-full justify-start touch-manipulation active:scale-95`
-- Destructive variant uses `text-destructive` styling
-- Groups separated by `Separator` with optional group title
-- Haptic feedback on action tap
+### Action Mapping (handler preservation)
 
-**3. No existing files are modified.** The component is standalone and can be wired into screens in a follow-up task.
+| Action | Handler (unchanged) |
+|--------|-------------------|
+| Preview | `navigateToEditor(\`/resume/${resume.id}\`)` |
+| Rename | `setIsRenaming(true)` |
+| Edit | `onEdit(resume.id)` |
+| Download PDF | async import pdfGenerator + downloadUtils, same try/catch with toast |
+| Share | `navigator.clipboard.writeText(...)` with toast |
+| Duplicate | `onDuplicate(resume.id)` |
+| Practice Interview | `onInterview(resume.id)` |
+| Delete | `onDelete(resume.id)` with `haptics.warning()` |
 
-### Files to Create
+### Files to Modify
 
-| File | Purpose |
-|------|---------|
-| `src/components/ui/floating-panel.tsx` | Cult UI FloatingPanel adapted for Vite + framer-motion |
-| `src/components/ActionsPanel.tsx` | Reusable mobile-first action menu wrapper |
-
-### Dependencies
-
-- `framer-motion` (already installed at ^12.29.2) -- no new packages needed
-- `lucide-react` (already installed) -- used for ArrowLeftIcon in FloatingPanel
+| File | Change |
+|------|--------|
+| `src/components/dashboard/ResumeListCard.tsx` | Replace DropdownMenu with ActionsPanel, remove dropdown imports, add ActionsPanel import |
 
