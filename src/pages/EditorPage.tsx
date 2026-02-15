@@ -480,6 +480,12 @@ export default function EditorPage() {
   const handleCustomize = useCallback(() => setShowCustomize(true), []);
   const handleProofread = useCallback(() => setShowProofread(true), []);
 
+  const handleMoreSectionSelect = useCallback((sectionId: string) => {
+    setActiveTab('more');
+    setMoreSubSection(sectionId);
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Mobile-only editor tools panel groups
   const editorToolGroups = useMemo((): ActionsPanelGroup[] => {
     const quickActions: ActionsPanelGroup = {
@@ -874,6 +880,7 @@ export default function EditorPage() {
           sectionScores={sectionScores}
           onStepClick={handleTabChange}
           justCompletedStep={justCompletedStep}
+          onMoreSectionSelect={handleMoreSectionSelect}
         />
         </div>
 
