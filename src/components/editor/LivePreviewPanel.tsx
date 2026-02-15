@@ -122,7 +122,19 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
     haptics.medium();
     setIsGenerating(true);
     try {
+      // Temporarily reset parent zoom transform so html2canvas captures at true size
+      const zoomWrapper = resumeRef.current?.parentElement?.parentElement;
+      const origTransform = zoomWrapper?.style.transform;
+      const origWidth = zoomWrapper?.style.width;
+      if (zoomWrapper) {
+        zoomWrapper.style.transform = 'none';
+        zoomWrapper.style.width = 'auto';
+      }
       const pdfBlob = await generatePDF(currentResume, selectedTemplate, resumeRef.current, undefined, { showPageNumbers: true });
+      if (zoomWrapper) {
+        zoomWrapper.style.transform = origTransform || '';
+        zoomWrapper.style.width = origWidth || '';
+      }
       const fileName = `${currentResume.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
       await downloadFile({ blob: pdfBlob, fileName });
       toast.success('Resume downloaded!');
@@ -225,12 +237,11 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
       )}
 
       {/* Resume preview */}
-      <div className="flex-1 overflow-auto p-3">
+      <div className="flex-1 overflow-auto p-3 flex justify-center">
         <div
           style={{
             transformOrigin: 'top center',
             transform: `scale(${zoom})`,
-            width: `${100 / zoom}%`,
           }}
         >
           <div
