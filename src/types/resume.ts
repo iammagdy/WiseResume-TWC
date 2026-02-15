@@ -112,6 +112,8 @@ export interface TemplateCustomization {
   layout: 'single' | 'two-column';
   spacing: 'compact' | 'normal' | 'spacious';
   margins: 'narrow' | 'normal' | 'wide';
+  lineHeight: 'single' | '1.15' | '1.5' | 'double';
+  pageFormat: 'a4' | 'letter';
 }
 
 export interface ResumeData {
