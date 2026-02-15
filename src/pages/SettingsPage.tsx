@@ -41,8 +41,7 @@ import {
   Moon
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { FloatingPanelRoot, FloatingPanelTrigger, FloatingPanelContent, FloatingPanelBody } from '@/components/ui/floating-panel';
-import { useFloatingPanel } from '@/components/ui/floating-panel';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
@@ -184,6 +183,7 @@ export default function SettingsPage() {
   const [aiSettingsOpen, setAISettingsOpen] = useState(false);
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
+  const [showJumpSheet, setShowJumpSheet] = useState(false);
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -291,13 +291,19 @@ export default function SettingsPage() {
               </button>
               <h1 className="text-xl font-bold">Settings</h1>
             </div>
-            <FloatingPanelRoot>
-              <FloatingPanelTrigger title="Jump to Section" className="gap-2">
-                <Menu className="w-4 h-4" />
-                <span className="hidden sm:inline">Sections</span>
-              </FloatingPanelTrigger>
-              <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe backdrop-blur-xl bg-background/95">
-                <FloatingPanelBody className="space-y-1">
+            <button
+              onClick={() => { haptics.light(); setShowJumpSheet(true); }}
+              className="flex h-9 items-center gap-2 border border-border/60 bg-background/80 backdrop-blur-md px-3 text-sm font-medium text-foreground rounded-lg min-h-[44px] touch-manipulation active:scale-95"
+            >
+              <Menu className="w-4 h-4" />
+              <span className="hidden sm:inline">Sections</span>
+            </button>
+            <Sheet open={showJumpSheet} onOpenChange={setShowJumpSheet}>
+              <SheetContent side="bottom" className="max-h-[70dvh] overflow-y-auto pb-safe">
+                <SheetHeader>
+                  <SheetTitle>Jump to Section</SheetTitle>
+                </SheetHeader>
+                <div className="space-y-1 mt-3">
                   {SECTIONS.map(s => {
                     const Icon = s.icon;
                     return (
@@ -308,12 +314,13 @@ export default function SettingsPage() {
                         icon={<Icon className="w-5 h-5" />}
                         isActive={activeSection === s.id}
                         onSelect={scrollToSection}
+                        onClose={() => setShowJumpSheet(false)}
                       />
                     );
                   })}
-                </FloatingPanelBody>
-              </FloatingPanelContent>
-            </FloatingPanelRoot>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </header>
 
@@ -1167,19 +1174,19 @@ function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
   );
 }
 
-function SectionJumpButton({ sectionId, label, icon, isActive, onSelect }: {
+function SectionJumpButton({ sectionId, label, icon, isActive, onSelect, onClose }: {
   sectionId: string;
   label: string;
   icon: React.ReactNode;
   isActive: boolean;
   onSelect: (id: string) => void;
+  onClose: () => void;
 }) {
-  const { closeFloatingPanel } = useFloatingPanel();
   return (
     <button
       onClick={() => {
         onSelect(sectionId);
-        closeFloatingPanel();
+        onClose();
       }}
       className={cn(
         "flex w-full items-center gap-3 rounded-xl px-3 py-3 min-h-[44px] text-left text-sm font-medium transition-all touch-manipulation active:scale-95",
