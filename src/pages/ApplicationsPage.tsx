@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useDeferredValue } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, ArrowLeft, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail } from 'lucide-react';
+import { Plus, ArrowLeft, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useJobApplications, ApplicationStatus } from '@/hooks/useJobApplications';
+import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, Job } from '@/hooks/useJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
@@ -27,41 +27,61 @@ import { scoreJobMatch, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
 
-function JobCard({ job, onClick, matchScore }: { job: Job; onClick: () => void; matchScore: JobMatchResult | null }) {
+function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: Job; onClick: () => void; matchScore: JobMatchResult | null; onTailor: () => void; onMarkApplied: () => void }) {
   return (
-    <motion.button
+    <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      onClick={onClick}
-      className="glass-card rounded-2xl p-4 flex items-start gap-3 w-full text-left hover:bg-muted/30 transition-colors"
+      className="glass-card rounded-2xl p-4 space-y-2"
     >
-      <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
-        <Briefcase className="w-5 h-5 text-primary" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">{job.title}</p>
-        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-          <Building2 className="w-3 h-3" />
-          <span className="truncate">{job.company}</span>
+      <button
+        onClick={onClick}
+        className="flex items-start gap-3 w-full text-left"
+      >
+        <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+          <Briefcase className="w-5 h-5 text-primary" />
         </div>
-        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-          {job.location && (
-            <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
-              <MapPin className="w-3 h-3" /> {job.location}
-            </span>
-          )}
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{job.job_type}</Badge>
-          {job.salary_range && (
-            <span className="text-[11px] text-muted-foreground">{job.salary_range}</span>
-          )}
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{job.title}</p>
+          <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
+            <Building2 className="w-3 h-3" />
+            <span className="truncate">{job.company}</span>
+          </div>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            {job.location && (
+              <span className="flex items-center gap-0.5 text-[11px] text-muted-foreground">
+                <MapPin className="w-3 h-3" /> {job.location}
+              </span>
+            )}
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{job.job_type}</Badge>
+            {job.salary_range && (
+              <span className="text-[11px] text-muted-foreground">{job.salary_range}</span>
+            )}
+          </div>
         </div>
+        <JobMatchScore score={matchScore} jobTitle={job.title} />
+      </button>
+      {/* Action buttons */}
+      <div className="flex gap-2 pl-[52px]">
+        <button
+          onClick={(e) => { e.stopPropagation(); haptics.light(); onTailor(); }}
+          className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[32px] touch-manipulation"
+        >
+          <Scissors className="w-3 h-3" /> Tailor Resume
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); haptics.light(); onMarkApplied(); }}
+          className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1.5 rounded-lg bg-success/10 hover:bg-success/15 transition-colors min-h-[32px] touch-manipulation"
+        >
+          <CheckCircle2 className="w-3 h-3" /> Mark Applied
+        </button>
       </div>
-      <JobMatchScore score={matchScore} jobTitle={job.title} />
-    </motion.button>
+    </motion.div>
   );
 }
 
 export default function ApplicationsPage() {
+  const { createApplication } = useJobApplicationMutations();
   const navigate = useNavigate();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -311,6 +331,15 @@ export default function ApplicationsPage() {
                       job={job}
                       onClick={() => navigate(`/job/${job.id}`)}
                       matchScore={matchScores[job.id] || null}
+                      onTailor={() => navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`)}
+                      onMarkApplied={() => {
+                        createApplication.mutate({
+                          job_title: job.title,
+                          company: job.company,
+                          status: 'applied',
+                          url: job.source_url || undefined,
+                        });
+                      }}
                     />
                   ))}
                 </div>
@@ -318,7 +347,23 @@ export default function ApplicationsPage() {
                 <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
                   <Briefcase className="w-12 h-12 mb-3 opacity-30" />
                   <p className="font-medium">{hasActiveFilters ? 'No jobs match filters' : 'No saved jobs yet'}</p>
-                  <p className="text-sm mt-1">{hasActiveFilters ? 'Try adjusting your filters' : 'Jobs you save will appear here'}</p>
+                  <p className="text-sm mt-1 mb-4">{hasActiveFilters ? 'Try adjusting your filters' : 'Save jobs to start tracking your applications'}</p>
+                  {!hasActiveFilters && (
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => { haptics.light(); setShowSearch(true); }}
+                        className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation"
+                      >
+                        <Search className="w-3.5 h-3.5" /> Search Jobs
+                      </button>
+                      <button
+                        onClick={() => { haptics.light(); setShowSaveJob(true); }}
+                        className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Manually
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
