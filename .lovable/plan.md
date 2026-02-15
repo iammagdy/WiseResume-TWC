@@ -1,68 +1,97 @@
 
 
-## Editor Tab Usability Audit -- Findings and Improvements
+## Editor Accessibility Audit and Improvements
 
-### Audit Summary
+### Accessibility Checklist for the Editor
 
-After reviewing the Editor page, StepperNav, section components (Contact, Summary, Experience), SectionCard, InlineAIButton, AIIntroTooltip, NextStepBanner, form-field component, and the mobile tools sheet, the Editor is already well-structured for mobile. However, there are several small friction points worth addressing.
+1. **Structure and Semantics**: Use landmarks (`<main>`, `<nav>`, `<header>`), proper heading hierarchy, and semantic HTML (`<button>` not `<div onClick>`)
+2. **Forms and Labels**: Every input has a visible, programmatically-associated label; error messages linked via `aria-describedby`; required fields indicated with both visual and ARIA cues
+3. **Keyboard and Focus**: All interactive elements reachable via Tab in logical order; visible focus rings; no keyboard traps; Escape closes panels
+4. **ARIA for Panels and Dialogs**: Sheets/panels have `role="dialog"`, `aria-modal`, `aria-labelledby`; icon-only buttons have `aria-label`
+5. **Mobile Touch Targets**: All interactive elements are at least 44x44px
+6. **Feedback and Status**: Loading, saving, error states use `aria-live` regions; status not conveyed by color alone
+7. **Progress Communication**: Progress bar and scores are accessible to screen readers via `aria-label` or `role="progressbar"` with `aria-valuenow`
 
-### Findings
+### Audit Results
 
-**1. Mobile Tools Sheet lacks descriptions**
-The "Editor Tools" bottom sheet (lines 780-816 of EditorPage.tsx) shows action labels ("Design", "Live Preview", "Wise AI", "AI Enhance", "Tailor to Job", "ATS Check", "Proofread") but no descriptions. Users unfamiliar with these tools may hesitate to tap, especially AI actions where they fear overwriting content.
+**Passes (no change needed)**:
+- Forms: `InputFormField` and `TextareaFormField` already use `<Label htmlFor>`, `aria-invalid`, `aria-describedby` for errors, and `role="alert"` on error messages
+- Touch targets: All buttons in the header, tools sheet, stepper, and section cards meet 44-48px minimums
+- Sheets: All mobile sheets use Radix/Vaul `Sheet` which provides `role="dialog"`, `aria-modal`, focus trap, and Escape-to-close out of the box
+- Icon-only buttons in the header (back, undo, redo, version history, design, live preview, tools) all have `aria-label`
+- Keyboard toolbar has proper `aria-label` on prev/next/done buttons
+- Dismiss button on `NextStepBanner` has `aria-label="Dismiss"`
 
-**Fix**: Add short `description` strings to the `editorToolGroups` data (lines 493-514) and render them as subtitle text below each label in the tools sheet.
+**Issues Found**:
 
-**2. "AI Enhance" and "Tailor to Job" feel like duplicates**
-Both open the TailorSheet (`setShowTailor(true)`), which is confusing. "AI Enhance" (line 508) and "Tailor" (line 509) trigger the same handler.
-
-**Fix**: Remove the duplicate "AI Enhance" entry from the tools sheet. Keep "Tailor to Job" as the single entry, with a clear description. This reduces confusion without changing any logic.
-
-**3. Tools sheet groups lack visual hierarchy**
-The group titles ("Quick Actions", "AI Features") use tiny uppercase text that blends in. The actions themselves have no icons rendered distinctly -- they are muted-foreground gray without color differentiation.
-
-**Fix**: Add color to tool icons (matching the AIAssistantBar's secondary tools pattern) to help users scan the list quickly.
-
-**4. Save status is only visible in the progress bar area**
-When a user edits a field and moves on, the only save feedback is a tiny "Saved" badge that appears for 2 seconds in the progress bar. On mobile, this may already have scrolled out of view.
-
-**No code change needed**: The form-field component already shows inline "Saved" badges per field (via `useSavedIndicator`), and the header shows cloud save status. This is adequate -- no change.
-
-**5. "More Sections" button placement on mobile**
-The "More Sections" button appears below the stepper dropdown as a separate full-width button. This is fine and clearly visible. No change needed.
-
-**6. Section navigation Previous/Next buttons**
-These are well-implemented at 56px height with clear labels. The final step shows "Preview & Export" with a gradient. No change needed.
+| # | Category | Issue | Location |
+|---|----------|-------|----------|
+| 1 | Structure | Editor page has no `<main>` landmark; the outermost div is unsemantic | `EditorPage.tsx` line 680 |
+| 2 | Structure | `SectionCard` heading uses `<h3>` but there is no `<h2>` parent, breaking heading hierarchy | `SectionCard.tsx` line 38 |
+| 3 | ARIA | StepperNav mobile dropdown trigger button has no `aria-label` or accessible name describing its purpose | `StepperNav.tsx` line 71-108 |
+| 4 | ARIA | StepperNav "More Sections" button has no `aria-label` | `StepperNav.tsx` line 179-185 |
+| 5 | ARIA | StepperNav desktop step buttons have no accessible name beyond truncated visual text | `StepperNav.tsx` line 251-317 |
+| 6 | Progress | The progress bar `<div>` has no `role="progressbar"` or `aria-valuenow`; screen readers cannot interpret the completion percentage | `ProgressBar.tsx` line 74 |
+| 7 | Status | Save status ("Saving...", "Saved", "Offline") has no `aria-live` region; changes are invisible to screen readers | `EditorPage.tsx` lines 855-879 |
+| 8 | ARIA | ATS completeness toggle button has no `aria-expanded` state | `EditorPage.tsx` line 883-891 |
+| 9 | ARIA | Desktop AI Assist dropdown in `InlineAIButton` is not a landmark; no `role="menu"` or `aria-expanded` on trigger | `InlineAIButton.tsx` lines 126-163 |
+| 10 | Structure | `SectionEmptyState` "Show/Hide Example" collapsible trigger has no `aria-expanded` | `SectionEmptyState.tsx` line 74 (Radix handles this, so actually passes) |
 
 ### Proposed Changes
 
 **File: `src/pages/EditorPage.tsx`**
 
-1. **Add descriptions to tool actions** (lines 493-514): Add a `description` field to each action in `editorToolGroups`.
+1. **Add `<main>` landmark**: Change the outermost `<div>` (line 680) to `<main>` with `role="main"`.
 
-2. **Remove duplicate "AI Enhance" action**: Remove the "AI Enhance" entry (line 508) that duplicates "Tailor to Job".
+2. **Add `aria-live` to save status region** (lines 854-879): Wrap the save status indicators in a `<div aria-live="polite" aria-atomic="true">` so screen readers announce save state changes.
 
-3. **Render descriptions in the tools sheet** (lines 789-809): Show the description as a secondary line of text below each action label.
+3. **Add `aria-expanded` to ATS completeness toggle** (line 883): Add `aria-expanded={showATSBadge}` and `aria-label="Toggle completeness breakdown"` to the button.
 
-4. **Add distinct icon colors**: Apply color classes to tool icons (e.g., Palette = pink, Eye = blue, MessageSquare = primary, Target = amber, BarChart3 = emerald, Scissors = red).
+**File: `src/components/editor/StepperNav.tsx`**
+
+4. **Add `aria-label` to mobile dropdown trigger** (line 71): Add `aria-label="Select resume section"` and `aria-haspopup="dialog"`.
+
+5. **Add `aria-label` to "More Sections" button** (line 179): Add `aria-label="Add more sections"`.
+
+6. **Add `aria-current` to active step** (desktop stepper, line 251): Add `aria-current={isActive ? 'step' : undefined}` to each step button.
+
+**File: `src/components/editor/ProgressBar.tsx`**
+
+7. **Add progressbar role** (line 74): Add `role="progressbar"`, `aria-valuenow={progress}`, `aria-valuemin={0}`, `aria-valuemax={100}`, and `aria-label="Resume completion"` to the track div.
+
+**File: `src/components/editor/SectionCard.tsx`**
+
+8. **Change `<h3>` to `<h2>`** (line 38): Use `<h2>` for section titles to establish proper heading hierarchy (the page title in the header is effectively h1).
+
+**File: `src/components/editor/InlineAIButton.tsx`**
+
+9. **Add `aria-expanded` and `aria-haspopup`** to the trigger button (line 126): Add `aria-expanded={isOpen}` and `aria-haspopup="true"`.
+
+10. **Add `role="menu"` to desktop dropdown** (line 149): Add `role="menu"` to the dropdown container and `role="menuitem"` to each action button.
 
 ### What stays the same
 
-- All handler functions unchanged
-- All sheet components unchanged
-- StepperNav, SectionCard, form fields, AI actions -- all unchanged
-- Navigation, save logic, undo/redo -- all unchanged
-- Only the mobile tools sheet gets clearer labels, descriptions, and visual hierarchy
+- All business logic, handlers, data models, API calls unchanged
+- All component names, props, and types unchanged
+- All visual styling unchanged (except heading element swap which uses same classes)
+- All Sheet/panel behavior unchanged (Radix already handles dialog ARIA)
+- All form field components unchanged (already accessible)
 
-### Technical Details
+### Technical Summary
 
-| File | Change |
-|------|--------|
-| `src/pages/EditorPage.tsx` | Add descriptions and icon colors to `editorToolGroups`; remove duplicate "AI Enhance"; render description text in tools sheet |
+| File | Changes |
+|------|---------|
+| `src/pages/EditorPage.tsx` | `<div>` to `<main>`, `aria-live` on save status, `aria-expanded` on ATS toggle |
+| `src/components/editor/StepperNav.tsx` | `aria-label` on mobile trigger and "More Sections" button, `aria-current="step"` on active step |
+| `src/components/editor/ProgressBar.tsx` | `role="progressbar"` with `aria-valuenow/min/max` and `aria-label` |
+| `src/components/editor/SectionCard.tsx` | `<h3>` to `<h2>` for heading hierarchy |
+| `src/components/editor/InlineAIButton.tsx` | `aria-expanded`, `aria-haspopup` on trigger; `role="menu"`/`role="menuitem"` on desktop dropdown |
 
-### Remaining UX Issues (Require Larger Changes -- Not in Scope)
+10 targeted ARIA/semantic fixes. Zero logic changes. All changes are additive attributes or element swaps with identical styling.
 
-- **No "your changes are reversible" reassurance on AI actions**: The InlineAIButton opens an AIEnhanceDialog with Apply/Discard, which is good, but the initial button doesn't communicate this. A future improvement could add a tooltip or subtitle "Preview changes before applying".
-- **ExperienceSection date inputs are freeform text**: Users type "Jan 2020" manually. A date picker would improve UX but requires new dependencies/logic.
-- **Timeline gaps feature is powerful but potentially confusing**: The gap detection and filler tools are advanced features that could overwhelm new users. Consider progressive disclosure in a future iteration.
+### Follow-up Items (Larger Changes, Not in Scope)
+
+- **Focus management on section switch**: When the user changes sections via StepperNav, focus stays on the stepper button rather than moving to the new section content. Ideally, focus would shift to the section heading or first input. This requires managing `ref` focus and is a larger refactor.
+- **Skip navigation link**: A "Skip to editor content" link at the top of the page would help keyboard users bypass the header and stepper. Requires design consideration.
+- **Screen reader announcements for AI actions**: When an AI action completes (enhance, tailor, proofread), there is a toast but no `aria-live` announcement. The `sonner` toast library may or may not be accessible -- needs verification.
 
