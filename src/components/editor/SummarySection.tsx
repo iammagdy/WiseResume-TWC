@@ -1,7 +1,8 @@
 import { useState, memo } from 'react';
 import { TextareaFormField } from '@/components/ui/form-field';
 import { useResumeStore } from '@/store/resumeStore';
-import { FileText, Sparkles } from 'lucide-react';
+import { FileText, Sparkles, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { AIEnhanceDialog } from './ai/AIEnhanceDialog';
 import { useAIEnhance, ActionType } from '@/hooks/useAIEnhance';
 import { InlineAIButton } from './InlineAIButton';
@@ -125,15 +126,20 @@ export const SummarySection = memo(function SummarySection() {
         title="Enhanced Summary"
       />
 
-      <div className="p-4 rounded-xl bg-muted/50 border border-border">
-        <h4 className="font-semibold text-sm mb-3">Tips for a great summary</h4>
-        <ul className="text-sm text-muted-foreground space-y-2">
-          <li>• Start with your years of experience and specialty</li>
-          <li>• Include 2-3 key achievements with metrics</li>
-          <li>• Mention skills relevant to your target role</li>
-          <li>• Keep it concise (3-4 sentences)</li>
-        </ul>
-      </div>
+      <Collapsible defaultOpen={!summary || summary.trim().length < 50}>
+        <CollapsibleTrigger className="flex items-center justify-between w-full p-4 rounded-xl bg-muted/50 border border-border group">
+          <h4 className="font-semibold text-sm">Tips for a great summary</h4>
+          <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-4 pb-4 rounded-b-xl bg-muted/50 border border-t-0 border-border">
+          <ul className="text-sm text-muted-foreground space-y-2 pt-3">
+            <li>• Start with your years of experience and specialty</li>
+            <li>• Include 2-3 key achievements with metrics</li>
+            <li>• Mention skills relevant to your target role</li>
+            <li>• Keep it concise (3-4 sentences)</li>
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 });
