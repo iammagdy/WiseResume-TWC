@@ -1,72 +1,63 @@
 
 
-## Add CV Filename to Editor Header and Route Through Preview Screen
+## Fix Notification Badge Sync and Add Resume Card Quick Actions
 
-### Overview
+### Part 1: Fix Notification Badge
 
-Two changes: (1) show the actual resume name in the editor header instead of generic "Edit Resume", and (2) redirect resume clicks to the existing Preview/Detail screen (`/resume/:id`) before entering the editor.
+**Current state**: The notification badge code in `ApplicationsPage.tsx` (line 194) already correctly checks `unreadCount > 0` before showing the badge. The `useUnreadNotificationCount` hook queries the database properly with `user_id` filtering. The database currently has 0 notifications.
 
----
+**Root cause**: The badge logic is already correct. The issue is likely stale cached data or a race condition. To make this bulletproof:
 
-### Part 1: Show Resume Name in Editor Header
+**File: `src/hooks/useNotifications.ts`**
+- Add `refetchInterval: 30000` (30s) to `useUnreadNotificationCount` so badge auto-refreshes
+- Add `staleTime: 10000` to prevent serving stale cache indefinitely
+- Ensure the query returns `0` (not `null`) as default when there's no data
 
-**File: `src/pages/EditorPage.tsx`**
-
-Replace the static `<h1>Edit Resume</h1>` (line 643) with the actual resume title from `resumeFromDb` or `currentResume`:
-
-- Display: `resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'`
-- For tailored resumes (when `resumeFromDb?.parent_resume_id` exists), the existing Tailored Indicator Banner already shows the job context below the header -- no duplication needed
-- The title will be truncated with `truncate` class on mobile (already applied)
-- Keep font size at `text-h3` for consistency
-
-This works from ALL entry points because `resumeFromDb` is fetched via `useResume(currentResumeId)` regardless of how the user arrived.
+**File: `src/pages/ApplicationsPage.tsx`**
+- No changes needed -- the badge rendering logic is already correct (only shows when `unreadCount > 0`, shows "9+" for 10+)
 
 ---
 
-### Part 2: Route Resume Clicks Through Preview Screen
+### Part 2: Add Quick Actions to Resume Cards
 
-The app already has a fully-featured `ResumeDetailPage` at `/resume/:id` with:
-- Template thumbnail preview
-- Health score ring
-- Metadata (template, created date, last edited)
-- Action grid (Edit, Preview, Download, Share, Duplicate, Delete)
-
-Currently, most entry points bypass it and go straight to `/editor`. We need to update navigation in these files:
-
-**File: `src/pages/DashboardPage.tsx`**
-- Change `handleResumeClick` (around line 178-184) to navigate to `/resume/${resumeId}` instead of setting store state and navigating to `/editor`
-- Keep the "Create from scratch" flow going to `/editor` (new resumes have no ID yet)
+#### A. Enhance `ResumeListCard` dropdown menu
 
 **File: `src/components/dashboard/ResumeListCard.tsx`**
-- Update the card's main click/tap handler to navigate to `/resume/${resume.id}` instead of calling `onEdit(resume.id)`
-- Keep the "Edit" action in the dropdown menu calling `onEdit` (which navigates to editor)
+
+Add these actions to the existing three-dot dropdown menu:
+- **Preview** (Eye icon) -- navigates to `/resume/{id}` (already the card click behavior)
+- **Download PDF** (Download icon) -- generates and downloads PDF inline
+- **Share** (Share2 icon) -- creates a share link and copies to clipboard
+- Keep existing: Rename, Edit, Duplicate, Practice Interview, Delete
+
+Add required imports: `Download, Share2, Eye` from lucide-react, plus `generatePDF`, `downloadFile`, `useResumeShareMutations`, and `toast`.
+
+New props needed: none -- we can use the existing `resume` prop to generate PDF and share directly from the card.
+
+#### B. Add quick actions to Home page `ResumeCard`
+
+**File: `src/components/home/ResumeCard.tsx`**
+
+Add a three-dot menu button (top-right, alongside the existing delete button):
+- Preview Resume
+- Edit Resume
+- Download PDF
+- Duplicate Resume
+- Delete Resume (with existing confirmation)
+
+New props needed: `onDuplicate`, `onPreview`, `onDownload` callbacks (or handle internally with navigation).
+
+Since `ResumeCard` uses `ResumeData` (not `DatabaseResume`), and doesn't have a resume ID, the parent component needs to pass these handlers. We'll add `resumeId?: string` and `templateId?: string` props for PDF generation and navigation.
+
+#### C. Add quick actions to `ResumeListSheet` items
 
 **File: `src/components/applications/ResumeListSheet.tsx`**
-- Change resume item click to navigate to `/resume/${resumeId}` instead of `/editor?id=...`
 
-**File: `src/components/applications/ActivityTimeline.tsx`**
-- Change resume entry click to navigate to `/resume/${entry.resumeId}` instead of `/editor?id=...`
-
-**File: `src/components/dashboard/VersionCompareSheet.tsx`**
-- Change "Use this version" to navigate to `/resume/${resume.id}` instead of `/editor?id=...`
-
-**Files NOT changed** (these are intentional direct-to-editor flows):
-- Upload flow (new resume, goes to editor)
-- Template selection (applying template, goes to editor)
-- Profile page Master CV edit (explicit edit action)
-- "Tailor Resume" buttons on jobs (opens editor with tailor sheet)
-- Preview page "Back to Editor" button
-- Existing ResumeDetailPage "Edit" button (already navigates to editor)
-
----
-
-### Part 3: Enhance ResumeDetailPage for Tailored Resumes
-
-**File: `src/pages/ResumeDetailPage.tsx`**
-
-- Add tailored resume context: if `dbResume.parent_resume_id` exists, show a "Tailored" badge with target job title and company
-- Add a "View Original" link to navigate to `/resume/${dbResume.parent_resume_id}`
-- Add quick stats panel showing: completion percentage, sections completed count, number of tailored versions (query child resumes count)
+Each resume item in the modal list currently just navigates on tap. Add a small three-dot menu on the right side of each item with:
+- Preview
+- Edit
+- Download PDF
+- Duplicate
 
 ---
 
@@ -74,20 +65,23 @@ Currently, most entry points bypass it and go straight to `/editor`. We need to 
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Replace "Edit Resume" with actual resume title |
-| `src/pages/DashboardPage.tsx` | Navigate to `/resume/:id` instead of `/editor` |
-| `src/components/dashboard/ResumeListCard.tsx` | Card tap goes to `/resume/:id` |
-| `src/components/applications/ResumeListSheet.tsx` | Resume click goes to `/resume/:id` |
-| `src/components/applications/ActivityTimeline.tsx` | Resume entry click goes to `/resume/:id` |
-| `src/components/dashboard/VersionCompareSheet.tsx` | Version click goes to `/resume/:id` |
-| `src/pages/ResumeDetailPage.tsx` | Add tailored resume context and quick stats |
+| `src/hooks/useNotifications.ts` | Add `refetchInterval` and `staleTime` to unread count query |
+| `src/components/dashboard/ResumeListCard.tsx` | Add Download PDF, Share, Preview to dropdown menu |
+| `src/components/home/ResumeCard.tsx` | Add three-dot menu with quick actions, accept new props |
+| `src/components/applications/ResumeListSheet.tsx` | Add three-dot menu to each resume list item |
 
 ### Implementation Order
 
-1. `EditorPage.tsx` -- update header title (quick win)
-2. `ResumeDetailPage.tsx` -- enhance with tailored context and stats
-3. `DashboardPage.tsx` -- redirect to preview
-4. `ResumeListCard.tsx` -- redirect to preview
-5. `ResumeListSheet.tsx` -- redirect to preview
-6. `ActivityTimeline.tsx` -- redirect to preview
-7. `VersionCompareSheet.tsx` -- redirect to preview
+1. `useNotifications.ts` -- harden notification count query
+2. `ResumeListCard.tsx` -- add Download/Share/Preview to existing menu
+3. `ResumeCard.tsx` -- add three-dot menu with quick actions
+4. `ResumeListSheet.tsx` -- add per-item action menu
+
+### Technical Notes
+
+- PDF generation uses the existing `generatePDF` + `downloadFile` utilities
+- Share uses the existing `useResumeShareMutations().createShare` mutation
+- All new menu items include `e.stopPropagation()` to prevent card click from firing
+- Touch targets maintain 44px minimum for all new buttons
+- `active:scale-95` applied to new interactive elements per project guidelines
+
