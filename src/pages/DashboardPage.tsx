@@ -519,7 +519,7 @@ export default function DashboardPage() {
             ) : (
               <div className="px-4 pb-4">
                 <motion.div 
-                  className="space-y-4 md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-4 md:space-y-0"
+                  className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
                   initial="hidden"
                   animate="visible"
                   variants={{

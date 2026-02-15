@@ -1,15 +1,8 @@
 import { useMemo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Award, Flame } from 'lucide-react';
+import { FileText, Flame } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
-import { cn } from '@/lib/utils';
-import { ScoreRing } from './ScoreRing';
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-  TooltipProvider,
-} from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 function useLoginStreak() {
   const [streak, setStreak] = useState(1);
@@ -148,55 +141,18 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
             </div>
           )}
 
-          {/* Stats Row with Score Ring */}
+          {/* Stats Row - simplified inline badges */}
           {totalResumes > 0 && (
-            <TooltipProvider delayDuration={300}>
-              <div className="flex items-center gap-3 min-w-0 mt-2">
-                {/* Large Score Ring */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex flex-col items-center gap-1 cursor-default">
-                      <ScoreRing score={avgScore} size={72} strokeWidth={5} isLoading={isScoring} />
-                      <span className="text-tiny text-muted-foreground uppercase tracking-widest">Avg</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>Average ATS score across all your resumes</TooltipContent>
-                </Tooltip>
-
-                {/* Stats beside ring */}
-                <div className="flex-1 min-w-0 grid grid-cols-2 gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-2.5 cursor-default">
-                        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <FileText className="w-4.5 h-4.5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold leading-tight">{totalResumes}</p>
-                          <p className="text-tiny text-muted-foreground uppercase tracking-wider">Resumes</p>
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Total resumes in your library</TooltipContent>
-                  </Tooltip>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center gap-2.5 cursor-default">
-                        <div className="w-9 h-9 rounded-xl bg-success/10 flex items-center justify-center">
-                          <Award className="w-4.5 h-4.5 text-success" />
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold leading-tight">{bestScore}%</p>
-                          <p className="text-tiny text-muted-foreground uppercase tracking-wider">Top Score</p>
-                        </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>Your highest resume score</TooltipContent>
-                  </Tooltip>
-                </div>
-              </div>
-            </TooltipProvider>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm font-medium">
+                <FileText className="w-3.5 h-3.5" />
+                {totalResumes} {totalResumes === 1 ? 'Resume' : 'Resumes'}
+              </Badge>
+              <span className="text-muted-foreground text-sm hidden sm:inline">|</span>
+              <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-sm font-medium border-success/30 text-success">
+                Best: {bestScore}%
+              </Badge>
+            </div>
           )}
         </div>
       </div>
