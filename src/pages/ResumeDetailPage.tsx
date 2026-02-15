@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
+import { templateComponents } from '@/components/editor/TemplateThumbnail';
 import { ScoreRing } from '@/components/dashboard/ScoreRing';
 import { useResume, useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeScore } from '@/hooks/useResumeScore';
@@ -39,6 +40,7 @@ export default function ResumeDetailPage() {
   const { createShare } = useResumeShareMutations();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const hiddenTemplateRef = useRef<HTMLDivElement>(null);
 
   if (isLoading) {
     return (
@@ -94,7 +96,7 @@ export default function ResumeDetailPage() {
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      const pdfBlob = await generatePDF(resumeData, dbResume.template_id as TemplateId, null, undefined, { showPageNumbers: true });
+      const pdfBlob = await generatePDF(resumeData, dbResume.template_id as TemplateId, hiddenTemplateRef.current, undefined, { showPageNumbers: true });
       const fileName = `${resumeData.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}.pdf`;
       await downloadFile({ blob: pdfBlob, fileName });
       toast.success('PDF downloaded!');
@@ -261,6 +263,31 @@ export default function ResumeDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Hidden off-screen template for PDF generation */}
+      {(() => {
+        const TemplateComponent = templateComponents[dbResume.template_id as TemplateId];
+        return TemplateComponent ? (
+          <div
+            ref={hiddenTemplateRef}
+            data-resume-template
+            style={{
+              position: 'fixed',
+              left: '-9999px',
+              top: 0,
+              width: '612px',
+              height: '792px',
+              transform: 'scale(1)',
+              transformOrigin: 'top left',
+              overflow: 'visible',
+            }}
+          >
+            <Suspense fallback={null}>
+              <TemplateComponent resume={resumeData} />
+            </Suspense>
+          </div>
+        ) : null;
+      })()}
     </div>
   );
 }
