@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Briefcase } from 'lucide-react';
+import { FileText, Settings, Home, Briefcase, Sparkles } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -27,6 +27,12 @@ const tabs: TabItem[] = [
     label: 'Editor',
     matchPaths: ['/editor', '/preview'],
     guarded: true,
+  },
+  {
+    path: '/ai-studio',
+    icon: Sparkles,
+    label: 'Studio',
+    matchPaths: ['/ai-studio'],
   },
   { 
     path: '/applications', 
@@ -126,7 +132,9 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   <Icon
                     className={cn(
                       'w-6 h-6 sm:w-5 sm:h-5 transition-colors duration-200',
-                      active ? 'text-primary' : 'text-muted-foreground'
+                      active
+                        ? tab.path === '/ai-studio' ? 'text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]' : 'text-primary'
+                        : tab.path === '/ai-studio' ? 'text-primary/60' : 'text-muted-foreground'
                     )}
                     aria-hidden="true"
                   />

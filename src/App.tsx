@@ -59,6 +59,7 @@ const ResignationLetterNewPage = lazyWithRetry(() => import("./pages/Resignation
 const ResignationLetterEditPage = lazyWithRetry(() => import("./pages/ResignationLetterEditPage"));
 const GuidesPage = lazyWithRetry(() => import("./pages/GuidesPage"));
 const GuidePage = lazyWithRetry(() => import("./pages/GuidePage"));
+const AIStudioPage = lazyWithRetry(() => import("./pages/AIStudioPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -230,11 +231,16 @@ const queryClient = new QueryClient({
                    <GuidesPage />
                  </Suspense>
                } />
-               <Route path="/guides/:slug" element={
-                 <Suspense fallback={<DetailSkeleton />}>
-                   <GuidePage />
-                 </Suspense>
-               } />
+                <Route path="/guides/:slug" element={
+                  <Suspense fallback={<DetailSkeleton />}>
+                    <GuidePage />
+                  </Suspense>
+                } />
+                <Route path="/ai-studio" element={
+                  <Suspense fallback={<DashboardSkeleton />}>
+                    <AIStudioPage />
+                  </Suspense>
+                } />
           </Route>
 
         {/* Public share page - outside AppShell */}
