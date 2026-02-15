@@ -204,7 +204,7 @@ export const ResumeListCard = memo(function ResumeListCard({
       {/* Card content */}
       <motion.div
         className={cn(
-          'relative glass-elevated p-4 touch-manipulation cursor-pointer min-h-[120px]',
+          'relative glass-elevated p-4 touch-manipulation cursor-pointer min-h-[180px] sm:min-h-[120px]',
           'active:bg-muted/30 transition-all'
         )}
         style={{ x, touchAction: 'pan-y' }}
@@ -256,7 +256,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     }}
                   />
                 ) : (
-                  <h3 className="font-semibold text-foreground truncate text-base sm:text-sm">
+                  <h3 className="font-semibold text-foreground truncate text-lg sm:text-base">
                     {resume.title}
                   </h3>
                 )}
@@ -273,7 +273,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   </Badge>
                 )}
                 {latestTailor && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-success/30 text-success">
+                  <Badge variant="outline" className="text-[13px] px-1.5 py-0 h-5 gap-1 border-success/30 text-success">
                     <Sparkles className="w-3 h-3" />
                     {latestTailor.scoreBeforeAfter.after}% • {latestTailor.jobTitle}
                   </Badge>
@@ -290,7 +290,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                   </span>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground mb-2 break-words">
+                <p className="text-sm text-muted-foreground mb-2 whitespace-nowrap">
                   No target job set
                 </p>
               )}
@@ -299,10 +299,10 @@ export const ResumeListCard = memo(function ResumeListCard({
               <div className="flex items-center gap-2 mb-2">
                 <Progress 
                   value={completionPercentage} 
-                  className="h-1.5 flex-1"
+                  className="h-2 flex-1"
                 />
                 <span className={cn(
-                  'text-xs font-medium',
+                  'text-sm font-medium',
                   getCompletionTextColor(completionPercentage)
                 )}>
                   {completionPercentage}%
@@ -311,7 +311,7 @@ export const ResumeListCard = memo(function ResumeListCard({
 
               {/* Bottom Row: Time + AI Nudge */}
               <div className="flex items-center gap-3">
-                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <span className="text-[13px] text-muted-foreground flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
@@ -320,7 +320,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               {healthScore && healthScore.topImprovement ? (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <Sparkles className="w-3 h-3 text-primary flex-shrink-0" />
-                  <span className="text-xs text-muted-foreground truncate italic">
+                  <span className="text-sm text-muted-foreground line-clamp-2 italic">
                     {healthScore.topImprovement}
                   </span>
                 </div>
