@@ -383,6 +383,106 @@ export function findSmartBreakPositions(
   return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks);
 }
 
+/** Tagged break position for UI differentiation */
+export interface TaggedBreakPosition {
+  position: number;
+  type: 'manual' | 'auto';
+}
+
+/**
+ * Returns break positions tagged as 'manual' (user-chosen) or 'auto' (system-generated).
+ * Used by PageBreakIndicator to visually distinguish forced vs auto-fill breaks.
+ */
+export function findSmartBreakPositionsTagged(
+  sourceElement: HTMLElement,
+  sourceHeightPerPage: number,
+  totalHeight: number,
+  manualBreakSections?: string[],
+  templateConfig?: TemplateConfig
+): TaggedBreakPosition[] {
+  if (templateConfig?.layout === 'fixed-sidebar') return [];
+
+  const { sections, flowBlocks } = scanLayoutBlocks(sourceElement);
+  const headerBlocks = createHeaderProtectionBlocks(sourceElement, sections);
+  const allBlocks: ContentBlock[] = [...flowBlocks, ...headerBlocks];
+
+  if (templateConfig?.layout === 'linear-grid') {
+    const breakableSectionIds = templateConfig.breakableSections;
+    sections.forEach(section => {
+      if (!breakableSectionIds.includes(section.id)) {
+        const gridSections = sections.filter(s => !breakableSectionIds.includes(s.id));
+        if (gridSections.length > 0) {
+          allBlocks.push({
+            top: Math.min(...gridSections.map(s => s.top)),
+            bottom: Math.max(...gridSections.map(s => s.bottom)),
+            sectionId: 'grid-block'
+          });
+        }
+      }
+    });
+  }
+
+  allBlocks.sort((a, b) => a.top - b.top);
+
+  if (manualBreakSections && manualBreakSections.length > 0) {
+    const allowedSections = templateConfig?.breakableSections || manualBreakSections;
+    const validManualSections = manualBreakSections.filter(s =>
+      allowedSections.includes(s as SectionId)
+    );
+
+    const forcedBreakSet = new Set<number>();
+    const forcedBreaks: number[] = [];
+
+    validManualSections.forEach(sectionId => {
+      const targetSection = sections.find(s => s.id === sectionId);
+      if (!targetSection) return;
+      let maxBottom = targetSection.bottom;
+      flowBlocks.forEach(block => {
+        if (block.top < targetSection.bottom && block.bottom > maxBottom) {
+          maxBottom = block.bottom;
+        }
+      });
+      const pos = maxBottom + 8;
+      forcedBreaks.push(pos);
+      forcedBreakSet.add(pos);
+    });
+
+    const sortedForcedBreaks = forcedBreaks
+      .filter(b => b < totalHeight && b > 0)
+      .sort((a, b) => a - b);
+
+    const tagged: TaggedBreakPosition[] = [];
+    let segmentStart = 0;
+
+    for (const fb of sortedForcedBreaks) {
+      const autoBreaks = computeAutoBreaksInSegment(segmentStart, fb, sourceHeightPerPage, allBlocks);
+      autoBreaks.forEach(b => tagged.push({ position: b, type: 'auto' }));
+      tagged.push({ position: fb, type: 'manual' });
+      segmentStart = fb;
+    }
+
+    if (segmentStart < totalHeight) {
+      const autoBreaks = computeAutoBreaksInSegment(segmentStart, totalHeight, sourceHeightPerPage, allBlocks);
+      autoBreaks.forEach(b => tagged.push({ position: b, type: 'auto' }));
+    }
+
+    // Deduplicate by position, preferring 'manual'
+    const posMap = new Map<number, TaggedBreakPosition>();
+    tagged.forEach(t => {
+      if (t.position > 0 && t.position < totalHeight) {
+        const existing = posMap.get(t.position);
+        if (!existing || t.type === 'manual') posMap.set(t.position, t);
+      }
+    });
+
+    return [...posMap.values()].sort((a, b) => a.position - b.position);
+  }
+
+  // Pure auto mode
+  return computeAutoBreaksInSegment(0, totalHeight, sourceHeightPerPage, allBlocks)
+    .map(b => ({ position: b, type: 'auto' as const }));
+}
+
 /**
  * Estimates the number of pages for a resume based on content and break settings.
  * Useful for UI display and single-page detection.
