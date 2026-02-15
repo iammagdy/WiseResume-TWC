@@ -14,6 +14,7 @@ interface StepperNavProps {
   onStepClick: (stepId: string) => void;
   justCompletedStep?: string | null;
   onMoreSectionSelect?: (sectionId: string) => void;
+  activeMoreSection?: string | null;
 }
 
 const MORE_SECTIONS = [
@@ -47,12 +48,18 @@ export const StepperNav = memo(function StepperNav({
   onStepClick,
   justCompletedStep,
   onMoreSectionSelect,
+  activeMoreSection,
 }: StepperNavProps) {
   const isMobile = useIsMobile();
   const [showSheet, setShowSheet] = useState(false);
+  const [showMoreSheet, setShowMoreSheet] = useState(false);
   const activeIndex = steps.findIndex(s => s.id === activeStep);
   const activeStepData = steps[activeIndex];
-  const ActiveIcon = STEP_ICONS[activeStep] || Plus;
+  // When on the "more" tab with an active sub-section, show that section's icon & label
+  const activeMoreDef = activeStep === 'more' && activeMoreSection
+    ? MORE_SECTIONS.find(s => s.id === activeMoreSection)
+    : null;
+  const ActiveIcon = activeMoreDef ? activeMoreDef.icon : (STEP_ICONS[activeStep] || Plus);
   const activeCompleted = completedSteps[activeStep];
   const activeScore = sectionScores?.[activeStep] ?? (activeCompleted ? 100 : 0);
   const activeInProgress = activeScore > 0 && activeScore < 100;
@@ -82,7 +89,7 @@ export const StepperNav = memo(function StepperNav({
               'text-sm font-semibold',
               activeCompleted ? 'text-success' : activeInProgress ? 'text-warning' : 'text-primary'
             )}>
-              {activeStepData?.label}
+              {activeMoreDef ? activeMoreDef.label : activeStepData?.label}
             </span>
             <p className="text-[11px] text-muted-foreground">
               {steps.filter(s => completedSteps[s.id]).length} of {steps.length} complete
@@ -166,23 +173,27 @@ export const StepperNav = memo(function StepperNav({
           </SheetContent>
         </Sheet>
 
-        {/* More sections FloatingPanel */}
+        {/* More sections - Sheet on mobile (portal-based, avoids CSS containing block issues) */}
         {onMoreSectionSelect && (
           <div className="mt-2">
-            <FloatingPanelRoot>
-              <FloatingPanelTrigger title="Additional Sections" className="w-full justify-center gap-2 min-h-[44px]">
-                <Plus className="w-4 h-4" />
-                More Sections
-              </FloatingPanelTrigger>
-              <FloatingPanelContent className="max-h-[80dvh] overflow-y-auto pb-safe backdrop-blur-xl bg-background/95">
-                <div className="px-4 pb-4">
+            <button
+              onClick={() => { setShowMoreSheet(true); haptics.light(); }}
+              className="w-full flex items-center justify-center gap-2 min-h-[44px] rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-[0.98] transition-transform touch-manipulation text-sm font-medium text-foreground"
+            >
+              <Plus className="w-4 h-4" />
+              More Sections
+            </button>
+            <Sheet open={showMoreSheet} onOpenChange={setShowMoreSheet}>
+              <SheetContent side="bottom" className="px-4 pb-safe">
+                <div className="pt-2 pb-4">
+                  <h3 className="text-base font-semibold text-foreground mb-3">Additional Sections</h3>
                   <div className="grid grid-cols-2 gap-2">
                     {MORE_SECTIONS.map(sec => {
                       const SIcon = sec.icon;
                       return (
                         <button
                           key={sec.id}
-                          onClick={() => { onMoreSectionSelect(sec.id); haptics.light(); }}
+                          onClick={() => { onMoreSectionSelect(sec.id); setShowMoreSheet(false); haptics.light(); }}
                           className="flex items-center gap-2.5 px-3 min-h-[48px] rounded-xl border border-border bg-card hover:bg-muted/50 active:scale-95 transition-transform touch-manipulation"
                         >
                           <SIcon className={cn('w-5 h-5 shrink-0', sec.color)} />
@@ -192,8 +203,8 @@ export const StepperNav = memo(function StepperNav({
                     })}
                   </div>
                 </div>
-              </FloatingPanelContent>
-            </FloatingPanelRoot>
+              </SheetContent>
+            </Sheet>
           </div>
         )}
       </div>
