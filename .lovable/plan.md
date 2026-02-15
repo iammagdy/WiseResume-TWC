@@ -1,54 +1,52 @@
 
 
-## Mobile Responsiveness Fix: Editor Navigation and Progress Bar
+## Mobile Responsiveness Fix: Work Timeline and Skills Chips
 
 ### Overview
 
-Convert the horizontal stepper navigation to a mobile-friendly dropdown on screens under 768px, and optimize the progress bar layout for small screens. Desktop layout remains completely unchanged.
+Optimize the work experience timeline and skills section for mobile touch interaction. Desktop layouts remain completely unchanged.
 
 ### Changes
 
-**File 1: `src/components/editor/StepperNav.tsx`**
+**File 1: `src/components/editor/ExperienceTimeline.tsx`**
 
-Add a mobile-specific dropdown mode that replaces the horizontal stepper on screens less than 768px:
+Hide the horizontal timeline bar on mobile and show a vertical card-based layout instead:
 
-- Import `useIsMobile` hook, `ChevronDown` icon, and the `Sheet`/`SheetContent` components
-- Add local state `showSheet` to control the section picker bottom sheet
-- On mobile, render a tappable row showing the current section icon, label, completion badge, and a chevron -- styled as a full-width button with 56px height
-- When tapped, open a bottom sheet listing all 6 sections as full-width cards (min 56px height each) with:
-  - Section icon and label
-  - Green checkmark for completed sections
-  - Percentage badge for in-progress sections
-  - Highlighted background for the active section
-- On section tap, call `onStepClick`, close the sheet, and trigger haptic feedback
-- On desktop (768px+), render the existing horizontal stepper exactly as-is (no changes)
-- The connecting progress line and confetti animations remain desktop-only
+- Import `useIsMobile` hook
+- On mobile (<768px), replace the horizontal bar visualization with a vertical list of cards:
+  - Each job segment renders as a full-width rounded card showing the company name, date range label, and a colored left border (primary for jobs)
+  - Gap segments render as warning-styled alert banners between job cards, with the "Explain with AI" button inline (min 44px height)
+  - Year markers shown as text above/below the vertical list
+- On desktop (>=768px), render the existing horizontal timeline bar exactly as-is
+- The gap alert section at the bottom remains shared between both layouts (already has good mobile styling)
+- No changes to data parsing, gap detection, or any logic
 
-**File 2: `src/pages/EditorPage.tsx`**
+**File 2: `src/components/editor/SkillsSection.tsx`**
 
-Optimize the progress bar area for mobile screens:
+Improve touch targets and layout for skills on small screens:
 
-- In the progress/save-status container (around line 521), add responsive classes:
-  - On `<640px`: stack the progress bar and save indicator vertically, add `py-3` padding
-  - Use `flex-col sm:flex-row` on the inner wrapper so text stacks on small screens
-  - Reduce the "X of Y sections completed" text size slightly on mobile with `text-[11px] sm:text-xs`
-- Ensure the gradient bar remains full-width at all breakpoints
-- No changes to save indicator logic, confetti, or real-time updates
+- Skill input row: Add responsive classes so the input is `h-12 text-base` (already 12 on input, ensure 16px font with `text-base` to prevent iOS zoom), and the Add button is `min-h-[48px]` on mobile
+- Current skills chips: Change gap from `gap-2` to `gap-2 sm:gap-2` (keep same), increase Badge `min-h` from `[44px]` to keep at 44px but add `px-3 sm:px-4` padding, and ensure the X delete area has a `min-w-[32px] min-h-[32px]` tap zone by wrapping the X icon in a span with those dimensions
+- Common Skills section: Change from `flex flex-wrap` to `grid grid-cols-2 sm:flex sm:flex-wrap` so on mobile it shows as a 2-column grid with `gap-2`, each button `min-h-[44px]`
+- Suggested skills (gap analysis): Same grid treatment -- `grid grid-cols-2 sm:flex sm:flex-wrap` with `gap-2`
+- All changes use Tailwind responsive prefixes only; no logic changes
 
 ### What Does NOT Change
 
-- Desktop stepper layout (768px+) -- identical behavior and appearance
-- AI Assist, validation, auto-save, keyboard shortcuts
-- Section switching logic, animations, and `handleTabChange`
-- All sheet/modal functionality
-- Navigation guards, auth checks, data persistence
-- Progress bar gradient animation and confetti celebrations
+- All CRUD operations on work experiences (add, edit, delete, expand/collapse)
+- AI enhancement features (InlineAIButton, AIEnhanceDialog, AIContextualNudge)
+- Gap detection logic and GapExplainerSheet
+- Skills add/remove/suggest logic
+- Desktop layouts (>=768px) -- identical behavior and appearance
+- Data persistence, auto-save, navigation guards
+- Drag-to-reorder functionality (if any)
+- SectionEmptyState components
 
 ### Technical Notes
 
-- Uses existing `useIsMobile` hook (768px breakpoint) for the stepper toggle
-- Uses Tailwind responsive prefixes (`sm:`) for progress bar adjustments
-- Bottom sheet uses existing `Sheet` primitive (consistent with app patterns)
-- Touch targets: 56px height section cards, 48px min dropdown trigger
-- Haptic feedback via existing `haptics.light()` utility
+- Uses existing `useIsMobile` hook (768px breakpoint) for timeline toggle
+- Uses Tailwind responsive prefixes (`sm:`, `md:`) for skills adjustments
+- Touch targets maintain 44px minimum per project guidelines
+- Input uses `text-base` (16px) to prevent iOS auto-zoom on focus
+- All animations (framer-motion) preserved on both layouts
 
