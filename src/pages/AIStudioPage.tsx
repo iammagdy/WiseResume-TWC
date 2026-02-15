@@ -16,6 +16,7 @@ import {
   UserCheck,
   FileSearch,
   ChevronDown,
+  Send,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -104,6 +105,23 @@ export default function AIStudioPage() {
   const [showProofread, setShowProofread] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
   const [moreToolsOpen, setMoreToolsOpen] = useState(true);
+  const [stickyInput, setStickyInput] = useState('');
+
+  const handleStickySubmit = useCallback(() => {
+    if (!stickyInput.trim()) return;
+    haptics.light();
+    if (!user) {
+      setShowChat(true);
+      setStickyInput('');
+      return;
+    }
+    if (!currentResumeId) {
+      toast.info('Select a resume first to chat with Wise AI');
+      return;
+    }
+    setShowChat(true);
+    setStickyInput('');
+  }, [stickyInput, user, currentResumeId]);
 
   const requireResume = useCallback((action: () => void) => {
     if (!currentResumeId) {
@@ -138,7 +156,7 @@ export default function AIStudioPage() {
   }, [navigate, requireResume]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-20 pt-safe">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[140px] sm:pb-20 pt-safe">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -230,20 +248,11 @@ export default function AIStudioPage() {
               <p className="text-xs text-muted-foreground truncate">{PLACEHOLDER_EXAMPLES[placeholderIdx]}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div className="text-left">
-              <p className="font-semibold text-sm">Wise AI Chat</p>
-              <p className="text-xs text-muted-foreground">Edit your resume by chatting</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {SUGGESTIONS.slice(0, 3).map(s => (
               <span
                 key={s}
-                className="text-sm px-3 py-1.5 min-h-[36px] flex items-center rounded-full bg-primary/5 border border-primary/10 text-muted-foreground"
+                className="text-sm px-3 py-1.5 min-h-[36px] flex items-center justify-center sm:justify-start rounded-full bg-primary/5 border border-primary/10 text-muted-foreground"
               >
                 {s}
               </span>
@@ -259,7 +268,7 @@ export default function AIStudioPage() {
         transition={{ delay: 0.15 }}
         className="px-4 pb-4 space-y-3"
       >
-        <h2 className="text-sm font-semibold text-muted-foreground px-1">Featured Tools</h2>
+        <h2 className="text-base sm:text-sm font-semibold text-muted-foreground px-1">Featured Tools</h2>
         <button
           onClick={() => requireResume(() => setShowTailor(true))}
           className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
@@ -296,7 +305,7 @@ export default function AIStudioPage() {
         <Collapsible open={moreToolsOpen} onOpenChange={setMoreToolsOpen}>
           <CollapsibleTrigger asChild>
             <button
-              className="w-full flex items-center justify-between py-2 px-1 text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+              className="w-full flex items-center justify-between py-2 px-1 min-h-[48px] text-base sm:text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
               onClick={() => haptics.light()}
             >
               <span className="font-semibold">More AI Tools</span>
@@ -347,6 +356,29 @@ export default function AIStudioPage() {
           </p>
         </div>
       </motion.div>
+
+      {/* Sticky Mobile Chat Input */}
+      <div className="fixed bottom-[68px] left-0 right-0 z-40 md:hidden bg-background shadow-[0_-4px_12px_rgba(0,0,0,0.2)] px-4 py-2 pb-safe">
+        <form
+          onSubmit={(e) => { e.preventDefault(); handleStickySubmit(); }}
+          className="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={stickyInput}
+            onChange={(e) => setStickyInput(e.target.value)}
+            placeholder={PLACEHOLDER_EXAMPLES[placeholderIdx]}
+            className="flex-1 h-12 text-base rounded-full glass-input px-4 py-3 placeholder:text-muted-foreground/60 focus:outline-none touch-manipulation"
+          />
+          <button
+            type="submit"
+            disabled={!stickyInput.trim()}
+            className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full gradient-primary flex items-center justify-center disabled:opacity-40 active:scale-95 transition-all touch-manipulation"
+          >
+            <Send className="w-5 h-5 text-primary-foreground" />
+          </button>
+        </form>
+      </div>
 
       {/* Sheets */}
       <ErrorBoundary>
