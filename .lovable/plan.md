@@ -1,116 +1,81 @@
 
 
-## Multiple Export Formats and Undo/Redo System
+## Fix Speech Recognition and Enhance Voice Feedback
 
-### Overview
+### Root Cause Analysis
 
-Two features: (1) expand the existing export sheet with LinkedIn, Plain Text, and Shareable Link formats plus ATS-optimized PDF option, and (2) add an undo/redo system to the editor with keyboard shortcuts and enhanced version history.
+The current speech recognition relies **entirely on ElevenLabs Scribe** (realtime WebSocket STT). When the ElevenLabs WebSocket connection fails silently (network issues, token problems, or browser WebSocket limitations in the preview iframe), the UI shows "Listening..." but no audio is processed. There is **no fallback** to the browser's built-in Web Speech API.
 
----
+Additionally:
+- `speechSupported` is hardcoded to `true` -- it never checks actual browser capability
+- There is no timeout for "no speech detected"
+- Errors during WebSocket setup may not surface to the user clearly
+- No debug logging exists for diagnosing connection issues
 
-### Part 1: Multiple Export Formats
-
-**Current state**: `ExportOptionsSheet` already supports 5 options: Resume PDF, Word DOCX, One-Page PDF, Cover Letter PDF, and Application Package. `shareUtils.ts` has `shareAsLink` and `shareAsText` helpers. `docxGenerator.ts` handles DOCX creation.
-
-**What changes**:
-
-**File: `src/components/editor/ExportOptionsSheet.tsx`**
-
-1. **Add 3 new export options** to the `exportOptions` array:
-   - "PDF (ATS-Optimized)" -- black-and-white, single-column, standard fonts. Uses existing PDF generator with a new `atsMode` flag that strips colors and forces simple styling
-   - "LinkedIn Profile Format" -- text-only, copy-paste ready. Opens a modal with sections (About, Experience, Education, Skills) formatted for LinkedIn character limits
-   - "Plain Text (.txt)" -- pure UTF-8 text with line breaks. Uses existing `shareAsText` logic expanded to include all sections
-   - "Shareable Web Link" -- uses existing `shareAsLink` from `shareUtils.ts`
-
-2. **Update `ExportType`** in `src/types/resume.ts` to add: `'ats-pdf' | 'linkedin' | 'plain-text' | 'share-link'`
-
-3. **ATS-Optimized PDF logic**: Add an `atsMode` parameter to `generatePDF` in `pdfGenerator.ts` that:
-   - Overrides template customization to remove accent colors (force black text)
-   - Forces single-column layout
-   - Uses standard margins (1 inch / 72pt -- already the default)
-   - Strips photo if present
-
-4. **LinkedIn format**: New sub-sheet or modal that renders resume data into LinkedIn-compatible sections with character counters and "Copy Section" buttons per section
-
-5. **Plain Text export**: Expand `shareAsText` to include Experience (with bullet points), Education, Skills, Certifications -- generate a `.txt` file and trigger download via `downloadFile`
-
-6. **File naming**: Update download filename to `FirstName_LastName_Resume_2026.pdf` pattern using `contactInfo.fullName`
-
-**File: `src/types/resume.ts`**
-
-- Add new export types to `ExportType` union
-
-**File: `src/lib/pdfGenerator.ts`**
-
-- Add `atsMode?: boolean` to PDF generation options
-- When `atsMode` is true: override customization to black text, no accent color, no photo, single column
-
-**File: `src/lib/shareUtils.ts`**
-
-- Add `generatePlainText(resume: ResumeData): string` function covering all sections
-- Add `generateLinkedInFormat(resume: ResumeData): { about: string; experience: string; education: string; skills: string }` function
+### What Changes
 
 ---
 
-### Part 2: Undo/Redo System
+#### 1. Add Web Speech API Fallback (`src/hooks/useWebSpeechFallback.ts` -- NEW)
 
-**Current state**: The resume store uses Zustand with `persist` middleware. `updateResume` directly merges partial updates. `useEditorShortcuts` handles Cmd+S/P/D. `VersionHistorySheet` shows cloud-saved versions from the `resume_versions` table.
+A new hook that uses the browser's native `SpeechRecognition` API as a fallback:
 
-**What changes**:
+- Initializes `SpeechRecognition` only on user gesture (click)
+- Handles `onresult` for both interim and final transcripts
+- Auto-restarts on `onend` if user intends to keep listening (via `isListeningRef`)
+- 10-second timeout: if no speech detected, calls `onNoSpeech` callback
+- Error handling for "not-allowed", "no-speech", "network" errors
+- Provides `audioLevel` approximation (binary: 0 when silent, 0.5 when speech detected)
+- Browser compatibility check via `window.SpeechRecognition || window.webkitSpeechRecognition`
 
-**New file: `src/hooks/useUndoRedo.ts`**
+#### 2. Update ElevenLabs Scribe Hook (`src/hooks/useElevenLabsScribe.ts`)
 
-A custom hook that wraps the resume store to provide undo/redo:
+- Add console logging at every step: token fetch, WebSocket open, audio processing, message received, errors
+- Add a `connectionTimeout` (5 seconds) -- if WebSocket doesn't open in time, reject with error
+- Add `onConnected` callback so the voice interview hook knows when audio is actually flowing
+- Return a `connectionFailed` state so the caller can switch to fallback
 
-1. **History stack**: Maintains an array of `ResumeData` snapshots (max 50) and a pointer index
-2. **Recording changes**: Debounces resume store changes (500ms). On each debounced change, pushes a snapshot to the history stack with an auto-generated description (e.g., "Updated summary", "Added skill 'React'")
-3. **Change descriptions**: Compare previous and current state to generate human-readable labels:
-   - Skills added/removed: "Added skill 'React'"
-   - Experience changed: "Updated experience at Google"
-   - Summary changed: "Updated summary (X chars changed)"
-   - Contact changed: "Updated contact info"
-4. **Undo**: Moves pointer back, calls `setCurrentResume` with previous snapshot
-5. **Redo**: Moves pointer forward, calls `setCurrentResume` with next snapshot
-6. **State**: `canUndo`, `canRedo`, `undoDescription`, `redoDescription`
-7. **Storage**: `useState` only (cleared on page refresh). Not persisted to localStorage to keep the store lean
-8. **New-change-after-undo**: If user makes a new change after undoing, the redo stack is discarded (standard behavior)
+#### 3. Update Voice Interview Hook (`src/hooks/useVoiceInterview.ts`)
 
-**File: `src/hooks/useEditorShortcuts.ts`**
+- Replace hardcoded `speechSupported = true` with actual browser capability check
+- Add fallback logic: try ElevenLabs Scribe first, on failure automatically switch to Web Speech API
+- Add 10-second "no speech detected" timeout with toast message: "No speech detected. Please speak clearly or use the Type button"
+- Track which STT engine is active (`elevenlabs` | `webspeech` | `none`)
+- Add `sttEngine` to returned state for UI display
 
-- Add `onUndo` and `onRedo` callbacks
-- Handle `Cmd/Ctrl+Z` for undo
-- Handle `Cmd/Ctrl+Shift+Z` and `Cmd/Ctrl+Y` for redo
-- Remove conflict with existing `Cmd+S` (no overlap)
+#### 4. Enhance Interview Toggle (`src/components/interview/InterviewToggle.tsx`)
 
-**File: `src/pages/EditorPage.tsx`**
+- Show "Detecting speech..." text when `audioLevel > 0` and listening
+- Show "No speech detected" message after timeout with hint to use Type button
+- Add small VU meter indicator (3 bars that respond to `audioLevel`) below the main button when listening
+- Show STT engine badge ("ElevenLabs" or "Browser") as a tiny label
 
-1. **Wire up `useUndoRedo`**: Initialize with current resume, pass undo/redo to shortcuts hook
-2. **Undo/Redo buttons**: Add two icon buttons (`Undo2`, `Redo2` from lucide) in the editor header toolbar, next to the save indicator
-   - Size: 36x36px desktop, 32x32px mobile
-   - Disabled state with reduced opacity when `!canUndo` / `!canRedo`
-   - Tooltip (on desktop) showing what will be undone/redone
-3. **Toast feedback**: On undo/redo, show brief toast: "Undo: Added skill 'React'" (200ms duration)
+#### 5. Add Mic Test to Interview Setup (`src/components/interview/InterviewSetup.tsx`)
 
-**File: `src/components/editor/VersionHistorySheet.tsx`**
+- Add a "Test Microphone" button below the voice gender selector
+- On tap: requests mic permission, captures 3 seconds of audio, shows VU meter animation
+- Shows success ("Microphone working!") or failure ("Microphone not detected") message
+- If mic test fails, automatically show text input recommendation
 
-Enhanced with:
+#### 6. Enhanced Error Messages (`src/pages/InterviewPage.tsx`)
 
-1. **"Create Checkpoint" button** at the top -- saves current state to `resume_versions` table with a user-provided name via a small input prompt
-2. **Auto-checkpoint labels**: When versions have `change_summary`, show it. Add visual distinction for AI-triggered checkpoints (sparkle icon) vs manual (pin icon)
-3. **Compare button**: Each version gets a "Compare" button that opens the existing `VersionCompareSheet` (from dashboard) with the selected version vs. current state
-4. **Visual timeline**: Add a thin vertical line connecting version entries for timeline feel, with timestamp formatting improved (show "Today, 7:05 AM" instead of "2 hours ago" for same-day entries)
+- Map specific error types to user-friendly messages:
+  - "Microphone blocked" -- when permission denied
+  - "No speech detected" -- after timeout
+  - "Speech recognition unavailable" -- when neither ElevenLabs nor Web Speech API works
+- Show a dismissible tooltip near the mic button when speech recognition fails: "Having trouble? Make sure your microphone is working and you're speaking clearly. You can also use the Type button"
+- Auto-show text input when speech recognition fails
 
 ---
 
 ### What Does NOT Change
 
-- All existing PDF generation logic and quality
-- Current export options (Resume, DOCX, One-Page, Cover Letter, Package) remain
-- Data saving, auto-save, and offline sync
-- Mobile preview and editor behavior
-- Template rendering
-- Version history database schema (uses existing `resume_versions` table)
-- Share functionality
+- Text input mode and all text-based interview flow
+- AI question generation and feedback system
+- Interview summary page and scoring
+- Session history and saving
+- All UI layouts and styling (only additions, no modifications to existing styles)
+- Edge function logic (token generation works correctly)
 
 ---
 
@@ -118,23 +83,19 @@ Enhanced with:
 
 | File | Action |
 |------|--------|
-| `src/types/resume.ts` | Add new `ExportType` values |
-| `src/components/editor/ExportOptionsSheet.tsx` | Add ATS PDF, LinkedIn, Plain Text, Share Link options |
-| `src/lib/pdfGenerator.ts` | Add `atsMode` flag for black-and-white ATS export |
-| `src/lib/shareUtils.ts` | Add `generatePlainText` and `generateLinkedInFormat` |
-| `src/hooks/useUndoRedo.ts` | New -- undo/redo history stack with change descriptions |
-| `src/hooks/useEditorShortcuts.ts` | Add Cmd+Z / Cmd+Shift+Z handlers |
-| `src/pages/EditorPage.tsx` | Wire undo/redo buttons and hook |
-| `src/components/editor/VersionHistorySheet.tsx` | Add checkpoint button, compare action, timeline UI |
+| `src/hooks/useWebSpeechFallback.ts` | New -- Web Speech API fallback hook |
+| `src/hooks/useElevenLabsScribe.ts` | Add logging, connection timeout, connected callback |
+| `src/hooks/useVoiceInterview.ts` | Add fallback logic, no-speech timeout, engine tracking |
+| `src/components/interview/InterviewToggle.tsx` | Add VU meter, "detecting speech" text, engine badge |
+| `src/components/interview/InterviewSetup.tsx` | Add "Test Microphone" button |
+| `src/pages/InterviewPage.tsx` | Enhanced error handling, auto-show text input on failure |
 
 ### Implementation Order
 
-1. `src/types/resume.ts` (add export types)
-2. `src/lib/shareUtils.ts` (plain text + LinkedIn generators)
-3. `src/lib/pdfGenerator.ts` (ATS mode)
-4. `src/components/editor/ExportOptionsSheet.tsx` (new format options)
-5. `src/hooks/useUndoRedo.ts` (new hook)
-6. `src/hooks/useEditorShortcuts.ts` (add undo/redo shortcuts)
-7. `src/pages/EditorPage.tsx` (wire everything)
-8. `src/components/editor/VersionHistorySheet.tsx` (enhanced UI)
+1. `useWebSpeechFallback.ts` (new fallback hook)
+2. `useElevenLabsScribe.ts` (add logging + timeout)
+3. `useVoiceInterview.ts` (integrate fallback + no-speech timeout)
+4. `InterviewToggle.tsx` (VU meter + detecting text)
+5. `InterviewSetup.tsx` (mic test button)
+6. `InterviewPage.tsx` (error handling + auto text input)
 
