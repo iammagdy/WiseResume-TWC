@@ -914,10 +914,12 @@ export async function generateOnePagePDF(
 
     const pdfDoc = await PDFDocument.create();
 
-    const finalWidth = pageWidth * fitScale;
-    const finalHeight = pdfContentHeight * fitScale;
-
-    // Center horizontally if scaled down
+    // Always fill full page width; scale height to maintain aspect ratio
+    const aspectRatio = totalHeight / sourceWidth;
+    const naturalHeight = pageWidth * aspectRatio;
+    const pageFit = naturalHeight > printableHeight ? printableHeight / naturalHeight : 1;
+    const finalWidth = pageWidth * pageFit;
+    const finalHeight = naturalHeight * pageFit;
     const offsetX = (pageWidth - finalWidth) / 2;
 
     onProgress?.('embedding', 50);
