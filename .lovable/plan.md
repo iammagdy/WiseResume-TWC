@@ -1,50 +1,71 @@
 
 
-## Fix: Bottom Action Buttons Overflowing on Small Screens
+## Fix: "More" Showing as Generic Section Instead of Active Sub-Section
+
+### Problem
+
+The `steps` array contains 6 items: Contact, Summary, Work, Education, Skills, and "More". The issues are:
+
+1. **Counter mismatch**: The dropdown says "4 of 6 complete" -- but "More" is a container tab, not a real section. Users expect to see "4 of 5 complete" for the 5 real sections, or if they added Projects, "4 of 6 complete" should mean 6 real sections are listed.
+2. **Sheet shows "More"**: When the user opens the Resume Sections sheet, the last item says "More" with a Plus icon -- it should either show the active sub-section name (e.g., "Projects") or list the added sub-sections individually.
+3. **Clicking "More" in the sheet** goes to the More tab but doesn't take the user directly to their active sub-section.
 
 ### Root Cause
 
-The "Previous" and "Preview & Export" buttons in the Editor (lines 611-652 of `EditorPage.tsx`) use `flex-1` inside a `flex-col xs:flex-row` container. At the `xs` breakpoint (375px+), they go side-by-side. However, `flex-1` alone does not constrain the minimum width of a flex child -- the button's content (icon + "Preview & Export" text) establishes a minimum intrinsic width that can push beyond the container.
+The `steps` array is static with `{ id: 'more', label: 'More' }` hardcoded. The StepperNav receives `activeMoreSection` but only uses it for the dropdown trigger label -- the sheet list and the completion counter both ignore it entirely.
 
-The missing piece is `min-w-0` on each button, which allows flex items to shrink below their content size.
+### Proposed Changes
 
-### Changes
+**File: `src/components/editor/StepperNav.tsx`**
 
-**File: `src/pages/EditorPage.tsx` (lines 611-651)**
+#### 1. Fix the completion counter to exclude "more" as a countable section
 
-1. Add `min-w-0` to all three buttons (Previous, Preview & Export, Next) so they respect `flex-1` shrinking
-2. Add `overflow-hidden` to the container to prevent any residual overflow
-3. Add `text-sm` to the "Preview & Export" button specifically, since its label is the longest and needs to fit in half the width on 375px screens
+Change line 97 from counting all steps to excluding the "more" pseudo-step:
+```typescript
+// Before:
+{steps.filter(s => completedSteps[s.id]).length} of {steps.length} complete
 
-```
-Before:
-  <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2">
-    <Button className="flex-1 min-h-[56px] sm:h-12" ...>Previous</Button>
-    <Button className="flex-1 min-h-[56px] sm:h-12 gradient-primary ..." ...>Preview & Export</Button>
-    <Button className="flex-1 min-h-[56px] sm:h-12" ...>Next</Button>
-
-After:
-  <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2 overflow-hidden">
-    <Button className="flex-1 min-w-0 min-h-[56px] sm:h-12" ...>Previous</Button>
-    <Button className="flex-1 min-w-0 min-h-[56px] sm:h-12 text-sm gradient-primary ..." ...>Preview & Export</Button>
-    <Button className="flex-1 min-w-0 min-h-[56px] sm:h-12" ...>Next</Button>
+// After:
+{steps.filter(s => s.id !== 'more' && completedSteps[s.id]).length} of {steps.filter(s => s.id !== 'more').length} complete
 ```
 
-### Similar Patterns Checked
+This changes "4 of 6" to "4 of 5" -- counting only real sections.
 
-No other bottom button rows in the app use this same pattern -- the Editor is the only place with this specific side-by-side `flex-1` layout for navigation buttons. Other button pairs (TailorHistorySheet, CoverLetterHistorySheet) use `sticky bottom-0` with proper constraints already.
+#### 2. Update the "More" entry in the sheet to show the active sub-section
+
+When `activeMoreSection` is set (e.g., "projects"), the sheet's "More" row should display the sub-section's label and icon instead of the generic "More" label. When no sub-section is active, it still shows "More" with the Plus icon.
+
+In the `steps.map()` inside the sheet, add logic for the "more" step:
+```tsx
+// For the "more" step, show active sub-section details if available
+const moreDef = step.id === 'more' && activeMoreSection
+  ? MORE_SECTIONS.find(s => s.id === activeMoreSection)
+  : null;
+const Icon = moreDef ? moreDef.icon : (STEP_ICONS[step.id] || Plus);
+const displayLabel = moreDef ? moreDef.label : step.label;
+```
+
+Then use `displayLabel` and `Icon` instead of `step.label` and the static icon in the sheet row.
+
+#### 3. Clicking "More" in the sheet navigates to the active sub-section
+
+When tapping the "More" row in the sheet, if `activeMoreSection` is set, the click handler should call `onStepClick('more')` (which it already does), and the sub-section state is already preserved -- so the content renders correctly since `moreSubSection` retains its value.
+
+No handler changes needed here; the fix in change 2 ensures the UI matches the behavior.
 
 ### What Stays the Same
 
-- All button handlers, navigation logic, and routes unchanged
-- No component or prop renames
-- No changes to the data model or API calls
+- `steps` array definition in EditorPage.tsx (unchanged)
+- All handlers (`onStepClick`, `handleMoreSectionSelect`) unchanged
+- No prop renames or new props
+- Desktop stepper behavior unchanged
+- All section components and data models unchanged
 
-### Summary
+### Technical Summary
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Add `min-w-0` to all 3 nav buttons, `overflow-hidden` to container, `text-sm` to "Preview & Export" button |
+| `src/components/editor/StepperNav.tsx` | Fix completion counter to exclude "more" pseudo-step; show active sub-section label/icon in sheet row |
 
-One file, 4 class additions. Ensures buttons shrink properly within their flex container on 360-375px screens.
+1 file, 2 targeted presentation fixes. Zero logic changes.
 
