@@ -175,13 +175,8 @@ export default function DashboardPage() {
   };
 
   const handleEdit = (resumeId: string) => {
-    const resume = resumes?.find(r => r.id === resumeId);
-    if (resume) {
-      haptics.light();
-      setCurrentResumeId(resumeId);
-      setCurrentResume(dbToResumeData(resume));
-      navigate('/editor');
-    }
+    haptics.light();
+    navigate(`/resume/${resumeId}`);
   };
 
   const handleDuplicate = (resumeId: string) => {

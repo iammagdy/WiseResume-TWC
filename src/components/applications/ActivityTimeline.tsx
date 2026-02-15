@@ -118,7 +118,7 @@ export function ActivityTimeline() {
           <div
             key={entry.id}
             className={`glass-surface rounded-2xl p-3.5 border border-border/20 transition-transform active:scale-[0.98] min-h-[80px] cursor-pointer`}
-            onClick={isResume && entry.resumeId ? () => navigate(`/editor?id=${entry.resumeId}`) : undefined}
+            onClick={isResume && entry.resumeId ? () => navigate(`/resume/${entry.resumeId}`) : undefined}
           >
             <div className="flex items-start gap-3">
               <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${config.bg} ${config.fg}`}>

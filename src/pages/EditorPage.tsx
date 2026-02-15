@@ -640,7 +640,9 @@ export default function EditorPage() {
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
-              <h1 className="text-h3 truncate">Edit Resume</h1>
+              <h1 className="text-h3 truncate">
+                {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
+              </h1>
               <OfflineIndicator isSyncing={isSyncing} />
               {/* Undo/Redo buttons */}
               <div className="flex items-center gap-0.5">
