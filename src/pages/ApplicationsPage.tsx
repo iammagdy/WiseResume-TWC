@@ -1,8 +1,8 @@
 import { useState, useCallback, useMemo, useDeferredValue } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, ArrowLeft, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2 } from 'lucide-react';
+import { Plus, ArrowLeft, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useJobApplications } from '@/hooks/useJobApplications';
+import { useJobApplications, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, Job } from '@/hooks/useJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
@@ -15,11 +15,14 @@ import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
 import { JobSearchSheet, JobFilters } from '@/components/applications/JobSearchSheet';
 import { SaveJobSheet } from '@/components/applications/SaveJobSheet';
 import { JobMatchScore } from '@/components/applications/JobMatchScore';
+import { StatusFilter } from '@/components/applications/StatusFilter';
+import { FollowUpEmailSheet } from '@/components/applications/FollowUpEmailSheet';
 import { Badge } from '@/components/ui/badge';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { format, isBefore, addDays } from 'date-fns';
 import { scoreJobMatch, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
@@ -67,10 +70,12 @@ export default function ApplicationsPage() {
   const [showAdd, setShowAdd] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [showSaveJob, setShowSaveJob] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<ApplicationStatus | 'all'>('all');
+  const [followUpApp, setFollowUpApp] = useState<{ company: string; jobTitle: string } | null>(null);
   const [filters, setFilters] = useState<JobFilters>({ query: '', jobTypes: [], location: '' });
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: jobs = [] } = useJobs();
-  const { data: applications = [] } = useJobApplications();
+  const { data: applications = [] } = useJobApplications(statusFilter === 'all' ? undefined : statusFilter);
   const { data: resumes } = useResumes();
   const [resumeListOpen, setResumeListOpen] = useState(false);
   const [resumeListFilter, setResumeListFilter] = useState<'originals' | 'tailored'>('originals');
@@ -195,6 +200,9 @@ export default function ApplicationsPage() {
           </div>
           {activeTab === 'applications' ? (
             <>
+              {/* Status Filter */}
+              <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+
               {/* Stats */}
               <JobActivityStatsCard
                 stats={stats}
@@ -212,24 +220,67 @@ export default function ApplicationsPage() {
               {applications.length > 0 ? (
                 <div className="space-y-2">
                   <h2 className="text-sm font-semibold text-muted-foreground">Applications</h2>
-                  {applications.map(app => (
-                    <motion.button
-                      key={app.id}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      onClick={() => navigate(`/application/${app.id}`)}
-                      className="glass-card rounded-2xl p-4 flex items-start gap-3 w-full text-left hover:bg-muted/30 transition-colors min-h-[80px]"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center shrink-0">
-                        <FileText className="w-5 h-5 text-secondary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{app.job_title}</p>
-                        <p className="text-xs text-muted-foreground truncate">{app.company}</p>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] shrink-0">{app.status}</Badge>
-                    </motion.button>
-                  ))}
+                  {applications.map(app => {
+                    const isInterviewing = app.status === 'interviewing' || app.status === 'screening';
+                    const remindDue = app.remind_at && isBefore(new Date(app.remind_at), addDays(new Date(), 1));
+                    return (
+                      <motion.div
+                        key={app.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="glass-card rounded-2xl p-4 space-y-2"
+                      >
+                        <button
+                          onClick={() => navigate(`/application/${app.id}`)}
+                          className="flex items-start gap-3 w-full text-left"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-secondary/15 flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-secondary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold truncate">{app.job_title}</p>
+                            <p className="text-xs text-muted-foreground truncate">{app.company}</p>
+                            {app.applied_at && (
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Calendar className="w-3 h-3" />
+                                Applied {format(new Date(app.applied_at), 'MMM d, yyyy')}
+                              </p>
+                            )}
+                            {app.deadline && isInterviewing && (
+                              <p className="text-[11px] text-primary flex items-center gap-1 mt-0.5">
+                                <Calendar className="w-3 h-3" />
+                                Interview: {format(new Date(app.deadline), 'MMM d, h:mm a')}
+                              </p>
+                            )}
+                            {remindDue && (
+                              <Badge variant="secondary" className="text-[10px] mt-1 bg-warning/15 text-warning border-warning/30">
+                                Follow-up due
+                              </Badge>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-[10px] shrink-0">{app.status}</Badge>
+                        </button>
+
+                        {/* Action buttons */}
+                        <div className="flex gap-2 pl-[52px]">
+                          {isInterviewing && (
+                            <button
+                              onClick={() => { haptics.light(); navigate('/interview'); }}
+                              className="flex items-center gap-1 text-[11px] text-primary font-medium px-2 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 transition-colors min-h-[32px] touch-manipulation"
+                            >
+                              <Mic className="w-3 h-3" /> Prep
+                            </button>
+                          )}
+                          <button
+                            onClick={() => { haptics.light(); setFollowUpApp({ company: app.company, jobTitle: app.job_title }); }}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground font-medium px-2 py-1.5 rounded-lg bg-muted/50 hover:bg-muted transition-colors min-h-[32px] touch-manipulation"
+                          >
+                            <Mail className="w-3 h-3" /> Follow-up
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               ) : null}
 
@@ -301,6 +352,14 @@ export default function ApplicationsPage() {
         onFiltersChange={setFilters}
       />
       <SaveJobSheet open={showSaveJob} onOpenChange={setShowSaveJob} />
+      {followUpApp && (
+        <FollowUpEmailSheet
+          open={!!followUpApp}
+          onOpenChange={(open) => { if (!open) setFollowUpApp(null); }}
+          company={followUpApp.company}
+          jobTitle={followUpApp.jobTitle}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { useJobApplication, useJobApplicationMutations, ApplicationStatus } from
 import { useCoverLetter } from '@/hooks/useCoverLetters';
 import { useResumes } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
+import { FollowUpEmailSheet } from '@/components/applications/FollowUpEmailSheet';
 import { toast } from 'sonner';
 import { DetailSkeleton } from '@/components/layout/PageSkeletons';
 
@@ -36,6 +37,7 @@ export default function ApplicationTrackerPage() {
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [showReminder, setShowReminder] = useState(false);
   const [reminderDate, setReminderDate] = useState('');
+  const [showFollowUp, setShowFollowUp] = useState(false);
 
   if (!user) { navigate('/auth'); return null; }
   if (isLoading) return <DetailSkeleton />;
@@ -164,6 +166,23 @@ export default function ApplicationTrackerPage() {
           </button>
         )}
 
+        {/* Quick Actions */}
+        {(app.status === 'interviewing' || app.status === 'screening') && (
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 gap-2" onClick={() => navigate('/interview')}>
+              <Mic className="w-4 h-4" /> Interview Prep
+            </Button>
+            <Button variant="outline" className="flex-1 gap-2" onClick={() => setShowFollowUp(true)}>
+              <Mail className="w-4 h-4" /> Follow-up
+            </Button>
+          </div>
+        )}
+        {app.status !== 'interviewing' && app.status !== 'screening' && (
+          <Button variant="outline" className="w-full gap-2" onClick={() => setShowFollowUp(true)}>
+            <Mail className="w-4 h-4" /> Draft Follow-up Email
+          </Button>
+        )}
+
         {/* Notes */}
         <div className="glass-card rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -230,6 +249,13 @@ export default function ApplicationTrackerPage() {
           <Trash2 className="w-4 h-4" /> Delete Application
         </Button>
       </div>
+
+      <FollowUpEmailSheet
+        open={showFollowUp}
+        onOpenChange={setShowFollowUp}
+        company={app.company}
+        jobTitle={app.job_title}
+      />
     </motion.div>
   );
 }
