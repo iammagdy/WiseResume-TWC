@@ -21,7 +21,6 @@ import { useResumeScore, clearCachedScore } from '@/hooks/useResumeScore';
 import { useResumeStore } from '@/store/resumeStore';
 import { templates } from '@/lib/templateData';
 import { formatDistanceToNow, format } from 'date-fns';
-import { generatePDF } from '@/lib/pdfGenerator';
 import { downloadFile } from '@/lib/downloadUtils';
 import { useResumeShareMutations } from '@/hooks/useResumeShares';
 import { toast } from 'sonner';
@@ -102,6 +101,7 @@ export default function ResumeDetailPage() {
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
       const pdfBlob = await generatePDF(resumeData, dbResume.template_id as TemplateId, hiddenTemplateRef.current, undefined, { showPageNumbers: true });
       const fileName = `${resumeData.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}.pdf`;
       await downloadFile({ blob: pdfBlob, fileName });

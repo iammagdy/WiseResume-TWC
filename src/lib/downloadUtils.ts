@@ -97,11 +97,23 @@ async function downloadIOS(
 }
 
 function downloadMobile(blob: Blob, fileName: string): DownloadResult {
+  // Try anchor download first (works on most Android browsers with correct filename)
   const url = URL.createObjectURL(blob);
-  window.open(url, '_blank');
-  // Revoke after delay to allow download
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return { success: true, method: 'open' };
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return { success: true, method: 'anchor' };
+  } catch {
+    // Fallback to window.open if anchor fails
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return { success: true, method: 'open' };
+  }
 }
 
 function downloadDesktop(blob: Blob, fileName: string): DownloadResult {

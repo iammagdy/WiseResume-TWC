@@ -139,6 +139,49 @@ export function generatePlainText(resume: ResumeData): string {
     lines.push('');
   }
 
+  // Volunteering
+  if (resume.volunteering?.length) {
+    lines.push('VOLUNTEERING');
+    lines.push('-'.repeat(40));
+    for (const vol of resume.volunteering) {
+      lines.push(`${vol.role} | ${vol.organization}`);
+      lines.push(`${vol.startDate} - ${vol.endDate || 'Present'}`);
+      if (vol.description) lines.push(vol.description);
+      lines.push('');
+    }
+  }
+
+  // Publications
+  if (resume.publications?.length) {
+    lines.push('PUBLICATIONS');
+    lines.push('-'.repeat(40));
+    for (const pub of resume.publications) {
+      lines.push(`${pub.title} - ${pub.publisher} (${pub.date})`);
+      if (pub.url) lines.push(pub.url);
+    }
+    lines.push('');
+  }
+
+  // Hobbies
+  if (resume.hobbies?.length) {
+    lines.push('HOBBIES & INTERESTS');
+    lines.push('-'.repeat(40));
+    lines.push(resume.hobbies.join(', '));
+    lines.push('');
+  }
+
+  // References
+  if (resume.references?.length) {
+    lines.push('REFERENCES');
+    lines.push('-'.repeat(40));
+    for (const ref of resume.references) {
+      lines.push(`${ref.name} - ${ref.title}, ${ref.company}`);
+      const contact = [ref.email, ref.phone].filter(Boolean).join(' | ');
+      if (contact) lines.push(contact);
+    }
+    lines.push('');
+  }
+
   return lines.join('\n');
 }
 
