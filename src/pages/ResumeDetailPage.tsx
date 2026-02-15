@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -193,19 +193,38 @@ export default function ResumeDetailPage() {
             <>
               <ScoreRing score={healthScore.overallScore} size={80} />
               <p className="text-sm font-semibold text-muted-foreground tracking-wide">ATS Score</p>
-              <Button
-                size="sm"
-                className="gap-2 min-h-[44px] active:scale-95 transition-transform"
-                onClick={() => {
-                  setCurrentResume(resumeData);
-                  setCurrentResumeId(dbResume.id);
-                  setSelectedTemplate(dbResume.template_id as TemplateId);
-                  setShowEnhance(true);
-                }}
-              >
-                <Zap className="w-4 h-4" />
-                Improve Score
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 min-h-[44px] active:scale-95 transition-transform"
+                  disabled={scoringId === dbResume.id}
+                  onClick={() => {
+                    clearCachedScore(dbResume.id, dbResume.updated_at);
+                    scoreResume(dbResume.id, resumeData, dbResume.updated_at);
+                  }}
+                >
+                  {scoringId === dbResume.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  Re-score
+                </Button>
+                <Button
+                  size="sm"
+                  className="gap-2 min-h-[44px] active:scale-95 transition-transform"
+                  onClick={() => {
+                    setCurrentResume(resumeData);
+                    setCurrentResumeId(dbResume.id);
+                    setSelectedTemplate(dbResume.template_id as TemplateId);
+                    setShowEnhance(true);
+                  }}
+                >
+                  <Zap className="w-4 h-4" />
+                  Improve Score
+                </Button>
+              </div>
             </>
           ) : (
             <Button
