@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, Phone } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { InputFormField } from '@/components/ui/form-field';
@@ -11,33 +11,27 @@ import { lovable } from '@/integrations/lovable/index';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { AuthMethodToggle } from '@/components/auth/AuthMethodToggle';
 import { AppIcon } from '@/components/brand/AppIcon';
 
 const emailSchema = z.string().email('Please enter a valid email');
 const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
-const phoneSchema = z.string().regex(/^\+?[1-9]\d{6,14}$/, 'Enter a valid phone number (e.g. +1234567890)');
 
 type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
-type AuthMethod = 'email' | 'phone';
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
-  const [authMethod, setAuthMethod] = useState<AuthMethod>('email');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
-  const [touched, setTouched] = useState<{ email: boolean; phone: boolean; password: boolean; confirmPassword: boolean }>({
+  const [touched, setTouched] = useState<{ email: boolean; password: boolean; confirmPassword: boolean }>({
     email: false,
-    phone: false,
     password: false,
     confirmPassword: false,
   });
@@ -49,11 +43,6 @@ export default function AuthPage() {
     catch (e) { return e instanceof z.ZodError ? e.errors[0]?.message : 'Invalid email'; }
   };
 
-  const getPhoneError = (): string | undefined => {
-    if (!phone) return 'Phone number is required';
-    try { phoneSchema.parse(phone); return undefined; }
-    catch (e) { return e instanceof z.ZodError ? e.errors[0]?.message : 'Invalid phone'; }
-  };
 
   const getPasswordError = (): string | undefined => {
     if (!password) return 'Password is required';
@@ -62,7 +51,6 @@ export default function AuthPage() {
   };
 
   const emailError = getEmailError();
-  const phoneError = getPhoneError();
   const passwordError = getPasswordError();
 
   // Detect password reset callback
@@ -86,13 +74,8 @@ export default function AuthPage() {
   }, [session, navigate, mode]);
 
   const validateInputs = (): boolean => {
-    if (authMethod === 'email') {
-      setTouched({ email: true, phone: false, password: true, confirmPassword: false });
-      return !emailError && !passwordError;
-    } else {
-      setTouched({ email: false, phone: true, password: true, confirmPassword: false });
-      return !phoneError && !passwordError;
-    }
+    setTouched({ email: true, password: true, confirmPassword: false });
+    return !emailError && !passwordError;
   };
 
   const validateEmail = (): boolean => {
@@ -107,10 +90,7 @@ export default function AuthPage() {
 
     try {
       if (mode === 'login') {
-        const credentials = authMethod === 'email'
-          ? { email, password }
-          : { phone, password };
-        const { error } = await supabase.auth.signInWithPassword(credentials);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) {
           toast.error(error.message.includes('Invalid login credentials') ? 'Invalid credentials' : error.message);
           return;
@@ -118,10 +98,7 @@ export default function AuthPage() {
         toast.success('Welcome back!');
         setTimeout(() => navigate('/dashboard'), 600);
       } else {
-        const signUpData = authMethod === 'email'
-          ? { email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } }
-          : { phone, password };
-        const { data, error } = await supabase.auth.signUp(signUpData);
+        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
         if (error) {
           toast.error(error.message.includes('already registered') ? 'Already registered. Please sign in.' : error.message);
           return;
@@ -307,30 +284,16 @@ export default function AuthPage() {
             </form>
           ) : (
             <>
-              {/* Auth Method Toggle */}
-              <AuthMethodToggle value={authMethod} onChange={setAuthMethod} />
-
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  {authMethod === 'email' ? (
-                    <InputFormField
-                      id="email" label="Email" type="email"
-                      icon={<Mail className="w-4 h-4" />}
-                      value={email} onChange={setEmail}
-                      onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
-                      placeholder="you@example.com" autoComplete="email"
-                      error={emailError} touched={touched.email} required
-                    />
-                  ) : (
-                    <InputFormField
-                      id="phone" label="Phone Number" type="tel"
-                      icon={<Phone className="w-4 h-4" />}
-                      value={phone} onChange={setPhone}
-                      onBlur={() => setTouched(prev => ({ ...prev, phone: true }))}
-                      placeholder="+1234567890" autoComplete="tel"
-                      error={phoneError} touched={touched.phone} required
-                    />
-                  )}
+                  <InputFormField
+                    id="email" label="Email" type="email"
+                    icon={<Mail className="w-4 h-4" />}
+                    value={email} onChange={setEmail}
+                    onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
+                    placeholder="you@example.com" autoComplete="email"
+                    error={emailError} touched={touched.email} required
+                  />
                 </div>
 
                 <div>
