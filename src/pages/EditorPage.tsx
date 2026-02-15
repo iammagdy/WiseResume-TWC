@@ -792,7 +792,7 @@ export default function EditorPage() {
               className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95"
             >
               <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium">ATS:</span>
+              <span className="text-xs font-medium">Completeness:</span>
               <span className={cn('text-xs font-bold', getScoreColorClass(overallScore))}>{overallScore}/100</span>
               {showATSBadge ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
             </button>

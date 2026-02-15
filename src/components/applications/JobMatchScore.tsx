@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { JobMatchResult } from '@/lib/jobMatchScorer';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { Scissors } from 'lucide-react';
+import { Scissors, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -41,11 +41,15 @@ export function JobMatchScore({ score, jobTitle }: Props) {
       <Sheet open={showDetail} onOpenChange={setShowDetail}>
         <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
           <SheetHeader>
-            <SheetTitle>Match Score: {score.overall}%</SheetTitle>
+            <SheetTitle>Keyword Match: {score.overall}%</SheetTitle>
             {jobTitle && <p className="text-sm text-muted-foreground">{jobTitle}</p>}
           </SheetHeader>
 
           <div className="space-y-4 mt-4 overflow-y-auto">
+            <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+              <Info className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              <span>This score is based on keyword overlap between your resume and the job description. It's a quick heuristic, not a deep AI analysis.</span>
+            </div>
             {/* Score bars */}
             <div className="space-y-3">
               <ScoreBar label="Skills Match" value={score.skillMatch} />
