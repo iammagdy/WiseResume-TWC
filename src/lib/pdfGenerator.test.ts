@@ -188,8 +188,8 @@ describe("pdfGenerator", () => {
   describe("calculatePDFDimensions", () => {
     it("should return correct dimensions", () => {
       vi.spyOn(window, "getComputedStyle").mockReturnValue({
-        width: "612px", // PAGE_WIDTH
-        height: "792px", // PAGE_HEIGHT
+        width: "612px", // DEFAULT_PAGE_WIDTH
+        height: "792px", // DEFAULT_PAGE_HEIGHT
       } as any);
       Object.defineProperty(mockElement, 'offsetWidth', { value: 612, configurable: true });
       Object.defineProperty(mockElement, 'scrollHeight', { value: 792, configurable: true });
@@ -200,7 +200,7 @@ describe("pdfGenerator", () => {
       expect(dims.sourceWidth).toBe(612);
       expect(dims.totalHeight).toBe(792);
       expect(dims.globalScaleFactor).toBe(1);
-      // PAGE_HEIGHT (792) - FOOTER_RESERVED (44) = 748
+      // DEFAULT_PAGE_HEIGHT (792) - FOOTER_RESERVED (44) = 748
       expect(dims.sourceHeightPerPage).toBe(748);
     });
   });
