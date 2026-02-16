@@ -374,7 +374,7 @@ export default function SettingsPage() {
                 type="navigation"
                 label="AI Provider"
                 description="Powers analysis, tailoring, and enhancements"
-                value={aiProvider === 'wiseresume' ? 'WiseResume AI' : 'Gemini'}
+                value={aiProvider === 'wiseresume' ? 'Wise AI' : 'Gemini'}
                 icon={<Brain className="w-4 h-4" />}
                 onClick={() => setAISettingsOpen(true)}
               />
