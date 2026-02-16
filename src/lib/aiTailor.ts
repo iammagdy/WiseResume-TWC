@@ -2,6 +2,10 @@ import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress,
 import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
 
+export interface TailorError extends Error {
+  code?: 'rate_limit' | 'credits_exhausted' | 'generic';
+}
+
 export interface TailorResult {
   summary: string;
   skills: string[];
@@ -98,10 +102,23 @@ export async function tailorResumeWithProgress(
 
     if (error) {
       console.error('Tailor resume error:', error);
-      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+      const msg = error.message || '';
+      if (msg.includes('401') || msg.includes('Unauthorized')) {
         throw new Error('Unauthorized. Please log in again.');
       }
-      throw new Error('Failed to tailor resume');
+      if (msg.includes('429') || msg.toLowerCase().includes('rate limit')) {
+        const e = new Error('Our AI servers are experiencing high demand. Please try again in a moment or use your own Gemini API key for uninterrupted access.');
+        (e as TailorError).code = 'rate_limit';
+        throw e;
+      }
+      if (msg.includes('402') || msg.toLowerCase().includes('credits')) {
+        const e = new Error('Your AI credits have been used up for today. Add your own Gemini API key for unlimited access.');
+        (e as TailorError).code = 'credits_exhausted';
+        throw e;
+      }
+      const e = new Error(msg || 'Failed to tailor resume');
+      (e as TailorError).code = 'generic';
+      throw e;
     }
 
     // Track usage for Gemini free tier

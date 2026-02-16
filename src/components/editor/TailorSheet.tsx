@@ -2,14 +2,14 @@ import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
   History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
-  Zap, Gauge, Flame, AlertTriangle
+  Zap, Gauge, Flame, AlertTriangle, HeartHandshake, Key, RefreshCw, Bug, X, Settings
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useResumeStore } from '@/store/resumeStore';
-import { tailorResumeWithProgress, TailorIntensity } from '@/lib/aiTailor';
+import { tailorResumeWithProgress, TailorIntensity, TailorError } from '@/lib/aiTailor';
 import { toast } from 'sonner';
 import { CompareSheet } from './CompareSheet';
 import { TailorProgressComponent } from './tailor/TailorProgress';
@@ -26,6 +26,8 @@ import { SmartSkillSuggestions } from './tailor/SmartSkillSuggestions';
 import { MultiJobCompareSheet } from './tailor/MultiJobCompareSheet';
 import { KeywordHeatmap } from './tailor/KeywordHeatmap';
 import { QuickActions } from './tailor/QuickActions';
+import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
+import { reportBug } from '@/lib/bugReport';
 
 import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
@@ -111,6 +113,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const [isApplying, setIsApplying] = useState(false);
   const [jobUrl, setJobUrl] = useState<string | undefined>(undefined);
   const autoTailorTriggered = useRef(false);
+  const [tailorError, setTailorError] = useState<{ message: string; code?: string } | null>(null);
+  const [showAISettings, setShowAISettings] = useState(false);
 
   // Section toggles
   const [enabledSections, setEnabledSections] = useState<TailorSectionId[]>([
@@ -136,6 +140,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       return;
     }
 
+    setTailorError(null);
     setIsTailoring(true);
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
@@ -161,7 +166,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       toast.success('Resume tailored successfully!');
     } catch (error) {
       console.error('Tailor error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to tailor resume');
+      const err = error as TailorError;
+      const code = err.code || 'generic';
+      if (err.message?.includes('Unauthorized') || err.message?.includes('log in')) {
+        toast.error(err.message);
+      } else {
+        setTailorError({ message: err.message || 'Failed to tailor resume', code });
+      }
     } finally {
       setIsTailoring(false);
       setProgress(null);
@@ -385,16 +396,26 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               <Wand2 className="w-5 h-5 text-primary" />
               AI Resume Tailor
             </SheetTitle>
-            {tailorHistory.length > 0 && (
+            <div className="flex items-center gap-1">
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => setShowHistory(true)}
+                onClick={() => setShowAISettings(true)}
+                className="text-muted-foreground"
               >
-                <History className="w-4 h-4 mr-1" />
-                History
+                <Settings className="w-4 h-4" />
               </Button>
-            )}
+              {tailorHistory.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowHistory(true)}
+                >
+                  <History className="w-4 h-4 mr-1" />
+                  History
+                </Button>
+              )}
+            </div>
           </div>
         </SheetHeader>
 
@@ -406,6 +427,63 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               projectedScore={tailorResult?.overallScore}
               matchingKeywords={tailorResult?.missingSkills?.length}
             />
+          )}
+
+          {/* Inline Error Card */}
+          {tailorError && !isTailoring && (
+            <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-4 animate-fade-in">
+              <div className="flex items-start justify-between">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                    <HeartHandshake className="w-5 h-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-sm">We've Got Your Back</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {tailorError.code === 'rate_limit'
+                        ? 'Our AI servers are experiencing high demand. This is temporary.'
+                        : tailorError.code === 'credits_exhausted'
+                        ? 'Your daily AI credits have been used up.'
+                        : "Something went wrong, but we're on it."}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setTailorError(null)}
+                  className="text-muted-foreground hover:text-foreground p-1 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                {tailorError.message}
+              </p>
+
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => { setTailorError(null); handleTailor(); }} className="min-h-[44px] active:scale-95 transition-transform">
+                  <RefreshCw className="w-4 h-4 mr-1.5" />
+                  Try Again
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowAISettings(true)} className="min-h-[44px] active:scale-95 transition-transform">
+                  <Key className="w-4 h-4 mr-1.5" />
+                  Use Your Own Key
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => reportBug(new Error(tailorError.message), 'Tailor resume failed')}
+                  className="min-h-[44px] active:scale-95 transition-transform text-muted-foreground"
+                >
+                  <Bug className="w-4 h-4 mr-1.5" />
+                  Report
+                </Button>
+              </div>
+
+              <p className="text-xs text-muted-foreground/70 italic">
+                💡 Tip: Adding your own Gemini API key gives you unlimited, uninterrupted access
+              </p>
+            </div>
           )}
 
           {/* Results */}
@@ -454,13 +532,25 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       selectedSections={enabledSections}
                     />
                   ) : (
-                    <div className="p-4 rounded-xl bg-muted/50 border border-border/50 flex items-start gap-3">
-                      <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Score unavailable</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          AI couldn't calculate scores for this analysis. The tailored content is still valid.
-                        </p>
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-3">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Score couldn't be calculated</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Our servers are experiencing high demand right now. Your tailored content is 100% valid — only the score couldn't be calculated.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={handleTailor}>
+                          <RefreshCw className="w-3 h-3 mr-1" />
+                          Retry Score
+                        </Button>
+                        <Button size="sm" variant="ghost" className="text-xs h-8" onClick={() => setShowAISettings(true)}>
+                          <Key className="w-3 h-3 mr-1" />
+                          Use Your Own Key
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -839,6 +929,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         }}
       />
 
+      {/* AI Settings Sheet */}
+      <AISettingsSheet open={showAISettings} onOpenChange={setShowAISettings} />
     </Sheet>
   );
 });
