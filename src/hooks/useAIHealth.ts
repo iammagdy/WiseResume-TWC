@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { useSettingsStore } from '@/store/settingsStore';
 
 export type AIHealthStatus = 'healthy' | 'degraded' | 'down' | 'checking';
@@ -12,7 +11,17 @@ export interface AIHealthData {
   errorCode: number | null;
 }
 
-const POLL_INTERVAL = 60_000; // 60s
+// Adaptive intervals
+const POLL_HEALTHY = 300_000;  // 5 min
+const POLL_DEGRADED = 60_000;  // 1 min
+const POLL_DOWN = 30_000;      // 30s
+const CONSECUTIVE_FAILS_THRESHOLD = 2;
+
+function getInterval(status: AIHealthStatus) {
+  if (status === 'down') return POLL_DOWN;
+  if (status === 'degraded') return POLL_DEGRADED;
+  return POLL_HEALTHY;
+}
 
 export function useAIHealth() {
   const [health, setHealth] = useState<AIHealthData>({
@@ -27,7 +36,9 @@ export function useAIHealth() {
   const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const toastShownRef = useRef(false);
+  const failCountRef = useRef(0);
+  const hasEverBeenHealthyRef = useRef(false);
+  const isInitialCheckRef = useRef(true);
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -45,45 +56,67 @@ export function useAIHealth() {
       });
 
       if (!resp.ok) {
+        failCountRef.current++;
+        const resolvedStatus = failCountRef.current >= CONSECUTIVE_FAILS_THRESHOLD ? 'down' : 'degraded';
         setHealth({
-          status: 'down',
+          status: resolvedStatus,
           latencyMs: null,
           lastChecked: new Date(),
           provider: useGemini ? 'gemini' : 'wiseresume',
           errorCode: resp.status,
         });
+        isInitialCheckRef.current = false;
         return;
       }
 
       const data = await resp.json();
+      const incomingStatus = data.status as AIHealthStatus;
+
+      // On success, reset fail count
+      failCountRef.current = 0;
+      if (incomingStatus === 'healthy') {
+        hasEverBeenHealthyRef.current = true;
+      }
+
       setHealth({
-        status: data.status as AIHealthStatus,
+        status: incomingStatus,
         latencyMs: data.latencyMs,
         lastChecked: new Date(data.timestamp),
         provider: data.provider,
         errorCode: data.errorCode,
       });
     } catch {
+      failCountRef.current++;
+      const resolvedStatus = failCountRef.current >= CONSECUTIVE_FAILS_THRESHOLD ? 'down' : 'degraded';
       setHealth((prev) => ({
         ...prev,
-        status: 'down',
+        status: resolvedStatus,
         lastChecked: new Date(),
         errorCode: 0,
       }));
     }
+    isInitialCheckRef.current = false;
   }, [aiProvider, geminiApiKey, geminiKeyValidated]);
 
+  // Adaptive polling: restart interval whenever status changes
   useEffect(() => {
     fetchHealth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchHealth]);
 
-    intervalRef.current = setInterval(fetchHealth, POLL_INTERVAL);
+  useEffect(() => {
+    if (health.status === 'checking') return;
+
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(fetchHealth, getInterval(health.status));
 
     const handleVisibility = () => {
       if (document.hidden) {
         if (intervalRef.current) clearInterval(intervalRef.current);
       } else {
         fetchHealth();
-        intervalRef.current = setInterval(fetchHealth, POLL_INTERVAL);
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = setInterval(fetchHealth, getInterval(health.status));
       }
     };
 
@@ -93,7 +126,7 @@ export function useAIHealth() {
       if (intervalRef.current) clearInterval(intervalRef.current);
       document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [fetchHealth]);
+  }, [health.status, fetchHealth]);
 
-  return { ...health, refetch: fetchHealth, toastShownRef };
+  return { ...health, refetch: fetchHealth, hasEverBeenHealthyRef };
 }
