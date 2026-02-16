@@ -42,7 +42,7 @@ export function scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult {
   const jobKeywords = extractKeywords(jobText);
 
   // Build resume keyword pool
-  const resumeSkills = (resume.skills || []).map(s => s.toLowerCase());
+  const resumeSkills = (resume.skills || []).map(s => (typeof s === 'string' ? s : (s as any)?.name || '').toLowerCase()).filter(Boolean);
   const resumeText = [
     resume.summary,
     ...resume.experience.map(e => `${e.position} ${e.description} ${(e.achievements || []).join(' ')}`),
