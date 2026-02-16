@@ -82,6 +82,54 @@ export type Database = {
           },
         ]
       }
+      bug_reports: {
+        Row: {
+          additional_context: string | null
+          app_version: string | null
+          component_stack: string | null
+          created_at: string | null
+          error_message: string
+          error_stack: string | null
+          id: string
+          route: string | null
+          session_id: string | null
+          status: string | null
+          user_agent: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          additional_context?: string | null
+          app_version?: string | null
+          component_stack?: string | null
+          created_at?: string | null
+          error_message: string
+          error_stack?: string | null
+          id?: string
+          route?: string | null
+          session_id?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          additional_context?: string | null
+          app_version?: string | null
+          component_stack?: string | null
+          created_at?: string | null
+          error_message?: string
+          error_stack?: string | null
+          id?: string
+          route?: string | null
+          session_id?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       career_assessments: {
         Row: {
           completed_milestones: Json

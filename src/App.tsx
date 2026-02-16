@@ -15,6 +15,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { BugReportDialog } from "@/components/BugReportDialog";
 import {
   DashboardSkeleton,
   EditorSkeleton,
@@ -156,16 +157,17 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-       <ErrorBoundary>
-         <Toaster />
-         <BrowserRouter>
-           <AuthProvider>
-             <AppRoutes />
-             <CommandPalette />
-             <InstallPrompt />
-           </AuthProvider>
-         </BrowserRouter>
-       </ErrorBoundary>
+        <ErrorBoundary>
+          <Toaster />
+          <BugReportDialog />
+          <BrowserRouter>
+            <AuthProvider>
+              <AppRoutes />
+              <CommandPalette />
+              <InstallPrompt />
+            </AuthProvider>
+          </BrowserRouter>
+        </ErrorBoundary>
     </TooltipProvider>
   </QueryClientProvider>
 );
