@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -18,7 +18,6 @@ import {
   Clock,
   Key,
   ArrowLeft,
-  ArrowUp,
   Brain,
   Mic,
   Globe,
@@ -30,14 +29,11 @@ import {
   Lock,
   Check,
   BookOpen,
-  Users,
   Palette,
   X,
   Cloud,
   CloudOff,
   Github,
-  Linkedin,
-  Twitter,
   Moon,
   KeyRound,
   FileText,
@@ -48,8 +44,6 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/settings/ThemeToggle';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -68,6 +62,8 @@ import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, A
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
+import { useCoverLetters } from '@/hooks/useCoverLetters';
+import { useJobApplications } from '@/hooks/useJobApplications';
 import { useSettingsStore } from '@/store/settingsStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useResumeStore } from '@/store/resumeStore';
@@ -96,6 +92,8 @@ export default function SettingsPage() {
   const { user, loading, signOut } = useAuth();
   const { profile, loading: profileLoading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
+  const { data: coverLetters = [] } = useCoverLetters();
+  const { data: applications = [] } = useJobApplications();
   const { currentResumeId } = useResumeStore();
   
   const {
@@ -130,60 +128,6 @@ export default function SettingsPage() {
  
   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
 
-  // Scroll enhancements
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-  const [activeSection, setActiveSection] = useState('section-appearance');
-
-  const SECTIONS = [
-    { id: 'section-appearance', label: 'Appearance', icon: Palette },
-    { id: 'section-ai-voice', label: 'AI & Voice', icon: Brain },
-    { id: 'section-editor-export', label: 'Editor & Export', icon: Download },
-    { id: 'section-notifications', label: 'Notifications', icon: Bell },
-    { id: 'section-privacy', label: 'Privacy & Security', icon: Shield },
-    { id: 'section-account', label: 'Account', icon: LogOut },
-    { id: 'section-about', label: 'About & Help', icon: Info },
-  ];
-
-  const handleScroll = useCallback(() => {
-    if (scrollRef.current) {
-      setShowScrollTop(scrollRef.current.scrollTop > 300);
-    }
-  }, []);
-
-  const scrollToTop = useCallback(() => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, []);
-
-  const scrollToSection = useCallback((sectionId: string) => {
-    const el = scrollRef.current?.querySelector(`#${sectionId}`);
-    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    haptics.selection();
-  }, []);
-
-  useEffect(() => {
-    const container = scrollRef.current;
-    if (!container) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            setActiveSection(entry.target.id);
-          }
-        });
-      },
-      { root: container, threshold: 0.1, rootMargin: '-80px 0px -80% 0px' }
-    );
-
-    SECTIONS.forEach(({ id }) => {
-      const el = container.querySelector(`#${id}`);
-      if (el) observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
   // Sheet states
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -196,7 +140,6 @@ export default function SettingsPage() {
   const [aiSettingsOpen, setAISettingsOpen] = useState(false);
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
-  const [showJumpSheet, setShowJumpSheet] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   // Dynamic changelog
@@ -332,78 +275,22 @@ export default function SettingsPage() {
   return (
     <div className="flex-1 flex flex-col">
       <div className="flex-1 flex flex-col">
-        {/* Header */}
+        {/* Header - clean, no hamburger */}
         <header className="pt-safe sticky top-0 z-10 pt-4 pb-3 px-4 glass-header backdrop-blur-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => navigate('/dashboard')}
-                className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-                aria-label="Go back"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <h1 className="text-xl font-bold">Settings</h1>
-            </div>
-            <button
-              onClick={() => { haptics.light(); setShowJumpSheet(true); }}
-              className="flex h-9 items-center gap-2 border border-border/60 bg-background/80 backdrop-blur-md px-3 text-sm font-medium text-foreground rounded-lg min-h-[44px] touch-manipulation active:scale-95"
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => navigate('/dashboard')}
+              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+              aria-label="Go back"
             >
-              <Menu className="w-4 h-4" />
-              <span className="hidden sm:inline">Sections</span>
+              <ArrowLeft className="w-6 h-6" />
             </button>
-            <Sheet open={showJumpSheet} onOpenChange={setShowJumpSheet}>
-              <SheetContent side="bottom" className="max-h-[70dvh] overflow-y-auto pb-safe">
-                <SheetHeader>
-                  <SheetTitle>Jump to Section</SheetTitle>
-                </SheetHeader>
-                <div className="space-y-1 mt-3">
-                  {SECTIONS.map(s => {
-                    const Icon = s.icon;
-                    return (
-                      <SectionJumpButton
-                        key={s.id}
-                        sectionId={s.id}
-                        label={s.label}
-                        icon={<Icon className="w-5 h-5" />}
-                        isActive={activeSection === s.id}
-                        onSelect={scrollToSection}
-                        onClose={() => setShowJumpSheet(false)}
-                      />
-                    );
-                  })}
-                </div>
-              </SheetContent>
-            </Sheet>
+            <h1 className="text-xl font-bold">Settings</h1>
           </div>
         </header>
 
-        <div ref={scrollRef} onScroll={handleScroll} style={{ scrollBehavior: 'smooth' }} className="flex-1 overflow-y-auto px-5 py-4 space-y-8">
-          {/* Section jump bar */}
-          <div className="flex gap-2 overflow-x-auto -mx-5 px-5 pb-2 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
-            {SECTIONS.map(s => {
-              const SectionIcon = s.icon;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    haptics.selection();
-                    const el = scrollRef.current?.querySelector(`#${s.id}`);
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-full text-xs font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 shrink-0",
-                    activeSection === s.id
-                      ? "bg-primary text-primary-foreground"
-                      : "glass-elevated text-muted-foreground"
-                  )}
-                >
-                  <SectionIcon className="w-3.5 h-3.5" />
-                  {s.label}
-                </button>
-              );
-            })}
-          </div>
+        {/* Content - no inner scroll container, AppShell handles scrolling */}
+        <div className="px-5 py-4 space-y-8">
           {/* Guest CTA */}
           {!user && <GuestCtaCard navigate={navigate} />}
           
@@ -568,7 +455,6 @@ export default function SettingsPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-4 pb-4 space-y-3">
-                    {/* Page numbers toggle */}
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                       <div className="space-y-0.5">
                         <Label htmlFor="settings-page-numbers" className="text-sm font-medium">Show Page Numbers</Label>
@@ -583,7 +469,6 @@ export default function SettingsPage() {
                         }}
                       />
                     </div>
-                    {/* Page number format */}
                     {pdfDefaults.showPageNumbers !== false && (
                       <div className="p-3 rounded-xl bg-muted/50 space-y-2">
                         <Label className="text-sm font-medium">Format</Label>
@@ -613,7 +498,6 @@ export default function SettingsPage() {
                         </div>
                       </div>
                     )}
-                    {/* Branding toggle */}
                     <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50">
                       <div className="space-y-0.5">
                         <Label htmlFor="settings-branding" className="text-sm font-medium flex items-center gap-1.5">
@@ -847,13 +731,7 @@ export default function SettingsPage() {
             </div>
             
             <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
-              Your resumes are stored securely and never sold to third parties.{' '}
-              <button
-                onClick={() => openExternal('https://magdysaber.com/privacy')}
-                className="text-primary underline underline-offset-2 touch-manipulation"
-              >
-                Privacy Policy
-              </button>
+              Your resumes are stored securely and never sold to third parties.
             </p>
           </div>
 
@@ -869,7 +747,7 @@ export default function SettingsPage() {
                 </h2>
                 <p className="text-xs text-muted-foreground mb-3 px-1">Manage your account and data</p>
                 
-                {/* Account Stats */}
+                {/* Account Stats - wired to real data */}
                 <div className="rounded-2xl glass-elevated overflow-hidden p-4 mb-3">
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div>
@@ -877,11 +755,11 @@ export default function SettingsPage() {
                       <p className="text-[10px] text-muted-foreground">Resumes</p>
                     </div>
                     <div>
-                      <p className="text-lg font-bold text-primary">—</p>
+                      <p className="text-lg font-bold text-primary">{coverLetters.length}</p>
                       <p className="text-[10px] text-muted-foreground">Cover Letters</p>
                     </div>
                     <div>
-                      <p className="text-lg font-bold text-primary">—</p>
+                      <p className="text-lg font-bold text-primary">{applications.length}</p>
                       <p className="text-[10px] text-muted-foreground">Applications</p>
                     </div>
                   </div>
@@ -992,56 +870,39 @@ export default function SettingsPage() {
             />
           </Suspense>
 
-          {/* Footer */}
-          <div className="text-center pt-2 pb-10 space-y-2">
-            <button
-              onClick={() => setChangelogOpen(true)}
-              className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors touch-manipulation"
-            >
-              WiseResume {appVersion}
-            </button>
-
-            <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
-              <button onClick={() => openExternal('https://magdysaber.com/privacy')} className="hover:text-primary transition-colors touch-manipulation">Privacy</button>
-              <span>·</span>
-              <button onClick={() => openExternal('https://magdysaber.com/terms')} className="hover:text-primary transition-colors touch-manipulation">Terms</button>
-              <span>·</span>
-              <button onClick={() => setChangelogOpen(true)} className="hover:text-primary transition-colors touch-manipulation">Changelog</button>
+          {/* Branded Footer */}
+          <div className="pt-2 pb-10">
+            <div className="rounded-2xl glass-elevated p-4 flex flex-col items-center gap-3">
+              <div className="flex items-center gap-3">
+                <AppIcon size={28} showSparkle={false} />
+                <button
+                  onClick={() => setChangelogOpen(true)}
+                  className="text-sm font-medium text-foreground hover:text-primary transition-colors touch-manipulation"
+                >
+                  WiseResume {appVersion}
+                </button>
+                <button
+                  onClick={() => openExternal('https://github.com/iammagdy')}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation active:scale-95"
+                  aria-label="GitHub"
+                >
+                  <Github className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>Crafted in Cairo, Egypt</span>
+                <span>🇪🇬</span>
+              </div>
+              <button
+                onClick={() => setChangelogOpen(true)}
+                className="text-[10px] text-muted-foreground/60 hover:text-primary transition-colors touch-manipulation"
+              >
+                Changelog
+              </button>
             </div>
-
-            <div className="flex items-center justify-center gap-1">
-              <button onClick={() => openExternal('https://x.com/magdysaber')} className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
-                <Twitter className="w-4 h-4" />
-              </button>
-              <button onClick={() => openExternal('https://linkedin.com/in/magdysaber')} className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
-                <Linkedin className="w-4 h-4" />
-              </button>
-              <button onClick={() => openExternal('https://github.com/magdysaber')} className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation">
-                <Github className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-muted-foreground">Made in 🇪🇬</p>
           </div>
         </div>
       </div>
-
-      {/* Scroll-to-top FAB */}
-      <AnimatePresence>
-        {showScrollTop && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
-            onClick={scrollToTop}
-            className="fixed bottom-24 right-5 z-20 w-11 h-11 rounded-full glass-elevated flex items-center justify-center text-primary shadow-lg active:scale-95 transition-transform touch-manipulation border border-border/30"
-            aria-label="Scroll to top"
-          >
-            <ArrowUp className="w-5 h-5" />
-          </motion.button>
-        )}
-      </AnimatePresence>
 
       {/* Sheets and Dialogs */}
       <Suspense fallback={null}>
@@ -1055,7 +916,6 @@ export default function SettingsPage() {
             onSave={updateProfile}
           />
         )}
-        {/* PDFDefaultsSheet removed — controls are now inline */}
         {dataExportSheetOpen && (
           <DataExportSheet
             open={dataExportSheetOpen}
@@ -1288,30 +1148,5 @@ function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
         </motion.div>
       )}
     </AnimatePresence>
-  );
-}
-
-function SectionJumpButton({ sectionId, label, icon, isActive, onSelect, onClose }: {
-  sectionId: string;
-  label: string;
-  icon: React.ReactNode;
-  isActive: boolean;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <button
-      onClick={() => {
-        onSelect(sectionId);
-        onClose();
-      }}
-      className={cn(
-        "flex w-full items-center gap-3 rounded-xl px-3 py-3 min-h-[44px] text-left text-sm font-medium transition-all touch-manipulation active:scale-95",
-        isActive ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted"
-      )}
-    >
-      <span className={isActive ? "text-primary" : "text-muted-foreground"}>{icon}</span>
-      {label}
-    </button>
   );
 }
