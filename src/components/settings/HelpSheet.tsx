@@ -1,7 +1,8 @@
-import { BookOpen, Mail, Users } from 'lucide-react';
+import { BookOpen, Mail, MessageCircle, Bug } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { SettingsRow } from './SettingsRow';
 import { Separator } from '@/components/ui/separator';
+import { openExternal } from '@/lib/openExternal';
 
 interface HelpSheetProps {
   open: boolean;
@@ -19,26 +20,26 @@ export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
         <div className="flex flex-col min-h-0 overflow-y-auto rounded-2xl glass-elevated">
           <SettingsRow
             type="navigation"
-            label="Documentation"
-            description="Browse guides and FAQs"
+            label="Documentation & FAQ"
+            description="Guides, tips, and frequently asked questions"
             icon={<BookOpen className="w-4 h-4" />}
-            onClick={() => window.open('https://docs.lovable.dev', '_blank')}
+            onClick={() => openExternal('https://magdysaber.com/wiseresume/docs')}
           />
           <Separator className="bg-border/30" />
           <SettingsRow
             type="navigation"
             label="Email Support"
-            description="contact@magdysaber.com"
+            description="We typically respond within 24 hours"
             icon={<Mail className="w-4 h-4" />}
-            onClick={() => window.open('mailto:contact@magdysaber.com')}
+            onClick={() => openExternal('mailto:support@magdysaber.com?subject=WiseResume%20Support')}
           />
           <Separator className="bg-border/30" />
           <SettingsRow
             type="navigation"
-            label="Community"
-            description="Join the Discord community"
-            icon={<Users className="w-4 h-4" />}
-            onClick={() => window.open('https://discord.gg/lovable-dev', '_blank')}
+            label="Feature Requests"
+            description="Suggest improvements or vote on ideas"
+            icon={<MessageCircle className="w-4 h-4" />}
+            onClick={() => openExternal('https://magdysaber.com/wiseresume/feedback')}
           />
         </div>
       </SheetContent>
