@@ -890,7 +890,7 @@ export default function SettingsPage() {
                 </button>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span>Crafted in Cairo, Egypt</span>
+                <span>Crafted with vision in Egypt.</span>
                 <span>🇪🇬</span>
               </div>
               <button
