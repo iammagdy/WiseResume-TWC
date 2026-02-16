@@ -1,52 +1,32 @@
 
 
-## Fix: AI Features Still Failing in APK (CORS Null Origin)
+## Generate a Professional "Wise AI" Logo
 
-### Root Cause
-Capacitor Android's WebView sends requests with a **`null`** or empty `Origin` header (not `http://localhost` as expected). The current CORS logic falls through to returning `http://localhost:8080` as the allowed origin, which doesn't match `null`, so the browser blocks the response.
+### Concept
+Using AI image generation (Gemini image model), I will create a minimal, professional logo that combines:
+- **Half brain / half circuit board** motif (as in your reference)
+- **"Wise AI" text** integrated into the design
+- **App theme colors**: Red (hue 355) primary with dark background compatibility
+- **Minimal style**: Clean lines, no excessive detail, works at small sizes (bottom tab bar) and large sizes (AI Studio header)
 
-### The Fix (1 file)
+### Approach
+1. **Generate the logo** using the `google/gemini-2.5-flash-image` model via a backend function, providing a detailed prompt describing: minimal brain-circuit hybrid, "Wise AI" text, red primary color with cyan/white accents matching the app icon's sparkle, transparent-friendly design
+2. **Save the generated image** as `src/assets/wise-ai-icon.png` (replacing the current one)
+3. **Verify it renders** in the bottom tab bar and AI Studio page
 
-**`supabase/functions/_shared/cors.ts`** -- Also treat null/empty origins as allowed (typical of native app WebViews):
+### Design Direction
+- Symmetrical brain split: left side = organic brain curves, right side = geometric circuit traces
+- "WISE AI" centered text with a small sparkle on the "i" (matching your reference)
+- Red (#E53E3E matching primary hue 355) for the brain, with subtle gray/silver circuit lines
+- Clean edges so it reads well at 40x40px in the tab bar
+- No background fill (works on both dark and light surfaces)
 
-```typescript
-const ALLOWED_ORIGINS = [
-  'http://localhost:8080',
-  'http://localhost:3000',
-  'http://localhost',
-  'capacitor://localhost',
-  'https://wiseresume.lovable.app',
-  'https://wiseresume.magdysaber.com',
-];
+### Technical Steps
+1. Call AI image generation with the design prompt
+2. Save the result to `src/assets/wise-ai-icon.png`
+3. No code changes needed -- the existing BottomTabBar and AI Studio already reference this file
 
-export const getCorsHeaders = (origin?: string | null) => {
-  const allowedOrigin = Deno.env.get('ALLOWED_ORIGIN');
-  const origins = [...ALLOWED_ORIGINS];
+### What I Will Ask You After
+- If the first generation needs adjustments (color, proportions, text placement), I can regenerate with refined prompts
+- Whether you want additional sizes/variants (e.g., a text-free version for very small contexts)
 
-  if (allowedOrigin) {
-    origins.push(allowedOrigin);
-  }
-
-  const isLovablePreview = origin?.endsWith('.lovable.app') || origin?.endsWith('.lovableproject.com');
-  const isNativeApp = !origin || origin === 'null';
-  const isAllowed = isNativeApp || (origin && (origins.includes(origin) || isLovablePreview));
-
-  return {
-    'Access-Control-Allow-Origin': isNativeApp ? '*' : (isAllowed ? origin! : origins[0]),
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-};
-```
-
-Key change: When the origin is `null` or empty (native app), return `Access-Control-Allow-Origin: *` so the response is not blocked.
-
-### What Happens After
-- The backend functions redeploy automatically
-- You then rebuild the APK via GitHub Actions
-- All AI features (scoring, tailoring, chat, etc.) will work in the APK
-
-### No Other Changes Needed
-- No frontend code changes
-- No Capacitor config changes
-- Web version continues working as before
