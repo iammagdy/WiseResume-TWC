@@ -33,7 +33,7 @@ const tabs: TabItem[] = [
   {
     path: '/ai-studio',
     customIcon: wiseAiIcon,
-    label: 'Wise AI',
+    label: 'Studio',
     matchPaths: ['/ai-studio'],
   },
   { 
@@ -136,7 +136,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       src={tab.customIcon}
                       alt={tab.label}
                       className={cn(
-                        'w-10 h-10 transition-opacity duration-200 object-contain',
+                        'w-6 h-6 sm:w-5 sm:h-5 transition-opacity duration-200 object-contain',
                         active ? 'opacity-100' : 'opacity-60'
                       )}
                     />
@@ -151,7 +151,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   )}
                 </div>
               </div>
-              {!tab.customIcon && (
+              {(
                 <span
                   className={cn(
                     'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
