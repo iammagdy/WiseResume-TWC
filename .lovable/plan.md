@@ -1,53 +1,48 @@
 
 
-## AI Health Indicator: Fix False Alerts, Overlap, and Wasteful Pings
+## Fix AI Health Indicator -- Make It Real
 
-### Problems Found
+### Root Cause
 
-1. **False "AI unavailable" toast** -- The hook starts in `checking` state. If the first fetch fails or takes too long (network hiccup, cold start), it immediately sets `down` and the toast fires. The `toastShownRef` then locks, so even when the next poll returns `healthy`, the user already saw the scary error toast. The toast should only fire after multiple consecutive failures, not on the very first check.
+The health check is fundamentally flawed: the edge function (`ai-health`) makes a **real AI API call** (sends "hi" to the Lovable gateway) to determine if the AI is healthy. This is circular -- you're using the AI to check if the AI works. If the health check's own AI call fails (cold start, timeout, transient error), it reports "down" even though the AI service is perfectly functional for real requests.
 
-2. **Badge overlaps profile avatar** -- The badge is `absolute top-3 right-3 z-50` in AppShell, which sits on top of page headers (like the Settings avatar area). It needs to be positioned contextually within each page's header, or given smarter positioning.
+I verified this by calling the edge function directly -- it returned `healthy` with 495ms latency. But from the user's browser, the call can fail intermittently (cold start, network timing), triggering the false "AI Unavailable" state.
 
-3. **Edge function wastes AI credits** -- Every 60s health check sends `"hi"` to the AI gateway and waits for a response. This burns credits on a throwaway request. A proper health check should just verify the endpoint is reachable (e.g., a lightweight ping or checking the response headers) without consuming model tokens.
+### Solution: Lightweight Ping Instead of AI Call
 
-4. **Redundant polling when healthy** -- If AI is healthy, polling every 60s is excessive. Should back off to 5 minutes when healthy and only poll faster when degraded.
+Replace the edge function's AI API call with a simple connectivity check. The edge function should:
+1. Verify the `LOVABLE_API_KEY` env var exists (proves config is valid)
+2. For Gemini users: do a lightweight model list call (`GET /v1beta/models`) instead of a chat completion
+3. For default users: just return `healthy` -- the edge function itself being reachable proves the backend is alive. The real AI calls already have their own error handling in each feature.
 
----
+This eliminates the circular dependency and stops burning AI credits on health checks.
 
-### Plan
+### Changes
 
-#### 1. Fix false toast alerts (`src/hooks/useAIHealth.ts`)
+**1. `supabase/functions/ai-health/index.ts` -- Rewrite to lightweight check**
 
-- Add a `failCount` ref. Only transition to `down` status after 2 consecutive failures.
-- Reset `failCount` to 0 on any successful check.
-- Don't show toast during the initial `checking` -> first result transition. Only show toast if the status *changes* from `healthy`/`degraded` to `down` (not on cold start).
-- Use adaptive polling: 5 minutes when healthy, 60s when degraded, 30s when down.
+- Remove the chat completion call entirely for the default (WiseResume) path
+- For Gemini key users, use `GET /v1beta/models/{model}` which is free and doesn't consume tokens
+- Return `healthy` if the edge function is reachable and config is valid
+- Return `degraded` only if the Gemini key validation fails with a 429
+- Return `down` only if no API key is configured at all
 
-#### 2. Fix badge positioning (`src/components/layout/AppShell.tsx`)
+**2. `src/hooks/useAIHealth.ts` -- Simplify and fix timing**
 
-- Remove the `absolute top-3 right-3` positioning from AppShell.
-- Instead, place the badge inside each page's own header where it fits naturally (or use a smarter layout that doesn't overlap). The simplest fix: change from `absolute` to a flex-positioned element within the AppShell top area, or add `pointer-events-none` to the container and `pointer-events-auto` to the badge, plus shift it left so it doesn't overlap the avatar zone.
-- Best approach: move the badge into a slim top bar row that doesn't overlap content.
+- Increase initial poll interval: first check on mount, then 5 min when healthy
+- On the very first check, if it fails, set `degraded` (not `down`) regardless of threshold
+- This prevents the false "AI Unavailable" on cold start
 
-#### 3. Make edge function lightweight (`supabase/functions/ai-health/index.ts`)
+**3. `src/components/ai/AIHealthBadge.tsx` -- Remove toast entirely for initial loads**
 
-- Instead of sending a full chat completion request with `"hi"`, just do a HEAD request or a minimal API call that verifies connectivity without burning tokens.
-- For the Lovable gateway: send a request with `max_tokens: 1` and an empty-ish prompt (already done, but we can use a simpler model check endpoint if available). Since there's no lighter endpoint, keep the current approach but reduce poll frequency.
-- Alternative: cache the last known status in the edge function response headers and skip the AI call if the last check was recent (server-side caching).
+- Only show toasts if a *transition* from healthy to degraded/down happens (not on mount)
+- Track previous status to detect transitions
 
-#### 4. Suppress toast on initial load (`src/components/ai/AIHealthBadge.tsx`)
-
-- Add a `hasReceivedHealthy` ref. Only show error/warning toasts after the badge has seen at least one `healthy` status. This prevents the cold-start false alarm.
-- If the very first check comes back `down`, show the badge in red but don't fire a toast (the user can tap it to see details).
-
----
-
-### Files to Modify
+### Files
 
 | File | Change |
 |------|--------|
-| `src/hooks/useAIHealth.ts` | Add fail-count logic, adaptive polling intervals, suppress initial false-down |
-| `src/components/ai/AIHealthBadge.tsx` | Only toast after first healthy seen; cleaner toast logic |
-| `src/components/layout/AppShell.tsx` | Fix badge positioning to not overlap page headers |
-| `supabase/functions/ai-health/index.ts` | No change needed (the 1-token call is already minimal; reducing poll frequency on client side is sufficient) |
+| `supabase/functions/ai-health/index.ts` | Replace AI chat call with lightweight connectivity check |
+| `src/hooks/useAIHealth.ts` | Fix initial status logic; ensure first failure never shows "down" |
+| `src/components/ai/AIHealthBadge.tsx` | Toast only on status transitions, not initial load |
 
