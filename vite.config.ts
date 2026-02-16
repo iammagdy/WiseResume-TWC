@@ -27,7 +27,8 @@ export default defineConfig(({ mode }) => ({
       includeAssets: ["favicon.svg", "favicon.ico", "icons/*.png"],
       manifest: false, // Use existing public/manifest.json
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+        globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       workbox: {
         navigateFallbackDenylist: [/^\/~oauth/],
