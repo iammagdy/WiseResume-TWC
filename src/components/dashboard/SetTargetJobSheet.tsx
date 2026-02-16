@@ -216,25 +216,37 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
             className="space-y-5"
           >
             {/* Overall Match Score */}
-            <div className="text-center space-y-2">
-              <div className={cn('text-4xl font-bold', getScoreColor(overallScore?.after || 0))}>
-                {overallScore?.after || 0}%
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Match Score • {getScoreLabel(overallScore?.after || 0)}
-              </p>
-              <div className="w-full h-3 rounded-full bg-secondary/30 overflow-hidden">
-                <div
-                  className={cn('h-full rounded-full transition-all', getScoreBarColor(overallScore?.after || 0))}
-                  style={{ width: `${overallScore?.after || 0}%` }}
-                />
-              </div>
-              {overallScore && overallScore.before < overallScore.after && (
-                <p className="text-xs text-success">
-                  ↑ {overallScore.after - overallScore.before}% improvement possible
+            {overallScore ? (
+              <div className="text-center space-y-2">
+                <div className={cn('text-4xl font-bold', getScoreColor(overallScore.after))}>
+                  {overallScore.after}%
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Match Score • {getScoreLabel(overallScore.after)}
                 </p>
-              )}
-            </div>
+                <div className="w-full h-3 rounded-full bg-secondary/30 overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-full transition-all', getScoreBarColor(overallScore.after))}
+                    style={{ width: `${overallScore.after}%` }}
+                  />
+                </div>
+                {overallScore.before < overallScore.after && (
+                  <p className="text-xs text-success">
+                    ↑ {overallScore.after - overallScore.before}% improvement possible
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-muted/50 border border-border/50 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium">Score unavailable</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    AI couldn't calculate a match score. The analysis content is still valid.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Section Scores */}
             {sectionScores && (

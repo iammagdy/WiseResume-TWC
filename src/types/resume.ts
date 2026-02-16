@@ -221,8 +221,8 @@ export interface EnhancedTailorResult {
   experience: Experience[];
   education: Education[];
   keyChanges: string[];
-  sectionScores: SectionScores;
-  overallScore: { before: number; after: number };
+  sectionScores: SectionScores | null;
+  overallScore: { before: number; after: number } | null;
   missingSkills: SkillSuggestion[];
   boostableSkills: SkillSuggestion[];
   jobParsed: JobParsed;
