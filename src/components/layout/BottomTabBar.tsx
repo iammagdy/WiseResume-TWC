@@ -135,14 +135,11 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                     <img
                       src={tab.customIcon}
                       alt={tab.label}
-                      style={{
-                        filter: active
-                          ? undefined
-                          : 'opacity(0.5)',
-                      }}
                       className={cn(
                         'w-7 h-7 transition-all duration-200 object-contain',
-                        active ? 'dark:invert' : 'dark:invert opacity-50'
+                        active
+                          ? 'dark:invert'
+                          : 'opacity-50 dark:invert dark:opacity-40'
                       )}
                     />
                   ) : (
