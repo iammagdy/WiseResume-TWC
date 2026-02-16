@@ -1,19 +1,14 @@
 
 
-## Add Wise AI Logo to Landing Page
+## Replace Studio Tab Logo with New Wise AI Logo
 
 ### What will change
-Replace the current `AppIcon` component in the landing page hero section with the uploaded Wise AI logo image.
+Replace the current `wise-ai-icon.png` used in the bottom tab bar's "Wise AI" (Studio) tab with the uploaded high-quality Wise AI logo.
 
 ### Steps
-1. Copy the uploaded image `user-uploads://Wise_Ai_2.png` to `src/assets/wise-ai-logo.png`
-2. Update `src/pages/Index.tsx`:
-   - Import the new logo image
-   - Replace the `<AppIcon size={120} />` in the hero section with an `<img>` tag using the new logo
-   - Keep the existing glow effect and animations around it
-   - Size it appropriately (around 120-140px) to match the current hero layout
+1. Copy the uploaded image `user-uploads://Wise_Ai_2-2.png` to `src/assets/wise-ai-icon.png` (overwriting the current one)
+2. No code changes needed -- the BottomTabBar already imports and renders `src/assets/wise-ai-icon.png` as the custom icon for the "Wise AI" tab
 
-### Technical Details
-- The image will be imported as an ES6 module from `src/assets/` for proper bundling
-- The existing `motion.div` wrapper with the glow pulse effect will be preserved
-- The `AppIcon` import can be removed if no longer used elsewhere in this file
+### Note
+The build log shown is not an error -- it completed successfully. The warnings about `duration-[1.2s]` and `bluebird eval` are non-blocking.
+
