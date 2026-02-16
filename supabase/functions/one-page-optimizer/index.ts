@@ -21,6 +21,9 @@ interface OnePageRequest {
 
 const MAX_PAYLOAD_SIZE = 100000;
 
+const safeSkillsString = (skills: any[] | undefined | null): string =>
+  (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
+
 function estimatePageCount(resume: ResumeData): number {
   let charCount = 0;
   charCount += Object.values(resume.contactInfo).filter(Boolean).join(' ').length;
@@ -33,7 +36,7 @@ function estimatePageCount(resume: ResumeData): number {
   resume.education?.forEach(edu => {
     charCount += edu.degree.length + edu.field.length + edu.institution.length + 50;
   });
-  charCount += resume.skills?.join(', ').length || 0;
+  charCount += safeSkillsString(resume.skills).length;
   resume.certifications?.forEach(cert => {
     charCount += cert.name.length + cert.issuer.length + 30;
   });
