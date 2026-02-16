@@ -1,85 +1,100 @@
 
 
-## Icon Readability & UX Flow Audit + Page Break Display Bug Fix
+## Build APK via GitHub Actions (No Android Studio Required)
 
-### Critical Bug: Page Break Indicators Show Auto Breaks as Manual
+### How It Works
+Every time you push code to GitHub, a workflow will automatically build the Android APK and make it available for download — all in the cloud.
 
-**What's happening:** When you set 1 manual page break in the Page Breaks sheet, the badge correctly shows "1". However, the preview shows 7+ purple badges ("Page 4 ends here", "Page 5 ends here", etc.) because `findSmartBreakPositions` returns ALL break positions (your 1 forced break + 6 auto-fill breaks), and `PageBreakIndicator` renders ALL of them with the purple "manual" style.
+### Steps
 
-**Root cause:** `PageBreakIndicator` uses a single boolean `isManualMode` to choose styling. When manual mode is on, every break -- including auto-fills between forced breaks -- gets the prominent purple badge. This is misleading.
+#### Step 1: Prepare Capacitor Config for Production
+Remove the live preview URL from `capacitor.config.ts` so the APK uses the built-in files instead of loading from the internet. Also ensure the splash screen hides correctly.
 
-**Fix (2 files):**
+#### Step 2: Create GitHub Actions Workflow
+Add a workflow file at `.github/workflows/build-apk.yml` that will:
+- Check out your code
+- Install Node.js and dependencies
+- Run `npm run build` to build the web app
+- Add the Android platform (`npx cap add android`)
+- Sync web assets to Android (`npx cap sync android`)
+- Set up Java 17 (required by Android/Gradle)
+- Build the debug APK using Gradle directly (no Android Studio needed)
+- Upload the APK as a downloadable artifact
 
-1. **`src/lib/pdfGenerator.ts`** -- Export a new function `findSmartBreakPositionsTagged` (or modify the return type) that returns break positions tagged as `'manual'` or `'auto'`. The existing `findSmartBreakPositions` will remain unchanged for PDF generation (which only needs positions). A new companion function will return `{ position: number, type: 'manual' | 'auto' }[]`.
-
-2. **`src/components/editor/PageBreakIndicator.tsx`** -- Call the tagged version instead. Render forced/manual breaks with the purple badge ("Page X ends here") and auto-fill breaks with the subtle amber dashed line ("Page X ends"). This way, the user clearly sees which breaks they chose vs which ones the system added to prevent content overflow.
-
----
-
-### Icon & UX Audit Findings
-
-#### 1. Bottom Tab Bar (5 tabs: Home, Editor, Studio, Jobs, Settings)
-- **Home** (Home icon): Clear, universally understood. Size w-6 h-6 on mobile, adequate.
-- **Editor** (FileText icon): Clear with "Editor" label. Adequate.
-- **Studio** (Sparkles icon): Clear with "Studio" label. The glow effect on active state is a nice touch. No issues.
-- **Jobs** (Briefcase icon): Clear with "Jobs" label. No issues.
-- **Settings** (Settings/gear icon): Universally understood. No issues.
-- All tabs have `aria-label`, `min-h-[48px]`, and `active:scale-95` haptic feedback. No changes needed.
-
-#### 2. Preview Page Bottom Bar (Edit, Save, Interview, Share + Download)
-- **Edit** (ArrowLeft): Already fixed in previous iteration with always-visible labels (`text-xs`). No issues.
-- **Interview** (Mic icon): Label "Interview" visible on all sizes now. No issues.
-- **Share** (Share2 icon): Label visible. No issues.
-- **Save** (FolderDown, iOS only): Label visible. No issues.
-- **Download** (Download icon): Primary CTA, large and prominent. No issues.
-
-#### 3. Editor Header Tools
-The Editor page packs many icon buttons in the header. On mobile, the header uses a collapsible approach. Key icons:
-- **Undo/Redo** (Undo2/Redo2): Icon-only but universally understood. Have proper disabled states.
-- **Wise AI** (MessageSquare): Has text label "Wise AI" on larger screens. On narrow screens it may be icon-only but the Sparkles glow makes it distinctive.
-- **Preview** (Eye): Clear in context. Has label on wider screens.
-- **ATS Score** (BarChart3): Displays score number which serves as label.
-
-#### 4. Editor StepperNav Section Icons
-All section icons are well-chosen and color-coded:
-- Contact (User), Summary (AlignLeft), Experience (Briefcase), Education (GraduationCap), Skills (Wrench)
-- More sections: Awards (Trophy/amber), Projects (Rocket/blue), Certifications (Award/orange), Publications (BookOpen/emerald), Volunteering (Heart/rose), Languages (Globe/cyan), Hobbies (Palette/purple), References (Users/sky)
-- All have text labels in the sheet/dropdown. No issues.
-
-#### 5. Dashboard Resume Card Actions
-The `ResumeListCard` has proper labeled actions in its action sheet: Edit, Duplicate, Delete all with icons + text. Swipe actions also have proper icon+text. No issues.
-
-#### 6. User Flow Analysis
-
-**New User Flow** (Landing -> Auth -> Dashboard -> Create -> Editor -> Preview -> Export):
-- Landing: Clear CTAs. No dead ends.
-- Auth: Clean form, returns to Dashboard on success.
-- Dashboard: "Create Resume" floating button is prominent. No confusion.
-- Editor: StepperNav guides through sections. "Preview & Export" button in header navigates to Preview. Clear.
-- Preview: Download is the primary CTA. Export options sheet shows all formats. No dead ends.
-- Overall flow is logical with no gaps.
-
-**Returning User Flow** (Dashboard -> Resume Card -> Resume Detail -> Edit -> Preview):
-- Resume card tap navigates to detail page. Detail page has clear "Edit" button. No issues.
-
-**Settings Flow** (Settings tab -> adjust options -> back):
-- Settings page has bottom tab bar, so "back" is always available. No dead ends.
-
-No major icon or flow issues found beyond the page break display bug.
+#### Step 3: Download Your APK
+After pushing, go to your GitHub repository, click the **Actions** tab, select the completed workflow run, and download the APK from the **Artifacts** section at the bottom.
 
 ---
 
-### Implementation Plan
+### Technical Details
 
-| Step | File | Change |
-|------|------|--------|
-| 1 | `src/lib/pdfGenerator.ts` | Add exported `findSmartBreakPositionsTagged()` that returns `{ position: number; type: 'manual' \| 'auto' }[]` by tracking which break positions come from `forcedBreaks` vs `computeAutoBreaksInSegment` |
-| 2 | `src/components/editor/PageBreakIndicator.tsx` | Import and use the tagged function. Render manual breaks with purple badge, auto-fill breaks with amber dashed line. Update the `breaks` state to `{ position: number; type: 'manual' \| 'auto' }[]` |
+**New file: `.github/workflows/build-apk.yml`**
+```yaml
+name: Build Android APK
 
-### What Won't Change
-- Core PDF generation algorithm (unchanged `findSmartBreakPositions` still used by `generatePDF`)
-- No changes to export handlers, data models, types, or routes
-- No changes to template rendering or section ordering
-- All existing icon choices remain (they're well-suited)
-- No flow restructuring needed
+on:
+  workflow_dispatch:   # Manual trigger from GitHub UI
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiseresume-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+**Modified file: `capacitor.config.ts`**
+- Remove the `server.url` property so the app loads from the local bundle
+- Keep all other settings (splash screen, keyboard, colors) unchanged
+
+---
+
+### What You'll Do
+1. I'll make the two changes above (workflow file + config update)
+2. Export your project to GitHub (if not already connected)
+3. Go to your repo on GitHub, click **Actions** tab
+4. Click "Build Android APK" workflow, then **Run workflow** (or it runs automatically on push)
+5. Wait about 3-5 minutes for the build
+6. Download the APK from the **Artifacts** section
+7. Transfer the APK to your Android phone and install it
+
+### Important Notes
+- This builds a **debug APK** (not signed for Play Store, but works fine for personal use and testing)
+- The APK will work fully offline since it bundles all web assets
+- If you later want a signed release APK for the Play Store, we can add signing keys to the workflow
 
