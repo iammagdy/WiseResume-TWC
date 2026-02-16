@@ -1,22 +1,24 @@
 
 
-## Replace Studio Tab Icon and Add "Studio" Label
+## Replace Studio Tab with a Lucide Icon
 
 ### What will change
-1. Replace the current Wise AI icon in the bottom tab bar with the uploaded AI chip icon
-2. Add the "Studio" text label beneath the icon (currently hidden for custom icon tabs)
-3. Rename the tab label from "Wise AI" to "Studio"
+Replace the custom PNG image (`wise-ai-icon.png`) for the Studio tab with a Lucide `Sparkles` icon. This eliminates the PNG asset, removes the custom icon rendering path for this tab, and ensures the Studio icon matches the exact same style, size, and color behavior as all other bottom tab icons (Home, Editor, Jobs, Settings).
+
+### Why Sparkles
+The `Sparkles` icon from Lucide is the standard convention for AI/generative features across modern apps. It clearly communicates "AI-powered" and visually fits alongside the other outline-style Lucide icons in the tab bar.
 
 ### Steps
 
-1. **Copy uploaded image** to `src/assets/wise-ai-icon.png` (overwriting current)
-
-2. **Update `src/components/layout/BottomTabBar.tsx`**:
-   - Change the tab label from `'Wise AI'` to `'Studio'` (line 36)
-   - Reduce the custom icon size from `w-10 h-10` to `w-6 h-6` to match other tab icons (line 139)
-   - Remove the condition on line 154 that hides labels for custom icon tabs, so "Studio" text appears below the icon just like all other tabs
+1. **Update `src/components/layout/BottomTabBar.tsx`**:
+   - Add `Sparkles` to the Lucide import (line 2)
+   - Remove the `wiseAiIcon` PNG import (line 3)
+   - Change the Studio tab definition (lines 33-38) from using `customIcon: wiseAiIcon` to `icon: Sparkles`
+   - No other rendering changes needed -- the existing Lucide icon rendering path handles size, color, and active/inactive states automatically
 
 ### Technical Details
-- The custom icon image is imported via ES6 module from `src/assets/wise-ai-icon.png`
-- The label visibility fix involves removing the `!tab.customIcon &&` guard on the label `<span>` (line 154)
-- Icon sizing will match the other Lucide icons (24x24 / 20x20 on sm) for visual consistency
+- Import change: `import { FileText, Settings, Home, Briefcase, Sparkles } from 'lucide-react'`
+- Tab config change: replace `customIcon: wiseAiIcon` with `icon: Sparkles`
+- The custom icon rendering code (`<img>` branch) remains for future use but won't be triggered since no tab uses `customIcon` anymore
+- The `wise-ai-icon.png` asset file stays in the repo (it may be used elsewhere like the AI Studio page header)
+
