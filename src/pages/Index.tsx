@@ -238,52 +238,6 @@ const Index = () => {
           </motion.div>
         </motion.section>
 
-        {/* Bottom CTA */}
-        <motion.section className="px-4 sm:px-6 py-12" {...inView(0)}>
-          <div className="max-w-md mx-auto text-center">
-            <motion.div className="mb-5" {...inView(0.05)}>
-              {/* Mini ATS score ring */}
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full border-[3px] border-primary/20 relative">
-                <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 64 64">
-                  <circle
-                    cx="32" cy="32" r="28"
-                    fill="none"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="3"
-                    strokeDasharray={`${0.85 * 2 * Math.PI * 28} ${2 * Math.PI * 28}`}
-                    strokeLinecap="round"
-                    className="drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]"
-                  />
-                </svg>
-                <span className="text-sm font-bold text-primary">85</span>
-              </div>
-            </motion.div>
-
-            <motion.h2
-              className="text-2xl font-bold text-foreground mb-2"
-              {...inView(0.1)}
-            >
-              Your Next Career Move Starts Here
-            </motion.h2>
-            <motion.p
-              className="text-sm text-muted-foreground mb-6 leading-relaxed"
-              {...inView(0.15)}
-            >
-              Get your ATS score up and land more interviews
-            </motion.p>
-
-            <motion.div {...inView(0.2)}>
-              <Button
-                size="lg"
-                className="w-full h-14 text-lg font-semibold gap-3 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
-                onClick={handleCTA}
-              >
-                <Sparkles className="w-5 h-5" />
-                {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
-              </Button>
-            </motion.div>
-          </div>
-        </motion.section>
       </main>
     </SpaceBackground>
   );
