@@ -3,6 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError } from "../_shared/aiClient.ts";
 
+const safeSkillsString = (skills: any[] | undefined): string =>
+  (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
+
 const MAX_RESUME_SIZE = 100 * 1024;
 const MAX_JOB_DESCRIPTION_SIZE = 50 * 1024;
 const VALID_TONES = ['professional', 'enthusiastic', 'conversational'];
@@ -90,7 +93,7 @@ Use these ACTUAL contact details. Do NOT use placeholder brackets.
 
 Current Role: ${resume.experience?.[0]?.position || 'Professional'} at ${resume.experience?.[0]?.company || 'Previous Company'}
 Summary: ${resume.summary || 'Experienced professional'}
-Key Skills: ${resume.skills?.slice(0, 10).join(', ') || 'Various skills'}
+Key Skills: ${safeSkillsString(resume.skills?.slice(0, 10)) || 'Various skills'}
 
 Recent Experience:
 ${resume.experience?.slice(0, 2).map((e: any) => `- ${e.position} at ${e.company}\n  ${e.achievements?.slice(0, 2).join('; ') || e.description}`).join('\n') || 'Professional experience'}
