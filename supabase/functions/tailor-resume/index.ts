@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+
+/** Safely extract skills as a comma-separated string */
+function safeSkillsString(skills: unknown): string {
+  if (!Array.isArray(skills)) return 'Not provided';
+  return skills.map(s => typeof s === 'string' ? s : (s as any)?.name || String(s)).join(', ') || 'Not provided';
+}
 
 // ============= SECURITY: Input validation limits =============
 const MAX_RESUME_SIZE = 100 * 1024; // 100KB
@@ -75,13 +82,7 @@ serve(async (req) => {
       );
     }
 
-    // Determine which AI gateway to use
-    const useGeminiDirect = !!userGeminiKey;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
-    if (!useGeminiDirect && !LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    // AI client handles provider selection internally via callAI()
 
     // ============= INTENSITY-BASED PROMPT MODIFIERS =============
     const intensityInstructions: Record<string, string> = {
@@ -159,7 +160,7 @@ CURRENT SUMMARY:
 ${resume.summary || 'Not provided'}
 
 CURRENT SKILLS:
-${resume.skills?.join(', ') || 'Not provided'}
+${safeSkillsString(resume.skills)}
 
 EXPERIENCE:
 ${resume.experience?.map((e: any) => `
@@ -298,72 +299,20 @@ Analyze deeply, then return this exact JSON structure:
   ]
 }`;
 
-    console.log("Calling SUPERCHARGED AI engine for resume tailoring...", useGeminiDirect ? "(Gemini Direct)" : "(Lovable Gateway)");
+    console.log("Calling SUPERCHARGED AI engine for resume tailoring...", userGeminiKey ? "(Gemini Direct)" : "(Lovable Gateway)");
 
-    // Choose API endpoint and auth based on provider
-    const apiUrl = useGeminiDirect
-      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://ai.gateway.lovable.dev/v1/chat/completions";
-    
-    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-    const modelName = useGeminiDirect ? "gemini-2.5-pro-preview-05-06" : "google/gemini-2.5-flash";
-
-    // 25s timeout to fail gracefully before edge function hard-kills at 30s
-    const controller = new AbortController();
-    const fetchTimeout = setTimeout(() => controller.abort(), 25000);
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.5,
-        max_tokens: 8000,
-      }),
-      signal: controller.signal,
+    const aiResponse = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.5,
+      maxTokens: 8000,
+      userGeminiKey,
     });
 
-    clearTimeout(fetchTimeout);
-
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 429) {
-        const errorMsg = useGeminiDirect 
-          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
-          : "Rate limits exceeded, please try again later.";
-        return new Response(
-          JSON.stringify({ error: errorMsg }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required, please check your Wise AI subscription." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const aiResponse = await response.json();
-    const content = aiResponse.choices?.[0]?.message?.content;
+    const content = aiResponse.content;
 
     if (!content) {
       throw new Error("No content in AI response");
@@ -472,9 +421,17 @@ Analyze deeply, then return this exact JSON structure:
 
   } catch (error) {
     console.error("tailor-resume error:", error);
+
+    if (isAIError(error)) {
+      return new Response(
+        JSON.stringify({ error: (error as any).message }),
+        { status: (error as any).status, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
     );
   }
 });
