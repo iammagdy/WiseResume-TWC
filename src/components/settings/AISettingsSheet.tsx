@@ -49,6 +49,10 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
     const [keyInput, setKeyInput] = useState(geminiApiKey);
     const [isValidating, setIsValidating] = useState(false);
 
+    const safeProvider = (aiProvider === 'wiseresume' || aiProvider === 'gemini') 
+      ? aiProvider 
+      : 'wiseresume';
+
     // Sync keyInput when sheet opens
     useEffect(() => {
       if (open) {
@@ -130,17 +134,17 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
           <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4">
             {/* Provider Selection */}
             <RadioGroup
-              key={aiProvider}
-              value={aiProvider}
+              key={safeProvider}
+              value={safeProvider}
               onValueChange={handleProviderChange}
               className="space-y-3"
             >
-              <motion.label
-                htmlFor="wiseresume-sheet"
+              <motion.div
                 whileTap={{ scale: 0.98 }}
+                onClick={() => handleProviderChange('wiseresume')}
                 className={cn(
                   "flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                  aiProvider === 'wiseresume' 
+                  safeProvider === 'wiseresume' 
                     ? "border-primary bg-primary/5" 
                     : "border-border bg-card hover:bg-accent/50"
                 )}
@@ -155,14 +159,14 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
                     Built-in AI powered by multiple models. No setup required.
                   </p>
                 </div>
-              </motion.label>
+              </motion.div>
 
-              <motion.label
-                htmlFor="gemini-sheet"
+              <motion.div
                 whileTap={{ scale: 0.98 }}
+                onClick={() => handleProviderChange('gemini')}
                 className={cn(
                   "flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all",
-                  aiProvider === 'gemini' 
+                  safeProvider === 'gemini' 
                     ? "border-primary bg-primary/5" 
                     : "border-border bg-card hover:bg-accent/50"
                 )}
@@ -176,7 +180,7 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
                     Use your own Google AI Studio key for direct access.
                   </p>
                 </div>
-              </motion.label>
+              </motion.div>
             </RadioGroup>
 
             {/* Gemini API Key Management */}
