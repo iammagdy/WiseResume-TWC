@@ -68,6 +68,10 @@ serve(async (req) => {
 - Head and shoulders composition
 - High-quality, polished finish suitable for professional use`;
 
+    // 30-second timeout for reliability
+    const fetchController = new AbortController();
+    const fetchTimeout = setTimeout(() => fetchController.abort(), 30_000);
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -90,7 +94,10 @@ serve(async (req) => {
         ],
         modalities: ["image", "text"],
       }),
+      signal: fetchController.signal,
     });
+
+    clearTimeout(fetchTimeout);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -136,6 +143,13 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      console.error("Generate headshot timed out after 30s");
+      return new Response(
+        JSON.stringify({ error: "Request timed out. Please try again." }),
+        { status: 408, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     console.error("Error in generate-headshot:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),

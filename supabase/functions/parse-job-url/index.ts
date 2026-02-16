@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 
 // ============= SECURITY: Domain Whitelist =============
 const ALLOWED_DOMAINS = new Set([
@@ -163,7 +164,7 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Authenticated user:', userId);
 
-    const { url } = await req.json();
+    const { url, userGeminiKey } = await req.json();
     
     if (!url || typeof url !== 'string') {
       return new Response(
@@ -227,31 +228,13 @@ serve(async (req) => {
         .trim()
         .slice(0, 20000); // Limit for AI processing
 
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) {
-        throw new Error("LOVABLE_API_KEY is not configured");
-      }
-
       console.log("Using ENHANCED AI to extract comprehensive job intelligence...");
 
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [
-            { 
-              role: "system", 
-              content: `You are an expert job market analyst. Extract COMPREHENSIVE job posting information including hidden signals about company culture, realistic salary expectations, and requirement priorities.
+      const systemPrompt = `You are an expert job market analyst. Extract COMPREHENSIVE job posting information including hidden signals about company culture, realistic salary expectations, and requirement priorities.
 
-Return ONLY valid JSON with no markdown or code blocks.`
-            },
-            { 
-              role: "user", 
-              content: `Extract the job posting details from this page content:
+Return ONLY valid JSON with no markdown or code blocks.`;
+
+      const userPrompt = `Extract the job posting details from this page content:
 
 ${textContent}
 
@@ -276,47 +259,38 @@ Return JSON with this comprehensive format:
   "redFlags": ["<any concerning patterns like unrealistic requirements for level, many required skills, etc.>"]
 }
 
-If you can't find certain fields, make reasonable guesses based on context. The description should be detailed and include all requirements and qualifications mentioned.`
-            },
+If you can't find certain fields, make reasonable guesses based on context. The description should be detailed and include all requirements and qualifications mentioned.`;
+
+      let aiContent: string;
+      try {
+        const aiResponse = await callAI({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
           ],
           temperature: 0.2,
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) {
+          userGeminiKey,
+        });
+        aiContent = aiResponse.content || '';
+      } catch (aiErr: unknown) {
+        if (isAIError(aiErr)) {
           return new Response(
-            JSON.stringify({ error: "Rate limits exceeded, please try again later." }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            JSON.stringify({ error: aiErr.message }),
+            { status: aiErr.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
-        if (response.status === 402) {
-          return new Response(
-            JSON.stringify({ error: "Payment required, please add funds." }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        throw new Error("AI gateway error");
+        throw aiErr;
       }
 
-      const aiResponse = await response.json();
-      const content = aiResponse.choices?.[0]?.message?.content;
-
-      if (!content) {
+      if (!aiContent) {
         throw new Error("No content in AI response");
       }
 
       // Parse the JSON
-      let result;
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          result = JSON.parse(jsonMatch[0]);
-        } else {
-          throw new Error("No JSON found");
-        }
-      } catch {
-        console.error("Failed to parse:", content);
+      let result = parseAIJSON<Record<string, unknown>>(aiContent);
+      if (!result) {
+        console.error("Failed to parse:", aiContent.slice(0, 500));
         return new Response(
           JSON.stringify({ error: "Failed to parse job posting" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
