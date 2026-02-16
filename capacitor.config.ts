@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
  const config: CapacitorConfig = {
-   appId: 'app.lovable.1d3d9943c1ba4253b6336b1457b9b330',
+   appId: 'com.wiseresume.app',
    appName: 'wiseresume',
    webDir: 'dist',
    android: {
