@@ -28,8 +28,10 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       {showAIHealth && (
-        <div className="absolute top-3 right-3 z-50">
-          <AIHealthBadge />
+        <div className="flex justify-end px-3 pt-2 pb-0 pointer-events-none">
+          <div className="pointer-events-auto">
+            <AIHealthBadge />
+          </div>
         </div>
       )}
       <main

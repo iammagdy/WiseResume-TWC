@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Activity, Zap, AlertTriangle, WifiOff, RefreshCw, Key } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,20 +34,21 @@ const STATUS_CONFIG: Record<Exclude<AIHealthStatus, 'checking'>, {
 };
 
 export function AIHealthBadge() {
-  const { status, latencyMs, lastChecked, provider, errorCode, refetch, toastShownRef } = useAIHealth();
+  const { status, latencyMs, lastChecked, provider, errorCode, refetch, hasEverBeenHealthyRef } = useAIHealth();
   const navigate = useNavigate();
+  const toastFiredRef = useRef(false);
 
-  // Show warning toast once per session when degraded/down
+  // Only toast after we've seen healthy at least once (prevents cold-start false alarms)
   useEffect(() => {
-    if (toastShownRef.current) return;
+    if (!hasEverBeenHealthyRef.current || toastFiredRef.current) return;
     if (status === 'degraded') {
-      toastShownRef.current = true;
+      toastFiredRef.current = true;
       toast.warning('AI services are running slower than usual', { duration: 4000 });
     } else if (status === 'down') {
-      toastShownRef.current = true;
+      toastFiredRef.current = true;
       toast.error('AI services are currently unavailable', { duration: 4000 });
     }
-  }, [status, toastShownRef]);
+  }, [status, hasEverBeenHealthyRef]);
 
   if (status === 'checking') {
     return (
