@@ -1,10 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 
 // ============= SECURITY: Input validation limits =============
 const MAX_RESUME_SIZE = 100 * 1024; // 100KB
 const MAX_JOB_DESCRIPTION_SIZE = 50 * 1024; // 50KB
+
+/** Safely extract skills as a comma-separated string */
+function safeSkillsString(skills: unknown): string {
+  if (!Array.isArray(skills)) return 'Not provided';
+  return skills.map(s => typeof s === 'string' ? s : (s as any)?.name || String(s)).join(', ') || 'Not provided';
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
@@ -39,8 +46,7 @@ serve(async (req) => {
       );
     }
 
-    const userId = user.id;
-    console.log('Authenticated user:', userId);
+    console.log('Authenticated user:', user.id);
 
     const { resume, jobDescription, userGeminiKey } = await req.json();
     
@@ -74,23 +80,6 @@ serve(async (req) => {
       );
     }
 
-    // Determine which AI gateway to use
-    const useGeminiDirect = !!userGeminiKey;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!useGeminiDirect && !LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    const apiUrl = useGeminiDirect
-      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-    const modelName = useGeminiDirect ? "gemini-2.0-flash" : "google/gemini-3-flash-preview";
-
-    console.log(`analyze-resume: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
-
     const systemPrompt = `You are an expert ATS (Applicant Tracking System) analyzer and resume consultant. Analyze the provided resume against the job description and provide detailed scoring and gap analysis.
 
 IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks. The response must be parseable JSON.`;
@@ -100,7 +89,7 @@ IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks. The respons
 RESUME:
 Name: ${resume.contactInfo?.fullName || 'Not provided'}
 Summary: ${resume.summary || 'Not provided'}
-Skills: ${resume.skills?.join(', ') || 'Not provided'}
+Skills: ${safeSkillsString(resume.skills)}
 Experience: ${resume.experience?.map((e: any) => `${e.position} at ${e.company}: ${e.description}`).join('\n') || 'Not provided'}
 Education: ${resume.education?.map((e: any) => `${e.degree} in ${e.field} from ${e.institution}`).join('\n') || 'Not provided'}
 
@@ -130,93 +119,43 @@ Provide analysis in this exact JSON format:
   }
 }`;
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.3,
-      }),
+    console.log(`analyze-resume: Using ${userGeminiKey ? 'Gemini Direct' : 'Lovable Gateway'}`);
+
+    const aiResponse = await callAI({
+      model: 'google/gemini-3-flash-preview',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.3,
+      userGeminiKey,
     });
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 429) {
-        const errorMsg = useGeminiDirect
-          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
-          : "Rate limits exceeded, please try again later.";
-        return new Response(
-          JSON.stringify({ error: errorMsg }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required, please check your Wise AI subscription." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      return new Response(
-        JSON.stringify({ error: "AI gateway error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const aiResponse = await response.json();
-    const content = aiResponse.choices?.[0]?.message?.content;
-
-    if (!content) {
+    if (!aiResponse.content) {
       throw new Error("No content in AI response");
     }
 
     // Parse the JSON from the AI response
-    let analysisResult;
-    try {
-      // Try to extract JSON from the response (in case it's wrapped in markdown)
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        analysisResult = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
+    const analysisResult = parseAIJSON(aiResponse.content) ?? {
+      score: {
+        overallScore: 65,
+        skillsMatch: 60,
+        experienceRelevance: 70,
+        keywordAlignment: 55,
+        atsCompatibility: 75,
+        strengths: ["Resume is well-structured", "Contact information is complete"],
+        improvements: ["Add more relevant keywords", "Quantify achievements"]
+      },
+      gaps: {
+        missingKeywords: ["leadership", "project management"],
+        missingSkills: [],
+        suggestedSections: ["Professional Certifications"],
+        recommendedPhrases: ["results-driven", "cross-functional"],
+        priorityImprovements: [
+          { priority: "high", suggestion: "Add more specific keywords from the job description", impact: "Improve ATS matching" }
+        ]
       }
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", content);
-      // Return a default analysis if parsing fails
-      analysisResult = {
-        score: {
-          overallScore: 65,
-          skillsMatch: 60,
-          experienceRelevance: 70,
-          keywordAlignment: 55,
-          atsCompatibility: 75,
-          strengths: ["Resume is well-structured", "Contact information is complete"],
-          improvements: ["Add more relevant keywords", "Quantify achievements"]
-        },
-        gaps: {
-          missingKeywords: ["leadership", "project management"],
-          missingSkills: [],
-          suggestedSections: ["Professional Certifications"],
-          recommendedPhrases: ["results-driven", "cross-functional"],
-          priorityImprovements: [
-            { priority: "high", suggestion: "Add more specific keywords from the job description", impact: "Improve ATS matching" }
-          ]
-        }
-      };
-    }
+    };
 
     return new Response(
       JSON.stringify(analysisResult),
@@ -225,9 +164,17 @@ Provide analysis in this exact JSON format:
 
   } catch (error) {
     console.error("analyze-resume error:", error);
+
+    if (isAIError(error)) {
+      return new Response(
+        JSON.stringify({ error: (error as any).message }),
+        { status: (error as any).status, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
     );
   }
 });
