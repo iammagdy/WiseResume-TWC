@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useResignationLetter, useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { ResignationChecklist } from '@/components/resignation/ResignationChecklist';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { DetailSkeleton } from '@/components/layout/PageSkeletons';
@@ -126,7 +126,7 @@ export default function ResignationLetterEditPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-resignation-letter`,
+        `${SUPABASE_URL}/functions/v1/generate-resignation-letter`,
         {
           method: 'POST',
           headers: {

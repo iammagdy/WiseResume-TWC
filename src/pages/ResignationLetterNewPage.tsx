@@ -11,7 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -108,7 +108,7 @@ export default function ResignationLetterNewPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-resignation-letter`,
+        `${SUPABASE_URL}/functions/v1/generate-resignation-letter`,
         {
           method: 'POST',
           headers: {

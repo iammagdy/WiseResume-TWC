@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
  const config: CapacitorConfig = {
    appId: 'com.wiseresume.app',
-   appName: 'Wise Resume',
+   appName: 'Wise AI',
    webDir: 'dist',
    android: {
      backgroundColor: '#0a0a14',

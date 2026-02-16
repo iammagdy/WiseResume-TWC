@@ -87,7 +87,7 @@ function ScoreCircle({ score, label, size = 'lg' }: { score: number; label: stri
             strokeLinecap="round"
             strokeDasharray={circumference}
             strokeDashoffset={offset}
-            className="transition-[stroke-dashoffset] duration-[1.2s] ease-out"
+            className="transition-[stroke-dashoffset] duration-[1200ms] ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
