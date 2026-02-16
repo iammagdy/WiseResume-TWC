@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useRef, useEffect, memo } from 'react';
 import { 
   Wand2, Loader2, CheckCircle, ArrowRight, Undo2, GitCompare, 
   History, FileText, Sparkles, ChevronRight, Brain, Target, BarChart3,
-  Zap, Gauge, Flame
+  Zap, Gauge, Flame, AlertTriangle
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -250,7 +250,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           parent_resume_id: currentResumeId,
           target_job_title: jobTitle,
           target_company: company,
-          job_match_score: tailorResult.overallScore.after,
+          job_match_score: tailorResult.overallScore?.after ?? 0,
         })
         .select()
         .single();
@@ -263,7 +263,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         company,
         jobDescription,
         tailorResult,
-        scoreBeforeAfter: tailorResult.overallScore,
+        scoreBeforeAfter: tailorResult.overallScore ?? { before: 0, after: 0 },
         appliedSections: enabledSections,
       }, currentResumeId || undefined);
 
@@ -369,7 +369,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   };
 
   const effectiveScore = useMemo(() => {
-    if (!tailorResult) return null;
+    if (!tailorResult || !tailorResult.overallScore) return null;
     const before = tailorResult.overallScore.before;
     const maxImprovement = tailorResult.overallScore.after - before;
     const sectionWeight = enabledSections.length / 4;
@@ -446,12 +446,24 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               {activeTab === 'changes' && (
                 <div className="space-y-4">
                   {/* Score Comparison */}
-                  <ScoreComparison
-                    beforeScore={tailorResult.overallScore.before}
-                    afterScore={tailorResult.overallScore.after}
-                    sectionScores={tailorResult.sectionScores}
-                    selectedSections={enabledSections}
-                  />
+                  {tailorResult.overallScore && tailorResult.sectionScores ? (
+                    <ScoreComparison
+                      beforeScore={tailorResult.overallScore.before}
+                      afterScore={tailorResult.overallScore.after}
+                      sectionScores={tailorResult.sectionScores}
+                      selectedSections={enabledSections}
+                    />
+                  ) : (
+                    <div className="p-4 rounded-xl bg-muted/50 border border-border/50 flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-warning shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Score unavailable</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          AI couldn't calculate scores for this analysis. The tailored content is still valid.
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Section Changes */}
                   <div className="space-y-3">
@@ -465,7 +477,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       title={SECTION_LABELS.summary}
                       enabled={enabledSections.includes('summary')}
                       onToggle={() => toggleSection('summary')}
-                      impactScore={tailorResult.sectionScores.summary.after - tailorResult.sectionScores.summary.before}
+                      impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.summary.after - tailorResult.sectionScores.summary.before : 0}
                       changesSummary="Professional summary rewritten"
                       preview={
                         <p className="text-muted-foreground leading-relaxed">
@@ -479,7 +491,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       title={SECTION_LABELS.skills}
                       enabled={enabledSections.includes('skills')}
                       onToggle={() => toggleSection('skills')}
-                      impactScore={tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before}
+                      impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before : 0}
                       changesSummary={`${tailorResult.skills.length} skills optimized`}
                       preview={
                         <div className="flex flex-wrap gap-2">
@@ -502,7 +514,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       title={SECTION_LABELS.experience}
                       enabled={enabledSections.includes('experience')}
                       onToggle={() => toggleSection('experience')}
-                      impactScore={tailorResult.sectionScores.experience.after - tailorResult.sectionScores.experience.before}
+                      impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.experience.after - tailorResult.sectionScores.experience.before : 0}
                       changesSummary={`${tailorResult.experience.length} positions enhanced`}
                       preview={
                         <ul className="space-y-2">
@@ -521,7 +533,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       title={SECTION_LABELS.education}
                       enabled={enabledSections.includes('education')}
                       onToggle={() => toggleSection('education')}
-                      impactScore={tailorResult.sectionScores.education.after - tailorResult.sectionScores.education.before}
+                      impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.education.after - tailorResult.sectionScores.education.before : 0}
                       changesSummary={`${tailorResult.education.length} entries refined`}
                       preview={
                         <ul className="space-y-1">

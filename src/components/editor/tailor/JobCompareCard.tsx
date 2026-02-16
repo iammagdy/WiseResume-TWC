@@ -22,10 +22,12 @@
    onRemove,
    onViewDetails
  }: JobCompareCardProps) {
-   const score = job.tailorResult.overallScore.after;
-   const improvement = job.tailorResult.overallScore.after - job.tailorResult.overallScore.before;
-   const jobIntel = job.tailorResult.jobIntelligence;
-   const sectionScores = job.tailorResult.sectionScores;
+  const overallScore = job.tailorResult.overallScore;
+  const score = overallScore?.after ?? 0;
+  const improvement = overallScore ? overallScore.after - overallScore.before : 0;
+  const jobIntel = job.tailorResult.jobIntelligence;
+  const sectionScores = job.tailorResult.sectionScores;
+  const scoresAvailable = overallScore !== null;
  
    const handleSelect = () => {
      haptics.medium();
@@ -120,50 +122,60 @@
                    }}
                  />
                </svg>
-               {/* Score Text */}
-               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                 <motion.span 
-                   className="text-2xl font-bold"
-                   initial={{ opacity: 0 }}
-                   animate={{ opacity: 1 }}
-                   transition={{ delay: 0.3 }}
-                 >
-                   {score}%
-                 </motion.span>
-                 <span className="text-xs text-success flex items-center gap-0.5">
-                   <TrendingUp className="w-3 h-3" />
-                   +{improvement}
-                 </span>
-               </div>
+              {/* Score Text */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  {scoresAvailable ? (
+                    <>
+                      <motion.span 
+                        className="text-2xl font-bold"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                      >
+                        {score}%
+                      </motion.span>
+                      <span className="text-xs text-success flex items-center gap-0.5">
+                        <TrendingUp className="w-3 h-3" />
+                        +{improvement}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground font-medium">N/A</span>
+                  )}
+                </div>
              </div>
            </div>
  
-           {/* Score Breakdown */}
-           <div className="grid grid-cols-2 gap-2 mb-4">
-             <ScoreItem 
-               label="Skills" 
-               value={sectionScores.skills.after} 
-               change={sectionScores.skills.after - sectionScores.skills.before}
-             />
-             <ScoreItem 
-               label="Experience" 
-               value={sectionScores.experience.after}
-               change={sectionScores.experience.after - sectionScores.experience.before}
-             />
-             <ScoreItem 
-               label="Summary" 
-               value={sectionScores.summary.after}
-               change={sectionScores.summary.after - sectionScores.summary.before}
-             />
-             <ScoreItem 
-               label="ATS" 
-               value={job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0}
-               change={
-                 (job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0) - 
-                 (job.tailorResult.atsAnalysis?.originalKeywordDensity || 0)
-               }
-             />
-           </div>
+            {/* Score Breakdown */}
+            {sectionScores ? (
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                <ScoreItem 
+                  label="Skills" 
+                  value={sectionScores.skills.after} 
+                  change={sectionScores.skills.after - sectionScores.skills.before}
+                />
+                <ScoreItem 
+                  label="Experience" 
+                  value={sectionScores.experience.after}
+                  change={sectionScores.experience.after - sectionScores.experience.before}
+                />
+                <ScoreItem 
+                  label="Summary" 
+                  value={sectionScores.summary.after}
+                  change={sectionScores.summary.after - sectionScores.summary.before}
+                />
+                <ScoreItem 
+                  label="ATS" 
+                  value={job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0}
+                  change={
+                    (job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0) - 
+                    (job.tailorResult.atsAnalysis?.originalKeywordDensity || 0)
+                  }
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center mb-4 py-2">Score breakdown unavailable</p>
+            )}
  
            {/* Job Intel Badges */}
            {jobIntel && (

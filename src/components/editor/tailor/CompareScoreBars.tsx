@@ -17,20 +17,20 @@
    onSelectJob,
    metric 
  }: CompareScoreBarsProps) {
-   const getScore = (job: JobComparisonEntry): number => {
-     switch (metric) {
-       case 'overall':
-         return job.tailorResult.overallScore.after;
-       case 'skills':
-         return job.tailorResult.sectionScores.skills.after;
-       case 'experience':
-         return job.tailorResult.sectionScores.experience.after;
-       case 'ats':
-         return job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0;
-       default:
-         return 0;
-     }
-   };
+  const getScore = (job: JobComparisonEntry): number => {
+    switch (metric) {
+      case 'overall':
+        return job.tailorResult.overallScore?.after ?? 0;
+      case 'skills':
+        return job.tailorResult.sectionScores?.skills.after ?? 0;
+      case 'experience':
+        return job.tailorResult.sectionScores?.experience.after ?? 0;
+      case 'ats':
+        return job.tailorResult.atsAnalysis?.optimizedKeywordDensity || 0;
+      default:
+        return 0;
+    }
+  };
  
    const maxScore = Math.max(...jobs.map(getScore));
    const sortedJobs = [...jobs].sort((a, b) => getScore(b) - getScore(a));
@@ -70,14 +70,15 @@
                    {job.company}
                  </span>
                </div>
-               <span className={cn(
-                 "font-bold text-sm",
-                 score >= 80 ? "text-success" :
-                 score >= 60 ? "text-warning" :
-                 "text-destructive"
-               )}>
-                 {score}%
-               </span>
+                <span className={cn(
+                  "font-bold text-sm",
+                  score === 0 ? "text-muted-foreground" :
+                  score >= 80 ? "text-success" :
+                  score >= 60 ? "text-warning" :
+                  "text-destructive"
+                )}>
+                  {job.tailorResult.overallScore === null && metric === 'overall' ? 'N/A' : `${score}%`}
+                </span>
              </div>
              
              {/* Progress Bar */}
