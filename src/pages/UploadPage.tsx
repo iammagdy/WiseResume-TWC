@@ -579,7 +579,7 @@ export default function UploadPage() {
   }, [handleFile]);
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
@@ -593,7 +593,7 @@ export default function UploadPage() {
           <h1 className="text-lg font-display font-semibold truncate">Upload Resume</h1>
         </div>
       </header>
-      <div className="flex-1 flex flex-col px-4 py-6">
+      <div className="flex-1 flex flex-col px-4 py-6 overflow-y-auto">
         <AnimatePresence mode="wait">
           {showErrorRecovery ? (
             <motion.div

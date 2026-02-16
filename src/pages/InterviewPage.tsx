@@ -191,7 +191,7 @@ export default function InterviewPage() {
   // Summary screen
   if (phase === 'summary') {
     return (
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-y-auto">
         <InterviewSummary
           summary={summary!}
           duration={elapsedSeconds}
@@ -208,7 +208,7 @@ export default function InterviewPage() {
   // Preview screen (job-targeted only)
   if (phase === 'preview') {
     return (
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-y-auto">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button onClick={() => { setPendingJobDescription(undefined); }} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
