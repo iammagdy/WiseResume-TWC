@@ -32,25 +32,6 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Replace Android icons with app icons
-        run: |
-          # Copy PWA icons to Android resource folders
-          cp public/icons/icon-48x48.png android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-          cp public/icons/icon-48x48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-          cp public/icons/icon-48x48.png android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-          cp public/icons/icon-72x72.png android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-          cp public/icons/icon-72x72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-          cp public/icons/icon-72x72.png android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-          cp public/icons/icon-96x96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          cp public/icons/icon-96x96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-          cp public/icons/icon-96x96.png android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-          cp public/icons/icon-144x144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          cp public/icons/icon-144x144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-          cp public/icons/icon-144x144.png android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-          cp public/icons/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          cp public/icons/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-          cp public/icons/icon-192x192.png android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
-
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
