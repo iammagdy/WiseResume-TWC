@@ -1,6 +1,6 @@
  {
-   "name": "WiseResume - AI Resume Editor",
-   "short_name": "WiseResume",
+  "name": "Wise Resume - AI Resume Editor",
+  "short_name": "Wise Resume",
    "description": "AI-powered resume editor with job match scoring, gap analysis, and ATS-friendly templates",
    "start_url": "/",
    "scope": "/",
