@@ -1,16 +1,21 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { BottomTabBar } from './BottomTabBar';
 import { OfflineBanner } from './OfflineBanner';
+import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { cn } from '@/lib/utils';
 
 
 // Routes that show bottom nav
 const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letter', '/cover-letters', '/examples', '/career', '/resignation-letter', '/guides', '/ai-studio'];
 
+// Routes with AI features that show the health badge
+const AI_ROUTES = ['/editor', '/ai-studio', '/interview', '/cover-letter', '/career', '/dashboard'];
+
 export function AppShell() {
   const location = useLocation();
   const currentOutlet = useOutlet();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
+  const showAIHealth = AI_ROUTES.some(r => location.pathname.startsWith(r));
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col bg-background">
@@ -22,6 +27,11 @@ export function AppShell() {
         Skip to content
       </a>
       <OfflineBanner />
+      {showAIHealth && (
+        <div className="absolute top-3 right-3 z-50">
+          <AIHealthBadge />
+        </div>
+      )}
       <main
         id="main-content"
         className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}
