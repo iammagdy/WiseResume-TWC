@@ -1,50 +1,86 @@
 
 
-## Fix Three Issues: Score Resume Crash, `e.filter` Error, and AI Enhance UX
+## APK AI Features Analysis -- Issues Found and Fixes
 
-### Issue 1: Score Resume and `e.filter` Crashes (Same Root Cause)
+### Status: What's Working Well
 
-The edge function `score-resume` crashes with `resume.skills?.join is not a function` because the AI Enhance feature can return skills as objects instead of plain strings. This same data corruption causes the `e.filter is not a function` crash on pages that call `experience.filter()` or `skills.filter()` from the Zustand store -- if AI enhancement returns non-array data, it gets merged into the store raw.
+1. **Scroll fix**: AppShell correctly uses `overflow-y-auto` with WebView styles -- confirmed working.
+2. **Score Resume edge function**: Already has defensive skills mapping (line 79) -- fixed in last session.
+3. **Store sanitization**: `updateResume` already enforces array types for experience, education, skills.
+4. **AI Enhance Sheet**: Has "Apply All" and sticky "Done" buttons -- fixed in last session.
+5. **CORS**: Properly handles `null` / `https://localhost` origins for Capacitor APKs.
+6. **Auth resilience**: `useResumeScore` has explicit `getSession()` + retry + direct fetch fallback for WebView reliability.
+7. **AI Credit system**: Server-side RPC (`increment_ai_usage`) is secure; client-side correctly checks and warns.
+8. **All edge functions**: `verify_jwt = false` in config.toml with manual auth validation in code -- correct pattern.
 
-**Fix A: Edge function -- make `skills` handling defensive**
+---
 
-File: `supabase/functions/score-resume/index.ts`
+### Issue 1: `analyze-resume` Still Has Unguarded `skills.join()` (CRASH)
 
-- Change line that does `resume.skills?.join(', ')` to handle both `string[]` and object formats:
-  ```
-  Skills: ${Array.isArray(resume.skills) ? resume.skills.map(s => typeof s === 'string' ? s : s.name || String(s)).join(', ') : 'Not provided'}
-  ```
+**File**: `supabase/functions/analyze-resume/index.ts`, line 103
 
-**Fix B: AI Enhance sheet -- sanitize results before applying**
+```
+Skills: ${resume.skills?.join(', ') || 'Not provided'}
+```
 
-File: `src/components/editor/ai/AIEnhanceSheet.tsx`
+This will crash with `resume.skills?.join is not a function` if skills are objects (same bug that was fixed in `score-resume`).
 
-- In `applyResult`, add a sanitization step that ensures arrays remain arrays and skills remain `string[]` before calling `updateResume`.
+**Fix**: Apply the same defensive mapping:
+```
+Skills: ${Array.isArray(resume.skills) ? resume.skills.map(s => typeof s === 'string' ? s : s?.name || String(s)).join(', ') : 'Not provided'}
+```
 
-**Fix C: Resume store -- defensive array coercion on `updateResume`**
+---
 
-File: `src/store/resumeStore.ts`
+### Issue 2: `tailor-resume` Also Has Unguarded `skills.join()` (CRASH)
 
-- In the `updateResume` action, ensure `experience`, `education`, `skills` are always arrays before merging.
+**File**: `supabase/functions/tailor-resume/index.ts`, line 162
 
-### Issue 2: AI Enhance Sheet Missing "Apply All" and "Done" Buttons
+```
+${resume.skills?.join(', ') || 'Not provided'}
+```
 
-File: `src/components/editor/ai/AIEnhanceSheet.tsx`
+Same crash risk when skills contain objects instead of strings.
 
-- Add an "Apply All" button at the top of the results section that applies all unapplied enhancements at once.
-- Add a sticky "Done" button at the bottom of the sheet that closes it, visible after results are shown.
+**Fix**: Same defensive mapping as above.
 
-### Issue 3: Jobs "Mark as Applied" Shows Nothing
+---
 
-The `createApplication` mutation in `ApplicationsPage.tsx` correctly creates the entry with status `'applied'`. However, the "My Applications" tab filters by `statusFilter` which defaults to `'all'`, and the query correctly fetches all. The issue is likely that the `job_applications` query cache isn't being invalidated when switching tabs. 
+### Issue 3: `analyze-resume` Doesn't Use Shared `aiClient.ts` (Inconsistency)
 
-Fix: After `createApplication.mutate` succeeds, also invalidate the `job-activity-stats` query and switch to the Applications tab to show immediate feedback.
+The `analyze-resume` function manually calls `fetch()` to the AI gateway instead of using the shared `callAI()` helper from `_shared/aiClient.ts`. This means:
+- No 30-second timeout protection (could hang indefinitely)
+- No standardized error handling for 402/429 errors
+- Inconsistent with all other edge functions
 
-### Technical Summary
+**Fix**: Refactor `analyze-resume` to use `callAI()` from the shared client, matching the pattern used in `score-resume` and `enhance-section`.
 
-| File | Change |
-|------|--------|
-| `supabase/functions/score-resume/index.ts` | Defensive skills handling for `.join()` |
-| `src/components/editor/ai/AIEnhanceSheet.tsx` | Add "Apply All" + "Done" buttons; sanitize AI results before applying |
-| `src/store/resumeStore.ts` | Defensive array coercion in `updateResume` |
-| `src/pages/ApplicationsPage.tsx` | Switch to Applications tab after "Mark as Applied"; invalidate stats |
+---
+
+### Issue 4: `tailor-resume` Also Doesn't Use Shared `aiClient.ts`
+
+Same problem -- manual `fetch()` instead of `callAI()`. It does have its own 25s timeout which is good, but error handling is inconsistent.
+
+**Fix**: Refactor to use `callAI()` for consistency. The shared client already handles timeouts (30s), rate limiting, and error mapping.
+
+---
+
+### Summary of Changes
+
+| File | Issue | Fix |
+|------|-------|-----|
+| `supabase/functions/analyze-resume/index.ts` | `skills.join()` crash | Defensive mapping |
+| `supabase/functions/analyze-resume/index.ts` | No shared AI client | Refactor to use `callAI()` |
+| `supabase/functions/tailor-resume/index.ts` | `skills.join()` crash | Defensive mapping |
+| `supabase/functions/tailor-resume/index.ts` | No shared AI client | Refactor to use `callAI()` |
+
+### What Does NOT Need Changes
+
+- `score-resume` -- already fixed
+- `enhance-section` -- already uses `callAI()` 
+- `agentic-chat` -- uses manual fetch but with proper error handling and tool calling (shared client doesn't support streaming-like patterns needed here)
+- `AIEnhanceSheet` -- already has Apply All + Done + sanitization
+- `resumeStore` -- already has defensive array coercion
+- CORS -- already handles APK origins correctly
+- AppShell scroll -- already fixed
+
