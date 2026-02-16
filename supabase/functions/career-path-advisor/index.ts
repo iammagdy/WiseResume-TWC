@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 
 const MAX_RESUME_SIZE = 100 * 1024;
 
@@ -12,7 +13,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Authentication check
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(
@@ -29,9 +29,7 @@ Deno.serve(async (req: Request) => {
 
     const token = authHeader.replace('Bearer ', '');
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-
     if (authError || !user) {
-      console.error('Auth error:', authError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -47,177 +45,76 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const resumeStr = JSON.stringify(resume);
-    if (resumeStr.length > MAX_RESUME_SIZE) {
+    if (JSON.stringify(resume).length > MAX_RESUME_SIZE) {
       return new Response(
         JSON.stringify({ error: "Resume data too large" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Determine which AI gateway to use
-    const useGeminiDirect = !!userGeminiKey;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const systemPrompt = `You are an expert career advisor. Analyze the resume and generate career progression insights.
 
-    if (!useGeminiDirect && !LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    const apiUrl = useGeminiDirect
-      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-    const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
-
-    console.log(`career-path-advisor: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
-
-    const systemPrompt = `You are an expert career advisor and workforce analyst. Analyze the provided resume and generate comprehensive career progression insights.
-
-Return ONLY valid JSON (no markdown, no code blocks) with this exact structure:
-
+Return ONLY valid JSON with this structure:
 {
   "currentLevel": "entry" | "mid" | "senior" | "lead" | "executive",
-  "yearsExperience": <estimated number>,
-  "primaryField": "<detected career field>",
-  "nextRoles": [
-    {
-      "title": "<role title>",
-      "matchScore": <0-100 how well their current experience matches>,
-      "requiredSkills": ["<skill they need>"],
-      "existingSkills": ["<skills they already have for this role>"],
-      "timeToReady": "<realistic estimate like '6-12 months'>",
-      "description": "<brief description of what this role involves>"
-    }
-  ],
-  "skillGaps": [
-    {
-      "skill": "<missing skill>",
-      "priority": "critical" | "important" | "nice-to-have",
-      "forRoles": ["<which next roles need this>"],
-      "suggestion": "<how to acquire this skill>"
-    }
-  ],
-  "industryAlternatives": [
-    {
-      "industry": "<alternative industry>",
-      "role": "<equivalent role in that industry>",
-      "transferableSkills": ["<skills that transfer>"],
-      "newSkillsNeeded": ["<new skills to learn>"],
-      "salaryComparison": "higher" | "similar" | "lower"
-    }
-  ],
-  "actionPlan": [
-    {
-      "step": <number 1-5>,
-      "action": "<specific action to take>",
-      "timeframe": "<when to do it>",
-      "impact": "high" | "medium" | "low"
-    }
-  ]
+  "yearsExperience": <number>,
+  "primaryField": "<field>",
+  "nextRoles": [{"title":"","matchScore":0,"requiredSkills":[],"existingSkills":[],"timeToReady":"","description":""}],
+  "skillGaps": [{"skill":"","priority":"critical|important|nice-to-have","forRoles":[],"suggestion":""}],
+  "industryAlternatives": [{"industry":"","role":"","transferableSkills":[],"newSkillsNeeded":[],"salaryComparison":"higher|similar|lower"}],
+  "actionPlan": [{"step":1,"action":"","timeframe":"","impact":"high|medium|low"}]
 }
 
-Generate 4-5 next roles, 4-6 skill gaps, 3-4 industry alternatives, and a 5-step action plan.
-Be realistic and specific. Don't suggest roles that are unrealistically above their current level.`;
+Generate 4-5 next roles, 4-6 skill gaps, 3-4 industry alternatives, and a 5-step action plan. Be realistic.`;
 
-    const userPrompt = `Analyze this resume and provide career path advice:
+    const userPrompt = `Analyze this resume:
 
 Name: ${resume.contactInfo?.fullName || "Not provided"}
 Summary: ${resume.summary || "Not provided"}
 Skills: ${resume.skills?.join(", ") || "Not provided"}
 
 Experience:
-${resume.experience?.map((e: { position: string; company: string; startDate: string; endDate: string; current: boolean; description: string; achievements?: string[] }) =>
-  `- ${e.position} at ${e.company} (${e.startDate} - ${e.current ? "Present" : e.endDate})\n  ${e.description}\n  Achievements: ${e.achievements?.join("; ") || "None listed"}`
+${resume.experience?.map((e: any) =>
+  `- ${e.position} at ${e.company} (${e.startDate} - ${e.current ? "Present" : e.endDate})\n  ${e.description}\n  Achievements: ${e.achievements?.join("; ") || "None"}`
 ).join("\n") || "Not provided"}
 
 Education:
-${resume.education?.map((e: { degree: string; field: string; institution: string }) =>
-  `- ${e.degree} in ${e.field} from ${e.institution}`
-).join("\n") || "Not provided"}`;
+${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.institution}`).join("\n") || "Not provided"}`;
 
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.6,
-        max_tokens: 4000,
-      }),
+    const aiResponse = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.6,
+      maxTokens: 4000,
+      userGeminiKey,
     });
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 429) {
-        const errorMsg = useGeminiDirect
-          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
-          : "Rate limit exceeded";
-        return new Response(
-          JSON.stringify({ error: errorMsg }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await response.text();
-      console.error("AI error:", response.status, errText);
-      throw new Error(`AI request failed: ${response.status}`);
-    }
+    const result = parseAIJSON(aiResponse.content || '{}');
+    if (!result) throw new Error("Failed to parse career path analysis");
 
-    const aiResponse = await response.json();
-    const content = aiResponse.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error("No content in AI response");
-    }
-
-    let result;
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found");
-      }
-    } catch {
-      console.error("Failed to parse:", content.slice(0, 500));
-      throw new Error("Failed to parse career path analysis");
-    }
-
-    result = {
-      currentLevel: result.currentLevel || "mid",
-      yearsExperience: result.yearsExperience || 0,
-      primaryField: result.primaryField || "General",
-      nextRoles: result.nextRoles || [],
-      skillGaps: result.skillGaps || [],
-      industryAlternatives: result.industryAlternatives || [],
-      actionPlan: result.actionPlan || [],
+    const sanitized = {
+      currentLevel: (result as any).currentLevel || "mid",
+      yearsExperience: (result as any).yearsExperience || 0,
+      primaryField: (result as any).primaryField || "General",
+      nextRoles: (result as any).nextRoles || [],
+      skillGaps: (result as any).skillGaps || [],
+      industryAlternatives: (result as any).industryAlternatives || [],
+      actionPlan: (result as any).actionPlan || [],
     };
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify(sanitized), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("career-path-advisor error:", error);
+    const status = isAIError(error) ? error.status : 500;
+    const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: message }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
