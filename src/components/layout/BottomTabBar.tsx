@@ -1,6 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Briefcase } from 'lucide-react';
-import wiseAiIcon from '@/assets/wise-ai-icon.png';
+import { FileText, Settings, Home, Briefcase, Sparkles } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -32,8 +31,8 @@ const tabs: TabItem[] = [
   },
   {
     path: '/ai-studio',
-    customIcon: wiseAiIcon,
-    label: 'Wise AI',
+    icon: Sparkles,
+    label: 'Studio',
     matchPaths: ['/ai-studio'],
   },
   { 
