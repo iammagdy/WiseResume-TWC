@@ -27,7 +27,8 @@ export function AppShell() {
         className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}
       >
         <div
-          className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-hidden"
+          className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-y-auto"
+          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           {currentOutlet}
         </div>
