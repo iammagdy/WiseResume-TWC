@@ -36,8 +36,7 @@ const Index = () => {
   const { user } = useAuth();
   const prefersReducedMotion = useReducedMotion();
 
-  // Authenticated users go straight to dashboard
-  if (user) return <Navigate to="/dashboard" replace />;
+  // No redirect — authenticated users can view the landing page too
 
   const fade = (delay: number) =>
     prefersReducedMotion
