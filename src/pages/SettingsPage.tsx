@@ -75,6 +75,7 @@ import { haptics } from '@/lib/haptics';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
+import { Skeleton } from '@/components/ui/skeleton';
 import developerPhoto from '@/assets/developer-photo.png';
 
 // Lazy-loaded sheets
@@ -197,6 +198,24 @@ export default function SettingsPage() {
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [showJumpSheet, setShowJumpSheet] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
+
+  // Dynamic changelog
+  const [changelogData, setChangelogData] = useState<Array<{ version: string; date: string; latest?: boolean; items: Array<{ title: string; description: string }> }>>([]);
+  const [changelogLoading, setChangelogLoading] = useState(false);
+  const [changelogError, setChangelogError] = useState(false);
+
+  useEffect(() => {
+    if (!changelogOpen) return;
+    setChangelogLoading(true);
+    setChangelogError(false);
+    fetch('/changelog.json')
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => setChangelogData(data))
+      .catch(() => setChangelogError(true))
+      .finally(() => setChangelogLoading(false));
+  }, [changelogOpen]);
+
+  const appVersion = changelogData[0]?.version || 'v1.5.0';
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -979,7 +998,7 @@ export default function SettingsPage() {
               onClick={() => setChangelogOpen(true)}
               className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors touch-manipulation"
             >
-              WiseResume v1.5.0
+              WiseResume {appVersion}
             </button>
 
             <div className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground">
@@ -1120,36 +1139,44 @@ export default function SettingsPage() {
             <DialogDescription>What's new in WiseResume</DialogDescription>
           </DialogHeader>
           <div className="max-h-[50vh] overflow-y-auto space-y-4 pt-2">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <p className="text-sm font-semibold">v1.5.0</p>
-                <span className="text-[10px] font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Latest</span>
+            {changelogLoading ? (
+              <div className="space-y-4">
+                {[1, 2].map(i => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-3/4" />
+                  </div>
+                ))}
               </div>
-              <ul className="space-y-2 text-xs text-muted-foreground">
-                <li>
-                  <span className="font-medium text-foreground">Polished Tailor Loading Screen</span> — Smooth real-feel progress animation with cubic ease-out curve, animated percentage counter, glowing progress bar, estimated time remaining, and fun facts carousel.
-                </li>
-                <li>
-                  <span className="font-medium text-foreground">Mobile Scroll Fixes</span> — Fixed non-scrollable pages on mobile for Job Details, Application Details, Cover Letters, and Notifications pages.
-                </li>
-                <li>
-                  <span className="font-medium text-foreground">Enhanced Tailor Step Visualization</span> — Redesigned step list with vertical connecting lines, spring-animated checkmarks, and highlighted active step with loading spinner.
-                </li>
-                <li>
-                  <span className="font-medium text-foreground">Projected Score Preview</span> — Live projected ATS score comparison (before vs. after) and skill gap count displayed during the tailoring process.
-                </li>
-                <li>
-                  <span className="font-medium text-foreground">Smart Progress Estimation</span> — Estimated time remaining countdown and percentage-based step transitions that adapt to actual backend response time.
-                </li>
-              </ul>
-            </div>
-            <Separator />
-            <div>
-              <p className="text-sm font-semibold mb-2">v1.0.0</p>
-              <p className="text-xs text-muted-foreground">
-                Initial release — AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep.
-              </p>
-            </div>
+            ) : changelogError ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Could not load changelog.</p>
+            ) : (
+              changelogData.map((release, idx) => (
+                <div key={release.version}>
+                  {idx > 0 && <Separator className="mb-4" />}
+                  <div className="flex items-center gap-2 mb-2">
+                    <p className="text-sm font-semibold">{release.version}</p>
+                    {release.latest && (
+                      <span className="text-[10px] font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Latest</span>
+                    )}
+                  </div>
+                  {release.items.length === 1 ? (
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{release.items[0].title}</span> — {release.items[0].description}
+                    </p>
+                  ) : (
+                    <ul className="space-y-2 text-xs text-muted-foreground">
+                      {release.items.map((item, i) => (
+                        <li key={i}>
+                          <span className="font-medium text-foreground">{item.title}</span> — {item.description}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </DialogContent>
       </Dialog>
