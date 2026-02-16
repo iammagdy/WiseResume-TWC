@@ -38,7 +38,13 @@ import {
   Github,
   Linkedin,
   Twitter,
-  Moon
+  Moon,
+  KeyRound,
+  FileText,
+  Briefcase,
+  BarChart3,
+  EyeOff,
+  Activity,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
@@ -58,6 +64,7 @@ import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
@@ -114,6 +121,10 @@ export default function SettingsPage() {
     elevenlabsApiKey,
     setElevenlabsApiKey,
     aiProvider,
+    localOnlyMode,
+    setLocalOnlyMode,
+    analyticsEnabled,
+    setAnalyticsEnabled,
   } = useSettingsStore();
  
   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
@@ -185,6 +196,7 @@ export default function SettingsPage() {
   const [helpSheetOpen, setHelpSheetOpen] = useState(false);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [showJumpSheet, setShowJumpSheet] = useState(false);
+  const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -211,8 +223,22 @@ export default function SettingsPage() {
 
   const handleSignOut = async () => {
     haptics.medium();
+    setSignOutConfirmOpen(false);
     await signOut();
     navigate('/');
+  };
+
+  const handleChangePassword = async () => {
+    if (!user?.email) return;
+    haptics.light();
+    const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) {
+      toast.error('Failed to send password reset email');
+    } else {
+      toast.success('Password reset email sent! Check your inbox.');
+    }
   };
 
   const handleOpenEditProfile = () => {
@@ -246,7 +272,15 @@ export default function SettingsPage() {
 
   const handleRateApp = () => {
     haptics.light();
-    toast.success('Thanks for your support! ⭐');
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isAndroid) {
+      openExternal('https://play.google.com/store/apps/details?id=com.wiseresume.app');
+    } else if (isIOS) {
+      openExternal('https://apps.apple.com/app/wiseresume/id000000000');
+    } else {
+      toast('Store listing coming soon! Thanks for your support ⭐', { icon: '🚀' });
+    }
   };
 
   const handleLanguage = () => {
@@ -351,6 +385,9 @@ export default function SettingsPage() {
               );
             })}
           </div>
+          {/* Guest CTA */}
+          {!user && <GuestCtaCard navigate={navigate} />}
+          
           {/* 1. Profile Section */}
           <button
             onClick={handleOpenEditProfile}
@@ -732,65 +769,64 @@ export default function SettingsPage() {
 
           <Separator className="opacity-10" />
           <div id="section-privacy" className="glass-surface-alt">
-            <TooltipProvider>
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
-                <Shield className="w-4 h-4 text-primary/60" />
-                Privacy & Security
-                {!biometricAvailable && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="outline" className="text-[10px] px-2 py-0.5 ml-1 cursor-help">
-                        Mobile only
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      Biometric lock requires a device with fingerprint or face recognition
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              </h2>
-            </TooltipProvider>
-            <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock and data protection</p>
-            {biometricAvailable ? (
-              <div className="rounded-2xl glass-elevated overflow-hidden">
-                <SettingsRow
-                  type="toggle"
-                  label="Biometric Lock"
-                  description="Protect your resumes"
-                  icon={<Fingerprint className="w-4 h-4" />}
-                  checked={biometricLockEnabled}
-                  onCheckedChange={handleBiometricToggle}
-                />
-                {biometricLockEnabled && (
-                  <>
-                    <Separator className="bg-border/30" />
-                    <SettingsRow
-                      type="navigation"
-                      label="Require Authentication After"
-                      value={
-                        biometricLockTimeout === 0 ? 'Immediately' :
-                        biometricLockTimeout === 30000 ? '30 seconds' :
-                        biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
-                      }
-                      icon={<Clock className="w-4 h-4" />}
-                      onClick={() => setBiometricTimeoutOpen(true)}
-                    />
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="rounded-2xl glass-elevated overflow-hidden opacity-50 pointer-events-none">
-                <div className="flex items-center gap-3 py-3.5 px-4 min-h-[56px]">
-                  <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary">
-                    <Fingerprint className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-sm">Biometric Lock</p>
-                    <p className="text-xs text-muted-foreground">Available on mobile devices with biometrics</p>
-                  </div>
-                </div>
-              </div>
-            )}
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-primary/60" />
+              Privacy & Security
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock, data protection, and privacy controls</p>
+            
+            <div className="rounded-2xl glass-elevated overflow-hidden">
+              {/* Biometric lock - available on mobile */}
+              {biometricAvailable ? (
+                <>
+                  <SettingsRow
+                    type="toggle"
+                    label="Biometric Lock"
+                    description="Protect your resumes"
+                    icon={<Fingerprint className="w-4 h-4" />}
+                    checked={biometricLockEnabled}
+                    onCheckedChange={handleBiometricToggle}
+                  />
+                  {biometricLockEnabled && (
+                    <>
+                      <Separator className="bg-border/30" />
+                      <SettingsRow
+                        type="navigation"
+                        label="Require Authentication After"
+                        value={
+                          biometricLockTimeout === 0 ? 'Immediately' :
+                          biometricLockTimeout === 30000 ? '30 seconds' :
+                          biometricLockTimeout === 60000 ? '1 minute' : '5 minutes'
+                        }
+                        icon={<Clock className="w-4 h-4" />}
+                        onClick={() => setBiometricTimeoutOpen(true)}
+                      />
+                    </>
+                  )}
+                  <Separator className="bg-border/30" />
+                </>
+              ) : null}
+              
+              {/* Privacy toggles - always visible */}
+              <SettingsRow
+                type="toggle"
+                label="Local-Only Mode"
+                description="Keep data on this device only"
+                icon={<EyeOff className="w-4 h-4" />}
+                checked={localOnlyMode}
+                onCheckedChange={setLocalOnlyMode}
+              />
+              <Separator className="bg-border/30" />
+              <SettingsRow
+                type="toggle"
+                label="Usage Analytics"
+                description="Help improve WiseResume with anonymous usage data"
+                icon={<Activity className="w-4 h-4" />}
+                checked={analyticsEnabled}
+                onCheckedChange={setAnalyticsEnabled}
+              />
+            </div>
+            
             <p className="text-xs text-muted-foreground mt-3 px-1 leading-relaxed">
               Your resumes are stored securely and never sold to third parties.{' '}
               <button
@@ -812,21 +848,58 @@ export default function SettingsPage() {
                   <LogOut className="w-4 h-4 text-primary/60" />
                   Account
                 </h2>
-                <p className="text-xs text-muted-foreground mb-3 px-1">Sign out or delete your data</p>
+                <p className="text-xs text-muted-foreground mb-3 px-1">Manage your account and data</p>
+                
+                {/* Account Stats */}
+                <div className="rounded-2xl glass-elevated overflow-hidden p-4 mb-3">
+                  <div className="grid grid-cols-3 gap-3 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-primary">{resumes.length}</p>
+                      <p className="text-[10px] text-muted-foreground">Resumes</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-primary">—</p>
+                      <p className="text-[10px] text-muted-foreground">Cover Letters</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-primary">—</p>
+                      <p className="text-[10px] text-muted-foreground">Applications</p>
+                    </div>
+                  </div>
+                  {user.created_at && (
+                    <p className="text-[10px] text-muted-foreground text-center mt-2">
+                      Member since {new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                    </p>
+                  )}
+                </div>
+
                 <div className="rounded-2xl glass-elevated overflow-hidden">
-                  <SettingsRow
-                    type="button"
-                    label="Delete All Data"
-                    icon={<Trash2 className="w-4 h-4" />}
-                    onClick={() => setDeleteDialogOpen(true)}
-                    destructive
-                  />
-                  <Separator className="bg-border/30" />
+                  {/* Change Password - email users only */}
+                  {authProvider === 'email' && (
+                    <>
+                      <SettingsRow
+                        type="navigation"
+                        label="Change Password"
+                        description="Send a password reset email"
+                        icon={<KeyRound className="w-4 h-4" />}
+                        onClick={handleChangePassword}
+                      />
+                      <Separator className="bg-border/30" />
+                    </>
+                  )}
                   <SettingsRow
                     type="button"
                     label="Sign Out"
                     icon={<LogOut className="w-4 h-4" />}
-                    onClick={handleSignOut}
+                    onClick={() => { haptics.medium(); setSignOutConfirmOpen(true); }}
+                  />
+                  <Separator className="bg-border/30" />
+                  <SettingsRow
+                    type="button"
+                    label="Delete All Data"
+                    description="Permanently remove all your data"
+                    icon={<Trash2 className="w-4 h-4" />}
+                    onClick={() => setDeleteDialogOpen(true)}
                     destructive
                   />
                 </div>
@@ -857,7 +930,7 @@ export default function SettingsPage() {
                     localStorage.removeItem('wr-onboarding-seen');
                   }
                   toast.success('Onboarding reset — redirecting…');
-                  navigate('/dashboard');
+                  navigate('/onboarding');
                 }}
               />
               <Separator className="bg-border/30" />
@@ -1020,6 +1093,24 @@ export default function SettingsPage() {
           />
         )}
       </Suspense>
+
+      {/* Sign Out Confirmation */}
+      <AlertDialog open={signOutConfirmOpen} onOpenChange={setSignOutConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sign out?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You'll need to sign in again to access your resumes, cover letters, and application data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSignOut} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Sign Out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Changelog Dialog */}
       <Dialog open={changelogOpen} onOpenChange={setChangelogOpen}>
