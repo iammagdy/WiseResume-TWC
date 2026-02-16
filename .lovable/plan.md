@@ -1,119 +1,53 @@
 
 
-## Settings Page Full Redesign
+## AI Health Indicator: Fix False Alerts, Overlap, and Wasteful Pings
 
-### Issues Identified and Fixes
+### Problems Found
 
-**1. Scrolling broken**
-The SettingsPage creates its own scroll container (`ref={scrollRef}` with `overflow-y-auto` on line 381) but AppShell also wraps everything in an `overflow-y-auto` div (line 40). Two nested scroll containers fight each other. Fix: remove the inner scroll container from SettingsPage and let AppShell handle scrolling. The `scrollRef` and `scrollToTop` FAB will reference the AppShell container via a parent ref or `document.querySelector`.
+1. **False "AI unavailable" toast** -- The hook starts in `checking` state. If the first fetch fails or takes too long (network hiccup, cold start), it immediately sets `down` and the toast fires. The `toastShownRef` then locks, so even when the next poll returns `healthy`, the user already saw the scary error toast. The toast should only fire after multiple consecutive failures, not on the very first check.
 
-**2. Invalid footer links**
-- GitHub URL is `https://github.com/magdysaber` -- change to `https://github.com/iammagdy`
-- Remove LinkedIn and Twitter icon buttons entirely
-- Remove Privacy and Terms links (lines 1005-1008)
+2. **Badge overlaps profile avatar** -- The badge is `absolute top-3 right-3 z-50` in AppShell, which sits on top of page headers (like the Settings avatar area). It needs to be positioned contextually within each page's header, or given smarter positioning.
 
-**3. "Made in EG" enhancement**
-Replace plain text with a branded footer strip: WiseResume logo (small icon) + version + GitHub icon, styled as a cohesive glass card.
+3. **Edge function wastes AI credits** -- Every 60s health check sends `"hi"` to the AI gateway and waits for a response. This burns credits on a throwaway request. A proper health check should just verify the endpoint is reachable (e.g., a lightweight ping or checking the response headers) without consuming model tokens.
 
-**4. Remove duplicate section navigation**
-Both the horizontal scrolling chip bar AND the hamburger menu "Jump to Section" sheet duplicate the bottom tab bar sections concept. Remove both entirely per your choice.
-
-**5. Account stats wired to real data**
-Query `cover_letters` and `job_applications` tables (both have `user_id` column) to get actual counts instead of showing dashes.
-
-**6. Developer Credit Card**
-Kept as-is per your choice.
+4. **Redundant polling when healthy** -- If AI is healthy, polling every 60s is excessive. Should back off to 5 minutes when healthy and only poll faster when degraded.
 
 ---
 
-### Full Redesign Structure
+### Plan
 
-The new settings page removes visual clutter, simplifies the hierarchy, and gives it a world-class mobile app feel:
+#### 1. Fix false toast alerts (`src/hooks/useAIHealth.ts`)
 
-```text
-+------------------------------------------+
-| [<- Back]  Settings                      |  <- clean header, no hamburger
-+------------------------------------------+
-| [Avatar] Name / Job Title                |
-| [Provider badge] [Progress bar if <100%] |  <- profile card (tap to edit)
-+------------------------------------------+
-|                                          |
-| APPEARANCE                               |
-| [Theme toggle]  [Language: English]      |
-|                                          |
-| AI & VOICE                               |
-| [AI Provider: WiseResume AI]             |
-| [ElevenLabs: Connect/Manage]            |
-|                                          |
-| EDITOR & EXPORT                          |
-| [PDF Settings (collapsible)]             |
-| [Export Resumes (collapsible)]           |
-|                                          |
-| NOTIFICATIONS                            |
-| [Push] [Auto-save] [AI Tips] [Quiet Hrs] |
-|                                          |
-| PRIVACY & SECURITY                       |
-| [Biometric] [Local-Only] [Analytics]     |
-|                                          |
-| ACCOUNT                                  |
-| [3 | 2 | 5]  Resumes | Letters | Apps   |
-| [Change Password] [Sign Out] [Delete]   |
-|                                          |
-| ABOUT                                    |
-| [Take Tour] [Rate] [Share] [Get Help]   |
-|                                          |
-| [Developer Credit Card]                 |
-|                                          |
-| [WiseResume icon] v1.6.0  [GitHub icon] |  <- branded footer
-| Crafted in Cairo, Egypt                  |
-+------------------------------------------+
-```
+- Add a `failCount` ref. Only transition to `down` status after 2 consecutive failures.
+- Reset `failCount` to 0 on any successful check.
+- Don't show toast during the initial `checking` -> first result transition. Only show toast if the status *changes* from `healthy`/`degraded` to `down` (not on cold start).
+- Use adaptive polling: 5 minutes when healthy, 60s when degraded, 30s when down.
+
+#### 2. Fix badge positioning (`src/components/layout/AppShell.tsx`)
+
+- Remove the `absolute top-3 right-3` positioning from AppShell.
+- Instead, place the badge inside each page's own header where it fits naturally (or use a smarter layout that doesn't overlap). The simplest fix: change from `absolute` to a flex-positioned element within the AppShell top area, or add `pointer-events-none` to the container and `pointer-events-auto` to the badge, plus shift it left so it doesn't overlap the avatar zone.
+- Best approach: move the badge into a slim top bar row that doesn't overlap content.
+
+#### 3. Make edge function lightweight (`supabase/functions/ai-health/index.ts`)
+
+- Instead of sending a full chat completion request with `"hi"`, just do a HEAD request or a minimal API call that verifies connectivity without burning tokens.
+- For the Lovable gateway: send a request with `max_tokens: 1` and an empty-ish prompt (already done, but we can use a simpler model check endpoint if available). Since there's no lighter endpoint, keep the current approach but reduce poll frequency.
+- Alternative: cache the last known status in the edge function response headers and skip the AI call if the last check was recent (server-side caching).
+
+#### 4. Suppress toast on initial load (`src/components/ai/AIHealthBadge.tsx`)
+
+- Add a `hasReceivedHealthy` ref. Only show error/warning toasts after the badge has seen at least one `healthy` status. This prevents the cold-start false alarm.
+- If the very first check comes back `down`, show the badge in red but don't fire a toast (the user can tap it to see details).
 
 ---
 
-### Detailed Changes
+### Files to Modify
 
-#### File: `src/pages/SettingsPage.tsx` (major rewrite)
-
-**Scrolling fix:**
-- Remove `ref={scrollRef}` and `onScroll={handleScroll}` from the inner div
-- Remove the `overflow-y-auto` class from it -- let AppShell's wrapper handle scroll
-- Update the scroll-to-top FAB to use `document.querySelector` or remove it (since AppShell handles scroll)
-- Alternatively, keep the scroll-to-top button but attach it to the window scroll
-
-**Remove section navigation (lines 138-146, 348-406):**
-- Delete the `SECTIONS` array
-- Delete the hamburger button in the header
-- Delete the `Sheet` for "Jump to Section"
-- Delete the horizontal chip bar
-- Delete `activeSection`, `showJumpSheet` state
-- Delete `scrollToSection` and related `IntersectionObserver` logic
-- Delete `SectionJumpButton` component at bottom of file
-
-**Fix footer (lines 996-1025):**
-- Remove Privacy and Terms links
-- Remove Twitter and LinkedIn buttons
-- Change GitHub URL from `https://github.com/magdysaber` to `https://github.com/iammagdy`
-- Replace "Made in EG" with branded footer: small AppIcon + "WiseResume v1.6.0" + GitHub icon, plus a subtle "Crafted in Cairo, Egypt" line with a small flag emoji
-
-**Wire account stats:**
-- Import `useCoverLetters` and `useJobApplications` hooks
-- Replace the hardcoded dashes with `coverLetters.length` and `applications.length`
-
-**Clean up unused imports:**
-- Remove `Menu`, `Twitter`, `Linkedin` from lucide imports
-- Remove `ArrowUp` if scroll-to-top is removed
-- Remove `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle` if jump sheet is removed
-
----
-
-### Files Summary
-
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/pages/SettingsPage.tsx` | Major rewrite: fix scrolling, remove section nav, fix footer, wire stats |
-
-### No New Files Needed
-
-All changes are within the existing SettingsPage. The hooks for cover letters and job applications already exist (`useCoverLetters`, `useJobApplications`).
+| `src/hooks/useAIHealth.ts` | Add fail-count logic, adaptive polling intervals, suppress initial false-down |
+| `src/components/ai/AIHealthBadge.tsx` | Only toast after first healthy seen; cleaner toast logic |
+| `src/components/layout/AppShell.tsx` | Fix badge positioning to not overlap page headers |
+| `supabase/functions/ai-health/index.ts` | No change needed (the 1-token call is already minimal; reducing poll frequency on client side is sufficient) |
 
