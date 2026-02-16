@@ -6,10 +6,10 @@ import { cn } from '@/lib/utils';
 
 
 // Routes that show bottom nav
-const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letter', '/cover-letters', '/examples', '/career', '/resignation-letter', '/guides', '/ai-studio'];
+const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor', '/preview', '/applications', '/onboarding', '/profile', '/templates', '/resume', '/job', '/application', '/notifications', '/cover-letters', '/cover-letter', '/examples', '/career', '/resignation-letter', '/guides', '/ai-studio'];
 
 // Routes with AI features that show the health badge
-const AI_ROUTES = ['/editor', '/ai-studio', '/interview', '/cover-letter', '/career', '/dashboard'];
+const AI_ROUTES = ['/editor', '/ai-studio', '/interview', '/cover-letter', '/career', '/dashboard', '/resignation-letter'];
 
 export function AppShell() {
   const location = useLocation();

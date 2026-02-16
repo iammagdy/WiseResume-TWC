@@ -155,7 +155,7 @@ export default function ApplicationTrackerPage() {
         {/* Linked Cover Letter */}
         {coverLetter && (
           <button
-            onClick={() => navigate('/cover-letter')}
+            onClick={() => navigate(`/cover-letter/edit/${coverLetter.id}`)}
             className="glass-card rounded-2xl p-4 flex items-center gap-3 w-full text-left hover:bg-muted/30 transition-colors"
           >
             <Mail className="w-5 h-5 text-primary" />
