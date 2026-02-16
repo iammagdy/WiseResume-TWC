@@ -1,13 +1,10 @@
-import { useEffect, useRef } from 'react';
-import { Activity, Zap, AlertTriangle, WifiOff, RefreshCw, Key } from 'lucide-react';
+import { Activity, Zap, AlertTriangle, WifiOff, Key } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
-const STATUS_CONFIG: Record<Exclude<AIHealthStatus, 'checking'>, {
+const STATUS_CONFIG: Record<AIHealthStatus, {
   dot: string;
   label: string;
   icon: typeof Activity;
@@ -34,44 +31,14 @@ const STATUS_CONFIG: Record<Exclude<AIHealthStatus, 'checking'>, {
 };
 
 export function AIHealthBadge() {
-  const { status, latencyMs, lastChecked, provider, errorCode, refetch, prevStatusRef } = useAIHealth();
+  const { status, latencyMs, lastChecked, provider, errorCode } = useAIHealth();
   const navigate = useNavigate();
-  const hasSeenHealthyRef = useRef(false);
-
-  // Track if we've ever seen healthy
-  useEffect(() => {
-    if (status === 'healthy') {
-      hasSeenHealthyRef.current = true;
-    }
-  }, [status]);
-
-  // Only toast on transitions FROM healthy to degraded/down
-  useEffect(() => {
-    if (!hasSeenHealthyRef.current) return;
-    const prev = prevStatusRef.current;
-    if (prev === 'healthy' || prev === 'checking') {
-      if (status === 'degraded') {
-        toast.warning('AI services are running slower than usual', { duration: 4000 });
-      } else if (status === 'down') {
-        toast.error('AI services are currently unavailable', { duration: 4000 });
-      }
-    }
-  }, [status, prevStatusRef]);
-
-  if (status === 'checking') {
-    return (
-      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full glass-elevated">
-        <Skeleton className="w-2 h-2 rounded-full" />
-        <Skeleton className="w-12 h-3" />
-      </div>
-    );
-  }
 
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
   const lastCheckedLabel = lastChecked
     ? `${Math.round((Date.now() - lastChecked.getTime()) / 1000)}s ago`
-    : 'Never';
+    : 'No calls yet';
 
   return (
     <Popover>
@@ -84,24 +51,15 @@ export function AIHealthBadge() {
           )}
           aria-label={`AI Status: ${config.label}`}
         >
-          <span className={cn('w-2 h-2 rounded-full animate-pulse', config.dot)} />
+          <span className={cn('w-2 h-2 rounded-full', status !== 'healthy' && 'animate-pulse', config.dot)} />
           <span className="text-foreground/80">{config.label}</span>
         </button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-3" align="end" sideOffset={8}>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Icon className="w-4 h-4 text-foreground/70" />
-              <span className="text-sm font-semibold">{config.label}</span>
-            </div>
-            <button
-              onClick={() => refetch()}
-              className="p-1 rounded-md hover:bg-muted active:scale-95 transition-all"
-              aria-label="Refresh health check"
-            >
-              <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
-            </button>
+          <div className="flex items-center gap-2">
+            <Icon className="w-4 h-4 text-foreground/70" />
+            <span className="text-sm font-semibold">{config.label}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">

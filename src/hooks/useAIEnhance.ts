@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
+import { useAIHealthStore } from '@/store/aiHealthStore';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
 export type ActionType = 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
@@ -45,6 +46,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
 
       const userGeminiKey = getUserGeminiKey();
       
+      const _start = Date.now();
       const { data, error } = await supabase.functions.invoke('enhance-section', {
         body: {
           section,
@@ -57,8 +59,10 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           userGeminiKey,
         },
       });
+      const _latency = Date.now() - _start;
 
       if (error) {
+        useAIHealthStore.getState().recordFailure(0);
         throw error;
       }
 
@@ -75,6 +79,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         return null;
       }
 
+      useAIHealthStore.getState().recordSuccess(_latency);
       trackGeminiUsage();
       incrementUsage.mutate();
       setResult(data);
