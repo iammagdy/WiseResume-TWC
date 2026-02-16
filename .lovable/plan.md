@@ -1,80 +1,88 @@
 
-## Enhanced Tailor Error Experience -- "We've Got Your Back"
+## Settings Page -- Production-Level Audit and Improvements
 
-### What Changes
+### Current State Assessment
 
-When the tailor flow fails (rate limit, AI overload, network error, or scores unavailable), the user currently sees a generic toast error. This plan upgrades every failure point to feel premium and supportive, offering actionable next steps including using their own API key for unlimited access.
+The settings page is **well-built** overall: it has section navigation, lazy-loaded sheets, haptic feedback, glass morphism styling, and proper skeleton loading. However, several gaps prevent it from being truly world-class.
 
 ---
 
-### Change 1: Upgrade the "Score unavailable" banner in TailorSheet
+### Issues Found (by priority)
 
-**File:** `src/components/editor/TailorSheet.tsx` (lines 456-465)
+#### Critical Issues
 
-Replace the current minimal "Score unavailable" message with a richer card that:
-- Uses a friendly tone: "Our servers are experiencing high demand right now"
-- Reassures: "Your tailored content is 100% valid -- only the score couldn't be calculated"
-- Adds a "Retry Score" button that re-invokes just the scoring (not the full tailor)
-- Adds a "Use Your Own AI Key" link that opens the AI Settings sheet for unlimited access
-- Uses a warm amber/yellow color scheme (not red/destructive)
+1. **HelpSheet links to wrong documentation** -- "Documentation" links to `docs.lovable.dev` (the platform docs, not your app's docs) and "Community" links to `discord.gg/lovable-dev`. These should link to your own resources or be removed.
 
-### Change 2: Upgrade the catch block error handling in handleTailor
+2. **"Rate WiseResume" does nothing** -- It just shows `toast.success('Thanks!')` with no actual store link (Play Store / App Store). For a production app this feels broken.
 
-**File:** `src/components/editor/TailorSheet.tsx` (lines 162-165)
+3. **Guest users can access Settings but most features are locked** -- The `GuestCtaCard` component exists but is never rendered in the page (it's defined but not used in the JSX). Guest users see a mostly empty/broken settings page.
 
-Currently shows a plain `toast.error()`. Replace with smarter error detection:
-- **Rate limit (429 / "Rate limit")**: Show a custom error card inline (not just a toast) saying "High traffic on WiseResume AI servers. Please try again in a moment or use your own Gemini API key for uninterrupted access."
-- **Credits exhausted (402)**: Show "AI credits used up" with link to settings
-- **Auth errors**: Keep existing "Please log in again" behavior
-- **Generic errors**: Show friendly message with "Report Issue" + "Try Again" + "Use Own Key" buttons
+4. **Changelog is hardcoded** -- Version `v1.5.0` and all release notes are hardcoded strings. No dynamic fetching or easy update mechanism.
 
-Add state `tailorError` to track the error so it renders inline in the sheet (visible, not just a fleeting toast).
+#### UX Issues
 
-### Change 3: Add inline error card component
+5. **No "Change Password" option** -- Users who signed up with email have no way to change their password from settings.
 
-**File:** `src/components/editor/TailorSheet.tsx` (new inline component)
+6. **No "Change Email" option** -- Users cannot update their email address.
 
-A `TailorErrorCard` rendered inside the sheet when `tailorError` is set, with:
-- Warm illustration area with a calming icon (Heart or Shield)
-- "We're on it" messaging: "Our AI servers are experiencing high demand. This is temporary."
-- Three action buttons:
-  1. "Try Again" -- re-runs `handleTailor()`
-  2. "Use Your Own Key" -- opens AI Settings sheet (already exists as `AISettingsSheet`)
-  3. "Report Issue" -- triggers `reportBug()`
-- A subtle note: "Tip: Adding your own Gemini API key gives you unlimited, uninterrupted access"
-- Dismiss button to clear the error and go back to the job description input
+7. **Account section only shows destructive actions** -- "Delete All Data" and "Sign Out" are the only account options. Missing positive account management actions (change password, linked accounts, session management).
 
-### Change 4: Wire up AI Settings sheet access from TailorSheet
+8. **"Take Tour Again" redirects to `/dashboard` instead of `/onboarding`** -- After resetting onboarding, users are sent to dashboard, not the actual onboarding flow.
 
-**File:** `src/components/editor/TailorSheet.tsx`
+9. **Privacy section is empty for web users** -- When biometrics aren't available (desktop/web), the section shows a grayed-out disabled card with no other privacy controls. The `localOnlyMode` and `analyticsEnabled` settings exist in the store but are not exposed in the UI.
 
-Add state `showAISettings` and render `AISettingsSheet` when true. Import already exists at the top for `AISettingsSheet`. Add a small "AI Settings" icon button in the sheet header area so users always know they can configure their own key.
+10. **No feedback/support form** -- "Email Support" in HelpSheet opens `mailto:` which is friction-heavy. No in-app feedback mechanism beyond the bug report system.
 
-### Change 5: Smarter error parsing in aiTailor.ts
+#### Polish Issues
 
-**File:** `src/lib/aiTailor.ts` (lines 99-104)
+11. **Missing app storage info** -- No indicator of how much data/storage the app is using (number of resumes, cover letters, applications).
 
-Currently wraps all errors as "Failed to tailor resume". Improve to pass through meaningful error messages:
-- Parse the response body for `error` field
-- Detect 429 status and throw with "rate_limit" marker
-- Detect 402 status and throw with "credits_exhausted" marker
-- Pass the original error message through so TailorSheet can differentiate
+12. **No sign-out confirmation** -- Tapping "Sign Out" immediately signs out without any confirmation dialog, which can be accidental on mobile.
+
+13. **Developer credit card "Contact Me" opens raw mailto** -- Directly exposes `contact@magdysaber.com` in the URL bar, inconsistent with the bug report system that hides the email.
+
+14. **Social links use incorrect URLs** -- `x.com/magdysaber`, `linkedin.com/in/magdysaber`, `github.com/magdysaber` may or may not be real. Should be verified.
+
+---
+
+### Recommended Changes
+
+#### Phase 1: Fix Critical Broken Items
+
+| File | Change |
+|------|--------|
+| `src/components/settings/HelpSheet.tsx` | Replace `docs.lovable.dev` with `magdysaber.com/wiseresume/docs` or a proper FAQ URL. Replace Discord link with your actual community link or remove it. |
+| `src/pages/SettingsPage.tsx` | Render `GuestCtaCard` for non-authenticated users (it exists but isn't used). Add it before the Appearance section when `!user`. |
+| `src/pages/SettingsPage.tsx` | Fix "Take Tour Again" to navigate to `/onboarding` instead of `/dashboard`. |
+
+#### Phase 2: Account Management
+
+| File | Change |
+|------|--------|
+| `src/pages/SettingsPage.tsx` | Add "Change Password" row (for email auth users only) that triggers Supabase password reset flow. Add sign-out confirmation dialog. |
+| `src/pages/SettingsPage.tsx` | Reorder Account section: Change Password first, then Sign Out, then Delete Data (most destructive last). |
+
+#### Phase 3: Privacy Section Enhancement
+
+| File | Change |
+|------|--------|
+| `src/pages/SettingsPage.tsx` | Add the `localOnlyMode` and `analyticsEnabled` toggles to the Privacy section so they are visible to all users (not just mobile). This makes the section useful on web too. |
+
+#### Phase 4: Polish
+
+| File | Change |
+|------|--------|
+| `src/pages/SettingsPage.tsx` | Add account stats card in the Account section showing: number of resumes, cover letters, applications, and account creation date. |
+| `src/pages/SettingsPage.tsx` | Replace "Rate WiseResume" with proper logic: detect platform (Android/iOS/web) and open the appropriate store link, or show "coming soon" messaging for web. |
+| `src/pages/SettingsPage.tsx` | Add sign-out confirmation: a small AlertDialog asking "Are you sure you want to sign out?" with Cancel/Sign Out buttons. |
 
 ---
 
 ### Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/lib/aiTailor.ts` | Better error classification (429/402/generic) |
-| `src/components/editor/TailorSheet.tsx` | Add `tailorError` state, inline error card, AI Settings access, upgraded score-unavailable banner |
+| File | Changes |
+|------|---------|
+| `src/pages/SettingsPage.tsx` | Render GuestCtaCard, fix tour redirect, add Change Password, add sign-out confirmation, add privacy toggles, add account stats, reorder account section |
+| `src/components/settings/HelpSheet.tsx` | Fix documentation and community links |
 
-### No new files needed -- everything fits within existing components.
-
-### Visual Result
-
-When things go wrong, instead of a brief toast, users see a full inline card inside the tailor sheet with:
-- A warm, empathetic message acknowledging the issue
-- Clear explanation that it's temporary server load
-- Three prominent action buttons (Try Again / Use Own Key / Report)
-- Subtle branding that positions the app as premium with real support
+### No new files needed -- all changes fit within existing components.
