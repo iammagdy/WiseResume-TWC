@@ -153,13 +153,18 @@ export function PullToRefresh({
         </div>
       </motion.div>
 
-      {/* Scroll Container */}
+      {/* Scroll Container - transform and scroll separated for Android WebView */}
       <motion.div
-        ref={containerRef}
-        className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide relative z-10"
+        className="flex-1 flex flex-col min-h-0 relative z-10"
         style={{ y: y }}
       >
-        {children}
+        <div
+          ref={containerRef}
+          className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+        >
+          {children}
+        </div>
       </motion.div>
     </div>
   );
