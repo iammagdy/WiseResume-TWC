@@ -335,6 +335,14 @@ export default function ApplicationsPage() {
                           company: job.company,
                           status: 'applied',
                           url: job.source_url || undefined,
+                        }, {
+                          onSuccess: () => {
+                            queryClient.invalidateQueries({ queryKey: ['job-applications'] });
+                            queryClient.invalidateQueries({ queryKey: ['job-activity-stats'] });
+                            queryClient.invalidateQueries({ queryKey: ['activity-timeline'] });
+                            setActiveTab('applications');
+                            haptics.success();
+                          },
                         });
                       }}
                     />

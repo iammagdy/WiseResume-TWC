@@ -76,7 +76,7 @@ Phone: ${resume.contactInfo?.phone || 'Not provided'}
 Location: ${resume.contactInfo?.location || 'Not provided'}
 LinkedIn: ${resume.contactInfo?.linkedin || 'Not provided'}
 Summary: ${resume.summary || 'Not provided'}
-Skills: ${resume.skills?.join(', ') || 'Not provided'}
+Skills: ${Array.isArray(resume.skills) ? resume.skills.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s)).join(', ') : 'Not provided'}
 Experience: ${resume.experience?.map((e: any) => `${e.position || 'Untitled'} at ${e.company || 'Unknown'} (${e.startDate || '?'} - ${e.endDate || 'Present'}): ${e.description || 'No description'}`).join('\n') || 'Not provided'}
 Education: ${resume.education?.map((e: any) => `${e.degree || ''} in ${e.field || ''} from ${e.institution || 'Unknown'}`).join('\n') || 'Not provided'}
 
