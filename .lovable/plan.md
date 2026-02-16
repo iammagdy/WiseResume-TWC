@@ -1,40 +1,50 @@
 
 
-## Fix Remaining Scroll Issue -- AppShell Inner Wrapper
+## Fix Three Issues: Score Resume Crash, `e.filter` Error, and AI Enhance UX
 
-### Problem
+### Issue 1: Score Resume and `e.filter` Crashes (Same Root Cause)
 
-The AppShell inner wrapper (`src/components/layout/AppShell.tsx`, line 30) still has `overflow-hidden`, which blocks touch-based scrolling on Android WebView even when child pages have their own `overflow-y-auto`.
+The edge function `score-resume` crashes with `resume.skills?.join is not a function` because the AI Enhance feature can return skills as objects instead of plain strings. This same data corruption causes the `e.filter is not a function` crash on pages that call `experience.filter()` or `skills.filter()` from the Zustand store -- if AI enhancement returns non-array data, it gets merged into the store raw.
 
-### Fix
+**Fix A: Edge function -- make `skills` handling defensive**
 
-One single change: replace `overflow-hidden` with `overflow-y-auto` on the inner wrapper div, and add WebView touch styles.
+File: `supabase/functions/score-resume/index.ts`
 
-### File: `src/components/layout/AppShell.tsx` (line 30)
+- Change line that does `resume.skills?.join(', ')` to handle both `string[]` and object formats:
+  ```
+  Skills: ${Array.isArray(resume.skills) ? resume.skills.map(s => typeof s === 'string' ? s : s.name || String(s)).join(', ') : 'Not provided'}
+  ```
 
-**Before:**
-```
-<div className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-hidden">
-```
+**Fix B: AI Enhance sheet -- sanitize results before applying**
 
-**After:**
-```
-<div
-  className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-y-auto"
-  style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
->
-```
+File: `src/components/editor/ai/AIEnhanceSheet.tsx`
 
-This makes the inner wrapper a valid scroll container, which:
-1. Allows pages without their own scroll setup to scroll naturally
-2. Ensures Android WebView correctly routes touch events to scrollable content
-3. Works with the global CSS already in place (`touch-action: pan-y` on `.overflow-y-auto`)
+- In `applyResult`, add a sanitization step that ensures arrays remain arrays and skills remain `string[]` before calling `updateResume`.
 
-### Summary
+**Fix C: Resume store -- defensive array coercion on `updateResume`**
+
+File: `src/store/resumeStore.ts`
+
+- In the `updateResume` action, ensure `experience`, `education`, `skills` are always arrays before merging.
+
+### Issue 2: AI Enhance Sheet Missing "Apply All" and "Done" Buttons
+
+File: `src/components/editor/ai/AIEnhanceSheet.tsx`
+
+- Add an "Apply All" button at the top of the results section that applies all unapplied enhancements at once.
+- Add a sticky "Done" button at the bottom of the sheet that closes it, visible after results are shown.
+
+### Issue 3: Jobs "Mark as Applied" Shows Nothing
+
+The `createApplication` mutation in `ApplicationsPage.tsx` correctly creates the entry with status `'applied'`. However, the "My Applications" tab filters by `statusFilter` which defaults to `'all'`, and the query correctly fetches all. The issue is likely that the `job_applications` query cache isn't being invalidated when switching tabs. 
+
+Fix: After `createApplication.mutate` succeeds, also invalidate the `job-activity-stats` query and switch to the Applications tab to show immediate feedback.
+
+### Technical Summary
 
 | File | Change |
 |------|--------|
-| `src/components/layout/AppShell.tsx` | Line 30: `overflow-hidden` to `overflow-y-auto` + WebView inline styles |
-
-No other files need changes -- all other scroll fixes are already in place.
-
+| `supabase/functions/score-resume/index.ts` | Defensive skills handling for `.join()` |
+| `src/components/editor/ai/AIEnhanceSheet.tsx` | Add "Apply All" + "Done" buttons; sanitize AI results before applying |
+| `src/store/resumeStore.ts` | Defensive array coercion in `updateResume` |
+| `src/pages/ApplicationsPage.tsx` | Switch to Applications tab after "Mark as Applied"; invalidate stats |
