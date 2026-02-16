@@ -107,6 +107,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
           action: 'fix_error',
           currentContent: target.content,
           fixInstruction: redFlag.fix,
+          userGeminiKey: getUserGeminiKey(),
           context: {
             resume: currentResume,
           },
