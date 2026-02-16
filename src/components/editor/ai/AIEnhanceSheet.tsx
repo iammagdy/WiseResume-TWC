@@ -158,7 +158,15 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
     haptics.medium();
 
     try {
-      const parsed = JSON.parse(contentToString(results[index].improved));
+      let parsed = JSON.parse(contentToString(results[index].improved));
+      // Sanitize: ensure skills remain string[]
+      if (result.section === 'skills' && Array.isArray(parsed)) {
+        parsed = parsed.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s));
+      }
+      // Sanitize: ensure experience/education remain arrays
+      if ((result.section === 'experience' || result.section === 'education') && !Array.isArray(parsed)) {
+        parsed = [];
+      }
       updateResume({ [result.section]: parsed });
     } catch {
       // For string sections like summary
@@ -279,7 +287,24 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
           {/* Results */}
           {results.length > 0 && (
             <div className="space-y-4">
-              <p className="text-xs font-medium text-muted-foreground px-1">Results</p>
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs font-medium text-muted-foreground">Results</p>
+                {results.some(r => !r.applied) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs min-h-[44px] active:scale-95 transition-transform touch-manipulation"
+                    onClick={() => {
+                      haptics.medium();
+                      results.forEach((r, i) => {
+                        if (!r.applied) applyResult(i);
+                      });
+                    }}
+                  >
+                    <Check className="w-3.5 h-3.5 mr-1" /> Apply All
+                  </Button>
+                )}
+              </div>
               {results.map((r, i) => (
                 <div key={`${r.section}-${i}`} className="rounded-xl border border-border bg-card p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -341,6 +366,19 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
             </div>
           )}
         </div>
+
+        {/* Sticky Done button */}
+        {results.length > 0 && !isEnhancing && (
+          <div className="shrink-0 border-t border-border pt-3 pb-safe">
+            <Button
+              onClick={() => { haptics.light(); onOpenChange(false); }}
+              className="w-full h-12 font-semibold min-h-[48px] active:scale-95 transition-transform touch-manipulation"
+              variant="outline"
+            >
+              Done
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );

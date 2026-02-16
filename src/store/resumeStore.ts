@@ -113,11 +113,30 @@ export const useResumeStore = create<ResumeState>()(
       setIsSaving: (saving) => set({ isSaving: saving }),
       setLastSavedAt: (date) => set({ lastSavedAt: date }),
       
-      updateResume: (updates) => set((state) => ({
-        currentResume: state.currentResume 
-          ? { ...state.currentResume, ...updates }
-          : { ...defaultResume, ...updates }
-      })),
+      updateResume: (updates) => set((state) => {
+        // Sanitize array fields to prevent corrupted data from AI
+        const sanitized = { ...updates };
+        if ('experience' in sanitized && !Array.isArray(sanitized.experience)) {
+          sanitized.experience = [];
+        }
+        if ('education' in sanitized && !Array.isArray(sanitized.education)) {
+          sanitized.education = [];
+        }
+        if ('skills' in sanitized) {
+          if (!Array.isArray(sanitized.skills)) {
+            sanitized.skills = [];
+          } else {
+            sanitized.skills = sanitized.skills.map((s: unknown) =>
+              typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s)
+            );
+          }
+        }
+        return {
+          currentResume: state.currentResume
+            ? { ...state.currentResume, ...sanitized }
+            : { ...defaultResume, ...sanitized }
+        };
+      }),
       
       setJobDescription: (description) => set({ jobDescription: description }),
       setMatchScore: (score) => set({ matchScore: score }),
