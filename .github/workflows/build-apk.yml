@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Signed Release APK
 
 on:
   workflow_dispatch:
@@ -50,7 +50,6 @@ jobs:
               cp "public/icons/icon-${size}x${size}.png" "$RES_DIR/$folder/ic_launcher_round.png"
             fi
           done
-          # Copy maskable icons
           if [ -f "public/icons/maskable-icon-192x192.png" ]; then
             cp "public/icons/maskable-icon-192x192.png" "$RES_DIR/mipmap-xxxhdpi/ic_launcher_foreground.png"
           fi
@@ -61,12 +60,38 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Build APK
-        working-directory: android
-        run: ./gradlew assembleDebug
+      - name: Decode Keystore
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/wiseresume-release.keystore
 
-      - name: Upload APK
+      - name: Inject signing config into build.gradle
+        run: |
+          GRADLE_FILE="android/app/build.gradle"
+          # Insert signingConfigs block before buildTypes
+          sed -i '/buildTypes {/i \
+              signingConfigs {\
+                  release {\
+                      storeFile file("wiseresume-release.keystore")\
+                      storePassword System.getenv("KEYSTORE_PASSWORD")\
+                      keyAlias System.getenv("KEY_ALIAS")\
+                      keyPassword System.getenv("KEY_PASSWORD")\
+                  }\
+              }' "$GRADLE_FILE"
+          # Add signingConfig to release buildType
+          sed -i '/buildTypes {/,/}/{
+            /release {/a \
+                signingConfig signingConfigs.release
+          }' "$GRADLE_FILE"
+
+      - name: Build Signed Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload Signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: wiseresume-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: wiseresume-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
