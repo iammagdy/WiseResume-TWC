@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Home, MessageSquareWarning } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { triggerBugReport } from '@/lib/bugReport';
  
  interface Props {
   children: ReactNode;
@@ -85,26 +86,42 @@ interface State {
                </details>
              )}
  
-             {/* Action buttons */}
-             <div className="flex flex-col gap-3">
-               <Button
-                 onClick={this.handleRetry}
-                 className="w-full h-12"
-                 size="lg"
-               >
-                 <RefreshCw className="w-4 h-4 mr-2" />
-                 Try Again
-               </Button>
-               <Button
-                 onClick={this.handleGoHome}
-                 variant="outline"
-                 className="w-full h-12"
-                 size="lg"
-               >
-                 <Home className="w-4 h-4 mr-2" />
-                 Go to Dashboard
-               </Button>
-             </div>
+              {/* Action buttons */}
+              <div className="flex flex-col gap-3">
+                <Button
+                  onClick={this.handleRetry}
+                  className="w-full h-12"
+                  size="lg"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Try Again
+                </Button>
+                <Button
+                  onClick={() => {
+                    triggerBugReport({
+                      errorMessage: this.state.error?.message || 'Unknown error',
+                      errorStack: this.state.error?.stack,
+                      componentStack: this.state.errorInfo?.componentStack || undefined,
+                      route: window.location.pathname,
+                    });
+                  }}
+                  variant="secondary"
+                  className="w-full h-12 active:scale-95 transition-transform"
+                  size="lg"
+                >
+                  <MessageSquareWarning className="w-4 h-4 mr-2" />
+                  Report Issue
+                </Button>
+                <Button
+                  onClick={this.handleGoHome}
+                  variant="outline"
+                  className="w-full h-12"
+                  size="lg"
+                >
+                  <Home className="w-4 h-4 mr-2" />
+                  Go to Dashboard
+                </Button>
+              </div>
            </div>
          </div>
        );
