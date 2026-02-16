@@ -1,40 +1,52 @@
 
 
-## Fix: AI Features Not Working in the Mobile APK
+## Fix: AI Features Still Failing in APK (CORS Null Origin)
 
-### The Problem
-When your app runs as a native APK built with Capacitor, all AI-powered features (scoring, tailoring, chat, etc.) fail because the backend functions reject requests from the app's origin.
-
-Here's what happens:
-1. Your APK loads the app from `http://localhost` (or `capacitor://localhost` on Android)
-2. When the app calls a backend function (e.g., score-resume), the browser sends a preflight (OPTIONS) request
-3. The backend checks the origin against a list of allowed origins
-4. `http://localhost` and `capacitor://localhost` are NOT in that list
-5. The backend returns a CORS error, and the browser blocks the actual request
-6. The app shows "Scoring failed" because the request never completed
-
-The edge logs confirm this: only OPTIONS requests are logged (200), but zero POST requests ever arrive.
+### Root Cause
+Capacitor Android's WebView sends requests with a **`null`** or empty `Origin` header (not `http://localhost` as expected). The current CORS logic falls through to returning `http://localhost:8080` as the allowed origin, which doesn't match `null`, so the browser blocks the response.
 
 ### The Fix (1 file)
 
-**`supabase/functions/_shared/cors.ts`** -- Add Capacitor origins to the allowed list:
+**`supabase/functions/_shared/cors.ts`** -- Also treat null/empty origins as allowed (typical of native app WebViews):
 
-```
+```typescript
 const ALLOWED_ORIGINS = [
   'http://localhost:8080',
   'http://localhost:3000',
-  'http://localhost',           // <-- Capacitor Android
-  'capacitor://localhost',      // <-- Capacitor iOS
+  'http://localhost',
+  'capacitor://localhost',
   'https://wiseresume.lovable.app',
   'https://wiseresume.magdysaber.com',
 ];
+
+export const getCorsHeaders = (origin?: string | null) => {
+  const allowedOrigin = Deno.env.get('ALLOWED_ORIGIN');
+  const origins = [...ALLOWED_ORIGINS];
+
+  if (allowedOrigin) {
+    origins.push(allowedOrigin);
+  }
+
+  const isLovablePreview = origin?.endsWith('.lovable.app') || origin?.endsWith('.lovableproject.com');
+  const isNativeApp = !origin || origin === 'null';
+  const isAllowed = isNativeApp || (origin && (origins.includes(origin) || isLovablePreview));
+
+  return {
+    'Access-Control-Allow-Origin': isNativeApp ? '*' : (isAllowed ? origin! : origins[0]),
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  };
+};
 ```
 
-This single change will fix ALL AI features (scoring, enhancement, tailoring, chat, interview, cover letter generation, etc.) since they all share this same CORS helper.
+Key change: When the origin is `null` or empty (native app), return `Access-Control-Allow-Origin: *` so the response is not blocked.
 
-### What Won't Change
-- No changes to the edge function logic itself
-- No changes to the frontend code
-- No changes to the Capacitor config or build workflow
-- The web version continues working exactly as before
+### What Happens After
+- The backend functions redeploy automatically
+- You then rebuild the APK via GitHub Actions
+- All AI features (scoring, tailoring, chat, etc.) will work in the APK
 
+### No Other Changes Needed
+- No frontend code changes
+- No Capacitor config changes
+- Web version continues working as before
