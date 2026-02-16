@@ -34,21 +34,29 @@ const STATUS_CONFIG: Record<Exclude<AIHealthStatus, 'checking'>, {
 };
 
 export function AIHealthBadge() {
-  const { status, latencyMs, lastChecked, provider, errorCode, refetch, hasEverBeenHealthyRef } = useAIHealth();
+  const { status, latencyMs, lastChecked, provider, errorCode, refetch, prevStatusRef } = useAIHealth();
   const navigate = useNavigate();
-  const toastFiredRef = useRef(false);
+  const hasSeenHealthyRef = useRef(false);
 
-  // Only toast after we've seen healthy at least once (prevents cold-start false alarms)
+  // Track if we've ever seen healthy
   useEffect(() => {
-    if (!hasEverBeenHealthyRef.current || toastFiredRef.current) return;
-    if (status === 'degraded') {
-      toastFiredRef.current = true;
-      toast.warning('AI services are running slower than usual', { duration: 4000 });
-    } else if (status === 'down') {
-      toastFiredRef.current = true;
-      toast.error('AI services are currently unavailable', { duration: 4000 });
+    if (status === 'healthy') {
+      hasSeenHealthyRef.current = true;
     }
-  }, [status, hasEverBeenHealthyRef]);
+  }, [status]);
+
+  // Only toast on transitions FROM healthy to degraded/down
+  useEffect(() => {
+    if (!hasSeenHealthyRef.current) return;
+    const prev = prevStatusRef.current;
+    if (prev === 'healthy' || prev === 'checking') {
+      if (status === 'degraded') {
+        toast.warning('AI services are running slower than usual', { duration: 4000 });
+      } else if (status === 'down') {
+        toast.error('AI services are currently unavailable', { duration: 4000 });
+      }
+    }
+  }, [status, prevStatusRef]);
 
   if (status === 'checking') {
     return (
