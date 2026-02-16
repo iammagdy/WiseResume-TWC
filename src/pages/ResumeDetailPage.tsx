@@ -164,7 +164,7 @@ export default function ResumeDetailPage() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {/* Tailored Context */}
         {isTailored && (dbResume.target_job_title || dbResume.target_company) && (
           <div className="glass-elevated rounded-2xl p-4 border border-primary/20">

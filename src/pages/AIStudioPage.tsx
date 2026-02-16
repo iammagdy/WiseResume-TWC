@@ -158,7 +158,7 @@ export default function AIStudioPage() {
   }, [navigate, requireResume]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[140px] sm:pb-20 pt-safe" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[140px] sm:pb-20 pt-safe">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}

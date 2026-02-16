@@ -4,6 +4,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Android WebView scroll fix - apply to ALL scrollable containers */
+.overflow-y-auto,
+.overflow-y-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
 @keyframes toggle-bounce {
   0% { transform: scale(1); }
   40% { transform: scale(1.04); }
