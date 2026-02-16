@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 
 const MAX_MESSAGE_SIZE = 10 * 1024;
 const MAX_HISTORY_SIZE = 200 * 1024;
@@ -16,7 +17,6 @@ interface ChatRequest {
   conversationHistory: ChatMessage[];
   currentResume: unknown;
   userGeminiKey?: string;
-  
   functionResponse?: {
     name: string;
     result: Record<string, unknown>;
@@ -46,8 +46,6 @@ interface TextResult {
   type: "text";
   content: string;
 }
-
-type ChatResponse = FunctionCallResult | SuggestionResult | TextResult;
 
 const TOOLS = [
   {
@@ -250,7 +248,6 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Authentication check
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -259,13 +256,13 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const token = authHeader.replace("Bearer ", "");
     const supabaseClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
       { global: { headers: { Authorization: authHeader } } }
     );
 
+    const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
     if (authError || !user) {
@@ -291,135 +288,71 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const historyStr = JSON.stringify(conversationHistory || []);
-    if (historyStr.length > MAX_HISTORY_SIZE) {
+    if (JSON.stringify(conversationHistory || []).length > MAX_HISTORY_SIZE) {
       return new Response(
         JSON.stringify({ error: "Conversation history too large" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Determine which AI gateway to use
-    const useGeminiDirect = !!userGeminiKey;
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!useGeminiDirect && !LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
-    const apiUrl = useGeminiDirect
-      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-    
-    const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
-
-    console.log(`agentic-chat: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}, model: ${modelName}`);
-
     const resumeContext = currentResume
       ? `\n\nCurrent Resume:\n${JSON.stringify(currentResume, null, 2).slice(0, 4000)}`
       : "\n\nNo resume loaded yet.";
 
     // Build messages array
-    const messages: ChatMessage[] = [
-      { role: "system" as const, content: SYSTEM_PROMPT + resumeContext },
+    const messages: any[] = [
+      { role: "system", content: SYSTEM_PROMPT + resumeContext },
       ...(conversationHistory || []).slice(-10).map(m => ({
-        role: m.role as "user" | "assistant" | "function",
+        role: m.role,
         content: m.content,
         ...(m.name ? { name: m.name } : {}),
       })),
-      { role: "user" as const, content: message },
+      { role: "user", content: message },
     ];
 
-    // If this is a function response (closed-loop feedback), add it
     if (functionResponse) {
       messages.push({
-        role: "function" as const,
+        role: "function",
         name: functionResponse.name,
         content: JSON.stringify(functionResponse.result),
       });
     }
 
-    const requestBody: Record<string, unknown> = {
-      model: modelName,
+    // Call AI with tools
+    const aiResponse = await callAI({
+      model: 'google/gemini-2.5-flash',
       messages,
-      tools: TOOLS,
+      tools: TOOLS as any[],
       temperature: 0.7,
-      max_tokens: 2000,
-    };
-
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
+      maxTokens: 2000,
+      userGeminiKey,
     });
 
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ error: "Invalid API key. Please check your AI settings." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 429) {
-        const errorMsg = useGeminiDirect
-          ? "Rate limit exceeded. Your Gemini key may have hit its quota."
-          : "Rate limit exceeded. Please wait a moment.";
-        return new Response(
-          JSON.stringify({ error: errorMsg }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errText = await response.text();
-      console.error("AI error:", response.status, errText);
-      throw new Error(`AI request failed: ${response.status}`);
-    }
+    const toolCall = aiResponse.toolCalls?.[0];
+    const content = aiResponse.content;
 
-    const aiResponse = await response.json();
-    const choice = aiResponse.choices?.[0];
-
-    if (!choice) {
-      throw new Error("No response from AI");
-    }
-
-    const assistantMessage = choice.message;
-
-    if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-      const toolCall = assistantMessage.tool_calls[0];
+    if (toolCall) {
+      const functionName = toolCall.function.name;
       let args: Record<string, unknown> = {};
       try {
-        args = typeof toolCall.function.arguments === "string"
-          ? JSON.parse(toolCall.function.arguments)
-          : toolCall.function.arguments;
+        args = JSON.parse(toolCall.function.arguments);
       } catch {
         args = {};
       }
 
-      const functionName = toolCall.function.name;
-
-      // Handle suggest_edits specially - return as suggestion type
+      // Handle suggest_edits
       if (functionName === "suggest_edits") {
         const result: SuggestionResult = {
           type: "suggestion",
           proposals: (args.proposals as SuggestionResult["proposals"]) || [],
-          message: assistantMessage.content || "I have some suggestions for your resume. Please review and accept or reject each change.",
+          message: content || "I have some suggestions for your resume. Please review and accept or reject each change.",
         };
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Handle proofread_and_fix - also return as suggestion if autoApply is false
+      // Handle proofread_and_fix
       if (functionName === "proofread_and_fix" && args.autoApply === false) {
         const fixes = (args.fixes as Array<{ section: string; itemId?: string; original: string; corrected: string; reason: string }>) || [];
         const proposals = fixes.map(fix => ({
@@ -432,7 +365,7 @@ Deno.serve(async (req: Request) => {
         const result: SuggestionResult = {
           type: "suggestion",
           proposals,
-          message: assistantMessage.content || `I found ${fixes.length} issue(s) to fix. Please review each correction.`,
+          message: content || `I found ${fixes.length} issue(s) to fix. Please review each correction.`,
         };
         return new Response(JSON.stringify(result), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -443,7 +376,7 @@ Deno.serve(async (req: Request) => {
         type: "function_call",
         functionName,
         args,
-        message: assistantMessage.content || `I'll ${functionName.replace(/_/g, " ")} for you.`,
+        message: content || `I'll ${functionName.replace(/_/g, " ")} for you.`,
       };
 
       return new Response(JSON.stringify(result), {
@@ -453,19 +386,20 @@ Deno.serve(async (req: Request) => {
 
     const result: TextResult = {
       type: "text",
-      content: assistantMessage.content || "I'm not sure how to help with that. Could you rephrase?",
+      content: content || "I'm not sure how to help with that. Could you rephrase?",
     };
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (error) {
     console.error("agentic-chat error:", error);
+    const status = isAIError(error) ? error.status : 500;
+    const message = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: message }),
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

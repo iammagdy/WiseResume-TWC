@@ -33,6 +33,7 @@ import {
 } from '@/types/aiStudio';
 import { findTargetContent } from '@/lib/ai/fixHelpers';
 import { Experience, Education } from '@/types/resume';
+import { getUserGeminiKey } from '@/lib/aiProvider';
 
 interface RecruiterSimSheetProps {
   open: boolean;
@@ -59,6 +60,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
         body: {
           resume: currentResume,
           persona: persona.id,
+          userGeminiKey: getUserGeminiKey(),
         },
       });
 

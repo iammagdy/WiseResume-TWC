@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 
 interface ResumeData {
   contactInfo: {
@@ -30,7 +31,7 @@ interface ResumeData {
     endDate: string;
     gpa?: string;
   }[];
-  skills: string[];
+  skills: (string | { name?: string })[];
   certifications?: {
     id: string;
     name: string;
@@ -72,6 +73,12 @@ const PERSONA_PROMPTS: Record<RecruiterPersona, { name: string; style: string; p
   },
 };
 
+/** Safely extract skills as a comma-separated string */
+function safeSkillsString(skills: unknown): string {
+  if (!Array.isArray(skills)) return 'None listed';
+  return skills.map(s => typeof s === 'string' ? s : (s as any)?.name || String(s)).join(', ') || 'None listed';
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
@@ -83,7 +90,6 @@ Deno.serve(async (req) => {
     // === AUTHENTICATION ===
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      console.error('Missing or invalid authorization header');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -99,16 +105,11 @@ Deno.serve(async (req) => {
 
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     if (authError || !user) {
-      console.error('Auth error:', authError?.message || 'Invalid token');
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    const userId = user.id;
-    console.log('Authenticated user:', userId);
-    // === END AUTHENTICATION ===
 
     const { resume, persona, targetRole, targetIndustry, userGeminiKey }: RecruiterSimulationRequest = await req.json();
 
@@ -126,27 +127,6 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Determine which AI gateway to use
-    const useGeminiDirect = !!userGeminiKey;
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-
-    if (!useGeminiDirect && !LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
-      return new Response(
-        JSON.stringify({ error: 'AI service not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const apiUrl = useGeminiDirect
-      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-      : "https://ai.gateway.lovable.dev/v1/chat/completions";
-
-    const apiKey = useGeminiDirect ? userGeminiKey : LOVABLE_API_KEY;
-    const modelName = useGeminiDirect ? "gemini-2.5-flash-preview-05-20" : "google/gemini-2.5-flash";
-
-    console.log(`recruiter-simulation: Using ${useGeminiDirect ? 'Gemini Direct' : 'Lovable Gateway'}`);
 
     const resumeText = formatResumeForAnalysis(resume);
     const targetContext = targetRole 
@@ -201,77 +181,22 @@ Here is the resume to review:
 
 ${resumeText}
 
-Analyze this resume from your unique perspective as ${personaConfig.name}. Be specific and reference actual content from the resume. Remember: you're thinking out loud about whether to move this candidate forward.`;
+Analyze this resume from your unique perspective as ${personaConfig.name}. Be specific and reference actual content from the resume.`;
 
-    // Call AI gateway
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
+    const aiResponse = await callAI({
+      model: 'google/gemini-2.5-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.7,
+      maxTokens: 2000,
+      userGeminiKey,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      
-      if (response.status === 401 || response.status === 403) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid API key. Please check your AI settings.' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 429) {
-        const errorMsg = useGeminiDirect
-          ? 'Rate limit exceeded. Your Gemini key may have hit its quota.'
-          : 'Rate limit exceeded. Please try again later.';
-        return new Response(
-          JSON.stringify({ error: errorMsg }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
-      return new Response(
-        JSON.stringify({ error: 'AI analysis failed' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const analysis = parseAIJSON(aiResponse.content || '{}');
 
-    const aiResponse = await response.json();
-    const content = aiResponse.choices?.[0]?.message?.content;
-
-    if (!content) {
-      return new Response(
-        JSON.stringify({ error: 'No response from AI' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Parse JSON from response
-    let analysis;
-    try {
-      // Extract JSON from potential markdown code blocks
-      const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/```\s*([\s\S]*?)\s*```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : content;
-      analysis = JSON.parse(jsonString.trim());
-    } catch (parseError) {
-      console.error('JSON parse error:', parseError, 'Content:', content);
+    if (!analysis) {
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -281,19 +206,18 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
     return new Response(
       JSON.stringify({
         success: true,
-        persona: {
-          id: persona,
-          name: personaConfig.name,
-        },
+        persona: { id: persona, name: personaConfig.name },
         analysis,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {
     console.error('Recruiter simulation error:', error);
+    const status = isAIError(error) ? error.status : 500;
+    const message = error instanceof Error ? error.message : 'Internal server error';
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: message }),
+      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
@@ -301,7 +225,6 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
 function formatResumeForAnalysis(resume: ResumeData): string {
   const sections: string[] = [];
 
-  // Contact
   sections.push(`CONTACT INFORMATION:
 Name: ${resume.contactInfo.fullName || 'Not provided'}
 Email: ${resume.contactInfo.email || 'Not provided'}
@@ -310,14 +233,12 @@ Location: ${resume.contactInfo.location || 'Not provided'}
 LinkedIn: ${resume.contactInfo.linkedin || 'Not provided'}
 Portfolio: ${resume.contactInfo.portfolio || 'Not provided'}`);
 
-  // Summary
   if (resume.summary) {
     sections.push(`\nPROFESSIONAL SUMMARY:\n${resume.summary}`);
   } else {
     sections.push('\nPROFESSIONAL SUMMARY: Not provided');
   }
 
-  // Experience
   if (resume.experience?.length > 0) {
     sections.push('\nWORK EXPERIENCE:');
     resume.experience.forEach((exp, i) => {
@@ -334,7 +255,6 @@ ${i + 1}. ${exp.position} at ${exp.company}
     sections.push('\nWORK EXPERIENCE: None listed');
   }
 
-  // Education
   if (resume.education?.length > 0) {
     sections.push('\nEDUCATION:');
     resume.education.forEach((edu, i) => {
@@ -346,14 +266,9 @@ ${i + 1}. ${edu.degree} in ${edu.field} - ${edu.institution}
     sections.push('\nEDUCATION: None listed');
   }
 
-  // Skills
-  if (resume.skills?.length > 0) {
-    sections.push(`\nSKILLS:\n${resume.skills.join(', ')}`);
-  } else {
-    sections.push('\nSKILLS: None listed');
-  }
+  const skillsStr = safeSkillsString(resume.skills);
+  sections.push(`\nSKILLS:\n${skillsStr}`);
 
-  // Certifications
   if (resume.certifications && resume.certifications.length > 0) {
     sections.push('\nCERTIFICATIONS:');
     resume.certifications.forEach((cert, i) => {

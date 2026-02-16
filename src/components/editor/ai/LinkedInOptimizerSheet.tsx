@@ -27,6 +27,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { getUserGeminiKey } from '@/lib/aiProvider';
 
 interface LinkedInOptimizerSheetProps {
   open: boolean;
@@ -82,6 +83,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
         body: {
           resume: currentResume,
           region: selectedRegion,
+          userGeminiKey: getUserGeminiKey(),
         },
       });
 

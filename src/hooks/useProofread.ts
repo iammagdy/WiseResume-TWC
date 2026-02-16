@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { getUserGeminiKey } from '@/lib/aiProvider';
 import type { ResumeData } from '@/types/resume';
 import type { ProofreadIssue } from '@/types/proofread';
 import { toast } from 'sonner';
@@ -69,9 +70,6 @@ export function useProofread(resume: ResumeData | null) {
   const lastHashRef = useRef('');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const geminiApiKey = useSettingsStore((s) => s.geminiApiKey);
-  const aiProvider = useSettingsStore((s) => s.aiProvider);
-
   const runCheck = useCallback(
     async (resume: ResumeData) => {
       const sections = extractSections(resume);
@@ -88,8 +86,9 @@ export function useProofread(resume: ResumeData | null) {
       setIsChecking(true);
       try {
         const body: Record<string, unknown> = { sections };
-        if (aiProvider === 'gemini' && geminiApiKey) {
-          body.userGeminiKey = geminiApiKey;
+        const userGeminiKey = getUserGeminiKey();
+        if (userGeminiKey) {
+          body.userGeminiKey = userGeminiKey;
         }
 
         const { data, error } = await supabase.functions.invoke('proofread-resume', {
@@ -116,7 +115,7 @@ export function useProofread(resume: ResumeData | null) {
         }
       }
     },
-    [setIssues, setScore, setIsChecking, aiProvider, geminiApiKey]
+    [setIssues, setScore, setIsChecking]
   );
 
   // Debounced auto-check
