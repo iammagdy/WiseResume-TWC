@@ -1,35 +1,27 @@
 
 
-## Fix APK Build: PWA Precache Size Limit
+## Fix: Add Android Platform in GitHub Actions
 
 ### Root Cause
-When the new Wise AI logo was copied to all icon sizes (48x48, 72x72, etc.), the **full 2.56 MB PNG** was used for every size -- no resizing was done. The PWA `injectManifest` plugin has a default 2 MB limit per file, causing the build to fail.
+The workflow runs `npx cap sync android`, but the Android platform was never added first. The `android/` directory is not committed to the repository (it's likely in `.gitignore`), so each CI run starts without it.
 
-### Solution (Two-Part Fix)
-
-#### 1. Increase the precache size limit in `vite.config.ts`
-Add `maximumFileSizeToCacheInBytes: 5 * 1024 * 1024` (5 MB) to the `injectManifest` config. This unblocks the build immediately.
-
-#### 2. Exclude large icon files from precache glob pattern
-Update the `globPatterns` to exclude PNG files in the `icons/` directory since they don't need to be precached (the browser fetches them on-demand from the manifest). Change:
-```
-globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"]
-```
-to:
-```
-globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"]
-```
-This removes ALL PNGs from precaching (including the 2.56 MB wise-ai-logo asset), keeping the service worker lean. The icons and logo still load normally -- they just won't be cached by the service worker on first install.
+### Solution
+Add `npx cap add android` before `npx cap sync android` in `.github/workflows/build-apk.yml`. The `cap add` command creates the `android/` directory and project files, then `cap sync` copies the web assets and native plugins.
 
 ### Technical Details
 
-**File: `vite.config.ts`** -- Update the `injectManifest` block:
-```typescript
-injectManifest: {
-  globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
-  maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-},
+**File: `.github/workflows/build-apk.yml`**
+
+Add a new step before "Sync Capacitor":
+
+```yaml
+- name: Add Android platform
+  run: npx cap add android
+
+- name: Sync Capacitor
+  run: npx cap sync android
 ```
 
-This is a single-file, two-line change that fully resolves the build failure.
+Also, after sync, re-inject the custom brand icons into the Android `mipmap` directories (since `cap add` generates default icons). Add a step to copy from `public/icons/` into the appropriate `res/mipmap-*` folders, matching the existing icon injection logic referenced in the project memory.
 
+This is a single-file change to the workflow YAML.
