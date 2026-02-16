@@ -1,76 +1,150 @@
 
+## Bug Report System -- Automatic Error Reporting to Developer
 
-## Add "Score Unavailable" Visual Indicator
+### Overview
 
-### Problem
+Build a complete bug reporting system that automatically captures errors and lets users send detailed reports to the developer (contact@magdysaber.com) via a backend function. The developer email is never exposed to users. The UI feels premium and reassuring, telling users the issue will be resolved within 24 hours.
 
-After the backend reliability fixes, `tailor-resume` now returns `null` for `overallScore` and `sectionScores` when the AI fails to produce valid scores. However, the UI components still access these as required objects (e.g., `tailorResult.overallScore.before`), which will crash with a TypeError on null access. Users would see a white screen instead of useful feedback.
+---
 
-### Affected Components
+### What Users Will See
 
-| Component | What breaks |
-|-----------|------------|
-| `TailorSheet.tsx` | `tailorResult.overallScore.before/after`, `tailorResult.sectionScores.*`, `effectiveScore` calculation |
-| `SetTargetJobSheet.tsx` | `overallScore?.after \|\| 0` renders "0%" instead of "unavailable" |
-| `ScoreComparison.tsx` | Receives `beforeScore`/`afterScore` as required numbers; crashes if null passed |
-| `JobCompareCard.tsx` | Direct `.overallScore.after` and `.sectionScores.*` access |
-| `CompareScoreBars.tsx` | Direct `.overallScore.after` and `.sectionScores.*` access |
-| `SectionChangeCard` calls | `impactScore` calculation crashes on null section scores |
+1. **On any crash (ErrorBoundary)**: The existing "Something went wrong" screen gets a new "Report Issue" button alongside "Try Again" and "Go to Dashboard."
 
-### Solution
+2. **On toast errors**: Every `toast.error()` gets an action button labeled "Report" that opens a bug report dialog.
 
-**Step 1: Update TypeScript types** (`src/types/resume.ts`)
+3. **Bug Report Dialog**: A friendly, premium-feeling sheet with:
+   - A calming icon (HeartHandshake or ShieldCheck)
+   - Title: "Help Us Improve"
+   - Message: "WiseResume is in its early access phase, and your feedback helps us build a better experience. Our team will investigate and resolve this within 24 hours."
+   - Pre-filled error details (hidden from user, sent automatically)
+   - Optional text area: "Anything else you'd like to share?" (user can add context)
+   - "Send Report" button with loading state
+   - Success confirmation: "Thank you! Your report has been received."
+   - The developer email (contact@magdysaber.com) is NEVER shown anywhere
 
-Make `overallScore` and `sectionScores` optional (nullable) in `EnhancedTailorResult`:
+---
 
-```typescript
-overallScore: { before: number; after: number } | null;
-sectionScores: SectionScores | null;
+### Data Sent in Each Report
+
+| Field | Source |
+|-------|--------|
+| `error_message` | The error message string |
+| `error_stack` | Stack trace (if available) |
+| `component_stack` | React component tree (from ErrorBoundary) |
+| `route` | `window.location.pathname` |
+| `user_id` | From auth context |
+| `user_email` | From auth context (`user.email`) |
+| `session_id` | From Supabase session (`session.access_token` last 8 chars for privacy) |
+| `timestamp` | ISO timestamp |
+| `user_agent` | `navigator.userAgent` |
+| `app_version` | From `package.json` or hardcoded |
+| `additional_context` | User's optional text input |
+
+---
+
+### Technical Implementation
+
+**Step 1: Create `bug_reports` database table**
+
+```sql
+CREATE TABLE bug_reports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL,
+  user_email text NOT NULL,
+  error_message text NOT NULL,
+  error_stack text,
+  component_stack text,
+  route text,
+  session_id text,
+  user_agent text,
+  additional_context text,
+  app_version text DEFAULT '1.0.0',
+  status text DEFAULT 'open',
+  created_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE bug_reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can insert own bug reports"
+  ON bug_reports FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own bug reports"
+  ON bug_reports FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE INDEX idx_bug_reports_user_id ON bug_reports (user_id);
+CREATE INDEX idx_bug_reports_status ON bug_reports (status, created_at DESC);
 ```
 
-**Step 2: Add a reusable `ScoreUnavailable` indicator component**
+**Step 2: Create `send-bug-report` edge function**
 
-Create a small inline component that displays a styled "Score unavailable" message with an info icon, used wherever scores might be null. This keeps the UI informative instead of showing zeros or crashing.
+- Accepts the report payload from authenticated users
+- Saves to `bug_reports` table using service role
+- Sends email notification to `contact@magdysaber.com` using Supabase's built-in SMTP (or logs for now since email sending requires additional setup)
+- Returns success response
+- The developer email is hardcoded in the edge function only -- never sent to the client
 
-**Step 3: Update `SetTargetJobSheet.tsx`**
+**Step 3: Create `BugReportDialog` component**
 
-- When `overallScore` is null: show the `ScoreUnavailable` indicator instead of "0%"
-- When `sectionScores` is null: hide the "Section Breakdown" block entirely (already partially guarded with `{sectionScores && ...}`)
-- For the database write (`job_match_score`): use `0` as fallback since the column requires a number
+New file: `src/components/BugReportDialog.tsx`
 
-**Step 4: Update `TailorSheet.tsx`**
+- Uses Radix `Dialog` (not Sheet, for lightweight feel)
+- Accepts `error`, `errorInfo`, `route` props
+- Reads `user` and `session` from `useAuth()`
+- Shows friendly UI with early-access messaging
+- Sends report via `supabase.functions.invoke('send-bug-report')`
+- Shows success/failure states
+- Touch-friendly with 44px min targets
 
-- Guard `effectiveScore` calculation: return `null` when `overallScore` is null
-- Guard `ScoreComparison` rendering: only render when both `overallScore` and `sectionScores` are present; otherwise show `ScoreUnavailable`
-- Guard `SectionChangeCard` `impactScore` props: use `0` when `sectionScores` is null
-- Guard the database insert `job_match_score`: use `overallScore?.after ?? 0`
-- Guard tailor history save: use `overallScore ?? { before: 0, after: 0 }` for the history record
+**Step 4: Update `ErrorBoundary.tsx`**
 
-**Step 5: Update `ScoreComparison.tsx`**
+- Add a "Report Issue" button between "Try Again" and "Go to Dashboard"
+- Opens `BugReportDialog` with the caught error details
+- Since ErrorBoundary is a class component and is outside AuthProvider in the tree, it needs to access auth via a wrapper or pass user info down
 
-- No changes needed since the parent will only render it when scores are available (guarded at call site)
+- **Important architectural note**: The ErrorBoundary wraps AuthProvider in `App.tsx`, so it cannot use `useAuth()`. Solution: The BugReportDialog will try to read auth from localStorage cache (`sb-auth-session-cache`) as a fallback when the hook isn't available, and also accept optional `userId`/`userEmail` props.
 
-**Step 6: Update `JobCompareCard.tsx` and `CompareScoreBars.tsx`**
+**Step 5: Create global `reportBug` utility**
 
-- Add null-safe access with `?.` and fallback to 0 for score display
-- Show "N/A" text when scores are null
+New file: `src/lib/bugReport.ts`
 
-### Visual Design
+- Export a `reportBug(error, context?)` function
+- Can be called from anywhere (toast actions, catch blocks)
+- Opens the BugReportDialog via a global event or state
 
-The "Score unavailable" indicator will be:
-- A compact banner with an `AlertTriangle` icon
-- Muted styling: `bg-muted/50 text-muted-foreground border border-border/50 rounded-xl p-4`
-- Text: "Score unavailable -- AI couldn't calculate scores for this analysis. The tailored content is still valid."
-- Placed exactly where the score circle/comparison would normally appear
+**Step 6: Update toast error pattern**
 
-### Files to Change
+- Create a wrapper `toastError(message, error?)` that shows the toast with a "Report" action button
+- The action button opens the BugReportDialog
+- Update the sonner Toaster or create a utility that components can import
+
+**Step 7: Add to `supabase/config.toml`**
+
+```toml
+[functions.send-bug-report]
+verify_jwt = false
+```
+
+---
+
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/BugReportDialog.tsx` | Premium bug report dialog UI |
+| `src/lib/bugReport.ts` | Global bug report utility + event system |
+| `supabase/functions/send-bug-report/index.ts` | Backend: save report + notify developer |
+
+### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/types/resume.ts` | Make `overallScore` and `sectionScores` nullable |
-| `src/components/dashboard/SetTargetJobSheet.tsx` | Add null guards + ScoreUnavailable fallback |
-| `src/components/editor/TailorSheet.tsx` | Add null guards for score display, effectiveScore, SectionChangeCard impact, DB writes |
-| `src/components/editor/tailor/JobCompareCard.tsx` | Add null-safe access on scores |
-| `src/components/editor/tailor/CompareScoreBars.tsx` | Add null-safe access on scores |
+| `src/components/ErrorBoundary.tsx` | Add "Report Issue" button that opens BugReportDialog |
+| `src/App.tsx` | Mount the global BugReportDialog listener |
+| `supabase/config.toml` | (auto-managed) Add send-bug-report function config |
 
-No new files needed -- the ScoreUnavailable indicator will be an inline element in each component to keep things simple.
+### Database Migration
+
+- Create `bug_reports` table with RLS policies and indexes
