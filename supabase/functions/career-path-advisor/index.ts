@@ -5,6 +5,9 @@ import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 
 const MAX_RESUME_SIZE = 100 * 1024;
 
+const safeSkillsString = (skills: any[] | undefined | null): string =>
+  (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
+
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req.headers.get("origin"));
 
@@ -71,7 +74,7 @@ Generate 4-5 next roles, 4-6 skill gaps, 3-4 industry alternatives, and a 5-step
 
 Name: ${resume.contactInfo?.fullName || "Not provided"}
 Summary: ${resume.summary || "Not provided"}
-Skills: ${resume.skills?.join(", ") || "Not provided"}
+Skills: ${safeSkillsString(resume.skills) || "Not provided"}
 
 Experience:
 ${resume.experience?.map((e: any) =>
