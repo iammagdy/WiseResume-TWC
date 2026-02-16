@@ -37,8 +37,7 @@ export function useAIHealth() {
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const failCountRef = useRef(0);
-  const hasEverBeenHealthyRef = useRef(false);
-  const isInitialCheckRef = useRef(true);
+  const prevStatusRef = useRef<AIHealthStatus>('checking');
 
   const fetchHealth = useCallback(async () => {
     try {
@@ -57,6 +56,7 @@ export function useAIHealth() {
 
       if (!resp.ok) {
         failCountRef.current++;
+        // First failure = degraded, only mark down after threshold
         const resolvedStatus = failCountRef.current >= CONSECUTIVE_FAILS_THRESHOLD ? 'down' : 'degraded';
         setHealth({
           status: resolvedStatus,
@@ -65,7 +65,6 @@ export function useAIHealth() {
           provider: useGemini ? 'gemini' : 'wiseresume',
           errorCode: resp.status,
         });
-        isInitialCheckRef.current = false;
         return;
       }
 
@@ -74,9 +73,6 @@ export function useAIHealth() {
 
       // On success, reset fail count
       failCountRef.current = 0;
-      if (incomingStatus === 'healthy') {
-        hasEverBeenHealthyRef.current = true;
-      }
 
       setHealth({
         status: incomingStatus,
@@ -95,15 +91,19 @@ export function useAIHealth() {
         errorCode: 0,
       }));
     }
-    isInitialCheckRef.current = false;
   }, [aiProvider, geminiApiKey, geminiKeyValidated]);
 
-  // Adaptive polling: restart interval whenever status changes
+  // Track previous status for transition detection
+  useEffect(() => {
+    prevStatusRef.current = health.status;
+  }, [health.status]);
+
+  // Initial fetch
   useEffect(() => {
     fetchHealth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchHealth]);
 
+  // Adaptive polling
   useEffect(() => {
     if (health.status === 'checking') return;
 
@@ -128,5 +128,5 @@ export function useAIHealth() {
     };
   }, [health.status, fetchHealth]);
 
-  return { ...health, refetch: fetchHealth, hasEverBeenHealthyRef };
+  return { ...health, refetch: fetchHealth, prevStatusRef };
 }

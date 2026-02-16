@@ -17,68 +17,42 @@ serve(async (req) => {
   const startTime = Date.now();
   let status: 'healthy' | 'degraded' | 'down' = 'down';
   let latencyMs = 0;
-  let provider: 'wiseresume' | 'gemini' = userGeminiKey ? 'gemini' : 'wiseresume';
+  const provider: 'wiseresume' | 'gemini' = userGeminiKey ? 'gemini' : 'wiseresume';
   let errorCode: number | null = null;
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15_000);
-
-    let response: Response;
-
     if (userGeminiKey) {
-      // Direct Gemini health check
-      response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${userGeminiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'gemini-2.0-flash-lite',
-          messages: [{ role: 'user', content: 'hi' }],
-          max_tokens: 1,
-        }),
-        signal: controller.signal,
-      });
-    } else {
-      // Lovable AI Gateway health check
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-      if (!LOVABLE_API_KEY) {
-        clearTimeout(timeoutId);
-        return new Response(JSON.stringify({
-          status: 'down',
-          latencyMs: 0,
-          timestamp: new Date().toISOString(),
-          provider: 'wiseresume',
-          errorCode: 500,
-        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      // Gemini: lightweight model list call (free, no tokens consumed)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite?key=${userGeminiKey}`,
+        { method: 'GET', signal: controller.signal }
+      );
+
+      clearTimeout(timeoutId);
+      latencyMs = Date.now() - startTime;
+
+      if (response.ok) {
+        status = latencyMs < 5000 ? 'healthy' : 'degraded';
+      } else {
+        errorCode = response.status;
+        status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
       }
-
-      response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash-lite',
-          messages: [{ role: 'user', content: 'hi' }],
-          max_tokens: 1,
-        }),
-        signal: controller.signal,
-      });
-    }
-
-    clearTimeout(timeoutId);
-    latencyMs = Date.now() - startTime;
-
-    if (response.ok) {
-      status = latencyMs < 5000 ? 'healthy' : latencyMs < 15000 ? 'degraded' : 'down';
     } else {
-      errorCode = response.status;
-      // 429/402 = degraded (service works but user is limited)
-      status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
+      // WiseResume (Lovable AI Gateway): no AI call needed.
+      // The edge function itself being reachable proves the backend is alive.
+      // Just verify LOVABLE_API_KEY is configured.
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      latencyMs = Date.now() - startTime;
+
+      if (LOVABLE_API_KEY) {
+        status = 'healthy';
+      } else {
+        status = 'down';
+        errorCode = 500;
+      }
     }
   } catch (err) {
     latencyMs = Date.now() - startTime;
