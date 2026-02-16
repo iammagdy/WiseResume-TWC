@@ -1,74 +1,90 @@
 
 
-## Dynamic Changelog from `changelog.json`
+## Real AI Health Status Indicator
 
-### Approach
+### How It Works (No Faking)
 
-Create a static `public/changelog.json` file that the app fetches at runtime. This is the simplest, most maintainable approach: no database table needed, no edge function, no authentication required. You just edit a JSON file and redeploy (or even hot-swap it via CDN).
-
----
-
-### New File: `public/changelog.json`
-
-A JSON array of release entries:
-
-```text
-[
-  {
-    "version": "v1.5.0",
-    "date": "2026-02-10",
-    "latest": true,
-    "items": [
-      {
-        "title": "Polished Tailor Loading Screen",
-        "description": "Smooth real-feel progress animation with cubic ease-out curve, animated percentage counter, glowing progress bar, estimated time remaining, and fun facts carousel."
-      },
-      {
-        "title": "Mobile Scroll Fixes",
-        "description": "Fixed non-scrollable pages on mobile for Job Details, Application Details, Cover Letters, and Notifications pages."
-      },
-      ...
-    ]
-  },
-  {
-    "version": "v1.0.0",
-    "date": "2025-12-01",
-    "items": [
-      {
-        "title": "Initial Release",
-        "description": "AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep."
-      }
-    ]
-  }
-]
-```
-
-### Changes to `src/pages/SettingsPage.tsx`
-
-1. Add a `useEffect` that fetches `/changelog.json` when `changelogOpen` becomes `true` (lazy load -- no fetch until user opens the dialog).
-2. Store results in local state: `changelogData` array + `changelogLoading` boolean.
-3. Replace the hardcoded JSX (lines 1122-1153) with a `.map()` over the fetched data, rendering each version with its items dynamically.
-4. Show a skeleton loader while fetching.
-5. Show a "Could not load changelog" fallback on fetch error.
-6. The version shown in the footer ("v1.5.0 -- WiseResume") will also read from the first entry's `version` field.
-
-### How to Update the Changelog
-
-After implementation, updating is simple:
-
-1. Open `public/changelog.json` in any text editor
-2. Add a new entry at the **top** of the array with `"latest": true`
-3. Remove `"latest": true` from the previous entry
-4. Deploy -- the app will show the new changelog immediately
-
-No code changes, no database migrations, no edge functions. Just edit JSON and push.
+The indicator performs an actual lightweight request to the AI gateway to verify it responds. This is a real health check -- if the gateway is down or rate-limited, the indicator shows degraded/down status. If it responds normally, it shows healthy.
 
 ---
 
-### Files to Modify
+### Architecture
 
-| File | Change |
+The system has three layers:
+
+1. **Edge Function (`ai-health`)**: Sends a minimal AI completion request (single token, cheapest model) to the Lovable AI gateway and measures response time. Returns real status: `healthy`, `degraded`, or `down`, plus latency in milliseconds.
+
+2. **Client Hook (`useAIHealth`)**: Polls the edge function every 60 seconds (configurable). Caches the result in a Zustand-like React state. Skips polling when the browser tab is hidden (via `visibilitychange`). If using a custom Gemini key, also pings the Gemini endpoint separately.
+
+3. **UI Component (`AIHealthBadge`)**: A small pill/dot shown in the AppShell header area and on any AI-powered sheet. Shows:
+   - Green dot + "AI Online" when healthy (latency < 5s)
+   - Yellow dot + "AI Slow" when degraded (latency 5-15s or intermittent errors)
+   - Red dot + "AI Unavailable" when down (gateway returns error or timeout)
+   - Tapping it opens a popover with details: latency, provider name, last checked time, and a "Use Your Own Key" link if on WiseResume AI
+
+---
+
+### New Files
+
+#### 1. `supabase/functions/ai-health/index.ts`
+
+Edge function that:
+- Accepts GET requests (no body needed)
+- Optionally accepts `userGeminiKey` in query params for custom key health check
+- Sends a minimal request to the gateway: `{ model: "google/gemini-2.5-flash-lite", messages: [{ role: "user", content: "hi" }], max_tokens: 1 }`
+- Measures round-trip time
+- Returns JSON: `{ status: "healthy" | "degraded" | "down", latencyMs: number, timestamp: string, provider: "wiseresume" | "gemini" }`
+- Catches 429/402/timeout errors and returns appropriate status (not throwing -- this is a health check)
+- Uses the cheapest, fastest model (`gemini-2.5-flash-lite`) with `max_tokens: 1` to minimize cost (essentially free)
+
+#### 2. `src/hooks/useAIHealth.ts`
+
+Custom hook that:
+- Calls the `ai-health` edge function on mount and every 60 seconds
+- Pauses polling when tab is hidden
+- Stores: `status`, `latencyMs`, `lastChecked`, `provider`
+- Exposes `refetch()` for manual refresh
+- Uses the user's Gemini key from settings store when applicable
+
+#### 3. `src/components/ai/AIHealthBadge.tsx`
+
+Small badge component:
+- Renders a colored dot (green/yellow/red) + short label
+- On tap: opens a Popover with full details
+- Shows "Checking..." skeleton on first load
+- When status is `degraded` or `down`, shows a brief warning toast on first detection (once per session, not on every poll)
+- Includes "Use Your Own Key" button when on WiseResume AI and status is not healthy
+
+---
+
+### Integration Points
+
+#### `src/components/layout/AppShell.tsx`
+- Add `AIHealthBadge` as a small floating indicator in the top-right corner, only visible on pages with AI features (editor, ai-studio, interview, cover-letter, career)
+
+#### `supabase/config.toml`
+- Add `[functions.ai-health]` with `verify_jwt = false` (health checks should work for everyone)
+
+---
+
+### Files Summary
+
+| File | Action |
 |------|--------|
-| `public/changelog.json` | New file -- structured changelog data |
-| `src/pages/SettingsPage.tsx` | Fetch changelog.json on dialog open, render dynamically, show skeleton while loading |
+| `supabase/functions/ai-health/index.ts` | New -- real health check edge function |
+| `supabase/config.toml` | Add ai-health function config |
+| `src/hooks/useAIHealth.ts` | New -- polling hook with visibility awareness |
+| `src/components/ai/AIHealthBadge.tsx` | New -- visual status indicator with popover |
+| `src/components/layout/AppShell.tsx` | Add AIHealthBadge to AI-related pages |
 
+### Cost Impact
+
+Each health check uses `gemini-2.5-flash-lite` with `max_tokens: 1`. This is the cheapest possible AI call -- effectively free. At 1 poll per minute per active user, cost is negligible.
+
+### What Makes This Real
+
+- The edge function makes an actual AI gateway request, not a simple HTTP ping to a static endpoint
+- If the AI gateway is down, the health check fails and the indicator turns red
+- If the gateway is slow (high load), latency is measured and the indicator turns yellow
+- If the gateway returns 429 (rate limited) or 402 (credits exhausted), the indicator accurately reflects this
+- When using a custom Gemini key, it checks that specific key's health against Google's API
