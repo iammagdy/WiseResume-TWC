@@ -1,0 +1,39 @@
+[
+  {
+    "version": "v1.5.0",
+    "date": "2026-02-10",
+    "latest": true,
+    "items": [
+      {
+        "title": "Polished Tailor Loading Screen",
+        "description": "Smooth real-feel progress animation with cubic ease-out curve, animated percentage counter, glowing progress bar, estimated time remaining, and fun facts carousel."
+      },
+      {
+        "title": "Mobile Scroll Fixes",
+        "description": "Fixed non-scrollable pages on mobile for Job Details, Application Details, Cover Letters, and Notifications pages."
+      },
+      {
+        "title": "Enhanced Tailor Step Visualization",
+        "description": "Redesigned step list with vertical connecting lines, spring-animated checkmarks, and highlighted active step with loading spinner."
+      },
+      {
+        "title": "Projected Score Preview",
+        "description": "Live projected ATS score comparison (before vs. after) and skill gap count displayed during the tailoring process."
+      },
+      {
+        "title": "Smart Progress Estimation",
+        "description": "Estimated time remaining countdown and percentage-based step transitions that adapt to actual backend response time."
+      }
+    ]
+  },
+  {
+    "version": "v1.0.0",
+    "date": "2025-12-01",
+    "items": [
+      {
+        "title": "Initial Release",
+        "description": "AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep."
+      }
+    ]
+  }
+]
