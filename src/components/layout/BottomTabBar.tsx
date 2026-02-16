@@ -136,7 +136,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       src={tab.customIcon}
                       alt={tab.label}
                       className={cn(
-                        'w-6 h-6 sm:w-5 sm:h-5 transition-all duration-200 object-contain',
+                        'w-9 h-9 sm:w-8 sm:h-8 transition-all duration-200 object-contain',
                         active
                           ? 'opacity-100 dark:invert dark:[filter:invert(1)_sepia(1)_saturate(5)_hue-rotate(330deg)_brightness(1)] [filter:sepia(1)_saturate(5)_hue-rotate(330deg)_brightness(0.7)]'
                           : 'opacity-50 grayscale [filter:grayscale(1)_opacity(0.5)]'
