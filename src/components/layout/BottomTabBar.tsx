@@ -136,7 +136,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       src={tab.customIcon}
                       alt={tab.label}
                       className={cn(
-                        'w-8 h-8 transition-opacity duration-200 object-contain',
+                        'w-10 h-10 transition-opacity duration-200 object-contain',
                         active ? 'opacity-100' : 'opacity-60'
                       )}
                     />
