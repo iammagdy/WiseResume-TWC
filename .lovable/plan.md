@@ -1,103 +1,119 @@
-## Landing Page Full Redesign
 
-### Current Problems
 
-- Template wireframes section looks cheap and unfinished
-- Social proof bar has fabricated stats (removing)
-- No sign-in/avatar in header (confusing for returning users)
-- Bottom CTA is a duplicate of hero CTA with zero new persuasion
-- Logo glow uses purple hues (270/330) but brand color is red (355)
-- 6 feature cards is a lot of content before the user reaches a CTA
-- Steps row adds clutter without strong value (users already understand "create, polish, export")
+## Settings Page Full Redesign
 
-### New Page Flow
+### Issues Identified and Fixes
+
+**1. Scrolling broken**
+The SettingsPage creates its own scroll container (`ref={scrollRef}` with `overflow-y-auto` on line 381) but AppShell also wraps everything in an `overflow-y-auto` div (line 40). Two nested scroll containers fight each other. Fix: remove the inner scroll container from SettingsPage and let AppShell handle scrolling. The `scrollRef` and `scrollToTop` FAB will reference the AppShell container via a parent ref or `document.querySelector`.
+
+**2. Invalid footer links**
+- GitHub URL is `https://github.com/magdysaber` -- change to `https://github.com/iammagdy`
+- Remove LinkedIn and Twitter icon buttons entirely
+- Remove Privacy and Terms links (lines 1005-1008)
+
+**3. "Made in EG" enhancement**
+Replace plain text with a branded footer strip: WiseResume logo (small icon) + version + GitHub icon, styled as a cohesive glass card.
+
+**4. Remove duplicate section navigation**
+Both the horizontal scrolling chip bar AND the hamburger menu "Jump to Section" sheet duplicate the bottom tab bar sections concept. Remove both entirely per your choice.
+
+**5. Account stats wired to real data**
+Query `cover_letters` and `job_applications` tables (both have `user_id` column) to get actual counts instead of showing dashes.
+
+**6. Developer Credit Card**
+Kept as-is per your choice.
+
+---
+
+### Full Redesign Structure
+
+The new settings page removes visual clutter, simplifies the hierarchy, and gives it a world-class mobile app feel:
 
 ```text
 +------------------------------------------+
-| [WiseResume logo]        [Sign In/Avatar] |  <-- sticky mini header
+| [<- Back]  Settings                      |  <- clean header, no hamburger
++------------------------------------------+
+| [Avatar] Name / Job Title                |
+| [Provider badge] [Progress bar if <100%] |  <- profile card (tap to edit)
 +------------------------------------------+
 |                                          |
-|     Build Your Dream Resume              |
-|     AI-powered. ATS-optimized.           |
-|     [Get Started Free]                   |
-|     Free forever . No credit card        |
+| APPEARANCE                               |
+| [Theme toggle]  [Language: English]      |
 |                                          |
+| AI & VOICE                               |
+| [AI Provider: WiseResume AI]             |
+| [ElevenLabs: Connect/Manage]            |
+|                                          |
+| EDITOR & EXPORT                          |
+| [PDF Settings (collapsible)]             |
+| [Export Resumes (collapsible)]           |
+|                                          |
+| NOTIFICATIONS                            |
+| [Push] [Auto-save] [AI Tips] [Quiet Hrs] |
+|                                          |
+| PRIVACY & SECURITY                       |
+| [Biometric] [Local-Only] [Analytics]     |
+|                                          |
+| ACCOUNT                                  |
+| [3 | 2 | 5]  Resumes | Letters | Apps   |
+| [Change Password] [Sign Out] [Delete]   |
+|                                          |
+| ABOUT                                    |
+| [Take Tour] [Rate] [Share] [Get Help]   |
+|                                          |
+| [Developer Credit Card]                 |
+|                                          |
+| [WiseResume icon] v1.6.0  [GitHub icon] |  <- branded footer
+| Crafted in Cairo, Egypt                  |
 +------------------------------------------+
-|     See It in Action (EditorDemo)        |
-|     (existing phone mockup animation)    |
-+------------------------------------------+
-|     Why WiseResume?                      |
-|     4 feature cards (reduced from 6)     |
-|     - AI Writing Assistant               |
-|     - ATS Score Checker                  |
-|     - Smart Job Tailoring                |
-|     - Voice Mock Interviews              |
-|     + "12 templates, 4 AI recruiters"    |
-|       as a subtitle/chip row below       |
-+------------------------------------------+
-
 ```
 
-### Key Changes
+---
 
-**1. Add a sticky mini-header with sign-in/avatar**
+### Detailed Changes
 
-- Small bar at the top with the WiseResume logo (24px icon) on the left
-- Sign In button (ghost style) or avatar dropdown (for logged-in users) on the right
-- Uses `glass-header` backdrop blur, fades in on scroll past the hero logo
-- Reuses avatar/dropdown pattern from existing `HeroSection.tsx`
+#### File: `src/pages/SettingsPage.tsx` (major rewrite)
 
-**2. Simplify Hero**
+**Scrolling fix:**
+- Remove `ref={scrollRef}` and `onScroll={handleScroll}` from the inner div
+- Remove the `overflow-y-auto` class from it -- let AppShell's wrapper handle scroll
+- Update the scroll-to-top FAB to use `document.querySelector` or remove it (since AppShell handles scroll)
+- Alternatively, keep the scroll-to-top button but attach it to the window scroll
 
-- Fix the logo glow gradient to use brand red (hue 355) instead of purple (270)
-- Tighter copy: "Build Your Dream Resume" stays, subtitle becomes "AI-powered. ATS-optimized. Ready in 5 minutes."
-- Remove the trust bar below -- fold it into a single line under the CTA button
-- Remove the "Already have an account?" text link (the header has Sign In now)
+**Remove section navigation (lines 138-146, 348-406):**
+- Delete the `SECTIONS` array
+- Delete the hamburger button in the header
+- Delete the `Sheet` for "Jump to Section"
+- Delete the horizontal chip bar
+- Delete `activeSection`, `showJumpSheet` state
+- Delete `scrollToSection` and related `IntersectionObserver` logic
+- Delete `SectionJumpButton` component at bottom of file
 
-**3. Remove Steps Row**
+**Fix footer (lines 996-1025):**
+- Remove Privacy and Terms links
+- Remove Twitter and LinkedIn buttons
+- Change GitHub URL from `https://github.com/magdysaber` to `https://github.com/iammagdy`
+- Replace "Made in EG" with branded footer: small AppIcon + "WiseResume v1.6.0" + GitHub icon, plus a subtle "Crafted in Cairo, Egypt" line with a small flag emoji
 
-- The 3-step "Create / AI Polish / Export" row adds little value. The EditorDemo below already demonstrates the flow visually. Removing it shortens the page and reduces cognitive load.
+**Wire account stats:**
+- Import `useCoverLetters` and `useJobApplications` hooks
+- Replace the hardcoded dashes with `coverLetters.length` and `applications.length`
 
-**4. Keep EditorDemo as-is**
+**Clean up unused imports:**
+- Remove `Menu`, `Twitter`, `Linkedin` from lucide imports
+- Remove `ArrowUp` if scroll-to-top is removed
+- Remove `Sheet`, `SheetContent`, `SheetHeader`, `SheetTitle` if jump sheet is removed
 
-- It's the strongest section. No changes needed.
+---
 
-**5. Remove Social Proof Bar**
+### Files Summary
 
-- Per your choice, removing the fabricated stats entirely.
+| File | Action |
+|------|--------|
+| `src/pages/SettingsPage.tsx` | Major rewrite: fix scrolling, remove section nav, fix footer, wire stats |
 
-**6. Reduce Features from 6 to 4 cards + bonus row**
+### No New Files Needed
 
-- Keep the 4 strongest: AI Writing Assistant, ATS Score Checker, Smart Job Tailoring, Voice Mock Interviews
-- Below the 4-card grid, add a subtle "bonus" row: two chips reading "12 Templates" and "4 AI Recruiter Views" linking to `/templates` and the features respectively
-- This merges the template section into the features area (per your choice)
+All changes are within the existing SettingsPage. The hooks for cover letters and job applications already exist (`useCoverLetters`, `useJobApplications`).
 
-**7. Remove Template Preview Section**
-
-- The 3 wireframe thumbnails are eliminated. The "12 Templates" chip in the features section serves this purpose.
-
-**8. Revamp Bottom CTA**
-
-- Different heading: "Your Next Career Move Starts Here"
-- Add a subtle differentiator: show a mini ATS score ring animation or a one-liner testimonial-style quote
-- Keep the gradient CTA button
-
-### Files to Modify
-
-
-| File                  | Change                                                                                                                                                    |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/pages/Index.tsx` | Full rewrite of the landing page structure: remove steps row, social proof, template section; add header; reduce features to 4 + chips; revamp bottom CTA |
-
-
-No new files needed. We reuse existing components (`EditorDemo`, `SpaceBackground`, `AppIcon`, UI primitives). The `HeroSection.tsx`, `FeatureGrid.tsx`, and `BottomCTA.tsx` component files in `/landing/` are not used by Index.tsx currently and won't be changed.
-
-### Technical Details
-
-- The header uses `useAuth()` and `useProfile()` for the avatar, same pattern as `HeroSection.tsx`
-- Sign-in dropdown uses existing `DropdownMenu` from Radix
-- All animations continue using `framer-motion` with `useReducedMotion` support
-- Feature chips use the existing `Badge` component or inline styled pills
-- Logo glow gradient changes from `hsl(270 70% 60%)` to `hsl(355 70% 50%)` to match brand red
-- The "12 Templates" chip navigates to `/templates` on tap
-- Touch targets remain 44px minimum per project guidelines
