@@ -1,6 +1,6 @@
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Pencil, Sparkles, Download, LayoutGrid, Wand2, Target, Mic, Users, Shield } from 'lucide-react';
-import { AppIcon } from '@/components/brand/AppIcon';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 import { EditorDemo } from '@/components/landing/EditorDemo';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
@@ -78,7 +78,7 @@ const Index = () => {
               }}
               aria-hidden="true"
             />
-            <AppIcon size={120} className="relative z-10" />
+            <img src={wiseAiLogo} alt="Wise AI Logo" className="relative z-10 w-[120px] h-[120px] object-contain" />
           </motion.div>
 
           <motion.h1
