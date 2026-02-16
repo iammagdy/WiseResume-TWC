@@ -1,48 +1,115 @@
 
 
-## Fix AI Health Indicator -- Make It Real
+## New Approach: Client-Side Health Tracking (No Edge Function Polling)
 
 ### Root Cause
 
-The health check is fundamentally flawed: the edge function (`ai-health`) makes a **real AI API call** (sends "hi" to the Lovable gateway) to determine if the AI is healthy. This is circular -- you're using the AI to check if the AI works. If the health check's own AI call fails (cold start, timeout, transient error), it reports "down" even though the AI service is perfectly functional for real requests.
+The `ai-health` fetch **never actually fires** from the browser. The `new URL(import.meta.env.VITE_SUPABASE_URL + ...)` call throws because the env var is undefined in preview, and the error is silently caught. So every "check" immediately hits the catch block, incrementing the fail counter: first call = "AI Slow", second call (refresh) = "AI Unavailable". It never recovers because every attempt crashes the same way.
 
-I verified this by calling the edge function directly -- it returned `healthy` with 495ms latency. But from the user's browser, the call can fail intermittently (cold start, network timing), triggering the false "AI Unavailable" state.
+### New Strategy: Observe Real AI Calls Instead of Polling
 
-### Solution: Lightweight Ping Instead of AI Call
+Instead of polling a separate edge function, **track the outcomes of actual AI calls** the app already makes (score-resume, enhance-section, tailor-resume, etc.). This is more accurate than any synthetic health check because it reflects what the user is actually experiencing.
 
-Replace the edge function's AI API call with a simple connectivity check. The edge function should:
-1. Verify the `LOVABLE_API_KEY` env var exists (proves config is valid)
-2. For Gemini users: do a lightweight model list call (`GET /v1beta/models`) instead of a chat completion
-3. For default users: just return `healthy` -- the edge function itself being reachable proves the backend is alive. The real AI calls already have their own error handling in each feature.
+```text
+Before (broken):
+  Browser --poll every 60s--> ai-health edge function --AI call--> Gateway
+  (URL construction fails, always shows "degraded/down")
 
-This eliminates the circular dependency and stops burning AI credits on health checks.
+After (reliable):
+  Browser uses score-resume, enhance-section, etc. normally
+  Each call reports success/failure to a shared store
+  AIHealthBadge reads from the store -- no polling needed
+```
 
-### Changes
+### How It Works
 
-**1. `supabase/functions/ai-health/index.ts` -- Rewrite to lightweight check**
+1. **Optimistic default**: Badge shows "AI Online" on first load (no checking state, no skeleton)
+2. **Real calls report outcomes**: When any AI feature (score-resume, enhance, tailor, etc.) completes, it calls `aiHealthStore.recordSuccess(latencyMs)` or `aiHealthStore.recordFailure(errorCode)`
+3. **Health derived from last 5 calls**: All succeeded = healthy, some failed = degraded, all failed = down
+4. **No polling, no edge function call, no env var dependency**
 
-- Remove the chat completion call entirely for the default (WiseResume) path
-- For Gemini key users, use `GET /v1beta/models/{model}` which is free and doesn't consume tokens
-- Return `healthy` if the edge function is reachable and config is valid
-- Return `degraded` only if the Gemini key validation fails with a 429
-- Return `down` only if no API key is configured at all
+### Files to Change
 
-**2. `src/hooks/useAIHealth.ts` -- Simplify and fix timing**
+**1. New file: `src/store/aiHealthStore.ts`**
 
-- Increase initial poll interval: first check on mount, then 5 min when healthy
-- On the very first check, if it fails, set `degraded` (not `down`) regardless of threshold
-- This prevents the false "AI Unavailable" on cold start
+A small Zustand store that tracks the last 5 AI call outcomes:
+- `recordSuccess(latencyMs)` -- pushes a success entry
+- `recordFailure(errorCode)` -- pushes a failure entry  
+- `status` -- derived: if no data yet = "healthy" (optimistic), if >60% success = "healthy", if >0% success = "degraded", if 0% = "down"
+- `latencyMs` -- average of recent successful calls
+- `lastChecked` -- timestamp of most recent call
+- `provider` -- read from settingsStore
 
-**3. `src/components/ai/AIHealthBadge.tsx` -- Remove toast entirely for initial loads**
+**2. Rewrite: `src/hooks/useAIHealth.ts`**
 
-- Only show toasts if a *transition* from healthy to degraded/down happens (not on mount)
-- Track previous status to detect transitions
+Remove all fetch/polling logic. Instead, just read from `aiHealthStore` and return the same interface. The hook becomes a thin wrapper:
+- No fetch calls, no intervals, no fail counters
+- Returns `{ status, latencyMs, lastChecked, provider, errorCode, refetch }` where `refetch` is a no-op (or triggers a manual score-resume ping)
 
-### Files
+**3. Simplify: `src/components/ai/AIHealthBadge.tsx`**
 
-| File | Change |
-|------|--------|
-| `supabase/functions/ai-health/index.ts` | Replace AI chat call with lightweight connectivity check |
-| `src/hooks/useAIHealth.ts` | Fix initial status logic; ensure first failure never shows "down" |
-| `src/components/ai/AIHealthBadge.tsx` | Toast only on status transitions, not initial load |
+- Remove toast logic entirely (no more false alerts)
+- Remove `hasSeenHealthyRef` and `prevStatusRef` complexity
+- Just display the status from the store
+- Keep the popover with latency/provider info
+- Keep the "Use Your Own API Key" link
+
+**4. Add reporting to existing AI hooks**
+
+Add a single line to hooks that call AI edge functions. The pattern:
+
+```typescript
+// In any AI-calling hook, after the fetch:
+import { useAIHealthStore } from '@/store/aiHealthStore';
+
+const start = Date.now();
+const resp = await supabase.functions.invoke('score-resume', { body });
+const latency = Date.now() - start;
+
+if (resp.error) {
+  useAIHealthStore.getState().recordFailure(resp.error.status || 0);
+} else {
+  useAIHealthStore.getState().recordSuccess(latency);
+}
+```
+
+The hooks that need this one-liner added (high-traffic ones only):
+- `src/hooks/useResumeScore.ts` (score-resume -- called on every dashboard load)
+- `src/hooks/useAIEnhance.ts` (enhance-section)
+- `src/hooks/useProofread.ts` (proofread-resume)
+
+These 3 hooks cover the most common AI calls. Since score-resume runs on every dashboard visit, the health store will have data within seconds of app load.
+
+**5. No changes to edge functions**
+
+The `ai-health` edge function stays as-is but is no longer called. It can be removed later.
+
+### Technical Details
+
+The store keeps a sliding window of the last 5 results:
+
+```typescript
+interface AICallResult {
+  success: boolean;
+  latencyMs: number;
+  errorCode: number | null;
+  timestamp: number;
+}
+
+// Derive status:
+const successes = results.filter(r => r.success).length;
+if (results.length === 0) return 'healthy'; // optimistic default
+if (successes === results.length) return 'healthy';
+if (successes > 0) return 'degraded';
+return 'down';
+```
+
+### What This Fixes
+
+- No more "AI Slow" on load (optimistic default)
+- No more "AI Unavailable" on refresh click (no synthetic check to fail)
+- No more env var dependency for URL construction
+- No more wasted edge function calls for health checks
+- Status reflects **actual** AI performance the user is experiencing
+- Zero network overhead for health monitoring
 
