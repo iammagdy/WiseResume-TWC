@@ -1,112 +1,135 @@
 
 
-## Production Readiness Audit -- Final Fixes
+## AI Scoring Reliability Audit -- Critical Fixes
 
-### Audit Summary
+### Problem Summary
 
-Reviewed all 22 edge functions, database schema, indexes, CORS, auth flow, and data safety. The app is in very good shape overall. Here are the remaining issues to fix before going live:
-
----
-
-### Issue 1: CRITICAL -- 3 edge functions crash on object-type skills
-
-Three edge functions still use unguarded `.join()` on skills arrays. If a user has skills stored as objects (e.g., `{name: "React"}`), these will crash with `[object Object]` or throw errors.
-
-| File | Line | Crash Code |
-|------|------|-----------|
-| `career-assessment/index.ts` | 89 | `resume.skills?.join(", ")` |
-| `career-path-advisor/index.ts` | 74 | `resume.skills?.join(", ")` |
-| `one-page-optimizer/index.ts` | 36 | `resume.skills?.join(', ').length` |
-
-**Fix**: Add `safeSkillsString` helper to `career-assessment` and `career-path-advisor`. For `one-page-optimizer`, the `.join()` on line 36 is used only for character counting, so it needs a safe version too.
+Several AI scoring and enhancement features silently return **fake hardcoded scores** when the AI response fails to parse, instead of surfacing an error. Users relying on these scores to land real jobs would get misleading data.
 
 ---
 
-### Issue 2: IMPORTANT -- `proofread-resume` has no authentication check
+### Issue 1: CRITICAL -- `analyze-resume` returns fake scores on parse failure
 
-The `proofread-resume` edge function does NOT verify the user's JWT token. It reads the body directly without checking `Authorization`. Any unauthenticated user can call this endpoint. All other 21 functions properly verify auth.
+**File:** `supabase/functions/analyze-resume/index.ts` (lines 139-158)
 
-**Fix**: Add the standard auth check (create Supabase client, extract token, call `getUser()`).
+When `parseAIJSON()` returns `null` (AI response is malformed), the function silently falls back to **hardcoded fake scores**:
 
----
+```
+overallScore: 65, skillsMatch: 60, experienceRelevance: 70,
+keywordAlignment: 55, atsCompatibility: 75
+```
 
-### Issue 3: IMPORTANT -- Missing database index on `resume_versions`
+These numbers are completely fabricated -- not based on the user's actual resume or job description. A user could have a terrible resume and still see "65/100", or an excellent one and still see "65/100".
 
-The `resume_versions` table has 77 rows already and will grow fast (every save creates a version). It only has a primary key index -- no index on `user_id` or `resume_id`. With 100 users, queries will scan all rows for each user.
-
-**Fix**: Add composite index `(user_id, resume_id, created_at DESC)` for efficient version lookups.
-
----
-
-### Issue 4: MODERATE -- Missing database index on `career_assessments`
-
-The `career_assessments` table has no `user_id` index. RLS policy filters by `auth.uid() = user_id`, so every query does a full table scan.
-
-**Fix**: Add index on `(user_id)`.
+**Fix:** Remove the fallback object. Return a `502` error like `score-resume` already does, so the client shows "Analysis failed. Try again." instead of fake data.
 
 ---
 
-### Issue 5: MODERATE -- Missing database index on `jobs`
+### Issue 2: CRITICAL -- `tailor-resume` returns fake before/after scores on partial parse
 
-The `jobs` table has no `user_id` index. Same full-scan concern.
+**File:** `supabase/functions/tailor-resume/index.ts` (lines 378-413)
 
-**Fix**: Add index on `(user_id)`.
+When the AI response is partially parsed but missing scoring fields, the function fills in **hardcoded fallback scores**:
 
----
+```
+overallScore: { before: 62, after: 86 }
+sectionScores: { summary: { before: 60, after: 85 }, ... }
+atsAnalysis: { originalKeywordDensity: 0, optimizedKeywordDensity: 0 }
+```
 
-### Issue 6: LOW -- `send-push-notification` has no caller authentication
+This is dangerous because:
+- The tailored resume content is real (from AI), but the scores next to it are fake
+- A user sees "before: 62, after: 86" and thinks the tailoring improved their resume by 24 points, when in reality the AI just didn't return scores
+- The `atsAnalysis` defaults to `0` density which contradicts the actual keyword improvements
 
-The function accepts a `user_id` in the body and sends push notifications to that user. Anyone with the anon key could send notifications to any user by guessing their ID. For launch with 100 users this is low risk, but should be hardened.
-
-**Fix**: Note for future -- add auth check or service-role-only access. Not blocking for initial Android launch.
-
----
-
-### Issue 7: LOW -- `ai_usage_logs` growth with no cleanup
-
-With 100 users, the `ai_usage_logs` table (currently 582 rows) will grow rapidly. The rate limiter queries this table on every AI request. Without cleanup, performance will degrade over months.
-
-**Fix**: Note for future -- add a cron job or retention policy to prune logs older than 7 days. Not blocking for launch since indexes are already in place.
+**Fix:** Keep empty arrays for list fields (missingSkills, etc.) since those are optional display data. But for `overallScore` and `sectionScores`, mark them as `null` when missing so the UI can show "Score unavailable" instead of fake numbers.
 
 ---
 
-### What's Already Good (No Changes Needed)
+### Issue 3: IMPORTANT -- `proofread-resume` returns fake writing scores on parse failure
 
-- All 19 AI edge functions use `callAI()` with 30-second timeouts
-- All functions have proper CORS via shared `getCorsHeaders()` with Android WebView support (`null`, `https://localhost`)
-- All functions except `proofread-resume` have proper auth verification
-- All tables have RLS enabled with correct user-scoped policies
-- Database has proper indexes on high-traffic tables (`resumes`, `ai_usage_logs`, `notifications`)
-- Auth context has 5-second timeout fallback for Android WebView startup
-- Safe client has hardcoded fallbacks for Capacitor APK builds
-- `safeSkillsString` is used in 7 edge functions (score, analyze, tailor, generate-cover-letter, interview-chat, recruiter-sim, optimize-for-linkedin)
-- `generate-headshot` has 30-second timeout
-- `parse-job-url` has 10-second fetch timeout + 30-second AI timeout + SSRF protection
+**File:** `supabase/functions/proofread-resume/index.ts` (lines 136-140, 157-159)
+
+Two places return fake scores:
+1. When `parseAIJSON()` returns null: returns `{ overall: 80, spelling: 90, grammar: 85, style: 75 }` -- completely fabricated
+2. When individual score fields are missing: defaults to `overall: 80, spelling: 90, grammar: 85, style: 75`
+
+A resume full of typos would show "Spelling: 90" if the AI response has a parsing issue.
+
+**Fix:** Return a `502` error when parsing fails entirely (line 136-140). For the individual field defaults (line 157-159), use `0` instead of inflated fake numbers -- this makes it obvious to the user that scoring wasn't available.
+
+---
+
+### Issue 4: IMPORTANT -- `enhance-section` returns raw AI text as "enhanced content" on parse failure
+
+**File:** `supabase/functions/enhance-section/index.ts` (lines 162-166)
+
+When `parseAIJSON()` fails, the fallback returns:
+```
+{ improved: content, changes: ['AI enhanced the content'], suggestions: [] }
+```
+
+Where `content` is the raw AI text (which may include markdown, code fences, or garbage). This raw text could be injected into the user's resume as an "improvement," corrupting their resume content.
+
+**Fix:** Return a `502` error instead of silently injecting potentially malformed content.
+
+---
+
+### Issue 5: MODERATE -- `jobMatchScorer.ts` crashes on object-type skills
+
+**File:** `src/lib/jobMatchScorer.ts` (line 45)
+
+```typescript
+const resumeSkills = (resume.skills || []).map(s => s.toLowerCase());
+```
+
+If skills are objects (`{name: "React"}`), calling `.toLowerCase()` on an object returns `"[object object]"`, making all keyword matching fail silently. The score would show 0% skill match even for perfectly matching resumes.
+
+**Fix:** Use the same safe extraction pattern: `s => (typeof s === 'string' ? s : s?.name || '').toLowerCase()`
+
+---
+
+### Issue 6: LOW -- `proofread-resume` score clamping hides failures
+
+**File:** `supabase/functions/proofread-resume/index.ts` (lines 156-164)
+
+The `Math.min(100, Math.max(0, ...))` clamping is correct, but the default values (`?? 80`, `?? 90`, etc.) silently mask when the AI didn't return a score for a category. Combined with the clamping, this makes it impossible for the UI to know if a score is real or fake.
+
+**Fix:** Addressed as part of Issue 3 -- use `0` instead of inflated defaults.
 
 ---
 
 ### Implementation Plan
 
-**Step 1: Database migration** (indexes)
-```sql
-CREATE INDEX idx_resume_versions_user_resume ON resume_versions (user_id, resume_id, created_at DESC);
-CREATE INDEX idx_career_assessments_user_id ON career_assessments (user_id);
-CREATE INDEX idx_jobs_user_id ON jobs (user_id);
-```
+**File 1: `supabase/functions/analyze-resume/index.ts`**
+- Lines 139-158: Replace the `?? { fake fallback }` with a proper `502` error response when `parseAIJSON()` returns null
 
-**Step 2: Fix `career-assessment/index.ts`**
-- Add `safeSkillsString` helper
-- Replace line 89: `resume.skills?.join(", ")` with `safeSkillsString(resume.skills)`
+**File 2: `supabase/functions/tailor-resume/index.ts`**
+- Lines 378-413: Change `overallScore` and `sectionScores` fallbacks to `null` instead of fake numbers
+- Keep empty array defaults for optional list fields (missingSkills, etc.)
 
-**Step 3: Fix `career-path-advisor/index.ts`**
-- Add `safeSkillsString` helper
-- Replace line 74: `resume.skills?.join(", ")` with `safeSkillsString(resume.skills)`
+**File 3: `supabase/functions/proofread-resume/index.ts`**
+- Lines 136-140: Return `502` error instead of fake scores when parsing fails
+- Lines 157-159: Change defaults from `80/90/85/75` to `0`
 
-**Step 4: Fix `one-page-optimizer/index.ts`**
-- Add `safeSkillsString` helper
-- Replace line 36: `resume.skills?.join(', ').length || 0` with `safeSkillsString(resume.skills).length`
+**File 4: `supabase/functions/enhance-section/index.ts`**
+- Lines 162-166: Return `502` error instead of injecting raw AI text into resume
 
-**Step 5: Add auth to `proofread-resume/index.ts`**
-- Add Supabase client creation, token extraction, and `getUser()` check (same pattern as all other functions)
-- Move body parsing after auth check
+**File 5: `src/lib/jobMatchScorer.ts`**
+- Line 45: Fix object-type skills handling with safe extraction
+
+**File 6: Client-side UI (optional but recommended)**
+- In `TailorSheet` or wherever `sectionScores`/`overallScore` is displayed: handle `null` gracefully by showing "Score unavailable" instead of rendering `null` as `0`
+
+---
+
+### What's Already Solid (No Changes Needed)
+
+- `score-resume`: Correctly returns `502` error when parsing fails (line 118-122). No fake fallbacks. Uses `temperature: 0` for consistency.
+- `recruiter-simulation`: Returns `500` error when parsing fails (line 199-203). No fake fallbacks.
+- `useResumeScore.ts` (client): Returns `null` on failure, shows toast error. No fake scores displayed.
+- `ATSScoreBreakdown.tsx`: Only renders real AI scores from `ResumeHealthScore`. No hardcoded values.
+- `resumeCompletionRules.ts`: Client-side completeness calculator -- purely rules-based, no AI. Correctly labeled as "Completeness" not "ATS Score."
+- `JobMatchScore.tsx`: Already shows disclaimer: "This score is based on keyword overlap... not a deep AI analysis." Honest labeling.
+- `callAI()` shared helper: Proper 30-second timeout, error categorization, no silent failures.
 
