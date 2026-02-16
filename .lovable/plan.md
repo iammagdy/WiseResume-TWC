@@ -1,56 +1,35 @@
 
 
-## Production-Ready APK Build with Full AI Support
+## Fix APK Build: PWA Precache Size Limit
 
-### Problem Summary
-The build output you see is actually **successful** -- those are just warnings, not errors. However, there are real issues that would cause problems in the installed APK:
+### Root Cause
+When the new Wise AI logo was copied to all icon sizes (48x48, 72x72, etc.), the **full 2.56 MB PNG** was used for every size -- no resizing was done. The PWA `injectManifest` plugin has a default 2 MB limit per file, causing the build to fail.
 
-1. **Direct `import.meta.env.VITE_SUPABASE_URL` usage without fallback** in 3 files -- these will be `undefined` in the APK if env vars aren't baked in at build time
-2. **GitHub Actions workflow missing env vars** -- the `npm run build` step doesn't inject `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, so the built assets may not have them
-3. **Capacitor config uses wrong `appId`** -- currently `com.wiseresume.app` instead of the Lovable-assigned `app.lovable.1d3d9943c1ba4253b6336b1457b9b330`
-4. **Capacitor `appName`** -- currently "Wise Resume", should be updated to "Wise AI" to match the new branding
-5. **Gemini API key flow** works correctly since it's stored in Zustand (persisted to localStorage) and passed through edge functions via `userGeminiKey` body param -- no changes needed there
+### Solution (Two-Part Fix)
 
-### What Will Be Changed
+#### 1. Increase the precache size limit in `vite.config.ts`
+Add `maximumFileSizeToCacheInBytes: 5 * 1024 * 1024` (5 MB) to the `injectManifest` config. This unblocks the build immediately.
 
-#### 1. Fix direct `fetch()` calls to use `SUPABASE_URL` from safeClient (3 files)
-Replace raw `import.meta.env.VITE_SUPABASE_URL` with the imported constant from `safeClient.ts` which has hardcoded fallbacks. This ensures edge function calls work even without env vars.
-
-- `src/pages/ResignationLetterNewPage.tsx` -- use `SUPABASE_URL` from safeClient
-- `src/pages/ResignationLetterEditPage.tsx` -- same fix  
-- `src/components/applications/AddApplicationSheet.tsx` -- same fix, plus use `SUPABASE_PUBLISHABLE_KEY` fallback
-
-#### 2. Update GitHub Actions workflow to inject env vars at build time
-Add environment variables to the `Build web app` step so Vite bakes them into the bundle:
-
-```text
-env:
-  VITE_SUPABASE_URL: https://hjnnamwgztlhzkeuufln.supabase.co
-  VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGci...
+#### 2. Exclude large icon files from precache glob pattern
+Update the `globPatterns` to exclude PNG files in the `icons/` directory since they don't need to be precached (the browser fetches them on-demand from the manifest). Change:
 ```
-
-#### 3. Update Capacitor config
-- Change `appName` from "Wise Resume" to "Wise AI" to match rebranding
-
-#### 4. Fix the Tailwind warning
-Replace the ambiguous class `duration-[1.2s]` with `duration-[1200ms]` to silence the build warning.
-
-### AI Features on Mobile -- Verification
-
-The AI pipeline is already mobile-ready:
-- **Default path (Lovable AI)**: Client calls `supabase.functions.invoke()` which goes to edge functions that use `LOVABLE_API_KEY` server-side -- works from any origin
-- **Custom Gemini key path**: Key is stored in Zustand (localStorage), passed as `userGeminiKey` in request body to edge functions, which call Google's API directly server-side -- also works from any origin
-- **CORS**: The shared `cors.ts` already handles native app origins (`null` origin returns `*`)
-
-No changes needed for the AI logic itself.
+globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"]
+```
+to:
+```
+globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"]
+```
+This removes ALL PNGs from precaching (including the 2.56 MB wise-ai-logo asset), keeping the service worker lean. The icons and logo still load normally -- they just won't be cached by the service worker on first install.
 
 ### Technical Details
 
-**Files to modify:**
-1. `src/pages/ResignationLetterNewPage.tsx` -- import `SUPABASE_URL` from safeClient, replace `import.meta.env.VITE_SUPABASE_URL`
-2. `src/pages/ResignationLetterEditPage.tsx` -- same
-3. `src/components/applications/AddApplicationSheet.tsx` -- same, plus `SUPABASE_PUBLISHABLE_KEY`
-4. `.github/workflows/build-apk.yml` -- add env vars to build step
-5. `capacitor.config.ts` -- update `appName`
-6. Search and fix `duration-[1.2s]` class usage
+**File: `vite.config.ts`** -- Update the `injectManifest` block:
+```typescript
+injectManifest: {
+  globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
+  maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+},
+```
+
+This is a single-file, two-line change that fully resolves the build failure.
 
