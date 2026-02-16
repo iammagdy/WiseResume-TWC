@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { useAIHealthStore } from '@/store/aiHealthStore';
 import { getUserGeminiKey } from '@/lib/aiProvider';
 import type { ResumeData } from '@/types/resume';
 import type { ProofreadIssue } from '@/types/proofread';
@@ -91,6 +92,7 @@ export function useProofread(resume: ResumeData | null) {
           body.userGeminiKey = userGeminiKey;
         }
 
+        const _start = Date.now();
         const { data, error } = await supabase.functions.invoke('proofread-resume', {
           body,
         });
@@ -98,9 +100,12 @@ export function useProofread(resume: ResumeData | null) {
         if (controller.signal.aborted) return;
 
         if (error) {
+          useAIHealthStore.getState().recordFailure(0);
           console.error('Proofread error:', error);
           return;
         }
+
+        useAIHealthStore.getState().recordSuccess(Date.now() - _start);
 
         lastHashRef.current = textHash;
         setIssues(data.issues || []);

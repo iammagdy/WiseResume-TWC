@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
+import { useAIHealthStore } from '@/store/aiHealthStore';
 
 export interface ResumeHealthScore {
   overallScore: number;
@@ -31,7 +32,8 @@ export function clearCachedScore(resumeId: string, updatedAt: string) {
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function invokeScoreResume(resume: ResumeData, userGeminiKey: string | undefined) {
+async function invokeScoreResume(resume: ResumeData, userGeminiKey: string | undefined): Promise<{ data: any; latencyMs: number }> {
+  const _start = Date.now();
   // Explicitly grab token to ensure it's fresh (important for Capacitor WebView)
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -102,7 +104,7 @@ async function invokeScoreResume(resume: ResumeData, userGeminiKey: string | und
     throw new Error(data.error);
   }
 
-  return data;
+  return { data, latencyMs: Date.now() - _start };
 }
 
 export function useResumeScore() {
@@ -121,28 +123,30 @@ export function useResumeScore() {
     try {
       const userGeminiKey = getUserGeminiKey();
 
-      let data: any;
+      let result: { data: any; latencyMs: number };
       try {
-        data = await invokeScoreResume(resume, userGeminiKey);
+        result = await invokeScoreResume(resume, userGeminiKey);
       } catch (firstErr: any) {
         // Don't retry auth or rate-limit errors
         if (firstErr.isAuth || firstErr.isRateLimit) throw firstErr;
 
         console.warn('[ScoreResume] First attempt failed, retrying in 2s…', firstErr.message);
         await delay(2000);
-        data = await invokeScoreResume(resume, userGeminiKey);
+        result = await invokeScoreResume(resume, userGeminiKey);
       }
 
+      useAIHealthStore.getState().recordSuccess(result.latencyMs);
       trackGeminiUsage();
 
       const score: ResumeHealthScore = {
-        ...data,
+        ...result.data,
         scoredAt: new Date().toISOString(),
       };
 
       scoreCache.set(cacheKey(resumeId, updatedAt), score);
       return score;
     } catch (err: any) {
+      useAIHealthStore.getState().recordFailure(err.isRateLimit ? 429 : err.isAuth ? 401 : 0);
       console.error('[ScoreResume] Final failure:', err);
 
       if (err.isAuth) {
