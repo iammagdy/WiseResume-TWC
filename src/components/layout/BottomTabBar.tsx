@@ -136,7 +136,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       src={tab.customIcon}
                       alt={tab.label}
                       className={cn(
-                        'w-6 h-6 sm:w-5 sm:h-5 transition-opacity duration-200 object-contain',
+                        'w-8 h-8 transition-opacity duration-200 object-contain',
                         active ? 'opacity-100' : 'opacity-60'
                       )}
                     />
@@ -151,14 +151,16 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                   )}
                 </div>
               </div>
-              <span
-                className={cn(
-                  'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
-                  active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
-                )}
-              >
-                {tab.label}
-              </span>
+              {!tab.customIcon && (
+                <span
+                  className={cn(
+                    'text-[11px] whitespace-nowrap relative z-10 transition-colors duration-200',
+                    active ? 'text-primary font-bold' : 'text-muted-foreground font-medium'
+                  )}
+                >
+                  {tab.label}
+                </span>
+              )}
             </button>
           );
         })}
