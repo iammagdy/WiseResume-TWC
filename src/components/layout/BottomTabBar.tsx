@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Briefcase, Sparkles } from 'lucide-react';
+import { FileText, Settings, Home, Briefcase } from 'lucide-react';
+import wiseAiIcon from '@/assets/wise-ai-icon.png';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -8,7 +9,8 @@ import { toast } from 'sonner';
 
 interface TabItem {
   path: string;
-  icon: React.ElementType;
+  icon?: React.ElementType;
+  customIcon?: string;
   label: string;
   matchPaths?: string[];
   guarded?: boolean;
@@ -30,8 +32,8 @@ const tabs: TabItem[] = [
   },
   {
     path: '/ai-studio',
-    icon: Sparkles,
-    label: 'Studio',
+    customIcon: wiseAiIcon,
+    label: 'Wise AI',
     matchPaths: ['/ai-studio'],
   },
   { 
@@ -129,15 +131,24 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                     active && 'scale-110'
                   )}
                 >
-                  <Icon
-                    className={cn(
-                      'w-6 h-6 sm:w-5 sm:h-5 transition-colors duration-200',
-                      active
-                        ? tab.path === '/ai-studio' ? 'text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.5)]' : 'text-primary'
-                        : tab.path === '/ai-studio' ? 'text-primary/60' : 'text-muted-foreground'
-                    )}
-                    aria-hidden="true"
-                  />
+                  {tab.customIcon ? (
+                    <img
+                      src={tab.customIcon}
+                      alt={tab.label}
+                      className={cn(
+                        'w-6 h-6 sm:w-5 sm:h-5 transition-opacity duration-200 object-contain',
+                        active ? 'opacity-100' : 'opacity-60'
+                      )}
+                    />
+                  ) : (
+                    <Icon
+                      className={cn(
+                        'w-6 h-6 sm:w-5 sm:h-5 transition-colors duration-200',
+                        active ? 'text-primary' : 'text-muted-foreground'
+                      )}
+                      aria-hidden="true"
+                    />
+                  )}
                 </div>
               </div>
               <span
