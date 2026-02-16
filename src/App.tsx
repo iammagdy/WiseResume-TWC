@@ -49,7 +49,7 @@ const ResumeDetailPage = lazyWithRetry(() => import("./pages/ResumeDetailPage"))
 const JobDetailPage = lazyWithRetry(() => import("./pages/JobDetailPage"));
 const ApplicationTrackerPage = lazyWithRetry(() => import("./pages/ApplicationTrackerPage"));
 const NotificationsPage = lazyWithRetry(() => import("./pages/NotificationsPage"));
-const CoverLetterPage = lazyWithRetry(() => import("./pages/CoverLetterPage"));
+
 const CoverLettersPage = lazyWithRetry(() => import("./pages/CoverLettersPage"));
 const CoverLetterNewPage = lazyWithRetry(() => import("./pages/CoverLetterNewPage"));
 const CoverLetterEditPage = lazyWithRetry(() => import("./pages/CoverLetterEditPage"));
@@ -131,7 +131,7 @@ const queryClient = new QueryClient({
              <Route path="/job/:id" element={<Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense>} />
              <Route path="/application/:id" element={<Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense>} />
              <Route path="/notifications" element={<Suspense fallback={<DetailSkeleton />}><NotificationsPage /></Suspense>} />
-             <Route path="/cover-letter" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterPage /></Suspense>} />
+             
              <Route path="/cover-letters" element={<Suspense fallback={<DashboardSkeleton />}><CoverLettersPage /></Suspense>} />
              <Route path="/cover-letter/new" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense>} />
              <Route path="/cover-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense>} />
