@@ -13,7 +13,7 @@ export function AppShell() {
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
 
   return (
-    <div className="min-h-screen min-h-[100dvh] flex flex-col bg-background">
+    <div className="h-[100dvh] overflow-hidden flex flex-col bg-background">
       {/* Skip to content link for accessibility */}
       <a
         href="#main-content"
@@ -27,8 +27,7 @@ export function AppShell() {
         className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}
       >
         <div
-          className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-y-auto"
-          style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+          className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-hidden"
         >
           {currentOutlet}
         </div>

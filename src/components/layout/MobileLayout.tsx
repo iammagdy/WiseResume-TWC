@@ -57,7 +57,7 @@ export function MobileLayout({
 
   return (
     <div 
-      className="min-h-screen min-h-[100dvh] flex flex-col bg-background"
+      className="h-[100dvh] overflow-hidden flex flex-col bg-background"
       onClick={handleBackgroundClick}
     >
       {/* Offline indicator */}
@@ -113,6 +113,7 @@ export function MobileLayout({
            hasFloatingAction && "pb-24",
            !showBottomNav && !hasFloatingAction && "pb-safe"
          )}
+         style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
       >
         {children}
       </main>
