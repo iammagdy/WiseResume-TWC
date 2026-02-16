@@ -1,8 +1,26 @@
 [
   {
+    "version": "v1.6.0",
+    "date": "2026-02-16",
+    "latest": true,
+    "items": [
+      {
+        "title": "Real-Time AI Health Indicator",
+        "description": "Live AI status badge on all AI-powered pages showing real gateway latency and availability. Tap for details including response time and provider info."
+      },
+      {
+        "title": "Dynamic Changelog",
+        "description": "Changelog now loads from a JSON file at runtime instead of being hardcoded. Update release notes without any code changes."
+      },
+      {
+        "title": "Settings Page Overhaul",
+        "description": "Added sign-out confirmation, change password flow, privacy toggles for all platforms, account stats card, and guest user prompt."
+      }
+    ]
+  },
+  {
     "version": "v1.5.0",
     "date": "2026-02-10",
-    "latest": true,
     "items": [
       {
         "title": "Polished Tailor Loading Screen",
