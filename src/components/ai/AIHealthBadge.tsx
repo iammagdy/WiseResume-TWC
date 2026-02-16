@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { Activity, Zap, AlertTriangle, WifiOff, Key } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
-import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 
 const STATUS_CONFIG: Record<AIHealthStatus, {
   dot: string;
@@ -31,14 +32,11 @@ const STATUS_CONFIG: Record<AIHealthStatus, {
 };
 
 export function AIHealthBadge() {
-  const { status, latencyMs, lastChecked, provider, errorCode } = useAIHealth();
-  const navigate = useNavigate();
+  const { status, latencyMs, provider, errorCode } = useAIHealth();
+  const [showSettings, setShowSettings] = useState(false);
 
   const config = STATUS_CONFIG[status];
   const Icon = config.icon;
-  const lastCheckedLabel = lastChecked
-    ? `${Math.round((Date.now() - lastChecked.getTime()) / 1000)}s ago`
-    : 'No calls yet';
 
   return (
     <Popover>
@@ -75,12 +73,8 @@ export function AIHealthBadge() {
                 {provider === 'wiseresume' ? 'WiseResume AI' : 'Gemini'}
               </span>
             </div>
-            <div>
-              <span className="block text-foreground/50">Last Check</span>
-              <span className="font-medium text-foreground">{lastCheckedLabel}</span>
-            </div>
             {errorCode ? (
-              <div>
+              <div className="col-span-2">
                 <span className="block text-foreground/50">Error</span>
                 <span className="font-medium text-foreground">
                   {errorCode === 429 ? 'Rate Limited' : errorCode === 402 ? 'Credits Exhausted' : `HTTP ${errorCode}`}
@@ -89,17 +83,19 @@ export function AIHealthBadge() {
             ) : null}
           </div>
 
-          {provider === 'wiseresume' && status !== 'healthy' && (
+          <div className="pt-2 mt-1 border-t border-border">
             <button
-              onClick={() => navigate('/settings')}
-              className="flex items-center gap-1.5 w-full text-xs text-primary hover:underline mt-1"
+              onClick={() => setShowSettings(true)}
+              className="flex items-center gap-1.5 w-full text-xs text-primary hover:underline"
             >
               <Key className="w-3 h-3" />
               Use Your Own API Key
             </button>
-          )}
+          </div>
         </div>
       </PopoverContent>
+
+      <AISettingsSheet open={showSettings} onOpenChange={setShowSettings} />
     </Popover>
   );
 }

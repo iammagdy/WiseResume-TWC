@@ -130,6 +130,7 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
           <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-4">
             {/* Provider Selection */}
             <RadioGroup
+              key={aiProvider}
               value={aiProvider}
               onValueChange={handleProviderChange}
               className="space-y-3"
