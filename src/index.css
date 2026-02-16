@@ -1171,3 +1171,9 @@ button,
 .keyboard-open .editor-header .keyboard-hide {
   display: none;
 }
+
+/* Android WebView scroll fix */
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}

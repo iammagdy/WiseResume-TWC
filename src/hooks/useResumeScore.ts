@@ -40,24 +40,61 @@ async function invokeScoreResume(resume: ResumeData, userGeminiKey: string | und
     throw Object.assign(new Error('Not authenticated. Please sign in again.'), { isAuth: true });
   }
 
-  const { data, error } = await supabase.functions.invoke('score-resume', {
-    body: { resume, userGeminiKey },
-  });
+  // Try supabase.functions.invoke first, then fall back to direct fetch
+  let data: any;
+  let lastError: any;
 
-  if (error) {
-    console.error('[ScoreResume] Edge function error:', {
-      message: error.message,
-      name: error.name,
-      context: (error as any).context,
+  try {
+    const result = await supabase.functions.invoke('score-resume', {
+      body: { resume, userGeminiKey },
     });
 
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      throw Object.assign(new Error('Session expired. Please sign in again.'), { isAuth: true });
+    if (result.error) {
+      console.error('[ScoreResume] Supabase invoke error:', {
+        message: result.error.message,
+        name: result.error.name,
+        context: (result.error as any).context,
+      });
+      throw result.error;
     }
-    if (error.message?.includes('429')) {
-      throw Object.assign(new Error('Rate limit reached. Try again shortly.'), { isRateLimit: true });
+    data = result.data;
+  } catch (invokeErr: any) {
+    console.warn('[ScoreResume] supabase.functions.invoke failed, trying direct fetch…', invokeErr?.message);
+    lastError = invokeErr;
+
+    // Direct fetch fallback — bypasses Supabase JS client quirks in WebView
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const res = await fetch(`${supabaseUrl}/functions/v1/score-resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'apikey': anonKey,
+        },
+        body: JSON.stringify({ resume, userGeminiKey }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error('[ScoreResume] Direct fetch failed:', res.status, errText);
+        if (res.status === 401) {
+          throw Object.assign(new Error('Session expired. Please sign in again.'), { isAuth: true });
+        }
+        if (res.status === 429) {
+          throw Object.assign(new Error('Rate limit reached. Try again shortly.'), { isRateLimit: true });
+        }
+        throw new Error(`Scoring failed (${res.status})`);
+      }
+
+      data = await res.json();
+    } catch (fetchErr: any) {
+      console.error('[ScoreResume] Direct fetch also failed:', fetchErr?.message);
+      // Rethrow with the original error context if fetch also fails
+      if (fetchErr.isAuth || fetchErr.isRateLimit) throw fetchErr;
+      throw lastError || fetchErr;
     }
-    throw new Error(error.message || 'Scoring request failed');
   }
 
   if (data?.error) {

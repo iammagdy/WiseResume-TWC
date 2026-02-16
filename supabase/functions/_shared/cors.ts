@@ -1,7 +1,8 @@
 const ALLOWED_ORIGINS = [
   'http://localhost:8080',
   'http://localhost:3000',
-  'http://localhost',           // Capacitor Android
+  'http://localhost',           // Capacitor Android (legacy)
+  'https://localhost',          // Capacitor Android v5+
   'capacitor://localhost',      // Capacitor iOS
   'https://wiseresume.lovable.app',
   'https://wiseresume.magdysaber.com',
@@ -16,7 +17,8 @@ export const getCorsHeaders = (origin?: string | null) => {
   }
 
   const isLovablePreview = origin?.endsWith('.lovable.app') || origin?.endsWith('.lovableproject.com');
-  const isNativeApp = !origin || origin === 'null';
+  const isLocalhost = origin?.startsWith('http://localhost') || origin?.startsWith('https://localhost');
+  const isNativeApp = !origin || origin === 'null' || isLocalhost;
   const isAllowed = isNativeApp || (origin && (origins.includes(origin) || isLovablePreview));
 
   return {
