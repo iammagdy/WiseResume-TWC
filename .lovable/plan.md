@@ -1,24 +1,56 @@
 
 
-## Replace Studio Tab with a Lucide Icon
+## Production-Ready APK Build with Full AI Support
 
-### What will change
-Replace the custom PNG image (`wise-ai-icon.png`) for the Studio tab with a Lucide `Sparkles` icon. This eliminates the PNG asset, removes the custom icon rendering path for this tab, and ensures the Studio icon matches the exact same style, size, and color behavior as all other bottom tab icons (Home, Editor, Jobs, Settings).
+### Problem Summary
+The build output you see is actually **successful** -- those are just warnings, not errors. However, there are real issues that would cause problems in the installed APK:
 
-### Why Sparkles
-The `Sparkles` icon from Lucide is the standard convention for AI/generative features across modern apps. It clearly communicates "AI-powered" and visually fits alongside the other outline-style Lucide icons in the tab bar.
+1. **Direct `import.meta.env.VITE_SUPABASE_URL` usage without fallback** in 3 files -- these will be `undefined` in the APK if env vars aren't baked in at build time
+2. **GitHub Actions workflow missing env vars** -- the `npm run build` step doesn't inject `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`, so the built assets may not have them
+3. **Capacitor config uses wrong `appId`** -- currently `com.wiseresume.app` instead of the Lovable-assigned `app.lovable.1d3d9943c1ba4253b6336b1457b9b330`
+4. **Capacitor `appName`** -- currently "Wise Resume", should be updated to "Wise AI" to match the new branding
+5. **Gemini API key flow** works correctly since it's stored in Zustand (persisted to localStorage) and passed through edge functions via `userGeminiKey` body param -- no changes needed there
 
-### Steps
+### What Will Be Changed
 
-1. **Update `src/components/layout/BottomTabBar.tsx`**:
-   - Add `Sparkles` to the Lucide import (line 2)
-   - Remove the `wiseAiIcon` PNG import (line 3)
-   - Change the Studio tab definition (lines 33-38) from using `customIcon: wiseAiIcon` to `icon: Sparkles`
-   - No other rendering changes needed -- the existing Lucide icon rendering path handles size, color, and active/inactive states automatically
+#### 1. Fix direct `fetch()` calls to use `SUPABASE_URL` from safeClient (3 files)
+Replace raw `import.meta.env.VITE_SUPABASE_URL` with the imported constant from `safeClient.ts` which has hardcoded fallbacks. This ensures edge function calls work even without env vars.
+
+- `src/pages/ResignationLetterNewPage.tsx` -- use `SUPABASE_URL` from safeClient
+- `src/pages/ResignationLetterEditPage.tsx` -- same fix  
+- `src/components/applications/AddApplicationSheet.tsx` -- same fix, plus use `SUPABASE_PUBLISHABLE_KEY` fallback
+
+#### 2. Update GitHub Actions workflow to inject env vars at build time
+Add environment variables to the `Build web app` step so Vite bakes them into the bundle:
+
+```text
+env:
+  VITE_SUPABASE_URL: https://hjnnamwgztlhzkeuufln.supabase.co
+  VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGci...
+```
+
+#### 3. Update Capacitor config
+- Change `appName` from "Wise Resume" to "Wise AI" to match rebranding
+
+#### 4. Fix the Tailwind warning
+Replace the ambiguous class `duration-[1.2s]` with `duration-[1200ms]` to silence the build warning.
+
+### AI Features on Mobile -- Verification
+
+The AI pipeline is already mobile-ready:
+- **Default path (Lovable AI)**: Client calls `supabase.functions.invoke()` which goes to edge functions that use `LOVABLE_API_KEY` server-side -- works from any origin
+- **Custom Gemini key path**: Key is stored in Zustand (localStorage), passed as `userGeminiKey` in request body to edge functions, which call Google's API directly server-side -- also works from any origin
+- **CORS**: The shared `cors.ts` already handles native app origins (`null` origin returns `*`)
+
+No changes needed for the AI logic itself.
 
 ### Technical Details
-- Import change: `import { FileText, Settings, Home, Briefcase, Sparkles } from 'lucide-react'`
-- Tab config change: replace `customIcon: wiseAiIcon` with `icon: Sparkles`
-- The custom icon rendering code (`<img>` branch) remains for future use but won't be triggered since no tab uses `customIcon` anymore
-- The `wise-ai-icon.png` asset file stays in the repo (it may be used elsewhere like the AI Studio page header)
+
+**Files to modify:**
+1. `src/pages/ResignationLetterNewPage.tsx` -- import `SUPABASE_URL` from safeClient, replace `import.meta.env.VITE_SUPABASE_URL`
+2. `src/pages/ResignationLetterEditPage.tsx` -- same
+3. `src/components/applications/AddApplicationSheet.tsx` -- same, plus `SUPABASE_PUBLISHABLE_KEY`
+4. `.github/workflows/build-apk.yml` -- add env vars to build step
+5. `capacitor.config.ts` -- update `appName`
+6. Search and fix `duration-[1.2s]` class usage
 
