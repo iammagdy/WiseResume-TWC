@@ -158,12 +158,19 @@ serve(async (req) => {
 
     console.log('AI response received, parsing...');
 
-    // Parse the JSON from the AI response using robust parser
-    const enhancedContent = parseAIJSON(content) ?? {
-      improved: content,
-      changes: ['AI enhanced the content'],
-      suggestions: [],
-    };
+    // Parse the JSON from the AI response — never inject raw text into resume
+    const enhancedContent = parseAIJSON(content);
+
+    if (!enhancedContent) {
+      console.error("Failed to parse enhance AI response:", content?.slice(0, 500));
+      return new Response(JSON.stringify({
+        error: 'enhancement_failed',
+        message: 'AI response was malformed. Please try again.',
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log('Enhancement complete:', JSON.stringify(enhancedContent).slice(0, 200));
 

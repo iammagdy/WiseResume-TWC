@@ -377,13 +377,8 @@ Analyze deeply, then return this exact JSON structure:
     // Ensure all required fields have defaults with enhanced structure
     tailoredResult = {
       ...tailoredResult,
-      sectionScores: tailoredResult.sectionScores || {
-        summary: { before: 60, after: 85 },
-        skills: { before: 55, after: 90 },
-        experience: { before: 65, after: 88 },
-        education: { before: 70, after: 80 },
-      },
-      overallScore: tailoredResult.overallScore || { before: 62, after: 86 },
+      sectionScores: tailoredResult.sectionScores || null,
+      overallScore: tailoredResult.overallScore || null,
       missingSkills: tailoredResult.missingSkills || [],
       boostableSkills: tailoredResult.boostableSkills || [],
       jobParsed: tailoredResult.jobParsed || {

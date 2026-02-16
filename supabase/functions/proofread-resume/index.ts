@@ -134,9 +134,10 @@ ${combinedText}`;
     }>(response.content || "{}");
 
     if (!parsed) {
+      console.error("Failed to parse proofread AI response");
       return new Response(
-        JSON.stringify({ issues: [], score: { overall: 80, spelling: 90, grammar: 85, style: 75, tone: "professional" } }),
-        { headers: { ...cors, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
+        { status: 502, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -154,10 +155,10 @@ ${combinedText}`;
     }));
 
     const score = {
-      overall: Math.min(100, Math.max(0, parsed.score?.overall ?? 80)),
-      spelling: Math.min(100, Math.max(0, parsed.score?.spelling ?? 90)),
-      grammar: Math.min(100, Math.max(0, parsed.score?.grammar ?? 85)),
-      style: Math.min(100, Math.max(0, parsed.score?.style ?? 75)),
+      overall: Math.min(100, Math.max(0, parsed.score?.overall ?? 0)),
+      spelling: Math.min(100, Math.max(0, parsed.score?.spelling ?? 0)),
+      grammar: Math.min(100, Math.max(0, parsed.score?.grammar ?? 0)),
+      style: Math.min(100, Math.max(0, parsed.score?.style ?? 0)),
       tone: ["professional", "casual", "mixed"].includes(parsed.score?.tone || "")
         ? parsed.score!.tone
         : "professional",

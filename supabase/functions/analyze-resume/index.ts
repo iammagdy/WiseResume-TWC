@@ -135,27 +135,16 @@ Provide analysis in this exact JSON format:
       throw new Error("No content in AI response");
     }
 
-    // Parse the JSON from the AI response
-    const analysisResult = parseAIJSON(aiResponse.content) ?? {
-      score: {
-        overallScore: 65,
-        skillsMatch: 60,
-        experienceRelevance: 70,
-        keywordAlignment: 55,
-        atsCompatibility: 75,
-        strengths: ["Resume is well-structured", "Contact information is complete"],
-        improvements: ["Add more relevant keywords", "Quantify achievements"]
-      },
-      gaps: {
-        missingKeywords: ["leadership", "project management"],
-        missingSkills: [],
-        suggestedSections: ["Professional Certifications"],
-        recommendedPhrases: ["results-driven", "cross-functional"],
-        priorityImprovements: [
-          { priority: "high", suggestion: "Add more specific keywords from the job description", impact: "Improve ATS matching" }
-        ]
-      }
-    };
+    // Parse the JSON from the AI response — never return fake scores
+    const analysisResult = parseAIJSON(aiResponse.content);
+
+    if (!analysisResult) {
+      console.error("Failed to parse AI analysis response:", aiResponse.content?.slice(0, 500));
+      return new Response(
+        JSON.stringify({ error: "Failed to parse AI response. Please try again." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     return new Response(
       JSON.stringify(analysisResult),
