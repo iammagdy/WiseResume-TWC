@@ -1,90 +1,86 @@
 
 
-## Fix AI Features, Scrolling Issues in Android APK
+## Fix Scrolling Across the Entire App on Android WebView
 
-### Issue 1: AI Features Failing -- Root Cause Found
+### Root Cause Analysis
 
-**The Problem:** The CORS configuration in `supabase/functions/_shared/cors.ts` lists `http://localhost` for Capacitor Android, but **Capacitor 5+ (you're on v8) uses `https://localhost` by default on Android**. The edge function boots but rejects every request from the APK because the origin `https://localhost` is not in the allowed list and doesn't match the native-app check (`!origin || origin === 'null'`).
+After analyzing the full scroll architecture, there are **three interconnected problems** causing scrolling to fail on Android:
 
-Evidence: Edge function logs show many boot/shutdown cycles but zero request processing -- the CORS preflight fails before any code runs.
+1. **AppShell's inner wrapper has no scroll context**: The `<main>` tag has `overflow-hidden` (correct for clipping), but the inner `<div>` that wraps all page content has NO overflow property. Pages must each set up their own scroll context -- and many don't.
 
-**Fix:** Add `https://localhost` to the allowed origins in `supabase/functions/_shared/cors.ts`. Also add a broader fallback: if the origin starts with `http://localhost` or `https://localhost` (any port), treat it as allowed.
+2. **Inconsistent page scroll setups**: Some pages (DashboardPage, ResignationLettersPage) use `min-h-full` which expects the PARENT to scroll, but the parent has `overflow-hidden`. Other pages (ResumeDetailPage, AIStudioPage) correctly use `overflow-y-auto` but lack consistent WebView properties.
 
-**File: `supabase/functions/_shared/cors.ts`**
-```typescript
-const ALLOWED_ORIGINS = [
-  'http://localhost:8080',
-  'http://localhost:3000',
-  'http://localhost',
-  'https://localhost',          // Capacitor Android v5+
-  'capacitor://localhost',
-  'https://wiseresume.lovable.app',
-  'https://wiseresume.magdysaber.com',
-];
+3. **PullToRefresh breaks touch scrolling**: The PullToRefresh component applies a Framer Motion `style={{ y }}` transform directly to the scroll container (`<motion.div className="overflow-y-auto">`). On Android WebView, applying CSS transforms to a scrollable element causes the WebView to lose track of touch events, breaking scroll entirely.
+
+### The Fix (4 changes)
+
+**Change 1: AppShell -- Add `overflow-y-auto` to the inner wrapper**
+
+Make the inner `<div>` the app-wide scroll container so ALL pages scroll automatically, even those without their own overflow handling.
+
+```
+File: src/components/layout/AppShell.tsx
+
+Before:
+<div className="flex-1 flex flex-col min-h-0 w-full animate-fade-in">
+
+After:
+<div className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-y-auto"
+     style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
 ```
 
-Also update the `isNativeApp` check to be more robust:
-```typescript
-const isNativeApp = !origin || origin === 'null' 
-  || origin === 'https://localhost' 
-  || origin === 'http://localhost';
+**Change 2: PullToRefresh -- Separate transform from scroll container**
+
+Currently the same `<motion.div>` is both the scroll container AND the transform target. On Android WebView, this breaks scrolling. Fix by wrapping: outer `motion.div` handles the pull-down transform, inner `div` handles scrolling.
+
+```
+File: src/components/ui/pull-to-refresh.tsx
+
+Before:
+<motion.div ref={containerRef}
+  className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+  style={{ y }}>
+  {children}
+</motion.div>
+
+After:
+<motion.div className="flex-1 flex flex-col min-h-0" style={{ y }}>
+  <div ref={containerRef}
+    className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+    style={{ WebkitOverflowScrolling: 'touch' }}>
+    {children}
+  </div>
+</motion.div>
 ```
 
-This single change should fix ALL AI features (scoring, enhancing, tailoring, etc.) since they all use the same shared CORS module.
+**Change 3: Global CSS -- WebView scroll properties**
 
----
+Add Android WebView scroll fixes to ALL `overflow-y-auto` elements globally, so every scrollable container in the app benefits without needing inline styles.
 
-### Issue 2: Scrolling Broken on Studio Tab and Resume Detail Page
+```
+File: src/index.css
 
-**The Problem:** The AppShell's `<main>` element has `overflow-hidden`, which is correct for establishing scroll contexts. But on Android WebView, the child scroll containers need explicit touch handling. The AIStudioPage also has a `fixed` sticky input bar at the bottom that may intercept touch events.
-
-**Fix (3 parts):**
-
-1. **`src/index.css`**: Add WebView-specific scroll fixes:
-```css
-/* Android WebView scroll fix */
-.overflow-y-auto {
+Add:
+/* Android WebView scroll fix - apply to ALL scrollable containers */
+.overflow-y-auto,
+.overflow-y-scroll {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 ```
 
-2. **`src/pages/AIStudioPage.tsx`** (line 161): Add `touch-action: pan-y` to the scrollable container to ensure Android WebView allows vertical scrolling:
-```tsx
-<div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[140px] sm:pb-20 pt-safe"
-     style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-```
+**Change 4: Remove redundant inline styles**
 
-3. **`src/pages/ResumeDetailPage.tsx`** (line 167): Same fix for the scrollable content area:
-```tsx
-<div className="flex-1 overflow-y-auto px-4 py-6 space-y-6"
-     style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-```
+Since the CSS now handles it globally, remove the inline `style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}` from AIStudioPage and ResumeDetailPage to keep things clean (the global CSS will cover them).
 
----
-
-### Issue 3: Additional Robustness for AI Calls
-
-As a secondary safety net, update `src/hooks/useResumeScore.ts` to use a direct `fetch` call as a fallback if `supabase.functions.invoke` fails. This bypasses any Supabase client quirks in the WebView.
-
-**File: `src/hooks/useResumeScore.ts`** -- In the `invokeScoreResume` function, if the first call via `supabase.functions.invoke` fails, retry with a direct `fetch` to the edge function URL with explicit headers.
-
----
-
-### Summary of Changes
+### Summary
 
 | File | Change |
 |------|--------|
-| `supabase/functions/_shared/cors.ts` | Add `https://localhost` to allowed origins; update native-app detection |
-| `src/index.css` | Add `-webkit-overflow-scrolling` and `overscroll-behavior` for scroll containers |
-| `src/pages/AIStudioPage.tsx` | Add inline `touchAction: 'pan-y'` style to scrollable container |
-| `src/pages/ResumeDetailPage.tsx` | Add inline `touchAction: 'pan-y'` style to scrollable container |
-| `src/hooks/useResumeScore.ts` | Add direct `fetch` fallback for edge function calls |
-
-### After Implementation
-
-1. The CORS fix will be deployed automatically with the edge function
-2. Rebuild the APK via GitHub Actions
-3. Test AI scoring and all AI features while signed in
-4. Test scrolling on Studio tab and Resume Detail page
+| `src/components/layout/AppShell.tsx` | Add `overflow-y-auto` + WebView styles to inner wrapper div |
+| `src/components/ui/pull-to-refresh.tsx` | Separate transform element from scroll container |
+| `src/index.css` | Global WebView scroll fix for all `overflow-y-auto` elements |
+| `src/pages/AIStudioPage.tsx` | Remove redundant inline scroll styles |
+| `src/pages/ResumeDetailPage.tsx` | Remove redundant inline scroll styles |
 
