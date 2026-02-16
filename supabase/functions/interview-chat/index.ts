@@ -3,6 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 
+const safeSkillsString = (skills: any[] | undefined): string =>
+  (skills || []).map((s: any) => (typeof s === 'string' ? s : s?.name || '')).filter(Boolean).join(', ');
+
 const MAX_MESSAGES = 50;
 const MAX_MESSAGE_LENGTH = 10 * 1024;
 const MAX_RESUME_SIZE = 100 * 1024;
@@ -74,7 +77,7 @@ serve(async (req) => {
     }
 
     const resumeContext = resumeData
-      ? `\nCANDIDATE RESUME:\nName: ${resumeData.contactInfo?.fullName || "Unknown"}\nSummary: ${resumeData.summary || "N/A"}\nSkills: ${(resumeData.skills || []).join(", ")}\nExperience: ${(resumeData.experience || []).map((e: any) => `${e.position} at ${e.company} (${e.startDate}-${e.endDate || "Present"}): ${e.description}. Achievements: ${(e.achievements || []).join("; ")}`).join("\n")}\nEducation: ${(resumeData.education || []).map((e: any) => `${e.degree} in ${e.field} from ${e.institution}`).join(", ")}\n`
+      ? `\nCANDIDATE RESUME:\nName: ${resumeData.contactInfo?.fullName || "Unknown"}\nSummary: ${resumeData.summary || "N/A"}\nSkills: ${safeSkillsString(resumeData.skills)}\nExperience: ${(resumeData.experience || []).map((e: any) => `${e.position} at ${e.company} (${e.startDate}-${e.endDate || "Present"}): ${e.description}. Achievements: ${(e.achievements || []).join("; ")}`).join("\n")}\nEducation: ${(resumeData.education || []).map((e: any) => `${e.degree} in ${e.field} from ${e.institution}`).join(", ")}\n`
       : "";
 
     const jobContext = jobDescription ? `\nTARGET JOB DESCRIPTION:\n${jobDescription}\n` : "";
