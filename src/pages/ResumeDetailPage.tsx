@@ -46,7 +46,7 @@ export default function ResumeDetailPage() {
   const { data: allResumes = [] } = useResumes();
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
-  const { getCachedScore, scoreResume, scoringId } = useResumeScore();
+  const { getCachedScore, getLatestCachedScore, scoreResume, scoringId } = useResumeScore();
   const { createShare } = useResumeShareMutations();
   const { updateResume } = useResumeMutations();
   const queryClient = useQueryClient();
@@ -80,7 +80,7 @@ export default function ResumeDetailPage() {
 
   const resumeData = dbToResumeData(dbResume);
   const templateInfo = templates.find(t => t.id === dbResume.template_id);
-  const healthScore = getCachedScore(dbResume.id, dbResume.updated_at);
+  const healthScore = getCachedScore(dbResume.id, dbResume.updated_at) ?? getLatestCachedScore(dbResume.id);
   
   const isTailored = !!dbResume.parent_resume_id;
   const isMaster = !!dbResume.is_primary;
@@ -242,9 +242,6 @@ export default function ResumeDetailPage() {
                   size="sm"
                   className="gap-2 min-h-[44px] active:scale-95 transition-transform"
                   onClick={() => {
-                    setCurrentResume(resumeData);
-                    setCurrentResumeId(dbResume.id);
-                    setSelectedTemplate(dbResume.template_id as TemplateId);
                     setShowEnhance(true);
                   }}
                 >
@@ -384,9 +381,20 @@ export default function ResumeDetailPage() {
                 if (open) {
                   enhancedRef.current = false;
                   enhancedSectionsRef.current = [];
+                  setCurrentResume(resumeData);
+                  setCurrentResumeId(dbResume.id);
+                  setSelectedTemplate(dbResume.template_id as TemplateId);
                   prevScoreRef.current = getCachedScore(dbResume.id, dbResume.updated_at);
                 }
+
+                if (!open && !enhancedRef.current) {
+                  // Closed without changes — just close, zero API calls
+                  setShowEnhance(false);
+                  return;
+                }
+
                 setShowEnhance(open);
+
                 if (!open && enhancedRef.current) {
                   // Track which sections were improved to block re-optimization
                   setImprovedSections(prev => {
