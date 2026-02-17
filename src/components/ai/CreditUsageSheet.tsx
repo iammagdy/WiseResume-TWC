@@ -56,11 +56,13 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
         .limit(20);
 
       if (error) throw error;
-      return (data ?? []).map((log) => ({
-        type: log.action_type,
-        label: CATEGORY_LABELS[log.action_type] || log.action_type,
-        time: log.created_at,
-      }));
+      return (data ?? [])
+        .filter((log) => log.created_at)
+        .map((log) => ({
+          type: log.action_type,
+          label: CATEGORY_LABELS[log.action_type] || log.action_type,
+          time: log.created_at,
+        }));
     },
     enabled: !!user && open,
   });
@@ -115,7 +117,10 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
                   >
                     <span className="text-sm font-medium">{item.label}</span>
                     <span className="text-xs text-muted-foreground">
-                      {format(new Date(item.time), 'h:mm a')}
+                      {(() => {
+                        const d = new Date(item.time);
+                        return isNaN(d.getTime()) ? '--:--' : format(d, 'h:mm a');
+                      })()}
                     </span>
                   </div>
                 ))}
