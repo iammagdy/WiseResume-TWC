@@ -49,7 +49,7 @@ export const NextStepBanner = memo(function NextStepBanner({ variant, onAction }
       className="mx-4 items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5 animate-in fade-in-0 slide-in-from-top-2 duration-200 pr-[2px] pl-[2px] pt-[5px] pb-[5px] ml-[10px] mr-[10px] flex flex-row mt-[2px] mb-px">
 
         <Icon className="w-4 h-4 text-primary flex-shrink-0" />
-        <span className="text-sm text-foreground flex-1">{text}</span>
+        <span className="text-sm text-foreground flex-1 font-sans mb-0 pt-0 pr-0 text-left font-medium">{text}</span>
         <button
         onClick={onAction}
         className="text-xs font-semibold text-primary px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors touch-manipulation min-h-[44px] flex items-center">
