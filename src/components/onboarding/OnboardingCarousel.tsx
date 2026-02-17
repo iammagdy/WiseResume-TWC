@@ -88,18 +88,20 @@ export function OnboardingCarousel({ onComplete, onSkip, onChoice }: OnboardingC
   const isLastScreen = activeIndex === totalScreens - 1;
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {/* Skip */}
-      <div className="flex justify-end p-4 pt-safe">
-        <Button variant="ghost" onClick={() => { haptics.light(); onSkip(); }} className="text-muted-foreground">
-          Skip Tour
-        </Button>
-      </div>
+    <div className="min-h-screen flex flex-col bg-background relative">
+      {/* Fixed Skip Button */}
+      <Button
+        variant="ghost"
+        onClick={() => { haptics.light(); onSkip(); }}
+        className="fixed top-4 right-4 z-10 text-muted-foreground bg-background/80 backdrop-blur-sm border border-border/50 rounded-full px-4 mt-safe"
+      >
+        Skip Tour
+      </Button>
 
       {/* Carousel */}
       <div ref={scrollRef} className="flex-1 flex overflow-x-auto snap-x snap-mandatory scrollbar-hide">
         {/* Screen 1: Welcome */}
-        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-center text-center px-8">
+        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-start pt-24 text-center px-8">
           <motion.div
             animate={{ scale: [1, 1.08, 1], opacity: [0.85, 1, 0.85] }}
             transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
@@ -117,46 +119,40 @@ export function OnboardingCarousel({ onComplete, onSkip, onChoice }: OnboardingC
         </div>
 
         {/* Screen 2: Five-Step Process */}
-        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-center text-center px-8">
+        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-start pt-24 text-center px-8">
           <h2 className="text-2xl font-bold mb-2 gradient-text">Follow our proven framework</h2>
           <p className="text-muted-foreground mb-8 max-w-xs">
             We'll guide you through each section with smart suggestions and examples
           </p>
-          <div className="relative flex flex-col items-center gap-1">
-            {/* Animated vertical line */}
-            <svg className="absolute left-1/2 -translate-x-1/2 top-0 h-full w-1 overflow-visible" aria-hidden>
-              <motion.line
-                x1="2" y1="0" x2="2" y2="100%"
-                stroke="hsl(var(--primary))"
-                strokeWidth="2"
-                strokeDasharray="200"
-                initial={{ strokeDashoffset: 200 }}
-                animate={activeIndex === 1 ? { strokeDashoffset: 0 } : { strokeDashoffset: 200 }}
-                transition={{ duration: 1.5, ease: 'easeOut' }}
-              />
-            </svg>
+          <div className="flex flex-col items-center gap-0">
             {processSteps.map((step, i) => {
               const Icon = step.icon;
               return (
-                <motion.div
-                  key={step.label}
-                  className="flex items-center gap-4 relative z-10"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={activeIndex === 1 ? { opacity: 1, x: 0 } : {}}
-                  transition={{ delay: 0.2 + i * 0.15 }}
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-                  <span className="text-sm font-medium w-20 text-left">{step.label}</span>
-                </motion.div>
+                <div key={step.label}>
+                  <motion.div
+                    className="flex items-center gap-4"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={activeIndex === 1 ? { opacity: 1, x: 0 } : {}}
+                    transition={{ delay: 0.2 + i * 0.15 }}
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                      <Icon className="w-6 h-6 text-white" />
+                    </div>
+                    <span className="text-sm font-medium w-20 text-left">{step.label}</span>
+                  </motion.div>
+                  {i < processSteps.length - 1 && (
+                    <div className="flex justify-start pl-[22px]">
+                      <div className="h-4 w-0.5 bg-primary/30 rounded-full" />
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         </div>
 
         {/* Screen 3: AI Showcase */}
-        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-center text-center px-8">
+        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-start pt-24 text-center px-8">
           <h2 className="text-2xl font-bold mb-2 gradient-text">Powered by Wise AI</h2>
           <p className="text-muted-foreground mb-8 max-w-xs">
             Intelligent tools that make every word count
@@ -185,7 +181,7 @@ export function OnboardingCarousel({ onComplete, onSkip, onChoice }: OnboardingC
         </div>
 
         {/* Screen 4: Choose Starting Point */}
-        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-center text-center px-8">
+        <div className="snap-start snap-always flex-shrink-0 w-full flex flex-col items-center justify-start pt-24 text-center px-8">
           <h2 className="text-2xl font-bold mb-2 gradient-text">Choose your starting point</h2>
           <p className="text-muted-foreground mb-8 max-w-xs">
             Pick the path that works best for you
@@ -247,7 +243,7 @@ export function OnboardingCarousel({ onComplete, onSkip, onChoice }: OnboardingC
               <ChevronLeft className="w-5 h-5" />
             </Button>
           )}
-          {!isLastScreen && (
+          {!isLastScreen ? (
             <Button
               size="lg"
               onClick={handleNext}
@@ -256,6 +252,15 @@ export function OnboardingCarousel({ onComplete, onSkip, onChoice }: OnboardingC
             >
               {activeIndex === 0 ? 'Get Started' : 'Next'}
               <ChevronRight className="w-5 h-5 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="lg"
+              onClick={() => { haptics.light(); onSkip(); }}
+              className="flex-1 h-14 text-muted-foreground"
+            >
+              Skip
             </Button>
           )}
         </div>
