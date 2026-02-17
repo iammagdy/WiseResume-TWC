@@ -1,28 +1,30 @@
 
 
-## Fix Dashboard Scroll Issue
+## Fix Dashboard Scroll Issue (Persistent)
 
 ### Root Cause
 
-The dashboard has **two competing scroll containers**:
+The previous fix (`min-h-full` to `h-full`) was on the right track but incomplete. The scroll architecture has two problems:
 
-1. **AppShell's inner wrapper** (`overflow-y-auto`) -- this is the app-wide scroll context
-2. **PullToRefresh's inner container** (`overflow-y-auto`) -- this is the page-level scroll context
+1. **Outer scroll container interference**: AppShell's wrapper div has `overflow-y-auto`, which can capture scroll events before PullToRefresh's internal scroll container gets them. The DashboardPage needs `overflow-hidden` to ensure it clips its content and delegates all scrolling to the PullToRefresh inner container exclusively.
 
-The DashboardPage's root div uses `min-h-full flex flex-col`, which tells the browser "be at least as tall as the parent." But because the AppShell's wrapper already scrolls, the DashboardPage grows to its full content height inside that outer scroller, and the PullToRefresh's inner scroll container never gets a constrained height -- so it expands fully and never scrolls independently.
-
-The result: the outer AppShell scroller handles some content, but the PullToRefresh container doesn't clip properly, causing the bottom content to be unreachable (the bottom tab bar's `pb-20` padding gets consumed by the wrong container).
+2. **Missing flex shrink constraint**: Without `min-h-0` on the DashboardPage root, the flex child may refuse to shrink below its content height, preventing the inner scroll container from ever activating.
 
 ### Fix
 
-Change the DashboardPage root container from `min-h-full` to `h-full` so it takes exactly the height given by AppShell's flex layout, allowing the PullToRefresh scroll container inside it to properly constrain and scroll all content.
-
 **File: `src/pages/DashboardPage.tsx`** (line 451)
-- Change: `<div className="min-h-full flex flex-col">` 
-- To: `<div className="h-full flex flex-col">`
 
-This single change ensures the flex height chain is unbroken: AppShell constrains height, DashboardPage fills it exactly, PullToRefresh gets a fixed height, and its inner `overflow-y-auto` container becomes the sole scroll context -- making all content scrollable.
+Change:
+```
+<div className="h-full flex flex-col">
+```
+To:
+```
+<div className="h-full flex flex-col overflow-hidden min-h-0">
+```
 
-### Why this works
-- `h-full` = "be exactly as tall as parent" -- respects the flex constraint
-- `min-h-full` = "be at least as tall as parent, but grow if content is bigger" -- breaks the constraint chain, causing content to overflow without scrolling
+- `overflow-hidden` -- prevents the DashboardPage from contributing scrollable content to the AppShell's outer scroll container; all scrolling is handled by PullToRefresh's inner `overflow-y-auto` div
+- `min-h-0` -- allows the flex child to shrink below its natural content height, which is required for the inner scroll container to activate and become scrollable
+
+No other files need changes. The PullToRefresh component already has the correct internal scroll architecture (`flex-1 overflow-y-auto`); it just needs its parent to properly constrain its height.
+
