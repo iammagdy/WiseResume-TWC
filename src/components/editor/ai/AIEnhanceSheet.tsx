@@ -12,6 +12,7 @@ import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 
 interface AIEnhanceSheetProps {
@@ -156,7 +157,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
     haptics.medium();
 
     try {
-      let parsed = JSON.parse(contentToString(results[index].improved));
+      let parsed = sanitizeAIContent(JSON.parse(contentToString(results[index].improved)));
       // Sanitize: ensure skills remain string[]
       if (result.section === 'skills' && Array.isArray(parsed)) {
         parsed = parsed.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s));

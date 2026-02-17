@@ -47,7 +47,7 @@ ${JSON.stringify(currentContent, null, 2)}
 
   return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
 
-IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks:
+IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks. All text values inside the JSON must be plain text WITHOUT any Markdown formatting -- do not use **, *, #, _, or backticks in the text content:
 {
   "improved": <the enhanced content - string for summary, object for experience/education, array for skills>,
   "changes": ["<change 1>", "<change 2>"],
