@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { Briefcase, MoreVertical, ExternalLink, Clock, Bell, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { JobApplication, ApplicationStatus } from '@/hooks/useJobApplications';
@@ -10,6 +10,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
+import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { haptics } from '@/lib/haptics';
 
 const STATUS_CONFIG: Record<ApplicationStatus, { label: string; dotColor: string; bgColor: string }> = {
@@ -53,104 +64,146 @@ export const ApplicationCard = memo(function ApplicationCard({
   const timeAgo = formatDistanceToNow(new Date(application.applied_at), { addSuffix: true });
   const deadlineInfo = getDeadlineInfo(application.deadline);
   const hasReminder = !!application.remind_at;
+  const isMobile = useIsMobile();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    haptics.medium();
+    if (isMobile) {
+      setShowDeleteConfirm(true);
+    } else {
+      onDelete(application.id);
+    }
+  };
+
+  const handleConfirmDelete = () => {
+    haptics.medium();
+    onDelete(application.id);
+    setShowDeleteConfirm(false);
+  };
 
   return (
-    <div
-      className="glass-surface rounded-2xl p-4 border border-border/30 space-y-3 active:scale-[0.98] transition-transform touch-manipulation cursor-pointer"
-      onClick={() => onTap?.(application)}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', config.bgColor)}>
-            <Briefcase className="w-5 h-5 text-foreground/70" />
+    <>
+      <div
+        className="glass-surface rounded-2xl p-4 border border-border/30 space-y-3 active:scale-[0.98] transition-transform touch-manipulation cursor-pointer"
+        onClick={() => onTap?.(application)}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', config.bgColor)}>
+              <Briefcase className="w-5 h-5 text-foreground/70" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-sm truncate">{application.job_title}</h3>
+              <p className="text-xs text-muted-foreground truncate">{application.company}</p>
+            </div>
           </div>
-          <div className="min-w-0">
-            <h3 className="font-semibold text-sm truncate">{application.job_title}</h3>
-            <p className="text-xs text-muted-foreground truncate">{application.company}</p>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg hover:bg-muted/50 touch-manipulation"
+                aria-label="More options"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {(['saved', 'applied', 'interviewing', 'offer', 'rejected'] as ApplicationStatus[])
+                .filter(s => s !== application.status)
+                .map(s => (
+                  <DropdownMenuItem
+                    key={s}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      haptics.medium();
+                      onStatusChange(application.id, s);
+                    }}
+                  >
+                    Move to {STATUS_CONFIG[s].label}
+                  </DropdownMenuItem>
+                ))}
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={handleDeleteClick}
+              >
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <span className={cn('w-2 h-2 rounded-full', config.dotColor)} />
+              <span className="text-xs font-medium">{config.label}</span>
+            </div>
+            {hasReminder && (
+              <Bell className="w-3 h-3 text-warning animate-pulse" />
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {deadlineInfo && (
+              <span className={cn('text-[11px] font-medium flex items-center gap-1', deadlineInfo.color)}>
+                <Calendar className="w-3 h-3" />
+                {deadlineInfo.text}
+              </span>
+            )}
+            {application.url && (
+              <button
+                onClick={(e) => { e.stopPropagation(); openExternal(application.url!); }}
+                className="text-xs text-primary flex items-center gap-1 hover:underline touch-manipulation"
+              >
+                <ExternalLink className="w-3 h-3" />
+                Link
+              </button>
+            )}
+            <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
           </div>
         </div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="p-2 rounded-lg hover:bg-muted/50 touch-manipulation"
-              aria-label="More options"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <MoreVertical className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {(['saved', 'applied', 'interviewing', 'offer', 'rejected'] as ApplicationStatus[])
-              .filter(s => s !== application.status)
-              .map(s => (
-                <DropdownMenuItem
-                  key={s}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    haptics.medium();
-                    onStatusChange(application.id, s);
-                  }}
-                >
-                  Move to {STATUS_CONFIG[s].label}
-                </DropdownMenuItem>
-              ))}
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation();
-                haptics.medium();
-                onDelete(application.id);
-              }}
+        {resumeName && (
+          <p className="text-[11px] text-muted-foreground flex items-center gap-1 pt-0.5">
+            <Clock className="w-3 h-3" />
+            {resumeName}
+          </p>
+        )}
+
+        {application.notes && (
+          <p className="text-xs text-muted-foreground line-clamp-2 pt-1 border-t border-border/20">
+            {application.notes}
+          </p>
+        )}
+      </div>
+
+      {/* Mobile delete confirmation drawer */}
+      <Drawer open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DrawerContent>
+          <DrawerHeader>
+            <DrawerTitle>Delete Application</DrawerTitle>
+            <DrawerDescription>
+              Are you sure you want to delete "{application.job_title}" at {application.company}?
+            </DrawerDescription>
+          </DrawerHeader>
+          <DrawerFooter>
+            <Button
+              variant="destructive"
+              className="min-h-[44px] active:scale-95"
+              onClick={handleConfirmDelete}
             >
               Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className={cn('w-2 h-2 rounded-full', config.dotColor)} />
-            <span className="text-xs font-medium">{config.label}</span>
-          </div>
-          {hasReminder && (
-            <Bell className="w-3 h-3 text-warning animate-pulse" />
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {deadlineInfo && (
-            <span className={cn('text-[11px] font-medium flex items-center gap-1', deadlineInfo.color)}>
-              <Calendar className="w-3 h-3" />
-              {deadlineInfo.text}
-            </span>
-          )}
-          {application.url && (
-            <button
-              onClick={(e) => { e.stopPropagation(); openExternal(application.url!); }}
-              className="text-xs text-primary flex items-center gap-1 hover:underline touch-manipulation"
-            >
-              <ExternalLink className="w-3 h-3" />
-              Link
-            </button>
-          )}
-          <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
-        </div>
-      </div>
-
-      {resumeName && (
-        <p className="text-[11px] text-muted-foreground flex items-center gap-1 pt-0.5">
-          <Clock className="w-3 h-3" />
-          {resumeName}
-        </p>
-      )}
-
-      {application.notes && (
-        <p className="text-xs text-muted-foreground line-clamp-2 pt-1 border-t border-border/20">
-          {application.notes}
-        </p>
-      )}
-    </div>
+            </Button>
+            <DrawerClose asChild>
+              <Button variant="outline" className="min-h-[44px] active:scale-95">
+                Cancel
+              </Button>
+            </DrawerClose>
+          </DrawerFooter>
+        </DrawerContent>
+      </Drawer>
+    </>
   );
 });
