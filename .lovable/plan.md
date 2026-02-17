@@ -1,26 +1,26 @@
 
 
-## Fix: AI Health Badge Overlapping Editor Header
+## Fix: AI Health Badge Overlapping Headers Across All Pages
 
 ### Problem
-The AI Health Badge is positioned as `absolute top-2 right-3 z-30` in the `AppShell` layout. On the editor page, the editor has its own sticky header at `z-50` with action buttons in the top-right area. The health badge visually overlaps with the editor's header elements (profile picture/avatar), creating the layering issue visible in the screenshot.
+The `AIHealthBadge` is absolutely positioned at `top-2 right-3 z-30` in `AppShell.tsx`. This causes it to overlap with page header elements (profile avatar on dashboard, action buttons on other pages) because the badge sits in the same visual space as top-right header content.
 
 ### Solution
-Remove `/editor` from the `AI_ROUTES` array. The editor already has its own AI provider indicators (AIEngineBadge, AIProviderBadge) embedded within its sheets and AI action bars, so the floating health badge is redundant on this page and causes overlap.
+Instead of keeping the badge as a floating overlay in AppShell, embed it directly into the dashboard header (the primary page where it's most useful) and remove it from the global shell. For the other AI routes (AI Studio, Interview, Career, etc.), those pages already have their own AI provider indicators (AIEngineBadge, AICreditsIndicator) in their content, making the global badge redundant.
 
 ### Technical Details
 
 **File: `src/components/layout/AppShell.tsx`**
+- Remove the `AI_ROUTES` array entirely
+- Remove the `showAIHealth` variable and the floating `AIHealthBadge` block (lines 34-39)
+- Remove the `AIHealthBadge` import
 
-Remove `'/editor'` from the `AI_ROUTES` array (line 14):
+**File: `src/pages/DashboardPage.tsx`**
+- Import `AIHealthBadge`
+- Place it inside the dashboard header, to the left of the profile avatar button, as an inline element (not absolutely positioned)
+- This keeps the badge visible where it matters most without overlapping anything
 
-```typescript
-// Before
-const AI_ROUTES = ['/dashboard', '/editor', '/ai-studio', '/interview', '/cover-letter', '/career', '/resignation-letter'];
-
-// After
-const AI_ROUTES = ['/dashboard', '/ai-studio', '/interview', '/cover-letter', '/career', '/resignation-letter'];
-```
-
-This is the simplest fix: the editor page has dedicated AI provider badges in its sheets and toolbars, so the floating AppShell badge is unnecessary and causes the overlap with the editor header.
-
+This approach:
+- Eliminates the overlap on all pages permanently
+- Keeps the health indicator visible on the dashboard where users check AI status
+- Avoids redundancy with the existing AI badges on Studio, Interview, Career, and Cover Letter pages
