@@ -593,7 +593,7 @@ export default function PreviewPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}>
 
-          <div className="flex gap-2">
+          <div className="gap-2 flex flex-row pl-[5px] pt-[2px] pb-[2px] pr-[5px] mb-0 mt-0 ml-px mr-px">
             <Button
             size="default"
             className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold gradient-primary touch-manipulation shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
