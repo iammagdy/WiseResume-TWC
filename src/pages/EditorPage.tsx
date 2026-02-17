@@ -58,7 +58,7 @@ const LivePreviewPanel = lazy(() => import('@/components/editor/LivePreviewPanel
 const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet').then(m => ({ default: m.LivePreviewSheet })));
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ATSScoreBreakdown, getScoreColorClass } from '@/components/dashboard/ATSScoreBreakdown';
-import { ResumeHealthScore } from '@/hooks/useResumeScore';
+import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { KeyboardToolbar } from '@/components/editor/KeyboardToolbar';
 import { OfflineIndicator } from '@/components/editor/OfflineIndicator';
@@ -190,6 +190,10 @@ export default function EditorPage() {
   const lastSavedResumeRef = useRef<string>('');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const lastScoreTimeRef = useRef<number>(0);
+
+  // Background ATS scoring hook (throttled, triggered after auto-save)
+  const { scoreResume: backgroundScoreResume } = useResumeScore();
   
   // Smart tab change handler with auto-scroll
   const handleTabChange = useCallback((newTab: string) => {
@@ -246,6 +250,19 @@ export default function EditorPage() {
       });
       lastSavedResumeRef.current = currentResumeJson;
       setLastSavedAt(new Date());
+
+      // Throttled background ATS re-score (max once per 60s)
+      if (currentResumeId && resume && Date.now() - lastScoreTimeRef.current > 60_000) {
+        lastScoreTimeRef.current = Date.now();
+        const rid = currentResumeId;
+        const snap = resume;
+        const scheduleScore = () => backgroundScoreResume(rid, snap, new Date().toISOString());
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(scheduleScore);
+        } else {
+          setTimeout(scheduleScore, 200);
+        }
+      }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : '';
       const isNetworkError = !navigator.onLine ||
