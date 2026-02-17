@@ -1,79 +1,119 @@
 
 
-## Client-Side PDF Download for Public Portfolio
+## In-Page ATS Optimization Suggestions
 
-### What We're Building
-A "Download Resume (PDF)" button on the public portfolio page that generates a professional PDF using the same template engine the app already uses for resume exports.
+### Overview
+Add persistent, inline ATS optimization tips directly within each editor section card -- visible without opening sheets or dialogs. When a user sets a target job description, the system analyzes each section and surfaces specific, actionable keyword and formatting suggestions right below the section content. One-tap application of each suggestion speeds up the optimization loop.
 
 ---
 
-### Current Gap
-The existing `generatePDF` utility works by capturing a rendered resume template from the DOM via `html2canvas`. The public portfolio page currently:
-- Has no rendered resume template (only the portfolio layout)
-- Does not receive `template_id` from the backend RPC
-- Has a placeholder comment where the download button should be
+### Current State
+- Each section already has an "AI Assist" button (SectionAIAction) with an "ATS Optimize" action, but it requires: click button, pick action, wait for response, review dialog, apply
+- The AIContextualNudge component shows one nudge per section but only for content completeness (empty summary, missing metrics, etc.)
+- The ATS score is shown as a collapsible completeness bar in the editor header area
+- The AIEnhanceSheet allows batch enhancement but opens a full-height sheet
 
-The same off-screen rendering pattern is already used successfully on the Resume Detail page.
+### What's New
+An **inline ATS suggestion panel** that appears directly under each section's content when the user has set a job description. No extra clicks needed -- suggestions appear automatically and can be applied or dismissed one by one.
 
 ---
 
 ### Implementation Steps
 
-**Step 1: Database Migration -- Add `template_id` to RPC response**
+**Step 1: Create `useATSSuggestions` hook**
 
-Update the `get_public_portfolio` RPC to include `v_resume.template_id` in the returned JSON object. This is a single-line addition to the existing `jsonb_build_object` call.
+New file: `src/hooks/useATSSuggestions.ts`
 
-**Step 2: Update `usePublicPortfolio.ts`**
+- Accepts the current resume data and job description
+- Computes lightweight, client-side keyword analysis per section (no API call):
+  - Extracts keywords from job description (split, normalize, deduplicate)
+  - Checks which keywords appear in each section's content
+  - Returns missing keywords per section with relevance scores
+- Provides a `fetchDeepSuggestions(section)` function that calls the existing `enhance-section` edge function with `ats_optimize` action for AI-powered suggestions (on-demand, not automatic)
+- Caches suggestions per section + job description hash to avoid redundant API calls
+- Returns: `{ getSuggestions(section): ATSSuggestion[], isAnalyzing, fetchDeepSuggestions(section) }`
 
-- Add `templateId` field to the `PublicResume` interface
-- Map it from the RPC response (`resume.templateId`)
+Interface:
+```text
+ATSSuggestion {
+  id: string
+  type: 'missing_keyword' | 'weak_verb' | 'add_metrics' | 'formatting'
+  message: string        // e.g. "Add keyword: React.js"
+  section: SectionType
+  priority: 'high' | 'medium' | 'low'
+  autoFix?: string       // Pre-computed fix text (for keywords, can auto-add to skills)
+}
+```
 
-**Step 3: Update `PublicPortfolioPage.tsx`**
+**Step 2: Create `ATSInlineSuggestions` component**
 
-Add the following:
+New file: `src/components/editor/ATSInlineSuggestions.tsx`
 
-1. **Hidden off-screen template**: Render the selected resume template in a fixed, off-screen `div` (same pattern as `ResumeDetailPage.tsx` -- `position: fixed; left: -9999px; width: 612px; height: 792px`). This provides the DOM node that `generatePDF` needs to capture.
+A compact card that renders inside each SectionCard, below the content:
+- Shows only when job description is set and there are suggestions for this section
+- Displays a count badge: "3 ATS tips"
+- Expandable/collapsible (default collapsed after first visit)
+- Each suggestion is a single row with:
+  - Icon (colored by priority: red/amber/blue)
+  - Message text
+  - "Apply" chip button (for auto-fixable items like adding a keyword to skills)
+  - "Dismiss" button (X icon)
+- "Deep Analyze" button at the bottom calls `fetchDeepSuggestions` for AI-powered section-specific ATS optimization (reuses existing edge function)
+- Matches existing glass-card styling, uses `active:scale-95` for touch targets
 
-2. **Convert PublicResume to ResumeData**: Create a mapping function that transforms the portfolio's `PublicResume` + `PublicProfile` data into a full `ResumeData` object (filling in `contactInfo` from the profile).
+**Step 3: Integrate into `renderEditorContent` in EditorPage**
 
-3. **Download button**: A prominent button with a loading spinner that:
-   - Dynamically imports `pdfGenerator` (keeps initial bundle small)
-   - Calls `generatePDF(resumeData, templateId, hiddenRef.current)`
-   - Uses the existing `downloadFile` utility for cross-platform download
-   - Shows a toast on success/failure
-   - Uses the filename pattern: `{FullName}_Resume.pdf`
+- Import the new `ATSInlineSuggestions` component
+- Add it inside each SectionCard render block (after the section content, before the navigation buttons)
+- Pass the current section type and resume data
+- The component self-manages visibility based on whether a job description exists
 
-4. **Placement**: The button will sit between the social links and the "Hire Me" CTA, styled as an outlined/secondary button with a Download icon.
+**Step 4: Add "Quick ATS Scan" action to editor tools**
+
+- Add a new action in the mobile tools sheet and desktop header
+- Triggers a full-resume client-side keyword scan that opens a summary bottom sheet showing:
+  - Per-section missing keyword counts
+  - Tap any section to jump to it (calls `handleTabChange`)
+  - Overall keyword match percentage
+- Reuses the hook from Step 1
 
 ---
 
 ### Technical Details
 
-**ResumeData mapping from PublicResume:**
+**Client-side keyword extraction (no API cost):**
 ```text
-contactInfo: {
-  fullName: profile.fullName,
-  email: '' (stripped by RPC for privacy),
-  phone: '',
-  location: profile.location || '',
-  linkedin: profile.linkedinUrl || ''
-}
-summary: resume.summary
-experience: resume.experience
-education: resume.education
-skills: resume.skills
-templateId: resume.templateId
-(+ all other sections)
+1. Split job description by whitespace and punctuation
+2. Normalize: lowercase, remove common stop words
+3. Extract multi-word phrases (bigrams) for technical terms
+4. For each section, check presence of keywords in content
+5. Return missing keywords sorted by frequency in job description
 ```
 
-**Template lazy loading:**
-Import `templateComponents` from `TemplateThumbnail.tsx` (already exports all 30 templates as lazy components). Wrap in `Suspense` with null fallback since it's off-screen.
+**Auto-fix for skills section:**
+When a missing keyword suggestion has `autoFix`, tapping "Apply" directly adds the keyword to the skills array via `updateResume({ skills: [...currentSkills, keyword] })`.
 
-**Files to change:**
+**For other sections:**
+Tapping "Apply" on a non-auto-fixable suggestion opens the existing AI Assist flow with `ats_optimize` pre-selected, so the existing enhancement pipeline handles the actual content rewriting.
 
+**Performance:**
+- Client-side keyword analysis runs synchronously (fast, no debounce needed)
+- AI-powered deep suggestions are on-demand only (user taps "Deep Analyze")
+- Suggestions are memoized per section + job description hash
+- Component uses `React.memo` to prevent unnecessary re-renders
+
+**Files to create:**
+| File | Purpose |
+|------|---------|
+| `src/hooks/useATSSuggestions.ts` | Client-side keyword analysis + AI deep analysis wrapper |
+| `src/components/editor/ATSInlineSuggestions.tsx` | Inline suggestion cards per section |
+| `src/components/editor/ATSScanSheet.tsx` | Full-resume scan summary sheet |
+
+**Files to modify:**
 | File | Change |
 |------|--------|
-| Database migration | Add `template_id` to RPC's resume JSON |
-| `src/hooks/usePublicPortfolio.ts` | Add `templateId` to `PublicResume`, map from response |
-| `src/pages/PublicPortfolioPage.tsx` | Add hidden template, download button, ResumeData mapping |
+| `src/pages/EditorPage.tsx` | Add ATSInlineSuggestions inside each section render block; add Quick ATS Scan to tools |
+| `src/store/resumeStore.ts` | Add `jobDescription` getter if not already exposed (it is) |
+
+No database changes or new edge functions needed -- reuses the existing `enhance-section` function with the `ats_optimize` action.
 
