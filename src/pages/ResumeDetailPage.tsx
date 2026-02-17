@@ -403,9 +403,8 @@ export default function ResumeDetailPage() {
                       {
                         onSuccess: () => {
                           queryClient.invalidateQueries({ queryKey: ['resume', id] });
-                          // Re-score with fresh DB data after save completes
-                          clearCachedScore(dbResume.id, dbResume.updated_at);
-                          scoreResume(dbResume.id, updatedResume, dbResume.updated_at);
+                          // Re-score with force flag — old score stays visible until new one arrives
+                          scoreResume(dbResume.id, updatedResume, dbResume.updated_at, true);
                         },
                       }
                     );

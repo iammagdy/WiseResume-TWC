@@ -136,9 +136,11 @@ export function useResumeScore() {
     return scoreCache.get(cacheKey(resumeId, updatedAt)) ?? null;
   }, []);
 
-  const scoreResume = useCallback(async (resumeId: string, resume: ResumeData, updatedAt: string): Promise<ResumeHealthScore | null> => {
-    const cached = scoreCache.get(cacheKey(resumeId, updatedAt));
-    if (cached) return cached;
+  const scoreResume = useCallback(async (resumeId: string, resume: ResumeData, updatedAt: string, force?: boolean): Promise<ResumeHealthScore | null> => {
+    if (!force) {
+      const cached = scoreCache.get(cacheKey(resumeId, updatedAt));
+      if (cached) return cached;
+    }
 
     setScoringId(resumeId);
     try {
