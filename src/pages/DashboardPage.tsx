@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense,
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap } from 'lucide-react';
+import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
+import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -64,6 +66,9 @@ export default function DashboardPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createTailoredParentId, setCreateTailoredParentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortOption, setSortOption] = useState<SortOption>('updated');
+  const [categoryFilters, setCategoryFilters] = useState<CategoryFilter[]>([]);
+  const [scoreFilters, setScoreFilters] = useState<ScoreFilter[]>([]);
   const [deleteResumeId, setDeleteResumeId] = useState<string | null>(null);
   const [duplicateResumeId, setDuplicateResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
@@ -285,21 +290,73 @@ export default function DashboardPage() {
   const deferredSearch = useDeferredValue(searchQuery);
 
   // Filter resumes by search query
-  const filteredResumes = resumes?.filter(resume => {
-    if (!deferredSearch) return true;
-    const query = deferredSearch.toLowerCase();
-    return (
-      resume.title.toLowerCase().includes(query) ||
-      resume.target_job_title?.toLowerCase().includes(query) ||
-      resume.target_company?.toLowerCase().includes(query)
-    );
-  });
+  const filteredResumes = useMemo(() => {
+    if (!resumes) return undefined;
+    let result = resumes;
+
+    // Text search
+    if (deferredSearch) {
+      const query = deferredSearch.toLowerCase();
+      result = result.filter(resume =>
+        resume.title.toLowerCase().includes(query) ||
+        resume.target_job_title?.toLowerCase().includes(query) ||
+        resume.target_company?.toLowerCase().includes(query)
+      );
+    }
+
+    // Category filter
+    if (categoryFilters.length > 0) {
+      result = result.filter(resume => {
+        const tpl = templates.find(t => t.id === resume.template_id);
+        return tpl && categoryFilters.includes(tpl.category as CategoryFilter);
+      });
+    }
+
+    // Score filter
+    if (scoreFilters.length > 0) {
+      result = result.filter(resume => {
+        const score = healthScores[resume.id]?.overallScore;
+        if (score == null) return false;
+        return scoreFilters.some(f =>
+          f === 'needs-work' ? score < 50 :
+          f === 'good' ? score >= 50 && score < 80 :
+          score >= 80
+        );
+      });
+    }
+
+    // Sort
+    if (sortOption === 'alpha') {
+      result = [...result].sort((a, b) => a.title.localeCompare(b.title));
+    } else if (sortOption === 'score') {
+      result = [...result].sort((a, b) => (healthScores[b.id]?.overallScore ?? -1) - (healthScores[a.id]?.overallScore ?? -1));
+    }
+    // 'updated' is the default order from the query
+
+    return result;
+  }, [resumes, deferredSearch, categoryFilters, scoreFilters, sortOption, healthScores]);
 
   // Organize resumes into hierarchy
   const resumeHierarchy = useMemo(() => {
     if (!filteredResumes) return null;
     return organizeResumeHierarchy(filteredResumes);
   }, [filteredResumes]);
+
+  const hasActiveFilters = sortOption !== 'updated' || categoryFilters.length > 0 || scoreFilters.length > 0;
+
+  const handleCategoryToggle = useCallback((cat: CategoryFilter) => {
+    setCategoryFilters(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+  }, []);
+
+  const handleScoreToggle = useCallback((score: ScoreFilter) => {
+    setScoreFilters(prev => prev.includes(score) ? prev.filter(s => s !== score) : [...prev, score]);
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setSortOption('updated');
+    setCategoryFilters([]);
+    setScoreFilters([]);
+  }, []);
 
   const isLoading = authLoading || resumesLoading;
   const hasResumes = filteredResumes && filteredResumes.length > 0;
@@ -489,6 +546,20 @@ export default function DashboardPage() {
                   />
                 </div>
               </div>
+            )}
+
+            {/* Filter/Sort bar */}
+            {resumes && resumes.length >= 2 && (
+              <ResumeFilters
+                sort={sortOption}
+                onSortChange={setSortOption}
+                categoryFilters={categoryFilters}
+                onCategoryToggle={handleCategoryToggle}
+                scoreFilters={scoreFilters}
+                onScoreToggle={handleScoreToggle}
+                onClearAll={handleClearFilters}
+                hasActiveFilters={hasActiveFilters}
+              />
             )}
 
             {/* Content */}
