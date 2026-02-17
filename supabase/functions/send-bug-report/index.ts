@@ -91,19 +91,71 @@ Deno.serve(async (req) => {
     if (RESEND_API_KEY) {
       try {
         const timestamp = new Date().toISOString();
+        const formattedTime = new Date(timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
+        const versionDisplay = app_version || "unknown";
         const emailHtml = `
-          <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
-            <h2 style="color:#e11d48">🐛 Bug Report</h2>
-            <table style="width:100%;border-collapse:collapse">
-              <tr><td style="padding:6px;font-weight:bold;color:#666">Error</td><td style="padding:6px">${error_message.slice(0, 500)}</td></tr>
-              <tr><td style="padding:6px;font-weight:bold;color:#666">Route</td><td style="padding:6px">${route || "N/A"}</td></tr>
-              <tr><td style="padding:6px;font-weight:bold;color:#666">User</td><td style="padding:6px">${resolvedEmail}</td></tr>
-              <tr><td style="padding:6px;font-weight:bold;color:#666">Context</td><td style="padding:6px">${additional_context || "None"}</td></tr>
-              <tr><td style="padding:6px;font-weight:bold;color:#666">App Version</td><td style="padding:6px">${app_version || "1.0.0"}</td></tr>
-              <tr><td style="padding:6px;font-weight:bold;color:#666">Time</td><td style="padding:6px">${timestamp}</td></tr>
-            </table>
-            ${error_stack ? `<details><summary style="cursor:pointer;margin-top:12px;font-weight:bold">Stack Trace</summary><pre style="background:#f5f5f5;padding:12px;overflow-x:auto;font-size:12px">${error_stack.slice(0, 3000)}</pre></details>` : ""}
-            ${component_stack ? `<details><summary style="cursor:pointer;margin-top:8px;font-weight:bold">Component Stack</summary><pre style="background:#f5f5f5;padding:12px;overflow-x:auto;font-size:12px">${component_stack.slice(0, 3000)}</pre></details>` : ""}
+          <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);padding:24px 28px;color:#ffffff">
+              <h1 style="margin:0;font-size:20px;font-weight:700">🐛 Bug Report</h1>
+              <p style="margin:6px 0 0;font-size:14px;opacity:0.9">from <strong>${resolvedEmail}</strong></p>
+            </div>
+
+            <!-- Metadata -->
+            <div style="display:flex;gap:0;border-bottom:1px solid #f3f4f6">
+              <div style="flex:1;padding:14px 28px;border-right:1px solid #f3f4f6">
+                <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Route</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#111827;font-weight:500">${route || "N/A"}</p>
+              </div>
+              <div style="flex:1;padding:14px 28px;border-right:1px solid #f3f4f6">
+                <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Version</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#111827;font-weight:500">${versionDisplay}</p>
+              </div>
+              <div style="flex:1;padding:14px 28px">
+                <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Time</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#111827;font-weight:500">${formattedTime}</p>
+              </div>
+            </div>
+
+            <!-- Error Message -->
+            <div style="padding:20px 28px">
+              <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Error Message</p>
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px">
+                <p style="margin:0;font-size:14px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all;line-height:1.5">${error_message.slice(0, 500)}</p>
+              </div>
+            </div>
+
+            ${additional_context ? `
+            <!-- User Context -->
+            <div style="padding:0 28px 20px">
+              <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">User's Note</p>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px">
+                <p style="margin:0;font-size:14px;color:#166534;line-height:1.5">${additional_context}</p>
+              </div>
+            </div>` : ""}
+
+            ${error_stack ? `
+            <!-- Stack Trace -->
+            <div style="padding:0 28px 20px">
+              <details>
+                <summary style="cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;margin-bottom:8px">Stack Trace</summary>
+                <pre style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12px;line-height:1.6;color:#374151;margin:0">${error_stack.slice(0, 3000)}</pre>
+              </details>
+            </div>` : ""}
+
+            ${component_stack ? `
+            <!-- Component Stack -->
+            <div style="padding:0 28px 20px">
+              <details>
+                <summary style="cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#6b7280;font-weight:600;margin-bottom:8px">Component Stack</summary>
+                <pre style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:12px;line-height:1.6;color:#374151;margin:0">${component_stack.slice(0, 3000)}</pre>
+              </details>
+            </div>` : ""}
+
+            <!-- Footer -->
+            <div style="background:#f9fafb;padding:16px 28px;border-top:1px solid #e5e7eb;text-align:center">
+              <p style="margin:0;font-size:12px;color:#9ca3af">WiseResume Bug Report System • Reply to reach the user</p>
+            </div>
           </div>`;
 
         const emailRes = await fetch("https://api.resend.com/emails", {
