@@ -18,6 +18,7 @@ import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButto
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
+import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -335,6 +336,7 @@ export default function DashboardPage() {
             <AppLogo size="sm" showTagline={false} hideText />
           </button>
           <div className="flex items-center gap-2">
+            <AIHealthBadge />
             <Popover onOpenChange={(open) => {
               if (open && !localStorage.getItem('wr-profile-pulse-seen')) {
                 localStorage.setItem('wr-profile-pulse-seen', 'true');
