@@ -1,56 +1,85 @@
 
 
-## Portfolio UX Improvements
+## Public Portfolio Feature -- Production Fixes
 
-Three issues to fix in the Public Portfolio section on the Profile page:
-
-### 1. Resume Selector Dropdown
-
-Add a `Select` dropdown labeled "Source Resume" above the Bio section. It lists all the user's resumes by title. The selected resume is used as the data source for AI bio generation instead of silently picking the primary/first resume.
-
-- Add a `selectedResumeId` state initialized to the primary resume's ID (or first resume)
-- Render a `Select` component from shadcn with options mapped from `resumes`
-- Update `handleGenerateBio` to use the selected resume's data instead of hardcoded `resumes.find(r => r.is_primary) || resumes[0]`
-
-### 2. Username Availability Indicator
-
-After the user types a valid username (passes format validation), run a debounced check against the database to see if the username is taken.
-
-- Add `usernameAvailable` state (`null | boolean`) and `checkingUsername` state
-- After `validateUsername` passes (no format error, length >= 3), debounce a query: `supabase.from('profiles').select('id').eq('username', clean).neq('user_id', user.id).maybeSingle()`
-- Show a small indicator below the input:
-  - Spinner while checking
-  - Green checkmark + "Available" if no match found
-  - Red X + "Taken" if match found
-- Disable Save button if username is taken
-
-### 3. Smarter Bio Generation Validation
-
-Instead of blocking with an error toast when the selected resume has no data, show a softer warning and still allow generation if the profile has a job title. The current logic already checks `profile?.jobTitle` but the user's profile says "Add a job title" meaning it's null -- so the real fix is ensuring the resume selector points to a resume that actually has data, and the error message guides the user to pick a different resume or fill in their profile.
-
-- Update validation message to say: "The selected resume has no summary or experience. Please choose a different resume or add details first."
+After thorough analysis, here are all the issues found and the fixes needed:
 
 ---
 
-### Technical Details
+### Issue 1: Edge Function Auth Uses Non-Existent Method
 
-**File: `src/pages/ProfilePage.tsx`**
+The `generate-portfolio-bio` function calls `supabase.auth.getClaims(token)` which does not exist in the Supabase JS SDK. This causes silent auth failures.
 
-New state variables:
-```
-const [selectedResumeId, setSelectedResumeId] = useState<string>('');
-const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-const [checkingUsername, setCheckingUsername] = useState(false);
-```
+**Fix**: Replace with `supabase.auth.getUser()` which is the standard method.
 
-Initialize `selectedResumeId` in a `useEffect` when `resumes` loads (pick primary or first).
+**File**: `supabase/functions/generate-portfolio-bio/index.ts`
 
-Username availability check with `useEffect` + `setTimeout` debounce (500ms) on `username` changes, only when format validation passes.
+---
 
-Resume selector: shadcn `Select` component placed between the Username field and the Bio section.
+### Issue 2: AI Model 404 Errors Don't Trigger Fallback
 
-**No database changes needed** -- we're querying the existing `profiles.username` column.
+When a user has a custom Gemini API key, the system routes to Gemini directly. If the model returns a 404 (model not found), it throws with type `unknown` -- but the fallback logic only catches `quota_exceeded`, `rate_limit`, and `invalid_key`. So the request fails instead of falling back to the Lovable gateway.
 
-**Files Modified:**
-- `src/pages/ProfilePage.tsx` -- add resume selector, username availability check, update bio generation logic
+**Fix**: Add `unknown` error type (specifically for non-4xx client errors) to the fallback conditions in `callAI`.
+
+**File**: `supabase/functions/_shared/aiClient.ts`
+
+---
+
+### Issue 3: Selected Resume Not Persisted or Used
+
+The "Source Resume" dropdown only affects AI bio generation in the current session. It resets on reload, and the public portfolio page always fetches the `is_primary` or most recent resume regardless of the user's selection.
+
+**Fix**:
+- Add a `portfolio_resume_id UUID` column to the `profiles` table
+- Update the `get_public_portfolio` RPC to use this column (falling back to primary/most recent if null)
+- Persist the selected resume ID when saving portfolio settings
+- Update the "Source Resume" label to clarify it controls both the bio AND the portfolio content
+
+**Files**: Database migration, `src/pages/ProfilePage.tsx`, `src/hooks/useProfile.ts`, `supabase/functions` RPC update
+
+---
+
+### Issue 4: Missing Error Boundary on Public Portfolio
+
+The public portfolio page has no error boundary wrapping. If any component crashes, visitors see a blank white screen.
+
+**Fix**: Wrap the page content in the existing `ErrorBoundary` component.
+
+**File**: `src/pages/PublicPortfolioPage.tsx`
+
+---
+
+### Issue 5: Install Prompt Shows on Public Portfolio
+
+External visitors to `/p/username` see the "Install WiseResume" banner, which is confusing for non-users viewing someone's portfolio.
+
+**Fix**: Hide the `InstallPrompt` component when the current route starts with `/p/`.
+
+**File**: `src/components/pwa/InstallPrompt.tsx`
+
+---
+
+### Issue 6: Empty Resume Silently Blocks Bio Generation
+
+When the auto-selected resume has no summary/experience, clicking "AI Generate" does nothing visible (toast may be missed). Users don't understand why it fails.
+
+**Fix**: Show an inline warning message below the Source Resume dropdown when the selected resume has no usable data, instead of only relying on a toast.
+
+**File**: `src/pages/ProfilePage.tsx`
+
+---
+
+### Summary of Changes
+
+| File | Change |
+|------|--------|
+| Database migration | Add `portfolio_resume_id` column to `profiles` |
+| Database migration | Update `get_public_portfolio` RPC to use `portfolio_resume_id` |
+| `supabase/functions/generate-portfolio-bio/index.ts` | Fix auth to use `getUser()` instead of `getClaims` |
+| `supabase/functions/_shared/aiClient.ts` | Expand fallback logic for model 404 errors |
+| `src/pages/ProfilePage.tsx` | Persist selected resume ID, add inline data warning |
+| `src/hooks/useProfile.ts` | Add `portfolioResumeId` field |
+| `src/pages/PublicPortfolioPage.tsx` | Wrap in ErrorBoundary |
+| `src/components/pwa/InstallPrompt.tsx` | Hide on `/p/` routes |
 
