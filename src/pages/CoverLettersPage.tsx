@@ -56,52 +56,8 @@ export default function CoverLettersPage() {
     const letter = letters?.find((l) => l.id === id);
     if (!letter) return;
     try {
-      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-      const pdfDoc = await PDFDocument.create();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const fontSize = 11;
-      const margin = 72;
-      const pageWidth = 612;
-      const pageHeight = 792;
-      const maxWidth = pageWidth - margin * 2;
-      const lineHeight = fontSize * 1.5;
-
-      const lines: string[] = [];
-      for (const paragraph of letter.content.split('\n')) {
-        if (!paragraph.trim()) { lines.push(''); continue; }
-        const words = paragraph.split(/\s+/);
-        let currentLine = '';
-        for (const word of words) {
-          const test = currentLine ? `${currentLine} ${word}` : word;
-          if (font.widthOfTextAtSize(test, fontSize) > maxWidth && currentLine) {
-            lines.push(currentLine);
-            currentLine = word;
-          } else {
-            currentLine = test;
-          }
-        }
-        if (currentLine) lines.push(currentLine);
-      }
-
-      let page = pdfDoc.addPage([pageWidth, pageHeight]);
-      let y = pageHeight - margin;
-      for (const line of lines) {
-        if (y < margin) {
-          page = pdfDoc.addPage([pageWidth, pageHeight]);
-          y = pageHeight - margin;
-        }
-        if (line) page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) });
-        y -= lineHeight;
-      }
-
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `cover-letter-${letter.job_title || 'untitled'}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const { downloadCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
+      await downloadCoverLetterPDF(letter);
       toast.success('PDF downloaded!');
     } catch {
       toast.error('Failed to generate PDF');

@@ -79,52 +79,15 @@ export default function CoverLetterEditPage() {
   }, [content]);
 
   const handleDownloadPDF = useCallback(async () => {
-    if (!content) return;
+    if (!content || !letter) return;
     try {
-      const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib');
-      const pdfDoc = await PDFDocument.create();
-      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const fontSize = 11;
-      const margin = 72;
-      const pw = 612;
-      const ph = 792;
-      const maxW = pw - margin * 2;
-      const lh = fontSize * 1.5;
-
-      const lines: string[] = [];
-      for (const para of content.split('\n')) {
-        if (!para.trim()) { lines.push(''); continue; }
-        const words = para.split(/\s+/);
-        let cur = '';
-        for (const w of words) {
-          const test = cur ? `${cur} ${w}` : w;
-          if (font.widthOfTextAtSize(test, fontSize) > maxW && cur) { lines.push(cur); cur = w; }
-          else cur = test;
-        }
-        if (cur) lines.push(cur);
-      }
-
-      let page = pdfDoc.addPage([pw, ph]);
-      let y = ph - margin;
-      for (const line of lines) {
-        if (y < margin) { page = pdfDoc.addPage([pw, ph]); y = ph - margin; }
-        if (line) page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0.1, 0.1, 0.1) });
-        y -= lh;
-      }
-
-      const bytes = await pdfDoc.save();
-      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `cover-letter-${letter?.job_title || 'untitled'}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const { downloadCoverLetterPDF } = await import('@/lib/coverLetterPdfGenerator');
+      await downloadCoverLetterPDF({ ...letter, content });
       toast.success('PDF downloaded!');
     } catch {
       toast.error('Failed to generate PDF');
     }
-  }, [content, letter?.job_title]);
+  }, [content, letter]);
 
   const handleTailor = useCallback(async () => {
     if (!tailorJobDesc.trim() || !letter?.resume_id) {
