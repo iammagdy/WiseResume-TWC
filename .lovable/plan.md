@@ -1,61 +1,57 @@
 
 
-## Fix: Persist AI Enhancements to Database + Block Re-optimization Abuse
+## Fix: Align AI Enhancement Prompts with Deterministic Scoring Rules
 
 ### Root Cause
 
-When you click "Improve Score" and apply enhancements, the improved content is saved **only in memory** (Zustand store). It is never written to the database. So:
+The `enhance-section` edge function uses generic "improve" prompts that don't know about the 6 deterministic scoring pillars. So the AI can "improve" a section in ways that actually HURT the score:
 
-1. After applying improvements, the immediate re-score uses the in-memory data -- shows 69%
-2. When you click "Re-score", the page reads from the **database** (which still has the old data) -- drops back to 64%
+- **Skills**: AI renames "React" to "React.js Development" or "Python" to "Python Programming Language". The keyword echo scorer does `textBlob.includes(skill)` -- longer/different skill names break the match, dropping Keyword Optimization (35% weight).
+- **Education**: AI reformats dates (e.g., "2020" becomes "January 2020"), causing mixed date formats. Parsability deducts 15 points for inconsistent formats.
+- **Experience**: AI may rephrase bullets removing action verbs from the start or removing specific numbers, dropping Content Quality (25% weight).
+- **Summary**: AI may rewrite without echoing listed skills, hurting Keyword Optimization.
 
-### What Will Be Fixed
+### The Fix
 
-**Fix 1: Save enhanced data to the database immediately after applying**
+Update the `enhance-section` edge function's `buildPrompt()` to inject scoring-aware constraints for the `ats_improve` action (used by "Improve Score"). These constraints tell the AI exactly what the scorer measures:
 
-When the AI Enhance sheet closes after improvements were applied:
-- Read the updated resume from the in-memory store
-- Save it to the database using the existing `updateResume` mutation
-- Invalidate the data cache so the page refreshes with the new data
-- Now "Re-score" reads the same improved data from the database -- score stays at 69%
+**For Skills section:**
+- NEVER rename, merge, or remove existing skills
+- Only ADD new relevant skills
+- Keep each skill as a short string (1-3 words max)
+- Include the user's exact listed skill names so the AI preserves them
 
-**Fix 2: Block repeated optimization of the same section**
+**For Experience section:**
+- Every bullet MUST start with one of the exact action verbs from the scorer's list (Led, Managed, Developed, etc.)
+- Every bullet MUST include at least one number, percentage, or dollar amount
+- NEVER remove existing bullets, only improve or add
+- Preserve all date formats exactly as they are
 
-Track which sections have been improved in the current session. Already-improved sections show an "Already optimized" badge and are disabled. The user must go to the Editor and manually edit the section before they can re-optimize it. This prevents API abuse.
+**For Education section:**
+- Preserve all date formats exactly -- do not reformat dates
+- Preserve institution names, degree names, and field names exactly
+- Only enhance GPA presentation or add relevant coursework if missing
 
-### Files Changed
+**For Summary section:**
+- Must mention at least 3-5 skills from the user's skills list by exact name
+- Use strong action verbs from the scorer's list
+- Include quantified achievements (numbers, years of experience)
 
-| File | What Changes |
-|------|-------------|
-| `src/pages/ResumeDetailPage.tsx` | After the enhance sheet closes with applied changes, save the updated resume to the database using `updateResume.mutate()` and invalidate the React Query cache. Add state to track which sections were improved and pass it to the sheet. |
-| `src/components/editor/ai/AIEnhanceSheet.tsx` | Accept an optional `disabledSections` prop. Sections in this set are shown as disabled with an "Already optimized" badge, preventing repeated API calls on the same content. |
+### What Changes
 
-### How It Works After the Fix
-
-```text
-User clicks "Improve Score" -> selects Summary -> AI enhances it
-  -> User clicks "Apply" -> Zustand store updated
-  -> User closes sheet -> Page detects changes were applied
-  -> Page saves updated resume to database (UPDATE resumes SET summary = ...)
-  -> React Query cache invalidated -> page re-fetches fresh data
-  -> Re-score button now reads the improved data -> score stays 69%
-
-User tries to improve Summary again -> section is disabled ("Already optimized")
-User edits Summary manually in Editor -> section tracking resets -> can re-optimize
-```
+| File | Change |
+|------|--------|
+| `supabase/functions/enhance-section/index.ts` | Update `buildPrompt()` to add scoring-aligned constraints for the `ats_improve` action. Add the ACTION_VERBS list and inject section-specific scoring rules into the prompt. |
 
 ### Technical Details
 
-In `ResumeDetailPage.tsx`, the `onOpenChange` callback (when the sheet closes and `enhancedRef.current` is true) will:
+In `buildPrompt()`, the existing `ats_improve` action prompt (lines ~70-90 of enhance-section) will be replaced with a version that includes:
 
-1. Get the updated resume from `useResumeStore.getState().currentResume`
-2. Call `updateResume.mutate({ resumeId: dbResume.id, updates: updatedResume })`
-3. On success, invalidate the `['resume', id]` query key
-4. Then trigger the re-score (which will now use the fresh database data)
+1. The exact list of 60 action verbs the scorer checks for
+2. Section-specific rules that match what the deterministic scorer measures
+3. For skills: the instruction to preserve existing skill names verbatim and only add new ones
+4. For experience: explicit requirement that every bullet starts with an action verb AND contains a metric
+5. For education: explicit instruction to not touch date formats
+6. For summary: explicit instruction to echo skill names from the skills array
 
-In `AIEnhanceSheet.tsx`, the `disabledSections` prop (a `Set<string>`) will:
-
-1. Filter out disabled sections from the selectable list
-2. Show them separately with an "Already optimized" badge
-3. Prevent the user from selecting them for enhancement
-
+This means "Improve Score" will produce enhancements that are guaranteed to improve (or at worst maintain) the deterministic score, because the AI will be optimizing for the exact same criteria the scorer checks.
