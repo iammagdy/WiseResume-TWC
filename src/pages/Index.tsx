@@ -20,9 +20,9 @@ const features = [
   { icon: Mic, title: 'Voice Mock Interviews', desc: 'Practice with AI voice coaching & real-time feedback', iconColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' },
 ];
 
-const bonusChips = [
-  { icon: LayoutGrid, label: '12 Templates', href: '/templates' },
-  { icon: Users, label: '4 AI Recruiters', href: '/auth' },
+const getBonusChips = (authenticated: boolean) => [
+  { icon: LayoutGrid, label: '12 Templates', href: authenticated ? '/templates' : '/auth' },
+  { icon: Users, label: '4 AI Recruiters', href: authenticated ? '/ai-studio' : '/auth' },
 ];
 
 const Index = () => {
@@ -225,7 +225,7 @@ const Index = () => {
 
           {/* Bonus chips */}
           <motion.div className="flex items-center justify-center gap-3 mt-5" {...inView(0.3)}>
-            {bonusChips.map((chip) => (
+            {getBonusChips(isAuthenticated).map((chip) => (
               <button
                 key={chip.label}
                 onClick={() => { triggerHaptic.light(); navigate(chip.href); }}

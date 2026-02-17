@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -50,6 +50,7 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading, session } = useAuth();
   const { isMigrating } = useGuestMigration(session);
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
@@ -78,6 +79,16 @@ export default function DashboardPage() {
   useEffect(() => {
     if (showCreateDialog) setIsCreating(false);
   }, [showCreateDialog]);
+
+  // Handle ?action=create query param (from Editor tab redirect)
+  useEffect(() => {
+    if (searchParams.get('action') === 'create') {
+      setShowCreateDialog(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete('action');
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const handleCreateNew = useCallback(() => {
     setIsCreating(true);
@@ -166,6 +177,15 @@ export default function DashboardPage() {
     }
     haptics.success();
     setShowOnboarding(false);
+
+    // Consume onboarding template selection
+    const savedTemplate = localStorage.getItem('wr-onboarding-template');
+    localStorage.removeItem('wr-onboarding-goal');
+    localStorage.removeItem('wr-onboarding-template');
+    if (savedTemplate) {
+      // Small delay to let the onboarding exit animation finish
+      setTimeout(() => setShowCreateDialog(true), 400);
+    }
   };
 
   const handleOnboardingChoice = (choice: 'scratch' | 'upload' | 'template') => {
@@ -443,6 +463,11 @@ export default function DashboardPage() {
               userName={profile?.fullName}
               isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
             />
+
+            {/* Quick Action Chips */}
+            {resumes && resumes.length > 0 && (
+              <QuickActionChips onCreateNew={handleCreateNew} />
+            )}
 
             {/* Search pill */}
             {resumes && resumes.length > 0 && (
