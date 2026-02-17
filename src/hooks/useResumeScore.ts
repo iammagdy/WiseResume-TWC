@@ -1,11 +1,9 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { trackGeminiUsage } from '@/lib/aiProvider';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
-import { useAICreditsMutations } from './useAICredits';
 
 export interface ResumeHealthScore {
   overallScore: number;
@@ -36,9 +34,8 @@ export function clearCachedScore(resumeId: string, updatedAt: string) {
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function invokeScoreResume(resume: ResumeData, background?: boolean): Promise<{ data: any; latencyMs: number }> {
+async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
   const _start = Date.now();
-  // Explicitly grab token to ensure it's fresh (important for Capacitor WebView)
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
 
@@ -46,21 +43,16 @@ async function invokeScoreResume(resume: ResumeData, background?: boolean): Prom
     throw Object.assign(new Error('Not authenticated. Please sign in again.'), { isAuth: true });
   }
 
-  // Try supabase.functions.invoke first, then fall back to direct fetch
   let data: any;
   let lastError: any;
 
   try {
     const result = await supabase.functions.invoke('score-resume', {
-      body: { resume, ...(background ? { background: true } : {}) },
+      body: { resume },
     });
 
     if (result.error) {
-      console.error('[ScoreResume] Supabase invoke error:', {
-        message: result.error.message,
-        name: result.error.name,
-        context: (result.error as any).context,
-      });
+      console.error('[ScoreResume] Supabase invoke error:', result.error.message);
       throw result.error;
     }
     data = result.data;
@@ -68,7 +60,6 @@ async function invokeScoreResume(resume: ResumeData, background?: boolean): Prom
     console.warn('[ScoreResume] supabase.functions.invoke failed, trying direct fetch…', invokeErr?.message);
     lastError = invokeErr;
 
-    // Direct fetch fallback — bypasses Supabase JS client quirks in WebView
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -79,7 +70,7 @@ async function invokeScoreResume(resume: ResumeData, background?: boolean): Prom
           'Authorization': `Bearer ${token}`,
           'apikey': anonKey,
         },
-        body: JSON.stringify({ resume, ...(background ? { background: true } : {}) }),
+        body: JSON.stringify({ resume }),
       });
 
       if (!res.ok) {
@@ -97,7 +88,6 @@ async function invokeScoreResume(resume: ResumeData, background?: boolean): Prom
       data = await res.json();
     } catch (fetchErr: any) {
       console.error('[ScoreResume] Direct fetch also failed:', fetchErr?.message);
-      // Rethrow with the original error context if fetch also fails
       if (fetchErr.isAuth || fetchErr.isRateLimit) throw fetchErr;
       throw lastError || fetchErr;
     }
@@ -113,15 +103,13 @@ async function invokeScoreResume(resume: ResumeData, background?: boolean): Prom
 
 /**
  * Standalone fire-and-forget scorer for background use (no React state).
- * Safe to call from effects/callbacks without causing re-renders.
  */
 export async function backgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): Promise<void> {
   const key = cacheKey(resumeId, updatedAt);
   if (scoreCache.has(key)) return;
   try {
-    const { data, latencyMs } = await invokeScoreResume(resume, true);
+    const { data, latencyMs } = await invokeScoreResume(resume);
     useAIHealthStore.getState().recordSuccess(latencyMs);
-    trackGeminiUsage();
     const score: ResumeHealthScore = { ...data, scoredAt: new Date().toISOString() };
     scoreCache.set(key, score);
     useATSScoreHistoryStore.getState().addScore(resumeId, score);
@@ -132,20 +120,14 @@ export async function backgroundScore(resumeId: string, resume: ResumeData, upda
 
 export function useResumeScore() {
   const [scoringId, setScoringId] = useState<string | null>(null);
-  const { incrementUsage, checkCredits } = useAICreditsMutations();
 
   const getCachedScore = useCallback((resumeId: string, updatedAt: string): ResumeHealthScore | null => {
     return scoreCache.get(cacheKey(resumeId, updatedAt)) ?? null;
   }, []);
 
   const scoreResume = useCallback(async (resumeId: string, resume: ResumeData, updatedAt: string): Promise<ResumeHealthScore | null> => {
-    // Check cache first
     const cached = scoreCache.get(cacheKey(resumeId, updatedAt));
     if (cached) return cached;
-
-    // Check credits before scoring
-    const hasCredits = await checkCredits();
-    if (!hasCredits) return null;
 
     setScoringId(resumeId);
     try {
@@ -153,18 +135,13 @@ export function useResumeScore() {
       try {
         result = await invokeScoreResume(resume);
       } catch (firstErr: any) {
-        // Don't retry auth or rate-limit errors
         if (firstErr.isAuth || firstErr.isRateLimit) throw firstErr;
-
         console.warn('[ScoreResume] First attempt failed, retrying in 2s…', firstErr.message);
         await delay(2000);
         result = await invokeScoreResume(resume);
       }
 
       useAIHealthStore.getState().recordSuccess(result.latencyMs);
-      trackGeminiUsage();
-      incrementUsage.mutate();
-      toast.success('1 credit used', { description: 'ATS scoring', duration: 2500, icon: '⚡' });
 
       const score: ResumeHealthScore = {
         ...result.data,

@@ -1,12 +1,28 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const MAX_RESUME_SIZE = 100 * 1024;
 
-// ── Deterministic Scoring Functions (zero variance) ──────────────────
+// ── Action Verbs List ────────────────────────────────────────────────
+
+const ACTION_VERBS = new Set([
+  'led', 'managed', 'developed', 'created', 'implemented', 'designed', 'built',
+  'achieved', 'increased', 'decreased', 'reduced', 'improved', 'launched',
+  'delivered', 'coordinated', 'supervised', 'trained', 'mentored', 'analyzed',
+  'resolved', 'negotiated', 'streamlined', 'optimized', 'automated',
+  'spearheaded', 'pioneered', 'established', 'maintained', 'organized',
+  'executed', 'collaborated', 'facilitated', 'generated', 'secured',
+  'transformed', 'oversaw', 'directed', 'administered', 'initiated',
+  'consolidated', 'restructured', 'revamped', 'formulated', 'architected',
+  'engineered', 'deployed', 'integrated', 'migrated', 'monitored',
+  'evaluated', 'assessed', 'researched', 'presented', 'published',
+  'authored', 'documented', 'configured', 'troubleshot', 'debugged',
+  'accelerated', 'influenced', 'orchestrated', 'modernized', 'scaled',
+]);
+
+// ── Deterministic Scoring Functions ──────────────────────────────────
 
 function scoreContactCompleteness(contact: Record<string, string | undefined>): number {
   let score = 0;
@@ -82,17 +98,11 @@ function scoreParsability(resume: Record<string, unknown>): number {
     if (ed !== 'special') dateFormats.push(ed);
   }
 
-  // Check for inconsistent date formats
   const uniqueFormats = new Set(dateFormats.filter(f => f !== 'unknown'));
   if (uniqueFormats.size > 1) score -= 15;
-
-  // Missing dates on experience
   score -= Math.min(missingDateCount * 10, 30);
-
-  // Empty descriptions on experience
   score -= Math.min(emptyDescCount * 15, 30);
 
-  // Check for bullet characters in descriptions (sign of poor parsing)
   for (const e of experiences) {
     const desc = String(e.description || '');
     if (/[•●■◦▪➤►→]/.test(desc)) {
@@ -128,12 +138,170 @@ function scoreLengthDensity(resume: Record<string, unknown>): number {
   return Math.max(Math.min(score, 100), 0);
 }
 
-// ── Helper: clamp AI score ───────────────────────────────────────────
+// ── NEW: Deterministic Keyword Optimization ──────────────────────────
 
-function clamp(val: unknown, min: number, max: number): number {
-  const n = typeof val === 'number' ? val : Number(val);
-  if (isNaN(n)) return 50; // fallback
-  return Math.max(min, Math.min(max, Math.round(n)));
+function scoreKeywordOptimization(resume: Record<string, unknown>): number {
+  const skillsArr = Array.isArray(resume.skills) ? resume.skills : [];
+
+  // Extract skill names as lowercase
+  const skillNames: string[] = skillsArr.map((s: unknown) => {
+    if (typeof s === 'string') return s.toLowerCase().trim();
+    if (s && typeof s === 'object' && 'name' in (s as Record<string, unknown>)) {
+      return String((s as Record<string, string>).name || '').toLowerCase().trim();
+    }
+    return String(s).toLowerCase().trim();
+  }).filter(Boolean);
+
+  if (skillNames.length === 0) return 0;
+
+  // Build a text blob from summary + experience descriptions/achievements/responsibilities
+  const textParts: string[] = [];
+  if (typeof resume.summary === 'string') textParts.push(resume.summary);
+
+  const experiences = Array.isArray(resume.experience) ? resume.experience as Record<string, unknown>[] : [];
+  for (const e of experiences) {
+    if (e.description) textParts.push(String(e.description));
+    if (e.position) textParts.push(String(e.position));
+    if (Array.isArray(e.achievements)) {
+      for (const a of e.achievements) textParts.push(String(a));
+    }
+    if (Array.isArray(e.responsibilities)) {
+      for (const r of e.responsibilities) textParts.push(String(r));
+    }
+  }
+
+  const textBlob = textParts.join(' ').toLowerCase();
+
+  // Count how many skills are echoed in the text
+  let echoedCount = 0;
+  for (const skill of skillNames) {
+    if (skill.length >= 2 && textBlob.includes(skill)) {
+      echoedCount++;
+    }
+  }
+
+  const echoRatio = echoedCount / skillNames.length;
+
+  let score: number;
+  if (echoRatio === 0) score = 25;
+  else if (echoRatio <= 0.3) score = 40;
+  else if (echoRatio <= 0.6) score = 60;
+  else if (echoRatio <= 0.8) score = 80;
+  else score = 95;
+
+  // Bonus for having many unique skills
+  if (skillNames.length >= 8) score = Math.min(score + 5, 100);
+
+  return score;
+}
+
+// ── NEW: Deterministic Content Quality ───────────────────────────────
+
+function scoreContentQuality(resume: Record<string, unknown>): number {
+  const experiences = Array.isArray(resume.experience) ? resume.experience as Record<string, unknown>[] : [];
+
+  // Collect all bullets
+  const bullets: string[] = [];
+  let hasOnlyParagraphs = true;
+
+  for (const e of experiences) {
+    if (Array.isArray(e.achievements)) {
+      for (const a of e.achievements) {
+        bullets.push(String(a).trim());
+        hasOnlyParagraphs = false;
+      }
+    }
+    if (Array.isArray(e.responsibilities)) {
+      for (const r of e.responsibilities) {
+        bullets.push(String(r).trim());
+        hasOnlyParagraphs = false;
+      }
+    }
+  }
+
+  if (bullets.length === 0) {
+    // Check if there are paragraph descriptions at least
+    let hasDesc = false;
+    for (const e of experiences) {
+      if (e.description && String(e.description).trim().length > 0) hasDesc = true;
+    }
+    return hasDesc ? 15 : 5;
+  }
+
+  // Count action verb usage
+  let actionVerbCount = 0;
+  let quantifiedCount = 0;
+
+  for (const bullet of bullets) {
+    // Check first word for action verb
+    const firstWord = bullet.split(/\s+/)[0]?.replace(/[^a-zA-Z]/g, '').toLowerCase();
+    if (firstWord && ACTION_VERBS.has(firstWord)) {
+      actionVerbCount++;
+    }
+
+    // Check for quantified achievements (numbers, %, $)
+    if (/\d/.test(bullet) || /[%$€£]/.test(bullet)) {
+      quantifiedCount++;
+    }
+  }
+
+  const actionVerbRatio = actionVerbCount / bullets.length;
+  const quantifiedRatio = quantifiedCount / bullets.length;
+
+  let score = Math.round(actionVerbRatio * 50 + quantifiedRatio * 50);
+
+  // If all descriptions are just paragraphs with no bullets, cap at 40
+  if (hasOnlyParagraphs) {
+    score = Math.min(score, 40);
+  }
+
+  return Math.max(Math.min(score, 100), 0);
+}
+
+// ── Deterministic Feedback Generation ────────────────────────────────
+
+function generateFeedback(categories: Record<string, number>): { topStrength: string; topImprovement: string } {
+  const feedbackMap: Record<string, { strength: string; improvement: string }> = {
+    keywordOptimization: {
+      strength: 'Skills are well-echoed throughout experience descriptions.',
+      improvement: 'Mention your listed skills within your experience bullets to improve keyword matching.',
+    },
+    contentQuality: {
+      strength: 'Strong use of action verbs and quantified achievements.',
+      improvement: 'Start bullets with action verbs and add numbers/metrics to quantify your impact.',
+    },
+    sectionStructure: {
+      strength: 'Resume includes all essential sections.',
+      improvement: 'Add missing sections like Summary, Skills, or Education to strengthen structure.',
+    },
+    parsability: {
+      strength: 'Dates and formatting are consistent and ATS-friendly.',
+      improvement: 'Use consistent date formats and ensure all experience entries have descriptions.',
+    },
+    contactCompleteness: {
+      strength: 'Contact information is complete with all key details.',
+      improvement: 'Add missing contact details like phone, email, or LinkedIn profile.',
+    },
+    lengthDensity: {
+      strength: 'Good density of bullet points across experience entries.',
+      improvement: 'Add more achievement bullets to your experience entries for better depth.',
+    },
+  };
+
+  let bestKey = 'sectionStructure';
+  let worstKey = 'sectionStructure';
+  let bestScore = -1;
+  let worstScore = 101;
+
+  for (const [key, val] of Object.entries(categories)) {
+    if (val > bestScore) { bestScore = val; bestKey = key; }
+    if (val < worstScore) { worstScore = val; worstKey = key; }
+  }
+
+  return {
+    topStrength: feedbackMap[bestKey]?.strength || 'Resume has been evaluated.',
+    topImprovement: feedbackMap[worstKey]?.improvement || 'Consider adding more quantified achievements.',
+  };
 }
 
 // ── Main Handler ─────────────────────────────────────────────────────
@@ -169,7 +337,7 @@ serve(async (req) => {
       );
     }
 
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 30, windowSeconds: 60, actionType: 'score' });
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 60, windowSeconds: 60, actionType: 'score' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -177,7 +345,7 @@ serve(async (req) => {
       );
     }
 
-    const { resume, background } = await req.json();
+    const { resume } = await req.json();
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
@@ -194,91 +362,13 @@ serve(async (req) => {
       );
     }
 
-    // ── Step 1: Compute 4 deterministic scores ───────────────────────
+    // ── Compute ALL 6 deterministic scores ───────────────────────────
     const contactCompleteness = scoreContactCompleteness(resume.contactInfo || {});
     const sectionStructure = scoreSectionStructure(resume);
     const parsability = scoreParsability(resume);
     const lengthDensity = scoreLengthDensity(resume);
-
-    // ── Step 2: Prepare text for AI (only what AI needs) ─────────────
-    const skills = Array.isArray(resume.skills)
-      ? resume.skills.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s)).join(', ')
-      : 'Not provided';
-
-    const experience = resume.experience?.map((e: Record<string, unknown>) =>
-      `${e.position || 'Untitled'} at ${e.company || 'Unknown'} (${e.startDate || '?'} - ${e.endDate || 'Present'}):\n${e.description || ''}\nAchievements: ${Array.isArray(e.achievements) ? e.achievements.join('; ') : 'None'}`
-    ).join('\n\n') || 'Not provided';
-
-    const education = resume.education?.map((e: Record<string, unknown>) =>
-      `${e.degree || ''} in ${e.field || ''} from ${e.institution || 'Unknown'}`
-    ).join('\n') || 'Not provided';
-
-    // ── Step 3: AI evaluates ONLY 2 subjective pillars ───────────────
-    const systemPrompt = `You are an ATS keyword and content quality evaluator. You ONLY assess two things:
-1. Keyword Optimization: How well the resume uses industry-relevant keywords, tools, technologies, and certifications.
-2. Content Quality: How well the resume uses action verbs, quantified achievements, and result-oriented bullet points.
-
-IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks.
-Be strict, consistent, and fair.`;
-
-    const userPrompt = `Evaluate this resume on exactly 2 pillars. Score each 0-100.
-
-Summary: ${resume.summary || 'Not provided'}
-
-Skills: ${skills}
-
-Experience:
-${experience}
-
-Education:
-${education}
-
-### Keyword Optimization (0-100)
-- 0-25: Almost no relevant keywords; generic language only
-- 26-50: Some relevant keywords but major gaps
-- 51-75: Good keyword coverage; most important skills mentioned
-- 76-100: Excellent keyword density; comprehensive industry terms naturally woven throughout
-
-### Content Quality (0-100)
-- 0-25: No action verbs; purely descriptive; no measurable outcomes
-- 26-50: Some action verbs but mostly passive voice; few metrics
-- 51-75: Good action verbs; some quantified results
-- 76-100: Strong action verbs throughout; rich quantified achievements
-
-Return JSON:
-{
-  "keywordOptimization": <0-100>,
-  "contentQuality": <0-100>,
-  "topStrength": "<one short sentence about the strongest aspect>",
-  "topImprovement": "<one short actionable sentence about the biggest improvement opportunity>"
-}`;
-
-    const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0,
-      userId: user.id,
-    });
-
-    const content = aiResponse.content;
-    if (!content) {
-      throw new Error('No content in AI response');
-    }
-
-    const aiResult = parseAIJSON(content);
-    if (!aiResult || typeof aiResult.keywordOptimization === 'undefined') {
-      return new Response(
-        JSON.stringify({ error: 'Failed to parse AI scoring response. Please try again.' }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // ── Step 4: Clamp AI scores and compute weighted overall ─────────
-    const keywordOptimization = clamp(aiResult.keywordOptimization, 0, 100);
-    const contentQuality = clamp(aiResult.contentQuality, 0, 100);
+    const keywordOptimization = scoreKeywordOptimization(resume);
+    const contentQuality = scoreContentQuality(resume);
 
     const overallScore = Math.round(
       keywordOptimization * 0.35 +
@@ -289,26 +379,25 @@ Return JSON:
       lengthDensity * 0.05
     );
 
-    const result = {
-      overallScore,
-      categories: {
-        keywordOptimization,
-        contentQuality,
-        sectionStructure,
-        parsability,
-        contactCompleteness,
-        lengthDensity,
-      },
-      topStrength: aiResult.topStrength || 'Resume has been evaluated.',
-      topImprovement: aiResult.topImprovement || 'Consider adding more quantified achievements.',
+    const categories = {
+      keywordOptimization,
+      contentQuality,
+      sectionStructure,
+      parsability,
+      contactCompleteness,
+      lengthDensity,
     };
 
-    // Record usage
-    if (background) {
-      await recordUsage(user.id, 'score', { background: true });
-    } else {
-      await recordUsage(user.id, 'score');
-    }
+    const { topStrength, topImprovement } = generateFeedback(categories);
+
+    const result = {
+      overallScore,
+      categories,
+      topStrength,
+      topImprovement,
+    };
+
+    await recordUsage(user.id, 'score');
 
     return new Response(
       JSON.stringify(result),
@@ -317,14 +406,6 @@ Return JSON:
 
   } catch (error) {
     console.error("score-resume error:", error);
-
-    if (isAIError(error)) {
-      return new Response(
-        JSON.stringify({ error: error.message }),
-        { status: error.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
