@@ -74,6 +74,9 @@ import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
 import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
+import { useBackButton } from '@/hooks/useBackButton';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -325,7 +328,7 @@ export default function EditorPage() {
     resumeId: currentResumeId,
   });
 
-  // Unsaved changes warning
+  // Unsaved changes warning (browser refresh/tab close)
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       const current = JSON.stringify(resumeRef.current);
@@ -337,6 +340,25 @@ export default function EditorPage() {
     window.addEventListener('beforeunload', handler);
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
+
+  // In-app navigation guard (useBlocker) for unsaved changes
+  const unsavedGuard = useUnsavedChangesGuard({
+    resumeRef,
+    lastSavedResumeRef,
+    saveToCloud,
+  });
+
+  // Hardware back button guard for Capacitor
+  useBackButton(
+    useCallback(() => {
+      if (unsavedGuard.isDirty()) {
+        // Trigger navigation to parent route which useBlocker will intercept
+        navigate('/dashboard');
+        return true;
+      }
+      return false;
+    }, [unsavedGuard, navigate])
+  );
 
   // Auto-hide "Saved" indicator after 2s
   const [showSavedCheck, setShowSavedCheck] = useState(false);
@@ -1122,6 +1144,15 @@ export default function EditorPage() {
           )}
         </Suspense>
       </ErrorBoundary>
+
+      {/* Unsaved changes navigation guard dialog */}
+      <UnsavedChangesDialog
+        open={unsavedGuard.isBlocked}
+        isSaving={unsavedGuard.isSavingBeforeLeave}
+        onSaveAndLeave={unsavedGuard.saveAndProceed}
+        onDiscard={unsavedGuard.proceed}
+        onCancel={unsavedGuard.cancel}
+      />
     </main>
   );
 }
