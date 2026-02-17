@@ -130,12 +130,15 @@ export function InputFormField({
           aria-invalid={showError ? 'true' : undefined}
           aria-describedby={showError ? `${id}-error` : undefined}
         />
-        {showValidCheck && (
+        {rightElement ? (
+          <div className="absolute right-0 top-0 h-full flex items-center">
+            {rightElement}
+          </div>
+        ) : showValidCheck ? (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
             <CheckCircle2 className="w-4 h-4 text-success" />
           </div>
-        )}
-        {showClear && !showValidCheck && (
+        ) : showClear ? (
           <button
             type="button"
             onClick={handleClear}
@@ -145,12 +148,7 @@ export function InputFormField({
           >
             <X className="w-4 h-4" />
           </button>
-        )}
-        {rightElement && !showClear && !showValidCheck && (
-          <div className="absolute right-0 top-0 h-full flex items-center">
-            {rightElement}
-          </div>
-        )}
+        ) : null}
       </div>
       <div className="flex items-center justify-between">
         {showError ? (

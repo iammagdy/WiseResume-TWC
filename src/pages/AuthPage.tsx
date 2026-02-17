@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, User, Phone } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { InputFormField } from '@/components/ui/form-field';
@@ -28,14 +28,18 @@ export default function AuthPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
-  const [touched, setTouched] = useState<{ email: boolean; password: boolean; confirmPassword: boolean }>({
+  const [touched, setTouched] = useState<{ email: boolean; password: boolean; confirmPassword: boolean; fullName: boolean; phoneNumber: boolean }>({
     email: false,
     password: false,
     confirmPassword: false,
+    fullName: false,
+    phoneNumber: false,
   });
 
   // Validation
@@ -45,6 +49,18 @@ export default function AuthPage() {
     catch (e) { return e instanceof z.ZodError ? e.errors[0]?.message : 'Invalid email'; }
   };
 
+  const getFullNameError = (): string | undefined => {
+    if (!fullName.trim()) return 'Full name is required';
+    if (fullName.trim().length < 2) return 'Name must be at least 2 characters';
+    return undefined;
+  };
+
+  const getPhoneError = (): string | undefined => {
+    if (!phoneNumber) return undefined; // optional
+    const cleaned = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    if (!/^\+?\d{7,15}$/.test(cleaned)) return 'Please enter a valid phone number';
+    return undefined;
+  };
 
   const getPasswordError = (): string | undefined => {
     if (!password) return 'Password is required';
@@ -54,6 +70,8 @@ export default function AuthPage() {
 
   const emailError = getEmailError();
   const passwordError = getPasswordError();
+  const fullNameError = mode === 'signup' ? getFullNameError() : undefined;
+  const phoneError = mode === 'signup' ? getPhoneError() : undefined;
 
   // Detect password reset callback
   useEffect(() => {
@@ -76,7 +94,10 @@ export default function AuthPage() {
   }, [session, navigate, mode]);
 
   const validateInputs = (): boolean => {
-    setTouched({ email: true, password: true, confirmPassword: false });
+    setTouched({ email: true, password: true, confirmPassword: false, fullName: mode === 'signup', phoneNumber: mode === 'signup' });
+    if (mode === 'signup') {
+      return !emailError && !passwordError && !fullNameError && !phoneError;
+    }
     return !emailError && !passwordError;
   };
 
@@ -100,16 +121,37 @@ export default function AuthPage() {
         toast.success('Welcome back!');
         setTimeout(() => navigate('/dashboard'), 600);
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${window.location.origin}/dashboard` } });
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+            data: {
+              full_name: fullName.trim(),
+              phone_number: phoneNumber.trim() || null,
+            },
+          },
+        });
         if (error) {
           toast.error(error.message.includes('already registered') ? 'Already registered. Please sign in.' : error.message);
           return;
+        }
+        // Save name/phone to profile
+        if (data.user) {
+          await (supabase.from('profiles') as any).upsert(
+            {
+              user_id: data.user.id,
+              full_name: fullName.trim(),
+              phone_number: phoneNumber.trim() || null,
+            },
+            { onConflict: 'user_id' }
+          );
         }
         if (data.session) {
           toast.success('Account created!');
           setTimeout(() => navigate('/dashboard'), 600);
         } else {
-          toast.success('Account created! You can now sign in.');
+          toast.success('Account created! Check your email to verify, then sign in.');
           setMode('login');
         }
       }
@@ -283,6 +325,30 @@ export default function AuthPage() {
           ) : (
             <>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {!isLogin && (
+                  <>
+                    <div>
+                      <InputFormField
+                        id="fullName" label="Full Name" type="text"
+                        icon={<User className="w-4 h-4" />}
+                        value={fullName} onChange={setFullName}
+                        onBlur={() => setTouched(prev => ({ ...prev, fullName: true }))}
+                        placeholder="John Doe" autoComplete="name"
+                        error={fullNameError} touched={touched.fullName} required
+                      />
+                    </div>
+                    <div>
+                      <InputFormField
+                        id="phoneNumber" label="Phone Number" type="tel"
+                        icon={<Phone className="w-4 h-4" />}
+                        value={phoneNumber} onChange={setPhoneNumber}
+                        onBlur={() => setTouched(prev => ({ ...prev, phoneNumber: true }))}
+                        placeholder="+1 (555) 123-4567" autoComplete="tel"
+                        error={phoneError} touched={touched.phoneNumber}
+                      />
+                    </div>
+                  </>
+                )}
                 <div>
                   <InputFormField
                     id="email" label="Email" type="email"

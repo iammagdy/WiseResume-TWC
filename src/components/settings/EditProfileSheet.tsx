@@ -110,6 +110,7 @@ export function EditProfileSheet({
     twitterUrl: null,
     contactEmail: null,
     theme: null,
+    phoneNumber: null,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 
