@@ -1,32 +1,29 @@
 
 
-## Fix: Overlapping Floating Buttons on Applications Page
+## Fix: Close Button Overlapping Count Badge in ResumeListSheet
 
 ### Problem
-The "Save Job" FAB on the Activity page (`bottom-24`, `z-50`) and the global PWA Install banner (`bottom-28`, `z-40`) overlap each other. When the install banner is visible, the FAB is partially hidden behind it, making it unusable.
+In the "Tailored Versions" (and "Resumes Created") bottom sheet, the count badge uses `ml-auto` to push itself to the far right of the header row. The Sheet component's close button (X) is absolutely positioned at `right-4 top-4`. Both elements occupy the same space, causing the X button to sit directly on top of the badge.
+
+### Root Cause
+The `SheetHeader` in `ResumeListSheet.tsx` uses `px-6` padding, but the close button is positioned at `right-4` (16px from edge). The badge with `ml-auto` extends to the right edge of the header's content area, which overlaps with the close button's hit area.
 
 ### Solution
-Stagger the vertical positions so all floating elements have clear separation:
+Add right padding to the header's inner `div` to reserve space for the close button. This is a single-line change.
 
-| Element | Current Position | New Position |
-|---------|-----------------|-------------|
-| BottomTabBar | bottom-0 (h-16/20) | No change |
-| Save Job FAB | `bottom-24` | `bottom-[7.5rem]` (~120px, clears tab bar + spacing) |
-| Install Banner | `bottom-28` | `bottom-[11rem]` (~176px, clears FAB) |
+**File: `src/components/applications/ResumeListSheet.tsx` (line 84)**
 
-Additionally, ensure consistent z-index layering:
-- Install Banner: `z-40` (background layer)
-- Save Job FAB: `z-50` (above banner)
+Change the header row from:
+```
+<div className="flex items-center gap-2">
+```
+to:
+```
+<div className="flex items-center gap-2 pr-10">
+```
 
-### Changes
+The `pr-10` (40px) creates enough clearance for the 44x44px close button so the badge and X no longer overlap.
 
-**File: `src/pages/ApplicationsPage.tsx`**
-- Move the Save Job FAB from `bottom-24` to `bottom-[7.5rem]` to provide better clearance above the tab bar
-- Keep `z-50` so it stays above the install banner
-
-**File: `src/components/pwa/InstallPrompt.tsx`**
-- Increase bottom offset from `bottom-28` to `bottom-[11.5rem]` so it clears both the tab bar and any page-level FABs
-- Keep `z-40` (below FABs)
-
-This ensures a clear visual stack: Tab Bar at bottom, then FAB above it, then Install Banner above both -- no overlapping.
+### Other Sheets
+Scanned all other Sheet headers across the app -- only `ResumeListSheet` has this issue because it is the only sheet that places an `ml-auto` element in the header row competing with the close button's position. No other fixes needed.
 
