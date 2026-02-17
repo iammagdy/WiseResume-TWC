@@ -652,7 +652,7 @@ export default function PreviewPage() {
             className="flex-1 h-9 sm:h-10 touch-manipulation"
             onClick={() => navigate('/interview')}>
 
-              <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
+              <Mic className="sm:w-4 sm:h-4 mr-1 sm:mr-1.5 w-[20px] h-[20px]" />
               <span className="text-xs sm:text-sm">Interview</span>
             </Button>
             <Button
