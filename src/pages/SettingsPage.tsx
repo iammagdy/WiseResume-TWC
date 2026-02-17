@@ -307,7 +307,7 @@ export default function SettingsPage() {
           
           {/* 1. Profile Section */}
           <button
-            onClick={handleOpenEditProfile}
+            onClick={() => navigate('/profile')}
             className="w-full flex items-center gap-4 p-4 rounded-2xl glass-elevated text-left active:scale-[0.98] transition-all touch-manipulation border-glow"
           >
             <Avatar className="h-14 w-14">
@@ -318,12 +318,8 @@ export default function SettingsPage() {
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="font-medium truncate">{displayName}</p>
-              {profile?.jobTitle ? (
-                <p className="text-sm text-muted-foreground truncate">{profile.jobTitle}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground truncate">
-                  Tap to complete your profile
-                </p>
+              {user?.email && (
+                <p className="text-sm text-muted-foreground truncate">{user.email}</p>
               )}
               <div className="mt-1.5 flex items-center gap-1.5">
                 <Badge variant="secondary" className="text-[10px] px-2 py-0.5 gap-1 font-normal">
@@ -331,18 +327,7 @@ export default function SettingsPage() {
                   {providerLabel}
                 </Badge>
               </div>
-              {profileCompletion < 100 && (
-                <div className="mt-2 flex items-center gap-2">
-                  <Progress value={profileCompletion} className="h-1.5 flex-1" />
-                  <span className="text-xs text-muted-foreground">{profileCompletion}%</span>
-                </div>
-              )}
-              {profileCompletion === 100 && (
-                <div className="mt-1 flex items-center gap-1 text-xs text-primary">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Profile complete</span>
-                </div>
-              )}
+              <p className="mt-1.5 text-xs text-muted-foreground">View & edit profile</p>
             </div>
             <ChevronRight className="w-5 h-5 text-muted-foreground flex-shrink-0" />
           </button>
