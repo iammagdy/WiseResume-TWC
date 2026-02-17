@@ -1,27 +1,39 @@
 
-## Fix: "Rendered more hooks than during the previous render" in ResumeDetailPage
 
-### Root Cause
+## Fix: Template Not Syncing to Actual Resume Template
 
-On line 78 of `ResumeDetailPage.tsx`, the `useATSScoreHistoryStore` hook is called **after** early returns (loading state on line 57, not-found state on line 65). When the component returns early, fewer hooks run than on a full render, causing React's "Rendered more hooks than during the previous render" error.
+### Problem
+
+When a resume is loaded in the editor, the `selectedTemplate` in the Zustand store is never updated from the database resume's actual `template_id`. The editor hydration (line 130-131 of `EditorPage.tsx`) sets `currentResume` but does not call `setSelectedTemplate()`. As a result:
+
+- The live preview always renders with the stale/default template (`modern`)
+- The template badge on the Resume Detail page shows the correct DB value, but the editor preview shows the wrong template
+- If the user never manually picks a template, the auto-save writes `templateId: 'modern'` back to the DB, overwriting whatever template was previously set
 
 ### Fix
 
-**File: `src/pages/ResumeDetailPage.tsx`**
+**File: `src/pages/EditorPage.tsx`** (1 change)
 
-Move the `useATSScoreHistoryStore` call (line 78) up to join the other hooks at the top of the component (before line 57), alongside the other store/hook calls. Since `getHistory` needs `dbResume.id`, use a conditional call pattern:
+In the hydration `useEffect` (around line 130), after setting `currentResume`, also sync `selectedTemplate` from the DB resume's `template_id`:
 
 ```typescript
-const scoreHistory = useATSScoreHistoryStore(s => id ? s.getHistory(id) : []);
+if (!currentResume) {
+  useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
+  useResumeStore.getState().setSelectedTemplate(
+    (resumeFromDb.template_id || 'modern') as TemplateId
+  );
+}
 ```
 
-This ensures the hook is always called on every render, regardless of whether `dbResume` has loaded yet.
+This ensures the live preview, template selector, and PDF export all use the correct template from the database -- not a stale default.
 
 ### Summary
 
 | Item | Detail |
 |------|--------|
-| Error | Hooks called after early return violates Rules of Hooks |
-| Fix | Move `useATSScoreHistoryStore` above the early returns |
-| Files changed | `ResumeDetailPage.tsx` |
-| Risk | None -- same behavior, just correct hook ordering |
+| Root cause | Editor hydration sets `currentResume` but not `selectedTemplate` |
+| Effect | Live preview and exports always use stale/default "Modern" template |
+| Fix | Sync `selectedTemplate` from DB during hydration |
+| Files changed | `EditorPage.tsx` (1 line added) |
+| Risk | None -- additive change, no existing behavior altered |
+
