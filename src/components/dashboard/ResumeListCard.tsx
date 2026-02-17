@@ -35,6 +35,11 @@ import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { ATSScoreBreakdown } from './ATSScoreBreakdown';
 import { SetTargetJobSheet } from './SetTargetJobSheet';
 import { useNavigate } from 'react-router-dom';
+import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { Suspense } from 'react';
+
+const ATSScoreTrendChart = lazyWithRetry(() => import('./ATSScoreTrendChart').then(m => ({ default: m.ATSScoreTrendChart })));
 
 interface ResumeListCardProps {
   resume: DatabaseResume;
@@ -75,6 +80,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
+  const scoreHistory = useATSScoreHistoryStore(s => s.getHistory(resume.id));
   const latestTailor = useMemo(() => {
     const history = getTailorHistoryForResume(resume.id);
     return history.length > 0 ? history[0] : null;
@@ -191,12 +197,19 @@ export const ResumeListCard = memo(function ResumeListCard({
         <div className="flex items-start justify-between gap-3">
           {/* Left: Icon and Content */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            {/* Resume Health Score Ring */}
-            {healthScore ? (
-              <ScoreRing score={healthScore.overallScore} size={48} isLoading={isScoring} />
-            ) : (
-              <ScoreRing score={0} size={48} isLoading />
-            )}
+            {/* Resume Health Score Ring + Sparkline */}
+            <div className="flex flex-col items-center gap-1">
+              {healthScore ? (
+                <ScoreRing score={healthScore.overallScore} size={48} isLoading={isScoring} />
+              ) : (
+                <ScoreRing score={0} size={48} isLoading />
+              )}
+              {scoreHistory.length >= 2 && (
+                <Suspense fallback={null}>
+                  <ATSScoreTrendChart history={scoreHistory} mode="sparkline" />
+                </Suspense>
+              )}
+            </div>
 
             {/* Content */}
             <div className="flex-1 min-w-0">
