@@ -1,101 +1,121 @@
 
 
-## Unsaved Changes Navigation Guard
+## Offline Sync Conflict Detection
 
 ### Problem
 
-The editor has a `beforeunload` handler for browser refresh, but no protection against in-app navigation. Tapping "Home" in the BottomTabBar or pressing Android back while editing navigates away immediately, potentially losing unsaved work.
+When syncing offline changes back to the server, the current code blindly overwrites whatever is on the server. If the user edited the same resume on another device while offline, the sync silently discards the newer server version.
 
 ### Solution
 
-Add a navigation blocker using react-router-dom's `useBlocker` hook, integrated with the Android hardware back button and a confirmation AlertDialog offering three choices.
+Add a timestamp-based conflict check to the sync loop. Before pushing each offline change, fetch the server's `updated_at` for that resume. If the server version is newer than the local change's timestamp, pause and show a "Conflict Detected" dialog. Non-conflicting updates sync silently as before.
+
+---
 
 ### Changes
 
-**1. New: `src/hooks/useUnsavedChangesGuard.ts`**
+**1. Modified: `src/store/offlineSyncStore.ts`**
 
-A custom hook that encapsulates dirty-state detection and navigation blocking:
+- Add a `conflictingChange` field to the store state (holds the single change that conflicted, or `null`)
+- Add a `serverUpdatedAt` field on the conflict object so the dialog can show when the server was last updated
+- Add actions: `setConflict(change, serverUpdatedAt)`, `clearConflict()`
+- The `PendingChange` interface already has `timestamp` which records when the local edit was made -- this is the comparison point
 
-- Accepts `resumeRef` and `lastSavedResumeRef` (the existing refs from EditorPage)
-- Uses `useBlocker` from react-router-dom to intercept in-app route changes when state is dirty
-- Exposes `isDirty`, `blocker` state, and `proceed` / `cancel` / `saveAndProceed` callbacks
-- `saveAndProceed` calls the provided `saveToCloud` function, then proceeds with navigation
-- `proceed` discards changes and proceeds
-- `cancel` stays on the page
+**2. Modified: `src/hooks/useOfflineSync.ts`**
 
-**2. New: `src/components/editor/UnsavedChangesDialog.tsx`**
+- Before calling `updateResume.mutateAsync`, fetch the server's `updated_at` for the resume:
+  ```
+  const { data } = await supabase
+    .from('resumes')
+    .select('updated_at')
+    .eq('id', change.resumeId)
+    .maybeSingle();
+  ```
+- Compare: if `serverUpdatedAt > change.timestamp`, set the conflict in the store and skip this change (break out of the sync loop)
+- If no conflict, proceed with the update as normal
+- Add a `forceSync(resumeId)` function that pushes the local version regardless (called when user picks "Force Overwrite")
+- Add a `discardLocal(resumeId)` function that removes the pending change without syncing (called when user picks "Keep Server Version")
+- After force or discard, clear the conflict and resume syncing remaining changes
 
-An AlertDialog component rendered in EditorPage:
+**3. New: `src/components/editor/SyncConflictDialog.tsx`**
 
-- Shows when `blocker.state === 'blocked'`
-- Title: "You have unsaved changes"
-- Description: "Your changes haven't been saved yet. What would you like to do?"
-- Three actions:
-  - "Save & Leave" (primary) -- calls `saveAndProceed`
-  - "Discard" (destructive outline) -- calls `proceed`
-  - "Cancel" (outline) -- calls `cancel`
-- Uses existing AlertDialog components with glass-elevated styling
+An AlertDialog that renders when `offlineSyncStore.conflictingChange` is not null:
 
-**3. Modified: `src/pages/EditorPage.tsx`**
+- Title: "Sync Conflict Detected"
+- Description: "This resume was updated on another device on [date]. Your offline changes are from [date]. Which version do you want to keep?"
+- Two actions:
+  - "Keep Server Version" -- calls `discardLocal`, clears conflict, invalidates query cache to refetch
+  - "Overwrite with My Changes" (destructive) -- calls `forceSync`, clears conflict
+- Uses the existing AlertDialog + glass-elevated styling
+- Minimum 44x44px touch targets, `active:scale-95` on buttons
 
-- Import and call `useUnsavedChangesGuard({ resumeRef, lastSavedResumeRef, saveToCloud })`
-- Render `<UnsavedChangesDialog>` component with the guard's state
-- The existing `beforeunload` handler remains unchanged (covers browser refresh/tab close)
+**4. Modified: `src/components/layout/AppShell.tsx`**
 
-**4. Modified: `src/hooks/useBackButton.ts`**
-
-- Accept an optional `onBeforeBack` callback parameter
-- When on `/editor` route and `onBeforeBack` is provided, call it instead of navigating
-- `onBeforeBack` returns `true` if navigation should be blocked (dirty state), `false` to proceed normally
-- This allows EditorPage to intercept the hardware back button and show the dialog instead of navigating away
-
-**5. Modified: `src/components/layout/BottomTabBar.tsx`**
-
-- No changes needed. The `useBlocker` hook from react-router-dom automatically intercepts `navigate()` calls from any component, including BottomTabBar. When blocked, the navigation is paused and the dialog appears in EditorPage.
+- Render `<SyncConflictDialog />` at the app shell level so it appears regardless of which page the user is on when sync runs
 
 ### Technical Details
 
-**Dirty state detection (reuses existing logic):**
+**Conflict detection logic in `useOfflineSync`:**
 
 ```text
-const isDirty = () => {
-  const current = JSON.stringify(resumeRef.current);
-  return current !== lastSavedResumeRef.current && lastSavedResumeRef.current !== '';
-};
-```
+for (const change of changes) {
+  // 1. Fetch server timestamp
+  const { data: serverResume } = await supabase
+    .from('resumes')
+    .select('updated_at')
+    .eq('id', change.resumeId)
+    .maybeSingle();
 
-**useBlocker integration:**
+  // 2. If resume was deleted on server, discard local change
+  if (!serverResume) {
+    removePendingChange(change.resumeId);
+    continue;
+  }
 
-```text
-// react-router-dom v6.30 supports useBlocker
-const blocker = useBlocker(({ currentLocation, nextLocation }) => {
-  return isDirty() && currentLocation.pathname !== nextLocation.pathname;
-});
-```
+  // 3. Check for conflict
+  const serverTime = new Date(serverResume.updated_at).getTime();
+  if (serverTime > change.timestamp) {
+    // Conflict! Server is newer than our offline edit
+    setConflict(change, serverResume.updated_at);
+    break; // Stop syncing, wait for user decision
+  }
 
-**Hardware back button integration in useBackButton:**
-
-```text
-// useBackButton accepts optional guard
-export function useBackButton(onBeforeBack?: () => boolean) {
-  // ...
-  const handleBackButton = async () => {
-    if (onBeforeBack && onBeforeBack()) {
-      return; // blocked -- dialog will show
-    }
-    // existing logic...
-  };
+  // 4. No conflict -- sync normally
+  await updateResume.mutateAsync({ ... });
+  removePendingChange(change.resumeId);
 }
 ```
 
-EditorPage passes a callback that checks dirty state and triggers the blocker dialog if dirty.
+**Force overwrite flow:**
 
-**Guest users:** For guests (no `user`), `lastSavedResumeRef` stays empty string, so `isDirty()` returns false. Guest data is persisted in Zustand/localStorage automatically, so no data loss risk. The guard only activates for authenticated users with cloud saves.
+```text
+forceSync(resumeId):
+  1. Get pending change from store
+  2. Call updateResume.mutateAsync (no timestamp check)
+  3. removePendingChange(resumeId)
+  4. clearConflict()
+  5. Resume syncPending() for remaining items
+```
+
+**Discard local flow:**
+
+```text
+discardLocal(resumeId):
+  1. removePendingChange(resumeId)
+  2. clearConflict()
+  3. Invalidate query cache for ['resume', resumeId] to refetch server version
+  4. Resume syncPending() for remaining items
+```
+
+**Edge cases handled:**
+- Resume deleted on server while offline: auto-discard local change, no dialog
+- Multiple conflicting resumes: handled one at a time (sync pauses at first conflict, resumes after resolution)
+- Guest users: no offline sync runs for guests (no `user`), so no conflict possible
 
 ### Files Changed
 
-- `src/hooks/useUnsavedChangesGuard.ts` (new) -- dirty state + useBlocker logic
-- `src/components/editor/UnsavedChangesDialog.tsx` (new) -- confirmation AlertDialog
-- `src/pages/EditorPage.tsx` (modified) -- integrate guard hook + render dialog
-- `src/hooks/useBackButton.ts` (modified) -- accept optional guard callback
+- `src/store/offlineSyncStore.ts` -- add conflict state + actions
+- `src/hooks/useOfflineSync.ts` -- add timestamp check, forceSync, discardLocal
+- `src/components/editor/SyncConflictDialog.tsx` (new) -- conflict resolution AlertDialog
+- `src/components/layout/AppShell.tsx` -- render SyncConflictDialog globally
 
