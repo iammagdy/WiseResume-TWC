@@ -1,42 +1,46 @@
 
-## Fix: "useBlocker must be used within a data router" Error in Resume Editor
+## Fix ScrollProgressBar Not Tracking Scroll
 
-### Root Cause
+### Problem
 
-The app uses `BrowserRouter` (the classic router), but `useBlocker` from react-router-dom v6 requires a **data router** created via `createBrowserRouter`. This causes the editor to crash immediately on load.
+The `ScrollProgressBar` in `AppShell` is attached to a `scrollRef` div, but that div never actually scrolls. The real scrolling happens inside the `PullToRefresh` component, which has its own internal scroll container (`containerRef` on line 162 of `pull-to-refresh.tsx`). Since scroll events fire on the PullToRefresh container (not the AppShell wrapper), the progress bar stays at 0%.
 
-### Fix Strategy
+### Fix
 
-Replace the `useBlocker` implementation in `useUnsavedChangesGuard.ts` with a custom navigation guard that works with `BrowserRouter`. The replacement will:
+**File: `src/components/ui/pull-to-refresh.tsx`**
 
-1. Use `useNavigate` and `useLocation` to intercept in-app navigation
-2. Use `window.addEventListener('beforeunload', ...)` to catch browser/tab closes
-3. Expose the same API (`isBlocked`, `proceed`, `cancel`, `saveAndProceed`) so no changes are needed in EditorPage or UnsavedChangesDialog
+Expose the internal scroll container ref so parent components can listen to its scroll events:
+- Accept an optional `scrollRef` prop (a forwarded `RefObject`)
+- When provided, sync it with the internal `containerRef` so the ScrollProgressBar can attach to the actual scrolling element
 
-### Technical Details
+**File: `src/pages/DashboardPage.tsx`**
 
-**File: `src/hooks/useUnsavedChangesGuard.ts`**
+- Create a `scrollRef` using `useRef` and pass it to `PullToRefresh` via the new prop
 
-- Remove `useBlocker` import
-- Add a `useEffect` that listens to `beforeunload` events when dirty, prompting the browser's native "unsaved changes" dialog for tab closes
-- Replace `useBlocker`-based blocking with a state-driven approach:
-  - Track a `pendingPath` state (set when navigation is attempted while dirty)
-  - Override navigation by intercepting the back button and in-app navigate calls
-  - When the user confirms (proceed/saveAndProceed), navigate to the stored `pendingPath`
-  - When the user cancels, clear `pendingPath`
-- Export an `interceptNavigate` function that EditorPage uses instead of raw `navigate()` for any navigation away from the editor
+**File: `src/components/layout/AppShell.tsx`**
 
-**File: `src/pages/EditorPage.tsx`**
+- Remove the `scrollRef` from AppShell since individual pages (like Dashboard) will own their scroll refs
+- Move `ScrollProgressBar` responsibility to pages that need it, or keep it in AppShell but attach it to a shared ref mechanism
 
-- Pass navigate function to the guard hook
-- Use the guard's `interceptNavigate` wrapper for the back button and any other navigation triggers that should be guarded
-- No changes needed to `UnsavedChangesDialog` since the guard exposes the same `isBlocked`, `proceed`, `cancel`, `saveAndProceed` interface
+### Simpler Alternative (preferred)
 
-### Summary
+Instead of restructuring refs across pages, move the `ScrollProgressBar` into the `PullToRefresh` component itself, since it already owns the scroll container:
+
+**File: `src/components/ui/pull-to-refresh.tsx`**
+- Import `ScrollProgressBar`
+- Render it inside PullToRefresh, passing the internal `containerRef`
+
+**File: `src/components/layout/AppShell.tsx`**
+- Remove `ScrollProgressBar` from AppShell (it no longer needs a scrollRef here)
+- Remove the `scrollRef` and its usage since the progress bar is now co-located with the actual scroll container
+
+This approach is cleaner because the progress bar lives alongside the element that actually scrolls, with no ref-forwarding complexity.
+
+### Technical Summary
 
 | Item | Detail |
 |------|--------|
-| Error | `useBlocker` requires data router, app uses `BrowserRouter` |
-| Fix | Replace `useBlocker` with custom state-based navigation guard |
-| Files changed | `useUnsavedChangesGuard.ts`, `EditorPage.tsx` |
-| Risk | Low -- same external API, no router migration needed |
+| Root cause | ScrollProgressBar listens on AppShell div, but PullToRefresh has the real scroll container |
+| Fix | Move ScrollProgressBar into PullToRefresh where the actual scroll container lives |
+| Files changed | `pull-to-refresh.tsx`, `AppShell.tsx` |
+| Risk | Low -- progress bar simply relocates to the correct scroll parent |
