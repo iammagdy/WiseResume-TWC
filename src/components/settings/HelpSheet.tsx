@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { BookOpen, MessageCircle } from 'lucide-react';
+import { BookOpen, Keyboard, MessageCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { SettingsRow } from './SettingsRow';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { FeatureRequestDialog } from './FeatureRequestDialog';
+import { KeyboardShortcutsSheet } from '@/components/editor/KeyboardShortcutsSheet';
 
 interface HelpSheetProps {
   open: boolean;
@@ -13,6 +14,7 @@ interface HelpSheetProps {
 
 export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
   const [featureDialogOpen, setFeatureDialogOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   return (
     <>
@@ -33,6 +35,14 @@ export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
             <Separator className="bg-border/30" />
             <SettingsRow
               type="navigation"
+              label="Keyboard Shortcuts"
+              description="View all available keyboard shortcuts"
+              icon={<Keyboard className="w-4 h-4" />}
+              onClick={() => setShortcutsOpen(true)}
+            />
+            <Separator className="bg-border/30" />
+            <SettingsRow
+              type="navigation"
               label="Feature Requests"
               description="Suggest improvements or new features"
               icon={<MessageCircle className="w-4 h-4" />}
@@ -41,6 +51,7 @@ export function HelpSheet({ open, onOpenChange }: HelpSheetProps) {
           </div>
         </SheetContent>
       </Sheet>
+      <KeyboardShortcutsSheet open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <FeatureRequestDialog open={featureDialogOpen} onOpenChange={setFeatureDialogOpen} />
     </>
   );

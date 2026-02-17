@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap, CheckSquare, X, Trash2 } from 'lucide-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -57,7 +57,7 @@ export default function DashboardPage() {
   const { user, loading: authLoading, session } = useAuth();
   const { isMigrating } = useGuestMigration(session);
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
-  const { deleteResume, duplicateResume, updateResume } = useResumeMutations();
+  const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
@@ -80,6 +80,9 @@ export default function DashboardPage() {
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [tipVisible, setTipVisible] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
 
   // Reset loading state when dialog opens
   useEffect(() => {
@@ -358,6 +361,36 @@ export default function DashboardPage() {
     setScoreFilters([]);
   }, []);
 
+  const toggleSelection = useCallback((id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const handleSelectAll = useCallback(() => {
+    if (!filteredResumes) return;
+    setSelectedIds(new Set(filteredResumes.map(r => r.id)));
+  }, [filteredResumes]);
+
+  const exitSelectionMode = useCallback(() => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  }, []);
+
+  const confirmBulkDelete = useCallback(() => {
+    if (selectedIds.size === 0) return;
+    haptics.warning();
+    deleteMultipleResumes.mutate([...selectedIds], {
+      onSuccess: () => {
+        selectedIds.forEach(id => useATSScoreHistoryStore.getState().clearHistory(id));
+        exitSelectionMode();
+      },
+    });
+    setShowBulkDeleteConfirm(false);
+  }, [selectedIds, deleteMultipleResumes, exitSelectionMode]);
+
   const isLoading = authLoading || resumesLoading;
   const hasResumes = filteredResumes && filteredResumes.length > 0;
 
@@ -535,8 +568,8 @@ export default function DashboardPage() {
 
             {/* Search pill */}
             {resumes && resumes.length > 0 && (
-              <div className="px-4 pb-3">
-                <div className="relative">
+              <div className="px-4 pb-3 flex items-center gap-2">
+                <div className="relative flex-1">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     placeholder="Search resumes..."
@@ -544,6 +577,44 @@ export default function DashboardPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 rounded-full h-12 sm:h-11 text-base glass-input"
                   />
+                </div>
+                {!selectionMode && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="min-w-[44px] min-h-[44px] flex-shrink-0"
+                    onClick={() => { haptics.light(); setSelectionMode(true); }}
+                    aria-label="Select resumes"
+                  >
+                    <CheckSquare className="w-5 h-5" />
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Selection toolbar */}
+            {selectionMode && resumes && resumes.length > 0 && (
+              <div className="px-4 pb-3">
+                <div className="flex items-center gap-2 rounded-xl glass-elevated px-3 py-2">
+                  <Button variant="ghost" size="sm" onClick={exitSelectionMode} className="min-w-[44px] min-h-[44px]">
+                    <X className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm font-medium flex-1">
+                    {selectedIds.size} selected
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={handleSelectAll} className="text-xs">
+                    Select All
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    disabled={selectedIds.size === 0}
+                    onClick={() => setShowBulkDeleteConfirm(true)}
+                    className="min-h-[44px] active:scale-95"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
                 </div>
               </div>
             )}
@@ -698,6 +769,9 @@ export default function DashboardPage() {
                               onInterview={handleInterview}
                               healthScore={healthScores[masterResume.id]}
                               isScoring={scoringId === masterResume.id}
+                              selectionMode={selectionMode}
+                              selected={selectedIds.has(masterResume.id)}
+                              onToggleSelect={toggleSelection}
                             />
                           </motion.div>
                         );
@@ -716,6 +790,9 @@ export default function DashboardPage() {
                             showTailoredBadge
                             healthScore={healthScores[resume.id]}
                             isScoring={scoringId === resume.id}
+                            selectionMode={selectionMode}
+                            selected={selectedIds.has(resume.id)}
+                            onToggleSelect={toggleSelection}
                           />
                         </motion.div>
                       ))}
@@ -775,6 +852,28 @@ export default function DashboardPage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} Resume{selectedIds.size > 1 ? 's' : ''}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the selected resumes and all their content.
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => haptics.light()}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmBulkDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete {selectedIds.size}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

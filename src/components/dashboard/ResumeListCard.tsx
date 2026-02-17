@@ -1,5 +1,6 @@
 import { useState, useMemo, memo } from 'react';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   MoreVertical, 
   Edit2, 
@@ -49,6 +50,9 @@ interface ResumeListCardProps {
   isScoring?: boolean;
   /** If true, swipe actions require external confirmation (card springs back instead of animating off-screen) */
   confirmSwipeActions?: boolean;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
 }
 
 const SWIPE_THRESHOLD = 80;
@@ -65,6 +69,9 @@ export const ResumeListCard = memo(function ResumeListCard({
   healthScore,
   isScoring = false,
   confirmSwipeActions = true,
+  selectionMode = false,
+  selected = false,
+  onToggleSelect,
 }: ResumeListCardProps) {
   
   const [isDragging, setIsDragging] = useState(false);
@@ -133,6 +140,11 @@ export const ResumeListCard = memo(function ResumeListCard({
   };
 
   const handleCardClick = () => {
+    if (selectionMode && onToggleSelect) {
+      haptics.light();
+      onToggleSelect(resume.id);
+      return;
+    }
     if (!isDragging) {
       haptics.light();
       navigateToEditor(`/resume/${resume.id}`);
@@ -188,6 +200,16 @@ export const ResumeListCard = memo(function ResumeListCard({
         <div className="flex items-start justify-between gap-3">
           {/* Left: Icon and Content */}
           <div className="flex items-start gap-3 flex-1 min-w-0">
+            {/* Selection checkbox */}
+            {selectionMode && (
+              <div className="flex items-center justify-center pt-3" onClick={(e) => e.stopPropagation()}>
+                <Checkbox
+                  checked={selected}
+                  onCheckedChange={() => onToggleSelect?.(resume.id)}
+                  className="w-5 h-5"
+                />
+              </div>
+            )}
             {/* Resume Health Score Ring + Sparkline */}
             <div className="flex flex-col items-center gap-1">
               {healthScore ? (

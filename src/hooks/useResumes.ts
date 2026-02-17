@@ -271,6 +271,27 @@ export function useResumeMutations() {
     },
   });
 
+  const deleteMultipleResumes = useMutation({
+    mutationFn: async (resumeIds: string[]) => {
+      if (!user) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('resumes')
+        .delete()
+        .in('id', resumeIds);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['resumes'] });
+      toast.success('Resumes deleted');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete resumes');
+      console.error(error);
+    },
+  });
+
   const duplicateResume = useMutation({
     mutationFn: async (resumeId: string) => {
       if (!user) throw new Error('Not authenticated');
@@ -355,6 +376,7 @@ export function useResumeMutations() {
     createResume,
     updateResume,
     deleteResume,
+    deleteMultipleResumes,
     duplicateResume,
     setJobTarget,
   };
