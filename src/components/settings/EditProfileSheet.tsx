@@ -92,7 +92,7 @@ export function EditProfileSheet({
     }
   }, [open, profile, masterCV]);
 
-  const currentFormProfile: Profile = {
+  const currentFormProfile = {
     fullName: fullName.trim() || null,
     avatarUrl: avatarUrl.trim() || null,
     jobTitle: jobTitle.trim() || null,
@@ -101,6 +101,9 @@ export function EditProfileSheet({
     location: location.trim() || null,
     linkedinUrl: linkedinUrl.trim() || null,
     profileCompleted: false,
+    username: null,
+    portfolioBio: null,
+    portfolioEnabled: false,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 

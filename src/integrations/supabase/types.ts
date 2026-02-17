@@ -449,9 +449,12 @@ export type Database = {
           linkedin_url: string | null
           location: string | null
           onboarding_completed: boolean | null
+          portfolio_bio: string | null
+          portfolio_enabled: boolean | null
           profile_completed: boolean | null
           updated_at: string | null
           user_id: string
+          username: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -464,9 +467,12 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null
+          portfolio_bio?: string | null
+          portfolio_enabled?: boolean | null
           profile_completed?: boolean | null
           updated_at?: string | null
           user_id: string
+          username?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -479,9 +485,12 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null
+          portfolio_bio?: string | null
+          portfolio_enabled?: boolean | null
           profile_completed?: boolean | null
           updated_at?: string | null
           user_id?: string
+          username?: string | null
         }
         Relationships: []
       }
@@ -911,6 +920,7 @@ export type Database = {
         }
         Returns: Json
       }
+      get_public_portfolio: { Args: { p_username: string }; Returns: Json }
       get_share_comments: { Args: { p_share_token: string }; Returns: Json }
       get_shared_resume:
         | { Args: { share_token: string }; Returns: Json }

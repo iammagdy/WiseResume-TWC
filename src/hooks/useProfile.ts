@@ -15,6 +15,9 @@ interface Profile {
   location: string | null;
   linkedinUrl: string | null;
   profileCompleted: boolean;
+  username: string | null;
+  portfolioBio: string | null;
+  portfolioEnabled: boolean;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -56,7 +59,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -75,6 +78,9 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       location: data.location,
       linkedinUrl: data.linkedin_url,
       profileCompleted: data.profile_completed ?? false,
+      username: (data as Record<string, unknown>).username as string | null,
+      portfolioBio: (data as Record<string, unknown>).portfolio_bio as string | null,
+      portfolioEnabled: ((data as Record<string, unknown>).portfolio_enabled as boolean) ?? false,
     };
   }
 
@@ -91,6 +97,9 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     location: null,
     linkedinUrl: null,
     profileCompleted: false,
+    username: null,
+    portfolioBio: null,
+    portfolioEnabled: false,
   };
 
   // Create the row via upsert
@@ -121,7 +130,7 @@ export function useProfile(userId: string | undefined, user?: User | null) {
     mutationFn: async (updates: Partial<Profile>) => {
       if (!userId) throw new Error('No user ID');
 
-      const dbUpdates = {
+      const dbUpdates: Record<string, unknown> = {
         user_id: userId,
         full_name: updates.fullName !== undefined ? updates.fullName : profile?.fullName ?? null,
         avatar_url: updates.avatarUrl !== undefined ? updates.avatarUrl : profile?.avatarUrl ?? null,
@@ -131,13 +140,14 @@ export function useProfile(userId: string | undefined, user?: User | null) {
         location: updates.location !== undefined ? updates.location : profile?.location ?? null,
         linkedin_url: updates.linkedinUrl !== undefined ? updates.linkedinUrl : profile?.linkedinUrl ?? null,
         profile_completed: updates.profileCompleted !== undefined ? updates.profileCompleted : profile?.profileCompleted ?? false,
+        username: updates.username !== undefined ? updates.username : profile?.username ?? null,
+        portfolio_bio: updates.portfolioBio !== undefined ? updates.portfolioBio : profile?.portfolioBio ?? null,
+        portfolio_enabled: updates.portfolioEnabled !== undefined ? updates.portfolioEnabled : profile?.portfolioEnabled ?? false,
       };
 
       const { error } = await supabase
         .from('profiles')
-        .upsert(dbUpdates, { onConflict: 'user_id' });
-
-      if (error) throw error;
+        .upsert(dbUpdates as any, { onConflict: 'user_id' });
 
       return updates;
     },
