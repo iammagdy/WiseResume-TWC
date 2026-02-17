@@ -279,38 +279,48 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
   const speak = useCallback((text: string): Promise<void> => {
     return new Promise((resolve) => {
-      if (!window.speechSynthesis) {
-        resolve();
-        return;
-      }
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      
-      const voice = pickBestVoice(voiceGender);
-      if (voice) utterance.voice = voice;
-      
-      utterance.rate = 0.95;
-      utterance.pitch = voiceGender === 'female' ? 1.05 : 0.9;
-      utterance.lang = 'en-US';
-      utteranceRef.current = utterance;
-
-      utterance.onend = async () => {
-        for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
-          setCountdown(i);
-          await new Promise(r => setTimeout(r, 1000));
+      try {
+        if (!window.speechSynthesis) {
+          resolve();
+          return;
         }
-        setCountdown(null);
-        await playBeep();
-        startListeningAfterSpeakRef.current?.();
-        resolve();
-      };
-      utterance.onerror = () => {
+        window.speechSynthesis?.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        
+        const voice = pickBestVoice(voiceGender);
+        if (voice) utterance.voice = voice;
+        
+        utterance.rate = 0.95;
+        utterance.pitch = voiceGender === 'female' ? 1.05 : 0.9;
+        utterance.lang = 'en-US';
+        utteranceRef.current = utterance;
+
+        utterance.onend = async () => {
+          try {
+            for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
+              setCountdown(i);
+              await new Promise(r => setTimeout(r, 1000));
+            }
+            setCountdown(null);
+            await playBeep();
+            startListeningAfterSpeakRef.current?.();
+          } catch (e) {
+            console.error('Error in speak onend:', e);
+          }
+          resolve();
+        };
+        utterance.onerror = () => {
+          setStatus('idle');
+          resolve();
+        };
+
+        setStatus('speaking');
+        window.speechSynthesis.speak(utterance);
+      } catch (e) {
+        console.error('Error in speak:', e);
         setStatus('idle');
         resolve();
-      };
-
-      setStatus('speaking');
-      window.speechSynthesis.speak(utterance);
+      }
     });
   }, [voiceGender]);
 
@@ -318,7 +328,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     async (endInterview = false) => {
       setStatus('thinking');
       try {
-        const { data, error: fnError } = await supabase.functions.invoke('interview-chat', {
+        const aiPromise = supabase.functions.invoke('interview-chat', {
           body: {
             messages: messagesRef.current,
             resumeData,
@@ -326,6 +336,13 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
             endInterview,
           },
         });
+
+        // 30-second safety timeout
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI response timed out after 30 seconds')), 30000)
+        );
+
+        const { data, error: fnError } = await Promise.race([aiPromise, timeoutPromise]);
 
         if (fnError) throw fnError;
         if (data?.error) throw new Error(data.error);
@@ -354,6 +371,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         console.error('AI call error:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to get AI response';
         setError(errorMessage);
+        toast.error('Interview error', { description: errorMessage });
         setStatus('idle');
       }
     },
