@@ -1,8 +1,34 @@
 [
   {
+    "version": "v2.0.0",
+    "date": "2026-02-17",
+    "latest": true,
+    "items": [
+      {
+        "title": "Unsaved Changes Navigation Guard",
+        "description": "Never lose your work again. The editor now detects unsaved changes and prompts you to Save, Discard, or Cancel before navigating away — including Android hardware back button support."
+      },
+      {
+        "title": "Offline Sync Conflict Detection",
+        "description": "Smart conflict resolution when syncing offline edits. If a resume was updated on another device, a clear dialog lets you choose between the server version or your local changes."
+      },
+      {
+        "title": "Improved Touch Targets",
+        "description": "All interactive elements in the editor and application tracker now meet the 44px accessibility standard, reducing accidental taps on mobile devices."
+      },
+      {
+        "title": "Mobile Delete Confirmation",
+        "description": "Deleting a job application on mobile now opens a thumb-friendly bottom drawer for confirmation instead of triggering immediately."
+      },
+      {
+        "title": "Editor Section Accessibility",
+        "description": "AI action buttons in resume section headers are now properly sized for comfortable one-handed use on all screen sizes."
+      }
+    ]
+  },
+  {
     "version": "v1.6.0",
     "date": "2026-02-16",
-    "latest": true,
     "items": [
       {
         "title": "Real-Time AI Health Indicator",
