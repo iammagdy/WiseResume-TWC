@@ -154,7 +154,7 @@ export default function ResumeDetailPage() {
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="w-12 h-12" aria-label="Go back">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="w-12 h-12" aria-label="Go back">
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h1 className="text-lg font-bold text-foreground truncate flex-1">{dbResume.title}</h1>
