@@ -91,7 +91,7 @@ export function DeveloperCreditCard({
               </button>
               {githubUrl &&
               <button
-                className="dev-github-btn px-[45px]"
+                className="dev-github-btn"
                 onClick={() => {
                   haptics.light();
                   openExternal(githubUrl);
