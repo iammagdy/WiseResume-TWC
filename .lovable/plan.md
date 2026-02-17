@@ -1,67 +1,35 @@
 
 
-## Fix: Stop Dashboard from Auto-Deducting Credits on Every Visit
+## Fix AI Credits Indicator: Add Bolt Icon + Fix Number Mismatch
 
-### Problem
+### Problem 1: No visual context
+The CreditRing on the dashboard is just a circle with a number. Users can't tell it represents AI credits -- it looks like a notification badge.
 
-The dashboard's auto-score effect (line 148-178 in `DashboardPage.tsx`) calls `scoreResume()` -- the user-facing function that deducts AI credits -- for every resume without a cached score. Since the cache is an in-memory `Map` that resets on page reload, **every visit to the dashboard consumes 1 credit per resume** (5 resumes = 5 credits gone instantly).
+### Problem 2: Misleading numbers
+The ring shows **remaining credits** (11 = 20 - 9) while the sheet inside shows **used credits** (9/20). The user sees "11" outside and "9" inside and thinks there's a bug.
 
-### Solution
+### Fix
 
-Replace `scoreResume` with `backgroundScore` on the dashboard. The `backgroundScore` function already exists and does NOT deduct credits -- it silently scores and caches. Credit deduction should only happen when a user explicitly taps "Re-score" or triggers an AI action.
+**File: `src/components/editor/ai/AICreditsIndicator.tsx`**
 
-### Changes
+- Add a small Zap (bolt) icon next to the CreditRing to visually signal "AI credits"
+- Wrap both in a row layout with a subtle label or just the icon
 
-**File: `src/pages/DashboardPage.tsx`**
-
-1. Import `backgroundScore` instead of using `scoreResume` for the auto-score effect
-2. Rewrite the `useEffect` (lines 148-178) to use `backgroundScore` for automatic scoring
-3. Keep `scoreResume` available only for explicit user actions (if any exist on this page)
-
-```typescript
-// Change the auto-score effect to use backgroundScore (no credit cost)
-useEffect(() => {
-  if (!resumes || resumes.length === 0) return;
-  let cancelled = false;
-
-  const scoreNext = async () => {
-    for (const resume of resumes) {
-      if (cancelled) break;
-      await new Promise<void>(r =>
-        'requestIdleCallback' in window
-          ? (window as any).requestIdleCallback(r)
-          : setTimeout(r, 50)
-      );
-      if (cancelled) break;
-      const cached = getCachedScore(resume.id, resume.updated_at);
-      if (cached) {
-        setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
-        continue;
-      }
-      // Use backgroundScore (no credit deduction) instead of scoreResume
-      const resumeData = dbToResumeData(resume);
-      await backgroundScore(resume.id, resumeData, resume.updated_at);
-      const newCached = getCachedScore(resume.id, resume.updated_at);
-      if (newCached && !cancelled) {
-        setHealthScores(prev => ({ ...prev, [resume.id]: newCached }));
-      }
-    }
-  };
-
-  const timer = setTimeout(scoreNext, 1000);
-  return () => { cancelled = true; clearTimeout(timer); };
-}, [resumes, getCachedScore]);
+```
+[Zap icon] [Ring with number]
 ```
 
-**File: `src/hooks/useResumeScore.ts`** (minor)
+**File: `src/components/ai/CreditRing.tsx`**
 
-- Ensure `backgroundScore` does NOT call `incrementUsage` (already correct)
-- No changes needed here, just confirming the function is credit-free
+- Change the center number from `remaining` to `used` so it matches the sheet
+- This way the ring shows "9" and the sheet shows "9 / 20" -- consistent
 
-### What This Fixes
+### Technical Details
 
-- Dashboard visits no longer consume credits
-- Background ATS scores still appear on resume cards (scored silently)
-- Credits are only deducted when users explicitly trigger AI actions (enhance, tailor, manual re-score, etc.)
-- The "Today's Activity" log stops filling with automatic ATS Score entries
+| File | Change |
+|------|--------|
+| `src/components/ai/CreditRing.tsx` | Line 17: change `remaining` to `used`; Line 61: display `used` instead of `remaining` |
+| `src/components/editor/ai/AICreditsIndicator.tsx` | Add `Zap` icon from lucide-react next to the ring button, sized at 14px with primary color |
+
+The ring's color logic stays the same (based on percentage used), keeping the visual warning system intact.
 
