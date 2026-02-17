@@ -1,80 +1,34 @@
 
 
-## Remaining Security Refactor: Session Cache Cleanup + Server-Side Rate Limiting
+## Optimize Editor Mobile Header: Surface Preview Toggle
 
-### Task 1: Remove Redundant Manual Session Cache from AuthContext
+### Problem
+On mobile (<768px), toggling Live Preview requires opening the Tools Sheet first, then tapping "Live Preview" -- 2 taps for a frequent action. The Tools button is alone in the header's right side, leaving unused space.
 
-The Supabase SDK already persists sessions via `persistSession: true` (the default). The manual `sb-auth-session-cache` in `AuthContext.tsx` duplicates this, creating a stale-session risk.
+### Solution
+Surface the Preview toggle as a standalone button next to the Tools trigger in the mobile header, and remove the duplicate "Live Preview" entry from the Tools Sheet.
 
-**Changes to `src/contexts/AuthContext.tsx`:**
-- Delete `SESSION_CACHE_KEY` constant
-- Delete `getCachedSession()` function
-- Delete `cacheSession()` function
-- Remove all `cacheSession()` calls (lines 80, 134)
-- Remove cached pre-hydration in `useState` initializer -- start with `{ user: null, session: null, loading: true }` always
-- Remove `getCachedSession()` call in `activeUserIdRef` initializer -- start with `null`
-- Remove `localStorage.removeItem(SESSION_CACHE_KEY)` from `signOut`
+### Changes
 
-The Supabase SDK handles session restoration automatically before firing `INITIAL_SESSION`, so the loading state will resolve quickly without the manual cache.
+**Modified: `src/pages/EditorPage.tsx`**
 
----
+1. **Mobile header area (line ~829-886)**: Add a Preview toggle button before the Tools button inside the `flex md:hidden` container. It will use the same `Eye`/`PanelLeftClose` icon pattern as desktop but in a compact 48x48 touch target.
 
-### Task 2: Add Server-Side Rate Limiting to All AI Edge Functions
+2. **Tools Sheet actions (line ~542-563)**: Remove the `preview` entry from the `quickActions` group in `editorToolGroups` since it's now directly accessible in the header. Also remove the `'preview'` entry from `toolMeta`.
 
-Currently only `score-resume` and `enhance-section` use the shared `checkRateLimit`/`recordUsage` helpers. All other AI-calling edge functions need them added.
+### Technical Details
 
-**Pattern (already established in `score-resume`):**
-```typescript
-import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+The new mobile header right side will look like:
 
-// After auth check, before processing:
-const rateCheck = await checkRateLimit(user.id, { maxRequests: N, windowSeconds: 60, actionType: 'action_name' });
-if (!rateCheck.allowed) {
-  return new Response(
-    JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
-    { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
-
-// After successful AI response, before returning:
-await recordUsage(user.id, 'action_name');
+```text
+[ Eye/Preview toggle ] [ Sparkles/Tools ]
 ```
 
-**Functions to update (16 files) with rate limits:**
+- The Preview button opens `LivePreviewSheet` on mobile (existing behavior at line 1062)
+- Touch target: 48x48px with `active:scale-95` and haptic feedback
+- Active state: `bg-primary/15 text-primary` when preview is open (matches desktop)
+- The `toolMeta` cleanup removes the now-unused `'preview'` key
 
-| Function | actionType | maxRequests/min | Rationale |
-|---|---|---|---|
-| `analyze-resume` | `analyze` | 10 | Heavy analysis |
-| `tailor-resume` | `tailor` | 10 | Heavy processing |
-| `agentic-chat` | `chat` | 30 | Conversational, higher volume |
-| `interview-chat` | `interview` | 30 | Conversational |
-| `proofread-resume` | `proofread` | 15 | Medium complexity |
-| `fill-gap` | `fill_gap` | 20 | Quick operation |
-| `explain-gap` | `explain_gap` | 20 | Quick operation |
-| `generate-cover-letter` | `cover_letter` | 10 | Heavy generation |
-| `generate-resignation-letter` | `resignation` | 10 | Heavy generation |
-| `career-assessment` | `career_assess` | 10 | Heavy analysis |
-| `career-path-advisor` | `career_path` | 10 | Heavy analysis |
-| `detect-and-humanize` | `detect_humanize` | 15 | Medium |
-| `one-page-optimizer` | `one_page` | 10 | Heavy |
-| `optimize-for-linkedin` | `linkedin_opt` | 10 | Heavy |
-| `parse-job-url` | `parse_job` | 20 | Quick parsing |
-| `parse-linkedin` | `parse_linkedin` | 10 | Medium |
-| `parse-resume` | `parse_resume` | 10 | Heavy parsing |
-| `recruiter-simulation` | `recruiter_sim` | 10 | Heavy |
+### Files Changed
+- `src/pages/EditorPage.tsx` (2 edits: add button to mobile header, remove from tools sheet)
 
-**Functions NOT rate-limited (non-AI or utility):**
-- `ai-health` (health check, no AI call)
-- `elevenlabs-scribe-token` (token generation, no AI call)
-- `manage-api-keys` (key CRUD, no AI call)
-- `send-bug-report` (email, no AI call)
-- `send-push-notification` (push, no AI call)
-- `generate-headshot` (external API, separate billing)
-
----
-
-### Summary
-
-- **Modified**: 1 file (`AuthContext.tsx`) for session cache removal
-- **Modified**: 16 edge function files to add rate limiting imports and checks
-- All changes follow existing patterns already established in the codebase
