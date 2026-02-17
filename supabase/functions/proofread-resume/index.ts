@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 Deno.serve(async (req: Request) => {
   const origin = req.headers.get("origin");
@@ -32,6 +33,14 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...cors, "Content-Type": "application/json" } }
+      );
+    }
+
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 15, windowSeconds: 60, actionType: 'proofread' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...cors, "Content-Type": "application/json" } }
       );
     }
 
@@ -163,6 +172,8 @@ ${combinedText}`;
         ? parsed.score!.tone
         : "professional",
     };
+
+    await recordUsage(user.id, 'proofread');
 
     return new Response(JSON.stringify({ issues, score }), {
       headers: { ...cors, "Content-Type": "application/json" },

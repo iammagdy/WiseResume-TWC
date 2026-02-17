@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 // Extend the global scope with the Deno namespace for type checking
 declare global {
@@ -88,6 +89,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'linkedin_opt' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { resume, targetRole, region = 'global' }: LinkedInOptimizeRequest = await req.json();
 
     if (!resume) {
@@ -159,6 +168,8 @@ Generate a comprehensive LinkedIn optimization package. Return a JSON object wit
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    await recordUsage(user.id, 'linkedin_opt');
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

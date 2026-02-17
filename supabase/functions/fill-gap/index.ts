@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 interface FillGapRequest {
   gap: { startDate: string; endDate: string; months: number };
@@ -49,6 +50,14 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 20, windowSeconds: 60, actionType: 'fill_gap' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -130,6 +139,8 @@ serve(async (req) => {
     }
 
     const result = JSON.parse(toolCall.function.arguments);
+
+    await recordUsage(user.id, 'fill_gap');
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

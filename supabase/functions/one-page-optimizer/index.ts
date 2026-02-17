@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 interface ResumeData {
   contactInfo: { fullName: string; email: string; phone: string; location: string; linkedin?: string; portfolio?: string };
@@ -74,6 +75,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'one_page' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const bodyText = await req.text();
     if (bodyText.length > MAX_PAYLOAD_SIZE) {
       return new Response(
@@ -136,6 +145,8 @@ Return a JSON object with: currentEstimatedPages, optimizedEstimatedPages, reduc
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    await recordUsage(user.id, 'one_page');
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

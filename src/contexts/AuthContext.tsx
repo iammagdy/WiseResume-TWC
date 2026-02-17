@@ -4,8 +4,6 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { Capacitor } from '@capacitor/core';
 import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 
-const SESSION_CACHE_KEY = 'sb-auth-session-cache';
-
 interface AuthState {
   user: User | null;
   session: Session | null;
@@ -17,53 +15,18 @@ export interface AuthContextType extends AuthState {
   isAuthenticated: boolean;
 }
 
-// Try to get cached session for instant hydration
-function getCachedSession(): { user: User; session: Session } | null {
-  try {
-    const cached = localStorage.getItem(SESSION_CACHE_KEY);
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      // Check if session is still valid (not expired)
-      if (parsed.session?.expires_at && parsed.session.expires_at * 1000 > Date.now()) {
-        return parsed;
-      }
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return null;
-}
-
-// Cache session for faster startup
-function cacheSession(user: User | null, session: Session | null) {
-  try {
-    if (user && session) {
-      localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify({ user, session }));
-    } else {
-      localStorage.removeItem(SESSION_CACHE_KEY);
-    }
-  } catch {
-    // Ignore storage errors
-  }
-}
-
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  // Pre-hydrate from cache for instant UI
-  const [state, setState] = useState<AuthState>(() => {
-    const cached = getCachedSession();
-    if (cached) {
-      return { user: cached.user, session: cached.session, loading: false };
-    }
-    return { user: null, session: null, loading: true };
+  const [state, setState] = useState<AuthState>({
+    user: null,
+    session: null,
+    loading: true,
   });
 
   // Track the active user ID to prevent session hijacking from stale second sessions
-  const activeUserIdRef = useRef<string | null>(
-    getCachedSession()?.user?.id ?? null
-  );
+  const activeUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let initialResolved = false;
@@ -77,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       activeUserIdRef.current = user?.id ?? null;
-      cacheSession(user, session);
       if (user) migrateLocalKeysToServer();
       setState(prev => {
         if (prev.user?.id === user?.id && !prev.loading) {
@@ -131,7 +93,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    localStorage.removeItem(SESSION_CACHE_KEY);
     activeUserIdRef.current = null;
     setState({ user: null, session: null, loading: false });
     await supabase.auth.signOut({ scope: 'local' });

@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 interface DetectAndHumanizeRequest {
   text: string;
@@ -39,6 +40,14 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 15, windowSeconds: 60, actionType: 'detect_humanize' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -132,6 +141,8 @@ Return a JSON object:
 
       result.humanized = parseAIJSON(humanizeResponse.content || '{}');
     }
+
+    await recordUsage(user.id, 'detect_humanize');
 
     return new Response(
       JSON.stringify({ success: true, ...result }),

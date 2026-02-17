@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const MAX_TEXT_LENGTH = 100 * 1024;
 
@@ -128,6 +129,14 @@ serve(async (req) => {
       );
     }
 
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'parse_resume' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { text } = await req.json();
 
     if (!text || typeof text !== 'string') {
@@ -240,6 +249,8 @@ serve(async (req) => {
     if (resumeData.certifications.length > 0) completeness += 5;
 
     console.log(`parse-resume: Extracted ${resumeData.experience.length} experiences, ${resumeData.education.length} education, ${resumeData.skills.length} skills. Completeness: ${completeness}%`);
+
+    await recordUsage(user.id, 'parse_resume');
 
     return new Response(JSON.stringify(resumeData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

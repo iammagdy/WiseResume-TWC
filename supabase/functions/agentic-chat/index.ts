@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const MAX_MESSAGE_SIZE = 10 * 1024;
 const MAX_HISTORY_SIZE = 200 * 1024;
@@ -272,6 +273,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 30, windowSeconds: 60, actionType: 'chat' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { message, conversationHistory, currentResume, functionResponse } = (await req.json()) as ChatRequest;
 
     if (!message || typeof message !== "string") {
@@ -383,6 +392,8 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    await recordUsage(user.id, 'chat');
 
     const result: TextResult = {
       type: "text",

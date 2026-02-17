@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 // ============= SECURITY: Domain Whitelist =============
 const ALLOWED_DOMAINS = new Set([
@@ -164,6 +165,14 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Authenticated user:', userId);
 
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 20, windowSeconds: 60, actionType: 'parse_job' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { url } = await req.json();
     
     if (!url || typeof url !== 'string') {
@@ -316,6 +325,8 @@ If you can't find certain fields, make reasonable guesses based on context. The 
       };
 
       console.log("Successfully parsed job posting with enhanced intelligence:", result.title);
+
+      await recordUsage(userId, 'parse_job');
 
       return new Response(
         JSON.stringify(result),
