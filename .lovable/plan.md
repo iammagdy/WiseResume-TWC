@@ -1,39 +1,67 @@
 
 
-## Fix "Invalid time value" Crash in CreditUsageSheet
+## Fix: Stop Dashboard from Auto-Deducting Credits on Every Visit
 
-### Root Cause
+### Problem
 
-Line 118 of `src/components/ai/CreditUsageSheet.tsx` calls `format(new Date(item.time), 'h:mm a')` without validating that `item.time` is a valid date. Some `ai_usage_logs` rows have null or malformed `created_at` values, causing `new Date(null)` which produces an "Invalid Date" object and crashes `date-fns`'s `format()`.
+The dashboard's auto-score effect (line 148-178 in `DashboardPage.tsx`) calls `scoreResume()` -- the user-facing function that deducts AI credits -- for every resume without a cached score. Since the cache is an in-memory `Map` that resets on page reload, **every visit to the dashboard consumes 1 credit per resume** (5 resumes = 5 credits gone instantly).
 
-### Fix
+### Solution
 
-**File: `src/components/ai/CreditUsageSheet.tsx`**
+Replace `scoreResume` with `backgroundScore` on the dashboard. The `backgroundScore` function already exists and does NOT deduct credits -- it silently scores and caches. Credit deduction should only happen when a user explicitly taps "Re-score" or triggers an AI action.
 
-1. Add a safe date formatter that returns a fallback string when the date is invalid:
+### Changes
 
-```typescript
-// inside the map callback (line 59), filter out entries with no created_at
-return (data ?? [])
-  .filter((log) => log.created_at)
-  .map((log) => ({
-    type: log.action_type,
-    label: CATEGORY_LABELS[log.action_type] || log.action_type,
-    time: log.created_at,
-  }));
-```
+**File: `src/pages/DashboardPage.tsx`**
 
-2. Wrap the `format()` call on line 118 with a try-catch or validity check:
+1. Import `backgroundScore` instead of using `scoreResume` for the auto-score effect
+2. Rewrite the `useEffect` (lines 148-178) to use `backgroundScore` for automatic scoring
+3. Keep `scoreResume` available only for explicit user actions (if any exist on this page)
 
 ```typescript
-{(() => {
-  try {
-    const d = new Date(item.time);
-    return isNaN(d.getTime()) ? '--:--' : format(d, 'h:mm a');
-  } catch {
-    return '--:--';
-  }
-})()}
+// Change the auto-score effect to use backgroundScore (no credit cost)
+useEffect(() => {
+  if (!resumes || resumes.length === 0) return;
+  let cancelled = false;
+
+  const scoreNext = async () => {
+    for (const resume of resumes) {
+      if (cancelled) break;
+      await new Promise<void>(r =>
+        'requestIdleCallback' in window
+          ? (window as any).requestIdleCallback(r)
+          : setTimeout(r, 50)
+      );
+      if (cancelled) break;
+      const cached = getCachedScore(resume.id, resume.updated_at);
+      if (cached) {
+        setHealthScores(prev => ({ ...prev, [resume.id]: cached }));
+        continue;
+      }
+      // Use backgroundScore (no credit deduction) instead of scoreResume
+      const resumeData = dbToResumeData(resume);
+      await backgroundScore(resume.id, resumeData, resume.updated_at);
+      const newCached = getCachedScore(resume.id, resume.updated_at);
+      if (newCached && !cancelled) {
+        setHealthScores(prev => ({ ...prev, [resume.id]: newCached }));
+      }
+    }
+  };
+
+  const timer = setTimeout(scoreNext, 1000);
+  return () => { cancelled = true; clearTimeout(timer); };
+}, [resumes, getCachedScore]);
 ```
 
-This two-layer defense (filter nulls + guard invalid dates) prevents the crash entirely.
+**File: `src/hooks/useResumeScore.ts`** (minor)
+
+- Ensure `backgroundScore` does NOT call `incrementUsage` (already correct)
+- No changes needed here, just confirming the function is credit-free
+
+### What This Fixes
+
+- Dashboard visits no longer consume credits
+- Background ATS scores still appear on resume cards (scored silently)
+- Credits are only deducted when users explicitly trigger AI actions (enhance, tailor, manual re-score, etc.)
+- The "Today's Activity" log stops filling with automatic ATS Score entries
+
