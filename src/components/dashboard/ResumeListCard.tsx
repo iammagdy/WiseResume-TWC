@@ -362,7 +362,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               <Eye className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Preview</span>
             </button>
             {onRename && (
-              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); setIsRenaming(true); }}>
+              <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={() => { haptics.light(); setShowActionsSheet(false); setTimeout(() => setIsRenaming(true), 350); }}>
                 <Pencil className="w-5 h-5 text-muted-foreground" /><span className="text-sm">Rename</span>
               </button>
             )}
@@ -393,7 +393,8 @@ export const ResumeListCard = memo(function ResumeListCard({
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={async () => {
               haptics.light(); setShowActionsSheet(false);
               try {
-                await navigator.clipboard.writeText(`${window.location.origin}/resume/${resume.id}`);
+                const APP_PUBLIC_URL = 'https://wiseresume.lovable.app';
+                await navigator.clipboard.writeText(`${APP_PUBLIC_URL}/resume/${resume.id}`);
                 toast.success('Link copied to clipboard');
               } catch { toast.error('Failed to copy link'); }
             }}>
