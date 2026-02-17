@@ -1,30 +1,44 @@
 import { lazy, ComponentType } from 'react';
 
+const RELOAD_KEY = 'wr-chunk-reload';
+
+// Clear the reload guard on successful page load
+if (typeof window !== 'undefined') {
+  window.addEventListener('load', () => sessionStorage.removeItem(RELOAD_KEY));
+}
+
+function retryImport<T>(factory: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+  return factory().catch((err) => {
+    if (retries <= 0) throw err;
+    return new Promise<T>((resolve, reject) => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const handler = () => {
+          window.removeEventListener('online', handler);
+          retryImport(factory, retries - 1, delay * 2).then(resolve).catch(reject);
+        };
+        window.addEventListener('online', handler);
+        setTimeout(() => {
+          window.removeEventListener('online', handler);
+          retryImport(factory, retries - 1, delay * 2).then(resolve).catch(reject);
+        }, 30000);
+      } else {
+        setTimeout(() => {
+          retryImport(factory, retries - 1, delay * 2).then(resolve).catch(reject);
+        }, delay);
+      }
+    });
+  });
+}
+
 export function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
   return lazy(() =>
-    factory().catch(() => {
-      return new Promise<{ default: T }>((resolve, reject) => {
-        const attemptRetry = () => {
-          setTimeout(() => factory().then(resolve).catch(reject), 1500);
-        };
-
-        if (typeof navigator !== 'undefined' && !navigator.onLine) {
-          // Wait for network to come back before retrying
-          const handler = () => {
-            window.removeEventListener('online', handler);
-            attemptRetry();
-          };
-          window.addEventListener('online', handler);
-          // Timeout after 30s even if still offline
-          setTimeout(() => {
-            window.removeEventListener('online', handler);
-            factory().then(resolve).catch(reject);
-          }, 30000);
-        } else {
-          // Online but failed — retry after 1.5s
-          attemptRetry();
-        }
-      });
+    retryImport(factory).catch((err) => {
+      // All retries exhausted — auto-reload once to get fresh module URLs
+      if (typeof window !== 'undefined' && !sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, '1');
+        window.location.reload();
+      }
+      throw err; // Falls through to ErrorBoundary if already reloaded once
     })
   );
 }
