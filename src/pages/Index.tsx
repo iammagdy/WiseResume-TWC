@@ -135,7 +135,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="min-h-screen pb-12">
+      <main className="min-h-screen pb-12 max-w-4xl mx-auto w-full">
         {/* Hero */}
         <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-20 pb-8">
           <motion.div className="relative mb-6" {...fade(0)}>
@@ -209,7 +209,7 @@ const Index = () => {
             Everything you need to land the job
           </p>
 
-          <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 max-w-md mx-auto">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto">
             {features.map((f, i) => (
               <motion.div key={f.title} {...inView(0.08 * i)}>
                 <Card className="p-4 border-border/30 bg-card/50 backdrop-blur-sm h-full hover:border-primary/40 transition-colors">

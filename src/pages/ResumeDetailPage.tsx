@@ -173,7 +173,20 @@ export default function ResumeDetailPage() {
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
+      {/* Sticky Action Bar */}
+      <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+        <Button size="sm" className="flex-1 gap-2 min-h-[44px] active:scale-95 transition-transform" onClick={handleEdit}>
+          <Edit2 className="w-4 h-4" /> Edit
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1 gap-2 min-h-[44px] active:scale-95 transition-transform" onClick={handlePreview}>
+          <Eye className="w-4 h-4" /> Preview
+        </Button>
+        <Button variant="outline" size="sm" className="flex-1 gap-2 min-h-[44px] active:scale-95 transition-transform" onClick={handleDownload} disabled={isDownloading}>
+          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} PDF
+        </Button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 max-w-3xl mx-auto w-full">
         {/* Tailored Context */}
         {isTailored && (dbResume.target_job_title || dbResume.target_company) && (
           <div className="glass-elevated rounded-2xl p-4 border border-primary/20">
@@ -303,9 +316,10 @@ export default function ResumeDetailPage() {
           </div>
         </div>
 
-        {/* Action Grid */}
+        {/* More Actions */}
+        <p className="text-xs font-medium text-muted-foreground">More Actions</p>
         <div className="grid grid-cols-3 gap-3">
-          {actions.map(action => (
+          {actions.filter(a => !['Edit', 'Preview', 'Download'].includes(a.label)).map(action => (
             <button
               key={action.label}
               onClick={action.onClick}
