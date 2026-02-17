@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { BottomTabBar } from './BottomTabBar';
 import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
+import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
 import { cn } from '@/lib/utils';
 
 
@@ -39,6 +40,7 @@ export function AppShell() {
         </div>
       </main>
       {showBottomNav && <BottomTabBar />}
+      <SyncConflictDialog />
     </div>
   );
 }
