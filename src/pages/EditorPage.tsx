@@ -129,6 +129,9 @@ export default function EditorPage() {
     // Hydrate store if needed
     if (!currentResume) {
       useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
+      useResumeStore.getState().setSelectedTemplate(
+        (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
+      );
     }
   }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate]);
 
