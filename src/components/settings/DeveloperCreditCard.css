@@ -394,8 +394,16 @@
   margin: 0 0 0.75rem 0;
 }
 
+/* Button row */
+.dev-btn-row {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+}
+
 /* Contact button with glow pulse */
 .dev-contact-btn {
+  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -465,6 +473,31 @@
 
 .dev-contact-btn:active {
   transform: scale(0.98);
+}
+
+/* GitHub icon button */
+.dev-github-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  min-height: 48px;
+  border-radius: 0.75rem;
+  border: 1px solid hsl(var(--primary) / 0.4);
+  background: linear-gradient(
+    135deg,
+    hsl(var(--primary) / 0.15) 0%,
+    hsl(var(--primary) / 0.05) 100%
+  );
+  color: hsl(var(--primary));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  animation: dev-btn-glow 2s ease-in-out infinite;
+}
+
+.dev-github-btn:active {
+  transform: scale(0.95);
 }
 
 /* Website link */
