@@ -47,6 +47,7 @@ export default function ResumeDetailPage() {
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const { getCachedScore, scoreResume, scoringId } = useResumeScore();
   const { createShare } = useResumeShareMutations();
+  const scoreHistory = useATSScoreHistoryStore(s => id ? s.getHistory(id) : []);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
@@ -75,7 +76,7 @@ export default function ResumeDetailPage() {
   const resumeData = dbToResumeData(dbResume);
   const templateInfo = templates.find(t => t.id === dbResume.template_id);
   const healthScore = getCachedScore(dbResume.id, dbResume.updated_at);
-  const scoreHistory = useATSScoreHistoryStore(s => s.getHistory(dbResume.id));
+  
   const isTailored = !!dbResume.parent_resume_id;
   const isMaster = !!dbResume.is_primary;
 
