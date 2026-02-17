@@ -364,6 +364,7 @@ export default function ResumeDetailPage() {
           {showEnhance && (
             <AIEnhanceSheet
               open={showEnhance}
+              atsMode
               onEnhanced={() => { enhancedRef.current = true; }}
               onOpenChange={(open) => {
                 if (open) {

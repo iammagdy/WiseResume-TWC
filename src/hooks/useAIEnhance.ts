@@ -7,7 +7,7 @@ import { useAIHealthStore } from '@/store/aiHealthStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
-export type ActionType = 'generate' | 'improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
+export type ActionType = 'generate' | 'improve' | 'ats_improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
 
 interface EnhanceResult {
   improved: unknown;
