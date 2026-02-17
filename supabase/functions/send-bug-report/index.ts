@@ -86,10 +86,48 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Log for developer (email integration can be added later)
-    console.log(
-      `[BUG REPORT] To: ${DEVELOPER_EMAIL} | From: ${resolvedEmail} | Error: ${error_message.slice(0, 200)} | Route: ${route}`
-    );
+    // Send email via Resend
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (RESEND_API_KEY) {
+      try {
+        const timestamp = new Date().toISOString();
+        const emailHtml = `
+          <div style="font-family:sans-serif;max-width:600px;margin:0 auto">
+            <h2 style="color:#e11d48">🐛 Bug Report</h2>
+            <table style="width:100%;border-collapse:collapse">
+              <tr><td style="padding:6px;font-weight:bold;color:#666">Error</td><td style="padding:6px">${error_message.slice(0, 500)}</td></tr>
+              <tr><td style="padding:6px;font-weight:bold;color:#666">Route</td><td style="padding:6px">${route || "N/A"}</td></tr>
+              <tr><td style="padding:6px;font-weight:bold;color:#666">User</td><td style="padding:6px">${resolvedEmail}</td></tr>
+              <tr><td style="padding:6px;font-weight:bold;color:#666">Context</td><td style="padding:6px">${additional_context || "None"}</td></tr>
+              <tr><td style="padding:6px;font-weight:bold;color:#666">App Version</td><td style="padding:6px">${app_version || "1.0.0"}</td></tr>
+              <tr><td style="padding:6px;font-weight:bold;color:#666">Time</td><td style="padding:6px">${timestamp}</td></tr>
+            </table>
+            ${error_stack ? `<details><summary style="cursor:pointer;margin-top:12px;font-weight:bold">Stack Trace</summary><pre style="background:#f5f5f5;padding:12px;overflow-x:auto;font-size:12px">${error_stack.slice(0, 3000)}</pre></details>` : ""}
+            ${component_stack ? `<details><summary style="cursor:pointer;margin-top:8px;font-weight:bold">Component Stack</summary><pre style="background:#f5f5f5;padding:12px;overflow-x:auto;font-size:12px">${component_stack.slice(0, 3000)}</pre></details>` : ""}
+          </div>`;
+
+        const emailRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "WiseResume Bugs <onboarding@resend.dev>",
+            to: [DEVELOPER_EMAIL],
+            subject: `[Bug Report] ${error_message.slice(0, 60)}`,
+            html: emailHtml,
+          }),
+        });
+        const emailBody = await emailRes.text();
+        if (!emailRes.ok) {
+          console.error("Resend email failed:", emailRes.status, emailBody);
+        } else {
+          console.log("Bug report email sent:", emailBody);
+        }
+      } catch (emailErr) {
+        console.error("Email send error:", emailErr);
+      }
+    } else {
+      console.warn("RESEND_API_KEY not set, skipping email");
+    }
 
     return new Response(
       JSON.stringify({ success: true }),
