@@ -1,128 +1,169 @@
 
 
-## Database Integrity and Storage Security Hardening
+## AI Timeout, Retry, and Input Protection Hardening
 
-### Current State
+### Problem
 
-**Issue 1 -- Missing Cascading Deletes:**
-- The database has **zero foreign key constraints** between tables. All relationships are implicit (matching UUIDs with no enforcement).
-- Resume data (experience, education, skills, etc.) is stored as JSONB columns *within* the `resumes` table -- there are no separate `resume_sections`, `education`, or `experience` tables. So section-level cascades are not needed.
-- However, 6 child tables reference `resume_id` without FK constraints: `resume_versions`, `resume_shares`, `share_comments` (via share_id), `cover_letters`, `tailor_history`, `ai_usage_logs`, `interview_sessions`, `career_assessments`, `job_applications`.
-- The `deleteAllUserData()` function only deletes from `resumes` and `profiles`, leaving 14+ tables with orphaned records.
+1. **No retry logic**: The shared `callAI` helper makes a single attempt with a 30-second timeout. Complex tasks (tailor-resume with 8000 tokens of output) regularly time out or hit transient 5xx errors, especially on mobile connections.
+2. **No slow-request UX**: If a request takes >25 seconds, users see nothing until a generic error appears. No "taking longer than usual" feedback.
+3. **No input truncation**: Job descriptions and resume data are validated for max byte size but not for safe token count. A 50KB job description (~12,500 words) can overflow model context windows or cause the edge function to OOM, resulting in silent crashes.
 
-**Issue 2 -- Storage Bucket Security:**
-- Only the `avatars` bucket exists (public). RLS policies are already correctly scoped: users can only read/write within their own `auth.uid()` folder.
-- There is no `resumes` or PDF storage bucket. PDFs are generated client-side via `pdf-lib` + `html2canvas` and downloaded directly to the device -- they are never uploaded to storage.
-- No changes needed for storage security. The existing policies are sound.
+### Solution
 
-### Plan
+Server-side: Add retry-with-backoff and model fallback to `callAI`. Client-side: Add timeout-aware UX to `useAIEnhance` and `aiTailor`. Edge functions: Add input sanitization (whitespace normalization, smart truncation).
 
-#### Migration 1: Add Foreign Key Constraints with ON DELETE CASCADE
+---
 
-Add FK constraints so deleting a resume automatically cleans up all child records, and deleting a user (via auth) cascades through profiles to resumes.
+### Changes
+
+**1. Modified: `supabase/functions/_shared/aiClient.ts`**
+
+Add a `callAIWithRetry` wrapper around the existing `callAI` function:
+
+- Retry up to 3 attempts for retryable errors (5xx status codes, network/timeout errors)
+- Exponential backoff: 1s, 2s, 4s delays between retries
+- Do NOT retry 4xx errors (400, 401, 402, 429 rate_limit) -- these are deterministic failures
+- On timeout (AbortError), retry with a fresh AbortController and extended timeout (30s, 45s, 55s)
+- After all retries exhausted on the primary model, attempt one final call with a lighter fallback model (`google/gemini-2.5-flash-lite`) and log the fallback event
+- Export `callAIWithRetry` as the new recommended entry point; keep `callAI` exported for backward compatibility
+
+Add an `sanitizeInputText` utility:
+- Normalize excessive whitespace (collapse multiple newlines/spaces)
+- Strip non-printable characters
+- Truncate to a configurable character limit with a clean sentence boundary
 
 ```text
-Tables getting FK to resumes.id (ON DELETE CASCADE):
-  - resume_versions.resume_id (NOT NULL)
-  - resume_shares.resume_id (NOT NULL)
-  - cover_letters.resume_id (SET NULL -- nullable, letter can exist without resume)
-  - tailor_history.resume_id (SET NULL -- nullable)
-  - ai_usage_logs.resume_id (SET NULL -- nullable)
-  - interview_sessions.resume_id (SET NULL -- nullable)
-  - career_assessments.resume_id (SET NULL -- nullable)
-  - job_applications.resume_id (SET NULL -- nullable)
+callAIWithRetry flow:
 
-Tables getting FK to resume_shares.id (ON DELETE CASCADE):
-  - share_comments.share_id (CASCADE -- comments die with their share)
+  Attempt 1 (model: original, timeout: 30s)
+    -> Success? Return result
+    -> 5xx / timeout? Wait 1s, continue
+    -> 4xx? Throw immediately (no retry)
+
+  Attempt 2 (model: original, timeout: 45s)
+    -> Success? Return result
+    -> 5xx / timeout? Wait 2s, continue
+
+  Attempt 3 (model: original, timeout: 55s)
+    -> Success? Return result
+    -> Fail? Try fallback
+
+  Fallback (model: gemini-2.5-flash-lite, timeout: 55s)
+    -> Success? Return result + log "[AI] Fallback model used"
+    -> Fail? Throw final error
 ```
 
-For NOT NULL `resume_id` columns (`resume_versions`, `resume_shares`): use ON DELETE CASCADE (row is meaningless without its resume).
+**2. Modified: `supabase/functions/tailor-resume/index.ts`**
 
-For nullable `resume_id` columns: use ON DELETE SET NULL (the record can still be useful, e.g., a cover letter without its linked resume).
+- Replace `callAI` with `callAIWithRetry` import
+- Use `sanitizeInputText` on `jobDescription` before building the prompt, truncating to 15,000 characters with a message about truncation in the log
+- Call `callAIWithRetry` instead of `callAI` at line 313
 
-#### Migration 2: Fix deleteAllUserData to clean up all tables
+**3. Modified: `supabase/functions/analyze-resume/index.ts`**
 
-Update `src/lib/dataExport.ts` `deleteAllUserData()` to delete from all user-owned tables before deleting resumes (since cascading handles resume children, we still need to clean user-level tables).
+- Replace `callAI` with `callAIWithRetry`
+- Add `sanitizeInputText` on `jobDescription`, truncating to 15,000 characters
+- If input exceeds limit, return a specific 400 error: `"Job description is too long. Please shorten it to under 15,000 characters for best results."`
 
-Tables to add to the delete flow (in order):
-1. `share_comments` (via resume_shares join -- handled by cascade now)
-2. `resume_versions` (cascade handles)
-3. `resume_shares` (cascade handles)
-4. `tailor_history`
-5. `cover_letters`
-6. `interview_sessions`
-7. `career_assessments`
-8. `job_applications`
-9. `jobs`
-10. `ai_usage_logs`
-11. `ai_credits`
-12. `notifications`
-13. `push_subscriptions`
-14. `user_api_keys`
-15. `bug_reports`
-16. `resignation_letters`
-17. `user_preferences`
-18. `resumes` (cascades to versions, shares, comments)
-19. `profiles`
+**4. Modified: `supabase/functions/generate-cover-letter/index.ts`**
 
-With FKs + CASCADE in place, we really only need to explicitly delete user-level tables (those keyed on `user_id` without a resume parent), then `resumes` (which cascades), then `profiles`.
+- Replace `callAI` with `callAIWithRetry`
+- Add `sanitizeInputText` on `jobDescription` (truncate to 15,000 chars)
+
+**5. Modified: `supabase/functions/enhance-section/index.ts`**
+
+- Replace `callAI` with `callAIWithRetry`
+
+**6. Modified: `src/hooks/useAIEnhance.ts`**
+
+- Add a timeout timer: if the request takes >20 seconds, show `toast.info('This is taking longer than usual. Hang tight...')` -- only once per request
+- If the request takes >50 seconds (network timeout), show `toast.warning('The request timed out. Please try again.')` instead of generic error
+- Detect timeout errors specifically (check for "timed out" or "abort" in error message)
+
+**7. Modified: `src/lib/aiTailor.ts`**
+
+- In `tailorResumeWithProgress`: add a slow-request toast at 25 seconds elapsed ("This is taking longer than usual...") using a `setTimeout`
+- Detect timeout errors and show specific message: "The request timed out. Please try again -- or try a shorter job description."
+- Clear the slow-request timeout on completion or error
+
+---
 
 ### Technical Details
 
-**SQL Migration:**
+**Retry logic in `callAIWithRetry`:**
 
 ```text
--- FK constraints for resume children
-ALTER TABLE resume_versions
-  ADD CONSTRAINT fk_resume_versions_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE;
+const RETRY_DELAYS = [1000, 2000, 4000];
+const TIMEOUTS = [30_000, 45_000, 55_000];
+const FALLBACK_MODEL = 'google/gemini-2.5-flash-lite';
 
-ALTER TABLE resume_shares
-  ADD CONSTRAINT fk_resume_shares_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE;
+function isRetryable(error):
+  - AbortError (timeout) -> yes
+  - AIError with status >= 500 -> yes
+  - AIError with type 'network' -> yes
+  - Everything else (400, 401, 402, 429) -> no
 
-ALTER TABLE share_comments
-  ADD CONSTRAINT fk_share_comments_share
-  FOREIGN KEY (share_id) REFERENCES resume_shares(id) ON DELETE CASCADE;
+async function callAIWithRetry(options):
+  for i in 0..2:
+    try:
+      return callAI({ ...options, timeout: TIMEOUTS[i] })
+    catch error:
+      if !isRetryable(error): throw error
+      if i < 2: await sleep(RETRY_DELAYS[i])
 
-ALTER TABLE cover_letters
-  ADD CONSTRAINT fk_cover_letters_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
-
-ALTER TABLE tailor_history
-  ADD CONSTRAINT fk_tailor_history_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
-
-ALTER TABLE ai_usage_logs
-  ADD CONSTRAINT fk_ai_usage_logs_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
-
-ALTER TABLE interview_sessions
-  ADD CONSTRAINT fk_interview_sessions_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
-
-ALTER TABLE career_assessments
-  ADD CONSTRAINT fk_career_assessments_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
-
-ALTER TABLE job_applications
-  ADD CONSTRAINT fk_job_applications_resume
-  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
+  // All retries failed, try fallback model
+  console.warn("[AI] Primary model failed after 3 attempts, trying fallback")
+  return callAI({ ...options, model: FALLBACK_MODEL, timeout: 55_000 })
 ```
 
-**deleteAllUserData update:**
+**Input sanitization in `sanitizeInputText`:**
 
-The function will be expanded to delete from all user-owned tables. With the new FK cascades, deleting `resumes` automatically removes `resume_versions`, `resume_shares`, and `share_comments`. The remaining tables need explicit deletion.
+```text
+function sanitizeInputText(text: string, maxChars = 15_000): string
+  1. Replace \r\n with \n
+  2. Collapse 3+ consecutive newlines to 2
+  3. Collapse 2+ consecutive spaces to 1
+  4. Strip non-printable chars (keep newlines, tabs)
+  5. Trim
+  6. If length > maxChars: truncate at last sentence boundary (. ! ?) before limit
+  7. Return cleaned text
+```
 
-### Storage Security Assessment
+**Client-side timeout UX in `useAIEnhance`:**
 
-No changes needed:
-- The `avatars` bucket has correct RLS: INSERT/UPDATE/DELETE scoped to `auth.uid() = folder_name`, SELECT for all authenticated users
-- No PDF storage bucket exists (PDFs are generated and downloaded client-side)
-- No other buckets exist
+```text
+const slowTimer = setTimeout(() => {
+  toast.info('This is taking longer than usual. Hang tight...');
+}, 20_000);
+
+try {
+  const result = await supabase.functions.invoke(...)
+  clearTimeout(slowTimer);
+  // ...process result
+} catch (error) {
+  clearTimeout(slowTimer);
+  if (isTimeoutError(error)) {
+    toast.warning('The request timed out. Please try again.');
+  } else {
+    toast.error('Failed to enhance content. Please try again.');
+  }
+}
+```
+
+**Why these specific limits:**
+
+- 15,000 characters for job descriptions: approximately 3,750 tokens, safely within Gemini Flash's 1M context but prevents excessive prompt size that slows inference
+- 30s/45s/55s escalating timeouts: edge functions have a 60s hard limit; 55s is the safe ceiling
+- Fallback to `gemini-2.5-flash-lite`: fastest/cheapest model, handles simpler completions even when the primary model is overloaded
+
+---
 
 ### Files Changed
-- New database migration (SQL) -- FK constraints with cascading deletes
-- `src/lib/dataExport.ts` (modified) -- comprehensive `deleteAllUserData` cleanup
-- `src/components/settings/DeleteDataDialog.tsx` -- no changes needed (already calls `deleteAllUserData`)
 
+- `supabase/functions/_shared/aiClient.ts` -- add `callAIWithRetry`, `sanitizeInputText`, retry + fallback logic
+- `supabase/functions/tailor-resume/index.ts` -- use `callAIWithRetry`, sanitize job description input
+- `supabase/functions/analyze-resume/index.ts` -- use `callAIWithRetry`, sanitize + truncation guard
+- `supabase/functions/generate-cover-letter/index.ts` -- use `callAIWithRetry`, sanitize input
+- `supabase/functions/enhance-section/index.ts` -- use `callAIWithRetry`
+- `src/hooks/useAIEnhance.ts` -- slow-request toast, timeout-specific error message
+- `src/lib/aiTailor.ts` -- slow-request toast at 25s, timeout-specific error message
