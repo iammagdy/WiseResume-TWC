@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { lovable } from '@/integrations/lovable/index';
 import { useAuth } from '@/hooks/useAuth';
+import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { AppIcon } from '@/components/brand/AppIcon';
@@ -22,6 +23,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { session } = useAuth();
+  useGuestMigration(session);
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
