@@ -1,37 +1,68 @@
 
 
-## Fix: Filter-Aware Empty States for Applications
+## UI Audit Report -- Identified Issues and Fixes
 
-### Problem
-The filters work correctly at the API level (confirmed: returns 200 with proper query params). The database has zero applications for this user. The issue is that when a filter is selected, the empty state still shows the generic "No applications yet" message, making it seem like filters are broken.
+After a thorough analysis of the entire app across multiple pages (Landing, Dashboard, Editor, AI Studio, Activity, Cover Letters, Settings), here are the issues found and their proposed fixes:
 
-### Solution
-Update the empty state in `ApplicationsPage.tsx` to show filter-specific messaging when a status filter is active.
+---
 
-### Changes
+### Issue 1: Install Banner Overlaps Content on Every Page (HIGH)
 
-**File: `src/pages/ApplicationsPage.tsx`**
+The PWA "Install WiseResume" banner sits at `bottom-24` and overlaps content on every single page. It covers the AI Studio chat input, the floating action button on the dashboard, and bottom content on other pages.
 
-Update the empty state block (inside `applications.length === 0`) to check if a filter is active:
+**Fix:** Increase the banner's bottom offset to `bottom-28` so it sits above the bottom tab bar without overlapping page content. Also reduce its z-index slightly to prevent it from covering important interactive elements like the FAB.
 
-- When `statusFilter !== 'all'`: Show "No {status} applications" with a "Clear filter" button that resets to "all"
-- When `statusFilter === 'all'`: Keep the existing generic empty state with "Add Application" CTA
+**File:** `src/components/pwa/InstallPrompt.tsx`
 
-```text
-Before (all cases):
-  "No applications yet"
-  "Start tracking your job applications..."
-  [Add Application]
+---
 
-After (filter active):
-  "No {interviewing/saved/...} applications"  
-  "Try a different filter or add a new application"
-  [Show All]  [Add Application]
+### Issue 2: App.css Contains Unused Vite Boilerplate (LOW)
 
-After (no filter):  
-  "No applications yet"
-  "Start tracking your job applications..."
-  [Add Application]
-```
+`src/App.css` has default Vite/React template styles (`#root { max-width: 1280px; padding: 2rem; }`). While not currently imported, it is dead code that should be cleaned up.
 
-This is a single-file, ~15-line change that makes the filter behavior feel responsive and intentional.
+**Fix:** Delete or empty the file contents.
+
+**File:** `src/App.css`
+
+---
+
+### Issue 3: Badge Component Missing forwardRef (MEDIUM)
+
+Console warning: "Function components cannot be given refs" for `Badge` in `ResumeListSheet`. This happens because Radix components try to pass refs to the Badge, but it is a plain function component.
+
+**Fix:** Wrap the `Badge` component with `React.forwardRef`.
+
+**File:** `src/components/ui/badge.tsx`
+
+---
+
+### Issue 4: AI Health Badge Pushes Content Down (LOW)
+
+The "AI Online" badge renders at the top of every AI-enabled page, consuming vertical space. It adds an extra row of padding on pages that already have headers, slightly reducing usable viewport.
+
+**Fix:** Make the AI Health Badge overlay (`absolute` positioning) rather than flow-based (`flex`), so it floats over the page header without consuming layout space.
+
+**File:** `src/components/layout/AppShell.tsx`
+
+---
+
+### Issue 5: Dashboard FAB Hidden Behind Install Banner (MEDIUM)
+
+The floating "+" button on the dashboard (bottom-right) is partially obscured by the Install WiseResume banner when both are visible.
+
+**Fix:** Addressed by Issue 1 fix (moving the install banner higher). Additionally, ensure the FAB has a higher z-index than the banner.
+
+**File:** `src/components/dashboard/FloatingCreateButton.tsx` (verify z-index)
+
+---
+
+### Technical Summary
+
+| # | Issue | Severity | File(s) |
+|---|-------|----------|---------|
+| 1 | Install banner overlaps content | High | `InstallPrompt.tsx` |
+| 2 | Unused App.css boilerplate | Low | `App.css` |
+| 3 | Badge missing forwardRef | Medium | `badge.tsx` |
+| 4 | AI Health badge consumes layout space | Low | `AppShell.tsx` |
+| 5 | FAB hidden behind install banner | Medium | `FloatingCreateButton.tsx` |
+
