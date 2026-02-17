@@ -1,101 +1,145 @@
 
 
-## Public Portfolio -- Comprehensive Production Fix Plan
+## Analysis: Claimed Enhancements vs Actual State
 
-After thorough testing, here are all the remaining issues and the fixes required:
-
----
-
-### Problem 1: Portfolio Page Shows No Resume Data
-
-**Root Cause**: The user's `portfolio_resume_id` is NULL in the database, and no resume is marked as `is_primary`. The RPC falls back to the most recently updated resume, which happens to be an empty one ("Magdy Saber's Resume" with 0 experience, 0 education, 0 skills). The rich resumes with actual data exist but aren't being selected.
-
-**Fix**: When saving portfolio settings on the Profile page, the `selectedResumeId` must be persisted. Currently the code sends `portfolioResumeId` in the update call, but the `updateProfile` mutation maps it correctly. The real issue is the user has never re-saved since the feature was added. However, there's a defensive fix needed: the `useEffect` that initializes `selectedResumeId` should also account for the profile having loaded but `portfolioResumeId` being null -- in that case, auto-save the first resume with actual data as the default.
-
-**File**: `src/pages/ProfilePage.tsx` -- Update the initialization logic to prefer resumes that have content.
+After reviewing the database schema, RPC function, frontend code, and edge functions, here is a detailed gap analysis.
 
 ---
 
-### Problem 2: Share Button Shares Text Instead of Portfolio URL
+### 1. Download Resume Button -- NOT IMPLEMENTED
 
-**Root Cause**: The "Share" button on the Profile page shares generic text ("Magdy Saber -- Professional, X resumes on WiseResume") instead of the actual portfolio URL when the portfolio is enabled.
+**Claimed**: A "Download Resume (PDF)" button on the public portfolio page.
 
-**Fix**: When `portfolioEnabled` is true and `username` exists, the Share button should share the portfolio URL (`https://wiseresume.lovable.app/p/username`) instead of profile text. This makes the Share button actually useful.
+**Actual**: The `PublicPortfolioPage.tsx` has no download button. The file shown in `current-code` context (from an earlier version) had it, but the current deployed code does not. The link `href="/api/resumes/{id}/pdf"` also wouldn't work -- there's no such API route in this project.
 
-**File**: `src/pages/ProfilePage.tsx` -- Update `handleShareProfile`
-
----
-
-### Problem 3: Bio is Truncated in Database
-
-**Root Cause**: The stored bio for user "magdy" is "Hi there! I'm Magdy Saber," -- it was cut short. This likely happened because the AI generation succeeded but the response was truncated due to low `maxTokens` (300) or the user saved a partial result.
-
-**Fix**: Increase `maxTokens` from 300 to 500 in the edge function to ensure the full bio is always generated. Also add a soft warning on the Profile page if the bio appears incomplete (ends mid-sentence without punctuation).
-
-**File**: `supabase/functions/generate-portfolio-bio/index.ts`
+**Fix needed**:
+- Add a download button to `PublicPortfolioPage.tsx`
+- Generate the PDF client-side using the existing `pdfGenerator.ts` utility, or link to a proper endpoint
+- The RPC needs to return the resume `id` field (currently it does NOT include `id` in the response)
 
 ---
 
-### Problem 4: Portfolio Page Missing Job Title
+### 2. Expanded Social Links (GitHub, Website, Twitter) -- NOT IMPLEMENTED
 
-**Root Cause**: The portfolio page renders the job title from the profile, but the user's `job_title` field is NULL in the profiles table even though it exists in their resumes. The portfolio looks incomplete without it.
+**Claimed**: GitHub, Website, and X (Twitter) URLs are saved and displayed.
 
-**Fix**: In the `get_public_portfolio` RPC, if the profile's `job_title` is NULL, fall back to extracting the most recent job title from the selected resume's experience array. This ensures the portfolio hero section always shows relevant professional identity.
+**Actual**:
+- **Database**: The `profiles` table has NO columns for `github_url`, `website_url`, or `twitter_url`
+- **RPC**: `get_public_portfolio` does not return these fields
+- **usePublicPortfolio.ts**: The `PublicProfile` interface does NOT include `githubUrl`, `websiteUrl`, or `twitterUrl`
+- **PublicPortfolioPage.tsx**: Only renders LinkedIn link, no GitHub/Website/Twitter
+- **ProfilePage.tsx**: No input fields for these URLs
 
-**File**: Database migration to update the RPC function
-
----
-
-### Problem 5: No "View My Portfolio" Quick Action
-
-**Root Cause**: After enabling the portfolio, the only way to see it is by manually copying the URL and opening it in a new tab. There's no quick "Preview Portfolio" button.
-
-**Fix**: Add a "Preview Portfolio" button in the portfolio URL section that opens the portfolio in a new browser tab. The existing external link icon button is too small and not labeled.
-
-**File**: `src/pages/ProfilePage.tsx`
-
----
-
-### Problem 6: Resume Selector Defaults to Empty Resume
-
-**Root Cause**: The `useEffect` that initializes `selectedResumeId` picks the primary resume (none exists) or falls back to `resumes[0]` which is the most recently updated one -- but that resume is empty. The user's actual content-rich resumes are further down the list.
-
-**Fix**: When auto-selecting a default resume, prioritize resumes that actually have content (summary or experience). Add a smart sorting function.
-
-**File**: `src/pages/ProfilePage.tsx`
+**Fix needed**:
+- Add `github_url`, `website_url`, `twitter_url` columns to `profiles` table
+- Update the RPC to return them
+- Add input fields in ProfilePage.tsx
+- Update useProfile.ts Profile interface and mapping
+- Update usePublicPortfolio.ts PublicProfile interface
+- Render them in PublicPortfolioPage.tsx
 
 ---
 
-### Summary of All Changes
+### 3. Theme Customization -- NOT IMPLEMENTED
 
-| File | Change |
-|------|--------|
-| `src/pages/ProfilePage.tsx` | Smart resume default selection (prefer resumes with data), share portfolio URL when enabled, add labeled "Preview" button |
-| `supabase/functions/generate-portfolio-bio/index.ts` | Increase maxTokens to 500 |
-| Database migration | Update `get_public_portfolio` RPC to fallback job title from resume experience |
+**Claimed**: Users can select a theme for their portfolio page.
 
-### Technical Details
+**Actual**:
+- **Database**: No `theme` column exists in `profiles` table
+- **ProfilePage.tsx**: No theme selector for portfolio
+- **PublicPortfolioPage.tsx**: No theme application logic
+- **usePublicPortfolio.ts**: No `theme` field in PublicProfile
 
-**Smart resume selection logic:**
-```text
-1. If profile has portfolioResumeId and it exists in resumes list -> use it
-2. Else find first resume with summary OR experience.length > 0
-3. Else find primary resume
-4. Else use resumes[0]
-```
+**Fix needed**:
+- Add `theme` column to `profiles` table (text, nullable, default null)
+- Add theme selector in ProfilePage portfolio section
+- Update RPC to return theme
+- Apply theme on PublicPortfolioPage
 
-**Share button logic:**
-```text
-if (portfolioEnabled && username) {
-  share portfolio URL
-} else {
-  share profile text (current behavior)
-}
-```
+---
 
-**RPC job title fallback (pseudo-SQL):**
-```text
-If v_profile.job_title IS NULL AND resume has experience:
-  Extract first experience entry's position as job_title
-```
+### 4. "Hire Me" CTA -- NOT IMPLEMENTED
 
+**Claimed**: A "Hire Me" button with mailto link using contact email.
+
+**Actual**:
+- **Database**: No `contact_email` column in `profiles` table
+- **PublicPortfolioPage.tsx**: No "Hire Me" button
+- **ProfilePage.tsx**: No contact email input field
+
+**Fix needed**:
+- Add `contact_email` column to profiles
+- Add input in ProfilePage
+- Update RPC
+- Add button in PublicPortfolioPage
+
+---
+
+### 5. View Tracking -- NOT IMPLEMENTED
+
+**Claimed**: A `track-portfolio-view` edge function increments a `views` counter.
+
+**Actual**:
+- **Database**: No `views` column in `profiles` table
+- **Edge Function**: `track-portfolio-view` directory does NOT exist (file not found)
+- **PublicPortfolioPage.tsx**: No call to any view tracking function
+
+**Fix needed**:
+- Add `views` integer column (default 0) to profiles
+- Create `track-portfolio-view` edge function with proper CORS and SQL increment
+- Call it from PublicPortfolioPage on load
+
+---
+
+### 6. RPC Updates -- PARTIALLY DONE
+
+The `get_public_portfolio` RPC does NOT return: `githubUrl`, `websiteUrl`, `twitterUrl`, `contactEmail`, `theme`, `views`, or `resume.id`. It only returns the fields that existed before the claimed enhancements.
+
+---
+
+## Implementation Plan
+
+### Step 1: Database Migration
+Add 5 new columns to `profiles` and update the RPC:
+- `github_url TEXT`
+- `website_url TEXT`
+- `twitter_url TEXT`
+- `contact_email TEXT`
+- `portfolio_theme TEXT DEFAULT NULL`
+- `views INTEGER DEFAULT 0`
+
+Update `get_public_portfolio` to return all new fields plus `resume.id`.
+
+### Step 2: Create `track-portfolio-view` Edge Function
+- POST endpoint that increments `views` column using raw SQL increment (`views + 1`)
+- Include proper CORS headers
+- No auth required (public endpoint)
+
+### Step 3: Update `useProfile.ts`
+- Add all new fields to the Profile interface
+- Update `fetchProfile` select query
+- Update `updateMutation` mapping
+
+### Step 4: Update `ProfilePage.tsx`
+- Add input fields for GitHub URL, Website URL, X (Twitter) URL, Contact Email
+- Add a portfolio theme selector (System/Light/Dark)
+- Include new fields in `handleSavePortfolio`
+
+### Step 5: Update `usePublicPortfolio.ts`
+- Add `githubUrl`, `websiteUrl`, `twitterUrl`, `contactEmail`, `theme`, `views` to `PublicProfile`
+- Add `id` to `PublicResume`
+- Map all new fields in the fetch function
+
+### Step 6: Update `PublicPortfolioPage.tsx`
+- Add social links row (GitHub, Website, X) next to LinkedIn
+- Add "Hire Me" mailto button when contactEmail exists
+- Add "Download Resume" button (client-side PDF generation)
+- Apply portfolio theme on mount
+- Call `track-portfolio-view` on mount
+- Clean up theme on unmount
+
+### Technical Notes
+- The view tracking edge function must use `SET views = views + 1` (not a string like the original broken attempt)
+- The PDF download can use the existing `pdfGenerator.ts` but needs the full resume data from the RPC
+- Portfolio theme should use `data-theme` attribute or class toggling, matching the existing ThemeDropdown pattern
+- All new profile fields need to be included in the `EditProfileSheet.tsx` initial state sync
