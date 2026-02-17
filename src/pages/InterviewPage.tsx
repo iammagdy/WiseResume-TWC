@@ -13,10 +13,11 @@ import { InterviewTipsSheet } from '@/components/interview/InterviewTipsSheet';
 import { InterviewStatsCard } from '@/components/interview/InterviewStatsCard';
 import { useVoiceInterview } from '@/hooks/useVoiceInterview';
 import { useSaveInterviewSession } from '@/hooks/useInterviewHistory';
-import { useResumeStore } from '@/store/resumeStore';
+import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -27,6 +28,7 @@ export default function InterviewPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentResume } = useResumeStore();
+  const hydrated = useResumeStoreHydration();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [textInput, setTextInput] = useState('');
   const [showTextInput, setShowTextInput] = useState(false);
@@ -36,17 +38,8 @@ export default function InterviewPage() {
   const [sessionSaved, setSessionSaved] = useState(false);
   const saveSession = useSaveInterviewSession();
 
-  // Resume guard - require a resume for interview practice
+  // Resume guard - require a resume for interview practice (only after hydration)
   const hasValidResume = currentResume && currentResume.contactInfo?.fullName;
-  
-  useEffect(() => {
-    if (!hasValidResume) {
-      toast.info('Resume Required', {
-        description: 'Create or upload a resume first to start interview practice.',
-      });
-      navigate(user ? '/upload' : '/auth');
-    }
-  }, [hasValidResume, navigate, user]);
 
   const {
     status,
@@ -76,6 +69,16 @@ export default function InterviewPage() {
     endInterview,
     resetInterview,
   } = useVoiceInterview(currentResume);
+  
+  useEffect(() => {
+    if (!hydrated) return; // Wait for store to load from localStorage
+    if (!hasValidResume) {
+      toast.info('Resume Required', {
+        description: 'Create or upload a resume first to start interview practice.',
+      });
+      navigate(user ? '/upload' : '/auth');
+    }
+  }, [hydrated, hasValidResume, navigate, user]);
 
   // Derive phase
   const phase: InterviewPhase = summary
@@ -144,7 +147,7 @@ export default function InterviewPage() {
       startListening();
     } else if (status === 'speaking') {
       // Allow interrupting AI
-      window.speechSynthesis.cancel();
+      window.speechSynthesis?.cancel();
       startListening();
     }
   };
@@ -187,6 +190,11 @@ export default function InterviewPage() {
       });
     }
   }, [summary, sessionSaved]);
+
+  // Show loading while store hydrates
+  if (!hydrated) {
+    return <PageLoadingSpinner />;
+  }
 
   // Summary screen
   if (phase === 'summary') {
