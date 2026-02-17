@@ -1,38 +1,86 @@
 
+## Enhance AI Detector (Multi-Section Support) and LinkedIn Optimizer (Download to Word)
 
-## Fix: Activity Page Scroll Flashing and Interview Page Crash
+### Part 1: AI Detector -- Add Multi-Section Support
 
-### Issue 1: Activity Page Scroll Flashing on Mobile
+Currently the AI Detector only has a "Load Summary" button and an "Apply to Summary" action. We will expand it to support all text-based resume sections.
 
-**Root cause:** The `PullToRefresh` component wraps content in a `motion.div` with `style={{ y }}`. When the user scrolls past the end of content, overscroll events can re-trigger the pull-to-refresh touch handlers, causing the `y` motion value to fluctuate. This creates a visual "flash" effect -- the content briefly shifts down and snaps back repeatedly during momentum scrolling. The `overscrollBehavior: 'contain'` on the AppShell parent doesn't fully prevent this on all Android WebViews.
+**Changes to `src/components/editor/ai/AIDetectorSheet.tsx`:**
 
-**Fix in `src/components/ui/pull-to-refresh.tsx`:**
-- Add a guard in `handleTouchMove` to ignore small movements (dead zone of ~10px) before activating pull behavior, preventing false triggers during overscroll bounce
-- Set `isPulling.current = false` immediately when scroll position is greater than 0 during touchmove, so momentum scrolling past bottom can't retrigger the pull logic
-- Add `overscroll-behavior-y: none` to the wrapper div itself to prevent the browser's native overscroll from interfering with the custom pull-to-refresh
+- Replace the single "Load Summary" button with a **section selector dropdown/chips** that lets the user pick which section to load:
+  - Summary (loads `currentResume.summary`)
+  - Experience (loads all experience descriptions and achievements as combined text, with position/company headers)
+  - Projects (loads project descriptions)
+  - Volunteering (loads volunteering descriptions)
+  - Awards (loads award descriptions)
+  - Publications (loads publication descriptions)
+- Track the selected section in state (`selectedSection`)
+- The "Load" button label changes to "Load [Section]"
+- When humanized text is ready, the "Apply to Summary" button becomes **"Apply to [Section]"** and correctly writes back to the appropriate resume field:
+  - Summary: writes string directly
+  - Experience: replaces the combined description text back into the experience entries (AI returns the full rewritten block, which is split and mapped back by index)
+  - Other sections: similar mapping
+- For experience specifically: load each entry as a labeled block (e.g., "Software Engineer at Google: [description + achievements]"), send the combined text for analysis, and when applying the humanized version, parse the labeled blocks back into individual entries
 
-### Issue 2: Interview Page Crash -- "Cannot read properties of undefined (reading 'cancel')"
+**No edge function changes needed** -- the `detect-and-humanize` function already accepts any text string and returns humanized text. The section-awareness is purely a client-side concern.
 
-**Root cause:** Two problems combine:
+---
 
-1. **`window.speechSynthesis` is undefined** on some Android WebView configurations. The `useVoiceInterview` hook calls `window.speechSynthesis.cancel()` in three places (cleanup effect line 265, `endInterview` line 505, `resetInterview` line 527) without checking if `speechSynthesis` exists first. On Android WebViews that don't support the Web Speech API, this throws the "Cannot read properties of undefined (reading 'cancel')" error.
+### Part 2: LinkedIn Optimizer -- Add "Download as Word" Button
 
-2. **Premature redirect to /upload:** The resume guard at line 40-48 checks `currentResume && currentResume.contactInfo?.fullName`. If the Zustand store hasn't hydrated from localStorage yet when this component mounts, `currentResume` is momentarily `null` even though the user has resume data. This causes an immediate redirect to `/upload` before the store finishes loading.
+When results are displayed, add a "Download as Word" button in the footer alongside the existing "Start Over" button.
 
-**Fix in `src/hooks/useVoiceInterview.ts`:**
-- Guard all `window.speechSynthesis.cancel()` calls with `window.speechSynthesis?.cancel()` (3 locations: lines 265, 404, 505, 527)
-- Also guard `window.speechSynthesis?.speak()`, `window.speechSynthesis?.getVoices()`, and `window.speechSynthesis?.onvoiceschanged` in the setup effect
+**Changes to `src/components/editor/ai/LinkedInOptimizerSheet.tsx`:**
 
-**Fix in `src/pages/InterviewPage.tsx`:**
-- Import and check the store hydration state (`getResumeStoreHasHydrated`) before running the resume guard
-- Only redirect to `/upload` after confirming the store has hydrated AND the resume is still missing
-- Show a brief loading state while the store is hydrating to prevent the premature redirect
+- Add a "Download as Word" button (with a FileDown icon) in the results footer
+- Create a `handleDownloadDocx` function that:
+  1. Dynamically imports the `docx` library (already installed)
+  2. Builds a Word document with all the LinkedIn content organized into sections:
+     - **Headlines** -- numbered list of all 5 options
+     - **About Section (Short)** -- the short version
+     - **About Section (Medium)** -- the medium version
+     - **About Section (Long)** -- the long version
+     - **Experience Rewrites** -- each with position, company, and the LinkedIn-optimized text
+     - **Suggested Skills** -- comma-separated list
+     - **Keywords** -- comma-separated list
+     - **Tips** -- bulleted list
+  3. Uses `Packer.toBlob()` to generate the file
+  4. Downloads using the existing `downloadFile` utility from `src/lib/downloadUtils.ts`
+  5. File name: `LinkedIn_Profile_[Name].docx` (using the user's name from the resume)
+- Also add a **"Copy All"** button that copies all content sections into the clipboard as formatted plain text, so users who just want to paste quickly can do so without downloading
 
-### Technical Summary
+**Footer layout change:**
+- When results are showing, the footer will have two rows:
+  - Row 1: "Download as Word" (primary) and "Copy All" (outline) side by side
+  - Row 2: "Start Over" (ghost) full width
 
+---
+
+### Technical Details
+
+**AI Detector section mapping:**
+
+For the experience section, text is formatted as:
+```
+[Position] at [Company]
+[Description]
+- [Achievement 1]
+- [Achievement 2]
+---
+```
+
+When applying humanized text back, the same delimiter pattern (`---`) is used to split and map entries back by index. Only the description and achievements text is replaced; metadata (company, position, dates) is preserved.
+
+**LinkedIn DOCX generation:**
+
+Uses the same `docx` library already in the project. The document structure:
+- Title: "LinkedIn Profile Content - [Name]"
+- Each section uses HeadingLevel.HEADING_1
+- Body text uses size 22 (11pt)
+- Professional formatting with spacing between sections
+
+**Files to modify:**
 | File | Change |
 |------|--------|
-| `src/components/ui/pull-to-refresh.tsx` | Add dead zone guard, reset pull state when scrolled past top, add `overscroll-behavior-y: none` |
-| `src/hooks/useVoiceInterview.ts` | Guard all `speechSynthesis` calls with optional chaining (`?.`) |
-| `src/pages/InterviewPage.tsx` | Wait for store hydration before running the resume guard redirect |
-
+| `src/components/editor/ai/AIDetectorSheet.tsx` | Add section selector, multi-section load/apply logic |
+| `src/components/editor/ai/LinkedInOptimizerSheet.tsx` | Add Download as Word button, Copy All button, DOCX generation |
