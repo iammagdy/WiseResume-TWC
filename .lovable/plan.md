@@ -1,32 +1,30 @@
 
 
-## Add Template Gallery Button to the Editor
+## Persist Template Changes Immediately to Database
 
-### What You'll Get
+### Problem
 
-A new "Template" button in the editor header that opens the existing template gallery sheet, letting you switch templates without leaving the editor. It will appear:
+When you pick a new template in the editor, it updates the local state but relies on a 3-second debounced auto-save to write it to the database. If you close the editor or navigate away quickly, the template change can be lost.
 
-- **Desktop**: As a labeled icon button in the header toolbar (next to Design, Live Preview, and Wise AI)
-- **Mobile**: As a new entry in the "Editor Tools" bottom sheet (under Quick Actions)
+### Solution
 
-The button will use the `LayoutGrid` icon from Lucide and show the current template name as a subtle label.
+Trigger an immediate database save right after a template is selected in the `TemplateSelector`, bypassing the 3-second debounce.
 
 ### Technical Details
 
-**File: `src/pages/EditorPage.tsx`** (3 small changes)
+**File: `src/components/editor/TemplateSelector.tsx`** (2 changes)
 
-1. **Import**: Add `LayoutGrid` to the existing Lucide import line
+1. Accept a new optional `onTemplateApplied` callback prop
+2. Call it after updating local state in `handleSelect`
 
-2. **Desktop header** (~line 860-869): Add a "Template" button alongside the existing "Design" button, calling `handleChangeTemplate` which already exists and opens the `TemplateSelector` sheet
+**File: `src/pages/EditorPage.tsx`** (1 change)
 
-3. **Mobile tools panel** (~line 611-632): Add a "Change Template" action to the Quick Actions group in `editorToolGroups`, using the same `handleChangeTemplate` handler
-
-No new components or files needed -- this wires up an existing sheet (`TemplateSelector`) that is already lazy-loaded and fully functional.
+1. Pass an `onTemplateApplied` callback to `TemplateSelector` that calls `saveToCloud()` immediately (the same function used by auto-save), skipping the 3-second debounce. Use a small `setTimeout(0)` to ensure the Zustand store has flushed first.
 
 | Item | Detail |
 |------|--------|
-| Files changed | `EditorPage.tsx` only |
-| New dependencies | None |
-| Existing handler | `handleChangeTemplate` (line 556) already opens `TemplateSelector` |
-| Risk | None -- purely additive UI wiring |
+| Files changed | `TemplateSelector.tsx`, `EditorPage.tsx` |
+| Mechanism | Immediate `saveToCloud()` call after template selection |
+| Fallback | Debounced auto-save still runs as a safety net |
+| Risk | None -- uses existing save logic, just triggers it sooner |
 
