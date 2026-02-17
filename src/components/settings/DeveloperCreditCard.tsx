@@ -1,8 +1,8 @@
 import React from 'react';
-import { Mail, ExternalLink } from 'lucide-react';
+import { Mail, ExternalLink, Github } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { openExternal } from '@/lib/openExternal';
-import githubLogo from '@/assets/github-logo.png';
+
 import './DeveloperCreditCard.css';
 
 interface DeveloperCreditCardProps {
@@ -97,7 +97,7 @@ export function DeveloperCreditCard({
                   haptics.light();
                   openExternal(githubUrl);
                 }}>
-                  <img src={githubLogo} alt="GitHub" className="w-[1rem] h-[1rem] invert" />
+                  <Github className="w-4 h-4" />
                   <span className="font-sans font-bold text-base">GitHub</span>
                 </button>
               }
