@@ -1,63 +1,61 @@
 
 
-## Fix: Score Reverts After Re-score + Unlimited Improve Abuse
+## Fix: Persist AI Enhancements to Database + Block Re-optimization Abuse
 
-### Problem 1: Enhanced Data Not Saved to Database
+### Root Cause
 
-When the user clicks "Improve Score" on the Resume Detail Page and applies AI enhancements:
+When you click "Improve Score" and apply enhancements, the improved content is saved **only in memory** (Zustand store). It is never written to the database. So:
 
-1. The enhanced data is written to the **Zustand store** (in-memory only)
-2. The immediate re-score after closing the sheet uses the Zustand store data -- so it correctly shows 69%
-3. But when the user clicks **"Re-score"** manually, the page reads `resumeData` from `dbToResumeData(dbResume)` -- the **database**, which still has the old un-enhanced data
-4. Result: score drops back to 64%
+1. After applying improvements, the immediate re-score uses the in-memory data -- shows 69%
+2. When you click "Re-score", the page reads from the **database** (which still has the old data) -- drops back to 64%
 
-The root cause is that the Resume Detail Page has no database save logic. The `saveToCloud` function only exists in the Editor Page.
+### What Will Be Fixed
 
-### Problem 2: Unlimited Section Improvement
+**Fix 1: Save enhanced data to the database immediately after applying**
 
-Users can select the same section (e.g., Summary) for "Improve Score" over and over, each time getting new "improvements" that consume AI credits and server resources. There is no tracking of which sections have already been optimized.
+When the AI Enhance sheet closes after improvements were applied:
+- Read the updated resume from the in-memory store
+- Save it to the database using the existing `updateResume` mutation
+- Invalidate the data cache so the page refreshes with the new data
+- Now "Re-score" reads the same improved data from the database -- score stays at 69%
 
-### Fix Plan
+**Fix 2: Block repeated optimization of the same section**
 
-#### 1. Save enhanced data to the database after applying (`src/pages/ResumeDetailPage.tsx`)
+Track which sections have been improved in the current session. Already-improved sections show an "Already optimized" badge and are disabled. The user must go to the Editor and manually edit the section before they can re-optimize it. This prevents API abuse.
 
-After the AI Enhance Sheet closes and the user has applied changes:
-- Read the updated resume from the Zustand store
-- Call `supabase.from('resumes').update(...)` to persist the enhanced content to the database
-- Invalidate the React Query cache so the page re-fetches the latest data from the database
-- This ensures "Re-score" reads the same enhanced data
+### Files Changed
 
-#### 2. Use the updated (saved) data for Re-score (`src/pages/ResumeDetailPage.tsx`)
+| File | What Changes |
+|------|-------------|
+| `src/pages/ResumeDetailPage.tsx` | After the enhance sheet closes with applied changes, save the updated resume to the database using `updateResume.mutate()` and invalidate the React Query cache. Add state to track which sections were improved and pass it to the sheet. |
+| `src/components/editor/ai/AIEnhanceSheet.tsx` | Accept an optional `disabledSections` prop. Sections in this set are shown as disabled with an "Already optimized" badge, preventing repeated API calls on the same content. |
 
-After saving to the database, the re-score button will naturally use the refreshed `dbResume` data since React Query will refetch it.
+### How It Works After the Fix
 
-#### 3. Track improved sections and block re-improvement (`src/components/editor/ai/AIEnhanceSheet.tsx`)
+```text
+User clicks "Improve Score" -> selects Summary -> AI enhances it
+  -> User clicks "Apply" -> Zustand store updated
+  -> User closes sheet -> Page detects changes were applied
+  -> Page saves updated resume to database (UPDATE resumes SET summary = ...)
+  -> React Query cache invalidated -> page re-fetches fresh data
+  -> Re-score button now reads the improved data -> score stays 69%
 
-- Add a `recentlyImprovedSections` prop (a `Set<SectionType>`) to the AIEnhanceSheet
-- Sections that were already improved in the current session are shown as disabled with a "Already optimized" badge
-- The user must actually edit the section content in the Editor before they can re-optimize it
-- This prevents API abuse while still allowing legitimate re-optimization after real edits
-
-#### 4. Track improved sections in ResumeDetailPage state (`src/pages/ResumeDetailPage.tsx`)
-
-- Add a `useState<Set<SectionType>>` to track which sections have been improved
-- When the AIEnhanceSheet reports `onEnhanced`, record the improved sections
-- Pass this set to AIEnhanceSheet as `recentlyImprovedSections`
-- Reset when the user navigates away or edits in the Editor
+User tries to improve Summary again -> section is disabled ("Already optimized")
+User edits Summary manually in Editor -> section tracking resets -> can re-optimize
+```
 
 ### Technical Details
 
-| File | Change |
-|------|--------|
-| `src/pages/ResumeDetailPage.tsx` | Add database save after enhancement is applied; add improved-sections tracking state; pass it to AIEnhanceSheet; invalidate React Query cache after save |
-| `src/components/editor/ai/AIEnhanceSheet.tsx` | Accept `recentlyImprovedSections` prop; disable already-improved sections in the section selector; show "Already optimized" badge |
-| `src/hooks/useResumes.ts` | Verify that `useResume` query key allows invalidation (likely already works) |
+In `ResumeDetailPage.tsx`, the `onOpenChange` callback (when the sheet closes and `enhancedRef.current` is true) will:
 
-### What This Guarantees
+1. Get the updated resume from `useResumeStore.getState().currentResume`
+2. Call `updateResume.mutate({ resumeId: dbResume.id, updates: updatedResume })`
+3. On success, invalidate the `['resume', id]` query key
+4. Then trigger the re-score (which will now use the fresh database data)
 
-- After applying AI improvements, the data is saved to the database immediately
-- "Re-score" will always read the latest saved data, so scores remain consistent
-- Users cannot repeatedly optimize the same section without making real edits first
-- AI credits and server resources are protected from abuse
-- The score only changes when actual content changes -- no more phantom drops
+In `AIEnhanceSheet.tsx`, the `disabledSections` prop (a `Set<string>`) will:
+
+1. Filter out disabled sections from the selectable list
+2. Show them separately with an "Already optimized" badge
+3. Prevent the user from selecting them for enhancement
 
