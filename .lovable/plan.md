@@ -1,85 +1,101 @@
 
 
-## Public Portfolio Feature -- Production Fixes
+## Public Portfolio -- Comprehensive Production Fix Plan
 
-After thorough analysis, here are all the issues found and the fixes needed:
+After thorough testing, here are all the remaining issues and the fixes required:
 
 ---
 
-### Issue 1: Edge Function Auth Uses Non-Existent Method
+### Problem 1: Portfolio Page Shows No Resume Data
 
-The `generate-portfolio-bio` function calls `supabase.auth.getClaims(token)` which does not exist in the Supabase JS SDK. This causes silent auth failures.
+**Root Cause**: The user's `portfolio_resume_id` is NULL in the database, and no resume is marked as `is_primary`. The RPC falls back to the most recently updated resume, which happens to be an empty one ("Magdy Saber's Resume" with 0 experience, 0 education, 0 skills). The rich resumes with actual data exist but aren't being selected.
 
-**Fix**: Replace with `supabase.auth.getUser()` which is the standard method.
+**Fix**: When saving portfolio settings on the Profile page, the `selectedResumeId` must be persisted. Currently the code sends `portfolioResumeId` in the update call, but the `updateProfile` mutation maps it correctly. The real issue is the user has never re-saved since the feature was added. However, there's a defensive fix needed: the `useEffect` that initializes `selectedResumeId` should also account for the profile having loaded but `portfolioResumeId` being null -- in that case, auto-save the first resume with actual data as the default.
+
+**File**: `src/pages/ProfilePage.tsx` -- Update the initialization logic to prefer resumes that have content.
+
+---
+
+### Problem 2: Share Button Shares Text Instead of Portfolio URL
+
+**Root Cause**: The "Share" button on the Profile page shares generic text ("Magdy Saber -- Professional, X resumes on WiseResume") instead of the actual portfolio URL when the portfolio is enabled.
+
+**Fix**: When `portfolioEnabled` is true and `username` exists, the Share button should share the portfolio URL (`https://wiseresume.lovable.app/p/username`) instead of profile text. This makes the Share button actually useful.
+
+**File**: `src/pages/ProfilePage.tsx` -- Update `handleShareProfile`
+
+---
+
+### Problem 3: Bio is Truncated in Database
+
+**Root Cause**: The stored bio for user "magdy" is "Hi there! I'm Magdy Saber," -- it was cut short. This likely happened because the AI generation succeeded but the response was truncated due to low `maxTokens` (300) or the user saved a partial result.
+
+**Fix**: Increase `maxTokens` from 300 to 500 in the edge function to ensure the full bio is always generated. Also add a soft warning on the Profile page if the bio appears incomplete (ends mid-sentence without punctuation).
 
 **File**: `supabase/functions/generate-portfolio-bio/index.ts`
 
 ---
 
-### Issue 2: AI Model 404 Errors Don't Trigger Fallback
+### Problem 4: Portfolio Page Missing Job Title
 
-When a user has a custom Gemini API key, the system routes to Gemini directly. If the model returns a 404 (model not found), it throws with type `unknown` -- but the fallback logic only catches `quota_exceeded`, `rate_limit`, and `invalid_key`. So the request fails instead of falling back to the Lovable gateway.
+**Root Cause**: The portfolio page renders the job title from the profile, but the user's `job_title` field is NULL in the profiles table even though it exists in their resumes. The portfolio looks incomplete without it.
 
-**Fix**: Add `unknown` error type (specifically for non-4xx client errors) to the fallback conditions in `callAI`.
+**Fix**: In the `get_public_portfolio` RPC, if the profile's `job_title` is NULL, fall back to extracting the most recent job title from the selected resume's experience array. This ensures the portfolio hero section always shows relevant professional identity.
 
-**File**: `supabase/functions/_shared/aiClient.ts`
-
----
-
-### Issue 3: Selected Resume Not Persisted or Used
-
-The "Source Resume" dropdown only affects AI bio generation in the current session. It resets on reload, and the public portfolio page always fetches the `is_primary` or most recent resume regardless of the user's selection.
-
-**Fix**:
-- Add a `portfolio_resume_id UUID` column to the `profiles` table
-- Update the `get_public_portfolio` RPC to use this column (falling back to primary/most recent if null)
-- Persist the selected resume ID when saving portfolio settings
-- Update the "Source Resume" label to clarify it controls both the bio AND the portfolio content
-
-**Files**: Database migration, `src/pages/ProfilePage.tsx`, `src/hooks/useProfile.ts`, `supabase/functions` RPC update
+**File**: Database migration to update the RPC function
 
 ---
 
-### Issue 4: Missing Error Boundary on Public Portfolio
+### Problem 5: No "View My Portfolio" Quick Action
 
-The public portfolio page has no error boundary wrapping. If any component crashes, visitors see a blank white screen.
+**Root Cause**: After enabling the portfolio, the only way to see it is by manually copying the URL and opening it in a new tab. There's no quick "Preview Portfolio" button.
 
-**Fix**: Wrap the page content in the existing `ErrorBoundary` component.
-
-**File**: `src/pages/PublicPortfolioPage.tsx`
-
----
-
-### Issue 5: Install Prompt Shows on Public Portfolio
-
-External visitors to `/p/username` see the "Install WiseResume" banner, which is confusing for non-users viewing someone's portfolio.
-
-**Fix**: Hide the `InstallPrompt` component when the current route starts with `/p/`.
-
-**File**: `src/components/pwa/InstallPrompt.tsx`
-
----
-
-### Issue 6: Empty Resume Silently Blocks Bio Generation
-
-When the auto-selected resume has no summary/experience, clicking "AI Generate" does nothing visible (toast may be missed). Users don't understand why it fails.
-
-**Fix**: Show an inline warning message below the Source Resume dropdown when the selected resume has no usable data, instead of only relying on a toast.
+**Fix**: Add a "Preview Portfolio" button in the portfolio URL section that opens the portfolio in a new browser tab. The existing external link icon button is too small and not labeled.
 
 **File**: `src/pages/ProfilePage.tsx`
 
 ---
 
-### Summary of Changes
+### Problem 6: Resume Selector Defaults to Empty Resume
+
+**Root Cause**: The `useEffect` that initializes `selectedResumeId` picks the primary resume (none exists) or falls back to `resumes[0]` which is the most recently updated one -- but that resume is empty. The user's actual content-rich resumes are further down the list.
+
+**Fix**: When auto-selecting a default resume, prioritize resumes that actually have content (summary or experience). Add a smart sorting function.
+
+**File**: `src/pages/ProfilePage.tsx`
+
+---
+
+### Summary of All Changes
 
 | File | Change |
 |------|--------|
-| Database migration | Add `portfolio_resume_id` column to `profiles` |
-| Database migration | Update `get_public_portfolio` RPC to use `portfolio_resume_id` |
-| `supabase/functions/generate-portfolio-bio/index.ts` | Fix auth to use `getUser()` instead of `getClaims` |
-| `supabase/functions/_shared/aiClient.ts` | Expand fallback logic for model 404 errors |
-| `src/pages/ProfilePage.tsx` | Persist selected resume ID, add inline data warning |
-| `src/hooks/useProfile.ts` | Add `portfolioResumeId` field |
-| `src/pages/PublicPortfolioPage.tsx` | Wrap in ErrorBoundary |
-| `src/components/pwa/InstallPrompt.tsx` | Hide on `/p/` routes |
+| `src/pages/ProfilePage.tsx` | Smart resume default selection (prefer resumes with data), share portfolio URL when enabled, add labeled "Preview" button |
+| `supabase/functions/generate-portfolio-bio/index.ts` | Increase maxTokens to 500 |
+| Database migration | Update `get_public_portfolio` RPC to fallback job title from resume experience |
+
+### Technical Details
+
+**Smart resume selection logic:**
+```text
+1. If profile has portfolioResumeId and it exists in resumes list -> use it
+2. Else find first resume with summary OR experience.length > 0
+3. Else find primary resume
+4. Else use resumes[0]
+```
+
+**Share button logic:**
+```text
+if (portfolioEnabled && username) {
+  share portfolio URL
+} else {
+  share profile text (current behavior)
+}
+```
+
+**RPC job title fallback (pseudo-SQL):**
+```text
+If v_profile.job_title IS NULL AND resume has experience:
+  Extract first experience entry's position as job_title
+```
 
