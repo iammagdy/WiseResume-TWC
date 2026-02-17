@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Security curtain — hides content from OS app-switcher screenshots on native */
+body.wr-security-curtain {
+  filter: blur(20px);
+  pointer-events: none;
+  transition: filter 0.15s ease-out;
+}
+
 /* Android WebView scroll fix - apply to ALL scrollable containers */
 .overflow-y-auto,
 .overflow-y-scroll {
