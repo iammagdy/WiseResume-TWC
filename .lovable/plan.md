@@ -1,29 +1,80 @@
 
 
-## One-Time Migration: Upload Existing localStorage Gemini Key to Server
+## Remaining Security Refactor: Session Cache Cleanup + Server-Side Rate Limiting
 
-### What This Does
-When a returning user logs in, the app checks if their old `geminiApiKey` still exists in the `wiseresume-settings` localStorage entry (from before the security refactor). If found, it automatically uploads the key to the server-side encrypted store, then removes it from localStorage so it only runs once.
+### Task 1: Remove Redundant Manual Session Cache from AuthContext
 
-### Implementation
+The Supabase SDK already persists sessions via `persistSession: true` (the default). The manual `sb-auth-session-cache` in `AuthContext.tsx` duplicates this, creating a stale-session risk.
 
-**New file: `src/lib/migrateLocalKeys.ts`**
+**Changes to `src/contexts/AuthContext.tsx`:**
+- Delete `SESSION_CACHE_KEY` constant
+- Delete `getCachedSession()` function
+- Delete `cacheSession()` function
+- Remove all `cacheSession()` calls (lines 80, 134)
+- Remove cached pre-hydration in `useState` initializer -- start with `{ user: null, session: null, loading: true }` always
+- Remove `getCachedSession()` call in `activeUserIdRef` initializer -- start with `null`
+- Remove `localStorage.removeItem(SESSION_CACHE_KEY)` from `signOut`
 
-A single async function `migrateLocalKeysToServer()` that:
-1. Reads raw JSON from `localStorage.getItem('wiseresume-settings')` and parses the `state` object inside (Zustand persist format).
-2. Checks if `state.geminiApiKey` exists and is non-empty.
-3. If yes, calls `supabase.functions.invoke('manage-api-keys', { body: { ... } })` to save it server-side with the existing `geminiKeyTier`.
-4. On success, removes `geminiApiKey` and `elevenlabsApiKey` from the persisted state object and writes it back to localStorage.
-5. Sets a flag `localStorage.setItem('wiseresume-keys-migrated', '1')` so it never runs again.
-6. If the user is not authenticated (no session), skips silently -- the migration will retry next time.
+The Supabase SDK handles session restoration automatically before firing `INITIAL_SESSION`, so the loading state will resolve quickly without the manual cache.
 
-**Modified file: `src/contexts/AuthContext.tsx`**
+---
 
-After auth state resolves with a valid user (inside `resolveInitialLoad` when `user` is not null), call `migrateLocalKeysToServer()` once. This ensures the migration runs on the first authenticated session after the update.
+### Task 2: Add Server-Side Rate Limiting to All AI Edge Functions
 
-### Technical Details
+Currently only `score-resume` and `enhance-section` use the shared `checkRateLimit`/`recordUsage` helpers. All other AI-calling edge functions need them added.
 
-- The `manage-api-keys` edge function already accepts `{ provider, apiKey, keyTier }` in the POST body -- no changes needed there.
-- The migration reads the raw localStorage JSON directly (not via Zustand) because `partialize` now excludes these fields from the store hydration.
-- The `'wiseresume-keys-migrated'` flag ensures zero overhead on subsequent app starts.
-- Errors are caught and logged silently -- the user can always re-enter their key manually if the migration fails.
+**Pattern (already established in `score-resume`):**
+```typescript
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+
+// After auth check, before processing:
+const rateCheck = await checkRateLimit(user.id, { maxRequests: N, windowSeconds: 60, actionType: 'action_name' });
+if (!rateCheck.allowed) {
+  return new Response(
+    JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+    { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+}
+
+// After successful AI response, before returning:
+await recordUsage(user.id, 'action_name');
+```
+
+**Functions to update (16 files) with rate limits:**
+
+| Function | actionType | maxRequests/min | Rationale |
+|---|---|---|---|
+| `analyze-resume` | `analyze` | 10 | Heavy analysis |
+| `tailor-resume` | `tailor` | 10 | Heavy processing |
+| `agentic-chat` | `chat` | 30 | Conversational, higher volume |
+| `interview-chat` | `interview` | 30 | Conversational |
+| `proofread-resume` | `proofread` | 15 | Medium complexity |
+| `fill-gap` | `fill_gap` | 20 | Quick operation |
+| `explain-gap` | `explain_gap` | 20 | Quick operation |
+| `generate-cover-letter` | `cover_letter` | 10 | Heavy generation |
+| `generate-resignation-letter` | `resignation` | 10 | Heavy generation |
+| `career-assessment` | `career_assess` | 10 | Heavy analysis |
+| `career-path-advisor` | `career_path` | 10 | Heavy analysis |
+| `detect-and-humanize` | `detect_humanize` | 15 | Medium |
+| `one-page-optimizer` | `one_page` | 10 | Heavy |
+| `optimize-for-linkedin` | `linkedin_opt` | 10 | Heavy |
+| `parse-job-url` | `parse_job` | 20 | Quick parsing |
+| `parse-linkedin` | `parse_linkedin` | 10 | Medium |
+| `parse-resume` | `parse_resume` | 10 | Heavy parsing |
+| `recruiter-simulation` | `recruiter_sim` | 10 | Heavy |
+
+**Functions NOT rate-limited (non-AI or utility):**
+- `ai-health` (health check, no AI call)
+- `elevenlabs-scribe-token` (token generation, no AI call)
+- `manage-api-keys` (key CRUD, no AI call)
+- `send-bug-report` (email, no AI call)
+- `send-push-notification` (push, no AI call)
+- `generate-headshot` (external API, separate billing)
+
+---
+
+### Summary
+
+- **Modified**: 1 file (`AuthContext.tsx`) for session cache removal
+- **Modified**: 16 edge function files to add rate limiting imports and checks
+- All changes follow existing patterns already established in the codebase
