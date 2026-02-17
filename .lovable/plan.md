@@ -1,42 +1,55 @@
 
 
-## Fix: Prevent Unnecessary Scoring When Closing Enhance Sheet Without Changes
+## Fix: Google Sign-In 404 on APK
 
-### What's Happening
+### Problem
 
-When you open "Improve Score" and close it without doing anything, two things go wrong:
+The "Continue with Google" button uses `lovable.auth.signInWithOAuth()` which relies on the Lovable auth-bridge infrastructure. This bridge only works on `*.lovable.app` and `*.lovableproject.com` domains. When running as an APK, the WebView uses a different origin (e.g., `localhost` or `capacitor://`), so the auth-bridge returns a 404.
 
-1. The scoring process starts automatically in the background (wasting API calls)
-2. The score disappears and shows "Score Resume" button instead
+### Solution
 
-### Root Cause
+Create an environment-aware Google sign-in helper that:
+- On Lovable domains (web preview, published app): uses the existing `lovable.auth.signInWithOAuth()` flow (works perfectly)
+- On non-Lovable domains (APK, custom domains): falls back to the direct Supabase `signInWithOAuth()` with `skipBrowserRedirect: true`, then manually redirects the user to the Google OAuth URL
 
-The `onOpenChange` handler in `ResumeDetailPage.tsx` has a guard (`enhancedRef.current`) that should prevent save+re-score when nothing was changed. However, the issue is that the Sheet component's internal behavior can still trigger side effects. Additionally, if a previous enhancement session changed the `updated_at` timestamp, the cache key no longer matches the old score, causing it to appear as if the score was lost.
+### Changes
 
-### The Fix
-
-**File: `src/pages/ResumeDetailPage.tsx`**
-
-1. Move the `setCurrentResume` / `setCurrentResumeId` / `setSelectedTemplate` calls from the "Improve Score" button click into the `onOpenChange(true)` handler, ensuring they only run once when the sheet actually opens
-2. Add an early return in `onOpenChange(false)` when `enhancedRef.current` is false -- do nothing at all, just close the sheet
-3. Ensure the `getCachedScore` call uses the latest `dbResume.updated_at` from the re-fetched query data (after invalidation) rather than the stale value from before the save
-
-**File: `src/hooks/useResumeScore.ts`**
-
-4. Add a `getCachedScoreByPrefix` method that finds a cached score for a resume ID regardless of `updated_at`, so the UI can always show the most recent known score even if `updated_at` has changed. This prevents the "Score Resume" button from appearing when a score exists but under a different cache key.
+| File | Change |
+|------|--------|
+| `src/lib/socialAuth.ts` | New file -- shared helper `signInWithGoogle()` and `signInWithApple()` that detect the environment and choose the correct auth flow |
+| `src/pages/AuthPage.tsx` | Replace inline `handleGoogleSignIn` / `handleAppleSignIn` with calls to the shared helper |
+| `src/components/auth/SignInPromptDialog.tsx` | Replace inline `handleGoogle` with a call to the shared helper |
 
 ### Technical Details
 
-In `ResumeDetailPage.tsx`:
-- The `onOpenChange` handler will be simplified: when closing without changes, only `setShowEnhance(false)` runs -- no refs reset, no scoring, no saves
-- The "Improve Score" button handler remains the same but the store setup happens in `onOpenChange(true)` to avoid duplication
+**`src/lib/socialAuth.ts`** (new file):
 
-In `useResumeScore.ts`:
-- Add `getLatestCachedScore(resumeId)` that iterates the score cache to find any entry matching the resume ID prefix, returning the most recent one. This way, even if `updated_at` changed, the old score stays visible until a new one replaces it.
+```text
+1. Detect environment:
+   - isLovableDomain = hostname includes "lovable.app" or "lovableproject.com"
 
-### What This Guarantees
+2. signInWithGoogle():
+   - If isLovableDomain: use lovable.auth.signInWithOAuth("google", { redirect_uri })
+   - Else (APK): use supabase.auth.signInWithOAuth({
+       provider: "google",
+       options: {
+         redirectTo: window.location.origin + "/auth/callback",
+         skipBrowserRedirect: true
+       }
+     })
+     Then validate the returned URL host is "accounts.google.com"
+     and manually redirect via window.location.href = data.url
 
-- Opening and closing the Enhance sheet without changes: zero API calls, score stays visible
-- After applying improvements: save to DB, re-score, update cache -- all as before
-- Score never shows "Score Resume" if any cached score exists for that resume
+3. signInWithApple(): same pattern but for Apple provider
+```
+
+**`src/pages/AuthPage.tsx`**:
+- Import `signInWithGoogle` / `signInWithApple` from the new helper
+- Simplify `handleGoogleSignIn` and `handleAppleSignIn` to just call the helper and handle errors
+
+**`src/components/auth/SignInPromptDialog.tsx`**:
+- Import `signInWithGoogle` from the new helper
+- Replace the inline Google OAuth call
+
+This approach keeps the Lovable auth-bridge working perfectly on web while providing a direct Supabase OAuth fallback for APK environments, eliminating the 404 error.
 
