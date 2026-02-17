@@ -4,6 +4,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
+import { useResumes } from '@/hooks/useResumes';
 
 interface TabItem {
   path: string;
@@ -57,6 +58,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const navigate = useNavigate();
   const currentResumeId = useResumeStore((s) => s.currentResumeId);
   const { user } = useAuth();
+  const { data: resumes } = useResumes();
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -68,8 +70,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const handleTabPress = (tab: TabItem) => {
     haptics.selection();
     if (tab.guarded && !currentResumeId) {
-      // Instead of blocking, navigate to dashboard with create action
-      navigate('/dashboard?action=create');
+      // Navigate to most recent resume, or create dialog if none exist
+      if (resumes && resumes.length > 0) {
+        navigate(`/resume/${resumes[0].id}`);
+      } else {
+        navigate('/dashboard?action=create');
+      }
       return;
     }
     navigate(tab.path);

@@ -127,12 +127,17 @@ export default function AIStudioPage() {
 
   const requireResume = useCallback((action: () => void) => {
     if (!currentResumeId) {
-      toast.info('Create or select a resume first');
+      toast.info('Create or select a resume first', {
+        action: {
+          label: 'Create',
+          onClick: () => navigate('/dashboard?action=create'),
+        },
+      });
       return;
     }
     haptics.medium();
     action();
-  }, [currentResumeId]);
+  }, [currentResumeId, navigate]);
 
   const handleSecondaryAction = useCallback((id: string) => {
     const action = () => {
@@ -204,14 +209,22 @@ export default function AIStudioPage() {
             </Button>
           </div>
         ) : (
-          <Button
-            variant="outline"
-            className="w-full justify-start gap-2"
-            onClick={() => navigate('/dashboard')}
-          >
-            <FileSearch className="w-4 h-4" />
-            Select or create a resume to get started
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              className="flex-1 justify-start gap-2"
+              onClick={() => navigate('/dashboard')}
+            >
+              <FileSearch className="w-4 h-4" />
+              Select a resume
+            </Button>
+            <Button
+              className="shrink-0 gradient-primary"
+              onClick={() => navigate('/dashboard?action=create')}
+            >
+              Create
+            </Button>
+          </div>
         )}
       </motion.div>
 

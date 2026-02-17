@@ -50,27 +50,29 @@ export function JobActivityStatsCard({ stats, onOriginalsTap, onTailoredTap }: P
         </div>
       </div>
 
-      {/* Application Tracking */}
-      <div>
-        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Application Tracking</p>
-        <div className="grid grid-cols-3 gap-2">
-          {appTiles.map((tile) => {
-            const Icon = tile.icon;
-            return (
-              <div
-                key={tile.key}
-                className="glass-surface rounded-xl p-3 border border-border/20 flex flex-col items-center gap-1.5"
-              >
-                <div className={`w-8 h-8 rounded-lg bg-muted/30 flex items-center justify-center ${tile.color}`}>
-                  <Icon className="w-4 h-4" />
+      {/* Application Tracking - only show when user has data */}
+      {!stats.isLoading && (stats.applicationsSubmitted > 0 || stats.interviewsScheduled > 0 || stats.offersReceived > 0) && (
+        <div>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Application Tracking</p>
+          <div className="grid grid-cols-3 gap-2">
+            {appTiles.map((tile) => {
+              const Icon = tile.icon;
+              return (
+                <div
+                  key={tile.key}
+                  className="glass-surface rounded-xl p-3 border border-border/20 flex flex-col items-center gap-1.5"
+                >
+                  <div className={`w-8 h-8 rounded-lg bg-muted/30 flex items-center justify-center ${tile.color}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <p className="text-lg font-bold">{stats[tile.key]}</p>
+                  <p className="text-[10px] text-muted-foreground text-center leading-tight">{tile.label}</p>
                 </div>
-                <p className="text-lg font-bold">{stats.isLoading ? '–' : stats[tile.key]}</p>
-                <p className="text-[10px] text-muted-foreground text-center leading-tight">{tile.label}</p>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

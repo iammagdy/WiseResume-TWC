@@ -168,6 +168,8 @@ export default function DashboardPage() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [resumes, scoreResume, getCachedScore]);
 
+  const [onboardingTemplateId, setOnboardingTemplateId] = useState<string | null>(null);
+
   const handleOnboardingComplete = async () => {
     if (user) {
       await supabase
@@ -175,6 +177,8 @@ export default function DashboardPage() {
         .update({ onboarding_completed: true })
         .eq('user_id', user.id);
     }
+    // Sync both onboarding systems
+    localStorage.setItem('wr-onboarding-completed', 'true');
     haptics.success();
     setShowOnboarding(false);
 
@@ -183,6 +187,7 @@ export default function DashboardPage() {
     localStorage.removeItem('wr-onboarding-goal');
     localStorage.removeItem('wr-onboarding-template');
     if (savedTemplate) {
+      setOnboardingTemplateId(savedTemplate);
       // Small delay to let the onboarding exit animation finish
       setTimeout(() => setShowCreateDialog(true), 400);
     }
@@ -656,10 +661,14 @@ export default function DashboardPage() {
             open={showCreateDialog}
             onOpenChange={(open) => {
               setShowCreateDialog(open);
-              if (!open) setCreateTailoredParentId(null);
+              if (!open) {
+                setCreateTailoredParentId(null);
+                setOnboardingTemplateId(null);
+              }
             }}
             existingResumes={resumes || []}
             parentResumeId={createTailoredParentId}
+            defaultTemplateId={onboardingTemplateId}
           />
         )}
       </Suspense>

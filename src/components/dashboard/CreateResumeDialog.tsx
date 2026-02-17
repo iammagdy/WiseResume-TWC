@@ -31,6 +31,7 @@ interface CreateResumeDialogProps {
   onOpenChange: (open: boolean) => void;
   existingResumes?: DatabaseResume[];
   parentResumeId?: string | null;
+  defaultTemplateId?: string | null;
 }
 
 type CreateMode = 'blank' | 'upload' | 'duplicate' | 'tailored';
@@ -40,6 +41,7 @@ export function CreateResumeDialog({
   onOpenChange,
   existingResumes = [],
   parentResumeId,
+  defaultTemplateId,
 }: CreateResumeDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -78,7 +80,7 @@ export function CreateResumeDialog({
         education: [],
         skills: [],
         certifications: [],
-        templateId: 'modern',
+        templateId: defaultTemplateId || 'modern',
       });
       onOpenChange(false);
       navigate('/editor');
@@ -101,7 +103,7 @@ export function CreateResumeDialog({
           education: [],
           skills: [],
           certifications: [],
-          templateId: 'modern',
+          templateId: defaultTemplateId || 'modern',
         },
         title: title.trim(),
       });
