@@ -1,83 +1,90 @@
 
 
-## Harden Biometric Lock: Security Curtain
+## Sanitize AI Content for PDF Generation
 
 ### Problem
-When the app goes to background on native platforms, the OS may capture a screenshot of the current screen for the app switcher. This exposes sensitive resume data before the biometric lock can activate. There is a timing gap between the `appStateChange` event and the lock screen rendering.
+AI models sometimes include Markdown formatting (`**bold**`, `# headers`, `*italic*`) in their JSON responses, even when instructed not to. This formatting bleeds into the resume text fields and appears as literal asterisks/hashes in the PDF output, since `pdf-lib`'s `drawText` renders plain text and the React templates display these as raw characters.
 
 ### Solution
-Add a synchronous "security curtain" that blurs the entire app immediately when it enters the background, and only removes the blur after biometric authentication succeeds. This runs via `useLayoutEffect`-style DOM manipulation to beat the OS screenshot.
+Two-pronged defense: (1) strengthen the server-side prompt to explicitly forbid Markdown in text values, and (2) add a client-side sanitizer that strips any Markdown that slips through before the content reaches the store/PDF.
 
 ### Changes
 
-**1. Modified: `src/hooks/useBiometricLock.ts`**
+**1. New file: `src/lib/ai/sanitizeContent.ts`**
 
-- Add a `useLayoutEffect` that applies/removes a CSS class `wr-security-curtain` on `document.body`
-- When the app goes to background (`isActive === false`): immediately set `document.body.classList.add('wr-security-curtain')` **inside the listener callback**, synchronously, before any async logic
-- When the app returns to foreground: keep the curtain on -- do NOT remove it here
-- Remove the curtain class only in two places:
-  - Inside `authenticate()` after `verifyIdentity` succeeds (before setting `isLocked = false`)
-  - Inside `unlock()` manual override
-- On cleanup / when `enabled` is `false`, also remove the class
-- Guard all curtain logic behind `Capacitor.isNativePlatform()` so web PWA is unaffected
-- Fix the stale `backgroundTime` closure bug: use a `useRef` for `backgroundTimeRef` instead of state, so the listener always reads the current value
+A utility module exporting two functions:
+- `stripMarkdown(text: string): string` -- removes Markdown syntax from a plain string:
+  - `**text**` and `__text__` become `text` (bold)
+  - `*text*` and `_text_` become `text` (italic)
+  - `# Header` lines become `Header` (heading markers)
+  - `` `code` `` becomes `code` (inline code)
+  - `- item` or `* item` list prefixes preserved as-is (these are valid resume bullets)
+  - Trims excessive whitespace
+- `sanitizeAIContent(data: unknown): unknown` -- recursively walks the AI response object:
+  - Strings: applies `stripMarkdown`
+  - Arrays: maps each element through `sanitizeAIContent`
+  - Objects: maps each value through `sanitizeAIContent`
+  - Primitives (numbers, booleans, null): passed through unchanged
 
-**2. Modified: `src/index.css`**
+This keeps the utility pure, testable, and reusable across all AI pipelines.
 
-- Add the CSS rule:
-```css
-body.wr-security-curtain {
-  filter: blur(20px);
-  pointer-events: none;
-  transition: filter 0.15s ease-out;
-}
-```
-- `pointer-events: none` prevents any interaction while blurred
-- Short transition for smooth unblur after auth succeeds
+**2. Modified: `src/hooks/useAIEnhance.ts`**
 
-**3. Modified: `src/components/BiometricLockScreen.tsx`**
+- Import `sanitizeAIContent` from `@/lib/ai/sanitizeContent`
+- After receiving the successful response (`data`) from the edge function and before calling `setResult(data)`, sanitize the `improved` field:
+  ```
+  data.improved = sanitizeAIContent(data.improved);
+  ```
+- This ensures all downstream consumers (SectionAIAction, AIEnhanceSheet, etc.) receive clean content
 
-- No functional changes needed. The lock screen already renders at `z-[100]` with `bg-background`, so it will sit on top of the blurred content. The blur is just the extra safety net for the app-switcher screenshot.
+**3. Modified: `supabase/functions/enhance-section/index.ts`**
+
+- Update the `buildPrompt` function's closing instruction block to add an explicit anti-Markdown directive:
+  - Current: `"IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks:"`
+  - Updated: `"IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks. All text values inside the JSON must be plain text WITHOUT any Markdown formatting -- do not use **, *, #, _, or backticks in the text content:"`
+
+**4. Modified: `src/components/editor/ai/AIEnhanceSheet.tsx`**
+
+- Import `sanitizeAIContent` and apply it inside the `applyResult` function when parsing individual results, as a second sanitization point (belt-and-suspenders with the hook):
+  ```
+  parsed = sanitizeAIContent(parsed);
+  ```
 
 ### Technical Details
 
-**Curtain lifecycle on native:**
+**stripMarkdown regex pipeline:**
 
 ```text
-User taps Home / switches app:
-  appStateChange(isActive: false)
-    -> document.body.classList.add('wr-security-curtain')  [synchronous, immediate]
-    -> backgroundTimeRef.current = Date.now()
-
-OS captures screenshot for app switcher:
-    -> Screenshot shows blurred content (curtain is already applied)
-
-User returns to app:
-  appStateChange(isActive: true)
-    -> Check elapsed time vs lockTimeout
-    -> If exceeded: setIsLocked(true) -- BiometricLockScreen renders on top
-    -> If NOT exceeded: remove curtain class (no lock needed)
-
-User authenticates via BiometricLockScreen:
-  authenticate() succeeds
-    -> document.body.classList.remove('wr-security-curtain')
-    -> setIsLocked(false)
+Input: "**Led** a team of *10 engineers* to build `microservices`"
+Step 1 (bold):    "Led a team of *10 engineers* to build `microservices`"
+Step 2 (italic):  "Led a team of 10 engineers to build `microservices`"
+Step 3 (code):    "Led a team of 10 engineers to build microservices"
+Step 4 (headers): no-op (no # at line start)
+Output: "Led a team of 10 engineers to build microservices"
 ```
 
-**backgroundTime ref fix:**
+**Why strip instead of converting to HTML:**
+The PDF generator uses `pdf-lib` `drawText` for cover letters (plain text only) and `html2canvas` for resume templates. The template components render text via React JSX `{text}`, which auto-escapes HTML entities. Converting Markdown to `<b>` tags would display literal `<b>` in the UI. Stripping is the correct approach for this architecture.
 
-The current implementation uses `backgroundTime` as React state inside the `appStateChange` listener, but the listener captures a stale closure. Switching to `useRef` ensures the foreground handler always reads the correct timestamp.
+**Recursive sanitizer flow:**
 
 ```text
-Before (buggy):
-  const [backgroundTime, setBackgroundTime] = useState(null)
-  // listener captures initial backgroundTime = null forever
+sanitizeAIContent({
+  improved: "**Strong** summary",
+  changes: ["Added **metrics**"],
+  suggestions: ["Consider *expanding*"]
+})
 
-After (fixed):
-  const backgroundTimeRef = useRef<number | null>(null)
-  // listener reads backgroundTimeRef.current -- always fresh
+returns:
+{
+  improved: "Strong summary",
+  changes: ["Added metrics"],
+  suggestions: ["Consider expanding"]
+}
 ```
 
 ### Files Changed
-- `src/hooks/useBiometricLock.ts` -- security curtain logic, backgroundTime ref fix
-- `src/index.css` -- `.wr-security-curtain` CSS class
+- `src/lib/ai/sanitizeContent.ts` (new) -- stripMarkdown + sanitizeAIContent utilities
+- `src/hooks/useAIEnhance.ts` (modified) -- apply sanitizer before setting result
+- `supabase/functions/enhance-section/index.ts` (modified) -- strengthen prompt anti-Markdown instruction
+- `src/components/editor/ai/AIEnhanceSheet.tsx` (modified) -- apply sanitizer in applyResult
