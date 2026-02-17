@@ -41,6 +41,7 @@ import {
   BarChart3,
   EyeOff,
   Activity,
+  Bug,
 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { openExternal } from '@/lib/openExternal';
@@ -68,6 +69,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useResumeStore } from '@/store/resumeStore';
 import { haptics } from '@/lib/haptics';
+import { triggerBugReport } from '@/lib/bugReport';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
@@ -856,6 +858,24 @@ export default function SettingsPage() {
                 icon={<BookOpen className="w-4 h-4" />}
                 onClick={() => setHelpSheetOpen(true)}
               />
+              {user && (
+                <>
+                  <Separator className="bg-border/30" />
+                  <SettingsRow
+                    type="button"
+                    label="Report a Bug"
+                    description="Let us know if something isn't working right"
+                    icon={<Bug className="w-4 h-4" />}
+                    onClick={() => {
+                      haptics.light();
+                      triggerBugReport({
+                        errorMessage: 'User-reported issue',
+                        route: window.location.pathname,
+                      });
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
 

@@ -6,8 +6,22 @@ import { HeartHandshake, Send, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { onBugReport, type BugReportData } from '@/lib/bugReport';
 
-const APP_VERSION = '1.0.0';
 const SESSION_CACHE_KEY = 'sb-auth-session-cache';
+
+// Cache the app version from changelog.json (fetched once)
+let cachedAppVersion: string | null = null;
+async function getAppVersion(): Promise<string> {
+  if (cachedAppVersion) return cachedAppVersion;
+  try {
+    const res = await fetch('/changelog.json');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    cachedAppVersion = data?.[0]?.version || 'unknown';
+  } catch {
+    cachedAppVersion = 'unknown';
+  }
+  return cachedAppVersion;
+}
 
 function getAuthFromCache() {
   try {
@@ -47,6 +61,8 @@ export function BugReportDialog() {
 
     const auth = getAuthFromCache();
 
+    const appVersion = await getAppVersion();
+
     const payload = {
       error_message: data.errorMessage,
       error_stack: data.errorStack || null,
@@ -56,7 +72,7 @@ export function BugReportDialog() {
       user_email: auth.userEmail || 'anonymous',
       session_id: auth.sessionId || null,
       user_agent: navigator.userAgent,
-      app_version: APP_VERSION,
+      app_version: appVersion,
       additional_context: additionalContext.trim() || null,
       timestamp: new Date().toISOString(),
     };
