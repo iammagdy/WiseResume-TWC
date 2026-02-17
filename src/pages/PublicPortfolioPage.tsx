@@ -1,14 +1,17 @@
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
+import { usePublicPortfolio, PublicResume, PublicProfile } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen, Heart, BookOpen, Github, Globe, Mail, X, Download, ExternalLink } from 'lucide-react';
+import { MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen, Heart, BookOpen, Github, Globe, Mail, X, Download, ExternalLink, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useEffect } from 'react';
-import type { Experience, Education, Project, Certification } from '@/types/resume';
+import { useEffect, useRef, useState, lazy, Suspense, useMemo } from 'react';
+import { toast } from 'sonner';
+import { templateComponents } from '@/components/editor/TemplateThumbnail';
+import type { Experience, Education, Project, Certification, ResumeData, TemplateId } from '@/types/resume';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -106,19 +109,52 @@ function ProjectCard({ project }: { project: Project }) {
   );
 }
 
+/** Maps PublicResume + PublicProfile into a ResumeData for template rendering & PDF generation. */
+function toResumeData(profile: PublicProfile, resume: PublicResume): ResumeData {
+  return {
+    id: resume.id,
+    contactInfo: {
+      fullName: profile.fullName || '',
+      email: '',
+      phone: '',
+      location: profile.location || '',
+      linkedin: profile.linkedinUrl || '',
+    },
+    summary: resume.summary || '',
+    experience: resume.experience || [],
+    education: resume.education || [],
+    skills: resume.skills || [],
+    certifications: resume.certifications || [],
+    awards: resume.awards || [],
+    projects: resume.projects || [],
+    publications: resume.publications || [],
+    volunteering: resume.volunteering || [],
+    hobbies: resume.hobbies || [],
+    templateId: resume.templateId || 'modern',
+  };
+}
+
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const hiddenTemplateRef = useRef<HTMLDivElement>(null);
+
+  const resumeData = useMemo(() => {
+    if (!portfolio) return null;
+    return toResumeData(portfolio.profile, portfolio.resume);
+  }, [portfolio]);
+
+  const templateId = (portfolio?.resume?.templateId || 'modern') as TemplateId;
+  const TemplateComponent = templateComponents[templateId];
 
   // Increment view count
   useEffect(() => {
     if (portfolio?.profile?.username) {
-      // Call a backend function to increment view count
       supabase.functions.invoke("track-portfolio-view", {
         body: { username: portfolio.profile.username },
       }).then(({ data, error }) => {
         if (error) console.error("Error tracking portfolio view:", error);
-        else console.log("Portfolio view tracked:", data);
       });
     }
   }, [portfolio]);
@@ -129,7 +165,6 @@ function PublicPortfolioContent() {
       const title = portfolio.profile.jobTitle;
       document.title = title ? `${name} — ${title}` : name;
 
-      // Apply theme
       if (portfolio.profile.theme) {
         document.documentElement.setAttribute("data-theme", portfolio.profile.theme);
       } else {
@@ -146,6 +181,23 @@ function PublicPortfolioContent() {
     }
     return () => { document.title = 'WiseResume'; document.documentElement.removeAttribute("data-theme"); };
   }, [portfolio]);
+
+  const handleDownload = async () => {
+    if (!resumeData || !hiddenTemplateRef.current) return;
+    setIsDownloading(true);
+    try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { downloadFile } = await import('@/lib/downloadUtils');
+      const pdfBlob = await generatePDF(resumeData, templateId, hiddenTemplateRef.current, undefined, { showPageNumbers: true });
+      const fileName = `${resumeData.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
+      await downloadFile({ blob: pdfBlob, fileName });
+      toast.success('PDF downloaded!');
+    } catch {
+      toast.error('Failed to generate PDF');
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
   if (isLoading) return <PortfolioSkeleton />;
   if (error || !portfolio) return <NotFound />;
@@ -213,7 +265,18 @@ function PublicPortfolioContent() {
           </div>
         </motion.div>
 
-        {/* Download Resume - placeholder: PDF generation requires full resume data not available here */}
+        {/* Download Resume */}
+        <motion.div variants={fadeUp} className="flex justify-center">
+          <Button
+            variant="outline"
+            onClick={handleDownload}
+            disabled={isDownloading}
+            className="gap-2"
+          >
+            {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isDownloading ? 'Generating…' : 'Download Resume (PDF)'}
+          </Button>
+        </motion.div>
 
         {/* Hire Me CTA */}
         {profile.contactEmail && (
@@ -314,6 +377,28 @@ function PublicPortfolioContent() {
           </a>
         </motion.div>
       </motion.div>
+
+      {/* Hidden off-screen template for PDF generation */}
+      {resumeData && TemplateComponent && (
+        <div
+          ref={hiddenTemplateRef}
+          data-resume-template
+          style={{
+            position: 'fixed',
+            left: '-9999px',
+            top: 0,
+            width: '612px',
+            height: '792px',
+            transform: 'scale(1)',
+            transformOrigin: 'top left',
+            overflow: 'visible',
+          }}
+        >
+          <Suspense fallback={null}>
+            <TemplateComponent resume={resumeData} />
+          </Suspense>
+        </div>
+      )}
     </div>
   );
 }
