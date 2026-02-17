@@ -1,104 +1,58 @@
 
 
-## Real-Time ATS Score Trend Visualization Across Save Events
+## Auto-Refresh ATS Trend on Import and Edits via Lazy-Loaded Charts
 
 ### Overview
-Track ATS scores over time (each time a resume is scored after a save) and display a sparkline trend chart on the dashboard card and a detailed trend view on the resume detail page. This gives users a visual history of how their resume quality evolves with each edit.
+Currently, ATS score history is only recorded when explicit scoring happens (dashboard background scoring, manual re-score, import preview). Two key gaps exist:
+1. **Editor edits never trigger re-scoring** -- the editor auto-saves every 3s but never calls `scoreResume`, so the trend chart doesn't grow during editing sessions.
+2. **Import uses a throwaway temp ID** -- the `triggerATSScoring` in UploadPage generates a random UUID for the score cache, but when the resume is actually created with a real database ID, the initial import score is never recorded against that real ID.
+
+This plan closes both gaps so the ATS trend chart auto-refreshes after imports and edits.
 
 ---
 
-### How It Works
+### Changes
 
-1. Every time a resume is scored (after auto-save, manual re-score, or AI enhancement), the score is appended to a local history
-2. The dashboard `ResumeListCard` shows a tiny sparkline next to the `ScoreRing` indicating the trend direction
-3. The `ResumeDetailPage` shows a full trend chart with labeled data points
-4. History is stored locally in a Zustand store (persisted to localStorage) -- no database changes needed since ATS scores are already ephemeral/cached
+**1. Record the import ATS score under the real resume ID after import**
 
----
+File: `src/pages/UploadPage.tsx`
 
-### Implementation Steps
+In `handleImportConfirm`, after the resume is successfully created (we have `newResume.id`), check if `importATSScore` is available. If so, record it in the history store under the real ID:
 
-**Step 1: Create ATS Score History Store**
-
-New file: `src/store/atsScoreHistoryStore.ts`
-
-A small Zustand store with `persist` middleware:
-
-```text
-State shape:
-  history: Record<resumeId, Array<{ score: number; timestamp: string; categories: {...} }>>
-
-Actions:
-  addScore(resumeId, healthScore) -- appends to array, caps at 20 entries per resume
-  getHistory(resumeId) -- returns sorted array
-  clearHistory(resumeId) -- for delete cleanup
+```
+useATSScoreHistoryStore.getState().addScore(newResume.id, importATSScore);
 ```
 
-Each entry stores the overall score, timestamp, and the 4 category scores. Capped at 20 data points per resume to keep localStorage lean.
+This ensures the very first data point in the trend chart uses the permanent resume ID, not a discarded temp UUID.
 
-**Step 2: Record scores automatically in `useResumeScore`**
+**2. Auto-score after editor auto-save completes**
 
-File: `src/hooks/useResumeScore.ts`
+File: `src/pages/EditorPage.tsx`
 
-After a successful score is cached (line 144), also call `atsScoreHistoryStore.getState().addScore(resumeId, score)`. This is a single line addition that captures every scoring event across the entire app (dashboard background scoring, manual re-score, import scoring, editor scoring).
+After `saveToCloud` succeeds (line ~248, after `setLastSavedAt`), trigger a background ATS re-score using the `useResumeScore` hook. This is throttled to avoid excessive API calls:
 
-**Step 3: Create `ATSScoreTrendChart` component**
+- Import `useResumeScore` and `useATSScoreHistoryStore`
+- Add a `lastScoreTimeRef` ref initialized to 0
+- After successful save, check if at least 60 seconds have elapsed since the last score
+- If so, call `scoreResume(currentResumeId, resume, new Date().toISOString())` via `requestIdleCallback` to avoid blocking the UI
+- This automatically records to the history store (already wired in `useResumeScore`)
 
-New file: `src/components/dashboard/ATSScoreTrendChart.tsx`
+The 60-second throttle prevents hammering the edge function during active typing while still capturing meaningful edit checkpoints.
 
-Two modes:
-- **Sparkline mode** (compact): A tiny 80x32px area chart with no axes, just the line + gradient fill. Used on dashboard cards.
-- **Full mode**: A 280px-tall area chart with X-axis (date labels), Y-axis (0-100), colored zones (red < 50, amber 50-79, green >= 80), and tooltip on tap. Used on detail page.
+**3. Lazy-load the trend chart in ResumeDetailPage (already done, verify)**
 
-Uses `recharts` via the existing `chart.tsx` wrapper (`ChartContainer`, `ChartTooltip`).
-
-Shows a small trend arrow + delta badge (e.g., "+12 pts" in green or "-5 pts" in red) comparing the latest score to the previous one.
-
-**Step 4: Integrate sparkline into `ResumeListCard`**
-
-File: `src/components/dashboard/ResumeListCard.tsx`
-
-Below the `ScoreRing`, render a small `ATSScoreTrendChart` in sparkline mode when 2+ data points exist for that resume. Lazy-loaded to avoid loading recharts for users who haven't scored yet.
-
-**Step 5: Integrate full chart into `ResumeDetailPage`**
-
-File: `src/pages/ResumeDetailPage.tsx`
-
-Below the existing ATS Score section (after the `ScoreRing` and action buttons), add a collapsible "Score Trend" card with `ATSScoreTrendChart` in full mode. Only shown when 2+ historical data points exist.
-
-**Step 6: Clean up history on resume delete**
-
-File: `src/pages/DashboardPage.tsx`
-
-In `confirmDelete`, after `deleteResume.mutate` succeeds, call `clearHistory(resumeId)` to remove stale trend data.
+The `ATSScoreTrendChart` is already lazy-loaded via `lazyWithRetry` in both `ResumeListCard` and `ResumeDetailPage`. No changes needed here -- just confirming the charts will reactively show new data points since they read from the Zustand store (`useATSScoreHistoryStore`), which triggers re-renders on updates.
 
 ---
 
 ### Technical Details
 
-**No database changes required.** Score history is stored client-side in localStorage via Zustand persist. This is appropriate because:
-- ATS scores are already ephemeral (in-memory cache)
-- The trend is a convenience visualization, not critical data
-- Keeps the feature zero-latency with no API calls
-
-**Performance considerations:**
-- Recharts is already in the bundle but not yet imported anywhere -- it will be lazy-loaded via `React.lazy` wrapping the chart component
-- Sparkline renders are lightweight (no axes, no tooltip)
-- History capped at 20 entries per resume
-
-**Files to create:**
-
-| File | Purpose |
-|------|---------|
-| `src/store/atsScoreHistoryStore.ts` | Zustand store for score history |
-| `src/components/dashboard/ATSScoreTrendChart.tsx` | Sparkline + full trend chart |
-
-**Files to modify:**
-
 | File | Change |
-|------|---------|
-| `src/hooks/useResumeScore.ts` | Add 1 line to record score in history store after caching |
-| `src/components/dashboard/ResumeListCard.tsx` | Add lazy sparkline below ScoreRing |
-| `src/pages/ResumeDetailPage.tsx` | Add collapsible full trend chart in ATS section |
-| `src/pages/DashboardPage.tsx` | Clear history on resume delete |
+|------|--------|
+| `src/pages/UploadPage.tsx` | Record `importATSScore` under real resume ID after create |
+| `src/pages/EditorPage.tsx` | Add throttled post-save ATS scoring with `requestIdleCallback` |
+
+**No new files, no database changes, no new dependencies.**
+
+The throttle (60s minimum between scores) balances trend granularity against API cost. The `requestIdleCallback` wrapper ensures scoring never blocks typing or save operations on low-end devices.
 
