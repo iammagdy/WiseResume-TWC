@@ -1,25 +1,31 @@
-import { Zap } from 'lucide-react';
+import { useState } from 'react';
 import { useAICredits } from '@/hooks/useAICredits';
-import { cn } from '@/lib/utils';
+import { CreditRing } from '@/components/ai/CreditRing';
+import { CreditUsageSheet } from '@/components/ai/CreditUsageSheet';
+import { haptics } from '@/lib/haptics';
 
 export function AICreditsIndicator() {
   const { data: credits } = useAICredits();
+  const [showSheet, setShowSheet] = useState(false);
 
   if (!credits) return null;
 
-  const remaining = (credits.daily_limit || 20) - (credits.daily_usage || 0);
-  const percentage = ((credits.daily_usage || 0) / (credits.daily_limit || 20)) * 100;
-
-  const color = percentage >= 90
-    ? 'text-destructive'
-    : percentage >= 70
-    ? 'text-warning'
-    : 'text-primary';
+  const used = credits.daily_usage ?? 0;
+  const limit = credits.daily_limit ?? 20;
 
   return (
-    <div className={cn('flex items-center gap-1 text-xs font-medium', color)}>
-      <Zap className="w-3.5 h-3.5" />
-      <span>{remaining}</span>
-    </div>
+    <>
+      <button
+        onClick={() => {
+          haptics.light();
+          setShowSheet(true);
+        }}
+        className="touch-manipulation active:scale-95 transition-transform"
+        aria-label="View AI credit usage"
+      >
+        <CreditRing used={used} limit={limit} size={36} />
+      </button>
+      <CreditUsageSheet open={showSheet} onOpenChange={setShowSheet} />
+    </>
   );
 }

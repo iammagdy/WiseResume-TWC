@@ -3,11 +3,14 @@ import { v4 as uuidv4 } from 'uuid';
 import { useResumeStore } from '@/store/resumeStore';
 import { sendChatMessage, sendFunctionFeedback, ChatMessage, SuggestionProposal, FunctionResult } from '@/lib/agenticChat';
 import { haptics } from '@/lib/haptics';
+import { useAICreditsMutations } from './useAICredits';
+import { toast } from 'sonner';
 
 export function useAgenticChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const { currentResume, updateResume } = useResumeStore();
+  const { incrementUsage, checkCredits } = useAICreditsMutations();
 
   const executeFunctionCall = useCallback(
     (functionName: string, args: Record<string, unknown>): FunctionResult => {
@@ -175,6 +178,10 @@ export function useAgenticChat() {
     async (text: string) => {
       if (!text.trim() || isThinking) return;
 
+      // Check credits before sending
+      const hasCredits = await checkCredits();
+      if (!hasCredits) return;
+
       const userMsg: ChatMessage = {
         id: uuidv4(),
         role: 'user',
@@ -187,6 +194,10 @@ export function useAgenticChat() {
 
       try {
         const response = await sendChatMessage(text.trim(), messages, currentResume);
+
+        // Deduct credit on success
+        incrementUsage.mutate();
+        toast.success('1 credit used', { description: 'AI chat', duration: 2500, icon: '⚡' });
 
         if (response.type === 'function_call') {
           // Execute function locally

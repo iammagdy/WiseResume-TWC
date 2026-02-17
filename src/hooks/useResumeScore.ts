@@ -5,6 +5,7 @@ import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
+import { useAICreditsMutations } from './useAICredits';
 
 export interface ResumeHealthScore {
   overallScore: number;
@@ -129,6 +130,7 @@ export async function backgroundScore(resumeId: string, resume: ResumeData, upda
 
 export function useResumeScore() {
   const [scoringId, setScoringId] = useState<string | null>(null);
+  const { incrementUsage, checkCredits } = useAICreditsMutations();
 
   const getCachedScore = useCallback((resumeId: string, updatedAt: string): ResumeHealthScore | null => {
     return scoreCache.get(cacheKey(resumeId, updatedAt)) ?? null;
@@ -138,6 +140,10 @@ export function useResumeScore() {
     // Check cache first
     const cached = scoreCache.get(cacheKey(resumeId, updatedAt));
     if (cached) return cached;
+
+    // Check credits before scoring
+    const hasCredits = await checkCredits();
+    if (!hasCredits) return null;
 
     setScoringId(resumeId);
     try {
@@ -155,6 +161,8 @@ export function useResumeScore() {
 
       useAIHealthStore.getState().recordSuccess(result.latencyMs);
       trackGeminiUsage();
+      incrementUsage.mutate();
+      toast.success('1 credit used', { description: 'ATS scoring', duration: 2500, icon: '⚡' });
 
       const score: ResumeHealthScore = {
         ...result.data,

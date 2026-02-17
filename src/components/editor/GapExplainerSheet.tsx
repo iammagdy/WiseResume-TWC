@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { GapInfo, formatDuration } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
+import { useAIAction } from '@/hooks/useAIAction';
 
 
 interface GapExplainerSheetProps {
@@ -46,6 +47,7 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
   const [copied, setCopied] = useState(false);
   const [showReasonDropdown, setShowReasonDropdown] = useState(false);
   const [isEdited, setIsEdited] = useState(false);
+  const { execute: executeAI } = useAIAction({ operation: 'gap-explain' });
 
   // Find surrounding jobs for context
   const getSurroundingJobs = () => {
@@ -92,29 +94,30 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
     try {
       const { previousJob, nextJob } = getSurroundingJobs();
 
-      const { data, error } = await supabase.functions.invoke('explain-gap', {
-        body: {
-          gap: {
-            startDate: formatGapDate(gap.startDate),
-            endDate: formatGapDate(gap.endDate),
-            months: gap.months,
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('explain-gap', {
+          body: {
+            gap: {
+              startDate: formatGapDate(gap.startDate),
+              endDate: formatGapDate(gap.endDate),
+              months: gap.months,
+            },
+            reason: selectedReason,
+            previousJob,
+            nextJob,
+            additionalContext: additionalContext.trim() || undefined,
           },
-          reason: selectedReason,
-          previousJob,
-          nextJob,
-          additionalContext: additionalContext.trim() || undefined,
-        },
+        });
+
+        if (error) throw error;
+        if (data.error) throw new Error(data.error);
+        return data;
       });
 
-      if (error) throw error;
+      if (!result) return;
 
-      if (data.error) {
-        toast.error(data.error);
-        return;
-      }
-
-      setExplanation(data.explanation);
-      setTips(data.tips || []);
+      setExplanation(result.explanation);
+      setTips(result.tips || []);
       setIsEdited(false);
     } catch (err) {
       console.error('Error generating explanation:', err);

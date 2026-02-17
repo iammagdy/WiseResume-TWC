@@ -25,6 +25,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { useAIAction } from '@/hooks/useAIAction';
 
 
 interface OnePageWizardSheetProps {
@@ -71,6 +72,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
   const [viewState, setViewState] = useState<ViewState>('preview');
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<OnePageResult | null>(null);
+  const { execute: executeAI } = useAIAction({ operation: 'one-page' });
 
   const handleAnalyze = async () => {
     if (!currentResume) {
@@ -83,15 +85,20 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('one-page-optimizer', {
-        body: {
-          resume: currentResume,
-          preserveRecent: 2,
-        },
+      const data = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('one-page-optimizer', {
+          body: {
+            resume: currentResume,
+            preserveRecent: 2,
+          },
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Optimization failed');
+        return data;
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Optimization failed');
+      if (!data) { setViewState('preview'); return; }
 
       setResult(data);
       setViewState('results');

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { trackGeminiUsage } from '@/lib/aiProvider';
-import { useAICreditsMutations } from '@/hooks/useAICredits';
+import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 
@@ -30,7 +30,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [result, setResult] = useState<EnhanceResult | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
-  const { incrementUsage, checkCredits } = useAICreditsMutations();
+  const { execute: executeAI } = useAIAction({ operation: 'enhance' });
   const slowToastShown = useRef(false);
 
   const enhance = useCallback(async (
@@ -53,52 +53,53 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     }, 20_000);
 
     try {
-      // Check AI credits before proceeding
-      const hasCredits = await checkCredits();
-      if (!hasCredits) {
+      const data = await executeAI(async () => {
+        const _start = Date.now();
+        const { data, error } = await supabase.functions.invoke('enhance-section', {
+          body: {
+            section,
+            action,
+            currentContent,
+            context: {
+              resume: resumeContext,
+              jobDescription,
+            },
+          },
+        });
+        clearTimeout(slowTimer);
+        const _latency = Date.now() - _start;
+
+        if (error) {
+          useAIHealthStore.getState().recordFailure(0);
+          throw error;
+        }
+
+        if (data.error) {
+          if (data.error === 'rate_limit') {
+            toast.error('Too many requests. Please wait a moment and try again.');
+          } else if (data.error === 'payment_required') {
+            toast.error('AI credits exhausted. Please check your account.');
+          } else if (data.error === 'invalid_key') {
+            toast.error('Invalid Gemini API key. Please check your AI settings.');
+          } else {
+            toast.error(data.message || 'Failed to enhance content');
+          }
+          return null;
+        }
+
+        useAIHealthStore.getState().recordSuccess(_latency);
+        trackGeminiUsage();
+        data.improved = sanitizeAIContent(data.improved);
+        return data;
+      });
+
+      if (!data) {
         clearTimeout(slowTimer);
         setIsEnhancing(false);
         setCurrentAction(null);
         return null;
       }
 
-      const _start = Date.now();
-      const { data, error } = await supabase.functions.invoke('enhance-section', {
-        body: {
-          section,
-          action,
-          currentContent,
-          context: {
-            resume: resumeContext,
-            jobDescription,
-          },
-        },
-      });
-      clearTimeout(slowTimer);
-      const _latency = Date.now() - _start;
-
-      if (error) {
-        useAIHealthStore.getState().recordFailure(0);
-        throw error;
-      }
-
-      if (data.error) {
-        if (data.error === 'rate_limit') {
-          toast.error('Too many requests. Please wait a moment and try again.');
-        } else if (data.error === 'payment_required') {
-          toast.error('AI credits exhausted. Please check your account.');
-        } else if (data.error === 'invalid_key') {
-          toast.error('Invalid Gemini API key. Please check your AI settings.');
-        } else {
-          toast.error(data.message || 'Failed to enhance content');
-        }
-        return null;
-      }
-
-      useAIHealthStore.getState().recordSuccess(_latency);
-      trackGeminiUsage();
-      incrementUsage.mutate();
-      data.improved = sanitizeAIContent(data.improved);
       setResult(data);
       return data;
 
