@@ -1,30 +1,69 @@
 
 
-## Persist Template Changes Immediately to Database
+## Redesign Toast Notifications from Scratch
 
-### Problem
+### What Changes
 
-When you pick a new template in the editor, it updates the local state but relies on a 3-second debounced auto-save to write it to the database. If you close the editor or navigate away quickly, the template change can be lost.
+Replace the current heavy "premium card" toast design with a clean, minimal iOS-style pill that appears at the top center. No close buttons, no progress bars -- just a compact icon + text pill that auto-dismisses.
 
-### Solution
+### Current Issues Being Fixed
 
-Trigger an immediate database save right after a template is selected in the `TemplateSelector`, bypassing the 3-second debounce.
+- Empty toasts appearing (caused by complex CSS overrides conflicting with Sonner internals)
+- Duplicate toast stacking issues
+- Overly complex CSS with `!important` overrides fighting Sonner defaults
+- Progress bar animation sometimes rendering on empty toasts
 
-### Technical Details
+### New Design: Minimal Pill
 
-**File: `src/components/editor/TemplateSelector.tsx`** (2 changes)
+- Compact rounded pill (border-radius: 9999px)
+- Colored dot indicator (green/red/amber/blue) instead of large icons
+- Single line of text, no description support
+- Subtle drop shadow, solid background (no glassmorphism on toasts)
+- Slides down from top with a spring animation
+- Max 3 visible, stacked with slight scale reduction
+- Auto-dismiss at 3 seconds (errors at 5 seconds)
+- No close button, no swipe, no haptics
 
-1. Accept a new optional `onTemplateApplied` callback prop
-2. Call it after updating local state in `handleSelect`
+### Technical Plan
 
-**File: `src/pages/EditorPage.tsx`** (1 change)
+**File 1: `src/index.css`** (remove old toast CSS)
+- Delete the entire "Premium Toast Surface" section (lines 1043-1146): keyframes, `.toast-premium`, `.toast-*-accent`, progress bar, mobile overrides
+- Add new minimal pill styles (~30 lines):
+  - `.toast-pill` -- compact pill with solid background, rounded-full, centered text
+  - `.toast-dot-success/error/warning/info` -- small 8px colored dot indicators
+  - `@keyframes toast-pill-in` -- subtle slide-down + fade entrance
+  - Mobile override for safe-area-inset-top
 
-1. Pass an `onTemplateApplied` callback to `TemplateSelector` that calls `saveToCloud()` immediately (the same function used by auto-save), skipping the 3-second debounce. Use a small `setTimeout(0)` to ensure the Zustand store has flushed first.
+**File 2: `src/components/ui/sonner.tsx`** (rewrite Toaster config)
+- Remove custom icon overrides (CheckCircle2, XCircle, etc.)
+- Replace with small colored dot `<span>` elements as icons
+- Update `toastOptions.classNames` to use new `.toast-pill` class
+- Set `visibleToasts={3}` to cap stacking
+- Set `duration={3000}` (shorter for minimal pills)
+- Keep `closeButton={false}` and `position="top-center"`
+- Add `gap={8}` for tighter stacking
+
+**No changes to toast call sites** -- all 89 files using `toast.success()`, `toast.error()`, etc. continue working identically since we're only changing the visual presentation layer.
+
+### Visual Preview
+
+```text
+       ┌──────────────────────────┐
+       │  ●  Resume saved         │   <-- green dot, pill shape
+       └──────────────────────────┘
+       ┌──────────────────────────┐
+       │  ●  Upload failed        │   <-- red dot, pill shape
+       └──────────────────────────┘
+```
+
+### Summary
 
 | Item | Detail |
 |------|--------|
-| Files changed | `TemplateSelector.tsx`, `EditorPage.tsx` |
-| Mechanism | Immediate `saveToCloud()` call after template selection |
-| Fallback | Debounced auto-save still runs as a safety net |
-| Risk | None -- uses existing save logic, just triggers it sooner |
+| Files changed | `src/index.css`, `src/components/ui/sonner.tsx` |
+| Toast call sites changed | 0 (all 89 files untouched) |
+| Dependencies | None (still using Sonner) |
+| Haptics | None per your preference |
+| Stacking | Max 3 visible |
+| Dismissal | Auto-dismiss only (3s default, 5s errors) |
 
