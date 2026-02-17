@@ -1,145 +1,79 @@
 
 
-## Analysis: Claimed Enhancements vs Actual State
+## Client-Side PDF Download for Public Portfolio
 
-After reviewing the database schema, RPC function, frontend code, and edge functions, here is a detailed gap analysis.
-
----
-
-### 1. Download Resume Button -- NOT IMPLEMENTED
-
-**Claimed**: A "Download Resume (PDF)" button on the public portfolio page.
-
-**Actual**: The `PublicPortfolioPage.tsx` has no download button. The file shown in `current-code` context (from an earlier version) had it, but the current deployed code does not. The link `href="/api/resumes/{id}/pdf"` also wouldn't work -- there's no such API route in this project.
-
-**Fix needed**:
-- Add a download button to `PublicPortfolioPage.tsx`
-- Generate the PDF client-side using the existing `pdfGenerator.ts` utility, or link to a proper endpoint
-- The RPC needs to return the resume `id` field (currently it does NOT include `id` in the response)
+### What We're Building
+A "Download Resume (PDF)" button on the public portfolio page that generates a professional PDF using the same template engine the app already uses for resume exports.
 
 ---
 
-### 2. Expanded Social Links (GitHub, Website, Twitter) -- NOT IMPLEMENTED
+### Current Gap
+The existing `generatePDF` utility works by capturing a rendered resume template from the DOM via `html2canvas`. The public portfolio page currently:
+- Has no rendered resume template (only the portfolio layout)
+- Does not receive `template_id` from the backend RPC
+- Has a placeholder comment where the download button should be
 
-**Claimed**: GitHub, Website, and X (Twitter) URLs are saved and displayed.
-
-**Actual**:
-- **Database**: The `profiles` table has NO columns for `github_url`, `website_url`, or `twitter_url`
-- **RPC**: `get_public_portfolio` does not return these fields
-- **usePublicPortfolio.ts**: The `PublicProfile` interface does NOT include `githubUrl`, `websiteUrl`, or `twitterUrl`
-- **PublicPortfolioPage.tsx**: Only renders LinkedIn link, no GitHub/Website/Twitter
-- **ProfilePage.tsx**: No input fields for these URLs
-
-**Fix needed**:
-- Add `github_url`, `website_url`, `twitter_url` columns to `profiles` table
-- Update the RPC to return them
-- Add input fields in ProfilePage.tsx
-- Update useProfile.ts Profile interface and mapping
-- Update usePublicPortfolio.ts PublicProfile interface
-- Render them in PublicPortfolioPage.tsx
+The same off-screen rendering pattern is already used successfully on the Resume Detail page.
 
 ---
 
-### 3. Theme Customization -- NOT IMPLEMENTED
+### Implementation Steps
 
-**Claimed**: Users can select a theme for their portfolio page.
+**Step 1: Database Migration -- Add `template_id` to RPC response**
 
-**Actual**:
-- **Database**: No `theme` column exists in `profiles` table
-- **ProfilePage.tsx**: No theme selector for portfolio
-- **PublicPortfolioPage.tsx**: No theme application logic
-- **usePublicPortfolio.ts**: No `theme` field in PublicProfile
+Update the `get_public_portfolio` RPC to include `v_resume.template_id` in the returned JSON object. This is a single-line addition to the existing `jsonb_build_object` call.
 
-**Fix needed**:
-- Add `theme` column to `profiles` table (text, nullable, default null)
-- Add theme selector in ProfilePage portfolio section
-- Update RPC to return theme
-- Apply theme on PublicPortfolioPage
+**Step 2: Update `usePublicPortfolio.ts`**
 
----
+- Add `templateId` field to the `PublicResume` interface
+- Map it from the RPC response (`resume.templateId`)
 
-### 4. "Hire Me" CTA -- NOT IMPLEMENTED
+**Step 3: Update `PublicPortfolioPage.tsx`**
 
-**Claimed**: A "Hire Me" button with mailto link using contact email.
+Add the following:
 
-**Actual**:
-- **Database**: No `contact_email` column in `profiles` table
-- **PublicPortfolioPage.tsx**: No "Hire Me" button
-- **ProfilePage.tsx**: No contact email input field
+1. **Hidden off-screen template**: Render the selected resume template in a fixed, off-screen `div` (same pattern as `ResumeDetailPage.tsx` -- `position: fixed; left: -9999px; width: 612px; height: 792px`). This provides the DOM node that `generatePDF` needs to capture.
 
-**Fix needed**:
-- Add `contact_email` column to profiles
-- Add input in ProfilePage
-- Update RPC
-- Add button in PublicPortfolioPage
+2. **Convert PublicResume to ResumeData**: Create a mapping function that transforms the portfolio's `PublicResume` + `PublicProfile` data into a full `ResumeData` object (filling in `contactInfo` from the profile).
+
+3. **Download button**: A prominent button with a loading spinner that:
+   - Dynamically imports `pdfGenerator` (keeps initial bundle small)
+   - Calls `generatePDF(resumeData, templateId, hiddenRef.current)`
+   - Uses the existing `downloadFile` utility for cross-platform download
+   - Shows a toast on success/failure
+   - Uses the filename pattern: `{FullName}_Resume.pdf`
+
+4. **Placement**: The button will sit between the social links and the "Hire Me" CTA, styled as an outlined/secondary button with a Download icon.
 
 ---
 
-### 5. View Tracking -- NOT IMPLEMENTED
+### Technical Details
 
-**Claimed**: A `track-portfolio-view` edge function increments a `views` counter.
+**ResumeData mapping from PublicResume:**
+```text
+contactInfo: {
+  fullName: profile.fullName,
+  email: '' (stripped by RPC for privacy),
+  phone: '',
+  location: profile.location || '',
+  linkedin: profile.linkedinUrl || ''
+}
+summary: resume.summary
+experience: resume.experience
+education: resume.education
+skills: resume.skills
+templateId: resume.templateId
+(+ all other sections)
+```
 
-**Actual**:
-- **Database**: No `views` column in `profiles` table
-- **Edge Function**: `track-portfolio-view` directory does NOT exist (file not found)
-- **PublicPortfolioPage.tsx**: No call to any view tracking function
+**Template lazy loading:**
+Import `templateComponents` from `TemplateThumbnail.tsx` (already exports all 30 templates as lazy components). Wrap in `Suspense` with null fallback since it's off-screen.
 
-**Fix needed**:
-- Add `views` integer column (default 0) to profiles
-- Create `track-portfolio-view` edge function with proper CORS and SQL increment
-- Call it from PublicPortfolioPage on load
+**Files to change:**
 
----
+| File | Change |
+|------|--------|
+| Database migration | Add `template_id` to RPC's resume JSON |
+| `src/hooks/usePublicPortfolio.ts` | Add `templateId` to `PublicResume`, map from response |
+| `src/pages/PublicPortfolioPage.tsx` | Add hidden template, download button, ResumeData mapping |
 
-### 6. RPC Updates -- PARTIALLY DONE
-
-The `get_public_portfolio` RPC does NOT return: `githubUrl`, `websiteUrl`, `twitterUrl`, `contactEmail`, `theme`, `views`, or `resume.id`. It only returns the fields that existed before the claimed enhancements.
-
----
-
-## Implementation Plan
-
-### Step 1: Database Migration
-Add 5 new columns to `profiles` and update the RPC:
-- `github_url TEXT`
-- `website_url TEXT`
-- `twitter_url TEXT`
-- `contact_email TEXT`
-- `portfolio_theme TEXT DEFAULT NULL`
-- `views INTEGER DEFAULT 0`
-
-Update `get_public_portfolio` to return all new fields plus `resume.id`.
-
-### Step 2: Create `track-portfolio-view` Edge Function
-- POST endpoint that increments `views` column using raw SQL increment (`views + 1`)
-- Include proper CORS headers
-- No auth required (public endpoint)
-
-### Step 3: Update `useProfile.ts`
-- Add all new fields to the Profile interface
-- Update `fetchProfile` select query
-- Update `updateMutation` mapping
-
-### Step 4: Update `ProfilePage.tsx`
-- Add input fields for GitHub URL, Website URL, X (Twitter) URL, Contact Email
-- Add a portfolio theme selector (System/Light/Dark)
-- Include new fields in `handleSavePortfolio`
-
-### Step 5: Update `usePublicPortfolio.ts`
-- Add `githubUrl`, `websiteUrl`, `twitterUrl`, `contactEmail`, `theme`, `views` to `PublicProfile`
-- Add `id` to `PublicResume`
-- Map all new fields in the fetch function
-
-### Step 6: Update `PublicPortfolioPage.tsx`
-- Add social links row (GitHub, Website, X) next to LinkedIn
-- Add "Hire Me" mailto button when contactEmail exists
-- Add "Download Resume" button (client-side PDF generation)
-- Apply portfolio theme on mount
-- Call `track-portfolio-view` on mount
-- Clean up theme on unmount
-
-### Technical Notes
-- The view tracking edge function must use `SET views = views + 1` (not a string like the original broken attempt)
-- The PDF download can use the existing `pdfGenerator.ts` but needs the full resume data from the RPC
-- Portfolio theme should use `data-theme` attribute or class toggling, matching the existing ThemeDropdown pattern
-- All new profile fields need to be included in the `EditProfileSheet.tsx` initial state sync
