@@ -27,6 +27,15 @@ import { scoreJobMatch, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
 
+const STATUS_BADGE_CLASSES: Record<ApplicationStatus, string> = {
+  saved: 'bg-muted/50 text-muted-foreground border-muted',
+  applied: 'bg-primary/10 text-primary border-primary/30',
+  screening: 'bg-warning/10 text-warning border-warning/30',
+  interviewing: 'bg-accent/20 text-accent-foreground border-accent/30',
+  offer: 'bg-success/10 text-success border-success/30',
+  rejected: 'bg-destructive/10 text-destructive border-destructive/30',
+};
+
 function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: Job; onClick: () => void; matchScore: JobMatchResult | null; onTailor: () => void; onMarkApplied: () => void }) {
   return (
     <motion.div
@@ -240,6 +249,7 @@ export default function ApplicationsPage() {
                   {applications.map(app => {
                     const isInterviewing = app.status === 'interviewing' || app.status === 'screening';
                     const remindDue = app.remind_at && isBefore(new Date(app.remind_at), addDays(new Date(), 1));
+                    const deadlineSoon = app.deadline && !isInterviewing && isBefore(new Date(app.deadline), addDays(new Date(), 3)) && !isBefore(new Date(app.deadline), new Date());
                     return (
                       <motion.div
                         key={app.id}
@@ -269,13 +279,18 @@ export default function ApplicationsPage() {
                                 Interview: {format(new Date(app.deadline), 'MMM d, h:mm a')}
                               </p>
                             )}
+                            {deadlineSoon && (
+                              <Badge variant="secondary" className="text-[10px] mt-1 bg-destructive/15 text-destructive border-destructive/30">
+                                Deadline soon
+                              </Badge>
+                            )}
                             {remindDue && (
                               <Badge variant="secondary" className="text-[10px] mt-1 bg-warning/15 text-warning border-warning/30">
                                 Follow-up due
                               </Badge>
                             )}
                           </div>
-                          <Badge variant="outline" className="text-[10px] shrink-0">{app.status}</Badge>
+                          <Badge variant="outline" className={`text-[10px] shrink-0 ${STATUS_BADGE_CLASSES[app.status as ApplicationStatus] || ''}`}>{app.status}</Badge>
                         </button>
 
                         {/* Action buttons */}
@@ -299,7 +314,19 @@ export default function ApplicationsPage() {
                     );
                   })}
                 </div>
-              ) : null}
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <FileText className="w-12 h-12 mb-3 opacity-30" />
+                  <p className="font-medium">No applications yet</p>
+                  <p className="text-sm mt-1 mb-4 text-center px-4">Start tracking your job applications to stay organized</p>
+                  <button
+                    onClick={() => { haptics.light(); setShowAdd(true); }}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add Application
+                  </button>
+                </div>
+              )}
 
               {/* Timeline */}
               <div id="activity-timeline">

@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic } from 'lucide-react';
+import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -240,14 +241,31 @@ export default function ApplicationTrackerPage() {
         </div>
 
         {/* Delete */}
-        <Button
-          variant="outline"
-          className="w-full gap-2 text-destructive hover:text-destructive border-destructive/30"
-          onClick={handleDelete}
-          disabled={deleteApplication.isPending}
-        >
-          <Trash2 className="w-4 h-4" /> Delete Application
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              className="w-full gap-2 text-destructive hover:text-destructive border-destructive/30"
+              disabled={deleteApplication.isPending}
+            >
+              <Trash2 className="w-4 h-4" /> Delete Application
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete application?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove the application for <strong>{app.job_title}</strong> at <strong>{app.company}</strong>. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <FollowUpEmailSheet
