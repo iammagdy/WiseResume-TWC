@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, Copy, Check, Sparkles, Loader2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, Copy, Check, Sparkles, Loader2, ExternalLink, CheckCircle2, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -33,11 +34,15 @@ export default function ProfilePage() {
   // Portfolio state
   const [username, setUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [bio, setBio] = useState('');
   const [portfolioEnabled, setPortfolioEnabled] = useState(false);
   const [generatingBio, setGeneratingBio] = useState(false);
   const [copied, setCopied] = useState(false);
   const [savingPortfolio, setSavingPortfolio] = useState(false);
+  const [selectedResumeId, setSelectedResumeId] = useState<string>('');
+  const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sync profile data to local state
   useEffect(() => {
@@ -47,6 +52,53 @@ export default function ProfilePage() {
       setPortfolioEnabled(profile.portfolioEnabled || false);
     }
   }, [profile]);
+
+  // Init selectedResumeId when resumes load
+  useEffect(() => {
+    if (resumes.length > 0 && !selectedResumeId) {
+      const primary = resumes.find(r => r.is_primary);
+      setSelectedResumeId(primary?.id || resumes[0].id);
+    }
+  }, [resumes, selectedResumeId]);
+
+  // Debounced username availability check
+  useEffect(() => {
+    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
+    
+    if (!username || username.length < 3 || usernameError) {
+      setUsernameAvailable(null);
+      setCheckingUsername(false);
+      return;
+    }
+
+    // Skip check if username hasn't changed from profile
+    if (profile?.username === username) {
+      setUsernameAvailable(true);
+      setCheckingUsername(false);
+      return;
+    }
+
+    setCheckingUsername(true);
+    setUsernameAvailable(null);
+
+    usernameCheckRef.current = setTimeout(async () => {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', username)
+          .neq('user_id', user!.id)
+          .maybeSingle();
+        setUsernameAvailable(!data);
+      } catch {
+        setUsernameAvailable(null);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500);
+
+    return () => { if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current); };
+  }, [username, usernameError, user, profile?.username]);
 
   if (!user) return null;
 
@@ -99,9 +151,9 @@ export default function ProfilePage() {
 
   const handleGenerateBio = async () => {
     if (!user) return;
-    const primaryResume = resumes.find(r => r.is_primary) || resumes[0];
-    if (!primaryResume?.summary && !profile?.jobTitle && (!primaryResume?.experience || (primaryResume.experience as any[]).length === 0)) {
-      toast.error('Please add a summary, job title, or experience to your resume first.');
+    const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes.find(r => r.is_primary) || resumes[0];
+    if (!selectedResume?.summary && !profile?.jobTitle && (!selectedResume?.experience || (selectedResume.experience as any[]).length === 0)) {
+      toast.error('The selected resume has no summary or experience. Please choose a different resume or add details first.');
       return;
     }
     setGeneratingBio(true);
@@ -115,10 +167,10 @@ export default function ProfilePage() {
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
-          summary: primaryResume?.summary || '',
+          summary: selectedResume?.summary || '',
           fullName: profile?.fullName || '',
           jobTitle: profile?.jobTitle || '',
-          experience: primaryResume?.experience || [],
+          experience: selectedResume?.experience || [],
         }),
       });
       if (!res.ok) {
@@ -228,7 +280,49 @@ export default function ProfilePage() {
               />
             </div>
             {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
+            {!usernameError && username.length >= 3 && (
+              <div className="flex items-center gap-1.5">
+                {checkingUsername && (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Checking...</span>
+                  </>
+                )}
+                {!checkingUsername && usernameAvailable === true && (
+                  <>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                    <span className="text-xs text-green-500">Available</span>
+                  </>
+                )}
+                {!checkingUsername && usernameAvailable === false && (
+                  <>
+                    <XCircle className="w-3.5 h-3.5 text-destructive" />
+                    <span className="text-xs text-destructive">Taken</span>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Source Resume */}
+          {resumes.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Source Resume</label>
+              <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a resume" />
+                </SelectTrigger>
+                <SelectContent>
+                  {resumes.map(r => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.title}{r.is_primary ? ' ★' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Used for AI bio generation</p>
+            </div>
+          )}
 
           {/* Bio */}
           <div className="space-y-1.5">
@@ -283,7 +377,7 @@ export default function ProfilePage() {
           {/* Save Button */}
           <Button
             onClick={handleSavePortfolio}
-            disabled={savingPortfolio || !!usernameError}
+            disabled={savingPortfolio || !!usernameError || usernameAvailable === false || checkingUsername}
             className="w-full h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation"
           >
             {savingPortfolio ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
