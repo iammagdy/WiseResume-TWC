@@ -1,29 +1,27 @@
 
 
-## Fix: Close Button Overlapping Count Badge in ResumeListSheet
+## Fix: AI Health Badge Overlapping Profile Photo on Dashboard
 
 ### Problem
-In the "Tailored Versions" (and "Resumes Created") bottom sheet, the count badge uses `ml-auto` to push itself to the far right of the header row. The Sheet component's close button (X) is absolutely positioned at `right-4 top-4`. Both elements occupy the same space, causing the X button to sit directly on top of the badge.
-
-### Root Cause
-The `SheetHeader` in `ResumeListSheet.tsx` uses `px-6` padding, but the close button is positioned at `right-4` (16px from edge). The badge with `ml-auto` extends to the right edge of the header's content area, which overlaps with the close button's hit area.
+The AI Health Badge is absolutely positioned at `top-2 right-3` in `AppShell.tsx`, while the Dashboard page has its own header with the profile avatar button at the top-right. Both elements occupy the same corner, causing the badge to sit directly on top of the profile photo.
 
 ### Solution
-Add right padding to the header's inner `div` to reserve space for the close button. This is a single-line change.
+Remove `/dashboard` from the `AI_ROUTES` list in `AppShell.tsx`. The dashboard already has its own header with contextual controls (profile avatar, notifications). The AI health status is not critical information on the dashboard -- it is more relevant on pages where users actively use AI features (editor, AI studio, interview, etc.).
 
-**File: `src/components/applications/ResumeListSheet.tsx` (line 84)**
+This is the simplest and cleanest fix: the dashboard does not need a global AI status indicator competing with its own header controls.
 
-Change the header row from:
+### Technical Details
+
+**File: `src/components/layout/AppShell.tsx` (line 12)**
+
+Remove `'/dashboard'` from the `AI_ROUTES` array:
+
 ```
-<div className="flex items-center gap-2">
-```
-to:
-```
-<div className="flex items-center gap-2 pr-10">
+// Before
+const AI_ROUTES = ['/editor', '/ai-studio', '/interview', '/cover-letter', '/career', '/dashboard', '/resignation-letter'];
+
+// After
+const AI_ROUTES = ['/editor', '/ai-studio', '/interview', '/cover-letter', '/career', '/resignation-letter'];
 ```
 
-The `pr-10` (40px) creates enough clearance for the 44x44px close button so the badge and X no longer overlap.
-
-### Other Sheets
-Scanned all other Sheet headers across the app -- only `ResumeListSheet` has this issue because it is the only sheet that places an `ml-auto` element in the header row competing with the close button's position. No other fixes needed.
-
+This is a single-line change with no side effects. The badge will continue to appear on all other AI-heavy pages where there is no header conflict.
