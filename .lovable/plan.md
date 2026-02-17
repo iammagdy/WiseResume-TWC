@@ -1,50 +1,38 @@
 
 
-## Fix: Old Background Scores Polluting Credited Activity
+## Clean Reset: Wipe Today's Activity and Reset Credits
 
-### Root Cause
+### What's Happening
 
-The database has **356 old log entries** from today with `metadata = null`. These are all background ATS scores created **before** the edge function was updated to tag them with `{ background: true }`. Only 5 recent entries have the correct flag.
+The database data is actually correctly tagged (all 362 ATS Score entries have `background: true` metadata), and the UI code has the right logic to separate them. The stale entries you're seeing are likely from a cached version of the component before our latest fix was deployed.
 
-The UI code (`isBackground()`) correctly checks for `metadata.background === true`, but since old entries lack this flag, they all appear as "Credited Activity" with "-1 credit" -- which is completely wrong and misleading.
+Rather than debugging the cache, we'll do a full clean reset as you requested.
 
-### Two-Part Fix
+### Steps
 
-**1. Clean up existing data** (database migration)
+**1. Database cleanup** (two SQL statements)
 
-Run a one-time UPDATE to retroactively tag old background scores. The logic: if the `increment_ai_usage` RPC was never called for a log entry, it was a background call. Since background scores fire in rapid succession (every 2-3 seconds), we can identify them by pattern -- but the safest approach is: the `ai_credits` table tracks the **actual** credit count. Today's `daily_usage` is the true number. Any `score` entries beyond that count are background entries.
+- Delete ALL of today's `ai_usage_logs` entries to wipe the activity history clean
+- Reset `ai_credits` to `daily_usage = 0` and `total_usage = 0` so the counter shows 0/20
 
-Simpler approach: since background scores happen in rapid bursts (multiple entries within seconds of each other) and we know only ~9 were user-initiated today, we tag all `score` entries with null metadata as background:
+**2. Force UI refresh**
 
-```sql
-UPDATE ai_usage_logs
-SET metadata = '{"background": true}'::jsonb
-WHERE action_type = 'score'
-  AND metadata IS NULL
-  AND created_at >= CURRENT_DATE;
-```
-
-**2. Future-proof the UI** (`src/components/ai/CreditUsageSheet.tsx`)
-
-Add a fallback heuristic: if `metadata` is null AND the `action_type` is `score` AND there are many such entries clustered together, treat them as background. This prevents the same issue if any edge case causes a null metadata entry in the future.
-
-Specifically: treat any `score` entry with `null` metadata as background, since user-initiated scores always go through `recordUsage(userId, 'score')` without metadata, but the `increment_ai_usage` RPC is what actually counts credits. We can cross-reference: if total score entries with null metadata exceeds the daily_usage count, the extras are background.
-
-Actually, the cleanest approach:
-- Run the migration to fix existing data
-- In the UI, treat `score` entries with `null` metadata as background too (defensive fallback)
+- Add `refetchOnMount: 'always'` to the activity query in `CreditUsageSheet.tsx` so it always fetches fresh data when opened
+- This ensures the sheet never shows stale cached data
 
 ### Technical Details
 
-| Step | File | Change |
-|------|------|--------|
-| 1 | Database migration | UPDATE all `score` entries with null metadata today to `{"background": true}` |
-| 2 | `src/components/ai/CreditUsageSheet.tsx` | In `isBackground()`, also return `true` when metadata is null AND action_type is `score` -- pass action_type to the function |
+| Step | Target | Action |
+|------|--------|--------|
+| 1 | `ai_usage_logs` table | `DELETE FROM ai_usage_logs WHERE created_at >= CURRENT_DATE` |
+| 2 | `ai_credits` table | `UPDATE ai_credits SET daily_usage = 0, total_usage = 0, updated_at = now()` |
+| 3 | `CreditUsageSheet.tsx` | Add `refetchOnMount: 'always'` and `staleTime: 0` to the activity query |
 
-### Why This Works
+### Result
 
-- The migration fixes all 356 existing bad entries immediately
-- The UI fallback ensures any future null-metadata score entries default to "background"
-- User-initiated scores (enhance, tailor, cover-letter, etc.) are never affected since they have different action types
-- The credited activity section will show only the real user-initiated actions that actually cost credits
+- Credit ring: **0 / 20**
+- Credited Activity: **empty** ("No credited AI actions yet today")
+- Background Activity: **hidden** (no entries)
+- Lifetime usage: **0 credits**
+- Every new AI action you take will correctly appear in the right section going forward
 
