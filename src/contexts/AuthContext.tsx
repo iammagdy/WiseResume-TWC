@@ -2,6 +2,7 @@ import React, { createContext, useEffect, useState, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { Capacitor } from '@capacitor/core';
+import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 
 const SESSION_CACHE_KEY = 'sb-auth-session-cache';
 
@@ -77,6 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       activeUserIdRef.current = user?.id ?? null;
       cacheSession(user, session);
+      if (user) migrateLocalKeysToServer();
       setState(prev => {
         if (prev.user?.id === user?.id && !prev.loading) {
           return prev;
