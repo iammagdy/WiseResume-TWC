@@ -20,6 +20,7 @@ const BACK_ROUTES: Record<string, string> = {
   '/job': '/applications',
   '/application': '/applications',
   '/notifications': '/dashboard',
+  '/portfolio': '/profile',
   '/cover-letter': '/dashboard',
   '/cover-letters': '/dashboard',
   '/resignation-letters': '/dashboard',

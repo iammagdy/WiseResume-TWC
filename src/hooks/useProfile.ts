@@ -25,6 +25,9 @@ interface Profile {
   contactEmail: string | null;
   theme: string | null;
   phoneNumber: string | null;
+  portfolioSections: Record<string, boolean> | null;
+  portfolioMetaTitle: string | null;
+  portfolioMetaDescription: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -66,7 +69,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, views, phone_number')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, views, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -95,6 +98,9 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       contactEmail: (data as Record<string, unknown>).contact_email as string | null,
       theme: (data as Record<string, unknown>).portfolio_theme as string | null,
       phoneNumber: (data as Record<string, unknown>).phone_number as string | null,
+      portfolioSections: (data as Record<string, unknown>).portfolio_sections as Record<string, boolean> | null,
+      portfolioMetaTitle: (data as Record<string, unknown>).portfolio_meta_title as string | null,
+      portfolioMetaDescription: (data as Record<string, unknown>).portfolio_meta_description as string | null,
     };
   }
 
@@ -121,6 +127,9 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     contactEmail: null,
     theme: null,
     phoneNumber: null,
+    portfolioSections: null,
+    portfolioMetaTitle: null,
+    portfolioMetaDescription: null,
   };
 
   // Create the row via upsert
@@ -171,6 +180,9 @@ export function useProfile(userId: string | undefined, user?: User | null) {
         contact_email: updates.contactEmail !== undefined ? updates.contactEmail : profile?.contactEmail ?? null,
         portfolio_theme: updates.theme !== undefined ? updates.theme : profile?.theme ?? null,
         phone_number: updates.phoneNumber !== undefined ? updates.phoneNumber : profile?.phoneNumber ?? null,
+        portfolio_sections: updates.portfolioSections !== undefined ? updates.portfolioSections : profile?.portfolioSections ?? null,
+        portfolio_meta_title: updates.portfolioMetaTitle !== undefined ? updates.portfolioMetaTitle : profile?.portfolioMetaTitle ?? null,
+        portfolio_meta_description: updates.portfolioMetaDescription !== undefined ? updates.portfolioMetaDescription : profile?.portfolioMetaDescription ?? null,
       };
 
       const { error } = await supabase

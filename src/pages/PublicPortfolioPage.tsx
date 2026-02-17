@@ -163,7 +163,8 @@ function PublicPortfolioContent() {
     if (portfolio?.profile) {
       const name = portfolio.profile.fullName || portfolio.profile.username;
       const title = portfolio.profile.jobTitle;
-      document.title = title ? `${name} — ${title}` : name;
+      // Use custom meta title if set, otherwise default
+      document.title = portfolio.profile.metaTitle || (title ? `${name} — ${title}` : name);
 
       if (portfolio.profile.theme) {
         document.documentElement.setAttribute("data-theme", portfolio.profile.theme);
@@ -177,7 +178,8 @@ function PublicPortfolioContent() {
         meta.setAttribute('name', 'description');
         document.head.appendChild(meta);
       }
-      meta.setAttribute('content', portfolio.profile.portfolioBio || `${name}'s professional portfolio`);
+      // Use custom meta description if set, otherwise bio, otherwise default
+      meta.setAttribute('content', portfolio.profile.metaDescription || portfolio.profile.portfolioBio || `${name}'s professional portfolio`);
     }
     return () => { document.title = 'WiseResume'; document.documentElement.removeAttribute("data-theme"); };
   }, [portfolio]);
@@ -203,13 +205,16 @@ function PublicPortfolioContent() {
   if (error || !portfolio) return <NotFound />;
 
   const { profile, resume } = portfolio;
+  const sections = profile.portfolioSections;
   const initials = profile.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
-  const hasExperience = resume.experience?.length > 0;
-  const hasEducation = resume.education?.length > 0;
-  const hasSkills = resume.skills?.length > 0;
-  const hasProjects = resume.projects?.length > 0;
-  const hasCerts = resume.certifications?.length > 0;
+  const show = (key: string) => !sections || (sections as unknown as Record<string, boolean>)[key] !== false;
+
+  const hasExperience = show('experience') && resume.experience?.length > 0;
+  const hasEducation = show('education') && resume.education?.length > 0;
+  const hasSkills = show('skills') && resume.skills?.length > 0;
+  const hasProjects = show('projects') && resume.projects?.length > 0;
+  const hasCerts = show('certifications') && resume.certifications?.length > 0;
 
   return (
     <div className="min-h-screen bg-background">
