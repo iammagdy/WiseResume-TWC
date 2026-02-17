@@ -1,39 +1,32 @@
 
 
-## Fix: Template Not Syncing to Actual Resume Template
+## Add Template Gallery Button to the Editor
 
-### Problem
+### What You'll Get
 
-When a resume is loaded in the editor, the `selectedTemplate` in the Zustand store is never updated from the database resume's actual `template_id`. The editor hydration (line 130-131 of `EditorPage.tsx`) sets `currentResume` but does not call `setSelectedTemplate()`. As a result:
+A new "Template" button in the editor header that opens the existing template gallery sheet, letting you switch templates without leaving the editor. It will appear:
 
-- The live preview always renders with the stale/default template (`modern`)
-- The template badge on the Resume Detail page shows the correct DB value, but the editor preview shows the wrong template
-- If the user never manually picks a template, the auto-save writes `templateId: 'modern'` back to the DB, overwriting whatever template was previously set
+- **Desktop**: As a labeled icon button in the header toolbar (next to Design, Live Preview, and Wise AI)
+- **Mobile**: As a new entry in the "Editor Tools" bottom sheet (under Quick Actions)
 
-### Fix
+The button will use the `LayoutGrid` icon from Lucide and show the current template name as a subtle label.
 
-**File: `src/pages/EditorPage.tsx`** (1 change)
+### Technical Details
 
-In the hydration `useEffect` (around line 130), after setting `currentResume`, also sync `selectedTemplate` from the DB resume's `template_id`:
+**File: `src/pages/EditorPage.tsx`** (3 small changes)
 
-```typescript
-if (!currentResume) {
-  useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
-  useResumeStore.getState().setSelectedTemplate(
-    (resumeFromDb.template_id || 'modern') as TemplateId
-  );
-}
-```
+1. **Import**: Add `LayoutGrid` to the existing Lucide import line
 
-This ensures the live preview, template selector, and PDF export all use the correct template from the database -- not a stale default.
+2. **Desktop header** (~line 860-869): Add a "Template" button alongside the existing "Design" button, calling `handleChangeTemplate` which already exists and opens the `TemplateSelector` sheet
 
-### Summary
+3. **Mobile tools panel** (~line 611-632): Add a "Change Template" action to the Quick Actions group in `editorToolGroups`, using the same `handleChangeTemplate` handler
+
+No new components or files needed -- this wires up an existing sheet (`TemplateSelector`) that is already lazy-loaded and fully functional.
 
 | Item | Detail |
 |------|--------|
-| Root cause | Editor hydration sets `currentResume` but not `selectedTemplate` |
-| Effect | Live preview and exports always use stale/default "Modern" template |
-| Fix | Sync `selectedTemplate` from DB during hydration |
-| Files changed | `EditorPage.tsx` (1 line added) |
-| Risk | None -- additive change, no existing behavior altered |
+| Files changed | `EditorPage.tsx` only |
+| New dependencies | None |
+| Existing handler | `handleChangeTemplate` (line 556) already opens `TemplateSelector` |
+| Risk | None -- purely additive UI wiring |
 
