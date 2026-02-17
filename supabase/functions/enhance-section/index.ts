@@ -67,6 +67,74 @@ ${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: R
   }
 }
 
+// Approved action verbs the deterministic scorer checks for
+const ACTION_VERBS = [
+  'Led', 'Managed', 'Developed', 'Created', 'Implemented', 'Designed',
+  'Built', 'Established', 'Launched', 'Directed', 'Coordinated', 'Supervised',
+  'Delivered', 'Achieved', 'Increased', 'Reduced', 'Improved', 'Optimized',
+  'Streamlined', 'Accelerated', 'Generated', 'Negotiated', 'Resolved',
+  'Transformed', 'Pioneered', 'Spearheaded', 'Orchestrated', 'Architected',
+  'Engineered', 'Mentored', 'Trained', 'Analyzed', 'Evaluated', 'Assessed',
+  'Researched', 'Identified', 'Initiated', 'Executed', 'Facilitated',
+  'Collaborated', 'Presented', 'Published', 'Authored', 'Secured',
+  'Integrated', 'Migrated', 'Automated', 'Consolidated', 'Revamped',
+  'Overhauled', 'Expanded', 'Scaled', 'Drove', 'Championed',
+  'Cultivated', 'Fostered', 'Navigated', 'Influenced', 'Maximized',
+  'Minimized', 'Restructured', 'Standardized'
+];
+
+function getSectionSpecificAtsRules(section: string, currentContent: unknown, context: unknown): string {
+  const ctx = context as Record<string, unknown>;
+  const resume = ctx?.resume as Record<string, unknown> | undefined;
+
+  switch (section) {
+    case 'skills': {
+      const existingSkills = Array.isArray(currentContent)
+        ? currentContent.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, unknown>)?.name || '').filter(Boolean)
+        : [];
+      return `
+SECTION-SPECIFIC SCORING RULES FOR SKILLS:
+The scorer checks keyword echo — it does textBlob.includes(skillName) to see if each skill appears in the resume text.
+- NEVER rename, merge, paraphrase, or remove ANY existing skill. Keep every skill EXACTLY as written.
+- Existing skills you MUST preserve verbatim: ${JSON.stringify(existingSkills)}
+- Only ADD new relevant skills that are short (1-3 words max), e.g. "AWS", "Docker", "Agile"
+- Do NOT turn "React" into "React.js Development" or "Python" into "Python Programming Language"
+- Return as a flat array of plain strings ONLY.`;
+    }
+    case 'experience':
+      return `
+SECTION-SPECIFIC SCORING RULES FOR EXPERIENCE:
+The scorer checks two things per bullet: (1) starts with an action verb, (2) contains a number/metric.
+- Every bullet in "achievements" and "responsibilities" MUST start with one of these exact action verbs: ${ACTION_VERBS.join(', ')}
+- Every bullet MUST contain at least one quantified metric (number, percentage, dollar amount, team size, or timeframe). If the original has none, add a realistic placeholder like "10+", "15%", "$50K".
+- NEVER remove existing bullets — only improve wording or add new ones
+- Preserve ALL dates, company names, job titles, and "id" values EXACTLY as given — do NOT reformat dates
+- Preserve the exact date format used (if "2020" do not change to "Jan 2020")`;
+    case 'education':
+      return `
+SECTION-SPECIFIC SCORING RULES FOR EDUCATION:
+The scorer penalizes inconsistent date formats (deducts 15 points for mixed formats).
+- Preserve ALL date strings EXACTLY as written — do NOT reformat (e.g. keep "2020" as "2020", keep "May 2020" as "May 2020")
+- Preserve institution names, degree names, and field names EXACTLY
+- Only enhance: add GPA if missing, add relevant coursework, or improve field description
+- Do NOT add new education entries the user didn't have`;
+    case 'summary': {
+      const skills = Array.isArray((resume as Record<string, unknown>)?.skills)
+        ? ((resume as Record<string, unknown>).skills as unknown[]).map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, unknown>)?.name || '').filter(Boolean)
+        : [];
+      return `
+SECTION-SPECIFIC SCORING RULES FOR SUMMARY:
+The scorer checks keyword echo — each skill from the skills list that appears in the summary boosts the score by 35% weight.
+- You MUST mention at least ${Math.min(5, skills.length)} of these skills BY EXACT NAME in the summary: ${JSON.stringify(skills.slice(0, 15))}
+- Start sentences with strong action verbs from this list: ${ACTION_VERBS.slice(0, 20).join(', ')}
+- Include at least 2 quantified achievements (years of experience, number of projects, team sizes, etc.)
+- Keep the summary between 3-5 sentences for optimal density score`;
+    }
+    default:
+      return '';
+  }
+}
+
 function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown, fixInstruction?: string): string {
   const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
 
@@ -78,23 +146,26 @@ Current content:
 ${JSON.stringify(currentContent, null, 2)}
 `;
 
+  const sectionAtsRules = getSectionSpecificAtsRules(section, currentContent, context);
+
   const actionPrompts: Record<string, string> = {
     generate: `Generate compelling, professional content for this section from scratch based on the resume context. Use strong action verbs, quantify achievements where possible, and ensure ATS compatibility.`,
     improve: `Improve the existing content to be more impactful and professional. Use stronger action verbs, better phrasing, and ensure it's concise yet comprehensive. Keep the same information but express it more effectively.`,
-    ats_improve: `Optimize this resume section specifically for ATS (Applicant Tracking System) compatibility and scoring. Your goal is to INCREASE the ATS score across these 6 weighted pillars used by real ATS systems (Greenhouse, Lever, Workday):
+    ats_improve: `Optimize this resume section to MAXIMIZE the ATS score. The score is computed by a deterministic algorithm with these 6 weighted pillars:
 
-1. KEYWORD OPTIMIZATION (35% of score): Add industry-relevant keywords, hard/soft skills, tools, technologies, and certifications naturally throughout. Use standard industry terminology that ATS parsers recognize.
-2. CONTENT QUALITY (25% of score): Every bullet must start with a strong past-tense action verb (Led, Delivered, Optimized, Architected, Spearheaded, Streamlined). Add quantified achievements with specific metrics (%, $, team sizes, timeframes).
-3. SECTION STRUCTURE (15% of score): Use standard ATS-recognized section headers. Ensure logical ordering and no missing critical content.
-4. PARSABILITY (10% of score): Use clean text without special characters. Ensure consistent date formats (Month YYYY). Use standard job titles.
-5. CONTACT COMPLETENESS (10% of score): Preserve all contact information exactly as given.
-6. LENGTH & DENSITY (5% of score): Ensure rich, meaningful content — no filler. Each bullet should demonstrate clear impact.
+1. KEYWORD OPTIMIZATION (35% weight): The scorer checks if each skill from the skills list appears verbatim in the resume text using exact string matching. More keyword echoes = higher score.
+2. CONTENT QUALITY (25% weight): The scorer checks if each bullet starts with a recognized action verb AND contains at least one number/metric.
+3. SECTION STRUCTURE (15% weight): Standard section headers, logical ordering, no missing critical content.
+4. PARSABILITY (10% weight): Clean text, consistent date formats. Mixed date formats (e.g. "2020" and "Jan 2020" in the same resume) lose 15 points.
+5. CONTACT COMPLETENESS (10% weight): All contact fields present.
+6. LENGTH & DENSITY (5% weight): Rich content, no filler, 3-5 sentence summaries, 3-5 bullets per role.
 
-Critical Rules:
-- NEVER remove existing content, keywords, or information — only ADD and IMPROVE
-- Preserve ALL dates, company names, job titles, and factual information EXACTLY as given
-- For skills sections, include both specific technical skills AND broader category keywords
-- For experience sections, ensure each bullet starts with a past-tense action verb and includes a measurable outcome`,
+${sectionAtsRules}
+
+ABSOLUTE RULES:
+- NEVER remove, rename, or rephrase existing content in ways that change its meaning
+- NEVER reformat dates — preserve the exact format given
+- Only ADD and IMPROVE — never subtract`,
     ats_optimize: `Optimize this content for Applicant Tracking Systems (ATS). Add relevant industry keywords, use standard section headers, avoid special characters, and ensure the format is easily parseable by automated systems.`,
     shorten: `Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.`,
     expand: `Expand this content with more detail. Add context, specific achievements, technologies used, and measurable outcomes where appropriate.`,
