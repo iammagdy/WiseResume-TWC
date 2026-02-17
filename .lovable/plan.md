@@ -1,90 +1,128 @@
 
 
-## Sanitize AI Content for PDF Generation
+## Database Integrity and Storage Security Hardening
 
-### Problem
-AI models sometimes include Markdown formatting (`**bold**`, `# headers`, `*italic*`) in their JSON responses, even when instructed not to. This formatting bleeds into the resume text fields and appears as literal asterisks/hashes in the PDF output, since `pdf-lib`'s `drawText` renders plain text and the React templates display these as raw characters.
+### Current State
 
-### Solution
-Two-pronged defense: (1) strengthen the server-side prompt to explicitly forbid Markdown in text values, and (2) add a client-side sanitizer that strips any Markdown that slips through before the content reaches the store/PDF.
+**Issue 1 -- Missing Cascading Deletes:**
+- The database has **zero foreign key constraints** between tables. All relationships are implicit (matching UUIDs with no enforcement).
+- Resume data (experience, education, skills, etc.) is stored as JSONB columns *within* the `resumes` table -- there are no separate `resume_sections`, `education`, or `experience` tables. So section-level cascades are not needed.
+- However, 6 child tables reference `resume_id` without FK constraints: `resume_versions`, `resume_shares`, `share_comments` (via share_id), `cover_letters`, `tailor_history`, `ai_usage_logs`, `interview_sessions`, `career_assessments`, `job_applications`.
+- The `deleteAllUserData()` function only deletes from `resumes` and `profiles`, leaving 14+ tables with orphaned records.
 
-### Changes
+**Issue 2 -- Storage Bucket Security:**
+- Only the `avatars` bucket exists (public). RLS policies are already correctly scoped: users can only read/write within their own `auth.uid()` folder.
+- There is no `resumes` or PDF storage bucket. PDFs are generated client-side via `pdf-lib` + `html2canvas` and downloaded directly to the device -- they are never uploaded to storage.
+- No changes needed for storage security. The existing policies are sound.
 
-**1. New file: `src/lib/ai/sanitizeContent.ts`**
+### Plan
 
-A utility module exporting two functions:
-- `stripMarkdown(text: string): string` -- removes Markdown syntax from a plain string:
-  - `**text**` and `__text__` become `text` (bold)
-  - `*text*` and `_text_` become `text` (italic)
-  - `# Header` lines become `Header` (heading markers)
-  - `` `code` `` becomes `code` (inline code)
-  - `- item` or `* item` list prefixes preserved as-is (these are valid resume bullets)
-  - Trims excessive whitespace
-- `sanitizeAIContent(data: unknown): unknown` -- recursively walks the AI response object:
-  - Strings: applies `stripMarkdown`
-  - Arrays: maps each element through `sanitizeAIContent`
-  - Objects: maps each value through `sanitizeAIContent`
-  - Primitives (numbers, booleans, null): passed through unchanged
+#### Migration 1: Add Foreign Key Constraints with ON DELETE CASCADE
 
-This keeps the utility pure, testable, and reusable across all AI pipelines.
+Add FK constraints so deleting a resume automatically cleans up all child records, and deleting a user (via auth) cascades through profiles to resumes.
 
-**2. Modified: `src/hooks/useAIEnhance.ts`**
+```text
+Tables getting FK to resumes.id (ON DELETE CASCADE):
+  - resume_versions.resume_id (NOT NULL)
+  - resume_shares.resume_id (NOT NULL)
+  - cover_letters.resume_id (SET NULL -- nullable, letter can exist without resume)
+  - tailor_history.resume_id (SET NULL -- nullable)
+  - ai_usage_logs.resume_id (SET NULL -- nullable)
+  - interview_sessions.resume_id (SET NULL -- nullable)
+  - career_assessments.resume_id (SET NULL -- nullable)
+  - job_applications.resume_id (SET NULL -- nullable)
 
-- Import `sanitizeAIContent` from `@/lib/ai/sanitizeContent`
-- After receiving the successful response (`data`) from the edge function and before calling `setResult(data)`, sanitize the `improved` field:
-  ```
-  data.improved = sanitizeAIContent(data.improved);
-  ```
-- This ensures all downstream consumers (SectionAIAction, AIEnhanceSheet, etc.) receive clean content
+Tables getting FK to resume_shares.id (ON DELETE CASCADE):
+  - share_comments.share_id (CASCADE -- comments die with their share)
+```
 
-**3. Modified: `supabase/functions/enhance-section/index.ts`**
+For NOT NULL `resume_id` columns (`resume_versions`, `resume_shares`): use ON DELETE CASCADE (row is meaningless without its resume).
 
-- Update the `buildPrompt` function's closing instruction block to add an explicit anti-Markdown directive:
-  - Current: `"IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks:"`
-  - Updated: `"IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks. All text values inside the JSON must be plain text WITHOUT any Markdown formatting -- do not use **, *, #, _, or backticks in the text content:"`
+For nullable `resume_id` columns: use ON DELETE SET NULL (the record can still be useful, e.g., a cover letter without its linked resume).
 
-**4. Modified: `src/components/editor/ai/AIEnhanceSheet.tsx`**
+#### Migration 2: Fix deleteAllUserData to clean up all tables
 
-- Import `sanitizeAIContent` and apply it inside the `applyResult` function when parsing individual results, as a second sanitization point (belt-and-suspenders with the hook):
-  ```
-  parsed = sanitizeAIContent(parsed);
-  ```
+Update `src/lib/dataExport.ts` `deleteAllUserData()` to delete from all user-owned tables before deleting resumes (since cascading handles resume children, we still need to clean user-level tables).
+
+Tables to add to the delete flow (in order):
+1. `share_comments` (via resume_shares join -- handled by cascade now)
+2. `resume_versions` (cascade handles)
+3. `resume_shares` (cascade handles)
+4. `tailor_history`
+5. `cover_letters`
+6. `interview_sessions`
+7. `career_assessments`
+8. `job_applications`
+9. `jobs`
+10. `ai_usage_logs`
+11. `ai_credits`
+12. `notifications`
+13. `push_subscriptions`
+14. `user_api_keys`
+15. `bug_reports`
+16. `resignation_letters`
+17. `user_preferences`
+18. `resumes` (cascades to versions, shares, comments)
+19. `profiles`
+
+With FKs + CASCADE in place, we really only need to explicitly delete user-level tables (those keyed on `user_id` without a resume parent), then `resumes` (which cascades), then `profiles`.
 
 ### Technical Details
 
-**stripMarkdown regex pipeline:**
+**SQL Migration:**
 
 ```text
-Input: "**Led** a team of *10 engineers* to build `microservices`"
-Step 1 (bold):    "Led a team of *10 engineers* to build `microservices`"
-Step 2 (italic):  "Led a team of 10 engineers to build `microservices`"
-Step 3 (code):    "Led a team of 10 engineers to build microservices"
-Step 4 (headers): no-op (no # at line start)
-Output: "Led a team of 10 engineers to build microservices"
+-- FK constraints for resume children
+ALTER TABLE resume_versions
+  ADD CONSTRAINT fk_resume_versions_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE;
+
+ALTER TABLE resume_shares
+  ADD CONSTRAINT fk_resume_shares_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE CASCADE;
+
+ALTER TABLE share_comments
+  ADD CONSTRAINT fk_share_comments_share
+  FOREIGN KEY (share_id) REFERENCES resume_shares(id) ON DELETE CASCADE;
+
+ALTER TABLE cover_letters
+  ADD CONSTRAINT fk_cover_letters_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
+
+ALTER TABLE tailor_history
+  ADD CONSTRAINT fk_tailor_history_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
+
+ALTER TABLE ai_usage_logs
+  ADD CONSTRAINT fk_ai_usage_logs_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
+
+ALTER TABLE interview_sessions
+  ADD CONSTRAINT fk_interview_sessions_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
+
+ALTER TABLE career_assessments
+  ADD CONSTRAINT fk_career_assessments_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
+
+ALTER TABLE job_applications
+  ADD CONSTRAINT fk_job_applications_resume
+  FOREIGN KEY (resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
 ```
 
-**Why strip instead of converting to HTML:**
-The PDF generator uses `pdf-lib` `drawText` for cover letters (plain text only) and `html2canvas` for resume templates. The template components render text via React JSX `{text}`, which auto-escapes HTML entities. Converting Markdown to `<b>` tags would display literal `<b>` in the UI. Stripping is the correct approach for this architecture.
+**deleteAllUserData update:**
 
-**Recursive sanitizer flow:**
+The function will be expanded to delete from all user-owned tables. With the new FK cascades, deleting `resumes` automatically removes `resume_versions`, `resume_shares`, and `share_comments`. The remaining tables need explicit deletion.
 
-```text
-sanitizeAIContent({
-  improved: "**Strong** summary",
-  changes: ["Added **metrics**"],
-  suggestions: ["Consider *expanding*"]
-})
+### Storage Security Assessment
 
-returns:
-{
-  improved: "Strong summary",
-  changes: ["Added metrics"],
-  suggestions: ["Consider expanding"]
-}
-```
+No changes needed:
+- The `avatars` bucket has correct RLS: INSERT/UPDATE/DELETE scoped to `auth.uid() = folder_name`, SELECT for all authenticated users
+- No PDF storage bucket exists (PDFs are generated and downloaded client-side)
+- No other buckets exist
 
 ### Files Changed
-- `src/lib/ai/sanitizeContent.ts` (new) -- stripMarkdown + sanitizeAIContent utilities
-- `src/hooks/useAIEnhance.ts` (modified) -- apply sanitizer before setting result
-- `supabase/functions/enhance-section/index.ts` (modified) -- strengthen prompt anti-Markdown instruction
-- `src/components/editor/ai/AIEnhanceSheet.tsx` (modified) -- apply sanitizer in applyResult
+- New database migration (SQL) -- FK constraints with cascading deletes
+- `src/lib/dataExport.ts` (modified) -- comprehensive `deleteAllUserData` cleanup
+- `src/components/settings/DeleteDataDialog.tsx` -- no changes needed (already calls `deleteAllUserData`)
+
