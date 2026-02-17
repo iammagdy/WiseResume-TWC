@@ -1,47 +1,66 @@
 
 
-## Phase 3 Assessment and Implementation Plan
+## Phase 4 Assessment and Implementation Plan
 
 ### Tasks Already Complete (No Work Needed)
 
 | Task | Status | Evidence |
 |------|--------|----------|
-| 3.1 Empty State UX | Done | Already shows only 2 CTAs + 3-step guide + template previews + tips carousel. No "8 action cards" issue exists. |
-| 3.4 Version History UI | Done | `VersionHistorySheet.tsx` has full timeline, restore, compare, checkpoint creation, delete, and date formatting. |
-| 3.5 Auto-Scoring Performance | Done | Uses `requestIdleCallback`, sequential scoring with cancellation, in-memory cache keyed by `updated_at`, and 1s debounce. |
-| 3.6 Template Preview/Guidance | Done | `templateData.ts` includes `atsScore` (high/medium) and `category` (professional/creative/tech/minimalist) for all 30 templates. The Templates page already has category filtering. |
+| 4.1 Contrast Issues | Done | `--muted-foreground` already uses optimized HSL values: 65% lightness in dark mode, 40% in light mode for WCAG AA compliance |
+| 4.2 Offline Mode UX | Done | `OfflineBanner`, `OfflineIndicator`, `SyncConflictDialog`, and `useOfflineSync` are fully implemented with conflict resolution, pending change tracking, and reconnection banners |
+| 4.3 Advanced Search | Done | Resume filtering and sorting was just added in Phase 3 (sort by date/alpha/score, filter by category and score range) |
+| 4.4 Editor 320px | Done | Editor uses Tabs layout on mobile, responsive text hiding with `hidden xs:block`, and stepper uses a dropdown sheet pattern on small screens |
+| 4.6 Export Formats | Done | 10 export types already exist: PDF, ATS-PDF, DOCX, One-Page, LinkedIn, Plain Text, Share Link, Interview Prep, Cover Letter, Combined Package |
+| 4.8 Profile Pulse | Done | Pulse animation fires only on first visit using `localStorage('wr-profile-pulse-seen')` with a 4-ping CSS animation, dismissed on popover open |
 
-### Task 3.3: Link Tailored Resumes to Applications -- Deferred
+### Tasks to Implement
 
-This requires a database migration (`job_application_id` on resumes table) and cross-feature wiring. It is a substantial feature that should be scoped as its own project rather than bundled here.
+Three genuinely missing features remain. Ranked by impact-to-effort ratio:
 
-### Task 3.2: Add Resume Filtering and Sorting -- Ready to Implement
+---
 
-This is the one genuinely missing feature. Currently the dashboard only has text search.
+### 1. Add Keyboard Shortcuts Help Section (Task 4.5)
 
-**What will be added:**
+The app has keyboard shortcuts (Ctrl+S save, Ctrl+P preview, Ctrl+D download, Ctrl+Z/Y undo/redo) but no discoverable documentation.
 
-1. A compact filter/sort bar below the search input on the Dashboard
-2. Sort options: Last edited (default), Alphabetical, ATS Score (high to low)
-3. Filter chips: Template category (Professional, Creative, Tech, Minimalist), Score range (needs work / good / excellent)
-4. "Clear all" button when any filter is active
-5. Filters stored in component state (no URL persistence needed for this scope)
+**Changes:**
+- **`src/components/settings/HelpSheet.tsx`**: Add a "Keyboard Shortcuts" row that opens a simple list of available shortcuts
+- **`src/components/editor/KeyboardShortcutsSheet.tsx`** (new): A bottom sheet displaying all shortcuts in a clean table format, reusable from both Settings and the Editor
 
-**Implementation details:**
+---
 
-**New file: `src/components/dashboard/ResumeFilters.tsx`**
-- A horizontal scrollable chip bar with sort dropdown and filter chips
-- Sort dropdown using a Popover with radio options
-- Filter chips that toggle on/off
-- "Clear" button when filters are active
-- Compact mobile-first design using existing glass-surface styling
+### 2. Add Bulk Resume Operations (Task 4.7)
 
-**Modified file: `src/pages/DashboardPage.tsx`**
-- Add sort and filter state variables
-- Import and render `ResumeFilters` between the search input and the resume list
-- Apply sorting logic after the existing search filter
-- Apply category/score filters to the filtered list
-- Pass filter state and handlers to `ResumeFilters`
+Users cannot select multiple resumes to delete or export at once.
 
-The filter bar will only appear when the user has 2+ resumes (hidden in empty state). Sort defaults to "Last edited" matching the current behavior.
+**Changes:**
+- **`src/pages/DashboardPage.tsx`**: Add a selection mode toggle, `selectedIds` state, "Select All" / "Delete Selected" / "Export Selected" toolbar
+- **`src/components/dashboard/ResumeListCard.tsx`**: Add a checkbox overlay when in selection mode
+- **`src/hooks/useResumes.ts`**: Add a `deleteMultiple` mutation
 
+---
+
+### 3. Add AI Cost Estimation (Task 4.10)
+
+Before running an AI operation, show the user how many credits it will consume.
+
+**Changes:**
+- **`src/lib/aiCostEstimates.ts`** (new): A simple map of operation type to credit cost (e.g., tailor = 2, score = 1, enhance = 1)
+- **`src/components/ai/AICostBadge.tsx`** (new): A small badge showing "~X credits" next to AI action buttons
+- Update key AI trigger points (TailorSheet, ATSScanSheet, AIEnhanceSheet) to show the badge
+
+---
+
+### Task 4.9 (Resume Analytics Dashboard) -- Deferred
+
+This is a full new page with charts, historical data tracking, and potentially new database tables. It should be scoped as its own feature project rather than bundled into a polish phase.
+
+---
+
+### Recommended Implementation Order
+
+1. **Keyboard Shortcuts Help** -- smallest scope, highest discoverability win
+2. **AI Cost Estimation** -- improves credit transparency (complements Phase 1 credits work)
+3. **Bulk Operations** -- largest scope, most complex state management
+
+All three can be implemented independently. I recommend starting with shortcuts help and cost estimation in a single pass, then tackling bulk operations separately.
