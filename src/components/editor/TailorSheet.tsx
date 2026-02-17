@@ -18,6 +18,7 @@ import { SkillSuggestionList } from './tailor/SkillSuggestionList';
 import { ScoreComparison } from './tailor/ScoreComparison';
 import { TailorHistorySheet } from './tailor/TailorHistorySheet';
 import { CoverLetterGenerator } from './tailor/CoverLetterGenerator';
+import { AICostBadge } from '@/components/ai/AICostBadge';
 import { JobUrlParser } from './tailor/JobUrlParser';
 import { JobIntelligenceCard } from './tailor/JobIntelligenceCard';
 import { InterviewPrepCard } from './tailor/InterviewPrepCard';
@@ -399,6 +400,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
             <SheetTitle className="flex items-center gap-2">
               <Wand2 className="w-5 h-5 text-primary" />
               AI Resume Tailor
+              <AICostBadge operation="tailor" />
             </SheetTitle>
             <div className="flex items-center gap-1">
               <Button

@@ -12,6 +12,7 @@ import { generateCoverLetterPDF } from '@/lib/pdfGenerator';
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import { CoverLetterHistorySheet } from './CoverLetterHistorySheet';
+import { AICostBadge } from '@/components/ai/AICostBadge';
 
 interface CoverLetterGeneratorProps {
   open: boolean;
@@ -187,6 +188,7 @@ export function CoverLetterGenerator({
               <SheetTitle className="flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
                 Cover Letter
+                <AICostBadge operation="cover-letter" />
               </SheetTitle>
               {coverLetterHistory.length > 0 && (
                 <Button

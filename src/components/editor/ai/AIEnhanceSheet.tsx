@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
+import { AICostBadge } from '@/components/ai/AICostBadge';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 
 interface AIEnhanceSheetProps {
@@ -195,7 +196,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <SheetTitle className="text-lg">AI Enhance</SheetTitle>
+              <SheetTitle className="text-lg flex items-center gap-2">AI Enhance <AICostBadge operation="enhance" /></SheetTitle>
               <AIProviderVia className="mt-0.5" />
             </div>
           </div>
