@@ -10,7 +10,7 @@ import { getBackRoute, shouldExitOnBack } from '@/lib/navigation';
  * Uses explicit route mapping instead of unreliable history.length checks.
  * This ensures consistent behavior in Capacitor WebViews and deep-linked sessions.
  */
-export function useBackButton() {
+export function useBackButton(onBeforeBack?: () => boolean) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -20,6 +20,11 @@ export function useBackButton() {
 
     const handleBackButton = async () => {
       haptics.light();
+
+      // If a guard callback is provided and returns true, block navigation
+      if (onBeforeBack && onBeforeBack()) {
+        return;
+      }
       
       if (shouldExitOnBack(location.pathname)) {
         // On main screens, exit the app
