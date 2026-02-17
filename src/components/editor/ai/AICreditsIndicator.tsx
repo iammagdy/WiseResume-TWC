@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Zap } from 'lucide-react';
 import { useAICredits } from '@/hooks/useAICredits';
 import { CreditRing } from '@/components/ai/CreditRing';
 import { CreditUsageSheet } from '@/components/ai/CreditUsageSheet';
@@ -20,9 +21,10 @@ export function AICreditsIndicator() {
           haptics.light();
           setShowSheet(true);
         }}
-        className="touch-manipulation active:scale-95 transition-transform"
+        className="flex items-center gap-1 touch-manipulation active:scale-95 transition-transform"
         aria-label="View AI credit usage"
       >
+        <Zap className="w-3.5 h-3.5 text-primary" />
         <CreditRing used={used} limit={limit} size={36} />
       </button>
       <CreditUsageSheet open={showSheet} onOpenChange={setShowSheet} />
