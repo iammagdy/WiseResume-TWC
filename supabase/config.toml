@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.track-portfolio-view]
 verify_jwt = false
+
+[functions.send-feature-request]
+verify_jwt = false
