@@ -1168,7 +1168,7 @@ export default function EditorPage() {
         <Suspense fallback={null}>
           {/* LivePreviewSheet removed — mobile now uses inline Tabs */}
           {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
-          {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
+          {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} onTemplateApplied={() => setTimeout(() => saveToCloud(), 0)} />}
           {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} onApplied={handleTailorApplied} />}
           {showRecruiterSim && <RecruiterSimSheet open={showRecruiterSim} onOpenChange={setShowRecruiterSim} />}
           {showAIDetector && <AIDetectorSheet open={showAIDetector} onOpenChange={setShowAIDetector} />}
