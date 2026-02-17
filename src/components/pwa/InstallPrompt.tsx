@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function InstallPrompt() {
+  const location = useLocation();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -56,7 +58,8 @@ export function InstallPrompt() {
     localStorage.setItem('pwa-install-dismissed', 'true');
   };
 
-  if (dismissed || !showBanner) return null;
+  // Hide on public portfolio routes
+  if (dismissed || !showBanner || location.pathname.startsWith('/p/')) return null;
 
   return (
     <AnimatePresence>

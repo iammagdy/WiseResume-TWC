@@ -53,13 +53,17 @@ export default function ProfilePage() {
     }
   }, [profile]);
 
-  // Init selectedResumeId when resumes load
+  // Init selectedResumeId from profile or fallback
   useEffect(() => {
     if (resumes.length > 0 && !selectedResumeId) {
-      const primary = resumes.find(r => r.is_primary);
-      setSelectedResumeId(primary?.id || resumes[0].id);
+      if (profile?.portfolioResumeId && resumes.some(r => r.id === profile.portfolioResumeId)) {
+        setSelectedResumeId(profile.portfolioResumeId);
+      } else {
+        const primary = resumes.find(r => r.is_primary);
+        setSelectedResumeId(primary?.id || resumes[0].id);
+      }
     }
-  }, [resumes, selectedResumeId]);
+  }, [resumes, selectedResumeId, profile?.portfolioResumeId]);
 
   // Debounced username availability check
   useEffect(() => {
@@ -196,6 +200,7 @@ export default function ProfilePage() {
         username: username || null,
         portfolioBio: bio || null,
         portfolioEnabled,
+        portfolioResumeId: selectedResumeId || null,
       });
       toast.success('Portfolio settings saved!');
     } catch {
@@ -320,7 +325,17 @@ export default function ProfilePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">Used for AI bio generation</p>
+              <p className="text-xs text-muted-foreground">Used for your public portfolio &amp; AI bio generation</p>
+              {selectedResumeId && (() => {
+                const sr = resumes.find(r => r.id === selectedResumeId);
+                const hasData = sr?.summary || (sr?.experience && (sr.experience as any[]).length > 0);
+                if (sr && !hasData) {
+                  return (
+                    <p className="text-xs text-amber-500 mt-1">⚠ This resume has no summary or experience. Choose a different one or add details first.</p>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
 

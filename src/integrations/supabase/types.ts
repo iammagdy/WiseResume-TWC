@@ -451,6 +451,7 @@ export type Database = {
           onboarding_completed: boolean | null
           portfolio_bio: string | null
           portfolio_enabled: boolean | null
+          portfolio_resume_id: string | null
           profile_completed: boolean | null
           updated_at: string | null
           user_id: string
@@ -469,6 +470,7 @@ export type Database = {
           onboarding_completed?: boolean | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_resume_id?: string | null
           profile_completed?: boolean | null
           updated_at?: string | null
           user_id: string
@@ -487,12 +489,21 @@ export type Database = {
           onboarding_completed?: boolean | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_resume_id?: string | null
           profile_completed?: boolean | null
           updated_at?: string | null
           user_id?: string
           username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_portfolio_resume_id_fkey"
+            columns: ["portfolio_resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_subscriptions: {
         Row: {

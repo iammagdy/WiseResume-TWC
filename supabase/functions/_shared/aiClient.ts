@@ -158,7 +158,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       try {
         return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
       } catch (geminiErr) {
-        if (isAIError(geminiErr) && (geminiErr.type === 'quota_exceeded' || geminiErr.type === 'rate_limit' || geminiErr.type === 'invalid_key')) {
+        if (isAIError(geminiErr) && (geminiErr.type === 'quota_exceeded' || geminiErr.type === 'rate_limit' || geminiErr.type === 'invalid_key' || geminiErr.type === 'unknown')) {
           console.warn(`[AI] User Gemini key failed (${geminiErr.type}), falling back to Lovable gateway`);
           return await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
         }
