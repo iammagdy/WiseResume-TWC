@@ -92,14 +92,13 @@ export function DeveloperCreditCard({
               </button>
               {githubUrl &&
               <button
-                className="dev-github-btn"
+                className="dev-contact-btn"
                 onClick={() => {
                   haptics.light();
                   openExternal(githubUrl);
-                }}
-                aria-label="GitHub">
-
-                  <img src={githubLogo} alt="GitHub" className="w-[1.1rem] h-[1.1rem] invert" />
+                }}>
+                  <img src={githubLogo} alt="GitHub" className="w-[1rem] h-[1rem] invert" />
+                  <span className="font-sans font-bold text-base">GitHub</span>
                 </button>
               }
             </div>
