@@ -19,6 +19,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
+import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -364,6 +365,7 @@ export default function DashboardPage() {
             <AppLogo size="sm" showTagline={false} hideText />
           </button>
           <div className="flex items-center gap-2">
+            <AICreditsIndicator />
             <AIHealthBadge />
             <Popover onOpenChange={(open) => {
               if (open && !localStorage.getItem('wr-profile-pulse-seen')) {

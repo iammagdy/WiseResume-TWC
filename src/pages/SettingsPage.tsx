@@ -70,6 +70,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useResumeStore } from '@/store/resumeStore';
 import { haptics } from '@/lib/haptics';
 import { triggerBugReport } from '@/lib/bugReport';
+import { useAICredits } from '@/hooks/useAICredits';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
@@ -388,6 +389,8 @@ export default function SettingsPage() {
                 icon={<Brain className="w-4 h-4" />}
                 onClick={() => setAISettingsOpen(true)}
               />
+              <Separator className="bg-border/30" />
+              <AICreditsRow />
               <Separator className="bg-border/30" />
 
               {elevenlabsApiKey ? (
@@ -1170,5 +1173,27 @@ function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+function AICreditsRow() {
+  const { data: credits } = useAICredits();
+  const used = credits?.daily_usage || 0;
+  const limit = credits?.daily_limit || 20;
+  const percentage = (used / limit) * 100;
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3.5 min-h-[56px]">
+      <div className="w-8 h-8 rounded-lg icon-glow flex items-center justify-center text-primary flex-shrink-0">
+        <Activity className="w-4 h-4" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">AI Credits</p>
+        <p className="text-xs text-muted-foreground">
+          {used} / {limit} used today
+        </p>
+        <Progress value={percentage} className="h-1.5 mt-1.5" />
+      </div>
+    </div>
   );
 }
