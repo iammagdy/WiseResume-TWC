@@ -3,6 +3,8 @@
  * Routes AI requests to either the AI Gateway or Google Gemini directly
  */
 
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
   content: string;
@@ -24,7 +26,10 @@ export interface AICallOptions {
   maxTokens?: number;
   tools?: AITool[];
   toolChoice?: { type: 'function'; function: { name: string } } | 'auto';
+  /** @deprecated Pass userId instead; key is fetched from DB */
   userGeminiKey?: string;
+  /** User ID to look up their Gemini key from the database */
+  userId?: string;
 }
 
 export interface AIResponse {
@@ -50,45 +55,99 @@ export interface AIError {
 }
 
 // Model mapping for direct Gemini calls
-// Lovable gateway uses "google/model-name" prefix, Gemini API uses just "model-name"
 const MODEL_MAPPING: Record<string, string> = {
   'google/gemini-2.5-flash': 'gemini-2.5-flash-preview-05-20',
   'google/gemini-2.5-pro': 'gemini-2.5-pro-preview-05-06',
   'google/gemini-2.5-flash-lite': 'gemini-2.0-flash-lite',
   'google/gemini-3-flash-preview': 'gemini-2.0-flash',
   'google/gemini-3-pro-preview': 'gemini-2.5-pro-preview-05-06',
-  // Fallbacks
   'gemini-2.5-flash': 'gemini-2.5-flash-preview-05-20',
   'gemini-2.5-pro': 'gemini-2.5-pro-preview-05-06',
   'gemini-3-flash-preview': 'gemini-2.0-flash',
 };
 
-/**
- * Maps a Lovable gateway model name to a Gemini API model name
- */
 function mapModelForGemini(model: string): string {
-  // If already mapped, return the mapping
-  if (MODEL_MAPPING[model]) {
-    return MODEL_MAPPING[model];
-  }
-  
-  // Strip "google/" prefix if present
+  if (MODEL_MAPPING[model]) return MODEL_MAPPING[model];
   if (model.startsWith('google/')) {
     const stripped = model.replace('google/', '');
     return MODEL_MAPPING[stripped] || stripped;
   }
-  
   return model;
 }
 
+// --- Server-side key retrieval ---
+
+const ENCRYPTION_SECRET = Deno.env.get('API_KEY_ENCRYPTION_SECRET') || '';
+
+async function getDecryptionKey(): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(ENCRYPTION_SECRET),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  );
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: encoder.encode('user-api-keys-salt'), iterations: 100000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['decrypt']
+  );
+}
+
+async function decryptKey(encoded: string): Promise<string> {
+  const key = await getDecryptionKey();
+  const combined = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+  return new TextDecoder().decode(decrypted);
+}
+
 /**
- * Calls AI using either Lovable Gateway or Google Gemini directly
- * based on whether a user Gemini key is provided
+ * Fetches a user's API key from the database (decrypted).
+ * Uses the service role key to bypass RLS.
+ */
+export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Promise<string | undefined> {
+  if (!ENCRYPTION_SECRET) return undefined;
+  
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { data, error } = await supabase
+      .from('user_api_keys')
+      .select('encrypted_key')
+      .eq('user_id', userId)
+      .eq('provider', provider)
+      .maybeSingle();
+
+    if (error || !data?.encrypted_key) return undefined;
+    return await decryptKey(data.encrypted_key);
+  } catch (err) {
+    console.warn('[aiClient] Failed to fetch user key from DB:', err);
+    return undefined;
+  }
+}
+
+/**
+ * Calls AI using either Lovable Gateway or Google Gemini directly.
+ * If userId is provided, attempts to fetch their Gemini key from the DB.
+ * Falls back to userGeminiKey (deprecated) for backward compat.
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
-  const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userGeminiKey } = options;
+  const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId } = options;
+  
+  // Resolve the user's Gemini key: prefer DB lookup, fall back to deprecated body param
+  let userGeminiKey = options.userGeminiKey;
+  if (!userGeminiKey && userId) {
+    userGeminiKey = await getUserKeyFromDB(userId);
+  }
 
-  // 30-second timeout for all AI calls
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
@@ -97,7 +156,6 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       try {
         return await callGeminiDirect(userGeminiKey, model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
       } catch (geminiErr) {
-        // Fallback to Lovable gateway on quota/rate-limit errors
         if (isAIError(geminiErr) && (geminiErr.type === 'quota_exceeded' || geminiErr.type === 'rate_limit' || geminiErr.type === 'invalid_key')) {
           console.warn(`[AI] User Gemini key failed (${geminiErr.type}), falling back to Lovable gateway`);
           return await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
@@ -134,12 +192,7 @@ async function callLovableGateway(
     throw createAIError('unknown', 'LOVABLE_API_KEY is not configured', 500);
   }
 
-  const body: Record<string, unknown> = {
-    model,
-    messages,
-    temperature,
-  };
-
+  const body: Record<string, unknown> = { model, messages, temperature };
   if (maxTokens) body.max_tokens = maxTokens;
   if (tools && tools.length > 0) {
     body.tools = tools;
@@ -180,19 +233,13 @@ async function callGeminiDirect(
 ): Promise<AIResponse> {
   const geminiModel = mapModelForGemini(model);
   
-  const body: Record<string, unknown> = {
-    model: geminiModel,
-    messages,
-    temperature,
-  };
-
+  const body: Record<string, unknown> = { model: geminiModel, messages, temperature };
   if (maxTokens) body.max_tokens = maxTokens;
   if (tools && tools.length > 0) {
     body.tools = tools;
     if (toolChoice) body.tool_choice = toolChoice;
   }
 
-  // Use Google's OpenAI-compatible endpoint
   const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
     method: 'POST',
     headers: {
@@ -261,7 +308,6 @@ function handleGatewayError(status: number, errorText: string): never {
 function handleGeminiError(status: number, errorText: string): never {
   console.error('Gemini API error:', status, errorText);
   
-  // Parse error to get more specific message
   let errorMessage = 'AI request failed';
   try {
     const parsed = JSON.parse(errorText);
@@ -274,7 +320,6 @@ function handleGeminiError(status: number, errorText: string): never {
     throw createAIError('invalid_key', 'Invalid Gemini API key. Please check your settings.', 401);
   }
   if (status === 429) {
-    // Check if it's a quota exceeded error (daily limit)
     if (errorText.includes('RESOURCE_EXHAUSTED') || errorText.includes('quota')) {
       throw createAIError('quota_exceeded', 'Daily quota exceeded. Try again tomorrow or use a paid key.', 429);
     }
@@ -306,14 +351,12 @@ export function isAIError(error: unknown): error is AIError {
  * Tries direct parse first, then regex extraction.
  */
 export function parseAIJSON<T = unknown>(text: string): T | null {
-  // Try direct parse first (most reliable)
   try {
     return JSON.parse(text.trim()) as T;
   } catch {
     // Fall through
   }
 
-  // Try extracting from markdown code block
   const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
   if (codeBlockMatch) {
     try {
@@ -323,7 +366,6 @@ export function parseAIJSON<T = unknown>(text: string): T | null {
     }
   }
 
-  // Last resort: find the outermost {...} or [...]
   const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
   if (jsonMatch) {
     try {

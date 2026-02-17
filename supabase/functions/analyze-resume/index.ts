@@ -48,7 +48,7 @@ serve(async (req) => {
 
     console.log('Authenticated user:', user.id);
 
-    const { resume, jobDescription, userGeminiKey } = await req.json();
+    const { resume, jobDescription } = await req.json();
     
     // ============= SECURITY: Input validation =============
     if (!resume || typeof resume !== 'object') {
@@ -119,8 +119,6 @@ Provide analysis in this exact JSON format:
   }
 }`;
 
-    console.log(`analyze-resume: Using ${userGeminiKey ? 'Gemini Direct' : 'Lovable Gateway'}`);
-
     const aiResponse = await callAI({
       model: 'google/gemini-3-flash-preview',
       messages: [
@@ -128,7 +126,7 @@ Provide analysis in this exact JSON format:
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.3,
-      userGeminiKey,
+      userId: user.id,
     });
 
     if (!aiResponse.content) {

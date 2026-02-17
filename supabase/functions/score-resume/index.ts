@@ -46,7 +46,7 @@ serve(async (req) => {
       );
     }
 
-    const { resume, userGeminiKey } = await req.json();
+    const { resume } = await req.json();
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
@@ -106,7 +106,7 @@ Scoring guide:
         { role: 'user', content: userPrompt },
       ],
       temperature: 0,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const content = aiResponse.content;

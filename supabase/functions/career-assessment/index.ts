@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { resume, quizAnswers, userGeminiKey } = JSON.parse(body);
+    const { resume, quizAnswers } = JSON.parse(body);
 
     if (!resume || typeof resume !== "object") {
       return new Response(
@@ -107,7 +107,7 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
       ],
       temperature: 0.6,
       maxTokens: 4000,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const result = parseAIJSON(aiResponse.content || '{}');

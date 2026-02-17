@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { resume, targetRole, yearsOfExperience, preserveRecent = 2, userGeminiKey }: OnePageRequest = JSON.parse(bodyText);
+    const { resume, targetRole, yearsOfExperience, preserveRecent = 2 }: OnePageRequest = JSON.parse(bodyText);
 
     if (!resume) {
       return new Response(
@@ -125,7 +125,7 @@ Return a JSON object with: currentEstimatedPages, optimizedEstimatedPages, reduc
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.5,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const result = parseAIJSON(aiResponse.content || '{}');

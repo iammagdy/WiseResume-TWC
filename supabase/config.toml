@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.ai-health]
 verify_jwt = false
+
+[functions.manage-api-keys]
+verify_jwt = false

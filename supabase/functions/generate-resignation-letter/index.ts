@@ -42,7 +42,7 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { recipientName, company, position, lastWorkingDay, noticePeriod, reason, tone, templateStyle, additions, userName, userGeminiKey } = body;
+    const { recipientName, company, position, lastWorkingDay, noticePeriod, reason, tone, templateStyle, additions, userName } = body;
 
     if (!company || typeof company !== 'string' || company.length > MAX_TEXT_SIZE) {
       return new Response(
@@ -114,7 +114,7 @@ Write the complete letter with proper business letter formatting.`;
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const letter = aiResponse.content;

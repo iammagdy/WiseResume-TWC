@@ -105,7 +105,7 @@ serve(async (req) => {
     const action = body.action || (section === 'custom' ? 'custom' : undefined);
     const currentContent = body.currentContent ?? body.content;
     const context = body.context;
-    const userGeminiKey = body.userGeminiKey;
+    // userGeminiKey removed
     const fixInstruction = body.fixInstruction ?? body.instruction;
 
     // ============= SECURITY: Input validation =============
@@ -148,7 +148,7 @@ serve(async (req) => {
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const content = aiResponse.content;

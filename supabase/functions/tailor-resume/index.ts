@@ -49,7 +49,7 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Authenticated user:', userId);
 
-    const { resume, jobDescription, userGeminiKey, intensity } = await req.json();
+    const { resume, jobDescription, intensity } = await req.json();
     const tailorIntensity = intensity || 'moderate';
     
     // ============= SECURITY: Input validation =============
@@ -299,7 +299,7 @@ Analyze deeply, then return this exact JSON structure:
   ]
 }`;
 
-    console.log("Calling SUPERCHARGED AI engine for resume tailoring...", userGeminiKey ? "(Gemini Direct)" : "(Lovable Gateway)");
+    console.log("Calling SUPERCHARGED AI engine for resume tailoring...");
 
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
@@ -309,7 +309,7 @@ Analyze deeply, then return this exact JSON structure:
       ],
       temperature: 0.5,
       maxTokens: 8000,
-      userGeminiKey,
+      userId,
     });
 
     const content = aiResponse.content;
