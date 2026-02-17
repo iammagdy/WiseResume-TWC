@@ -341,7 +341,7 @@ Analyze deeply, then return this exact JSON structure:
     let tailoredResult;
     try {
       // Step 1: Strip markdown code fences if present
-      let cleaned = content.replace(/```(?:json)?\s*/gi, '').replace(/```\s*$/g, '').trim();
+      const cleaned = content.replace(/```(?:json)?\s*/gi, '').replace(/```\s*$/g, '').trim();
       
       // Step 2: Extract JSON object
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);

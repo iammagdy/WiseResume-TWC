@@ -22,7 +22,7 @@ export function useCareerAssessment() {
   return useQuery({
     queryKey: ['career-assessments', user?.id],
     queryFn: async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const { data, error } = await (supabase
         .from('career_assessments') as any)
         .select('*')
@@ -64,7 +64,7 @@ export function useCareerMutations() {
     }) => {
       if (!user) throw new Error('Not authenticated');
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const { data, error } = await (supabase
         .from('career_assessments') as any)
         .insert({
@@ -103,7 +103,7 @@ export function useCareerMutations() {
         ? completed.filter((m) => m !== milestoneId)
         : [...completed, milestoneId];
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       
       const { error } = await (supabase
         .from('career_assessments') as any)
         .update({ completed_milestones: newMilestones })

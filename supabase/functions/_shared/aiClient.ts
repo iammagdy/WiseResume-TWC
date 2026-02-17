@@ -237,7 +237,7 @@ export async function callAIWithRetry(options: AICallOptions): Promise<AIRespons
  * - Truncates at a clean sentence boundary if exceeding maxChars
  */
 export function sanitizeInputText(text: string, maxChars = 15_000): string {
-  let cleaned = text
+  const cleaned = text
     .replace(/\r\n/g, '\n')           // Normalize line endings
     .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to 2
     .replace(/ {2,}/g, ' ')           // Collapse multiple spaces

@@ -2,6 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
  const config: CapacitorConfig = {
    appId: 'com.wiseresume.app',
+   urlSchemes: ['wiseresume'], // Custom URL scheme for deep linking
    appName: 'Wise Resume',
    webDir: 'dist',
    android: {
@@ -26,6 +27,9 @@ import type { CapacitorConfig } from '@capacitor/cli';
        showSpinner: false,
        splashFullScreen: true,
        splashImmersive: true
+     },
+     PushNotifications: {
+       presentationOptions: ['badge', 'sound', 'alert'],
      },
      Keyboard: {
        resize: 'body',

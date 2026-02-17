@@ -2,6 +2,7 @@ import { Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useDeepLinking } from "./hooks/useDeepLinking";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useBackButton } from "@/hooks/useBackButton";
@@ -80,6 +81,7 @@ const queryClient = new QueryClient({
  function AppRoutes() {
    useBackButton();
    useStatusBarThemeSync();
+   useDeepLinking();
    
    const { biometricLockEnabled, biometricLockTimeout } = useSettingsStore();
    const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);

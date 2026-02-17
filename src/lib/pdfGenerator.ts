@@ -187,7 +187,7 @@ function computeAutoBreaksInSegment(
   let currentPos = segmentStart;
   
   while (currentPos + sourceHeightPerPage < segmentEnd) {
-    let naturalBreak = currentPos + sourceHeightPerPage;
+    const naturalBreak = currentPos + sourceHeightPerPage;
     
     // Find block being cut by this break
     const cuttingBlock = blocks.find(

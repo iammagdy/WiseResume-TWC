@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    let result: Record<string, unknown> = {};
+    const result: Record<string, unknown> = {};
 
     // Detection
     if (action === 'detect' || action === 'both') {

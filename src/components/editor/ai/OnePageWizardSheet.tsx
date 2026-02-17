@@ -107,7 +107,7 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
   const applyCondensedChanges = () => {
     if (!currentResume || !result) return;
 
-    let updatedResume = { ...currentResume };
+    const updatedResume = { ...currentResume };
     
     if (result.condensedSummary) {
       updatedResume.summary = result.condensedSummary;
