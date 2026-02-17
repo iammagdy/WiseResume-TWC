@@ -6,6 +6,7 @@ import { Upload, FileText, ArrowLeft } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumeMutations } from '@/hooks/useResumes';
+import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
 import { 
   parseResumePDF, 
   parseResumePDFWithOCR,
@@ -32,6 +33,7 @@ export default function UploadPage() {
   const { user } = useAuth();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { createResume } = useResumeMutations();
+  const { scoreResume } = useResumeScore();
   const [isDragging, setIsDragging] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
@@ -62,6 +64,10 @@ export default function UploadPage() {
   // Import review state
   const [showImportReview, setShowImportReview] = useState(false);
   const [pendingResumeData, setPendingResumeData] = useState<ResumeData | null>(null);
+  
+  // ATS scoring state for import flow
+  const [importATSScore, setImportATSScore] = useState<ResumeHealthScore | null>(null);
+  const [isImportScoring, setIsImportScoring] = useState(false);
 
   // Get accept string based on file type
   function getAcceptString(type: FileType): string {
@@ -189,7 +195,20 @@ export default function UploadPage() {
   const handleImportReviewClose = useCallback(() => {
     setShowImportReview(false);
     setPendingResumeData(null);
+    setImportATSScore(null);
+    setIsImportScoring(false);
   }, []);
+
+  // Fire ATS scoring in the background after parse completes
+  const triggerATSScoring = useCallback((resumeData: ResumeData) => {
+    const tempId = crypto.randomUUID();
+    const now = new Date().toISOString();
+    setIsImportScoring(true);
+    setImportATSScore(null);
+    scoreResume(tempId, resumeData, now)
+      .then((result) => setImportATSScore(result))
+      .finally(() => setIsImportScoring(false));
+  }, [scoreResume]);
 
   // Detect file type from MIME type or extension
   function detectFileType(file: File): FileType {
@@ -247,6 +266,7 @@ export default function UploadPage() {
 
       setPendingResumeData(withNewIds);
       setShowImportReview(true);
+      triggerATSScoring(withNewIds);
       toast.success('JSON imported! No AI processing needed.', { duration: 3000 });
     } catch (error) {
       console.error('Error parsing JSON:', error);
@@ -292,6 +312,7 @@ export default function UploadPage() {
 
       setPendingResumeData(resumeData);
       setShowImportReview(true);
+      triggerATSScoring(resumeData);
     } catch (error) {
       console.error('Error parsing HTML:', error);
       setErrorType('CORRUPTED');
@@ -340,6 +361,7 @@ export default function UploadPage() {
 
       setPendingResumeData(resumeData);
       setShowImportReview(true);
+      triggerATSScoring(resumeData);
     } catch (error) {
       console.error('Error parsing Word document:', error);
       setErrorType('CORRUPTED');
@@ -392,8 +414,8 @@ export default function UploadPage() {
 
       setPendingResumeData(resumeData);
       setShowImportReview(true);
+      triggerATSScoring(resumeData);
     } catch (error) {
-      console.error('Error processing image:', error);
       toast.error(
         error instanceof Error
           ? error.message
@@ -491,9 +513,8 @@ export default function UploadPage() {
       // Show import review sheet instead of navigating directly
       setPendingResumeData(resumeData);
       setShowImportReview(true);
+      triggerATSScoring(resumeData);
     } catch (error) {
-      console.error('Error parsing PDF:', error);
-      
       if (error instanceof PDFParseError) {
         switch (error.code) {
           case 'PASSWORD_PROTECTED':
@@ -709,6 +730,8 @@ export default function UploadPage() {
         onClose={handleImportReviewClose}
         onImport={handleImportConfirm}
         parsedData={pendingResumeData}
+        atsScore={importATSScore}
+        isScoring={isImportScoring}
       />
       
       {/* Import Upload Sheet (replaces FileTypeSelector) */}

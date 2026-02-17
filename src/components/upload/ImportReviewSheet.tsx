@@ -12,7 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ATSScorePreview } from '@/components/upload/ATSScorePreview';
 import type { ResumeData } from '@/types/resume';
+import type { ResumeHealthScore } from '@/hooks/useResumeScore';
 
 export interface SelectedSections {
   contactInfo: boolean;
@@ -29,6 +31,8 @@ interface ImportReviewSheetProps {
   onImport: (data: ResumeData, selectedSections: SelectedSections) => void;
   parsedData: ResumeData | null;
   isLoading?: boolean;
+  atsScore?: ResumeHealthScore | null;
+  isScoring?: boolean;
 }
 
 interface SectionCardProps {
@@ -94,7 +98,9 @@ export function ImportReviewSheet({
   onClose, 
   onImport, 
   parsedData,
-  isLoading = false 
+  isLoading = false,
+  atsScore = null,
+  isScoring = false,
 }: ImportReviewSheetProps) {
   const [selectedSections, setSelectedSections] = useState<SelectedSections>({
     contactInfo: true,
@@ -203,6 +209,11 @@ export function ImportReviewSheet({
         {/* Scrollable content */}
         <ScrollArea className="flex-1 -mx-6 px-6 min-h-0">
           <div className="space-y-3 pb-6">
+            {/* ATS Score Preview */}
+            {(isScoring || atsScore) && (
+              <ATSScorePreview atsScore={atsScore} isScoring={isScoring} />
+            )}
+
             <SectionCard
               id="contactInfo"
               title="Contact Info"
