@@ -258,7 +258,9 @@ export default function EditorPage() {
         lastScoreTimeRef.current = Date.now();
         const rid = currentResumeId;
         const snap = resume;
-        const scheduleScore = () => backgroundScore(rid, snap, new Date().toISOString());
+        // Use content hash as cache key so identical content always hits cache
+        const contentHash = btoa(unescape(encodeURIComponent(JSON.stringify(snap)))).slice(0, 64);
+        const scheduleScore = () => backgroundScore(rid, snap, contentHash);
         if ('requestIdleCallback' in window) {
           window.requestIdleCallback(scheduleScore);
         } else {

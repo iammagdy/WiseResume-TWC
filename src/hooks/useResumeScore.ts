@@ -31,10 +31,21 @@ export function clearCachedScore(resumeId: string, updatedAt: string) {
   scoreCache.delete(cacheKey(resumeId, updatedAt));
 }
 
+/** Strip non-content fields so identical content always produces identical requests */
+function normalizeForScoring(resume: ResumeData): Partial<ResumeData> {
+  const { id, createdAt, updatedAt, templateId, customization, ...content } = resume;
+  // Sort skills for consistent ordering
+  if (content.skills) {
+    content.skills = [...content.skills].sort();
+  }
+  return content;
+}
+
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
+  const normalized = normalizeForScoring(resume);
   const _start = Date.now();
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData?.session?.access_token;
@@ -48,7 +59,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
 
   try {
     const result = await supabase.functions.invoke('score-resume', {
-      body: { resume },
+      body: { resume: normalized },
     });
 
     if (result.error) {
@@ -70,7 +81,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
           'Authorization': `Bearer ${token}`,
           'apikey': anonKey,
         },
-        body: JSON.stringify({ resume }),
+        body: JSON.stringify({ resume: normalized }),
       });
 
       if (!res.ok) {
