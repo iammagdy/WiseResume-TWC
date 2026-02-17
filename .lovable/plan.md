@@ -1,33 +1,40 @@
 
 
-## Fix: Persistent Chunk Loading Errors on Dashboard
+## Fix: Remove White Frame and Prevent Infinite Loading
 
-### Problem
-The dashboard keeps showing the "Connection hiccup" error screen because `lazyWithRetry` only retries once (after 1.5s). When the dev server is rebuilding or the network hiccups, a single retry is not enough. The stale module URL fails again, and the error propagates to the ErrorBoundary where the user must manually tap "Reload".
+### Problems
+1. **White frame around loading screen**: The `window.location.reload()` in `lazyWithRetry` causes a full page reload that briefly flashes white between the old page teardown and the new page paint. In the dev preview environment, this creates a jarring white border effect.
+2. **App loads forever**: After `lazyWithRetry` exhausts its 3 retries and triggers `window.location.reload()`, the same chunk error occurs again on reload. The sessionStorage guard prevents a second reload, but the thrown error gets caught by `Suspense` in a way that can leave the loading spinner showing indefinitely instead of propagating to the `ErrorBoundary`.
+
+### Root Cause
+The `window.location.reload()` approach is fundamentally flawed in the dev/preview environment because the same stale module URL keeps failing. The auto-reload creates a reload cycle that ends with a permanent loading spinner.
 
 ### Solution
-Make `lazyWithRetry` more resilient with two changes:
+1. **Remove auto-reload from `lazyWithRetry`**: Instead of calling `window.location.reload()`, simply let the error propagate to the `ErrorBoundary`, which already has a user-friendly "Connection hiccup" / "Reload" button. This puts the user in control rather than creating invisible reload loops.
 
-1. **Retry up to 3 times** with increasing delays (1s, 2s, 4s) instead of a single 1.5s retry
-2. **Auto-reload as last resort** -- if all retries fail, force a full page reload (`window.location.reload()`) which gets fresh module URLs from the server. Add a sessionStorage guard to prevent infinite reload loops (only auto-reload once per page load).
+2. **Fix `PageLoadingSpinner` white flash**: Add a timeout in `ProtectedRoute` so that if auth loading takes more than 5 seconds, it stops showing the spinner (auth already has its own 5s timeout, but adding a safety net here prevents the spinner from persisting if something goes wrong).
 
 ### Technical Details
 
 **File: `src/lib/lazyWithRetry.ts`**
 
-Replace the current single-retry logic with a multi-retry loop:
+Remove the `window.location.reload()` logic and the `sessionStorage` guard. Keep the 3-retry logic with exponential backoff, but after all retries fail, simply throw the error so the `ErrorBoundary` catches it and shows the friendly "Connection hiccup" screen with a manual "Reload" button.
 
-```text
-factory() fails
-  -> retry 1 (after 1000ms)
-  -> retry 2 (after 2000ms)
-  -> retry 3 (after 4000ms)
-  -> all failed? check sessionStorage flag
-     -> flag not set: set flag, window.location.reload()
-     -> flag already set: reject (shows ErrorBoundary as fallback)
+```
+// Simplified: retry 3 times with backoff, then throw to ErrorBoundary
+export function lazyWithRetry<T extends ComponentType<any>>(factory: () => Promise<{ default: T }>) {
+  return lazy(() => retryImport(factory));
+}
 ```
 
-The sessionStorage key (e.g. `wr-chunk-reload`) prevents infinite reload loops. It gets cleared on successful page loads via a small cleanup in the same file.
+Remove:
+- The `RELOAD_KEY` constant and `sessionStorage` logic
+- The `window.addEventListener('load', ...)` cleanup
+- The `.catch()` block after `retryImport()` that calls `window.location.reload()`
 
-This means users will almost never see the "Connection hiccup" screen -- the page will silently retry and auto-recover. The ErrorBoundary remains as a last-resort safety net.
+**File: `src/components/layout/ProtectedRoute.tsx`**
+
+No changes needed -- the auth context already has a 5-second timeout that resolves `loading` to `false`. The spinner will disappear once auth resolves.
+
+This approach is simpler, avoids reload loops entirely, and relies on the already-polished `ErrorBoundary` UI for recovery.
 
