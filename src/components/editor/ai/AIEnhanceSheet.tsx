@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Sparkles, Loader2, Check, X, ArrowRight } from 'lucide-react';
+import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,12 +14,14 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { AICostBadge } from '@/components/ai/AICostBadge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 
 interface AIEnhanceSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEnhanced?: () => void;
+  atsMode?: boolean;
 }
 
 const MODES: { id: ActionType; label: string }[] = [
@@ -70,11 +72,12 @@ function contentToString(content: unknown): string {
   return String(content);
 }
 
-export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceSheetProps) {
-  const [mode, setMode] = useState<ActionType>('improve');
+export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false }: AIEnhanceSheetProps) {
+  const [mode, setMode] = useState<ActionType>(atsMode ? 'ats_improve' : 'improve');
   const [selectedSections, setSelectedSections] = useState<Set<SectionType>>(new Set());
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [results, setResults] = useState<SectionResult[]>([]);
+  const [expandedResults, setExpandedResults] = useState<Set<number>>(new Set());
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
   const { incrementUsage, checkCredits } = useAICreditsMutations();
@@ -89,10 +92,23 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
     });
   }, []);
 
+  const toggleResultExpanded = useCallback((index: number) => {
+    haptics.light();
+    setExpandedResults(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }, []);
+
+  const effectiveAction = atsMode ? 'ats_improve' : mode;
+
   const handleEnhance = useCallback(async () => {
     if (!currentResume || selectedSections.size === 0) return;
     setIsEnhancing(true);
     setResults([]);
+    setExpandedResults(new Set());
     haptics.medium();
 
     const hasCredits = await checkCredits();
@@ -103,7 +119,6 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
 
     const newResults: SectionResult[] = [];
 
-    // Process sections sequentially to respect rate limits
     for (const sectionInfo of SECTIONS) {
       if (!selectedSections.has(sectionInfo.id)) continue;
 
@@ -113,7 +128,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
         const { data, error } = await supabase.functions.invoke('enhance-section', {
           body: {
             section: sectionInfo.id,
-            action: mode,
+            action: effectiveAction,
             currentContent: content,
             context: { resume: currentResume },
           },
@@ -138,7 +153,6 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
           applied: false,
         });
 
-        // Update results progressively
         setResults([...newResults]);
       } catch (err) {
         console.error(`Enhancement error for ${sectionInfo.id}:`, err);
@@ -150,7 +164,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
     if (newResults.length > 0) {
       toast.success(`Enhanced ${newResults.length} section${newResults.length > 1 ? 's' : ''}`);
     }
-  }, [currentResume, selectedSections, mode, checkCredits, incrementUsage]);
+  }, [currentResume, selectedSections, effectiveAction, checkCredits, incrementUsage]);
 
   const applyResult = useCallback((index: number) => {
     const result = results[index];
@@ -159,17 +173,14 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
 
     try {
       let parsed = sanitizeAIContent(JSON.parse(contentToString(results[index].improved)));
-      // Sanitize: ensure skills remain string[]
       if (result.section === 'skills' && Array.isArray(parsed)) {
         parsed = parsed.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s));
       }
-      // Sanitize: ensure experience/education remain arrays
       if ((result.section === 'experience' || result.section === 'education') && !Array.isArray(parsed)) {
         parsed = [];
       }
       updateResume({ [result.section]: parsed });
     } catch {
-      // For string sections like summary
       updateResume({ [result.section]: results[index].improved });
     }
 
@@ -187,6 +198,8 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
     currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id)
   );
 
+  const sheetTitle = atsMode ? 'ATS Score Optimization' : 'AI Enhance';
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] flex flex-col rounded-t-2xl">
@@ -196,34 +209,44 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <SheetTitle className="text-lg flex items-center gap-2">AI Enhance <AICostBadge operation="enhance" /></SheetTitle>
+              <SheetTitle className="text-lg flex items-center gap-2">{sheetTitle} <AICostBadge operation="enhance" /></SheetTitle>
               <AIProviderVia className="mt-0.5" />
             </div>
           </div>
         </SheetHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto space-y-5 py-4">
-          {/* Mode Selector */}
-          <div>
-            <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Enhancement Mode</p>
-            <div className="flex flex-wrap gap-2">
-              {MODES.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => { haptics.light(); setMode(m.id); }}
-                  className={cn(
-                    'px-3 py-2 rounded-full text-xs font-medium border transition-all touch-manipulation min-h-[44px]',
-                    'active:scale-95',
-                    mode === m.id
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-muted/30 border-border/50 text-muted-foreground hover:border-primary/30'
-                  )}
-                >
-                  {m.label}
-                </button>
-              ))}
+          {/* Mode Selector - hidden in ATS mode */}
+          {!atsMode && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 px-1">Enhancement Mode</p>
+              <div className="flex flex-wrap gap-2">
+                {MODES.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => { haptics.light(); setMode(m.id); }}
+                    className={cn(
+                      'px-3 py-2 rounded-full text-xs font-medium border transition-all touch-manipulation min-h-[44px]',
+                      'active:scale-95',
+                      mode === m.id
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'bg-muted/30 border-border/50 text-muted-foreground hover:border-primary/30'
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {atsMode && (
+            <div className="px-1">
+              <p className="text-xs text-muted-foreground">
+                Optimizing specifically for ATS scoring criteria: completeness, keywords, impact language, and formatting.
+              </p>
+            </div>
+          )}
 
           {/* Section Selector */}
           <div>
@@ -274,19 +297,19 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
             {isEnhancing ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Enhancing…
+                {atsMode ? 'Optimizing for ATS…' : 'Enhancing…'}
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4 mr-2" />
-                Enhance {selectedSections.size > 0 ? `${selectedSections.size} Section${selectedSections.size > 1 ? 's' : ''}` : ''}
+                {atsMode ? 'Optimize' : 'Enhance'} {selectedSections.size > 0 ? `${selectedSections.size} Section${selectedSections.size > 1 ? 's' : ''}` : ''}
               </>
             )}
           </Button>
 
-          {/* Results */}
+          {/* Results - Collapsible */}
           {results.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="flex items-center justify-between px-1">
                 <p className="text-xs font-medium text-muted-foreground">Results</p>
                 {results.some(r => !r.applied) && (
@@ -305,64 +328,88 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
                   </Button>
                 )}
               </div>
-              {results.map((r, i) => (
-                <div key={`${r.section}-${i}`} className="rounded-xl border border-border bg-card p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-semibold text-sm">{r.label}</h4>
-                    {r.applied && (
-                      <Badge variant="secondary" className="text-xs bg-accent/20 text-accent-foreground">
-                        <Check className="w-3 h-3 mr-1" /> Applied
-                      </Badge>
-                    )}
-                  </div>
+              {results.map((r, i) => {
+                const isExpanded = expandedResults.has(i);
+                return (
+                  <Collapsible key={`${r.section}-${i}`} open={isExpanded} onOpenChange={() => toggleResultExpanded(i)}>
+                    <div className="rounded-xl border border-border bg-card overflow-hidden">
+                      {/* Collapsed header - always visible */}
+                      <CollapsibleTrigger asChild>
+                        <button className="w-full flex items-center justify-between px-4 py-3 touch-manipulation min-h-[44px] active:scale-[0.98] transition-transform">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-semibold text-sm">{r.label}</h4>
+                            {r.applied ? (
+                              <Badge variant="secondary" className="text-[10px] bg-accent/20 text-accent-foreground">
+                                <Check className="w-3 h-3 mr-0.5" /> Applied
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px]">
+                                {r.changes.length} improvement{r.changes.length !== 1 ? 's' : ''}
+                              </Badge>
+                            )}
+                          </div>
+                          {isExpanded ? (
+                            <ChevronUp className="w-4 h-4 text-muted-foreground shrink-0" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+                          )}
+                        </button>
+                      </CollapsibleTrigger>
 
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-[10px] font-medium text-muted-foreground mb-1">Original</p>
-                      <div className="p-2.5 rounded-lg bg-muted/50 text-xs line-through opacity-60 max-h-24 overflow-y-auto">
-                        {r.original.slice(0, 300)}{r.original.length > 300 ? '…' : ''}
-                      </div>
-                    </div>
-                    <div className="flex justify-center">
-                      <ArrowRight className="w-3.5 h-3.5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-medium text-primary mb-1">Enhanced</p>
-                      <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs max-h-32 overflow-y-auto">
-                        {r.improved.slice(0, 500)}{r.improved.length > 500 ? '…' : ''}
-                      </div>
-                    </div>
-                  </div>
+                      {/* Expanded content */}
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 space-y-3 border-t border-border/50 pt-3">
+                          <div className="space-y-2">
+                            <div>
+                              <p className="text-[10px] font-medium text-muted-foreground mb-1">Original</p>
+                              <div className="p-2.5 rounded-lg bg-muted/50 text-xs line-through opacity-60 max-h-24 overflow-y-auto">
+                                {r.original.slice(0, 300)}{r.original.length > 300 ? '…' : ''}
+                              </div>
+                            </div>
+                            <div className="flex justify-center">
+                              <ArrowRight className="w-3.5 h-3.5 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-medium text-primary mb-1">Enhanced</p>
+                              <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/20 text-xs max-h-32 overflow-y-auto">
+                                {r.improved.slice(0, 500)}{r.improved.length > 500 ? '…' : ''}
+                              </div>
+                            </div>
+                          </div>
 
-                  {r.changes.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {r.changes.map((c, ci) => (
-                        <Badge key={ci} variant="secondary" className="text-[10px]">{c}</Badge>
-                      ))}
-                    </div>
-                  )}
+                          {r.changes.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {r.changes.map((c, ci) => (
+                                <Badge key={ci} variant="secondary" className="text-[10px]">{c}</Badge>
+                              ))}
+                            </div>
+                          )}
 
-                  {r.suggestions && r.suggestions.length > 0 && (
-                    <div className="p-2 rounded-lg bg-secondary/10 border border-secondary/20">
-                      <p className="text-[10px] font-medium text-secondary mb-1">💡 Tips</p>
-                      <ul className="text-[10px] text-muted-foreground space-y-0.5">
-                        {r.suggestions.map((s, si) => <li key={si}>• {s}</li>)}
-                      </ul>
-                    </div>
-                  )}
+                          {r.suggestions && r.suggestions.length > 0 && (
+                            <div className="p-2 rounded-lg bg-secondary/10 border border-secondary/20">
+                              <p className="text-[10px] font-medium text-secondary mb-1">💡 Tips</p>
+                              <ul className="text-[10px] text-muted-foreground space-y-0.5">
+                                {r.suggestions.map((s, si) => <li key={si}>• {s}</li>)}
+                              </ul>
+                            </div>
+                          )}
 
-                  {!r.applied && (
-                    <div className="flex gap-2 pt-1">
-                      <Button variant="outline" size="sm" className="flex-1 min-h-[44px]" onClick={() => discardResult(i)}>
-                        <X className="w-4 h-4 mr-1" /> Discard
-                      </Button>
-                      <Button size="sm" className="flex-1 min-h-[44px] gradient-primary" onClick={() => applyResult(i)}>
-                        <Check className="w-4 h-4 mr-1" /> Apply
-                      </Button>
+                          {!r.applied && (
+                            <div className="flex gap-2 pt-1">
+                              <Button variant="outline" size="sm" className="flex-1 min-h-[44px]" onClick={() => discardResult(i)}>
+                                <X className="w-4 h-4 mr-1" /> Discard
+                              </Button>
+                              <Button size="sm" className="flex-1 min-h-[44px] gradient-primary" onClick={() => applyResult(i)}>
+                                <Check className="w-4 h-4 mr-1" /> Apply
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CollapsibleContent>
                     </div>
-                  )}
-                </div>
-              ))}
+                  </Collapsible>
+                );
+              })}
             </div>
           )}
         </div>

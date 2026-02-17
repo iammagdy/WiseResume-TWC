@@ -8,7 +8,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 const MAX_CONTENT_SIZE = 50 * 1024; // 50KB for current content
 const MAX_CONTEXT_SIZE = 100 * 1024; // 100KB for context (resume data)
 const VALID_SECTIONS = ['summary', 'experience', 'education', 'skills', 'contact', 'custom'];
-const VALID_ACTIONS = ['generate', 'improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom'];
+const VALID_ACTIONS = ['generate', 'improve', 'ats_improve', 'ats_optimize', 'shorten', 'expand', 'add_metrics', 'generate_bullets', 'fix_error', 'custom'];
 
 interface EnhanceRequest {
   section: 'summary' | 'experience' | 'education' | 'skills' | 'contact';
@@ -36,6 +36,19 @@ ${JSON.stringify(currentContent, null, 2)}
   const actionPrompts: Record<string, string> = {
     generate: `Generate compelling, professional content for this section from scratch based on the resume context. Use strong action verbs, quantify achievements where possible, and ensure ATS compatibility.`,
     improve: `Improve the existing content to be more impactful and professional. Use stronger action verbs, better phrasing, and ensure it's concise yet comprehensive. Keep the same information but express it more effectively.`,
+    ats_improve: `Optimize this resume section specifically for ATS (Applicant Tracking System) compatibility and scoring. Your goal is to INCREASE the ATS score across four criteria: Completeness, ATS Readiness, Impact Language, and Formatting.
+
+Rules:
+1. NEVER remove existing content, keywords, or information -- only ADD and IMPROVE
+2. Add relevant industry keywords naturally within context to boost ATS keyword matching
+3. Replace weak verbs with strong action verbs (Led, Delivered, Optimized, Architected, Spearheaded, Streamlined, etc.)
+4. Add quantifiable metrics where possible (percentages, dollar amounts, team sizes, timeframes, scale numbers)
+5. Keep standard formatting -- no special characters, clean structure, consistent date formats
+6. Preserve ALL dates, company names, job titles, and factual information EXACTLY as given
+7. Ensure the section has comprehensive, detailed content (completeness matters for scoring)
+8. Use industry-standard terminology and avoid creative/unusual phrasing that ATS systems may not recognize
+9. For skills sections, include both specific technical skills AND broader category keywords
+10. For experience sections, ensure each bullet starts with a past-tense action verb and includes a measurable outcome`,
     ats_optimize: `Optimize this content for Applicant Tracking Systems (ATS). Add relevant industry keywords, use standard section headers, avoid special characters, and ensure the format is easily parseable by automated systems.`,
     shorten: `Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.`,
     expand: `Expand this content with more detail. Add context, specific achievements, technologies used, and measurable outcomes where appropriate.`,
@@ -144,10 +157,11 @@ serve(async (req) => {
     const prompt = buildPrompt(section, action, currentContent, context, fixInstruction);
 
     // Call AI using the shared client
+    const temperature = action === 'ats_improve' ? 0.3 : 0.7;
     const aiResponse = await callAIWithRetry({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
+      temperature,
       userId: user.id,
     });
 
