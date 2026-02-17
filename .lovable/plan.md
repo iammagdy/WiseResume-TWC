@@ -1,34 +1,41 @@
 
 
-## Optimize Editor Mobile Header: Surface Preview Toggle
+## Phase 3 Completion: Contrast Audit Fix for Muted Foreground
 
 ### Problem
-On mobile (<768px), toggling Live Preview requires opening the Tools Sheet first, then tapping "Live Preview" -- 2 taps for a frequent action. The Tools button is alone in the header's right side, leaving unused space.
+The audit identified that `muted-foreground` text on `muted` backgrounds has borderline contrast (~3:1 ratio), below the WCAG AA minimum of 4.5:1 for normal text. This affects helper text, placeholders, and secondary labels throughout the app.
 
-### Solution
-Surface the Preview toggle as a standalone button next to the Tools trigger in the mobile header, and remove the duplicate "Live Preview" entry from the Tools Sheet.
+### Current Values
+
+**Dark mode** (`:root` / `.dark`):
+- `--muted`: `240 15% 15%` (background ~#222233)
+- `--muted-foreground`: `240 10% 60%` (text ~#8E8EA0)
+- Estimated contrast: ~3.5:1
+
+**Light mode** (`.light`):
+- `--muted`: `240 5% 92%` (background ~#EAEBEE)
+- `--muted-foreground`: `240 5% 45%` (text ~#6D6E75)
+- Estimated contrast: ~3.8:1
+
+### Fix
+
+Bump `muted-foreground` lightness to achieve ~5:1 contrast while keeping the subdued aesthetic:
+
+**Dark mode**: `240 10% 60%` --> `240 10% 65%` (lighter text on dark bg)
+**Light mode**: `240 5% 45%` --> `240 5% 40%` (darker text on light bg)
+
+This brings both themes comfortably above the 4.5:1 WCAG AA threshold.
 
 ### Changes
 
-**Modified: `src/pages/EditorPage.tsx`**
+**Modified: `src/index.css`** (3 edits)
 
-1. **Mobile header area (line ~829-886)**: Add a Preview toggle button before the Tools button inside the `flex md:hidden` container. It will use the same `Eye`/`PanelLeftClose` icon pattern as desktop but in a compact 48x48 touch target.
+1. **Line 44** (`:root` block): Change `--muted-foreground: 240 10% 60%` to `240 10% 65%`
+2. **Line 105** (`.light` block): Change `--muted-foreground: 240 5% 45%` to `240 5% 40%`
+3. **Line 145** (`.dark` block): Change `--muted-foreground: 240 10% 60%` to `240 10% 65%`
 
-2. **Tools Sheet actions (line ~542-563)**: Remove the `preview` entry from the `quickActions` group in `editorToolGroups` since it's now directly accessible in the header. Also remove the `'preview'` entry from `toolMeta`.
-
-### Technical Details
-
-The new mobile header right side will look like:
-
-```text
-[ Eye/Preview toggle ] [ Sparkles/Tools ]
-```
-
-- The Preview button opens `LivePreviewSheet` on mobile (existing behavior at line 1062)
-- Touch target: 48x48px with `active:scale-95` and haptic feedback
-- Active state: `bg-primary/15 text-primary` when preview is open (matches desktop)
-- The `toolMeta` cleanup removes the now-unused `'preview'` key
-
-### Files Changed
-- `src/pages/EditorPage.tsx` (2 edits: add button to mobile header, remove from tools sheet)
+### Impact
+- All secondary text, placeholders, helper labels, and muted UI elements gain improved readability
+- No visual design changes -- the shift is subtle (5% lightness) but measurable for accessibility compliance
+- Single file change, zero risk of layout breakage
 
