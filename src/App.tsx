@@ -44,6 +44,7 @@ const InterviewPage = lazyWithRetry(() => import("./pages/InterviewPage"));
 const ApplicationsPage = lazyWithRetry(() => import("./pages/ApplicationsPage"));
 const OnboardingPage = lazyWithRetry(() => import("./pages/OnboardingPage"));
 const ProfilePage = lazyWithRetry(() => import("./pages/ProfilePage"));
+const PublicPortfolioPage = lazyWithRetry(() => import("./pages/PublicPortfolioPage"));
 const TemplatesPage = lazyWithRetry(() => import("./pages/TemplatesPage"));
 const ResumeDetailPage = lazyWithRetry(() => import("./pages/ResumeDetailPage"));
 const JobDetailPage = lazyWithRetry(() => import("./pages/JobDetailPage"));
@@ -148,6 +149,7 @@ const queryClient = new QueryClient({
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
+        <Route path="/p/:username" element={<Suspense fallback={<PageLoadingSpinner />}><PublicPortfolioPage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
      </Routes>
