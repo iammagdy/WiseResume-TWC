@@ -27,6 +27,7 @@ const LinkedInImportSheet = lazy(() => import('@/components/settings/LinkedInImp
 const AnalyzeJobSheet = lazy(() => import('@/components/dashboard/AnalyzeJobSheet').then(m => ({ default: m.AnalyzeJobSheet })));
 
 import { useAuth } from '@/hooks/useAuth';
+import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
@@ -48,7 +49,8 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, session } = useAuth();
+  const { isMigrating } = useGuestMigration(session);
   const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
   const { deleteResume, duplicateResume, updateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
@@ -643,7 +645,7 @@ export default function DashboardPage() {
           onTailor={() => navigate('/ai-studio')}
           onAnalyzeJob={() => setShowAnalyzeJob(true)}
           pulse={tipVisible}
-          isLoading={isCreating}
+          isLoading={isCreating || isMigrating}
         />
       )}
 
