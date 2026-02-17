@@ -24,6 +24,8 @@ interface TimelineSegment {
 }
 
 export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFillGap }: ExperienceTimelineProps) {
+  const isMobile = useIsMobile();
+
   const { segments, gaps, timelineStart, timelineEnd } = useMemo(() => {
     // Parse all experiences with valid dates
     const parsed = experiences
@@ -100,22 +102,33 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFil
     return null;
   }
 
-  const isMobile = useIsMobile();
   const totalGapMonths = getTotalGapMonths(gaps);
   const hasGaps = gaps.length > 0;
 
-  const handleExplainClick = () => {
-    if (gaps.length > 0 && onExplainGap) {
-      const longestGap = gaps.reduce((max, gap) => gap.months > max.months ? gap : max, gaps[0]);
-      onExplainGap(longestGap);
-    }
+  const makeGapInfo = (segment: TimelineSegment): GapInfo => ({
+    startDate: segment.start,
+    endDate: segment.end,
+    months: getMonthsDifference(segment.start, segment.end),
+  });
+
+  const handleExplainGap = (segment: TimelineSegment) => {
+    if (!onExplainGap) return;
+    onExplainGap(makeGapInfo(segment));
   };
 
-  const handleFillClick = () => {
-    if (gaps.length > 0 && onFillGap) {
-      const longestGap = gaps.reduce((max, gap) => gap.months > max.months ? gap : max, gaps[0]);
-      onFillGap(longestGap);
-    }
+  const handleFillGap = (segment: TimelineSegment) => {
+    if (!onFillGap) return;
+    onFillGap(makeGapInfo(segment));
+  };
+
+  const handleExplainLongest = () => {
+    if (!onExplainGap || gaps.length === 0) return;
+    onExplainGap(gaps.reduce((max, g) => g.months > max.months ? g : max, gaps[0]));
+  };
+
+  const handleFillLongest = () => {
+    if (!onFillGap || gaps.length === 0) return;
+    onFillGap(gaps.reduce((max, g) => g.months > max.months ? g : max, gaps[0]));
   };
 
   return (
@@ -157,7 +170,7 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFil
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleExplainClick}
+                      onClick={() => handleExplainGap(segment)}
                       className="min-h-[44px] text-xs gap-1 text-warning-foreground"
                     >
                       <Sparkles className="w-3 h-3" />
@@ -168,7 +181,7 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFil
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleFillClick}
+                      onClick={() => handleFillGap(segment)}
                       className="min-h-[44px] text-xs gap-1 text-primary"
                     >
                       <Wand2 className="w-3 h-3" />
@@ -242,7 +255,7 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFil
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleExplainClick}
+                onClick={handleExplainLongest}
                 className="gap-2 flex-1 sm:flex-none border-warning/30 text-warning-foreground hover:bg-warning/10"
               >
                 <Sparkles className="w-3.5 h-3.5" />
@@ -253,7 +266,7 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFil
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleFillClick}
+                onClick={handleFillLongest}
                 className="gap-2 flex-1 sm:flex-none border-primary/30 text-primary hover:bg-primary/10"
               >
                 <Wand2 className="w-3.5 h-3.5" />
