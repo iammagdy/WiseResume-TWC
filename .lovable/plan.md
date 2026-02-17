@@ -1,91 +1,92 @@
 
 
-## On-Page Deep Analyze for Section-Specific ATS Improvements
+## Pipeline Analysis: Issues Found and Fixes
 
-### Problem
-The "Deep Analyze" button already exists in `ATSInlineSuggestions`, but it is broken and lacks a proper results UI:
-
-1. **Wrong request body**: `fetchDeepSuggestions` sends `{ section, content, action, resumeData, jobDescription }` but the `enhance-section` edge function expects `{ section, action, currentContent, context: { resume, jobDescription } }` -- so the call silently fails or returns malformed results.
-2. **Unparsed results**: The AI returns `{ improved, changes, suggestions }` where `suggestions` is an array of plain strings, but the hook tries to read `.message`, `.type`, `.priority` as if they were structured objects.
-3. **No dedicated results display**: Deep analysis results (the rewritten content + change list) are just merged into the same keyword-tip rows, losing the most valuable output -- the actual improved content the user can apply.
-
-### Solution
-Fix the request/response pipeline and add a rich inline results panel that shows the AI-rewritten content with an "Apply" button, plus a list of specific changes made.
+### Summary
+After tracing through every recently-changed pipeline (ATS Suggestions, Deep Analyze, Public Portfolio PDF, and the editor integration), I found **3 issues** that need fixing and confirmed several areas are wired correctly.
 
 ---
 
-### Step 1: Fix `useATSSuggestions.fetchDeepSuggestions`
+### Issue 1: Wrong Supabase Client Import in `useATSSuggestions`
 
-File: `src/hooks/useATSSuggestions.ts`
+**File:** `src/hooks/useATSSuggestions.ts` (line 3)
 
-- Fix the request body to match the edge function's expected shape:
-  ```text
-  body: {
-    section,
-    action: 'ats_optimize',
-    currentContent: getSectionContent(resume, section),
-    context: { resume, jobDescription }
-  }
-  ```
-- Store the full AI result (`improved`, `changes`, `suggestions`) in a new `deepResults` state map keyed by section, rather than trying to convert everything into `ATSSuggestion` objects.
-- Parse the `suggestions` array (plain strings) into proper `ATSSuggestion` objects for the tips list.
-- Expose `deepResults` and a `clearDeepResult(section)` function.
+**Problem:** The hook imports from `@/integrations/supabase/client` but the rest of the app consistently uses `@/integrations/supabase/safeClient`. The `safeClient` wrapper has error-recovery fallback logic for initialization failures. Using the raw `client` means the hook could fail silently if the environment variables are missing at init time.
 
-### Step 2: Add Deep Analysis Results Panel to `ATSInlineSuggestions`
-
-File: `src/components/editor/ATSInlineSuggestions.tsx`
-
-Add new props and UI:
-- Accept `deepResult?: { improved: unknown; changes: string[]; suggestions?: string[] }` and `onApplyDeep`, `onDiscardDeep` callbacks.
-- When `deepResult` is present, render a results card below the tips list:
-  - A header: "AI Optimized Content Ready" with a sparkle icon.
-  - A bulleted list of `changes` (e.g., "Added metrics to bullet 2", "Strengthened action verb").
-  - Two action buttons: "Apply Changes" (primary) and "Discard" (ghost).
-  - Tapping "Apply Changes" calls `onApplyDeep(deepResult.improved)` which updates the resume store for that section.
-  - Tapping "Discard" calls `onDiscardDeep` to clear the result.
-- Show a stepped progress indicator while `isAnalyzing` is true (Analyzing... -> Optimizing... -> Finalizing...).
-
-### Step 3: Wire up apply/discard in `EditorPage`
-
-File: `src/pages/EditorPage.tsx`
-
-- Destructure `deepResults` and `clearDeepResult` from `useATSSuggestions`.
-- Create a `handleApplyDeep(section, improved)` callback that applies the AI content to the resume store using the same section-to-field mapping already used by `SectionAIAction`.
-- Pass `deepResult`, `onApplyDeep`, and `onDiscardDeep` to each `ATSInlineSuggestions` instance.
+**Fix:** Change the import to:
+```typescript
+import { supabase } from '@/integrations/supabase/safeClient';
+```
 
 ---
 
-### Technical Details
+### Issue 2: `isAnalyzing` State is Global, Not Per-Section
 
-**Request body fix (useATSSuggestions.ts line ~162):**
+**File:** `src/hooks/useATSSuggestions.ts` (line 107)
+
+**Problem:** `isAnalyzing` is a single boolean. If a user taps "Deep Analyze" on the Summary section, every `ATSInlineSuggestions` instance across all sections will show the spinner simultaneously (since `isAnalyzing` is passed to all 4 instances). Additionally, if a user quickly taps Deep Analyze on two sections, the first section's loading state will be cleared when the second finishes.
+
+**Fix:** Change `isAnalyzing` from a single boolean to a `Set<string>` tracking which sections are currently analyzing:
 ```text
-Before: { section, content, action: 'ats_optimize', resumeData: resume, jobDescription }
-After:  { section, action: 'ats_optimize', currentContent, context: { resume, jobDescription } }
+const [analyzingSections, setAnalyzingSections] = useState<Set<string>>(new Set());
+
+// In fetchDeepSuggestions:
+setAnalyzingSections(prev => new Set(prev).add(section));
+// ...in finally:
+setAnalyzingSections(prev => { const next = new Set(prev); next.delete(section); return next; });
+
+// Return:
+isAnalyzingSection: (section) => analyzingSections.has(section)
 ```
 
-**New state shape in hook:**
-```text
-deepResults: Record<SectionId, {
-  improved: unknown;
-  changes: string[];
-  suggestions?: string[];
-}>
+Then update `ATSInlineSuggestions` to receive `isAnalyzing` as a boolean derived from `isAnalyzingSection(section)` at the call site in EditorPage.
+
+---
+
+### Issue 3: Missing Error Toast in Deep Analyze Failure Path
+
+**File:** `src/hooks/useATSSuggestions.ts` (line 214)
+
+**Problem:** When `fetchDeepSuggestions` fails, it only does `console.error`. The user sees the spinner stop but gets no feedback about what went wrong. This is especially bad for 429/402 rate-limit errors from the edge function.
+
+**Fix:** Add a toast notification in the catch block:
+```typescript
+catch (err) {
+  console.error('Deep ATS analysis failed:', err);
+  const msg = err instanceof Error ? err.message : 'Deep analysis failed';
+  // Dynamic import to avoid circular deps
+  import('sonner').then(({ toast }) => toast.error(msg));
+}
 ```
 
-**Apply mapping (reuses existing pattern from SectionAIAction):**
-```text
-summary  -> updateResume({ summary: improved })
-experience -> updateResume({ experience: improved })
-education -> updateResume({ education: improved })
-skills -> updateResume({ skills: improved })
-```
+---
 
-**Files to modify:**
+### Verified: No Issues Found
+
+| Pipeline | Status |
+|----------|--------|
+| Edge function `enhance-section` request body shape | Correct -- accepts `section`, `action`, `currentContent`, `context` |
+| Edge function `ats_optimize` action validation | Correct -- listed in `VALID_ACTIONS` |
+| `deepResults` state + `clearDeepResult` wiring in EditorPage | Correct -- all 4 sections pass `deepResult`, `onApplyDeep`, `onDiscardDeep` |
+| `handleApplyDeep` section-to-field mapping | Correct -- covers all section types with type guards |
+| `resumeStore.updateResume` sanitization | Correct -- sanitizes `experience`, `education`, `skills` arrays |
+| `renderEditorContent` dependency array | Correct -- includes all new deps |
+| Badge `glass` variant | Correct -- exists in badge component |
+| `haptics` module API (`.light()`, `.medium()`, `.success()`) | Correct -- all methods exist |
+| `ATSScanSheet` props and lazy import | Correct |
+| Public Portfolio PDF: `generatePDF` signature match | Correct -- `(resume, templateId, element, undefined, options)` |
+| Public Portfolio: `usePublicPortfolio` hook `templateId` mapping | Correct |
+| `downloadFile` utility usage | Correct |
+
+---
+
+### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/hooks/useATSSuggestions.ts` | Fix request body, add `deepResults` state, expose `clearDeepResult` |
-| `src/components/editor/ATSInlineSuggestions.tsx` | Add deep result panel with Apply/Discard, stepped progress |
-| `src/pages/EditorPage.tsx` | Wire `deepResults`, `handleApplyDeep`, `clearDeepResult` to inline suggestions |
+| `src/hooks/useATSSuggestions.ts` | Fix import to `safeClient`, make `isAnalyzing` per-section, add error toast |
+| `src/components/editor/ATSInlineSuggestions.tsx` | No changes needed (already receives `isAnalyzing` as a prop) |
+| `src/pages/EditorPage.tsx` | Update `isATSAnalyzing` usage to call per-section check at each `ATSInlineSuggestions` |
 
-No new files, edge functions, or database changes required.
+No database changes or new files required.
+
