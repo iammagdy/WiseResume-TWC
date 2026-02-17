@@ -1,42 +1,65 @@
 
 
-## Fix: Activity History Showing Non-Credit Entries
+## Redesign: Comprehensive AI Credit Usage Sheet
 
-### Problem
+### Goal
 
-The "Today's Activity" list in the Credit Usage Sheet shows ~50 "ATS Score" entries, but the credit counter only shows 9 used. This happens because:
+Split the "Today's Activity" section into two clear areas:
+1. **Credited Activity** -- actions that cost credits, with the cost shown (e.g., "-1 credit", "-2 credits")
+2. **Background Activity** -- actions that ran automatically at no cost (e.g., dashboard ATS scoring)
 
-- **Background scoring** (automatic dashboard scoring) calls the `score-resume` backend function, which **always** logs an entry to the activity table via `recordUsage`
-- But background scoring does **not** deduct credits (by design, from our previous fix)
-- Result: the activity list is flooded with entries that didn't cost credits, creating confusion
+### Current Problem
 
-### Solution
+- After our previous fix, background scoring no longer logs entries at all (we skip `recordUsage` entirely when `background: true`)
+- So there's no way to show background activity in the sheet
+- Existing entries don't indicate whether they cost credits or not
 
-Two changes to fix this:
+### Approach
 
-**1. Backend: Skip logging for background calls** (`supabase/functions/score-resume/index.ts`)
+**1. Re-enable background logging with a flag** (`supabase/functions/score-resume/index.ts`)
 
-- Accept an optional `background: true` flag in the request body
-- When `background` is true, skip calling `recordUsage()` so no log entry is created
-- Rate limiting still applies (via `checkRateLimit`)
+- When `background: true`, still call `recordUsage` but pass `{ background: true }` in the metadata field
+- This way background activity is tracked but clearly marked
 
-**2. Client: Pass the background flag** (`src/hooks/useResumeScore.ts`)
+**2. Update the shared `recordUsage` helper** (no changes needed -- it already accepts optional metadata)
 
-- Update `invokeScoreResume` to accept an optional `background` parameter
-- When `backgroundScore` calls it, pass `background: true`
-- When `scoreResume` (user-initiated) calls it, pass nothing (defaults to false)
+**3. Redesign the CreditUsageSheet UI** (`src/components/ai/CreditUsageSheet.tsx`)
+
+- Fetch today's logs including the `metadata` column
+- Split entries into two lists:
+  - **Credited**: entries where `metadata.background` is NOT true -- show cost from `AI_COST_MAP` (e.g., "Tailor" shows "-2 credits", "ATS Score" shows "-1 credit")
+  - **Background**: entries where `metadata.background` IS true -- shown in a separate, more subtle section below
+- Each credited entry row: `[Label]  [-N credit(s)]  [time]`
+- Each background entry row: `[Label]  [Free]  [time]` in muted styling
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `supabase/functions/score-resume/index.ts` | Line 49: extract `background` from request body; Line 126: wrap `recordUsage` in `if (!background)` |
-| `src/hooks/useResumeScore.ts` | Line 37: add `background?: boolean` param to `invokeScoreResume`; Line 52-53: pass it in the body; Line 120: call with `background: true` |
+| `supabase/functions/score-resume/index.ts` | Line 125-128: change from skipping `recordUsage` to calling it with `{ background: true }` metadata |
+| `src/components/ai/CreditUsageSheet.tsx` | Fetch `metadata` column; split activity into credited vs background sections; import `getAICost` to show cost badges per entry |
 
-### What This Fixes
+### UI Layout (inside the sheet)
 
-- Activity history only shows entries that actually cost credits
-- The number in the activity list matches the credit counter (e.g., 9 entries = 9 credits used)
-- Background ATS scoring still works silently without polluting the history
-- Rate limiting remains intact for both background and user-initiated calls
+```text
+[Ring: 9 / 20 credits used today]
+[Resets in Xh Ym]
+
+--- CREDITED ACTIVITY ---
+Tailor          -2 credits    2:30 PM
+Enhance         -1 credit     1:45 PM
+ATS Score       -1 credit     1:20 PM
+
+--- BACKGROUND ACTIVITY ---
+ATS Score       Free          12:05 PM
+ATS Score       Free          12:04 PM
+ATS Score       Free          12:03 PM
+
+--- LIFETIME USAGE ---
+[Total: 142 credits]
+```
+
+### Edge Function Deployment
+
+The updated `score-resume` function will be redeployed automatically.
 
