@@ -567,7 +567,7 @@ export default function EditorPage() {
   };
 
   // ATS Suggestions hook
-  const { getSuggestions: getATSSuggestions, isAnalyzing: isATSAnalyzing, fetchDeepSuggestions, scanSummary, deepResults, clearDeepResult } = useATSSuggestions(currentResume, jobDescription);
+  const { getSuggestions: getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, scanSummary, deepResults, clearDeepResult } = useATSSuggestions(currentResume, jobDescription);
 
   // Apply deep analysis result to the resume store
   const handleApplyDeep = useCallback((section: string, improved: unknown) => {
@@ -627,7 +627,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
             <Suspense fallback={<SectionSkeleton />}><SummarySection /></Suspense>
-            {jobDescription && <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} />}
+            {jobDescription && <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} />}
           </SectionCard>
         </div>
       )}
@@ -635,7 +635,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
             <Suspense fallback={<SectionSkeleton />}><ExperienceSection /></Suspense>
-            {jobDescription && <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} />}
+            {jobDescription && <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} />}
           </SectionCard>
         </div>
       )}
@@ -643,7 +643,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
             <Suspense fallback={<SectionSkeleton />}><EducationSection /></Suspense>
-            {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['education']} onApplyDeep={(improved) => handleApplyDeep('education', improved)} onDiscardDeep={() => clearDeepResult('education')} />}
+            {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isAnalyzingSection('education')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['education']} onApplyDeep={(improved) => handleApplyDeep('education', improved)} onDiscardDeep={() => clearDeepResult('education')} />}
           </SectionCard>
         </div>
       )}
@@ -651,7 +651,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
             <Suspense fallback={<SectionSkeleton />}><SkillsSection /></Suspense>
-            {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['skills']} onApplyDeep={(improved) => handleApplyDeep('skills', improved)} onDiscardDeep={() => clearDeepResult('skills')} />}
+            {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isAnalyzingSection('skills')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['skills']} onApplyDeep={(improved) => handleApplyDeep('skills', improved)} onDiscardDeep={() => clearDeepResult('skills')} />}
           </SectionCard>
         </div>
       )}
@@ -740,7 +740,7 @@ export default function EditorPage() {
         )}
       </div>
     </>
-  ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isATSAnalyzing, fetchDeepSuggestions, deepResults, handleApplyDeep, clearDeepResult]);
+  ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, deepResults, handleApplyDeep, clearDeepResult]);
 
   // Proofread hook
   const { issues: proofreadIssues, score: proofreadScore, isChecking: isProofreadChecking, checkNow, fixIssue, ignoreIssue, fixAll } = useProofread(currentResume);

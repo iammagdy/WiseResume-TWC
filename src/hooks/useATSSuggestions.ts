@@ -1,6 +1,7 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { ResumeData, SectionId } from '@/types/resume';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { toast } from 'sonner';
 
 export interface ATSSuggestion {
   id: string;
@@ -104,7 +105,7 @@ export interface DeepResult {
 export function useATSSuggestions(resume: ResumeData | null, jobDescription: string) {
   const [deepSuggestions, setDeepSuggestions] = useState<Record<string, ATSSuggestion[]>>({});
   const [deepResults, setDeepResults] = useState<Record<string, DeepResult>>({});
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analyzingSections, setAnalyzingSections] = useState<Set<string>>(new Set());
   const cacheRef = useRef<Record<string, { suggestions: ATSSuggestion[]; result: DeepResult }>>({});
   // Client-side keyword analysis
   const suggestions = useMemo(() => {
@@ -172,7 +173,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       return;
     }
 
-    setIsAnalyzing(true);
+    setAnalyzingSections(prev => new Set(prev).add(section));
     try {
       const currentContent = getSectionContent(resume, section);
       const { data, error } = await supabase.functions.invoke('enhance-section', {
@@ -213,8 +214,10 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       setDeepResults(prev => ({ ...prev, [section]: result }));
     } catch (err) {
       console.error('Deep ATS analysis failed:', err);
+      const msg = err instanceof Error ? err.message : 'Deep analysis failed';
+      toast.error(msg);
     } finally {
-      setIsAnalyzing(false);
+      setAnalyzingSections(prev => { const next = new Set(prev); next.delete(section); return next; });
     }
   }, [resume, jobDescription]);
 
@@ -256,5 +259,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     return { matchPercentage, perSection, totalKeywords: total, matchedKeywords: matched };
   }, [resume, jobDescription, suggestions]);
 
-  return { getSuggestions, isAnalyzing, fetchDeepSuggestions, scanSummary, suggestions, deepResults, clearDeepResult };
+  const isAnalyzingSection = useCallback((section: SectionId) => analyzingSections.has(section), [analyzingSections]);
+
+  return { getSuggestions, isAnalyzingSection, fetchDeepSuggestions, scanSummary, suggestions, deepResults, clearDeepResult };
 }
