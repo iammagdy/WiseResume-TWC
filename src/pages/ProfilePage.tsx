@@ -53,14 +53,16 @@ export default function ProfilePage() {
     }
   }, [profile]);
 
-  // Init selectedResumeId from profile or fallback
+  // Init selectedResumeId from profile or fallback (prefer resumes with data)
   useEffect(() => {
     if (resumes.length > 0 && !selectedResumeId) {
+      const hasData = (r: typeof resumes[0]) => !!(r.summary || (r.experience && (r.experience as any[]).length > 0));
       if (profile?.portfolioResumeId && resumes.some(r => r.id === profile.portfolioResumeId)) {
         setSelectedResumeId(profile.portfolioResumeId);
       } else {
+        const withData = resumes.find(hasData);
         const primary = resumes.find(r => r.is_primary);
-        setSelectedResumeId(primary?.id || resumes[0].id);
+        setSelectedResumeId(withData?.id || primary?.id || resumes[0].id);
       }
     }
   }, [resumes, selectedResumeId, profile?.portfolioResumeId]);
@@ -126,14 +128,26 @@ export default function ProfilePage() {
   };
 
   const handleShareProfile = async () => {
-    const text = `${profile?.fullName || 'User'} — ${profile?.jobTitle || 'Professional'}\n${resumes.length} resumes on WiseResume`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: 'My WiseResume Profile', text });
-      } catch {}
+    if (portfolioEnabled && username) {
+      const url = `https://wiseresume.lovable.app/p/${username}`;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url });
+        } catch {}
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success('Portfolio URL copied!');
+      }
     } else {
-      await navigator.clipboard.writeText(text);
-      toast.success('Profile info copied!');
+      const text = `${profile?.fullName || 'User'} — ${profile?.jobTitle || 'Professional'}\n${resumes.length} resumes on WiseResume`;
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'My WiseResume Profile', text });
+        } catch {}
+      } else {
+        await navigator.clipboard.writeText(text);
+        toast.success('Profile info copied!');
+      }
     }
   };
 
@@ -375,17 +389,22 @@ export default function ProfilePage() {
 
           {/* URL Copy */}
           {username && portfolioEnabled && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
-              <Globe className="w-4 h-4 text-primary shrink-0" />
-              <span className="text-xs text-foreground truncate flex-1">{portfolioUrl}</span>
-              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyUrl}>
-                {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-              </Button>
-              <a href={`https://${portfolioUrl}`} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-                  <ExternalLink className="w-4 h-4" />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <Globe className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-xs text-foreground truncate flex-1">{portfolioUrl}</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyUrl}>
+                  {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
                 </Button>
-              </a>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation"
+                onClick={() => window.open(`https://${portfolioUrl}`, '_blank', 'noopener,noreferrer')}
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Preview Portfolio
+              </Button>
             </div>
           )}
 

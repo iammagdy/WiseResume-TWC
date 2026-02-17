@@ -71,7 +71,7 @@ Requirements:
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.8,
-      maxTokens: 300,
+      maxTokens: 500,
       userId,
     });
 
