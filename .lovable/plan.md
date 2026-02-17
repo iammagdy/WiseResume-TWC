@@ -1,119 +1,91 @@
 
 
-## In-Page ATS Optimization Suggestions
+## On-Page Deep Analyze for Section-Specific ATS Improvements
 
-### Overview
-Add persistent, inline ATS optimization tips directly within each editor section card -- visible without opening sheets or dialogs. When a user sets a target job description, the system analyzes each section and surfaces specific, actionable keyword and formatting suggestions right below the section content. One-tap application of each suggestion speeds up the optimization loop.
+### Problem
+The "Deep Analyze" button already exists in `ATSInlineSuggestions`, but it is broken and lacks a proper results UI:
 
----
+1. **Wrong request body**: `fetchDeepSuggestions` sends `{ section, content, action, resumeData, jobDescription }` but the `enhance-section` edge function expects `{ section, action, currentContent, context: { resume, jobDescription } }` -- so the call silently fails or returns malformed results.
+2. **Unparsed results**: The AI returns `{ improved, changes, suggestions }` where `suggestions` is an array of plain strings, but the hook tries to read `.message`, `.type`, `.priority` as if they were structured objects.
+3. **No dedicated results display**: Deep analysis results (the rewritten content + change list) are just merged into the same keyword-tip rows, losing the most valuable output -- the actual improved content the user can apply.
 
-### Current State
-- Each section already has an "AI Assist" button (SectionAIAction) with an "ATS Optimize" action, but it requires: click button, pick action, wait for response, review dialog, apply
-- The AIContextualNudge component shows one nudge per section but only for content completeness (empty summary, missing metrics, etc.)
-- The ATS score is shown as a collapsible completeness bar in the editor header area
-- The AIEnhanceSheet allows batch enhancement but opens a full-height sheet
-
-### What's New
-An **inline ATS suggestion panel** that appears directly under each section's content when the user has set a job description. No extra clicks needed -- suggestions appear automatically and can be applied or dismissed one by one.
+### Solution
+Fix the request/response pipeline and add a rich inline results panel that shows the AI-rewritten content with an "Apply" button, plus a list of specific changes made.
 
 ---
 
-### Implementation Steps
+### Step 1: Fix `useATSSuggestions.fetchDeepSuggestions`
 
-**Step 1: Create `useATSSuggestions` hook**
+File: `src/hooks/useATSSuggestions.ts`
 
-New file: `src/hooks/useATSSuggestions.ts`
+- Fix the request body to match the edge function's expected shape:
+  ```text
+  body: {
+    section,
+    action: 'ats_optimize',
+    currentContent: getSectionContent(resume, section),
+    context: { resume, jobDescription }
+  }
+  ```
+- Store the full AI result (`improved`, `changes`, `suggestions`) in a new `deepResults` state map keyed by section, rather than trying to convert everything into `ATSSuggestion` objects.
+- Parse the `suggestions` array (plain strings) into proper `ATSSuggestion` objects for the tips list.
+- Expose `deepResults` and a `clearDeepResult(section)` function.
 
-- Accepts the current resume data and job description
-- Computes lightweight, client-side keyword analysis per section (no API call):
-  - Extracts keywords from job description (split, normalize, deduplicate)
-  - Checks which keywords appear in each section's content
-  - Returns missing keywords per section with relevance scores
-- Provides a `fetchDeepSuggestions(section)` function that calls the existing `enhance-section` edge function with `ats_optimize` action for AI-powered suggestions (on-demand, not automatic)
-- Caches suggestions per section + job description hash to avoid redundant API calls
-- Returns: `{ getSuggestions(section): ATSSuggestion[], isAnalyzing, fetchDeepSuggestions(section) }`
+### Step 2: Add Deep Analysis Results Panel to `ATSInlineSuggestions`
 
-Interface:
-```text
-ATSSuggestion {
-  id: string
-  type: 'missing_keyword' | 'weak_verb' | 'add_metrics' | 'formatting'
-  message: string        // e.g. "Add keyword: React.js"
-  section: SectionType
-  priority: 'high' | 'medium' | 'low'
-  autoFix?: string       // Pre-computed fix text (for keywords, can auto-add to skills)
-}
-```
+File: `src/components/editor/ATSInlineSuggestions.tsx`
 
-**Step 2: Create `ATSInlineSuggestions` component**
+Add new props and UI:
+- Accept `deepResult?: { improved: unknown; changes: string[]; suggestions?: string[] }` and `onApplyDeep`, `onDiscardDeep` callbacks.
+- When `deepResult` is present, render a results card below the tips list:
+  - A header: "AI Optimized Content Ready" with a sparkle icon.
+  - A bulleted list of `changes` (e.g., "Added metrics to bullet 2", "Strengthened action verb").
+  - Two action buttons: "Apply Changes" (primary) and "Discard" (ghost).
+  - Tapping "Apply Changes" calls `onApplyDeep(deepResult.improved)` which updates the resume store for that section.
+  - Tapping "Discard" calls `onDiscardDeep` to clear the result.
+- Show a stepped progress indicator while `isAnalyzing` is true (Analyzing... -> Optimizing... -> Finalizing...).
 
-New file: `src/components/editor/ATSInlineSuggestions.tsx`
+### Step 3: Wire up apply/discard in `EditorPage`
 
-A compact card that renders inside each SectionCard, below the content:
-- Shows only when job description is set and there are suggestions for this section
-- Displays a count badge: "3 ATS tips"
-- Expandable/collapsible (default collapsed after first visit)
-- Each suggestion is a single row with:
-  - Icon (colored by priority: red/amber/blue)
-  - Message text
-  - "Apply" chip button (for auto-fixable items like adding a keyword to skills)
-  - "Dismiss" button (X icon)
-- "Deep Analyze" button at the bottom calls `fetchDeepSuggestions` for AI-powered section-specific ATS optimization (reuses existing edge function)
-- Matches existing glass-card styling, uses `active:scale-95` for touch targets
+File: `src/pages/EditorPage.tsx`
 
-**Step 3: Integrate into `renderEditorContent` in EditorPage**
-
-- Import the new `ATSInlineSuggestions` component
-- Add it inside each SectionCard render block (after the section content, before the navigation buttons)
-- Pass the current section type and resume data
-- The component self-manages visibility based on whether a job description exists
-
-**Step 4: Add "Quick ATS Scan" action to editor tools**
-
-- Add a new action in the mobile tools sheet and desktop header
-- Triggers a full-resume client-side keyword scan that opens a summary bottom sheet showing:
-  - Per-section missing keyword counts
-  - Tap any section to jump to it (calls `handleTabChange`)
-  - Overall keyword match percentage
-- Reuses the hook from Step 1
+- Destructure `deepResults` and `clearDeepResult` from `useATSSuggestions`.
+- Create a `handleApplyDeep(section, improved)` callback that applies the AI content to the resume store using the same section-to-field mapping already used by `SectionAIAction`.
+- Pass `deepResult`, `onApplyDeep`, and `onDiscardDeep` to each `ATSInlineSuggestions` instance.
 
 ---
 
 ### Technical Details
 
-**Client-side keyword extraction (no API cost):**
+**Request body fix (useATSSuggestions.ts line ~162):**
 ```text
-1. Split job description by whitespace and punctuation
-2. Normalize: lowercase, remove common stop words
-3. Extract multi-word phrases (bigrams) for technical terms
-4. For each section, check presence of keywords in content
-5. Return missing keywords sorted by frequency in job description
+Before: { section, content, action: 'ats_optimize', resumeData: resume, jobDescription }
+After:  { section, action: 'ats_optimize', currentContent, context: { resume, jobDescription } }
 ```
 
-**Auto-fix for skills section:**
-When a missing keyword suggestion has `autoFix`, tapping "Apply" directly adds the keyword to the skills array via `updateResume({ skills: [...currentSkills, keyword] })`.
+**New state shape in hook:**
+```text
+deepResults: Record<SectionId, {
+  improved: unknown;
+  changes: string[];
+  suggestions?: string[];
+}>
+```
 
-**For other sections:**
-Tapping "Apply" on a non-auto-fixable suggestion opens the existing AI Assist flow with `ats_optimize` pre-selected, so the existing enhancement pipeline handles the actual content rewriting.
-
-**Performance:**
-- Client-side keyword analysis runs synchronously (fast, no debounce needed)
-- AI-powered deep suggestions are on-demand only (user taps "Deep Analyze")
-- Suggestions are memoized per section + job description hash
-- Component uses `React.memo` to prevent unnecessary re-renders
-
-**Files to create:**
-| File | Purpose |
-|------|---------|
-| `src/hooks/useATSSuggestions.ts` | Client-side keyword analysis + AI deep analysis wrapper |
-| `src/components/editor/ATSInlineSuggestions.tsx` | Inline suggestion cards per section |
-| `src/components/editor/ATSScanSheet.tsx` | Full-resume scan summary sheet |
+**Apply mapping (reuses existing pattern from SectionAIAction):**
+```text
+summary  -> updateResume({ summary: improved })
+experience -> updateResume({ experience: improved })
+education -> updateResume({ education: improved })
+skills -> updateResume({ skills: improved })
+```
 
 **Files to modify:**
+
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Add ATSInlineSuggestions inside each section render block; add Quick ATS Scan to tools |
-| `src/store/resumeStore.ts` | Add `jobDescription` getter if not already exposed (it is) |
+| `src/hooks/useATSSuggestions.ts` | Fix request body, add `deepResults` state, expose `clearDeepResult` |
+| `src/components/editor/ATSInlineSuggestions.tsx` | Add deep result panel with Apply/Discard, stepped progress |
+| `src/pages/EditorPage.tsx` | Wire `deepResults`, `handleApplyDeep`, `clearDeepResult` to inline suggestions |
 
-No database changes or new edge functions needed -- reuses the existing `enhance-section` function with the `ats_optimize` action.
-
+No new files, edge functions, or database changes required.
