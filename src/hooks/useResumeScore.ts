@@ -136,6 +136,20 @@ export function useResumeScore() {
     return scoreCache.get(cacheKey(resumeId, updatedAt)) ?? null;
   }, []);
 
+  /** Find the most recent cached score for a resume regardless of updated_at */
+  const getLatestCachedScore = useCallback((resumeId: string): ResumeHealthScore | null => {
+    const prefix = `${resumeId}:`;
+    let latest: ResumeHealthScore | null = null;
+    for (const [key, value] of scoreCache.entries()) {
+      if (key.startsWith(prefix)) {
+        if (!latest || value.scoredAt > latest.scoredAt) {
+          latest = value;
+        }
+      }
+    }
+    return latest;
+  }, []);
+
   const scoreResume = useCallback(async (resumeId: string, resume: ResumeData, updatedAt: string, force?: boolean): Promise<ResumeHealthScore | null> => {
     if (!force) {
       const cached = scoreCache.get(cacheKey(resumeId, updatedAt));
@@ -181,5 +195,5 @@ export function useResumeScore() {
     }
   }, []);
 
-  return { scoreResume, getCachedScore, scoringId };
+  return { scoreResume, getCachedScore, getLatestCachedScore, scoringId };
 }
