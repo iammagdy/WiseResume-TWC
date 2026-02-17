@@ -31,6 +31,17 @@ export const useATSScoreHistoryStore = create<ATSScoreHistoryState>()(
       addScore: (resumeId, { overallScore, categories }) => {
         set((state) => {
           const current = state.history[resumeId] || [];
+          // Deduplicate: skip if latest entry has identical scores
+          const last = current[current.length - 1];
+          if (last && last.score === overallScore &&
+              last.categories.keywordOptimization === categories.keywordOptimization &&
+              last.categories.contentQuality === categories.contentQuality &&
+              last.categories.sectionStructure === categories.sectionStructure &&
+              last.categories.parsability === categories.parsability &&
+              last.categories.contactCompleteness === categories.contactCompleteness &&
+              last.categories.lengthDensity === categories.lengthDensity) {
+            return state; // No change, skip duplicate
+          }
           const newEntry: ScoreHistoryEntry = {
             score: overallScore,
             timestamp: new Date().toISOString(),
