@@ -12,28 +12,28 @@ const config = {
     icon: Eye,
     text: 'Looking good! Tap Preview to see your resume.',
     actionLabel: 'Preview',
-    settingsKey: 'hasSeenPreviewHint' as const,
+    settingsKey: 'hasSeenPreviewHint' as const
   },
   tailor: {
     icon: Target,
     text: 'Want to match this to a job? Try AI Tailor.',
     actionLabel: 'Tailor',
-    settingsKey: 'hasSeenTailorHint' as const,
+    settingsKey: 'hasSeenTailorHint' as const
   },
   interview: {
     icon: Mic,
     text: 'Ready to practice? Try AI Interview Prep.',
     actionLabel: 'Interview',
-    settingsKey: 'hasSeenInterviewHint' as const,
-  },
+    settingsKey: 'hasSeenInterviewHint' as const
+  }
 };
 
 export const NextStepBanner = memo(function NextStepBanner({ variant, onAction }: NextStepBannerProps) {
-  const dismissed = useSettingsStore(state => state[config[variant].settingsKey]);
-  const setHasSeenPreviewHint = useSettingsStore(state => state.setHasSeenPreviewHint);
-  const setHasSeenTailorHint = useSettingsStore(state => state.setHasSeenTailorHint);
-  const setHasSeenInterviewHint = useSettingsStore(state => state.setHasSeenInterviewHint);
-  
+  const dismissed = useSettingsStore((state) => state[config[variant].settingsKey]);
+  const setHasSeenPreviewHint = useSettingsStore((state) => state.setHasSeenPreviewHint);
+  const setHasSeenTailorHint = useSettingsStore((state) => state.setHasSeenTailorHint);
+  const setHasSeenInterviewHint = useSettingsStore((state) => state.setHasSeenInterviewHint);
+
   const { icon: Icon, text, actionLabel, settingsKey } = config[variant];
 
   const dismiss = () => {
@@ -45,24 +45,24 @@ export const NextStepBanner = memo(function NextStepBanner({ variant, onAction }
   if (dismissed) return null;
 
   return (
-      <div
-        className="mx-4 mb-2 flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5 animate-in fade-in-0 slide-in-from-top-2 duration-200"
-      >
+    <div
+      className="mx-4 items-center gap-2 rounded-xl bg-primary/10 border border-primary/20 px-3 py-2.5 animate-in fade-in-0 slide-in-from-top-2 duration-200 pr-[2px] pl-[2px] pt-[5px] pb-[5px] mb-0 ml-[10px] mr-[10px] flex flex-row">
+
         <Icon className="w-4 h-4 text-primary flex-shrink-0" />
         <span className="text-sm text-foreground flex-1">{text}</span>
         <button
-          onClick={onAction}
-          className="text-xs font-semibold text-primary px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors touch-manipulation min-h-[44px] flex items-center"
-        >
+        onClick={onAction}
+        className="text-xs font-semibold text-primary px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors touch-manipulation min-h-[44px] flex items-center">
+
           {actionLabel}
         </button>
         <button
-          onClick={dismiss}
-          className="p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-          aria-label="Dismiss"
-        >
+        onClick={dismiss}
+        className="p-1 rounded-full hover:bg-muted transition-colors touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
+        aria-label="Dismiss">
+
           <X className="w-3.5 h-3.5 text-muted-foreground" />
         </button>
-      </div>
-  );
+      </div>);
+
 });
