@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { motion, useReducedMotion, type Easing } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 const features = [
   { icon: Sparkles, title: 'AI Writing Assistant', desc: 'Enhance bullets and summaries with one tap', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
@@ -31,9 +31,15 @@ const Index = () => {
   const { profile } = useProfile(user?.id, user);
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 120);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 120);
+      const { scrollY } = window;
+      const max = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(max > 0 ? (scrollY / max) * 100 : 0);
+    };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
@@ -73,6 +79,15 @@ const Index = () => {
 
   return (
     <SpaceBackground>
+      {/* Scroll progress bar for homepage */}
+      {scrollProgress > 0 && (
+        <div className="fixed top-0 left-0 right-0 h-[3px] z-[60] pointer-events-none">
+          <div
+            className="h-full bg-primary transition-[width] duration-75 ease-out"
+            style={{ width: `${scrollProgress}%` }}
+          />
+        </div>
+      )}
       {/* Sticky Mini Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${

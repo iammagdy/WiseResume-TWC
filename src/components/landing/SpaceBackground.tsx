@@ -25,7 +25,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
   const stars = useMemo(() => generateStars(25), []);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[hsl(240_30%_3%)]">
+    <div className="relative min-h-screen overflow-x-hidden bg-[hsl(240_30%_3%)]">
       {/* Deep space gradient - static, no JS */}
       <div 
         className="absolute inset-0 bg-gradient-to-b from-[hsl(240_30%_3%)] via-[hsl(270_40%_8%)] to-[hsl(240_30%_3%)]"
