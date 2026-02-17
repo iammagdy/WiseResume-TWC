@@ -1,57 +1,40 @@
 
 
-## Fix: Align AI Enhancement Prompts with Deterministic Scoring Rules
+## Fix: Score Disappears After Closing Enhance Sheet
 
-### Root Cause
+### What's Happening
 
-The `enhance-section` edge function uses generic "improve" prompts that don't know about the 6 deterministic scoring pillars. So the AI can "improve" a section in ways that actually HURT the score:
+Two issues are causing the score to vanish:
 
-- **Skills**: AI renames "React" to "React.js Development" or "Python" to "Python Programming Language". The keyword echo scorer does `textBlob.includes(skill)` -- longer/different skill names break the match, dropping Keyword Optimization (35% weight).
-- **Education**: AI reformats dates (e.g., "2020" becomes "January 2020"), causing mixed date formats. Parsability deducts 15 points for inconsistent formats.
-- **Experience**: AI may rephrase bullets removing action verbs from the start or removing specific numbers, dropping Content Quality (25% weight).
-- **Summary**: AI may rewrite without echoing listed skills, hurting Keyword Optimization.
+1. **The `score-resume` function was not deployed** -- all scoring calls were returning 404 errors. This has been fixed just now by redeploying the function.
+
+2. **Cache cleared before re-score succeeds** -- When you apply enhancements and close the sheet, the code immediately clears the cached score (line 407) and THEN attempts to re-score. If the re-score fails (network error, timeout, etc.), the cache is empty and the UI shows "Score Resume" instead of your previous score. The score should only be replaced once the new score is successfully computed.
 
 ### The Fix
 
-Update the `enhance-section` edge function's `buildPrompt()` to inject scoring-aware constraints for the `ats_improve` action (used by "Improve Score"). These constraints tell the AI exactly what the scorer measures:
+**File: `src/pages/ResumeDetailPage.tsx`**
 
-**For Skills section:**
-- NEVER rename, merge, or remove existing skills
-- Only ADD new relevant skills
-- Keep each skill as a short string (1-3 words max)
-- Include the user's exact listed skill names so the AI preserves them
+Change the post-enhancement flow so the cached score is NOT cleared before re-scoring. Instead:
+- Call `scoreResume` without clearing the cache first
+- The `scoreResume` function will overwrite the cache only when it succeeds
+- If scoring fails, the previous score remains visible (e.g., still shows 69%)
+- Remove the `clearCachedScore` call from the `onOpenChange` handler -- let the successful score response naturally replace the old cache entry
 
-**For Experience section:**
-- Every bullet MUST start with one of the exact action verbs from the scorer's list (Led, Managed, Developed, etc.)
-- Every bullet MUST include at least one number, percentage, or dollar amount
-- NEVER remove existing bullets, only improve or add
-- Preserve all date formats exactly as they are
+Since `scoreResume` in `useResumeScore.ts` uses a cache key based on `resumeId + updatedAt`, and the database save changes `updated_at`, the old cache entry won't match anyway. The fix is to let `scoreResume` write the new entry without explicitly deleting the old one first.
 
-**For Education section:**
-- Preserve all date formats exactly -- do not reformat dates
-- Preserve institution names, degree names, and field names exactly
-- Only enhance GPA presentation or add relevant coursework if missing
+Additionally, update `scoreResume` in `useResumeScore.ts` to NOT skip scoring when a cache hit exists for cases where a force-refresh is needed (pass an optional `force` parameter).
 
-**For Summary section:**
-- Must mention at least 3-5 skills from the user's skills list by exact name
-- Use strong action verbs from the scorer's list
-- Include quantified achievements (numbers, years of experience)
-
-### What Changes
+### Technical Changes
 
 | File | Change |
 |------|--------|
-| `supabase/functions/enhance-section/index.ts` | Update `buildPrompt()` to add scoring-aligned constraints for the `ats_improve` action. Add the ACTION_VERBS list and inject section-specific scoring rules into the prompt. |
+| `src/pages/ResumeDetailPage.tsx` | Remove `clearCachedScore` call in the post-enhancement `onSuccess` handler. Instead, pass a force flag to `scoreResume` so it always re-scores after enhancements. Keep the old cached score visible until the new one arrives. |
+| `src/hooks/useResumeScore.ts` | Add an optional `force` parameter to `scoreResume` that bypasses the cache check, ensuring a fresh score is fetched even when a cached entry exists. |
 
-### Technical Details
+### What This Guarantees
 
-In `buildPrompt()`, the existing `ats_improve` action prompt (lines ~70-90 of enhance-section) will be replaced with a version that includes:
+- The score never "disappears" -- the old score stays visible until the new one is ready
+- If re-scoring fails, the user still sees their last known score
+- After successful re-scoring, the new score replaces the old one seamlessly
+- The `score-resume` edge function is now deployed and working (was returning 404)
 
-1. The exact list of 60 action verbs the scorer checks for
-2. Section-specific rules that match what the deterministic scorer measures
-3. For skills: the instruction to preserve existing skill names verbatim and only add new ones
-4. For experience: explicit requirement that every bullet starts with an action verb AND contains a metric
-5. For education: explicit instruction to not touch date formats
-6. For summary: explicit instruction to echo skill names from the skills array
-
-This means "Improve Score" will produce enhancements that are guaranteed to improve (or at worst maintain) the deterministic score, because the AI will be optimizing for the exact same criteria the scorer checks.
