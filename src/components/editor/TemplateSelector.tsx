@@ -14,6 +14,7 @@ import { useProfile, CareerLevel } from '@/hooks/useProfile';
 interface TemplateSelectorProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTemplateApplied?: () => void;
 }
 
 const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
@@ -24,7 +25,7 @@ const CAREER_LEVEL_RECOMMENDATIONS: Record<CareerLevel, TemplateId[]> = {
 };
 
 
-export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) {
+export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: TemplateSelectorProps) {
   const { selectedTemplate, setSelectedTemplate, updateResume, currentResume } = useResumeStore();
   const { user } = useAuth();
   const { profile } = useProfile(user?.id);
@@ -47,6 +48,7 @@ export function TemplateSelector({ open, onOpenChange }: TemplateSelectorProps) 
     setSelectedTemplate(id);
     updateResume({ templateId: id });
     onOpenChange(false);
+    onTemplateApplied?.();
   };
 
   // Use sample data if no resume loaded
