@@ -1187,6 +1187,17 @@ button,
   display: none;
 }
 
+/* Keyboard-aware padding for editor scroll container */
+.keyboard-open .editor-scroll-container {
+  padding-bottom: calc(var(--keyboard-height, 0px) + 1rem) !important;
+}
+
+/* Keyboard-aware padding for Sheet/Dialog scroll containers */
+.keyboard-open [data-vaul-drawer] .overflow-y-auto,
+.keyboard-open [role="dialog"] .overflow-y-auto {
+  padding-bottom: calc(var(--keyboard-height, 0px) + 1rem);
+}
+
 /* Android WebView scroll fix */
 .overflow-y-auto {
   -webkit-overflow-scrolling: touch;
