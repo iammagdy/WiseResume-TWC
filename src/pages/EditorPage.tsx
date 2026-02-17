@@ -70,7 +70,7 @@ import { cn } from '@/lib/utils';
 import { ActionsPanel, type ActionsPanelGroup } from '@/components/ActionsPanel';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
-import { Target } from 'lucide-react';
+import { Target, LayoutGrid } from 'lucide-react';
 import { useProofread } from '@/hooks/useProofread';
 import { ProofreadButton } from '@/components/editor/ProofreadButton';
 import { useEditorShortcuts } from '@/hooks/useEditorShortcuts';
@@ -613,6 +613,7 @@ export default function EditorPage() {
       id: 'quick-actions',
       title: 'Quick Actions',
       actions: [
+        { id: 'template', label: 'Change Template', icon: LayoutGrid, onClick: handleChangeTemplate },
         { id: 'design', label: 'Design', icon: Palette, onClick: handleCustomize },
         { id: 'wise-ai', label: 'Wise AI', icon: MessageSquare, onClick: () => setShowChat(true) },
         ...(user && currentResumeId ? [{ id: 'versions', label: 'Versions', icon: Clock, onClick: () => setShowVersionHistory(true) }] : []),
@@ -858,6 +859,15 @@ export default function EditorPage() {
           </div>
           {/* Desktop buttons - hidden on mobile */}
           <div className="hidden md:flex items-center gap-1.5">
+            {/* Template gallery shortcut */}
+            <button
+              onClick={() => { handleChangeTemplate(); haptics.light(); }}
+              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 hover:bg-muted text-muted-foreground"
+              aria-label="Open template gallery"
+            >
+              <LayoutGrid className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none">Template</span>
+            </button>
             {/* Design shortcut */}
             <button
               onClick={() => { handleCustomize(); haptics.light(); }}
