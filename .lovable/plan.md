@@ -1,41 +1,58 @@
 
 
-## Phase 3 Completion: Contrast Audit Fix for Muted Foreground
+## Refactor EditorPage: Mobile Tabs Layout
 
 ### Problem
-The audit identified that `muted-foreground` text on `muted` backgrounds has borderline contrast (~3:1 ratio), below the WCAG AA minimum of 4.5:1 for normal text. This affects helper text, placeholders, and secondary labels throughout the app.
+On mobile, the editor uses a bottom-sheet drawer for preview, requiring users to dismiss it to return to editing. This is not ideal for frequent editor/preview toggling. The ResizablePanelGroup is desktop-only but the mobile fallback could be improved with a tab-based UI.
 
-### Current Values
-
-**Dark mode** (`:root` / `.dark`):
-- `--muted`: `240 15% 15%` (background ~#222233)
-- `--muted-foreground`: `240 10% 60%` (text ~#8E8EA0)
-- Estimated contrast: ~3.5:1
-
-**Light mode** (`.light`):
-- `--muted`: `240 5% 92%` (background ~#EAEBEE)
-- `--muted-foreground`: `240 5% 45%` (text ~#6D6E75)
-- Estimated contrast: ~3.8:1
-
-### Fix
-
-Bump `muted-foreground` lightness to achieve ~5:1 contrast while keeping the subdued aesthetic:
-
-**Dark mode**: `240 10% 60%` --> `240 10% 65%` (lighter text on dark bg)
-**Light mode**: `240 5% 45%` --> `240 5% 40%` (darker text on light bg)
-
-This brings both themes comfortably above the 4.5:1 WCAG AA threshold.
+### Solution
+Use `useIsMobile` to switch between two layouts:
+- **Mobile**: A shadcn `Tabs` component with "Editor" and "Preview" tabs, rendering each full-width
+- **Desktop**: Keep the existing `ResizablePanelGroup` split-screen behavior unchanged
 
 ### Changes
 
-**Modified: `src/index.css`** (3 edits)
+**Modified: `src/pages/EditorPage.tsx`**
 
-1. **Line 44** (`:root` block): Change `--muted-foreground: 240 10% 60%` to `240 10% 65%`
-2. **Line 105** (`.light` block): Change `--muted-foreground: 240 5% 45%` to `240 5% 40%`
-3. **Line 145** (`.dark` block): Change `--muted-foreground: 240 10% 60%` to `240 10% 65%`
+1. **Import Tabs** (line ~1): Add `import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'`
 
-### Impact
-- All secondary text, placeholders, helper labels, and muted UI elements gain improved readability
-- No visual design changes -- the shift is subtle (5% lightness) but measurable for accessibility compliance
-- Single file change, zero risk of layout breakage
+2. **Add mobile tab state** (line ~157): Add `const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview'>('editor')` for tracking active tab on mobile.
+
+3. **Replace layout block** (lines 1008-1042): Replace the current conditional layout with:
+
+```text
+Desktop (isMobile === false):
+  - If showPreview: ResizablePanelGroup (unchanged)
+  - Else: single-column editor (unchanged)
+
+Mobile (isMobile === true):
+  <Tabs value={mobileEditorTab} onValueChange={setMobileEditorTab}>
+    <TabsList className="w-full sticky top-0 z-10">
+      <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
+      <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
+    </TabsList>
+    <TabsContent value="editor">
+      {renderEditorContent()}
+    </TabsContent>
+    <TabsContent value="preview">
+      <LivePreviewPanel highlightSection={activeTab} />
+    </TabsContent>
+  </Tabs>
+```
+
+4. **Remove mobile Preview header button** (lines 827-838): The dedicated mobile Preview button in the header becomes unnecessary since the Tabs handle navigation. Remove it to declutter the header.
+
+5. **Remove LivePreviewSheet on mobile** (line 1071): Remove `{showPreview && isMobile && <LivePreviewSheet ...>}` since preview is now inline via the Tabs.
+
+6. **Float Proofread FAB above tab bar** (line 1052): Add `bottom-24` positioning class to ensure it clears the bottom navigation bar on mobile.
+
+### Technical Details
+
+- The `Tabs` component from shadcn uses Radix `TabsPrimitive` which is not a Popper-based component, so it won't cause the known infinite re-render issue.
+- `LivePreviewPanel` is already lazy-loaded; wrapping it in `TabsContent` means it only renders when the "Preview" tab is active.
+- The `TabsList` gets `sticky top-0 z-10` so it remains visible while scrolling editor content.
+- Desktop behavior is completely unchanged -- the `isMobile` guard ensures the `ResizablePanelGroup` path is untouched.
+
+### Files Changed
+- `src/pages/EditorPage.tsx` (import addition, new state, layout refactor, cleanup of preview button and sheet)
 
