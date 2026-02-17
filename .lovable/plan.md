@@ -1,80 +1,104 @@
 
 
-## ATS-Targeted Resume Import Flow
+## Real-Time ATS Score Trend Visualization Across Save Events
 
 ### Overview
-Add an ATS score preview step to the existing resume import pipeline. After the AI parses the uploaded file and before the user selects sections to import, the system automatically scores the resume and displays a visual ATS health breakdown. This gives users immediate insight into their resume's ATS readiness before they start editing.
+Track ATS scores over time (each time a resume is scored after a save) and display a sparkline trend chart on the dashboard card and a detailed trend view on the resume detail page. This gives users a visual history of how their resume quality evolves with each edit.
 
 ---
 
 ### How It Works
 
-1. User uploads a resume (PDF, Word, Image, JSON, HTML) -- unchanged
-2. AI parses the file into structured data -- unchanged
-3. **NEW: ATS Score Step** -- after parsing completes, the system calls the `score-resume` edge function and shows results in the Import Review Sheet
-4. User reviews sections + ATS score, then imports -- enhanced UI
+1. Every time a resume is scored (after auto-save, manual re-score, or AI enhancement), the score is appended to a local history
+2. The dashboard `ResumeListCard` shows a tiny sparkline next to the `ScoreRing` indicating the trend direction
+3. The `ResumeDetailPage` shows a full trend chart with labeled data points
+4. History is stored locally in a Zustand store (persisted to localStorage) -- no database changes needed since ATS scores are already ephemeral/cached
 
 ---
 
 ### Implementation Steps
 
-**Step 1: Add ATS scoring to `ImportReviewSheet`**
+**Step 1: Create ATS Score History Store**
 
-File: `src/components/upload/ImportReviewSheet.tsx`
+New file: `src/store/atsScoreHistoryStore.ts`
 
-- Add a new `atsScore` prop of type `ResumeHealthScore | null` and an `isScoring` boolean prop
-- Insert an ATS Score Card at the top of the scrollable content (above the section cards):
-  - Reuses the existing `ScoreRing` component to show the overall score with animated ring
-  - Shows 4 category bars (Completeness, ATS Readiness, Impact Language, Formatting) using the same layout as `ATSScoreBreakdown`
-  - Displays `topStrength` and `topImprovement` as short text badges
-  - While scoring is in progress, shows a skeleton/pulse state with "Analyzing ATS compatibility..." text
-- Below the score card, show a contextual tip based on the score:
-  - Score >= 80: "Your resume is well-optimized for ATS systems"
-  - Score 50-79: "Consider improving weak areas before applying"
-  - Score < 50: "Significant improvements recommended"
+A small Zustand store with `persist` middleware:
 
-**Step 2: Trigger ATS scoring in `UploadPage` after parse completes**
+```text
+State shape:
+  history: Record<resumeId, Array<{ score: number; timestamp: string; categories: {...} }>>
 
-File: `src/pages/UploadPage.tsx`
+Actions:
+  addScore(resumeId, healthScore) -- appends to array, caps at 20 entries per resume
+  getHistory(resumeId) -- returns sorted array
+  clearHistory(resumeId) -- for delete cleanup
+```
 
-- Import `useResumeScore` hook
-- Add state: `importATSScore` (ResumeHealthScore | null) and `isImportScoring` (boolean)
-- In every handler that sets `pendingResumeData` + opens the review sheet (PDF, Word, Image, HTML, JSON flows):
-  - After setting `setPendingResumeData(resumeData)` and `setShowImportReview(true)`
-  - Fire off `scoreResume(tempId, resumeData, now)` asynchronously (non-blocking)
-  - On completion, set `importATSScore` to the result
-  - Reset `importATSScore` to null when the review sheet closes
-- Pass `atsScore={importATSScore}` and `isScoring={isImportScoring}` to `ImportReviewSheet`
+Each entry stores the overall score, timestamp, and the 4 category scores. Capped at 20 data points per resume to keep localStorage lean.
 
-**Step 3: Style the ATS preview card**
+**Step 2: Record scores automatically in `useResumeScore`**
 
-The card will use the existing design system:
-- `glass-elevated` card background with rounded-2xl corners
-- `ScoreRing` component (already exists) for the circular score visualization
-- Colored progress bars for each category (reuse `getScoreBarBg` from `ATSScoreBreakdown`)
-- Priority badge colors: green for >= 80, amber for 50-79, red for < 50
-- All touch targets maintain 44x44px minimum
-- `active:scale-95` on interactive elements
+File: `src/hooks/useResumeScore.ts`
+
+After a successful score is cached (line 144), also call `atsScoreHistoryStore.getState().addScore(resumeId, score)`. This is a single line addition that captures every scoring event across the entire app (dashboard background scoring, manual re-score, import scoring, editor scoring).
+
+**Step 3: Create `ATSScoreTrendChart` component**
+
+New file: `src/components/dashboard/ATSScoreTrendChart.tsx`
+
+Two modes:
+- **Sparkline mode** (compact): A tiny 80x32px area chart with no axes, just the line + gradient fill. Used on dashboard cards.
+- **Full mode**: A 280px-tall area chart with X-axis (date labels), Y-axis (0-100), colored zones (red < 50, amber 50-79, green >= 80), and tooltip on tap. Used on detail page.
+
+Uses `recharts` via the existing `chart.tsx` wrapper (`ChartContainer`, `ChartTooltip`).
+
+Shows a small trend arrow + delta badge (e.g., "+12 pts" in green or "-5 pts" in red) comparing the latest score to the previous one.
+
+**Step 4: Integrate sparkline into `ResumeListCard`**
+
+File: `src/components/dashboard/ResumeListCard.tsx`
+
+Below the `ScoreRing`, render a small `ATSScoreTrendChart` in sparkline mode when 2+ data points exist for that resume. Lazy-loaded to avoid loading recharts for users who haven't scored yet.
+
+**Step 5: Integrate full chart into `ResumeDetailPage`**
+
+File: `src/pages/ResumeDetailPage.tsx`
+
+Below the existing ATS Score section (after the `ScoreRing` and action buttons), add a collapsible "Score Trend" card with `ATSScoreTrendChart` in full mode. Only shown when 2+ historical data points exist.
+
+**Step 6: Clean up history on resume delete**
+
+File: `src/pages/DashboardPage.tsx`
+
+In `confirmDelete`, after `deleteResume.mutate` succeeds, call `clearHistory(resumeId)` to remove stale trend data.
 
 ---
 
 ### Technical Details
 
-**Score invocation is non-blocking:**
-The review sheet opens immediately after parsing. The ATS score loads asynchronously in the background -- users can already review and toggle sections while the score computes. This avoids adding latency to the import flow.
+**No database changes required.** Score history is stored client-side in localStorage via Zustand persist. This is appropriate because:
+- ATS scores are already ephemeral (in-memory cache)
+- The trend is a convenience visualization, not critical data
+- Keeps the feature zero-latency with no API calls
 
-**Temp ID for scoring:**
-Since the resume isn't saved yet, we generate a temporary UUID for the score cache key. This prevents cache collisions with real resume IDs.
+**Performance considerations:**
+- Recharts is already in the bundle but not yet imported anywhere -- it will be lazy-loaded via `React.lazy` wrapping the chart component
+- Sparkline renders are lightweight (no axes, no tooltip)
+- History capped at 20 entries per resume
 
-**No new edge functions or database changes needed.**
-Reuses the existing `score-resume` edge function and `useResumeScore` hook.
+**Files to create:**
+
+| File | Purpose |
+|------|---------|
+| `src/store/atsScoreHistoryStore.ts` | Zustand store for score history |
+| `src/components/dashboard/ATSScoreTrendChart.tsx` | Sparkline + full trend chart |
 
 **Files to modify:**
 
 | File | Change |
-|------|--------|
-| `src/components/upload/ImportReviewSheet.tsx` | Add ATS score card with ScoreRing, category bars, and contextual tip |
-| `src/pages/UploadPage.tsx` | Trigger `scoreResume` after parse, pass results to review sheet |
-
-**No new files required.**
+|------|---------|
+| `src/hooks/useResumeScore.ts` | Add 1 line to record score in history store after caching |
+| `src/components/dashboard/ResumeListCard.tsx` | Add lazy sparkline below ScoreRing |
+| `src/pages/ResumeDetailPage.tsx` | Add collapsible full trend chart in ATS section |
+| `src/pages/DashboardPage.tsx` | Clear history on resume delete |
 
