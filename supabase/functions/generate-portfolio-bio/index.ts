@@ -30,10 +30,14 @@ Deno.serve(async (req) => {
     }
     const userId = claimsData.claims.sub;
 
-    const { summary, fullName, jobTitle } = await req.json();
+    const { summary, fullName, jobTitle, experience } = await req.json();
 
-    if (!summary && !jobTitle) {
-      return new Response(JSON.stringify({ error: 'Please provide a resume summary or job title' }), { status: 400, headers: corsHeaders });
+    const hasSummary = summary && summary.trim().length > 0;
+    const hasJobTitle = jobTitle && jobTitle.trim().length > 0;
+    const hasExperience = Array.isArray(experience) && experience.length > 0;
+
+    if (!hasSummary && !hasJobTitle && !hasExperience) {
+      return new Response(JSON.stringify({ error: 'Please add a summary, job title, or experience to your resume first' }), { status: 400, headers: corsHeaders });
     }
 
     // Increment AI usage
@@ -43,13 +47,17 @@ Deno.serve(async (req) => {
     );
     await serviceClient.rpc('increment_ai_usage', { p_user_id: userId });
 
-    const sanitizedSummary = summary ? sanitizeInputText(summary, 2000) : '';
+    const sanitizedSummary = hasSummary ? sanitizeInputText(summary, 2000) : '';
+    const experienceContext = hasExperience
+      ? experience.slice(0, 3).map((e: any) => `${e.position || ''} at ${e.company || ''}`).join(', ')
+      : '';
 
-    const prompt = `You are a personal branding expert. Rewrite this professional information into a warm, friendly, first-person "About Me" bio for a personal portfolio website.
+    const prompt = `You are a personal branding expert. Write a warm, friendly, first-person "About Me" bio for a personal portfolio website based on this information.
 
 Name: ${fullName || 'the user'}
-Job Title: ${jobTitle || 'Professional'}
+Job Title: ${hasJobTitle ? jobTitle : 'Professional'}
 Resume Summary: ${sanitizedSummary || 'Not provided'}
+Recent Experience: ${experienceContext || 'Not provided'}
 
 Requirements:
 - Write in first person ("I", "my")

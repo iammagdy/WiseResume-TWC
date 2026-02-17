@@ -99,6 +99,11 @@ export default function ProfilePage() {
 
   const handleGenerateBio = async () => {
     if (!user) return;
+    const primaryResume = resumes.find(r => r.is_primary) || resumes[0];
+    if (!primaryResume?.summary && !profile?.jobTitle && (!primaryResume?.experience || (primaryResume.experience as any[]).length === 0)) {
+      toast.error('Please add a summary, job title, or experience to your resume first.');
+      return;
+    }
     setGeneratingBio(true);
     haptics.light();
     try {
@@ -110,17 +115,21 @@ export default function ProfilePage() {
           'Authorization': `Bearer ${session?.access_token}`,
         },
         body: JSON.stringify({
-          summary: resumes[0]?.summary || '',
+          summary: primaryResume?.summary || '',
           fullName: profile?.fullName || '',
           jobTitle: profile?.jobTitle || '',
+          experience: primaryResume?.experience || [],
         }),
       });
-      if (!res.ok) throw new Error('Failed to generate bio');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to generate bio');
+      }
       const { bio: generatedBio } = await res.json();
       setBio(generatedBio);
       toast.success('Bio generated!');
-    } catch (err) {
-      toast.error('Failed to generate bio. Please try again.');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to generate bio. Please try again.');
     } finally {
       setGeneratingBio(false);
     }
