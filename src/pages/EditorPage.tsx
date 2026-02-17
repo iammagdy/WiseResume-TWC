@@ -361,7 +361,7 @@ export default function EditorPage() {
     return () => window.removeEventListener('beforeunload', handler);
   }, []);
 
-  // In-app navigation guard (useBlocker) for unsaved changes
+  // In-app navigation guard (custom, no useBlocker)
   const unsavedGuard = useUnsavedChangesGuard({
     resumeRef,
     lastSavedResumeRef,
@@ -372,12 +372,11 @@ export default function EditorPage() {
   useBackButton(
     useCallback(() => {
       if (unsavedGuard.isDirty()) {
-        // Trigger navigation to parent route which useBlocker will intercept
-        navigate('/dashboard');
+        unsavedGuard.interceptNavigate('/dashboard');
         return true;
       }
       return false;
-    }, [unsavedGuard, navigate])
+    }, [unsavedGuard])
   );
 
   // Auto-hide "Saved" indicator after 2s
