@@ -3,7 +3,7 @@ import { useNetworkStatus } from './useNetworkStatus';
 import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { useResumeMutations } from './useResumes';
 import { useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
