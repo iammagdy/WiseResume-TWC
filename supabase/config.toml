@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.generate-portfolio-bio]
 verify_jwt = false
+
+[functions.track-portfolio-view]
+verify_jwt = false

@@ -958,6 +958,10 @@ export type Database = {
             Returns: Json
           }
       increment_ai_usage: { Args: { p_user_id: string }; Returns: undefined }
+      increment_portfolio_views: {
+        Args: { p_username: string }
+        Returns: undefined
+      }
       increment_share_view_count: {
         Args: { share_token: string }
         Returns: undefined
