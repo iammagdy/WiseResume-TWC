@@ -1,40 +1,121 @@
 
+## Enhanced Bug Report System
 
-## Settings Page Fixes
+### 1. Screen Selector Dropdown in Bug Report Dialog
 
-### 1. Move GitHub Button Inside Developer Card
+Add a dropdown menu inside the `BugReportDialog` so users can pick which screen they are reporting about. The list will include all major app screens:
 
-**Current**: The GitHub icon sits in the branded footer below the card.
-**Change**: Move it inside the `DeveloperCreditCard` component, next to the Contact Me button. Both buttons will sit side-by-side in a row — Contact Me takes most of the space, and GitHub gets a compact icon button.
+- Dashboard
+- Resume Editor
+- Preview
+- Upload
+- Settings
+- Applications
+- Cover Letters
+- Interview Prep
+- Career Tools
+- AI Studio
+- Templates
+- Examples
+- Guides
+- Resignation Letters
+- Profile
+- Notifications
+- Other
 
-**Files changed:**
-- `src/components/settings/DeveloperCreditCard.tsx` — Add a `githubUrl` prop. Render two buttons side by side: Contact Me (flex-1) and a square GitHub icon button.
-- `src/components/settings/DeveloperCreditCard.css` — Add a `.dev-btn-row` flex container and `.dev-github-btn` styled like the contact button but square/icon-only.
-- `src/pages/SettingsPage.tsx` — Pass `githubUrl="https://github.com/iammagdy"` to the DeveloperCreditCard. Remove the GitHub icon button from the branded footer section.
+When the dialog opens from an error boundary, the current route will be pre-selected. When opened manually from Settings, the user can choose from the dropdown.
 
-### 2. Fix Version Showing v1.5.0 by Default
+### 2. Professional Email Template with Full Debug Info
 
-**Current**: The changelog data only fetches when the user opens the changelog dialog (`if (!changelogOpen) return;` on line 153). Until then, `changelogData` is empty, so `appVersion` falls back to `'v1.5.0'`.
+Redesign the email to include a dedicated **System Information** section with:
 
-**Fix**: Fetch `changelog.json` on component mount (remove the `changelogOpen` guard for initial load). This way the footer immediately shows the correct version (v2.0.0) without needing to open the changelog first.
+- **User ID** (the database user ID)
+- **Session ID** (last 8 chars of access token)
+- **User Agent** (browser/device info)
+- **Platform** (extracted from user agent -- e.g., "iPhone", "Android", "Windows")
 
-**File changed:**
-- `src/pages/SettingsPage.tsx` — Split into two effects: one that fetches on mount to populate version, and one that re-fetches when changelog dialog opens (for freshness). The fallback string will also change from `'v1.5.0'` to `'loading...'` briefly, then resolve to the real version.
-
-### Technical Summary
+The email layout will be restructured into clear labeled sections:
 
 ```text
-DeveloperCreditCard.tsx:
-  + githubUrl?: string prop
-  + Side-by-side button layout: [Contact Me (flex-1)] [GitHub (icon)]
++------------------------------------------+
+|  Bug Report                              |
+|  from user@example.com                   |
++------------------------------------------+
+| ROUTE       | VERSION    | TIME          |
+| /dashboard  | v2.0.0     | Feb 17, 2026  |
++------------------------------------------+
+| REPORTED SCREEN                          |
+| Dashboard                                |
++------------------------------------------+
+| ERROR MESSAGE                            |
+| [red box with error text]                |
++------------------------------------------+
+| USER'S NOTE                              |
+| [green box with user context]            |
++------------------------------------------+
+| SYSTEM INFORMATION                       |
+| User ID:    abc123-def456-...            |
+| Session ID: a1b2c3d4                     |
+| Platform:   iPhone / Safari 17           |
+| User Agent: Mozilla/5.0 ...             |
++------------------------------------------+
+| Stack Trace (collapsible)                |
+| Component Stack (collapsible)            |
++------------------------------------------+
+| WiseResume Bug Report System             |
++------------------------------------------+
+```
 
-DeveloperCreditCard.css:
-  + .dev-btn-row { display: flex; gap: 0.5rem; width: 100%; }
-  + .dev-github-btn { same glass style as contact btn, but fixed width }
+### Files Changed
 
-SettingsPage.tsx:
-  - Remove GitHub button from footer (lines 904-910)
-  + Pass githubUrl to DeveloperCreditCard
-  - Remove "if (!changelogOpen) return" guard so version loads on mount
-  - Change fallback from 'v1.5.0' to 'v2.0.0' as a safer default
+**`src/components/BugReportDialog.tsx`**
+- Add a `selectedScreen` state with a dropdown (using the Shadcn Select component)
+- Pre-populate based on current route when dialog opens
+- Pass `selected_screen` in the payload to the edge function
+- The dropdown appears between the error box and the textarea
+
+**`src/lib/bugReport.ts`**
+- No changes needed (existing interface supports this via `route`)
+
+**`supabase/functions/send-bug-report/index.ts`**
+- Accept new `selected_screen` field from payload
+- Add a "Reported Screen" row in the email below the metadata bar
+- Add a "System Information" section with User ID, Session ID, Platform, and User Agent
+- Include all fields in the database insert (using `additional_context` to store screen selection if no dedicated column exists, or add it to the existing payload)
+
+### Technical Details
+
+**Screen list constant (in BugReportDialog):**
+```text
+const SCREEN_OPTIONS = [
+  { value: '/dashboard', label: 'Dashboard' },
+  { value: '/editor', label: 'Resume Editor' },
+  { value: '/preview', label: 'Preview' },
+  { value: '/upload', label: 'Upload' },
+  { value: '/settings', label: 'Settings' },
+  { value: '/applications', label: 'Applications' },
+  { value: '/cover-letters', label: 'Cover Letters' },
+  { value: '/interview', label: 'Interview Prep' },
+  { value: '/career', label: 'Career Tools' },
+  { value: '/ai-studio', label: 'AI Studio' },
+  { value: '/templates', label: 'Templates' },
+  { value: '/examples', label: 'Examples' },
+  { value: '/guides', label: 'Guides' },
+  { value: '/resignation-letters', label: 'Resignation Letters' },
+  { value: '/profile', label: 'Profile' },
+  { value: '/notifications', label: 'Notifications' },
+  { value: 'other', label: 'Other / General' },
+];
+```
+
+**Route-to-screen auto-matching:**
+When the dialog opens, match `window.location.pathname` against screen options to pre-select the closest match. Falls back to "Other / General" if no match.
+
+**Email system info section (edge function):**
+```text
+- Parse user_agent to extract a friendly platform name
+  (e.g., contains "iPhone" -> "iPhone", "Android" -> "Android", "Windows" -> "Windows")
+- Display User ID truncated to first 8 + last 4 chars for readability
+- Display Session ID as-is (already last 8 chars)
+- Full user agent in a monospace smaller font
 ```
