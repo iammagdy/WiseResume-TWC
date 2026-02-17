@@ -40,10 +40,12 @@ interface ActivityEntry {
   cost: number;
 }
 
-function isBackground(metadata: Json | null): boolean {
+function isBackground(metadata: Json | null, actionType?: string): boolean {
   if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
     return (metadata as Record<string, unknown>).background === true;
   }
+  // Defensive fallback: score entries with null metadata are background
+  if (actionType === 'score' && metadata == null) return true;
   return false;
 }
 
@@ -80,7 +82,7 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
       return (data ?? [])
         .filter((log) => log.created_at)
         .map((log): ActivityEntry => {
-          const bg = isBackground(log.metadata);
+          const bg = isBackground(log.metadata, log.action_type);
           return {
             type: log.action_type,
             label: CATEGORY_LABELS[log.action_type] || log.action_type,
