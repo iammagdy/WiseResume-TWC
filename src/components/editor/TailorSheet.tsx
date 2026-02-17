@@ -29,6 +29,7 @@ import { KeywordHeatmap } from './tailor/KeywordHeatmap';
 import { QuickActions } from './tailor/QuickActions';
 import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { reportBug } from '@/lib/bugReport';
+import { useAIAction } from '@/hooks/useAIAction';
 
 import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
@@ -131,6 +132,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     );
   };
 
+  const { execute: executeAI } = useAIAction({ operation: 'tailor' });
+
   const handleTailor = useCallback(async () => {
     if (!jobDescription.trim()) {
       toast.error('Please paste a job description first');
@@ -152,13 +155,21 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     abortRef.current = new AbortController();
 
     try {
-      const result = await tailorResumeWithProgress(
-        currentResume, 
-        jobDescription,
-        (p) => setProgress(p),
-        intensity,
-        abortRef.current.signal
-      );
+      const result = await executeAI(async () => {
+        return await tailorResumeWithProgress(
+          currentResume, 
+          jobDescription,
+          (p) => setProgress(p),
+          intensity,
+          abortRef.current!.signal
+        );
+      });
+
+      if (!result) {
+        // Credit check failed
+        return;
+      }
+
       setTailorResult(result as SuperTailorResult);
       
       if (result.jobParsed) {
@@ -167,8 +178,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           company: result.jobParsed.company,
         });
       }
-      
-      toast.success('Resume tailored successfully!');
     } catch (error) {
       console.error('Tailor error:', error);
       const err = error as TailorError;
@@ -182,7 +191,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       setIsTailoring(false);
       setProgress(null);
     }
-  }, [jobDescription, currentResume, intensity]);
+  }, [jobDescription, currentResume, intensity, executeAI]);
 
   // Auto-tailor when a URL is parsed
   const handleParsedJobInfo = useCallback((info: { title: string; company: string; url?: string } | null) => {

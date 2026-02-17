@@ -33,6 +33,7 @@ import {
 } from '@/types/aiStudio';
 import { findTargetContent } from '@/lib/ai/fixHelpers';
 import { Experience, Education } from '@/types/resume';
+import { useAIAction } from '@/hooks/useAIAction';
 
 
 interface RecruiterSimSheetProps {
@@ -48,6 +49,7 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
   const [selectedPersona, setSelectedPersona] = useState<RecruiterPersonaInfo | null>(null);
   const [analysis, setAnalysis] = useState<RecruiterAnalysis | null>(null);
   const [isApplyingFix, setIsApplyingFix] = useState<string | null>(null);
+  const { execute: executeAI } = useAIAction({ operation: 'recruiter-sim' });
 
   const handleSelectPersona = async (persona: RecruiterPersonaInfo) => {
     if (!currentResume) return;
@@ -56,17 +58,22 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
     setViewState('analyzing');
 
     try {
-      const { data, error } = await supabase.functions.invoke('recruiter-simulation', {
-        body: {
-          resume: currentResume,
-          persona: persona.id,
-        },
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('recruiter-simulation', {
+          body: {
+            resume: currentResume,
+            persona: persona.id,
+          },
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Analysis failed');
+        return data;
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Analysis failed');
+      if (!result) { setViewState('persona_select'); return; }
 
-      setAnalysis(data.analysis);
+      setAnalysis(result.analysis);
       setViewState('results');
     } catch (err) {
       console.error('Recruiter simulation error:', err);

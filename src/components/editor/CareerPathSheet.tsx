@@ -34,6 +34,7 @@ import {
   ActionStep,
 } from '@/lib/careerPath';
 import { haptics } from '@/lib/haptics';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface CareerPathSheetProps {
   open: boolean;
@@ -236,6 +237,7 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
   const [result, setResult] = useState<CareerPathResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { execute: executeAI } = useAIAction({ operation: 'career-assessment' });
 
   const handleAnalyze = async () => {
     if (!currentResume) return;
@@ -244,7 +246,8 @@ export function CareerPathSheet({ open, onOpenChange }: CareerPathSheetProps) {
     haptics.medium();
 
     try {
-      const data = await analyzeCareerPath(currentResume);
+      const data = await executeAI(async () => analyzeCareerPath(currentResume));
+      if (!data) return;
       setResult(data);
       haptics.success();
     } catch (err) {

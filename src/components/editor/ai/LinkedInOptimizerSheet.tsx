@@ -27,6 +27,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { useAIAction } from '@/hooks/useAIAction';
 
 
 interface LinkedInOptimizerSheetProps {
@@ -68,6 +69,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>('global');
   const [result, setResult] = useState<LinkedInResult | null>(null);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
+  const { execute: executeAI } = useAIAction({ operation: 'linkedin' });
 
   const handleOptimize = async () => {
     if (!currentResume) {
@@ -79,18 +81,21 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('optimize-for-linkedin', {
-        body: {
-          resume: currentResume,
-          region: selectedRegion,
-        },
+      const data = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('optimize-for-linkedin', {
+          body: {
+            resume: currentResume,
+            region: selectedRegion,
+          },
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Optimization failed');
+        return data;
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Optimization failed');
-
+      if (!data) return;
       setResult(data);
-      toast.success('LinkedIn optimization complete!');
     } catch (err) {
       console.error('LinkedIn optimization error:', err);
       toast.error('Failed to optimize. Please try again.');

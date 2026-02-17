@@ -25,6 +25,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { useAIAction } from '@/hooks/useAIAction';
 
 
 interface AIDetectorSheetProps {
@@ -69,6 +70,7 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
   const [detection, setDetection] = useState<DetectionResult | null>(null);
   const [humanized, setHumanized] = useState<HumanizeResult | null>(null);
   const [isHumanizing, setIsHumanizing] = useState(false);
+  const { execute: executeAI } = useAIAction({ operation: 'detect-humanize' });
 
   const handleAnalyze = async () => {
     if (!inputText.trim()) {
@@ -80,17 +82,22 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
     setViewState('analyzing');
 
     try {
-      const { data, error } = await supabase.functions.invoke('detect-and-humanize', {
-        body: {
-          text: inputText,
-          action: 'detect',
-        },
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('detect-and-humanize', {
+          body: {
+            text: inputText,
+            action: 'detect',
+          },
+        });
+
+        if (error) throw error;
+        if (!data.success) throw new Error(data.error || 'Analysis failed');
+        return data;
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Analysis failed');
+      if (!result) { setViewState('input'); return; }
 
-      setDetection(data.detection);
+      setDetection(result.detection);
       setViewState('results');
     } catch (err) {
       console.error('AI detection error:', err);

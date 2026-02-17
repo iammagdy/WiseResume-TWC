@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { useAIAction } from '@/hooks/useAIAction';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -52,6 +53,7 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [editedSuggestion, setEditedSuggestion] = useState<Suggestion | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const { execute: executeAI } = useAIAction({ operation: 'gap-fill' });
 
   // Sync editedSuggestion when selection changes
   useEffect(() => {
@@ -117,28 +119,29 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
     try {
       const { previousJob, nextJob } = getSurroundingJobs();
 
-      const { data, error } = await supabase.functions.invoke('fill-gap', {
-        body: {
-          gap: {
-            startDate: formatParsedDate(gap.startDate),
-            endDate: formatParsedDate(gap.endDate),
-            months: gap.months,
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('fill-gap', {
+          body: {
+            gap: {
+              startDate: formatParsedDate(gap.startDate),
+              endDate: formatParsedDate(gap.endDate),
+              months: gap.months,
+            },
+            category,
+            userDescription,
+            previousJob,
+            nextJob,
           },
-          category,
-          userDescription,
-          previousJob,
-          nextJob,
-        },
+        });
+
+        if (error) throw error;
+        return data;
       });
 
-      if (error) {
-        console.error('fill-gap error:', error);
-        toast.error('Failed to generate suggestions. Please try again.');
-        return;
-      }
+      if (!result) return;
 
-      if (data?.suggestions && Array.isArray(data.suggestions)) {
-        setSuggestions(data.suggestions.slice(0, 3));
+      if (result?.suggestions && Array.isArray(result.suggestions)) {
+        setSuggestions(result.suggestions.slice(0, 3));
         haptics.success();
       } else {
         toast.error('Unexpected AI response. Please try again.');

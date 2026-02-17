@@ -13,6 +13,7 @@ import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import { CoverLetterHistorySheet } from './CoverLetterHistorySheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface CoverLetterGeneratorProps {
   open: boolean;
@@ -61,6 +62,7 @@ export function CoverLetterGenerator({
   const [generationElapsed, setGenerationElapsed] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
   const generationStartRef = useRef(0);
+  const { execute: executeAI } = useAIAction({ operation: 'cover-letter' });
 
   const GENERATION_STEPS = [
     'Analyzing Job Description...',
@@ -106,10 +108,13 @@ export function CoverLetterGenerator({
     setIsGenerating(true);
     abortRef.current = new AbortController();
     try {
-      let letter = await generateCoverLetter(resume, jobDescription, tone, abortRef.current.signal);
-      
-      // Safety net: replace any remaining placeholders
-      letter = injectContactInfo(letter, resume.contactInfo);
+      const letter = await executeAI(async () => {
+        let result = await generateCoverLetter(resume, jobDescription, tone, abortRef.current!.signal);
+        result = injectContactInfo(result, resume.contactInfo);
+        return result;
+      });
+
+      if (!letter) return;
       
       setCoverLetter(letter);
       
@@ -126,8 +131,6 @@ export function CoverLetterGenerator({
         tone,
         coverLetter: letter,
       });
-      
-      toast.success('Cover letter generated!');
     } catch (error) {
       console.error('Cover letter error:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to generate cover letter');
