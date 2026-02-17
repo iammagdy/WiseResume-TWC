@@ -994,58 +994,12 @@ button,
   }
 }
 
-/* Toast notification enhancements */
-[data-sonner-toaster] {
-  --normal-bg: hsl(var(--card));
-  --normal-border: hsl(var(--border));
-  --normal-text: hsl(var(--foreground));
-  font-family: 'Inter', system-ui, sans-serif;
-}
+/* ===== Minimal Pill Toast ===== */
 
-[data-sonner-toaster] [data-sonner-toast] {
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-}
-
-/* Toast close button */
-[data-sonner-toaster] [data-close-button] {
-  background: hsl(var(--muted) / 0.8) !important;
-  border: 1px solid hsl(var(--border) / 0.4) !important;
-  color: hsl(var(--foreground)) !important;
-  border-radius: 9999px !important;
-  width: 20px !important;
-  height: 20px !important;
-  top: 50% !important;
-  right: 10px !important;
-  transform: translateY(-50%) !important;
-  transition: all 0.15s ease !important;
-  opacity: 0.7 !important;
-}
-
-[data-sonner-toaster] [data-close-button]:hover {
-  background: hsl(var(--muted)) !important;
-  opacity: 1 !important;
-}
-
-/* Toast title */
-[data-sonner-toaster] [data-title] {
-  font-weight: 600;
-  font-size: 0.875rem;
-  line-height: 1.3;
-}
-
-/* Toast description */
-[data-sonner-toaster] [data-description] {
-  opacity: 0.7;
-  font-size: 0.8125rem;
-}
-
-/* ===== Premium Toast Surface ===== */
-
-@keyframes toast-slide-in {
+@keyframes toast-pill-in {
   from {
     opacity: 0;
-    transform: translateY(-12px) scale(0.96);
+    transform: translateY(-8px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -1053,95 +1007,50 @@ button,
   }
 }
 
-@keyframes toast-progress {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
-}
-
-.toast-premium {
-  position: relative;
-  overflow: hidden;
-  border-radius: 1rem !important;
-  background: hsl(var(--card) / 0.92) !important;
-  backdrop-filter: blur(24px) saturate(1.3) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(1.3) !important;
-  border: 1px solid hsl(var(--border) / 0.25) !important;
-  border-left: 4px solid hsl(var(--muted-foreground) / 0.3) !important;
-  box-shadow:
-    0 8px 32px -8px hsl(var(--background) / 0.6),
-    0 2px 8px -2px hsl(var(--background) / 0.3) !important;
-  animation: toast-slide-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  padding: 14px 18px 14px 14px !important;
-  gap: 12px !important;
-  min-height: 48px !important;
+.toast-pill {
+  border-radius: 9999px !important;
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border) / 0.5) !important;
+  box-shadow: 0 4px 12px -2px hsl(var(--background) / 0.4) !important;
+  animation: toast-pill-in 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  padding: 10px 18px 10px 14px !important;
+  gap: 10px !important;
+  min-height: unset !important;
   align-items: center !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: hsl(var(--foreground)) !important;
 }
 
-.toast-premium [data-close-button] {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0.5;
+/* Hide description in pill toasts */
+.toast-pill [data-description] {
+  display: none !important;
 }
 
-/* Progress bar */
-.toast-premium::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: hsl(var(--muted-foreground) / 0.08);
-  transform-origin: left;
-  animation: toast-progress 4s linear forwards;
+/* Hide close button */
+.toast-pill [data-close-button] {
+  display: none !important;
 }
 
-/* Accent variants — left border color + subtle bg tint */
-.toast-success-accent {
-  border-left-color: hsl(var(--success)) !important;
-  background: linear-gradient(90deg, hsl(var(--success) / 0.06), hsl(var(--card) / 0.92) 40%) !important;
+/* Status dots */
+.toast-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
 }
-.toast-success-accent::after {
-  background: hsl(var(--success) / 0.25) !important;
-}
+.toast-dot-success { background: hsl(var(--success)); }
+.toast-dot-error { background: hsl(var(--destructive)); }
+.toast-dot-warning { background: hsl(var(--warning)); }
+.toast-dot-info { background: hsl(var(--secondary)); }
 
-.toast-error-accent {
-  border-left-color: hsl(var(--destructive)) !important;
-  background: linear-gradient(90deg, hsl(var(--destructive) / 0.06), hsl(var(--card) / 0.92) 40%) !important;
-}
-.toast-error-accent::after {
-  background: hsl(var(--destructive) / 0.25) !important;
-}
-
-.toast-warning-accent {
-  border-left-color: hsl(var(--warning)) !important;
-  background: linear-gradient(90deg, hsl(var(--warning) / 0.06), hsl(var(--card) / 0.92) 40%) !important;
-}
-.toast-warning-accent::after {
-  background: hsl(var(--warning) / 0.25) !important;
-}
-
-.toast-info-accent {
-  border-left-color: hsl(var(--secondary)) !important;
-  background: linear-gradient(90deg, hsl(var(--secondary) / 0.06), hsl(var(--card) / 0.92) 40%) !important;
-}
-.toast-info-accent::after {
-  background: hsl(var(--secondary) / 0.25) !important;
-}
-
-/* Mobile toast */
+/* Mobile toast positioning */
 @media (max-width: 640px) {
   [data-sonner-toaster] {
     width: calc(100% - 32px) !important;
     left: 16px !important;
     right: 16px !important;
     top: calc(env(safe-area-inset-top) + 8px) !important;
-  }
-
-  .toast-premium {
-    font-size: 14px !important;
   }
 }
 
