@@ -6,6 +6,138 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 const MAX_RESUME_SIZE = 100 * 1024;
 
+// ── Deterministic Scoring Functions (zero variance) ──────────────────
+
+function scoreContactCompleteness(contact: Record<string, string | undefined>): number {
+  let score = 0;
+  if (contact?.fullName?.trim()) score += 20;
+  if (contact?.email?.trim()) score += 20;
+  if (contact?.phone?.trim()) score += 20;
+  if (contact?.location?.trim()) score += 20;
+  if (contact?.linkedin?.trim() || contact?.portfolio?.trim() || contact?.website?.trim()) score += 20;
+  return score;
+}
+
+function scoreSectionStructure(resume: Record<string, unknown>): number {
+  let score = 0;
+  if (typeof resume.summary === 'string' && resume.summary.trim().length > 0) score += 20;
+  if (Array.isArray(resume.experience) && resume.experience.length > 0) score += 25;
+  if (Array.isArray(resume.education) && resume.education.length > 0) score += 20;
+  if (Array.isArray(resume.skills) && resume.skills.length > 0) score += 20;
+
+  const hasOptional =
+    (Array.isArray(resume.certifications) && resume.certifications.length > 0) ||
+    (Array.isArray(resume.projects) && resume.projects.length > 0) ||
+    (Array.isArray(resume.awards) && resume.awards.length > 0) ||
+    (Array.isArray(resume.volunteering) && resume.volunteering.length > 0) ||
+    (Array.isArray(resume.languages) && resume.languages.length > 0);
+  if (hasOptional) score += 15;
+
+  return Math.min(score, 100);
+}
+
+function scoreParsability(resume: Record<string, unknown>): number {
+  let score = 100;
+
+  const dateFormats: string[] = [];
+  const dateRegexes = [
+    { pattern: /^\d{4}-\d{2}(-\d{2})?$/, label: 'ISO' },
+    { pattern: /^\d{2}\/\d{4}$/, label: 'MM/YYYY' },
+    { pattern: /^(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\w*\s+\d{4}$/i, label: 'Month YYYY' },
+    { pattern: /^\d{4}$/, label: 'YYYY' },
+  ];
+
+  function classifyDate(d: string): string {
+    if (!d || d === 'Present' || d === 'present' || d === 'Current') return 'special';
+    for (const r of dateRegexes) {
+      if (r.pattern.test(d.trim())) return r.label;
+    }
+    return 'unknown';
+  }
+
+  const experiences = Array.isArray(resume.experience) ? resume.experience as Record<string, unknown>[] : [];
+  const educations = Array.isArray(resume.education) ? resume.education as Record<string, unknown>[] : [];
+
+  let missingDateCount = 0;
+  let emptyDescCount = 0;
+
+  for (const e of experiences) {
+    const sd = classifyDate(String(e.startDate || ''));
+    const ed = classifyDate(String(e.endDate || ''));
+    if (sd !== 'special') dateFormats.push(sd);
+    if (ed !== 'special') dateFormats.push(ed);
+
+    if (!e.startDate || String(e.startDate).trim() === '') missingDateCount++;
+
+    const desc = String(e.description || '').trim();
+    const achievements = Array.isArray(e.achievements) ? e.achievements : [];
+    const responsibilities = Array.isArray(e.responsibilities) ? e.responsibilities : [];
+    if (desc === '' && achievements.length === 0 && responsibilities.length === 0) emptyDescCount++;
+  }
+
+  for (const e of educations) {
+    const sd = classifyDate(String(e.startDate || ''));
+    const ed = classifyDate(String(e.endDate || ''));
+    if (sd !== 'special') dateFormats.push(sd);
+    if (ed !== 'special') dateFormats.push(ed);
+  }
+
+  // Check for inconsistent date formats
+  const uniqueFormats = new Set(dateFormats.filter(f => f !== 'unknown'));
+  if (uniqueFormats.size > 1) score -= 15;
+
+  // Missing dates on experience
+  score -= Math.min(missingDateCount * 10, 30);
+
+  // Empty descriptions on experience
+  score -= Math.min(emptyDescCount * 15, 30);
+
+  // Check for bullet characters in descriptions (sign of poor parsing)
+  for (const e of experiences) {
+    const desc = String(e.description || '');
+    if (/[•●■◦▪➤►→]/.test(desc)) {
+      score -= 10;
+      break;
+    }
+  }
+
+  return Math.max(score, 0);
+}
+
+function scoreLengthDensity(resume: Record<string, unknown>): number {
+  const experiences = Array.isArray(resume.experience) ? resume.experience as Record<string, unknown>[] : [];
+  const skills = Array.isArray(resume.skills) ? resume.skills : [];
+
+  let totalBullets = 0;
+  for (const e of experiences) {
+    const achievements = Array.isArray(e.achievements) ? e.achievements.length : 0;
+    const responsibilities = Array.isArray(e.responsibilities) ? e.responsibilities.length : 0;
+    totalBullets += achievements + responsibilities;
+  }
+
+  let score: number;
+  if (totalBullets === 0) score = 10;
+  else if (totalBullets <= 3) score = 30;
+  else if (totalBullets <= 8) score = 50;
+  else if (totalBullets <= 15) score = 75;
+  else score = 100;
+
+  if (skills.length < 3) score -= 20;
+  if (experiences.length < 1) score -= 30;
+
+  return Math.max(Math.min(score, 100), 0);
+}
+
+// ── Helper: clamp AI score ───────────────────────────────────────────
+
+function clamp(val: unknown, min: number, max: number): number {
+  const n = typeof val === 'number' ? val : Number(val);
+  if (isNaN(n)) return 50; // fallback
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+// ── Main Handler ─────────────────────────────────────────────────────
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
@@ -37,7 +169,6 @@ serve(async (req) => {
       );
     }
 
-    // Server-side rate limiting
     const rateCheck = await checkRateLimit(user.id, { maxRequests: 30, windowSeconds: 60, actionType: 'score' });
     if (!rateCheck.allowed) {
       return new Response(
@@ -63,40 +194,34 @@ serve(async (req) => {
       );
     }
 
-    // Format resume sections for evaluation
-    const contactInfo = resume.contactInfo || {};
+    // ── Step 1: Compute 4 deterministic scores ───────────────────────
+    const contactCompleteness = scoreContactCompleteness(resume.contactInfo || {});
+    const sectionStructure = scoreSectionStructure(resume);
+    const parsability = scoreParsability(resume);
+    const lengthDensity = scoreLengthDensity(resume);
+
+    // ── Step 2: Prepare text for AI (only what AI needs) ─────────────
     const skills = Array.isArray(resume.skills)
       ? resume.skills.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s)).join(', ')
       : 'Not provided';
-    const experience = resume.experience?.map((e: any) =>
-      `${e.position || 'Untitled'} at ${e.company || 'Unknown'} (${e.startDate || '?'} - ${e.endDate || 'Present'}):\n${e.description || 'No description'}`
+
+    const experience = resume.experience?.map((e: Record<string, unknown>) =>
+      `${e.position || 'Untitled'} at ${e.company || 'Unknown'} (${e.startDate || '?'} - ${e.endDate || 'Present'}):\n${e.description || ''}\nAchievements: ${Array.isArray(e.achievements) ? e.achievements.join('; ') : 'None'}`
     ).join('\n\n') || 'Not provided';
-    const education = resume.education?.map((e: any) =>
-      `${e.degree || ''} in ${e.field || ''} from ${e.institution || 'Unknown'} (${e.startDate || '?'} - ${e.endDate || '?'})`
+
+    const education = resume.education?.map((e: Record<string, unknown>) =>
+      `${e.degree || ''} in ${e.field || ''} from ${e.institution || 'Unknown'}`
     ).join('\n') || 'Not provided';
-    const certifications = resume.certifications?.map((c: any) => `${c.name || c} (${c.issuer || ''})`).join(', ') || 'None';
-    const projects = resume.projects?.map((p: any) => `${p.name || 'Untitled'}: ${p.description || ''}`).join('\n') || 'None';
-    const awards = resume.awards?.map((a: any) => `${a.title || a.name || a}`).join(', ') || 'None';
-    const volunteering = resume.volunteering?.map((v: any) => `${v.role || v.position || ''} at ${v.organization || ''}`).join(', ') || 'None';
-    const hobbies = Array.isArray(resume.hobbies) ? resume.hobbies.join(', ') : (resume.hobbies || 'None');
-    const languages = Array.isArray(resume.languages) ? resume.languages.map((l: any) => typeof l === 'string' ? l : l.name || l).join(', ') : 'None';
 
-    const systemPrompt = `You are an ATS (Applicant Tracking System) parsing and scoring engine that evaluates resumes exactly the way enterprise ATS platforms like Greenhouse, Lever, Workday, and Taleo do.
-
-You evaluate resumes using 6 weighted pillars based on real-world ATS scoring standards. You must be strict, consistent, and fair — identical content must always produce the same scores.
+    // ── Step 3: AI evaluates ONLY 2 subjective pillars ───────────────
+    const systemPrompt = `You are an ATS keyword and content quality evaluator. You ONLY assess two things:
+1. Keyword Optimization: How well the resume uses industry-relevant keywords, tools, technologies, and certifications.
+2. Content Quality: How well the resume uses action verbs, quantified achievements, and result-oriented bullet points.
 
 IMPORTANT: Respond ONLY with valid JSON, no markdown or code blocks.
-IMPORTANT: Be deterministic — the same resume content must always receive the same scores.`;
+Be strict, consistent, and fair.`;
 
-    const userPrompt = `Score this resume using real ATS evaluation standards across 6 pillars.
-
-=== RESUME DATA ===
-Full Name: ${contactInfo.fullName || 'Not provided'}
-Email: ${contactInfo.email || 'Not provided'}
-Phone: ${contactInfo.phone || 'Not provided'}
-Location: ${contactInfo.location || 'Not provided'}
-LinkedIn: ${contactInfo.linkedin || 'Not provided'}
-Website: ${contactInfo.website || 'Not provided'}
+    const userPrompt = `Evaluate this resume on exactly 2 pillars. Score each 0-100.
 
 Summary: ${resume.summary || 'Not provided'}
 
@@ -108,72 +233,22 @@ ${experience}
 Education:
 ${education}
 
-Certifications: ${certifications}
-Projects: ${projects}
-Awards: ${awards}
-Volunteering: ${volunteering}
-Languages: ${languages}
-Hobbies: ${hobbies}
-=== END RESUME DATA ===
-
-Score each of the 6 pillars from 0-100 using these rubrics:
-
-### 1. Keyword Optimization (Weight: 35%)
-Measures: Industry-relevant keywords, hard skills, soft skills, tools, technologies, certifications mentioned
+### Keyword Optimization (0-100)
 - 0-25: Almost no relevant keywords; generic language only
-- 26-50: Some relevant keywords but major gaps; missing core industry terms
-- 51-75: Good keyword coverage; most important skills and tools mentioned
-- 76-100: Excellent keyword density; comprehensive industry terms, tools, technologies, and certifications naturally woven throughout
+- 26-50: Some relevant keywords but major gaps
+- 51-75: Good keyword coverage; most important skills mentioned
+- 76-100: Excellent keyword density; comprehensive industry terms naturally woven throughout
 
-### 2. Content Quality (Weight: 25%)
-Measures: Action verbs, quantified achievements (%, $, numbers), result-oriented bullet points
+### Content Quality (0-100)
 - 0-25: No action verbs; purely descriptive; no measurable outcomes
-- 26-50: Some action verbs but mostly passive voice; few or no metrics
-- 51-75: Good action verbs; some quantified results; mostly result-oriented
-- 76-100: Strong action verbs throughout; rich quantified achievements; every bullet demonstrates clear impact
-
-### 3. Section Structure (Weight: 15%)
-Measures: Standard ATS-recognized headers, logical section ordering, no missing critical sections (Contact, Experience, Education, Skills)
-- 0-25: Missing 2+ critical sections; non-standard or absent headers
-- 26-50: Has basic sections but missing important ones; poor ordering
-- 51-75: All critical sections present; reasonable ordering; minor gaps
-- 76-100: All sections present with standard headers; logical flow; includes optional sections (projects, certifications)
-
-### 4. Parsability (Weight: 10%)
-Measures: Clean text without special characters/symbols, consistent date formats, standard job titles, no tables/columns that confuse parsers
-- 0-25: Heavy use of special characters, inconsistent formatting, unparseable structure
-- 26-50: Some formatting issues; inconsistent dates; some special characters
-- 51-75: Mostly clean text; minor inconsistencies in date formats
-- 76-100: Perfectly clean text; consistent MM/YYYY or Month YYYY dates; standard formatting throughout
-
-### 5. Contact Completeness (Weight: 10%)
-Measures: Presence of full name, professional email, phone number, location, LinkedIn URL
-- 0-25: Only 1 contact field provided
-- 26-50: 2 contact fields provided
-- 51-75: 3-4 contact fields provided
-- 76-100: All 5 contact fields (name, email, phone, location, LinkedIn) provided and valid
-
-### 6. Length & Density (Weight: 5%)
-Measures: Appropriate content volume (not too sparse, not too bloated), bullet point density, meaningful content vs filler
-- 0-25: Extremely sparse (< 3 bullets total) or entirely filler content
-- 26-50: Light content; few details; some sections too thin
-- 51-75: Good content volume; most sections have adequate detail
-- 76-100: Optimal density; rich detail in all sections; no filler; professional length
-
-Calculate the weighted overall score using:
-overallScore = round(keywordOptimization * 0.35 + contentQuality * 0.25 + sectionStructure * 0.15 + parsability * 0.10 + contactCompleteness * 0.10 + lengthDensity * 0.05)
+- 26-50: Some action verbs but mostly passive voice; few metrics
+- 51-75: Good action verbs; some quantified results
+- 76-100: Strong action verbs throughout; rich quantified achievements
 
 Return JSON:
 {
-  "overallScore": <weighted 0-100>,
-  "categories": {
-    "keywordOptimization": <0-100>,
-    "contentQuality": <0-100>,
-    "sectionStructure": <0-100>,
-    "parsability": <0-100>,
-    "contactCompleteness": <0-100>,
-    "lengthDensity": <0-100>
-  },
+  "keywordOptimization": <0-100>,
+  "contentQuality": <0-100>,
   "topStrength": "<one short sentence about the strongest aspect>",
   "topImprovement": "<one short actionable sentence about the biggest improvement opportunity>"
 }`;
@@ -193,13 +268,40 @@ Return JSON:
       throw new Error('No content in AI response');
     }
 
-    const result = parseAIJSON(content);
-    if (!result || typeof result.overallScore !== 'number') {
+    const aiResult = parseAIJSON(content);
+    if (!aiResult || typeof aiResult.keywordOptimization === 'undefined') {
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI scoring response. Please try again.' }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // ── Step 4: Clamp AI scores and compute weighted overall ─────────
+    const keywordOptimization = clamp(aiResult.keywordOptimization, 0, 100);
+    const contentQuality = clamp(aiResult.contentQuality, 0, 100);
+
+    const overallScore = Math.round(
+      keywordOptimization * 0.35 +
+      contentQuality * 0.25 +
+      sectionStructure * 0.15 +
+      parsability * 0.10 +
+      contactCompleteness * 0.10 +
+      lengthDensity * 0.05
+    );
+
+    const result = {
+      overallScore,
+      categories: {
+        keywordOptimization,
+        contentQuality,
+        sectionStructure,
+        parsability,
+        contactCompleteness,
+        lengthDensity,
+      },
+      topStrength: aiResult.topStrength || 'Resume has been evaluated.',
+      topImprovement: aiResult.topImprovement || 'Consider adding more quantified achievements.',
+    };
 
     // Record usage
     if (background) {
