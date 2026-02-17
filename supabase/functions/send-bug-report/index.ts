@@ -8,6 +8,23 @@ const corsHeaders = {
 
 const DEVELOPER_EMAIL = "bugs@magdysaber.com";
 
+function parsePlatform(ua: string): string {
+  if (!ua) return "Unknown";
+  if (ua.includes("iPhone")) return "iPhone";
+  if (ua.includes("iPad")) return "iPad";
+  if (ua.includes("Android")) return "Android";
+  if (ua.includes("Windows")) return "Windows";
+  if (ua.includes("Macintosh") || ua.includes("Mac OS")) return "Mac";
+  if (ua.includes("Linux")) return "Linux";
+  if (ua.includes("CrOS")) return "ChromeOS";
+  return "Unknown";
+}
+
+function truncateUserId(id: string): string {
+  if (!id || id.length <= 12) return id || "N/A";
+  return `${id.slice(0, 8)}…${id.slice(-4)}`;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -21,6 +38,7 @@ Deno.serve(async (req) => {
       error_stack,
       component_stack,
       route,
+      selected_screen,
       user_id,
       user_email,
       session_id,
@@ -41,7 +59,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Resolve user_id from auth header if not provided
     let resolvedUserId = user_id;
     let resolvedEmail = user_email || "anonymous";
 
@@ -62,7 +79,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Save to database
     const { error: dbError } = await supabaseAdmin
       .from("bug_reports")
       .insert({
@@ -86,13 +102,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Send email via Resend
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (RESEND_API_KEY) {
       try {
         const timestamp = new Date().toISOString();
         const formattedTime = new Date(timestamp).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
         const versionDisplay = app_version || "unknown";
+        const platform = parsePlatform(user_agent || "");
+        const userIdDisplay = truncateUserId(resolvedUserId);
+        const sessionIdDisplay = session_id || "N/A";
+        const screenDisplay = selected_screen || "Not specified";
+
         const emailHtml = `
           <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
             <!-- Header -->
@@ -117,6 +137,12 @@ Deno.serve(async (req) => {
               </div>
             </div>
 
+            <!-- Reported Screen -->
+            <div style="padding:16px 28px;border-bottom:1px solid #f3f4f6;background:#fafafa">
+              <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Reported Screen</p>
+              <p style="margin:4px 0 0;font-size:15px;color:#111827;font-weight:600">${screenDisplay}</p>
+            </div>
+
             <!-- Error Message -->
             <div style="padding:20px 28px">
               <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Error Message</p>
@@ -133,6 +159,31 @@ Deno.serve(async (req) => {
                 <p style="margin:0;font-size:14px;color:#166534;line-height:1.5">${additional_context}</p>
               </div>
             </div>` : ""}
+
+            <!-- System Information -->
+            <div style="padding:0 28px 20px">
+              <p style="margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">System Information</p>
+              <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden">
+                <table style="width:100%;border-collapse:collapse;font-size:13px">
+                  <tr style="border-bottom:1px solid #e2e8f0">
+                    <td style="padding:10px 14px;color:#64748b;font-weight:600;width:120px">User ID</td>
+                    <td style="padding:10px 14px;color:#1e293b;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px">${userIdDisplay}</td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #e2e8f0">
+                    <td style="padding:10px 14px;color:#64748b;font-weight:600">Session ID</td>
+                    <td style="padding:10px 14px;color:#1e293b;font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px">${sessionIdDisplay}</td>
+                  </tr>
+                  <tr style="border-bottom:1px solid #e2e8f0">
+                    <td style="padding:10px 14px;color:#64748b;font-weight:600">Platform</td>
+                    <td style="padding:10px 14px;color:#1e293b">${platform}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:10px 14px;color:#64748b;font-weight:600;vertical-align:top">User Agent</td>
+                    <td style="padding:10px 14px;color:#94a3b8;font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px;line-height:1.4;word-break:break-all">${(user_agent || "N/A").slice(0, 300)}</td>
+                  </tr>
+                </table>
+              </div>
+            </div>
 
             ${error_stack ? `
             <!-- Stack Trace -->
@@ -165,7 +216,7 @@ Deno.serve(async (req) => {
             from: `Bug from ${resolvedEmail} <bugs@magdysaber.com>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
-            subject: `[Bug Report] ${error_message.slice(0, 60)}`,
+            subject: `[Bug Report] ${screenDisplay} — ${error_message.slice(0, 50)}`,
             html: emailHtml,
           }),
         });
