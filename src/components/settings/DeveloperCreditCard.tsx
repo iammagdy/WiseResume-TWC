@@ -83,7 +83,7 @@ export function DeveloperCreditCard({
             {/* Button row: Contact Me + GitHub */}
             <div className="dev-btn-row">
               <button
-                className="dev-contact-btn"
+                className="dev-contact-btn text-left px-px"
                 onClick={handleContactClick}>
 
                 <Mail className="dev-mail-icon" />
