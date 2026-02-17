@@ -80,7 +80,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   
   // Fit score badge from tailor history
   const getTailorHistoryForResume = useResumeStore(s => s.getTailorHistoryForResume);
-  const scoreHistory = useATSScoreHistoryStore(s => s.getHistory(resume.id));
+  const scoreHistory = useATSScoreHistoryStore(s => s.history[resume.id]) ?? [];
   const latestTailor = useMemo(() => {
     const history = getTailorHistoryForResume(resume.id);
     return history.length > 0 ? history[0] : null;

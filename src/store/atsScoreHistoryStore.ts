@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+const EMPTY_HISTORY: ScoreHistoryEntry[] = [];
+
 export interface ScoreHistoryEntry {
   score: number;
   timestamp: string;
@@ -41,7 +43,7 @@ export const useATSScoreHistoryStore = create<ATSScoreHistoryState>()(
         });
       },
 
-      getHistory: (resumeId) => get().history[resumeId] || [],
+      getHistory: (resumeId) => get().history[resumeId] ?? EMPTY_HISTORY,
 
       clearHistory: (resumeId) => {
         set((state) => {
