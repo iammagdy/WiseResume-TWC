@@ -448,7 +448,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-h-0">
+    <div className="flex flex-col">
         {/* Header */}
         <header className="pt-safe pt-3 pb-2 px-4 flex items-center justify-between glass-header">
           <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
