@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { FileText, Loader2, Copy, Check, Download, Sparkles, History, Edit3, Eye } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { FileText, Loader2, Copy, Check, Download, Sparkles, History, Edit3, Eye, X, Circle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -56,6 +56,37 @@ export function CoverLetterGenerator({
   const [isEditing, setIsEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [generationStep, setGenerationStep] = useState(0);
+  const [generationElapsed, setGenerationElapsed] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const generationStartRef = useRef(0);
+
+  const GENERATION_STEPS = [
+    'Analyzing Job Description...',
+    'Matching Keywords...',
+    'Optimizing Structure...',
+    'Finalizing Content...',
+  ];
+
+  // Timer for stepped progress + elapsed tracking
+  useEffect(() => {
+    if (!isGenerating) {
+      setGenerationStep(0);
+      setGenerationElapsed(0);
+      return;
+    }
+    generationStartRef.current = Date.now();
+    const stepInterval = setInterval(() => {
+      setGenerationStep(prev => Math.min(prev + 1, GENERATION_STEPS.length - 1));
+    }, 2500);
+    const elapsedInterval = setInterval(() => {
+      setGenerationElapsed(Math.floor((Date.now() - generationStartRef.current) / 1000));
+    }, 1000);
+    return () => {
+      clearInterval(stepInterval);
+      clearInterval(elapsedInterval);
+    };
+  }, [isGenerating]);
   
   const { 
     setGeneratedCoverLetter, 
@@ -72,8 +103,9 @@ export function CoverLetterGenerator({
     }
 
     setIsGenerating(true);
+    abortRef.current = new AbortController();
     try {
-      let letter = await generateCoverLetter(resume, jobDescription, tone);
+      let letter = await generateCoverLetter(resume, jobDescription, tone, abortRef.current.signal);
       
       // Safety net: replace any remaining placeholders
       letter = injectContactInfo(letter, resume.contactInfo);
@@ -220,23 +252,54 @@ export function CoverLetterGenerator({
                   </div>
                 </div>
 
-                <Button
-                  className="w-full h-12 gradient-primary font-semibold"
-                  onClick={handleGenerate}
-                  disabled={isGenerating || !resume || !jobDescription}
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-5 h-5 mr-2" />
-                      Generate Cover Letter
-                    </>
-                  )}
-                </Button>
+                {isGenerating ? (
+                  <div className="space-y-4 p-4 rounded-xl bg-primary/5 border border-primary/20">
+                    {/* Step dots */}
+                    <div className="flex items-center justify-center gap-2">
+                      {GENERATION_STEPS.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                            i < generationStep ? 'bg-primary' :
+                            i === generationStep ? 'bg-primary animate-pulse scale-125' :
+                            'bg-muted-foreground/30'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    {/* Current step label */}
+                    <p className="text-sm font-medium text-center text-foreground animate-fade-in">
+                      {GENERATION_STEPS[generationStep]}
+                    </p>
+                    {/* Cancel button */}
+                    {generationElapsed >= 5 && (
+                      <div className="flex justify-center">
+                        <Button
+                          variant={generationElapsed >= 30 ? 'destructive' : 'ghost'}
+                          size="sm"
+                          onClick={() => {
+                            abortRef.current?.abort();
+                            setIsGenerating(false);
+                            toast.info('Generation cancelled');
+                          }}
+                          className="min-h-[44px] min-w-[44px] active:scale-95 transition-transform"
+                        >
+                          <X className="w-4 h-4 mr-1.5" />
+                          {generationElapsed >= 30 ? 'Taking too long? Cancel generation' : 'Cancel'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Button
+                    className="w-full h-12 gradient-primary font-semibold"
+                    onClick={handleGenerate}
+                    disabled={!resume || !jobDescription}
+                  >
+                    <FileText className="w-5 h-5 mr-2" />
+                    Generate Cover Letter
+                  </Button>
+                )}
 
                 {(!resume || !jobDescription) && (
                   <p className="text-xs text-center text-muted-foreground">

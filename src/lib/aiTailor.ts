@@ -60,7 +60,8 @@ export async function tailorResumeWithProgress(
   resume: ResumeData,
   jobDescription: string,
   onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void,
-  intensity: TailorIntensity = 'moderate'
+  intensity: TailorIntensity = 'moderate',
+  signal?: AbortSignal
 ): Promise<SuperTailorResult> {
   // Smooth ease-out progress: fast start, slows toward 85%
   const startTime = Date.now();
@@ -95,7 +96,8 @@ export async function tailorResumeWithProgress(
   try {
     const { data, error } = await supabase.functions.invoke('tailor-resume', {
       body: { resume, jobDescription, intensity },
-    });
+      ...(signal ? { options: { signal } } : {}),
+    } as any);
     clearInterval(progressInterval);
 
     if (error) {
@@ -175,11 +177,13 @@ export async function parseJobUrl(url: string): Promise<{ title: string; company
 export async function generateCoverLetter(
   resume: ResumeData,
   jobDescription: string,
-  tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional'
+  tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional',
+  signal?: AbortSignal
 ): Promise<string> {
   const { data, error } = await supabase.functions.invoke('generate-cover-letter', {
     body: { resume, jobDescription, tone },
-  });
+    ...(signal ? { options: { signal } } : {}),
+  } as any);
 
   if (error) {
     console.error('Cover letter error:', error);
