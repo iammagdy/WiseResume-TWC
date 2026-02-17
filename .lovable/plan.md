@@ -1,39 +1,66 @@
 
 
-## Update Settings Profile Card to Navigate to Profile Page
+## Fix: Username Uniqueness Check and URL Display
 
-### What Changes
+### Problem 1: Username Always Shows "Available" (Critical)
+The username availability check queries the `profiles` table directly, but RLS policies only allow users to see their own profile row. This means when checking if another user already has a username, the query returns empty (blocked by RLS), so every username falsely appears as "Available."
 
-The profile card at the top of the Settings page will be updated to:
+### Problem 2: URL Display Format
+The username field currently shows `wiseresume.lovable.app/p/` inline next to the input. The user wants:
+- A label "Username" on top
+- Below it: `wiseresume.lovable.app/p/` as a static prefix on its own line
+- Then the username input field
 
-1. **Navigate to `/profile`** when tapped, instead of opening the inline Edit Profile sheet
-2. **Show the user's email** below their name
-3. **Keep the sign-up method badge** (Google/Apple/Email) visible
-4. **Remove** the "Tap to complete your profile" fallback text and the profile completion progress bar from this card (the Profile page already has its own completion section)
-5. **Add a subtle subtitle** like "View & edit profile" to make it clear it's tappable
+### Solution
 
-### Technical Details
+**1. Create a database function to check username availability (bypasses RLS safely)**
 
-**File: `src/components/editor/ai/AIDetectorSheet.tsx`** -- No changes needed.
+Create a new `check_username_available` RPC function with `SECURITY DEFINER` that:
+- Accepts a username and the requesting user's ID
+- Returns `true` if the username is not taken by any other user
+- Returns `false` if another user already has that username
+- Returns `true` if the requesting user already owns that username
 
-**File: `src/pages/SettingsPage.tsx`** (lines 309-348):
-- Change the `onClick` from `handleOpenEditProfile` (which opens the sheet) to `navigate('/profile')`
-- Replace the job title / "Tap to complete your profile" line with the user's email
-- Add a second line showing "View & edit profile" as a muted hint
-- Keep the provider badge (Google/Apple/Email)
-- Remove the `profileCompletion` progress bar and "Profile complete" checkmark from this card since the Profile page handles that
-- The `EditProfileSheet` lazy import and state can remain for any other usage, but the card itself won't trigger it
-
-### Visual Result
-
-The card will look like:
-
-```text
-[Avatar]  John Doe
-          john@example.com
-          [Google badge]
-          View & edit profile          [>]
+```sql
+CREATE OR REPLACE FUNCTION public.check_username_available(p_username text, p_user_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+BEGIN
+  RETURN NOT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE username = lower(p_username)
+      AND user_id != p_user_id
+  );
+END;
+$$;
 ```
 
-Tapping it navigates to the full Profile page where the user can edit their profile, manage their portfolio, etc.
+**2. Update `src/pages/ProfilePage.tsx`**
+
+- Replace the direct Supabase query (lines 100-114) with a call to the new RPC function:
+  ```typescript
+  const { data } = await supabase.rpc('check_username_available', {
+    p_username: username,
+    p_user_id: user!.id,
+  });
+  setUsernameAvailable(data === true);
+  ```
+
+- Also update the username save logic in `handleSavePortfolio` to block saving if `usernameAvailable` is false (already done on line 502).
+
+- Fix the URL display layout (lines 359-393): show the URL prefix `wiseresume.lovable.app/p/` on its own line above the input, not inline next to it.
+
+**3. Add a save-time guard in `handleSavePortfolio`**
+
+Before saving, do a final RPC check to prevent race conditions where two users try to claim the same username simultaneously. If the username was claimed in between, show an error toast and abort the save.
+
+### Files to Change
+
+| File | Change |
+|------|--------|
+| Database migration | Add `check_username_available` RPC function |
+| `src/pages/ProfilePage.tsx` | Use RPC for availability check; fix URL prefix layout; add save-time guard |
 
