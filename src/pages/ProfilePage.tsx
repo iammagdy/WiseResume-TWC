@@ -99,13 +99,12 @@ export default function ProfilePage() {
 
     usernameCheckRef.current = setTimeout(async () => {
       try {
-        const { data } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('username', username)
-          .neq('user_id', user!.id)
-          .maybeSingle();
-        setUsernameAvailable(!data);
+        const { data, error } = await supabase.rpc('check_username_available', {
+          p_username: username,
+          p_user_id: user!.id,
+        });
+        if (error) throw error;
+        setUsernameAvailable(data === true);
       } catch {
         setUsernameAvailable(null);
       } finally {
@@ -220,6 +219,19 @@ export default function ProfilePage() {
     setSavingPortfolio(true);
     haptics.light();
     try {
+      // Final race-condition guard: re-check username availability before saving
+      if (username && username.length >= 3 && profile?.username !== username) {
+        const { data: available } = await supabase.rpc('check_username_available', {
+          p_username: username,
+          p_user_id: user!.id,
+        });
+        if (!available) {
+          setUsernameAvailable(false);
+          toast.error('Username was just taken. Please choose another.');
+          setSavingPortfolio(false);
+          return;
+        }
+      }
       await updateProfile({
         username: username || null,
         portfolioBio: bio || null,
@@ -358,15 +370,12 @@ export default function ProfilePage() {
           {/* Username */}
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Username</label>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground whitespace-nowrap">wiseresume.lovable.app/p/</span>
-              <Input
-                value={username}
-                onChange={(e) => handleUsernameChange(e.target.value)}
-                placeholder="your-name"
-                className="flex-1"
-              />
-            </div>
+            <p className="text-xs text-muted-foreground">wiseresume.lovable.app/p/</p>
+            <Input
+              value={username}
+              onChange={(e) => handleUsernameChange(e.target.value)}
+              placeholder="your-name"
+            />
             {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
             {!usernameError && username.length >= 3 && (
               <div className="flex items-center gap-1.5">
