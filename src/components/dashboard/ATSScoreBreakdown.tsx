@@ -34,17 +34,21 @@ function StatusIcon({ score }: { score: number }) {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  completeness: 'Completeness',
-  atsReadiness: 'ATS Readiness',
-  impactLanguage: 'Impact Language',
-  formatting: 'Formatting',
+  keywordOptimization: 'Keywords',
+  contentQuality: 'Content Quality',
+  sectionStructure: 'Structure',
+  parsability: 'Parsability',
+  contactCompleteness: 'Contact Info',
+  lengthDensity: 'Length & Density',
 };
 
 const CATEGORY_HINTS: Record<string, (score: number) => string> = {
-  completeness: (s) => s < 70 ? 'Fill in all sections' : '',
-  atsReadiness: (s) => s < 70 ? 'Add more keywords' : '',
-  impactLanguage: (s) => s < 70 ? 'Use action verbs & metrics' : '',
-  formatting: (s) => s < 70 ? 'Improve layout consistency' : '',
+  keywordOptimization: (s) => s < 70 ? 'Add industry keywords & tools' : '',
+  contentQuality: (s) => s < 70 ? 'Use action verbs & metrics' : '',
+  sectionStructure: (s) => s < 70 ? 'Add missing sections' : '',
+  parsability: (s) => s < 70 ? 'Use consistent date formats' : '',
+  contactCompleteness: (s) => s < 70 ? 'Add email, phone & LinkedIn' : '',
+  lengthDensity: (s) => s < 70 ? 'Add more detail to bullets' : '',
 };
 
 interface ATSScoreBreakdownProps {

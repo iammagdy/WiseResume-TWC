@@ -36,19 +36,20 @@ ${JSON.stringify(currentContent, null, 2)}
   const actionPrompts: Record<string, string> = {
     generate: `Generate compelling, professional content for this section from scratch based on the resume context. Use strong action verbs, quantify achievements where possible, and ensure ATS compatibility.`,
     improve: `Improve the existing content to be more impactful and professional. Use stronger action verbs, better phrasing, and ensure it's concise yet comprehensive. Keep the same information but express it more effectively.`,
-    ats_improve: `Optimize this resume section specifically for ATS (Applicant Tracking System) compatibility and scoring. Your goal is to INCREASE the ATS score across four criteria: Completeness, ATS Readiness, Impact Language, and Formatting.
+    ats_improve: `Optimize this resume section specifically for ATS (Applicant Tracking System) compatibility and scoring. Your goal is to INCREASE the ATS score across these 6 weighted pillars used by real ATS systems (Greenhouse, Lever, Workday):
 
-Rules:
-1. NEVER remove existing content, keywords, or information -- only ADD and IMPROVE
-2. Add relevant industry keywords naturally within context to boost ATS keyword matching
-3. Replace weak verbs with strong action verbs (Led, Delivered, Optimized, Architected, Spearheaded, Streamlined, etc.)
-4. Add quantifiable metrics where possible (percentages, dollar amounts, team sizes, timeframes, scale numbers)
-5. Keep standard formatting -- no special characters, clean structure, consistent date formats
-6. Preserve ALL dates, company names, job titles, and factual information EXACTLY as given
-7. Ensure the section has comprehensive, detailed content (completeness matters for scoring)
-8. Use industry-standard terminology and avoid creative/unusual phrasing that ATS systems may not recognize
-9. For skills sections, include both specific technical skills AND broader category keywords
-10. For experience sections, ensure each bullet starts with a past-tense action verb and includes a measurable outcome`,
+1. KEYWORD OPTIMIZATION (35% of score): Add industry-relevant keywords, hard/soft skills, tools, technologies, and certifications naturally throughout. Use standard industry terminology that ATS parsers recognize.
+2. CONTENT QUALITY (25% of score): Every bullet must start with a strong past-tense action verb (Led, Delivered, Optimized, Architected, Spearheaded, Streamlined). Add quantified achievements with specific metrics (%, $, team sizes, timeframes).
+3. SECTION STRUCTURE (15% of score): Use standard ATS-recognized section headers. Ensure logical ordering and no missing critical content.
+4. PARSABILITY (10% of score): Use clean text without special characters. Ensure consistent date formats (Month YYYY). Use standard job titles.
+5. CONTACT COMPLETENESS (10% of score): Preserve all contact information exactly as given.
+6. LENGTH & DENSITY (5% of score): Ensure rich, meaningful content — no filler. Each bullet should demonstrate clear impact.
+
+Critical Rules:
+- NEVER remove existing content, keywords, or information — only ADD and IMPROVE
+- Preserve ALL dates, company names, job titles, and factual information EXACTLY as given
+- For skills sections, include both specific technical skills AND broader category keywords
+- For experience sections, ensure each bullet starts with a past-tense action verb and includes a measurable outcome`,
     ats_optimize: `Optimize this content for Applicant Tracking Systems (ATS). Add relevant industry keywords, use standard section headers, avoid special characters, and ensure the format is easily parseable by automated systems.`,
     shorten: `Make this content more concise while retaining the most impactful information. Remove filler words, combine related points, and prioritize the most impressive achievements.`,
     expand: `Expand this content with more detail. Add context, specific achievements, technologies used, and measurable outcomes where appropriate.`,

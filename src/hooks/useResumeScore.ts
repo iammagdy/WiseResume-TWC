@@ -10,10 +10,12 @@ import { useAICreditsMutations } from './useAICredits';
 export interface ResumeHealthScore {
   overallScore: number;
   categories: {
-    completeness: number;
-    atsReadiness: number;
-    impactLanguage: number;
-    formatting: number;
+    keywordOptimization: number;
+    contentQuality: number;
+    sectionStructure: number;
+    parsability: number;
+    contactCompleteness: number;
+    lengthDensity: number;
   };
   topStrength: string;
   topImprovement: string;

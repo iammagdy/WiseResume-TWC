@@ -455,10 +455,12 @@ export default function EditorPage() {
     return {
       overallScore,
       categories: {
-        completeness: sectionScores.contact,
-        atsReadiness: sectionScores.skills,
-        impactLanguage: sectionScores.experience,
-        formatting: sectionScores.education,
+        keywordOptimization: sectionScores.skills,
+        contentQuality: sectionScores.experience,
+        sectionStructure: Math.round((sectionScores.contact + sectionScores.education + sectionScores.skills + sectionScores.experience) / 4),
+        parsability: sectionScores.education,
+        contactCompleteness: sectionScores.contact,
+        lengthDensity: Math.round((sectionScores.experience + sectionScores.education) / 2),
       },
       topStrength: '',
       topImprovement: overallScore < 70 ? 'Fill in more sections to improve your score' : '',
