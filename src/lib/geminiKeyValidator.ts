@@ -127,16 +127,3 @@ export async function validateGeminiKey(apiKey: string): Promise<GeminiKeyValida
   }
 }
 
-/**
- * Get the user's Gemini key from settings store (if using Gemini provider)
- */
-export function getGeminiKeyForRequest(): string | undefined {
-  // Import dynamically to avoid circular dependencies
-  const { useSettingsStore } = require('@/store/settingsStore');
-  const { aiProvider, geminiApiKey } = useSettingsStore.getState();
-  
-  if (aiProvider === 'gemini' && geminiApiKey) {
-    return geminiApiKey;
-  }
-  return undefined;
-}
