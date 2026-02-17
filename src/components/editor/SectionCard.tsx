@@ -36,7 +36,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
           )} />
         </div>
         <h2 className="text-h3 !text-sm flex-1">{title}</h2>
-        {action && <div className="shrink-0">{action}</div>}
+        {action && <div className="shrink-0 min-h-[44px] flex items-center">{action}</div>}
       </div>
 
       {/* Tip pill */}

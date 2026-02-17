@@ -51,7 +51,7 @@ export function AIActionBar({
             size="sm"
             onClick={() => onAction(action.id)}
             disabled={disabled || isLoading}
-            className="shrink-0 h-10 px-4 text-sm gap-2 border-primary/30 hover:bg-primary hover:text-primary-foreground transition-colors snap-start touch-manipulation"
+            className="shrink-0 h-11 px-4 text-sm gap-2 border-primary/30 hover:bg-primary hover:text-primary-foreground transition-colors snap-start touch-manipulation"
           >
             {isLoading && loadingAction === action.id ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -69,7 +69,7 @@ export function AIActionBar({
                 variant="outline"
                 size="sm"
                 disabled={disabled || isLoading}
-                className="shrink-0 h-10 px-4 text-sm gap-1.5 border-primary/30 snap-start touch-manipulation"
+                className="shrink-0 h-11 px-4 text-sm gap-1.5 border-primary/30 snap-start touch-manipulation"
               >
                 More
                 <ChevronDown className="w-4 h-4" />
@@ -81,7 +81,7 @@ export function AIActionBar({
                   key={action.id}
                   onClick={() => onAction(action.id)}
                   disabled={isLoading}
-                  className="py-3 text-sm"
+                  className="py-3.5 text-sm"
                 >
                   {action.icon && <span className="[&>svg]:w-4 [&>svg]:h-4">{action.icon}</span>}
                   <span className="ml-2">{action.label}</span>
