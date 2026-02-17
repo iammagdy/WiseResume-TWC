@@ -30,6 +30,7 @@ const LanguagesSection = lazy(() => import('@/components/editor/LanguagesSection
 // AIAssistantBar moved to AI Studio tab
 import { SectionAIAction } from '@/components/editor/SectionAIAction';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
@@ -167,6 +168,7 @@ export default function EditorPage() {
   });
   const [showATSBadge, setShowATSBadge] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
+  const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview'>('editor');
   const isMobile = useIsMobile();
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -826,17 +828,6 @@ export default function EditorPage() {
           {/* Mobile-only: consolidated tools trigger (Sheet-based for portal rendering) */}
           <div className="flex items-center gap-1 md:hidden">
             <button
-              onClick={() => { haptics.light(); setShowPreview(v => !v); }}
-              className={cn(
-                "rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 touch-manipulation",
-                showPreview ? "bg-primary/15 text-primary" : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              )}
-              aria-label={showPreview ? "Close preview" : "Open preview"}
-            >
-              <Eye className="w-5 h-5" />
-              <span className="text-[9px] font-medium leading-none">Preview</span>
-            </button>
-            <button
               onClick={() => { haptics.light(); setShowToolsSheet(true); }}
               className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
               aria-label="Editor tools"
@@ -1005,8 +996,32 @@ export default function EditorPage() {
         />
         </div>
 
-        {/* Editor + Preview split layout */}
-        {showPreview && !isMobile ? (
+        {/* Editor + Preview layout */}
+        {isMobile ? (
+          <Tabs
+            value={mobileEditorTab}
+            onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview')}
+            className="flex-1 flex flex-col min-h-0 overflow-hidden"
+          >
+            <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none">
+              <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
+              <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
+            </TabsList>
+            <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0">
+              <div
+                className="editor-scroll-container h-full overflow-y-auto px-4 py-4 pb-safe space-y-0"
+                ref={scrollContainerRef}
+              >
+                {renderEditorContent()}
+              </div>
+            </TabsContent>
+            <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0">
+              <Suspense fallback={null}>
+                <LivePreviewPanel highlightSection={activeTab} />
+              </Suspense>
+            </TabsContent>
+          </Tabs>
+        ) : showPreview ? (
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
             <ResizablePanel defaultSize={55} minSize={35}>
               <div className="flex flex-col h-full min-h-0 overflow-hidden">
@@ -1068,7 +1083,7 @@ export default function EditorPage() {
       {/* Sheets - lazy loaded, wrapped in ErrorBoundary */}
       <ErrorBoundary>
         <Suspense fallback={null}>
-          {showPreview && isMobile && <LivePreviewSheet open={showPreview} onOpenChange={setShowPreview} />}
+          {/* LivePreviewSheet removed — mobile now uses inline Tabs */}
           {showJobSheet && <JobAnalysisSheet open={showJobSheet} onOpenChange={setShowJobSheet} />}
           {showTemplates && <TemplateSelector open={showTemplates} onOpenChange={setShowTemplates} />}
           {showTailor && <TailorSheet open={showTailor} onOpenChange={setShowTailor} onApplied={handleTailorApplied} />}
