@@ -1,52 +1,33 @@
 
 
-## Fix: ErrorBoundary UI Clarity and Button Visibility
+## Fix: Persistent Chunk Loading Errors on Dashboard
 
-### Problems
-1. **"Report Issue" button is nearly invisible** -- the `variant="secondary"` button blends into the dark background, making it look broken/disabled
-2. **Chunk loading errors show raw technical URLs** -- users see `Failed to fetch dynamically imported module: https://long-url...` which is meaningless and alarming. These transient network errors should have friendlier messaging
-3. **Technical details shown by default for non-technical errors** -- chunk errors don't need a scary red code block
+### Problem
+The dashboard keeps showing the "Connection hiccup" error screen because `lazyWithRetry` only retries once (after 1.5s). When the dev server is rebuilding or the network hiccups, a single retry is not enough. The stale module URL fails again, and the error propagates to the ErrorBoundary where the user must manually tap "Reload".
 
-### Changes
+### Solution
+Make `lazyWithRetry` more resilient with two changes:
 
-**File: `src/components/ErrorBoundary.tsx`**
+1. **Retry up to 3 times** with increasing delays (1s, 2s, 4s) instead of a single 1.5s retry
+2. **Auto-reload as last resort** -- if all retries fail, force a full page reload (`window.location.reload()`) which gets fresh module URLs from the server. Add a sessionStorage guard to prevent infinite reload loops (only auto-reload once per page load).
 
-1. **Detect chunk/network errors** and show a friendlier experience:
-   - Title: "Connection hiccup" instead of "Something went wrong"
-   - Description: "The page couldn't load properly. This usually fixes itself -- just tap Reload."
-   - Hide the "Technical details" section for chunk errors (users don't need to see raw URLs)
-   - Hide the "Report Issue" button for chunk errors (these are transient, not bugs)
+### Technical Details
 
-2. **Fix button visibility**:
-   - Change "Report Issue" from `variant="secondary"` to `variant="outline"` so it has a visible border in both light and dark themes
-   - Change "Go to Dashboard" from `variant="outline"` to `variant="ghost"` to create a clear visual hierarchy: primary > outline > ghost
+**File: `src/lib/lazyWithRetry.ts`**
 
-3. **Rename "Try Again" to "Reload" for chunk errors** since it triggers `window.location.reload()` -- clearer user expectation
-
-### Technical Detail
-
-Add a computed `isChunkError` boolean at the top of the render method:
+Replace the current single-retry logic with a multi-retry loop:
 
 ```text
-isChunkError = true
-  +---------------------------+
-  | Title: Connection hiccup  |
-  | Friendly description      |
-  | No technical details      |
-  | [Reload]  (primary)       |
-  | [Go to Dashboard] (outline)|
-  +---------------------------+
-
-isChunkError = false
-  +---------------------------+
-  | Title: Something went wrong|
-  | Generic description       |
-  | Technical details (collapsed)|
-  | [Try Again]  (primary)    |
-  | [Report Issue] (outline)  |
-  | [Go to Dashboard] (ghost) |
-  +---------------------------+
+factory() fails
+  -> retry 1 (after 1000ms)
+  -> retry 2 (after 2000ms)
+  -> retry 3 (after 4000ms)
+  -> all failed? check sessionStorage flag
+     -> flag not set: set flag, window.location.reload()
+     -> flag already set: reject (shows ErrorBoundary as fallback)
 ```
 
-This ensures chunk loading errors (the most common crash screen users see) feel reassuring rather than alarming, while genuine application errors still show full debugging and reporting options.
+The sessionStorage key (e.g. `wr-chunk-reload`) prevents infinite reload loops. It gets cleared on successful page loads via a small cleanup in the same file.
+
+This means users will almost never see the "Connection hiccup" screen -- the page will silently retry and auto-recover. The ErrorBoundary remains as a last-resort safety net.
 
