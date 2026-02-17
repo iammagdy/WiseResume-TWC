@@ -113,6 +113,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const [isApplying, setIsApplying] = useState(false);
   const [jobUrl, setJobUrl] = useState<string | undefined>(undefined);
   const autoTailorTriggered = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
   const [tailorError, setTailorError] = useState<{ message: string; code?: string } | null>(null);
   const [showAISettings, setShowAISettings] = useState(false);
 
@@ -147,12 +148,15 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setEnabledSections(['summary', 'skills', 'experience', 'education']);
     setActiveTab('changes');
 
+    abortRef.current = new AbortController();
+
     try {
       const result = await tailorResumeWithProgress(
         currentResume, 
         jobDescription,
         (p) => setProgress(p),
-        intensity
+        intensity,
+        abortRef.current.signal
       );
       setTailorResult(result as SuperTailorResult);
       
@@ -426,6 +430,12 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               progress={progress}
               projectedScore={tailorResult?.overallScore}
               matchingKeywords={tailorResult?.missingSkills?.length}
+              onCancel={() => {
+                abortRef.current?.abort();
+                setIsTailoring(false);
+                setProgress(null);
+                toast.info('Generation cancelled');
+              }}
             />
           )}
 

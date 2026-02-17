@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Check, Circle, Loader2, Sparkles, TrendingUp, Clock } from 'lucide-react';
+import { Check, Circle, Loader2, Sparkles, TrendingUp, Clock, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { TailorProgress as TailorProgressType, TailorStep, EnhancedTailorProgress, EnhancedTailorStep } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +9,7 @@ interface TailorProgressProps {
   progress: TailorProgressType | EnhancedTailorProgress;
   projectedScore?: { before: number; after: number };
   matchingKeywords?: number;
+  onCancel?: () => void;
 }
 
 const STEPS: { id: TailorStep | EnhancedTailorStep; label: string }[] = [
@@ -74,7 +76,7 @@ function useAnimatedNumber(target: number, speed = 0.08) {
   return display;
 }
 
-export function TailorProgressComponent({ progress, projectedScore, matchingKeywords }: TailorProgressProps) {
+export function TailorProgressComponent({ progress, projectedScore, matchingKeywords, onCancel }: TailorProgressProps) {
   const isComplete = progress.step === 'complete';
   const visibleSteps = getVisibleSteps(progress.step);
   const currentIndex = visibleSteps.findIndex(s => s.id === progress.step);
@@ -266,6 +268,28 @@ export function TailorProgressComponent({ progress, projectedScore, matchingKeyw
           })}
         </div>
       </div>
+
+      {/* Cancel Button */}
+      {!isComplete && onCancel && (
+        (() => {
+          const elapsedSecs = Math.floor((Date.now() - startTime) / 1000);
+          if (elapsedSecs < 5) return null;
+          const isTooLong = elapsedSecs >= 30;
+          return (
+            <div className="mb-4 flex justify-center">
+              <Button
+                variant={isTooLong ? 'destructive' : 'ghost'}
+                size="sm"
+                onClick={onCancel}
+                className="min-h-[44px] min-w-[44px] active:scale-95 transition-transform"
+              >
+                <X className="w-4 h-4 mr-1.5" />
+                {isTooLong ? 'Taking too long? Cancel generation' : 'Cancel'}
+              </Button>
+            </div>
+          );
+        })()
+      )}
 
       {/* Stats Preview */}
       {(projectedScore || (matchingKeywords && matchingKeywords > 0)) && (
