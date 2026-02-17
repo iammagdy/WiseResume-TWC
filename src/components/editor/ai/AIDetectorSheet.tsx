@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import type { ResumeData, Experience, Project, Volunteering, Award, Publication } from '@/types/resume';
 
 
 interface AIDetectorSheetProps {
@@ -55,6 +56,7 @@ interface HumanizeResult {
 
 type ToneOption = 'professional' | 'confident' | 'friendly';
 type ViewState = 'input' | 'analyzing' | 'results';
+type SectionOption = 'summary' | 'experience' | 'projects' | 'volunteering' | 'awards' | 'publications';
 
 const TONE_OPTIONS: { id: ToneOption; label: string; description: string }[] = [
   { id: 'professional', label: 'Professional', description: 'Polished but natural' },
@@ -62,15 +64,185 @@ const TONE_OPTIONS: { id: ToneOption; label: string; description: string }[] = [
   { id: 'friendly', label: 'Friendly', description: 'Warm and approachable' },
 ];
 
+const SECTION_OPTIONS: { id: SectionOption; label: string }[] = [
+  { id: 'summary', label: 'Summary' },
+  { id: 'experience', label: 'Experience' },
+  { id: 'projects', label: 'Projects' },
+  { id: 'volunteering', label: 'Volunteering' },
+  { id: 'awards', label: 'Awards' },
+  { id: 'publications', label: 'Publications' },
+];
+
+const ENTRY_DELIMITER = '\n---\n';
+
+function extractSectionText(
+  resume: ResumeData | null,
+  section: SectionOption
+): string | null {
+  if (!resume) return null;
+
+  switch (section) {
+    case 'summary':
+      return resume.summary || null;
+
+    case 'experience': {
+      const exp = resume.experience as Experience[] | undefined;
+      if (!exp?.length) return null;
+      return exp.map(e => {
+        const lines = [`${e.position} at ${e.company}`];
+        if (e.description) lines.push(e.description);
+        if (e.achievements?.length) {
+          e.achievements.forEach(a => lines.push(`- ${a}`));
+        }
+        return lines.join('\n');
+      }).join(ENTRY_DELIMITER);
+    }
+
+    case 'projects': {
+      const proj = resume.projects as Project[] | undefined;
+      if (!proj?.length) return null;
+      return proj.map(p => {
+        const lines = [`${p.name}${p.role ? ` (${p.role})` : ''}`];
+        if (p.description) lines.push(p.description);
+        return lines.join('\n');
+      }).join(ENTRY_DELIMITER);
+    }
+
+    case 'volunteering': {
+      const vol = resume.volunteering as Volunteering[] | undefined;
+      if (!vol?.length) return null;
+      return vol.map(v => {
+        const lines = [`${v.role} at ${v.organization}`];
+        if (v.description) lines.push(v.description);
+        return lines.join('\n');
+      }).join(ENTRY_DELIMITER);
+    }
+
+    case 'awards': {
+      const awards = resume.awards as Award[] | undefined;
+      if (!awards?.length) return null;
+      return awards.map(a => {
+        const lines = [`${a.title} — ${a.issuer}`];
+        if (a.description) lines.push(a.description);
+        return lines.join('\n');
+      }).join(ENTRY_DELIMITER);
+    }
+
+    case 'publications': {
+      const pubs = resume.publications as Publication[] | undefined;
+      if (!pubs?.length) return null;
+      return pubs.map(p => {
+        const lines = [`${p.title} — ${p.publisher}`];
+        if (p.description) lines.push(p.description);
+        return lines.join('\n');
+      }).join(ENTRY_DELIMITER);
+    }
+
+    default:
+      return null;
+  }
+}
+
+function applySectionText(
+  resume: ResumeData,
+  section: SectionOption,
+  humanizedText: string
+): Partial<ResumeData> {
+  switch (section) {
+    case 'summary':
+      return { summary: humanizedText };
+
+    case 'experience': {
+      const exp = (resume.experience as Experience[]) || [];
+      const blocks = humanizedText.split(ENTRY_DELIMITER);
+      const updated = exp.map((entry, i) => {
+        if (i >= blocks.length) return entry;
+        const lines = blocks[i].split('\n');
+        // First line is header "[Position] at [Company]" — skip it
+        const contentLines = lines.slice(1);
+        const achievements: string[] = [];
+        const descLines: string[] = [];
+        contentLines.forEach(line => {
+          if (line.startsWith('- ')) {
+            achievements.push(line.slice(2));
+          } else if (line.trim()) {
+            descLines.push(line);
+          }
+        });
+        return {
+          ...entry,
+          description: descLines.join('\n') || entry.description,
+          achievements: achievements.length ? achievements : entry.achievements,
+        };
+      });
+      return { experience: updated };
+    }
+
+    case 'projects': {
+      const proj = (resume.projects as Project[]) || [];
+      const blocks = humanizedText.split(ENTRY_DELIMITER);
+      const updated = proj.map((entry, i) => {
+        if (i >= blocks.length) return entry;
+        const lines = blocks[i].split('\n');
+        const contentLines = lines.slice(1);
+        return { ...entry, description: contentLines.join('\n').trim() || entry.description };
+      });
+      return { projects: updated };
+    }
+
+    case 'volunteering': {
+      const vol = (resume.volunteering as Volunteering[]) || [];
+      const blocks = humanizedText.split(ENTRY_DELIMITER);
+      const updated = vol.map((entry, i) => {
+        if (i >= blocks.length) return entry;
+        const lines = blocks[i].split('\n');
+        const contentLines = lines.slice(1);
+        return { ...entry, description: contentLines.join('\n').trim() || entry.description };
+      });
+      return { volunteering: updated };
+    }
+
+    case 'awards': {
+      const awards = (resume.awards as Award[]) || [];
+      const blocks = humanizedText.split(ENTRY_DELIMITER);
+      const updated = awards.map((entry, i) => {
+        if (i >= blocks.length) return entry;
+        const lines = blocks[i].split('\n');
+        const contentLines = lines.slice(1);
+        return { ...entry, description: contentLines.join('\n').trim() || entry.description };
+      });
+      return { awards: updated };
+    }
+
+    case 'publications': {
+      const pubs = (resume.publications as Publication[]) || [];
+      const blocks = humanizedText.split(ENTRY_DELIMITER);
+      const updated = pubs.map((entry, i) => {
+        if (i >= blocks.length) return entry;
+        const lines = blocks[i].split('\n');
+        const contentLines = lines.slice(1);
+        return { ...entry, description: contentLines.join('\n').trim() || entry.description };
+      });
+      return { publications: updated };
+    }
+
+    default:
+      return {};
+  }
+}
+
 export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
   const { currentResume, updateResume } = useResumeStore();
   const [viewState, setViewState] = useState<ViewState>('input');
   const [inputText, setInputText] = useState('');
   const [selectedTone, setSelectedTone] = useState<ToneOption>('professional');
+  const [selectedSection, setSelectedSection] = useState<SectionOption>('summary');
   const [detection, setDetection] = useState<DetectionResult | null>(null);
   const [humanized, setHumanized] = useState<HumanizeResult | null>(null);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const { execute: executeAI } = useAIAction({ operation: 'detect-humanize' });
+
+  const sectionLabel = SECTION_OPTIONS.find(s => s.id === selectedSection)?.label || 'Summary';
 
   const handleAnalyze = async () => {
     if (!inputText.trim()) {
@@ -141,15 +313,13 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
     toast.success('Copied to clipboard!');
   };
 
-  const handleApplyToSummary = () => {
+  const handleApplyToSection = () => {
     if (!currentResume || !humanized?.humanized) return;
     
-    updateResume({
-      ...currentResume,
-      summary: humanized.humanized,
-    });
+    const patch = applySectionText(currentResume, selectedSection, humanized.humanized);
+    updateResume({ ...currentResume, ...patch });
     haptics.success();
-    toast.success('Applied to resume summary!');
+    toast.success(`Applied to ${sectionLabel}!`);
     onOpenChange(false);
   };
 
@@ -159,13 +329,14 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
     setHumanized(null);
   };
 
-  const handleLoadSummary = () => {
-    if (currentResume?.summary) {
-      setInputText(currentResume.summary);
+  const handleLoadSection = () => {
+    const text = extractSectionText(currentResume, selectedSection);
+    if (text) {
+      setInputText(text);
       haptics.light();
-      toast.success('Loaded resume summary');
+      toast.success(`Loaded ${sectionLabel}`);
     } else {
-      toast.error('No summary found in your resume');
+      toast.error(`No ${sectionLabel.toLowerCase()} found in your resume`);
     }
   };
 
@@ -218,22 +389,46 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                   </p>
                 </div>
 
+                {/* Section Selector */}
+                <div className="space-y-2">
+                  <Label>Select Section</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {SECTION_OPTIONS.map((section) => (
+                      <button
+                        key={section.id}
+                        onClick={() => {
+                          setSelectedSection(section.id);
+                          haptics.light();
+                        }}
+                        className={cn(
+                          'px-3 py-1.5 rounded-lg border text-sm transition-all',
+                          selectedSection === section.id
+                            ? 'border-primary bg-primary/10 font-medium'
+                            : 'border-border bg-muted/50 hover:border-primary/50'
+                        )}
+                      >
+                        {section.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Text to Analyze</Label>
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleLoadSummary}
+                      onClick={handleLoadSection}
                       className="text-xs"
                     >
-                      Load Summary
+                      Load {sectionLabel}
                     </Button>
                   </div>
                   <Textarea
                     value={inputText}
                     onChange={(e) => setInputText(e.target.value)}
-                    placeholder="Paste your resume summary, bullet points, or any text you want to check..."
+                    placeholder={`Paste your ${sectionLabel.toLowerCase()} text or load it from your resume...`}
                     className="min-h-[200px] resize-none"
                   />
                   <p className="text-xs text-muted-foreground text-right">
@@ -408,8 +603,8 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
                     <Copy className="w-4 h-4 mr-2" />
                     Copy
                   </Button>
-                  <Button onClick={handleApplyToSummary}>
-                    Apply to Summary
+                  <Button onClick={handleApplyToSection}>
+                    Apply to {sectionLabel}
                   </Button>
                 </div>
               )}
