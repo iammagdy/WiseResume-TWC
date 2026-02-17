@@ -44,6 +44,7 @@ interface SectionResult {
   label: string;
   original: string;
   improved: string;
+  rawImproved: unknown;
   changes: string[];
   suggestions?: string[];
   applied: boolean;
@@ -66,10 +67,10 @@ function sectionHasContent(resume: Record<string, unknown>, sectionId: SectionTy
   return false;
 }
 
-function contentToString(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (Array.isArray(content)) return JSON.stringify(content, null, 2).slice(0, 500);
-  return String(content);
+function contentToPreview(content: unknown, maxLen = 500): string {
+  if (typeof content === 'string') return content.slice(0, maxLen);
+  if (Array.isArray(content)) return JSON.stringify(content, null, 2).slice(0, maxLen);
+  return String(content).slice(0, maxLen);
 }
 
 export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false }: AIEnhanceSheetProps) {
@@ -146,8 +147,9 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
         newResults.push({
           section: sectionInfo.id,
           label: sectionInfo.label,
-          original: contentToString(content),
-          improved: contentToString(data.improved),
+          original: contentToPreview(content),
+          improved: contentToPreview(data.improved),
+          rawImproved: data.improved,
           changes: data.changes || [],
           suggestions: data.suggestions,
           applied: false,
@@ -171,18 +173,14 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     if (!result || !currentResume) return;
     haptics.medium();
 
-    try {
-      let parsed = sanitizeAIContent(JSON.parse(contentToString(results[index].improved)));
-      if (result.section === 'skills' && Array.isArray(parsed)) {
-        parsed = parsed.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s));
-      }
-      if ((result.section === 'experience' || result.section === 'education') && !Array.isArray(parsed)) {
-        parsed = [];
-      }
-      updateResume({ [result.section]: parsed });
-    } catch {
-      updateResume({ [result.section]: results[index].improved });
+    let data = sanitizeAIContent(result.rawImproved);
+    if (result.section === 'skills' && Array.isArray(data)) {
+      data = data.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s));
     }
+    if ((result.section === 'experience' || result.section === 'education') && !Array.isArray(data)) {
+      data = [];
+    }
+    updateResume({ [result.section]: data });
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
     onEnhanced?.();
