@@ -1,74 +1,71 @@
 
+## Revamp the "Get Help" Sheet
 
-## Improve Cover Letter PDF Styling
+### Changes Overview
 
-### Problem
-The current cover letter PDF export is plain text with Helvetica font, no header/footer, no visual structure, and no professional formatting. It looks like raw text dumped onto a page.
+1. **Documentation & FAQ** -- Show a "Coming Soon" toast instead of opening a fake link
+2. **Email Support** -- Remove entirely (already covered by Contact button in Developer Card)
+3. **Feature Requests** -- Replace with a popup dialog (similar to Bug Report) that sends an email to `contact@magdysaber.com` via the existing Resend integration
 
-### Solution
-Create a dedicated `coverLetterPdfGenerator.ts` utility that produces a professionally styled, ATS-friendly PDF with:
+---
 
-- **Sender header block** showing the user's name, job title, and company prominently at the top
-- **Professional typography**: Helvetica-Bold for headings, Helvetica for body, proper font sizing hierarchy
-- **Structured layout**: Date line, recipient area, proper paragraph spacing with first-line or block-style formatting
-- **Accent color bar** at the top of the page (thin colored line matching the app's brand or a professional blue)
-- **Footer** with page numbers and subtle branding
-- **Proper margins** (1-inch / 72pt) for print-readiness and ATS parsing
-- **Paragraph-aware rendering**: Extra spacing between paragraphs (not just line breaks), proper handling of salutation/closing lines
+### 1. Update HelpSheet (`src/components/settings/HelpSheet.tsx`)
 
-### Files to Create
+- Change the "Documentation & FAQ" row's `onClick` to show a toast: `toast.info("Coming Soon", { description: "Documentation & FAQ is under construction." })`
+- Remove the "Email Support" row and its separator entirely
+- Change the "Feature Requests" row to open a new `FeatureRequestDialog` instead of linking externally
+- Update the SheetDescription to remove "email support" wording
 
-**`src/lib/coverLetterPdfGenerator.ts`** (new file)
-- Accepts a `CoverLetterRecord` object
-- Uses `pdf-lib` (already installed) with `StandardFonts` (Helvetica, Helvetica-Bold)
-- Renders:
-  1. Top accent bar (thin colored rectangle)
-  2. Header: Letter title/job title in bold, company name below
-  3. Date line (formatted from `created_at` or current date)
-  4. Body paragraphs with proper spacing (double line-height between paragraphs)
-  5. Footer with page number ("Page 1 of N" format)
-- Exports a `generateCoverLetterPDF(letter: CoverLetterRecord): Promise<Uint8Array>` function
-- Uses `downloadMobile`-compatible blob download pattern from existing `downloadUtils.ts`
+### 2. Create FeatureRequestDialog (`src/components/settings/FeatureRequestDialog.tsx`)
 
-### Files to Modify
+A new dialog component modeled after `BugReportDialog`, with these differences:
 
-**`src/pages/CoverLettersPage.tsx`**
-- Replace the inline `handleDownload` function (lines 55-109) with a call to the new `generateCoverLetterPDF` utility
+- **Icon**: Lightbulb (instead of HeartHandshake)
+- **Title**: "Request a Feature"
+- **Description**: Short text encouraging the user to describe the feature they want
+- **Fields**:
+  - Feature title (Input, required, max 100 chars)
+  - Description (Textarea, required, max 500 chars)
+- **Submit**: Calls a new edge function `send-feature-request`
+- **Success state**: Same pattern as BugReportDialog with a thank-you message
+- Collects the same metadata: user_id, user_email, app_version, route, user_agent, platform
 
-**`src/pages/CoverLetterEditPage.tsx`**
-- Replace the inline `handleDownloadPDF` function (lines 81-127) with the same shared utility
+### 3. Create Edge Function (`supabase/functions/send-feature-request/index.ts`)
 
-### Technical Details
+Mirrors `send-bug-report` but tailored for feature requests:
 
-The PDF layout (all measurements in points, 72pt = 1 inch):
+- Accepts: `feature_title`, `feature_description`, `user_id`, `user_email`, `user_agent`, `app_version`, `route`
+- Stores to a new `feature_requests` table
+- Sends email to `contact@magdysaber.com` via Resend with:
+  - Subject: `[Feature Request] <title>`
+  - From: `Feature from <user_email> <contact@magdysaber.com>`
+  - Reply-to: user's email
+  - Professional HTML layout (blue/indigo gradient header instead of red, matching bug report style)
+  - Includes: feature title, description, user metadata (ID, platform, version, user agent)
+
+### 4. Create Database Table (`feature_requests`)
 
 ```text
-+------------------------------------------+
-| ======= accent bar (3pt tall) ========== |
-|                                          |
-|  [Bold] Cover Letter Title               |
-|  [Regular] Company Name                  |
-|                                          |
-|  February 17, 2026                       |
-|  ----------------------------------------|
-|                                          |
-|  Dear Hiring Manager,                    |
-|                                          |
-|  Body paragraph text with proper word    |
-|  wrapping and 1.5x line height...        |
-|                                          |
-|  Second paragraph with extra spacing     |
-|  between paragraphs (0.5x line gap)...   |
-|                                          |
-|  Sincerely,                              |
-|  [Name]                                  |
-|                                          |
-|          --- Page 1 of 1 ---             |
-+------------------------------------------+
+feature_requests
+  id              uuid (PK, default gen_random_uuid())
+  user_id         uuid (NOT NULL)
+  user_email      text (NOT NULL)
+  feature_title   text (NOT NULL)
+  feature_description text (NOT NULL)
+  route           text
+  user_agent      text
+  app_version     text
+  status          text (default 'new')
+  created_at      timestamptz (default now())
 ```
 
-- Font sizes: Title 16pt bold, company 11pt, date 10pt, body 11pt, footer 8pt
-- Accent color: `#1e40af` (professional blue)
-- Line height: 1.5x for body text
-- Paragraph gap: additional 8pt between paragraphs
-- ATS-friendly: uses standard fonts only, no images in body, selectable text
+RLS: Enable RLS, allow authenticated users to INSERT their own rows (`auth.uid() = user_id`).
+
+### 5. Files Summary
+
+| Action | File |
+|--------|------|
+| Modify | `src/components/settings/HelpSheet.tsx` |
+| Create | `src/components/settings/FeatureRequestDialog.tsx` |
+| Create | `supabase/functions/send-feature-request/index.ts` |
+| Create | Database migration for `feature_requests` table |
