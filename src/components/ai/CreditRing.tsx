@@ -14,7 +14,7 @@ export const CreditRing = memo(function CreditRing({
   size = 36,
   className,
 }: CreditRingProps) {
-  const remaining = Math.max(0, limit - used);
+  
   const percentage = limit > 0 ? (used / limit) * 100 : 0;
   const radius = (size - 6) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -59,7 +59,7 @@ export const CreditRing = memo(function CreditRing({
         />
       </svg>
       <span className={cn('absolute text-[10px] font-bold', textColor)}>
-        {remaining}
+        {used}
       </span>
     </div>
   );
