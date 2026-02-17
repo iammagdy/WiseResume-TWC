@@ -108,6 +108,25 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
   return { data, latencyMs: Date.now() - _start };
 }
 
+/**
+ * Standalone fire-and-forget scorer for background use (no React state).
+ * Safe to call from effects/callbacks without causing re-renders.
+ */
+export async function backgroundScore(resumeId: string, resume: ResumeData, updatedAt: string): Promise<void> {
+  const key = cacheKey(resumeId, updatedAt);
+  if (scoreCache.has(key)) return;
+  try {
+    const { data, latencyMs } = await invokeScoreResume(resume);
+    useAIHealthStore.getState().recordSuccess(latencyMs);
+    trackGeminiUsage();
+    const score: ResumeHealthScore = { ...data, scoredAt: new Date().toISOString() };
+    scoreCache.set(key, score);
+    useATSScoreHistoryStore.getState().addScore(resumeId, score);
+  } catch (err: unknown) {
+    console.warn('[backgroundScore] silenced:', err instanceof Error ? err.message : err);
+  }
+}
+
 export function useResumeScore() {
   const [scoringId, setScoringId] = useState<string | null>(null);
 
