@@ -1,121 +1,74 @@
 
 
-## Offline Sync Conflict Detection
+## Touch Target and Mobile Accessibility Improvements
 
-### Problem
+### Analysis
 
-When syncing offline changes back to the server, the current code blindly overwrites whatever is on the server. If the user edited the same resume on another device while offline, the sync silently discards the newer server version.
+After thorough exploration, the codebase is in better shape than the issue descriptions assumed:
 
-### Solution
-
-Add a timestamp-based conflict check to the sync loop. Before pushing each offline change, fetch the server's `updated_at` for that resume. If the server version is newer than the local change's timestamp, pause and show a "Conflict Detected" dialog. Non-conflicting updates sync silently as before.
-
----
+- **No table layout exists** in the job tracker -- both `ApplicationsPage` and `ApplicationTrackerPage` already use card-based layouts. Issue 10 is already resolved by design.
+- **Most editor buttons already meet 44px minimums** -- ExperienceSection delete buttons use `min-h-[44px]`, accordion headers use `min-h-[80px]`, and "Add" buttons use `min-h-[56px]`.
+- **Actual gaps found**: A few interactive elements fall below the 44px touch target standard, and the delete action in `ApplicationCard` lacks a confirmation step.
 
 ### Changes
 
-**1. Modified: `src/store/offlineSyncStore.ts`**
+**1. Fix AIActionBar button heights (Issue 9)**
 
-- Add a `conflictingChange` field to the store state (holds the single change that conflicted, or `null`)
-- Add a `serverUpdatedAt` field on the conflict object so the dialog can show when the server was last updated
-- Add actions: `setConflict(change, serverUpdatedAt)`, `clearConflict()`
-- The `PendingChange` interface already has `timestamp` which records when the local edit was made -- this is the comparison point
+File: `src/components/editor/ai/AIActionBar.tsx`
 
-**2. Modified: `src/hooks/useOfflineSync.ts`**
+- Increase primary action buttons from `h-10` (40px) to `h-11` (44px) to meet the minimum touch target
+- Increase "More" dropdown trigger from `h-10` to `h-11`
+- Increase dropdown menu item padding from `py-3` to `py-3.5` for better touch targets
 
-- Before calling `updateResume.mutateAsync`, fetch the server's `updated_at` for the resume:
-  ```
-  const { data } = await supabase
-    .from('resumes')
-    .select('updated_at')
-    .eq('id', change.resumeId)
-    .maybeSingle();
-  ```
-- Compare: if `serverUpdatedAt > change.timestamp`, set the conflict in the store and skip this change (break out of the sync loop)
-- If no conflict, proceed with the update as normal
-- Add a `forceSync(resumeId)` function that pushes the local version regardless (called when user picks "Force Overwrite")
-- Add a `discardLocal(resumeId)` function that removes the pending change without syncing (called when user picks "Keep Server Version")
-- After force or discard, clear the conflict and resume syncing remaining changes
+**2. Fix ApplicationCard "More options" button (Issue 9)**
 
-**3. New: `src/components/editor/SyncConflictDialog.tsx`**
+File: `src/components/applications/ApplicationCard.tsx`
 
-An AlertDialog that renders when `offlineSyncStore.conflictingChange` is not null:
+- The three-dot menu button currently uses `p-2` (total ~32px). Add `min-h-[44px] min-w-[44px]` and center the icon to meet touch target requirements.
 
-- Title: "Sync Conflict Detected"
-- Description: "This resume was updated on another device on [date]. Your offline changes are from [date]. Which version do you want to keep?"
-- Two actions:
-  - "Keep Server Version" -- calls `discardLocal`, clears conflict, invalidates query cache to refetch
-  - "Overwrite with My Changes" (destructive) -- calls `forceSync`, clears conflict
-- Uses the existing AlertDialog + glass-elevated styling
-- Minimum 44x44px touch targets, `active:scale-95` on buttons
+**3. Add mobile delete confirmation Drawer for ApplicationCard (Issue 9)**
 
-**4. Modified: `src/components/layout/AppShell.tsx`**
+File: `src/components/applications/ApplicationCard.tsx`
 
-- Render `<SyncConflictDialog />` at the app shell level so it appears regardless of which page the user is on when sync runs
+- Replace the inline `onDelete` call in the dropdown with a confirmation step
+- On mobile, use a bottom Drawer (vaul) instead of AlertDialog for thumb-friendly deletion confirmation
+- The Drawer shows the job title/company being deleted and provides "Delete" (destructive) and "Cancel" buttons with 44px minimum height
+- On desktop (>768px), keep the existing dropdown behavior with no extra confirmation (the ApplicationTrackerPage detail view already has an AlertDialog for deletion)
+
+**4. Increase SectionCard action area spacing on mobile (Issue 9)**
+
+File: `src/components/editor/SectionCard.tsx`
+
+- Add `min-h-[44px] flex items-center` to the action wrapper div to ensure the AI action button in the header always has adequate touch area
+- Change header gap from `gap-3` to `gap-3 sm:gap-3` (already fine) but ensure the action area has sufficient padding
 
 ### Technical Details
 
-**Conflict detection logic in `useOfflineSync`:**
-
-```text
-for (const change of changes) {
-  // 1. Fetch server timestamp
-  const { data: serverResume } = await supabase
-    .from('resumes')
-    .select('updated_at')
-    .eq('id', change.resumeId)
-    .maybeSingle();
-
-  // 2. If resume was deleted on server, discard local change
-  if (!serverResume) {
-    removePendingChange(change.resumeId);
-    continue;
-  }
-
-  // 3. Check for conflict
-  const serverTime = new Date(serverResume.updated_at).getTime();
-  if (serverTime > change.timestamp) {
-    // Conflict! Server is newer than our offline edit
-    setConflict(change, serverResume.updated_at);
-    break; // Stop syncing, wait for user decision
-  }
-
-  // 4. No conflict -- sync normally
-  await updateResume.mutateAsync({ ... });
-  removePendingChange(change.resumeId);
-}
+**AIActionBar changes:**
+```
+// Before
+className="shrink-0 h-10 px-4 ..."
+// After  
+className="shrink-0 h-11 px-4 ..."
 ```
 
-**Force overwrite flow:**
+**ApplicationCard delete confirmation Drawer:**
+- Uses the existing `Drawer` component from `src/components/ui/drawer.tsx`
+- Local state `showDeleteConfirm` controls visibility
+- The `useIsMobile` hook determines whether to show a Drawer (mobile) or skip confirmation (desktop, since detail page has its own)
+- Both "Delete" and "Cancel" buttons in the drawer use `min-h-[44px]` and `active:scale-95`
 
-```text
-forceSync(resumeId):
-  1. Get pending change from store
-  2. Call updateResume.mutateAsync (no timestamp check)
-  3. removePendingChange(resumeId)
-  4. clearConflict()
-  5. Resume syncPending() for remaining items
+**SectionCard action wrapper:**
 ```
-
-**Discard local flow:**
-
-```text
-discardLocal(resumeId):
-  1. removePendingChange(resumeId)
-  2. clearConflict()
-  3. Invalidate query cache for ['resume', resumeId] to refetch server version
-  4. Resume syncPending() for remaining items
+// Before
+{action && <div className="shrink-0">{action}</div>}
+// After
+{action && <div className="shrink-0 min-h-[44px] flex items-center">{action}</div>}
 ```
-
-**Edge cases handled:**
-- Resume deleted on server while offline: auto-discard local change, no dialog
-- Multiple conflicting resumes: handled one at a time (sync pauses at first conflict, resumes after resolution)
-- Guest users: no offline sync runs for guests (no `user`), so no conflict possible
 
 ### Files Changed
 
-- `src/store/offlineSyncStore.ts` -- add conflict state + actions
-- `src/hooks/useOfflineSync.ts` -- add timestamp check, forceSync, discardLocal
-- `src/components/editor/SyncConflictDialog.tsx` (new) -- conflict resolution AlertDialog
-- `src/components/layout/AppShell.tsx` -- render SyncConflictDialog globally
+- `src/components/editor/ai/AIActionBar.tsx` -- increase button heights to 44px
+- `src/components/applications/ApplicationCard.tsx` -- fix "More" button size, add delete confirmation Drawer on mobile
+- `src/components/editor/SectionCard.tsx` -- ensure action slot meets 44px touch target
 
