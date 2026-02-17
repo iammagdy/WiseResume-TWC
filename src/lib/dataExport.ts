@@ -200,6 +200,34 @@ export async function importResumes(file: File, userId: string): Promise<number>
 }
 
 export async function deleteAllUserData(userId: string): Promise<void> {
+  // Delete user-level tables that are NOT cascade-handled by resumes FK.
+  // Order: independent tables first, then resumes (cascades versions/shares/comments), then profiles.
+  const userTables = [
+    'tailor_history',
+    'cover_letters',
+    'interview_sessions',
+    'career_assessments',
+    'job_applications',
+    'jobs',
+    'ai_usage_logs',
+    'ai_credits',
+    'notifications',
+    'push_subscriptions',
+    'user_api_keys',
+    'bug_reports',
+    'resignation_letters',
+    'user_preferences',
+  ] as const;
+
+  for (const table of userTables) {
+    const { error } = await supabase.from(table).delete().eq('user_id', userId);
+    if (error) {
+      console.error(`Failed to delete from ${table}:`, error);
+      // Continue deleting other tables even if one fails
+    }
+  }
+
+  // Delete resumes — cascades to resume_versions, resume_shares, share_comments
   const { error: resumesError } = await supabase
     .from('resumes')
     .delete()
@@ -207,6 +235,7 @@ export async function deleteAllUserData(userId: string): Promise<void> {
 
   if (resumesError) throw resumesError;
 
+  // Delete profile last
   const { error: profileError } = await supabase
     .from('profiles')
     .delete()
@@ -214,6 +243,7 @@ export async function deleteAllUserData(userId: string): Promise<void> {
 
   if (profileError) throw profileError;
 
+  // Clear local storage
   localStorage.removeItem('wiseresume-settings');
   localStorage.removeItem('resume-store');
 }

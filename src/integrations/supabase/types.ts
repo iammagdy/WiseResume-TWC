@@ -74,7 +74,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "ai_usage_logs_resume_id_fkey"
+            foreignKeyName: "fk_ai_usage_logs_resume"
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
@@ -161,7 +161,15 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_career_assessments_resume"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cover_letters: {
         Row: {
@@ -205,7 +213,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "cover_letters_resume_id_fkey"
+            foreignKeyName: "fk_cover_letters_resume"
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
@@ -258,7 +266,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "interview_sessions_resume_id_fkey"
+            foreignKeyName: "fk_interview_sessions_resume"
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
@@ -320,6 +328,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_job_applications_resume"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resumes"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "job_applications_cover_letter_id_fkey"
             columns: ["cover_letter_id"]
             isOneToOne: false
@@ -331,13 +346,6 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "job_applications_resume_id_fkey"
-            columns: ["resume_id"]
-            isOneToOne: false
-            referencedRelation: "resumes"
             referencedColumns: ["id"]
           },
         ]
@@ -597,7 +605,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "resume_shares_resume_id_fkey"
+            foreignKeyName: "fk_resume_shares_resume"
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
@@ -635,7 +643,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "resume_versions_resume_id_fkey"
+            foreignKeyName: "fk_resume_versions_resume"
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
@@ -765,7 +773,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "share_comments_share_id_fkey"
+            foreignKeyName: "fk_share_comments_share"
             columns: ["share_id"]
             isOneToOne: false
             referencedRelation: "resume_shares"
@@ -815,7 +823,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "tailor_history_resume_id_fkey"
+            foreignKeyName: "fk_tailor_history_resume"
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resumes"
