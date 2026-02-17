@@ -1,81 +1,87 @@
 
 
-## Fix Score Dropping After AI Enhancement + Collapsible Results UI
+## Real ATS-Standard Scoring System
 
-### Root Cause Analysis
+### Problem
+The current scoring prompt is a generic "rate this resume's quality" instruction with vague categories. It doesn't reflect how real Applicant Tracking Systems actually evaluate resumes. Real ATS systems use specific, weighted criteria based on industry standards -- keyword density, parsability, section structure, quantified achievements, and formatting compliance. The current approach produces inconsistent, unreliable scores that don't correlate with actual ATS performance.
 
-Two fundamental problems cause the score to drop from 78% to 45% after "Improve Score":
+### What Real ATS Systems Evaluate (Based on Industry Research)
 
-**Problem 1: Prompt Misalignment**
-The "Improve Score" button triggers the `improve` action in `enhance-section`, whose prompt simply says *"Improve the existing content to be more impactful and professional."* This has zero awareness of ATS scoring criteria. Meanwhile, the scorer evaluates four specific categories: completeness, atsReadiness, impactLanguage, and formatting. The enhance AI may remove keywords, restructure sections, or use creative phrasing that the scorer penalizes.
+Real ATS scoring is built on **6 pillars** with specific weights:
 
-**Problem 2: Model + Temperature Mismatch**
-- Scorer: `gemini-2.5-flash-lite` at `temperature: 0` (deterministic)
-- Enhancer: `gemini-2.5-flash` at `temperature: 0.7` (creative/variable)
-
-The creative temperature means the enhancer's output is unpredictable, and a different, cheaper model scores it -- producing inconsistent evaluations.
+| Pillar | Weight | What It Measures |
+|--------|--------|------------------|
+| Keyword Optimization | 35% | Industry terms, hard/soft skills, tools, certifications present |
+| Content Quality | 25% | Action verbs, quantified achievements (%, $, numbers), result-oriented bullets |
+| Section Structure | 15% | Standard headers (Experience, Education, Skills), logical ordering, no missing critical sections |
+| Parsability | 10% | Clean text (no special characters, tables, columns), consistent date formats, standard job titles |
+| Contact Completeness | 10% | Full name, email, phone, location, LinkedIn URL present and valid |
+| Length and Density | 5% | Appropriate length (1-2 pages worth of content), bullet density, no empty filler |
 
 ### Solution
 
-#### 1. New ATS-Aware Enhancement Prompt (`enhance-section/index.ts`)
+Rewrite the `score-resume` edge function prompt to use these real ATS pillars with explicit rubrics for each score range. Also upgrade the model from `gemini-2.5-flash-lite` to `gemini-2.5-flash` for more accurate, nuanced evaluation.
 
-When the action is `improve` and the flow originates from "Improve Score", use a dedicated ATS-optimized prompt that explicitly targets the four scoring criteria:
+### Changes
 
-- **Completeness**: Preserve all existing content; do not remove information
-- **ATS Readiness**: Retain and add industry-standard keywords; use standard section formatting
-- **Impact Language**: Use strong action verbs and quantify achievements with metrics
-- **Formatting**: Keep contact info intact, dates consistent, professional structure
+**1. `supabase/functions/score-resume/index.ts`** -- Complete prompt rewrite
 
-This will be triggered by adding a new action type `ats_improve` (distinct from the generic `improve`) so existing enhance flows are not affected.
+Replace the system and user prompts with an ATS-standards-based scoring system:
 
-Add `'ats_improve'` to `VALID_ACTIONS` and create a dedicated prompt:
+- **System prompt**: Define the AI as an ATS parsing engine that evaluates resumes the way Greenhouse, Lever, Workday, and Taleo do
+- **User prompt**: Provide explicit rubrics for each of the 6 categories with score ranges (0-25, 26-50, 51-75, 76-100) and what qualifies for each
+- **Model upgrade**: Switch from `gemini-2.5-flash-lite` to `gemini-2.5-flash` for better evaluation accuracy
+- **Updated response schema**: Change categories from `{completeness, atsReadiness, impactLanguage, formatting}` to `{keywordOptimization, contentQuality, sectionStructure, parsability, contactCompleteness, lengthDensity}`
+- **Weighted overall score**: The overall score is calculated as a weighted average (not simple average) based on the pillar weights above
+- **Send full resume data**: Include achievements, responsibilities, certifications, awards, projects, languages, and hobbies in the prompt so the AI can evaluate the full picture (not just summary-level data)
 
+**2. `src/hooks/useResumeScore.ts`** -- Update the `ResumeHealthScore` interface
+
+Update the `categories` type to match the new 6-pillar structure:
 ```
-Optimize this resume section specifically for ATS (Applicant Tracking System) compatibility and scoring.
-
-Rules:
-1. NEVER remove existing content or keywords -- only add and improve
-2. Add relevant industry keywords naturally within context
-3. Replace weak verbs with strong action verbs (Led, Delivered, Optimized, etc.)
-4. Add quantifiable metrics where possible (%, $, team sizes, timeframes)
-5. Keep standard formatting -- no special characters, clean structure
-6. Preserve all dates, company names, and factual information exactly
+categories: {
+  keywordOptimization: number;
+  contentQuality: number;
+  sectionStructure: number;
+  parsability: number;
+  contactCompleteness: number;
+  lengthDensity: number;
+}
 ```
 
-#### 2. Lower Temperature for ATS Enhancement (`enhance-section/index.ts`)
+**3. `src/components/dashboard/ATSScoreBreakdown.tsx`** -- Update category labels and hints
 
-When action is `ats_improve`, use `temperature: 0.3` instead of `0.7` to produce more consistent, predictable improvements that align with what the scorer expects.
+- Update `CATEGORY_LABELS` to match new category keys
+- Update `CATEGORY_HINTS` with actionable advice for each new category
+- Keep the same visual layout (collapsible, color-coded bars)
 
-#### 3. "Improve Score" Button Triggers `ats_improve` (`AIEnhanceSheet.tsx`)
+**4. `src/store/atsScoreHistoryStore.ts`** -- Update the `ScoreHistoryEntry` type
 
-Add an `atsMode` prop to `AIEnhanceSheet`. When opened via "Improve Score", it:
-- Auto-selects the `ats_improve` mode (hidden from mode selector since it's contextual)
-- Passes `action: 'ats_improve'` to the edge function
-- Shows a header indicating "ATS Score Optimization" instead of generic "AI Enhance"
+Update the `categories` type to match the new 6-pillar structure so history entries are consistent.
 
-#### 4. Collapsible Results Sections (`AIEnhanceSheet.tsx`)
+**5. `src/components/dashboard/ATSScoreTrendChart.tsx`** -- Update chart series
 
-Make each result card collapsed by default, showing only:
-- Section name + Applied/Pending badge
-- Number of changes made (e.g., "3 improvements")
-- Expand arrow to reveal the full Original vs Enhanced comparison
+If this component renders per-category trend lines, update the category keys to match the new 6 pillars.
 
-When expanded, show the existing comparison UI (original, enhanced, changes, tips, apply/discard buttons).
+**6. `supabase/functions/enhance-section/index.ts`** -- Align `ats_improve` prompt
 
-### Technical Changes
+Update the `ats_improve` prompt to reference the same 6 scoring pillars, so enhancements directly target what the scorer evaluates. This ensures improvements always increase the score.
+
+### What Stays the Same
+- The scoring API contract (endpoint, auth, rate limiting)
+- The `overallScore`, `topStrength`, `topImprovement` fields
+- The collapsible UI pattern in ATSScoreBreakdown
+- Cache invalidation logic in useResumeScore
+- Background scoring behavior
+
+### Technical Details
 
 | File | Change |
 |------|--------|
-| `supabase/functions/enhance-section/index.ts` | Add `ats_improve` to `VALID_ACTIONS`; add ATS-specific prompt in `buildPrompt`; use `temperature: 0.3` for `ats_improve` |
-| `src/components/editor/ai/AIEnhanceSheet.tsx` | Add `atsMode` prop; auto-select `ats_improve` when from "Improve Score"; make result cards collapsed by default with expand/collapse toggle |
-| `src/components/dashboard/ATSScoreBreakdown.tsx` | Pass `atsMode={true}` when opening enhance sheet from "Improve Score" button |
-| `src/pages/ResumeDetailPage.tsx` | Pass `atsMode={true}` when opening enhance sheet from "Improve Score" button |
-| `src/hooks/useAIEnhance.ts` | Add `'ats_improve'` to the `ActionType` union |
-
-### Expected Outcome
-
-- "Improve Score" will produce content that is specifically optimized for the same criteria the scorer evaluates
-- Scores should consistently go UP after applying ATS improvements (never down)
-- Lower temperature ensures predictable, conservative improvements
-- Result sections are compact by default, expandable on demand for comparison
+| `supabase/functions/score-resume/index.ts` | Rewrite prompts with 6-pillar ATS rubric; upgrade model to `gemini-2.5-flash`; send full resume data; weighted scoring |
+| `src/hooks/useResumeScore.ts` | Update `ResumeHealthScore.categories` type to 6 new keys |
+| `src/components/dashboard/ATSScoreBreakdown.tsx` | Update `CATEGORY_LABELS` and `CATEGORY_HINTS` for 6 pillars |
+| `src/store/atsScoreHistoryStore.ts` | Update `ScoreHistoryEntry.categories` type |
+| `src/components/dashboard/ATSScoreTrendChart.tsx` | Update category keys if used in chart series |
+| `supabase/functions/enhance-section/index.ts` | Align `ats_improve` prompt with same 6 pillars |
 
