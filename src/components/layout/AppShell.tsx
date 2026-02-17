@@ -18,7 +18,7 @@ export function AppShell() {
   const showAIHealth = AI_ROUTES.some(r => location.pathname.startsWith(r));
 
   return (
-    <div className="h-[100dvh] overflow-hidden flex flex-col bg-background">
+    <div className="h-[100dvh] overflow-hidden flex flex-col bg-background relative">
       {/* Skip to content link for accessibility */}
       <a
         href="#main-content"
@@ -28,7 +28,7 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       {showAIHealth && (
-        <div className="flex justify-end px-3 pt-2 pb-0 pointer-events-none">
+        <div className="absolute top-2 right-3 z-30 pointer-events-none">
           <div className="pointer-events-auto">
             <AIHealthBadge />
           </div>

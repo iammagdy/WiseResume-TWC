@@ -60,7 +60,7 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
   };
 
   return createPortal(
-    <div ref={containerRef} className="fixed bottom-24 sm:bottom-20 right-4 pr-safe z-50">
+    <div ref={containerRef} className="fixed bottom-24 sm:bottom-20 right-4 pr-safe z-50" style={{ zIndex: 50 }}>
       {/* Popup menu (mobile only) */}
       <AnimatePresence>
         {menuOpen && isMobile && (
