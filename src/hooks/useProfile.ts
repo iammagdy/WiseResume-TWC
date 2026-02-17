@@ -19,6 +19,11 @@ interface Profile {
   portfolioBio: string | null;
   portfolioEnabled: boolean;
   portfolioResumeId: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
+  twitterUrl: string | null;
+  contactEmail: string | null;
+  theme: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -60,7 +65,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, views')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -83,6 +88,11 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       portfolioBio: (data as Record<string, unknown>).portfolio_bio as string | null,
       portfolioEnabled: ((data as Record<string, unknown>).portfolio_enabled as boolean) ?? false,
       portfolioResumeId: (data as Record<string, unknown>).portfolio_resume_id as string | null,
+      githubUrl: (data as Record<string, unknown>).github_url as string | null,
+      websiteUrl: (data as Record<string, unknown>).website_url as string | null,
+      twitterUrl: (data as Record<string, unknown>).twitter_url as string | null,
+      contactEmail: (data as Record<string, unknown>).contact_email as string | null,
+      theme: (data as Record<string, unknown>).portfolio_theme as string | null,
     };
   }
 
@@ -103,6 +113,11 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     portfolioBio: null,
     portfolioEnabled: false,
     portfolioResumeId: null,
+    githubUrl: null,
+    websiteUrl: null,
+    twitterUrl: null,
+    contactEmail: null,
+    theme: null,
   };
 
   // Create the row via upsert
@@ -147,6 +162,11 @@ export function useProfile(userId: string | undefined, user?: User | null) {
         portfolio_bio: updates.portfolioBio !== undefined ? updates.portfolioBio : profile?.portfolioBio ?? null,
         portfolio_enabled: updates.portfolioEnabled !== undefined ? updates.portfolioEnabled : profile?.portfolioEnabled ?? false,
         portfolio_resume_id: updates.portfolioResumeId !== undefined ? updates.portfolioResumeId : profile?.portfolioResumeId ?? null,
+        github_url: updates.githubUrl !== undefined ? updates.githubUrl : profile?.githubUrl ?? null,
+        website_url: updates.websiteUrl !== undefined ? updates.websiteUrl : profile?.websiteUrl ?? null,
+        twitter_url: updates.twitterUrl !== undefined ? updates.twitterUrl : profile?.twitterUrl ?? null,
+        contact_email: updates.contactEmail !== undefined ? updates.contactEmail : profile?.contactEmail ?? null,
+        portfolio_theme: updates.theme !== undefined ? updates.theme : profile?.theme ?? null,
       };
 
       const { error } = await supabase

@@ -21,6 +21,7 @@ export interface PublicProfile {
 }
 
 export interface PublicResume {
+  id: string;
   title: string;
   summary: string | null;
   experience: Experience[];
@@ -74,6 +75,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       username: (profile.username as string) || username,
     },
     resume: {
+      id: (resume.id as string) || '',
       title: (resume.title as string) || 'Untitled',
       summary: (resume.summary as string) || null,
       experience: (resume.experience as Experience[]) || [],
