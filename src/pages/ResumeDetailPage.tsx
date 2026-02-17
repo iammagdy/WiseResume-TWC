@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,11 +48,15 @@ export default function ResumeDetailPage() {
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const { getCachedScore, scoreResume, scoringId } = useResumeScore();
   const { createShare } = useResumeShareMutations();
+  const { updateResume } = useResumeMutations();
+  const queryClient = useQueryClient();
   const scoreHistory = useATSScoreHistoryStore(s => id ? s.getHistory(id) : []);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
+  const [improvedSections, setImprovedSections] = useState<Set<string>>(new Set());
   const enhancedRef = useRef(false);
+  const enhancedSectionsRef = useRef<string[]>([]);
   const prevScoreRef = useRef<ReturnType<typeof getCachedScore>>(null);
   const hiddenTemplateRef = useRef<HTMLDivElement>(null);
 
@@ -365,22 +370,47 @@ export default function ResumeDetailPage() {
             <AIEnhanceSheet
               open={showEnhance}
               atsMode
-              onEnhanced={() => { enhancedRef.current = true; }}
+              disabledSections={improvedSections}
+              onEnhanced={(sections) => {
+                enhancedRef.current = true;
+                if (sections) {
+                  enhancedSectionsRef.current = [
+                    ...enhancedSectionsRef.current,
+                    ...sections,
+                  ];
+                }
+              }}
               onOpenChange={(open) => {
                 if (open) {
                   enhancedRef.current = false;
+                  enhancedSectionsRef.current = [];
                   prevScoreRef.current = getCachedScore(dbResume.id, dbResume.updated_at);
                 }
                 setShowEnhance(open);
                 if (!open && enhancedRef.current) {
-                  // Only re-score if user applied changes
-                  clearCachedScore(dbResume.id, dbResume.updated_at);
+                  // Track which sections were improved to block re-optimization
+                  setImprovedSections(prev => {
+                    const next = new Set(prev);
+                    enhancedSectionsRef.current.forEach(s => next.add(s));
+                    return next;
+                  });
+
+                  // Save enhanced data to the database
                   const updatedResume = useResumeStore.getState().currentResume;
                   if (updatedResume) {
-                    scoreResume(dbResume.id, updatedResume, dbResume.updated_at);
+                    updateResume.mutate(
+                      { resumeId: dbResume.id, updates: updatedResume },
+                      {
+                        onSuccess: () => {
+                          queryClient.invalidateQueries({ queryKey: ['resume', id] });
+                          // Re-score with fresh DB data after save completes
+                          clearCachedScore(dbResume.id, dbResume.updated_at);
+                          scoreResume(dbResume.id, updatedResume, dbResume.updated_at);
+                        },
+                      }
+                    );
                   }
                 }
-                // If cancelled (enhancedRef false), keep existing score
               }}
             />
           )}

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,8 +20,9 @@ import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 interface AIEnhanceSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onEnhanced?: () => void;
+  onEnhanced?: (sections?: string[]) => void;
   atsMode?: boolean;
+  disabledSections?: Set<string>;
 }
 
 const MODES: { id: ActionType; label: string }[] = [
@@ -73,7 +74,7 @@ function contentToPreview(content: unknown, maxLen = 500): string {
   return String(content).slice(0, maxLen);
 }
 
-export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false }: AIEnhanceSheetProps) {
+export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false, disabledSections }: AIEnhanceSheetProps) {
   const [mode, setMode] = useState<ActionType>(atsMode ? 'ats_improve' : 'improve');
   const [selectedSections, setSelectedSections] = useState<Set<SectionType>>(new Set());
   const [isEnhancing, setIsEnhancing] = useState(false);
@@ -223,7 +224,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     updateResume({ [result.section]: data });
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
-    onEnhanced?.();
+    onEnhanced?.([result.section]);
     toast.success(`${result.label} updated!`);
   }, [results, currentResume, updateResume]);
 
@@ -232,9 +233,17 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     setResults(prev => prev.filter((_, i) => i !== index));
   }, []);
 
-  const availableSections = SECTIONS.filter(s =>
-    currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id)
+  const enabledSections = SECTIONS.filter(s =>
+    currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id) &&
+    !disabledSections?.has(s.id)
   );
+
+  const disabledSectionsList = SECTIONS.filter(s =>
+    currentResume && sectionHasContent(currentResume as unknown as Record<string, unknown>, s.id) &&
+    disabledSections?.has(s.id)
+  );
+
+  const availableSections = enabledSections;
 
   const sheetTitle = atsMode ? 'ATS Score Optimization' : 'AI Enhance';
 
@@ -304,7 +313,7 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                 </button>
               )}
             </div>
-            {availableSections.length === 0 ? (
+            {availableSections.length === 0 && disabledSectionsList.length === 0 ? (
               <p className="text-sm text-muted-foreground/60 px-1">No sections with content found. Add content to your resume first.</p>
             ) : (
               <div className="space-y-1">
@@ -321,6 +330,18 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
                     />
                     <span className="text-sm font-medium">{s.label}</span>
                   </button>
+                ))}
+                {disabledSectionsList.map(s => (
+                  <div
+                    key={s.id}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl opacity-50 cursor-not-allowed min-h-[44px]"
+                  >
+                    <Checkbox checked={false} disabled className="pointer-events-none" />
+                    <span className="text-sm font-medium text-muted-foreground">{s.label}</span>
+                    <Badge variant="secondary" className="text-[10px] ml-auto">
+                      <CheckCircle2 className="w-3 h-3 mr-0.5" /> Already optimized
+                    </Badge>
+                  </div>
                 ))}
               </div>
             )}
