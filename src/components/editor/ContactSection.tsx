@@ -12,7 +12,22 @@ import { contactExample } from '@/lib/emptyStateExamples';
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email');
 const phoneSchema = z.string().regex(/^[\d\s\-+()]*$/, 'Invalid phone format').optional().or(z.literal(''));
-const urlSchema = z.string().url('Please enter a valid URL').optional().or(z.literal(''));
+const linkedinUsernameSchema = z.string().regex(/^[a-zA-Z0-9\-]{3,100}$/, 'Username must be 3+ characters (letters, numbers, hyphens)');
+
+const LINKEDIN_PREFIX = 'linkedin.com/in/';
+const LINKEDIN_URL_BASE = 'https://linkedin.com/in/';
+
+function extractLinkedInUsername(url: string): string {
+  if (!url) return '';
+  const patterns = [
+    /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/([^/?#]+)/i,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return url;
+}
 
 export const ContactSection = memo(function ContactSection() {
   const contactInfo = useResumeStore(state => state.currentResume?.contactInfo);
@@ -98,17 +113,14 @@ export const ContactSection = memo(function ContactSection() {
   };
 
   const getLinkedinError = (): string | undefined => {
-    const linkedin = contactInfo.linkedin;
-    if (!linkedin) return undefined;
+    const username = extractLinkedInUsername(contactInfo.linkedin || '');
+    if (!username) return undefined;
     try {
-      urlSchema.parse(linkedin);
-      if (linkedin && !linkedin.includes('linkedin.com')) {
-        return 'Please enter a LinkedIn URL';
-      }
+      linkedinUsernameSchema.parse(username);
       return undefined;
     } catch (e) {
       if (e instanceof z.ZodError) return e.errors[0]?.message;
-      return 'Invalid URL';
+      return 'Invalid username';
     }
   };
 
@@ -116,11 +128,10 @@ export const ContactSection = memo(function ContactSection() {
     const portfolio = contactInfo.portfolio;
     if (!portfolio) return undefined;
     try {
-      urlSchema.parse(portfolio);
+      new URL(portfolio);
       return undefined;
-    } catch (e) {
-      if (e instanceof z.ZodError) return e.errors[0]?.message;
-      return 'Invalid URL';
+    } catch {
+      return 'Please enter a valid URL';
     }
   };
 
@@ -189,9 +200,13 @@ export const ContactSection = memo(function ContactSection() {
           id="phone"
           label="Phone"
           type="tel"
+          inputMode="tel"
           icon={<Phone className="w-4 h-4" />}
           value={contactInfo.phone}
-          onChange={(value) => handleChange('phone', value)}
+          onChange={(value) => {
+            const filtered = value.replace(/[^0-9+\-\s()]/g, '');
+            handleChange('phone', filtered);
+          }}
           onBlur={() => handleBlur('phone')}
           placeholder="+1 (555) 123-4567"
           autoComplete="tel"
@@ -213,12 +228,15 @@ export const ContactSection = memo(function ContactSection() {
         <InputFormField
           id="linkedin"
           label="LinkedIn (optional)"
-          type="url"
           icon={<Linkedin className="w-4 h-4" />}
-          value={contactInfo.linkedin || ''}
-          onChange={(value) => handleChange('linkedin', value)}
+          prefix={LINKEDIN_PREFIX}
+          value={extractLinkedInUsername(contactInfo.linkedin || '')}
+          onChange={(value) => {
+            const username = value.replace(/[^a-zA-Z0-9\-]/g, '');
+            handleChange('linkedin', username ? `${LINKEDIN_URL_BASE}${username}` : '');
+          }}
           onBlur={() => handleBlur('linkedin')}
-          placeholder="https://linkedin.com/in/johndoe"
+          placeholder="johndoe"
           error={getLinkedinError()}
           touched={touched.linkedin}
         />

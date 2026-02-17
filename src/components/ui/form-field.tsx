@@ -18,6 +18,7 @@ interface FormFieldProps {
 
 interface InputFormFieldProps extends FormFieldProps {
   type?: 'text' | 'email' | 'password' | 'tel' | 'url';
+  inputMode?: 'text' | 'numeric' | 'tel' | 'email' | 'url' | 'search' | 'none' | 'decimal';
   value: string;
   onChange: (value: string) => void;
   onBlur?: () => void;
@@ -26,6 +27,7 @@ interface InputFormFieldProps extends FormFieldProps {
   rightElement?: React.ReactNode;
   maxLength?: number;
   showCount?: boolean;
+  prefix?: string;
 }
 
 interface TextareaFormFieldProps extends FormFieldProps {
@@ -75,6 +77,7 @@ export function InputFormField({
   touched,
   required,
   type = 'text',
+  inputMode,
   value,
   onChange,
   onBlur,
@@ -83,6 +86,7 @@ export function InputFormField({
   rightElement,
   maxLength,
   showCount,
+  prefix,
 }: InputFormFieldProps) {
   const showError = touched && error;
   const inputRef = useRef<HTMLInputElement>(null);
@@ -111,25 +115,35 @@ export function InputFormField({
       </Label>
       <div className="relative group">
         <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-xl bg-gradient-to-b from-primary via-secondary to-accent opacity-0 group-focus-within:opacity-100 transition-opacity duration-200" />
-        <Input
-          ref={inputRef}
-          id={id}
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={handleBlur}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-          maxLength={maxLength}
-          className={cn(
-            'h-12',
-            showError && 'border-destructive focus-visible:ring-destructive',
-            (rightElement || showClear) && 'pr-14',
-            showValidCheck && 'border-success/40',
+        <div className={cn('flex items-center', prefix && 'relative')}>
+          {prefix && (
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none select-none whitespace-nowrap z-10">
+              {prefix}
+            </span>
           )}
-          aria-invalid={showError ? 'true' : undefined}
-          aria-describedby={showError ? `${id}-error` : undefined}
-        />
+          <Input
+            ref={inputRef}
+            id={id}
+            type={type}
+            inputMode={inputMode}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={handleBlur}
+            placeholder={placeholder}
+            autoComplete={autoComplete}
+            maxLength={maxLength}
+            className={cn(
+              'h-12 w-full',
+              showError && 'border-destructive focus-visible:ring-destructive',
+              (rightElement || (!rightElement && showClear)) && 'pr-14',
+              showValidCheck && !rightElement && 'border-success/40',
+              prefix && 'pl-[calc(var(--prefix-width,6rem)+1rem)]',
+            )}
+            style={prefix ? { '--prefix-width': `${prefix.length * 0.55}rem` } as React.CSSProperties : undefined}
+            aria-invalid={showError ? 'true' : undefined}
+            aria-describedby={showError ? `${id}-error` : undefined}
+          />
+        </div>
         {rightElement ? (
           <div className="absolute right-0 top-0 h-full flex items-center">
             {rightElement}
