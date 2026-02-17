@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const DEVELOPER_EMAIL = "contact@magdysaber.com";
+const DEVELOPER_EMAIL = "bugs@magdysaber.com";
 
 function parsePlatform(ua: string): string {
   if (!ua) return "Unknown";
@@ -175,10 +175,10 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: `Feature from ${resolvedEmail} <contact@magdysaber.com>`,
+            from: `Feature Requested by ${resolvedEmail} <bugs@magdysaber.com>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
-            subject: `[Feature Request] ${feature_title.slice(0, 80)}`,
+            subject: `[Feature Requested] ${feature_title.slice(0, 80)}`,
             html: emailHtml,
           }),
         });
