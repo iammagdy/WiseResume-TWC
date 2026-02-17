@@ -315,16 +315,30 @@ export default function ApplicationsPage() {
                   })}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <FileText className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="font-medium">No applications yet</p>
-                  <p className="text-sm mt-1 mb-4 text-center px-4">Start tracking your job applications to stay organized</p>
-                  <button
-                    onClick={() => { haptics.light(); setShowAdd(true); }}
-                    className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Add Application
-                  </button>
+                  <p className="font-medium">
+                    {statusFilter !== 'all' ? `No ${statusFilter} applications` : 'No applications yet'}
+                  </p>
+                  <p className="text-sm mt-1 mb-4 text-center px-4">
+                    {statusFilter !== 'all' ? 'Try a different filter or add a new application' : 'Start tracking your job applications to stay organized'}
+                  </p>
+                  <div className="flex gap-3">
+                    {statusFilter !== 'all' && (
+                      <button
+                        onClick={() => { haptics.light(); setStatusFilter('all'); }}
+                        className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation active:scale-95"
+                      >
+                        Show All
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { haptics.light(); setShowAdd(true); }}
+                      className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add Application
+                    </button>
+                  </div>
                 </div>
               )}
 
