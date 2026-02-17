@@ -22,6 +22,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
 import { validateGeminiKey } from '@/lib/geminiKeyValidator';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -82,11 +83,23 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
         const result = await validateGeminiKey(keyInput.trim());
 
         if (result.isValid) {
+          // Save key server-side via manage-api-keys edge function
+          const { error: saveError } = await supabase.functions.invoke('manage-api-keys', {
+            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: result.tier },
+          });
+
+          if (saveError) {
+            console.error('Failed to save key server-side:', saveError);
+            toast.error('Key validated but failed to save. Please try again.');
+            setIsValidating(false);
+            return;
+          }
+
           setGeminiApiKey(keyInput.trim());
           setGeminiKeyTier(result.tier);
           setGeminiKeyValidated(true);
           haptics.success();
-          toast.success(`API key validated! Tier: ${result.tier === 'paid' ? 'Paid' : 'Free'}`);
+          toast.success(`API key validated & saved! Tier: ${result.tier === 'paid' ? 'Paid' : 'Free'}`);
         } else {
           haptics.error();
           toast.error(result.error || 'Invalid API key');
@@ -101,8 +114,16 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
       }
     };
 
-    const handleClearKey = () => {
+    const handleClearKey = async () => {
       haptics.light();
+      // Delete key server-side
+      try {
+        await supabase.functions.invoke('manage-api-keys', {
+          body: { action: 'delete', provider: 'gemini' },
+        });
+      } catch (e) {
+        console.error('Failed to delete key server-side:', e);
+      }
       setKeyInput('');
       setGeminiApiKey('');
       setGeminiKeyTier('unknown');
@@ -286,7 +307,7 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
                   <p className="font-medium text-amber-500">Tips</p>
                   <ul className="space-y-0.5 text-muted-foreground">
                     <li>• Free tier keys have strict daily limits</li>
-                    <li>• Keys are stored locally and never shared</li>
+                    <li>• Keys are encrypted and stored securely on the server</li>
                     <li>• WiseResume AI is recommended for best experience</li>
                   </ul>
                 </div>

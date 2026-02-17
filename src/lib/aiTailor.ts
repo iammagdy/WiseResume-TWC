@@ -1,6 +1,6 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { trackGeminiUsage } from './aiProvider';
 
 export interface TailorError extends Error {
   code?: 'rate_limit' | 'credits_exhausted' | 'generic';
@@ -62,8 +62,6 @@ export async function tailorResumeWithProgress(
   onProgress: (progress: TailorProgress | EnhancedTailorProgress) => void,
   intensity: TailorIntensity = 'moderate'
 ): Promise<SuperTailorResult> {
-  const userGeminiKey = getUserGeminiKey();
-
   // Smooth ease-out progress: fast start, slows toward 85%
   const startTime = Date.now();
   const STEP_THRESHOLDS = [10, 20, 35, 50, 60, 70, 75, 80]; // percentage thresholds for step transitions
@@ -96,7 +94,7 @@ export async function tailorResumeWithProgress(
 
   try {
     const { data, error } = await supabase.functions.invoke('tailor-resume', {
-      body: { resume, jobDescription, userGeminiKey, intensity },
+      body: { resume, jobDescription, intensity },
     });
     clearInterval(progressInterval);
 
@@ -141,10 +139,8 @@ export async function tailorResume(
   resume: ResumeData,
   jobDescription: string
 ): Promise<TailorResult> {
-  const userGeminiKey = getUserGeminiKey();
-
   const { data, error } = await supabase.functions.invoke('tailor-resume', {
-    body: { resume, jobDescription, userGeminiKey },
+    body: { resume, jobDescription },
   });
 
   if (error) {
@@ -160,10 +156,8 @@ export async function tailorResume(
 }
 
 export async function parseJobUrl(url: string): Promise<{ title: string; company: string; description: string }> {
-  const userGeminiKey = getUserGeminiKey();
-
   const { data, error } = await supabase.functions.invoke('parse-job-url', {
-    body: { url, userGeminiKey },
+    body: { url },
   });
 
   if (error) {
@@ -183,10 +177,8 @@ export async function generateCoverLetter(
   jobDescription: string,
   tone: 'professional' | 'enthusiastic' | 'conversational' = 'professional'
 ): Promise<string> {
-  const userGeminiKey = getUserGeminiKey();
-
   const { data, error } = await supabase.functions.invoke('generate-cover-letter', {
-    body: { resume, jobDescription, tone, userGeminiKey },
+    body: { resume, jobDescription, tone },
   });
 
   if (error) {

@@ -13,7 +13,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -127,7 +127,6 @@ export default function ResignationLetterNewPage() {
             templateStyle,
             additions: selectedAdditions.map(id => ADDITIONS.find(a => a.id === id)?.label || id),
             userName,
-            userGeminiKey: getUserGeminiKey(),
           }),
         }
       );

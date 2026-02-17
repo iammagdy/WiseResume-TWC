@@ -12,7 +12,7 @@ import { extractTextFromPDF, PDFParseError, ExtractionResult } from './pdf/textE
 import { extractTextWithOCR, OCRProgressCallback, estimateOCRTime } from './pdf/ocrExtractor';
 import { parseResumeText } from './pdf/sectionParsers';
 import { supabase, supabaseConfig } from '@/integrations/supabase/safeClient';
-import { handleAIError, getUserGeminiKey } from './aiProvider';
+import { handleAIError } from './aiProvider';
 
 export { PDFParseError, estimateOCRTime };
 export type { ExtractionResult, OCRProgressCallback };
@@ -60,7 +60,7 @@ export async function parseTextWithAI(text: string): Promise<ResumeData> {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${session.access_token}`,
       },
-      body: JSON.stringify({ text, userGeminiKey: getUserGeminiKey() }),
+      body: JSON.stringify({ text }),
       signal: controller.signal,
     });
 

@@ -1,7 +1,7 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { trackGeminiUsage } from './aiProvider';
 
 export interface ChatMessage {
   id: string;
@@ -66,8 +66,6 @@ export async function sendChatMessage(
     throw new Error(`Too many messages. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const userGeminiKey = getUserGeminiKey();
-
   const historyForApi = conversationHistory.slice(-10).map((m) => ({
     role: m.role,
     content: m.content,
@@ -78,7 +76,6 @@ export async function sendChatMessage(
       message,
       conversationHistory: historyForApi,
       currentResume,
-      userGeminiKey,
       functionResponse: options?.functionResponse,
     },
   });

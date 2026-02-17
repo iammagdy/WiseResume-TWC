@@ -1,6 +1,6 @@
 import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { trackGeminiUsage } from './aiProvider';
 
 interface AnalysisResult {
   score: JobMatchScore;
@@ -11,10 +11,8 @@ export async function analyzeResume(
   resume: ResumeData,
   jobDescription: string
 ): Promise<AnalysisResult> {
-  const userGeminiKey = getUserGeminiKey();
-
   const { data, error } = await supabase.functions.invoke('analyze-resume', {
-    body: { resume, jobDescription, userGeminiKey },
+    body: { resume, jobDescription },
   });
 
   if (error) {

@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { GapInfo, formatDuration } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 
 interface GapExplainerSheetProps {
   isOpen: boolean;
@@ -103,7 +103,6 @@ export function GapExplainerSheet({ isOpen, onClose, gap, experiences, onAddToSu
           previousJob,
           nextJob,
           additionalContext: additionalContext.trim() || undefined,
-          userGeminiKey: getUserGeminiKey(),
         },
       });
 

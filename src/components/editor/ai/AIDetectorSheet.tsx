@@ -25,7 +25,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 
 interface AIDetectorSheetProps {
   open: boolean;
@@ -84,7 +84,6 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
         body: {
           text: inputText,
           action: 'detect',
-          userGeminiKey: getUserGeminiKey(),
         },
       });
 
@@ -112,7 +111,6 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
           text: inputText,
           action: 'humanize',
           tone: selectedTone,
-          userGeminiKey: getUserGeminiKey(),
         },
       });
 

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
+import { trackGeminiUsage } from '@/lib/aiProvider';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useAIHealthStore } from '@/store/aiHealthStore';
@@ -32,7 +32,7 @@ export function clearCachedScore(resumeId: string, updatedAt: string) {
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function invokeScoreResume(resume: ResumeData, userGeminiKey: string | undefined): Promise<{ data: any; latencyMs: number }> {
+async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
   const _start = Date.now();
   // Explicitly grab token to ensure it's fresh (important for Capacitor WebView)
   const { data: sessionData } = await supabase.auth.getSession();
@@ -48,7 +48,7 @@ async function invokeScoreResume(resume: ResumeData, userGeminiKey: string | und
 
   try {
     const result = await supabase.functions.invoke('score-resume', {
-      body: { resume, userGeminiKey },
+      body: { resume },
     });
 
     if (result.error) {
@@ -75,7 +75,7 @@ async function invokeScoreResume(resume: ResumeData, userGeminiKey: string | und
           'Authorization': `Bearer ${token}`,
           'apikey': anonKey,
         },
-        body: JSON.stringify({ resume, userGeminiKey }),
+        body: JSON.stringify({ resume }),
       });
 
       if (!res.ok) {
@@ -121,18 +121,16 @@ export function useResumeScore() {
 
     setScoringId(resumeId);
     try {
-      const userGeminiKey = getUserGeminiKey();
-
       let result: { data: any; latencyMs: number };
       try {
-        result = await invokeScoreResume(resume, userGeminiKey);
+        result = await invokeScoreResume(resume);
       } catch (firstErr: any) {
         // Don't retry auth or rate-limit errors
         if (firstErr.isAuth || firstErr.isRateLimit) throw firstErr;
 
         console.warn('[ScoreResume] First attempt failed, retrying in 2s…', firstErr.message);
         await delay(2000);
-        result = await invokeScoreResume(resume, userGeminiKey);
+        result = await invokeScoreResume(resume);
       }
 
       useAIHealthStore.getState().recordSuccess(result.latencyMs);

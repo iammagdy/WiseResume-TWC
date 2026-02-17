@@ -32,7 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 
 interface LinkedInData {
   summary: string | null;
@@ -120,7 +120,7 @@ export function LinkedInImportSheet({
 
     try {
       const { data, error: fnError } = await supabase.functions.invoke('parse-linkedin', {
-        body: { profileText: profileText.trim(), userGeminiKey: getUserGeminiKey() },
+        body: { profileText: profileText.trim() },
       });
 
       clearInterval(stepInterval);
@@ -169,7 +169,6 @@ export function LinkedInImportSheet({
           fileData: base64,
           fileName: file.name,
           mimeType: 'application/pdf',
-          userGeminiKey: getUserGeminiKey(),
         },
       });
 

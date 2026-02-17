@@ -4,7 +4,7 @@ import { ResumeData } from '@/types/resume';
 import { useElevenLabsScribe } from './useElevenLabsScribe';
 import { useWebSpeechFallback, isWebSpeechSupported } from './useWebSpeechFallback';
 import { toast } from 'sonner';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 
 export type InterviewStatus = 'idle' | 'listening' | 'thinking' | 'speaking' | 'ready';
 
@@ -324,7 +324,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
             resumeData,
             jobDescription: jobDescriptionRef.current || undefined,
             endInterview,
-            userGeminiKey: getUserGeminiKey(),
           },
         });
 
@@ -450,7 +449,6 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           analyzeRole: true,
           resumeData,
           jobDescription,
-          userGeminiKey: getUserGeminiKey(),
         },
       });
       if (fnError) throw fnError;

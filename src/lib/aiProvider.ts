@@ -9,13 +9,11 @@ import { useSettingsStore } from '@/store/settingsStore';
  * Gets the user's Gemini API key if they're using the Gemini provider
  * Returns undefined if using WiseResume AI (default) or no key is configured
  */
+/**
+ * @deprecated Keys are now stored server-side and fetched by edge functions via JWT userId.
+ * This stub is kept to avoid breaking imports across 22+ files.
+ */
 export function getUserGeminiKey(): string | undefined {
-  const { aiProvider, geminiApiKey, geminiKeyValidated } = useSettingsStore.getState();
-  
-  if (aiProvider === 'gemini' && geminiApiKey && geminiKeyValidated) {
-    return geminiApiKey;
-  }
-  
   return undefined;
 }
 

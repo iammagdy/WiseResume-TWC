@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { AIProviderVia } from '@/components/editor/ai/AIProviderBadge';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
+import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -99,7 +99,6 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
       return;
     }
 
-    const userGeminiKey = getUserGeminiKey();
     const newResults: SectionResult[] = [];
 
     // Process sections sequentially to respect rate limits
@@ -115,7 +114,6 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced }: AIEnhanceShee
             action: mode,
             currentContent: content,
             context: { resume: currentResume },
-            userGeminiKey,
           },
         });
 
