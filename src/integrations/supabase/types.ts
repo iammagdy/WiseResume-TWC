@@ -493,7 +493,10 @@ export type Database = {
           phone_number: string | null
           portfolio_bio: string | null
           portfolio_enabled: boolean | null
+          portfolio_meta_description: string | null
+          portfolio_meta_title: string | null
           portfolio_resume_id: string | null
+          portfolio_sections: Json | null
           portfolio_theme: string | null
           profile_completed: boolean | null
           twitter_url: string | null
@@ -519,7 +522,10 @@ export type Database = {
           phone_number?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_meta_description?: string | null
+          portfolio_meta_title?: string | null
           portfolio_resume_id?: string | null
+          portfolio_sections?: Json | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
           twitter_url?: string | null
@@ -545,7 +551,10 @@ export type Database = {
           phone_number?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_meta_description?: string | null
+          portfolio_meta_title?: string | null
           portfolio_resume_id?: string | null
+          portfolio_sections?: Json | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
           twitter_url?: string | null

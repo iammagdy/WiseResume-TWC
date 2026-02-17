@@ -1,11 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, Copy, Check, Sparkles, Loader2, ExternalLink, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +13,6 @@ import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { useResumeStore } from '@/store/resumeStore';
 import { dbToResumeData, useResumeMutations } from '@/hooks/useResumes';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 
@@ -30,90 +25,6 @@ export default function ProfilePage() {
   const { deleteResume, duplicateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId, setSelectedTemplate } = useResumeStore();
   const [editOpen, setEditOpen] = useState(false);
-
-  // Portfolio state
-  const [username, setUsername] = useState('');
-  const [usernameError, setUsernameError] = useState('');
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [checkingUsername, setCheckingUsername] = useState(false);
-  const [bio, setBio] = useState('');
-  const [portfolioEnabled, setPortfolioEnabled] = useState(false);
-  const [githubUrl, setGithubUrl] = useState("");
-  const [websiteUrl, setWebsiteUrl] = useState("");
-  const [twitterUrl, setTwitterUrl] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [selectedTheme, setSelectedTheme] = useState("system");
-  const [generatingBio, setGeneratingBio] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [savingPortfolio, setSavingPortfolio] = useState(false);
-  const [selectedResumeId, setSelectedResumeId] = useState<string>('');
-  const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Sync profile data to local state
-  useEffect(() => {
-    if (profile) {
-      setUsername(profile.username || '');
-      setBio(profile.portfolioBio || "");
-      setPortfolioEnabled(profile.portfolioEnabled || false);
-      setGithubUrl(profile.githubUrl || "");
-      setWebsiteUrl(profile.websiteUrl || "");
-      setTwitterUrl(profile.twitterUrl || "");
-      setContactEmail(profile.contactEmail || "");
-      setSelectedTheme(profile.theme || "system");
-    }
-  }, [profile]);
-
-  // Init selectedResumeId from profile or fallback (prefer resumes with data)
-  useEffect(() => {
-    if (resumes.length > 0 && !selectedResumeId) {
-      const hasData = (r: typeof resumes[0]) => !!(r.summary || (r.experience && (r.experience as any[]).length > 0));
-      if (profile?.portfolioResumeId && resumes.some(r => r.id === profile.portfolioResumeId)) {
-        setSelectedResumeId(profile.portfolioResumeId);
-      } else {
-        const withData = resumes.find(hasData);
-        const primary = resumes.find(r => r.is_primary);
-        setSelectedResumeId(withData?.id || primary?.id || resumes[0].id);
-      }
-    }
-  }, [resumes, selectedResumeId, profile?.portfolioResumeId]);
-
-  // Debounced username availability check
-  useEffect(() => {
-    if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current);
-    
-    if (!username || username.length < 3 || usernameError) {
-      setUsernameAvailable(null);
-      setCheckingUsername(false);
-      return;
-    }
-
-    // Skip check if username hasn't changed from profile
-    if (profile?.username === username) {
-      setUsernameAvailable(true);
-      setCheckingUsername(false);
-      return;
-    }
-
-    setCheckingUsername(true);
-    setUsernameAvailable(null);
-
-    usernameCheckRef.current = setTimeout(async () => {
-      try {
-        const { data, error } = await supabase.rpc('check_username_available', {
-          p_username: username,
-          p_user_id: user!.id,
-        });
-        if (error) throw error;
-        setUsernameAvailable(data === true);
-      } catch {
-        setUsernameAvailable(null);
-      } finally {
-        setCheckingUsername(false);
-      }
-    }, 500);
-
-    return () => { if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current); };
-  }, [username, usernameError, user, profile?.username]);
 
   if (!user) return null;
 
@@ -137,8 +48,8 @@ export default function ProfilePage() {
   };
 
   const handleShareProfile = async () => {
-    if (portfolioEnabled && username) {
-      const url = `https://wiseresume.lovable.app/p/${username}`;
+    if (profile?.portfolioEnabled && profile?.username) {
+      const url = `https://wiseresume.lovable.app/p/${profile.username}`;
       if (navigator.share) {
         try {
           await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url });
@@ -158,108 +69,6 @@ export default function ProfilePage() {
         toast.success('Profile info copied!');
       }
     }
-  };
-
-  // Username validation
-  const validateUsername = (value: string) => {
-    if (!value) { setUsernameError(''); return; }
-    if (value.length < 3) { setUsernameError('At least 3 characters'); return; }
-    if (value.length > 30) { setUsernameError('Max 30 characters'); return; }
-    if (!/^[a-z0-9-]+$/.test(value)) { setUsernameError('Only lowercase letters, numbers, hyphens'); return; }
-    if (value.startsWith('-') || value.endsWith('-')) { setUsernameError('Cannot start or end with hyphen'); return; }
-    setUsernameError('');
-  };
-
-  const handleUsernameChange = (val: string) => {
-    const clean = val.toLowerCase().replace(/[^a-z0-9-]/g, '');
-    setUsername(clean);
-    validateUsername(clean);
-  };
-
-  const handleGenerateBio = async () => {
-    if (!user) return;
-    const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes.find(r => r.is_primary) || resumes[0];
-    if (!selectedResume?.summary && !profile?.jobTitle && (!selectedResume?.experience || (selectedResume.experience as any[]).length === 0)) {
-      toast.error('The selected resume has no summary or experience. Please choose a different resume or add details first.');
-      return;
-    }
-    setGeneratingBio(true);
-    haptics.light();
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-portfolio-bio`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`,
-        },
-        body: JSON.stringify({
-          summary: selectedResume?.summary || '',
-          fullName: profile?.fullName || '',
-          jobTitle: profile?.jobTitle || '',
-          experience: selectedResume?.experience || [],
-        }),
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to generate bio');
-      }
-      const { bio: generatedBio } = await res.json();
-      setBio(generatedBio);
-      toast.success('Bio generated!');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to generate bio. Please try again.');
-    } finally {
-      setGeneratingBio(false);
-    }
-  };
-
-  const handleSavePortfolio = async () => {
-    if (usernameError) return;
-    setSavingPortfolio(true);
-    haptics.light();
-    try {
-      // Final race-condition guard: re-check username availability before saving
-      if (username && username.length >= 3 && profile?.username !== username) {
-        const { data: available } = await supabase.rpc('check_username_available', {
-          p_username: username,
-          p_user_id: user!.id,
-        });
-        if (!available) {
-          setUsernameAvailable(false);
-          toast.error('Username was just taken. Please choose another.');
-          setSavingPortfolio(false);
-          return;
-        }
-      }
-      await updateProfile({
-        username: username || null,
-        portfolioBio: bio || null,
-        portfolioEnabled,
-        portfolioResumeId: selectedResumeId || null,
-        githubUrl: githubUrl || null,
-        websiteUrl: websiteUrl || null,
-        twitterUrl: twitterUrl || null,
-        contactEmail: contactEmail || null,
-        theme: selectedTheme,
-      });
-      toast.success('Portfolio settings saved!');
-    } catch {
-      toast.error('Failed to save portfolio settings');
-    } finally {
-      setSavingPortfolio(false);
-    }
-  };
-
-  const portfolioUrl = username ? `wiseresume.lovable.app/p/${username}` : '';
-
-  const handleCopyUrl = async () => {
-    if (!portfolioUrl) return;
-    await navigator.clipboard.writeText(`https://${portfolioUrl}`);
-    setCopied(true);
-    haptics.light();
-    toast.success('URL copied!');
-    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -310,211 +119,29 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        {/* Portfolio Section */}
-        <div className="glass-elevated rounded-2xl p-4 space-y-4">
-          <div className="flex items-center gap-2">
+        {/* Portfolio Summary Card - navigates to /portfolio */}
+        <button
+          onClick={() => { haptics.light(); navigate('/portfolio'); }}
+          className="w-full glass-elevated rounded-2xl p-4 flex items-center gap-3 text-left active:scale-[0.98] transition-transform touch-manipulation"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
             <Globe className="w-5 h-5 text-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Public Portfolio</h3>
           </div>
-
-          {/* Social Links and Contact Email */}
-          {portfolioEnabled && (
-            <div className="space-y-2">
-              <label htmlFor="portfolio-github" className="text-sm font-medium">GitHub URL</label>
-              <Input
-                id="portfolio-github"
-                placeholder="https://github.com/yourusername"
-                value={githubUrl}
-                onChange={(e) => setGithubUrl(e.target.value)}
-              />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-foreground text-sm">Public Portfolio</h3>
+              <Badge variant={profile?.portfolioEnabled ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                {profile?.portfolioEnabled ? 'Live' : 'Draft'}
+              </Badge>
             </div>
-          )}
-
-          {portfolioEnabled && (
-            <div className="space-y-2">
-              <label htmlFor="portfolio-website" className="text-sm font-medium">Personal Website URL</label>
-              <Input
-                id="portfolio-website"
-                placeholder="https://yourwebsite.com"
-                value={websiteUrl}
-                onChange={(e) => setWebsiteUrl(e.target.value)}
-              />
-            </div>
-          )}
-
-          {portfolioEnabled && (
-            <div className="space-y-2">
-              <label htmlFor="portfolio-twitter" className="text-sm font-medium">X (Twitter) URL</label>
-              <Input
-                id="portfolio-twitter"
-                placeholder="https://x.com/yourusername"
-                value={twitterUrl}
-                onChange={(e) => setTwitterUrl(e.target.value)}
-              />
-            </div>
-          )}
-
-          {portfolioEnabled && (
-            <div className="space-y-2">
-              <label htmlFor="portfolio-contact-email" className="text-sm font-medium">Contact Email (for "Hire Me" button)</label>
-              <Input
-                id="portfolio-contact-email"
-                type="email"
-                placeholder="your@email.com"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-              />
-            </div>
-          )}
-
-          {/* Username */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Username</label>
-            <p className="text-xs text-muted-foreground">wiseresume.lovable.app/p/</p>
-            <Input
-              value={username}
-              onChange={(e) => handleUsernameChange(e.target.value)}
-              placeholder="your-name"
-            />
-            {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
-            {!usernameError && username.length >= 3 && (
-              <div className="flex items-center gap-1.5">
-                {checkingUsername && (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Checking...</span>
-                  </>
-                )}
-                {!checkingUsername && usernameAvailable === true && (
-                  <>
-                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                    <span className="text-xs text-green-500">Available</span>
-                  </>
-                )}
-                {!checkingUsername && usernameAvailable === false && (
-                  <>
-                    <XCircle className="w-3.5 h-3.5 text-destructive" />
-                    <span className="text-xs text-destructive">Taken</span>
-                  </>
-                )}
-              </div>
+            {profile?.username ? (
+              <p className="text-xs text-muted-foreground truncate">wiseresume.lovable.app/p/{profile.username}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Set up your public portfolio</p>
             )}
           </div>
-
-          {/* Source Resume */}
-          {resumes.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Source Resume</label>
-              <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a resume" />
-                </SelectTrigger>
-                <SelectContent>
-                  {resumes.map(r => (
-                    <SelectItem key={r.id} value={r.id}>
-                      {r.title}{r.is_primary ? ' ★' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Used for your public portfolio &amp; AI bio generation</p>
-              {selectedResumeId && (() => {
-                const sr = resumes.find(r => r.id === selectedResumeId);
-                const hasData = sr?.summary || (sr?.experience && (sr.experience as any[]).length > 0);
-                if (sr && !hasData) {
-                  return (
-                    <p className="text-xs text-amber-500 mt-1">⚠ This resume has no summary or experience. Choose a different one or add details first.</p>
-                  );
-                }
-                return null;
-              })()}
-            </div>
-          )}
-
-          {/* Bio */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-foreground">About Me Bio</label>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleGenerateBio}
-                disabled={generatingBio}
-                className="h-8 text-xs active:scale-95"
-              >
-                {generatingBio ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
-                {generatingBio ? 'Generating...' : 'AI Generate'}
-              </Button>
-            </div>
-            <Textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Write a friendly bio or let AI generate one..."
-              className="min-h-[100px]"
-              maxLength={500}
-            />
-            <p className="text-xs text-muted-foreground text-right">{bio.length}/500</p>
-          </div>
-
-          {/* Toggle */}
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Make Portfolio Public</p>
-              <p className="text-xs text-muted-foreground">Anyone with the link can view</p>
-            </div>
-            <Switch checked={portfolioEnabled} onCheckedChange={setPortfolioEnabled} />
-          </div>
-
-          {portfolioEnabled && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="portfolio-theme" className="text-sm font-medium">Portfolio Theme</label>
-                <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-                  <SelectTrigger id="portfolio-theme" className="w-full">
-                    <SelectValue placeholder="Select a theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="system">System Default</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="light">Light</SelectItem>
-                    {/* Add more themes here if desired */}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-
-          {/* URL Copy */}
-          {username && portfolioEnabled && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
-                <Globe className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-xs text-foreground truncate flex-1">{portfolioUrl}</span>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyUrl}>
-                  {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
-              <Button
-                variant="outline"
-                className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation"
-                onClick={() => window.open(`https://${portfolioUrl}`, '_blank', 'noopener,noreferrer')}
-              >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Preview Portfolio
-              </Button>
-            </div>
-          )}
-
-          {/* Save Button */}
-          <Button
-            onClick={handleSavePortfolio}
-            disabled={savingPortfolio || !!usernameError || usernameAvailable === false || checkingUsername}
-            className="w-full h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation"
-          >
-            {savingPortfolio ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Save Portfolio Settings
-          </Button>
-        </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+        </button>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">

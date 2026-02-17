@@ -111,6 +111,9 @@ export function EditProfileSheet({
     contactEmail: null,
     theme: null,
     phoneNumber: null,
+    portfolioSections: null,
+    portfolioMetaTitle: null,
+    portfolioMetaDescription: null,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 

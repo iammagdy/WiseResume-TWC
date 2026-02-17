@@ -2,6 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import type { Experience, Education, Project, Certification, Award, Publication, Volunteering, Hobby } from '@/types/resume';
 
+export interface PortfolioSections {
+  experience: boolean;
+  education: boolean;
+  skills: boolean;
+  projects: boolean;
+  certifications: boolean;
+  awards: boolean;
+  publications: boolean;
+  volunteering: boolean;
+}
+
 export interface PublicProfile {
   fullName: string | null;
   avatarUrl: string | null;
@@ -15,9 +26,12 @@ export interface PublicProfile {
   twitterUrl: string | null;
   contactEmail: string | null;
   portfolioBio: string | null;
-  theme: string | null; // For theme customization
-  views: number; // For view tracking
+  theme: string | null;
+  views: number;
   username: string;
+  portfolioSections: PortfolioSections | null;
+  metaTitle: string | null;
+  metaDescription: string | null;
 }
 
 export interface PublicResume {
@@ -74,6 +88,9 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       theme: (profile.theme as string) || null,
       views: (profile.views as number) || 0,
       username: (profile.username as string) || username,
+      portfolioSections: (profile.portfolioSections as PortfolioSections) || null,
+      metaTitle: (profile.metaTitle as string) || null,
+      metaDescription: (profile.metaDescription as string) || null,
     },
     resume: {
       id: (resume.id as string) || '',
