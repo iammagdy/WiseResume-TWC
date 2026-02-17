@@ -87,7 +87,7 @@ export function DeveloperCreditCard({
                 onClick={handleContactClick}>
 
                 <Mail className="dev-mail-icon" />
-                <span>Contact Me</span>
+                <span className="mx-0 my-0 font-sans font-bold text-base text-left px-0 py-0">Contact  </span>
               </button>
               {githubUrl &&
               <button
