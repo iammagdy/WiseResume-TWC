@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { useSettingsStore } from '@/store/settingsStore';
 
 export interface AICredits {
   id: string;
@@ -13,13 +14,30 @@ export interface AICredits {
   updated_at: string;
 }
 
+function useIsBYOK(): boolean {
+  const aiProvider = useSettingsStore((s) => s.aiProvider);
+  const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
+  return aiProvider === 'gemini' && geminiKeyValidated;
+}
+
 export function useAICredits() {
   const { user } = useAuth();
+  const isBYOK = useIsBYOK();
 
   const query = useQuery({
     queryKey: ['ai-credits', user?.id],
     queryFn: async () => {
       if (!user) return null;
+
+      // BYOK users get unlimited credits
+      if (isBYOK) {
+        return {
+          daily_usage: 0,
+          daily_limit: Infinity,
+          usage_date: new Date().toISOString().split('T')[0],
+          total_usage: 0,
+        } as Partial<AICredits>;
+      }
 
       const { data, error } = await supabase
         .from('ai_credits')
@@ -29,7 +47,6 @@ export function useAICredits() {
 
       if (error) throw error;
 
-      // If no record, return defaults
       if (!data) {
         return {
           daily_usage: 0,
@@ -39,7 +56,6 @@ export function useAICredits() {
         } as Partial<AICredits>;
       }
 
-      // Auto-reset if date changed
       const today = new Date().toISOString().split('T')[0];
       if (data.usage_date !== today) {
         return {
@@ -60,10 +76,13 @@ export function useAICredits() {
 export function useAICreditsMutations() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const isBYOK = useIsBYOK();
 
   const incrementUsage = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
+      // BYOK: skip credit deduction (usage still logged by edge functions)
+      if (isBYOK) return;
 
       const { error } = await supabase.rpc('increment_ai_usage', {
         p_user_id: user.id,
@@ -78,7 +97,8 @@ export function useAICreditsMutations() {
   });
 
   const checkCredits = async (): Promise<boolean> => {
-    if (!user) return true; // Allow guests
+    if (!user) return true;
+    if (isBYOK) return true; // BYOK: unlimited
 
     const { data } = await supabase
       .from('ai_credits')
@@ -86,17 +106,16 @@ export function useAICreditsMutations() {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (!data) return true; // No record = first use
+    if (!data) return true;
 
     const today = new Date().toISOString().split('T')[0];
-    if (data.usage_date !== today) return true; // New day
+    if (data.usage_date !== today) return true;
 
     if ((data.daily_usage || 0) >= (data.daily_limit || 20)) {
       toast.error('Daily AI credit limit reached. Try again tomorrow!');
       return false;
     }
 
-    // Warn when close to limit
     const remaining = (data.daily_limit || 20) - (data.daily_usage || 0);
     if (remaining <= 3) {
       toast.warning(`Only ${remaining} AI credits remaining today`);

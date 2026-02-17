@@ -63,6 +63,7 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
 
   const used = credits?.daily_usage ?? 0;
   const limit = credits?.daily_limit ?? 20;
+  const isUnlimited = !isFinite(limit);
   const totalLifetime = credits?.total_usage ?? 0;
 
   const { data: allActivity } = useQuery({
@@ -125,15 +126,26 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
           <div className="flex flex-col items-center gap-3">
             <CreditRing used={used} limit={limit} size={80} />
             <div className="text-center">
-              <p className="text-2xl font-bold">
-                {used} <span className="text-muted-foreground font-normal text-base">/ {limit}</span>
-              </p>
-              <p className="text-xs text-muted-foreground">credits used today</p>
+              {isUnlimited ? (
+                <>
+                  <p className="text-2xl font-bold text-primary">Unlimited</p>
+                  <p className="text-xs text-muted-foreground">using your own API key</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold">
+                    {used} <span className="text-muted-foreground font-normal text-base">/ {limit}</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">credits used today</p>
+                </>
+              )}
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="w-3.5 h-3.5" />
-              Resets in {timeUntilReset}
-            </div>
+            {!isUnlimited && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="w-3.5 h-3.5" />
+                Resets in {timeUntilReset}
+              </div>
+            )}
           </div>
 
           {/* Credited activity */}
