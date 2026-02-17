@@ -68,11 +68,11 @@ export function DeveloperCreditCard({
             <div className="dev-orbit-ring">
               <span className="dev-orbit-dot" />
             </div>
-            <img 
-              src={avatarUrl} 
+            <img
+              src={avatarUrl}
               alt={name}
-              className="dev-avatar"
-            />
+              className="dev-avatar" />
+
           </div>
           
           {/* Info section */}
@@ -82,40 +82,40 @@ export function DeveloperCreditCard({
             
             {/* Button row: Contact Me + GitHub */}
             <div className="dev-btn-row">
-              <button 
+              <button
                 className="dev-contact-btn"
-                onClick={handleContactClick}
-              >
+                onClick={handleContactClick}>
+
                 <Mail className="dev-mail-icon" />
                 <span>Contact Me</span>
               </button>
-              {githubUrl && (
-                <button
-                  className="dev-github-btn"
-                  onClick={() => {
-                    haptics.light();
-                    openExternal(githubUrl);
-                  }}
-                  aria-label="GitHub"
-                >
+              {githubUrl &&
+              <button
+                className="dev-github-btn px-[45px]"
+                onClick={() => {
+                  haptics.light();
+                  openExternal(githubUrl);
+                }}
+                aria-label="GitHub">
+
                   <Github className="w-[1.1rem] h-[1.1rem]" />
                 </button>
-              )}
+              }
             </div>
           </div>
         </div>
       </div>
       
       {/* Website link below card */}
-      {websiteUrl && (
-        <button 
-          onClick={handleWebsiteClick}
-          className="dev-website-link"
-        >
+      {websiteUrl &&
+      <button
+        onClick={handleWebsiteClick}
+        className="dev-website-link">
+
           <ExternalLink className="w-3.5 h-3.5" />
           <span>magdysaber.com</span>
         </button>
-      )}
-    </div>
-  );
+      }
+    </div>);
+
 }
