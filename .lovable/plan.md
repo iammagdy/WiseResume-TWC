@@ -1,50 +1,38 @@
 
 
-## Phone Number Keyboard and LinkedIn Auto-Complete Fix
+## Fix: Activity Page Scroll Flashing and Interview Page Crash
 
-### Problem 1: Phone field opens full keyboard on mobile
-The phone input uses `type="tel"` but doesn't set `inputMode="numeric"`, so some mobile browsers still show the full letter keyboard. Additionally, the field currently accepts letters, which shouldn't be allowed.
+### Issue 1: Activity Page Scroll Flashing on Mobile
 
-### Problem 2: LinkedIn field requires full URL
-Users have to type the entire `https://linkedin.com/in/` prefix. Instead, the field should show this prefix as fixed text and only ask the user to type their username (e.g., `johndoe`).
+**Root cause:** The `PullToRefresh` component wraps content in a `motion.div` with `style={{ y }}`. When the user scrolls past the end of content, overscroll events can re-trigger the pull-to-refresh touch handlers, causing the `y` motion value to fluctuate. This creates a visual "flash" effect -- the content briefly shifts down and snaps back repeatedly during momentum scrolling. The `overscrollBehavior: 'contain'` on the AppShell parent doesn't fully prevent this on all Android WebViews.
 
----
+**Fix in `src/components/ui/pull-to-refresh.tsx`:**
+- Add a guard in `handleTouchMove` to ignore small movements (dead zone of ~10px) before activating pull behavior, preventing false triggers during overscroll bounce
+- Set `isPulling.current = false` immediately when scroll position is greater than 0 during touchmove, so momentum scrolling past bottom can't retrigger the pull logic
+- Add `overscroll-behavior-y: none` to the wrapper div itself to prevent the browser's native overscroll from interfering with the custom pull-to-refresh
 
-### Changes
+### Issue 2: Interview Page Crash -- "Cannot read properties of undefined (reading 'cancel')"
 
-**1. `src/components/ui/form-field.tsx`**
-- Add `inputMode` prop to `InputFormFieldProps` (values like `"numeric"`, `"tel"`, `"text"`, `"url"`)
-- Add `prefix` prop for showing a fixed prefix inside the input (for LinkedIn URL)
-- Pass `inputMode` to the underlying `<Input>` element
-- When `prefix` is provided, render it as a styled label before the input
+**Root cause:** Two problems combine:
 
-**2. `src/components/ui/input.tsx`**
-- Add `inputMode` to the forwarded props (it's already a valid HTML attribute, so this should work automatically, but we ensure it's passed through)
+1. **`window.speechSynthesis` is undefined** on some Android WebView configurations. The `useVoiceInterview` hook calls `window.speechSynthesis.cancel()` in three places (cleanup effect line 265, `endInterview` line 505, `resetInterview` line 527) without checking if `speechSynthesis` exists first. On Android WebViews that don't support the Web Speech API, this throws the "Cannot read properties of undefined (reading 'cancel')" error.
 
-**3. `src/components/editor/ContactSection.tsx`**
-- **Phone field**: Add `inputMode="tel"` and filter out non-digit/non-phone characters on change (only allow digits, +, -, spaces, parentheses)
-- **LinkedIn field**: Replace the full URL input with a prefix-based input:
-  - Show `linkedin.com/in/` as a fixed, non-editable prefix
-  - Store/read only the username part
-  - On save, combine prefix + username into the full URL for `contactInfo.linkedin`
-  - On load, strip the prefix from existing full URLs to show just the username
-  - Update validation to check the username format instead of full URL
-  - Update placeholder to just `"johndoe"` instead of the full URL
+2. **Premature redirect to /upload:** The resume guard at line 40-48 checks `currentResume && currentResume.contactInfo?.fullName`. If the Zustand store hasn't hydrated from localStorage yet when this component mounts, `currentResume` is momentarily `null` even though the user has resume data. This causes an immediate redirect to `/upload` before the store finishes loading.
 
-### Technical Details
+**Fix in `src/hooks/useVoiceInterview.ts`:**
+- Guard all `window.speechSynthesis.cancel()` calls with `window.speechSynthesis?.cancel()` (3 locations: lines 265, 404, 505, 527)
+- Also guard `window.speechSynthesis?.speak()`, `window.speechSynthesis?.getVoices()`, and `window.speechSynthesis?.onvoiceschanged` in the setup effect
 
-**Phone input filtering:**
-```
-onChange={(value) => {
-  const filtered = value.replace(/[^0-9+\-\s()]/g, '');
-  handleChange('phone', filtered);
-}}
-```
-Combined with `inputMode="tel"` this ensures only the numeric phone keyboard opens on mobile.
+**Fix in `src/pages/InterviewPage.tsx`:**
+- Import and check the store hydration state (`getResumeStoreHasHydrated`) before running the resume guard
+- Only redirect to `/upload` after confirming the store has hydrated AND the resume is still missing
+- Show a brief loading state while the store is hydrating to prevent the premature redirect
 
-**LinkedIn prefix approach:**
-- A helper extracts the username: if value starts with common LinkedIn URL patterns, strip them; otherwise use as-is
-- On change, store the full URL (`https://linkedin.com/in/{username}`) in the resume data
-- The prefix `linkedin.com/in/` is shown as a styled, non-editable element to the left of the input
-- Validation checks the username: must be 3+ characters, alphanumeric with hyphens only
+### Technical Summary
+
+| File | Change |
+|------|--------|
+| `src/components/ui/pull-to-refresh.tsx` | Add dead zone guard, reset pull state when scrolled past top, add `overscroll-behavior-y: none` |
+| `src/hooks/useVoiceInterview.ts` | Guard all `speechSynthesis` calls with optional chaining (`?.`) |
+| `src/pages/InterviewPage.tsx` | Wait for store hydration before running the resume guard redirect |
 
