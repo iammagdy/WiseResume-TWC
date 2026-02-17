@@ -7,10 +7,12 @@ export interface ScoreHistoryEntry {
   score: number;
   timestamp: string;
   categories: {
-    completeness: number;
-    atsReadiness: number;
-    impactLanguage: number;
-    formatting: number;
+    keywordOptimization: number;
+    contentQuality: number;
+    sectionStructure: number;
+    parsability: number;
+    contactCompleteness: number;
+    lengthDensity: number;
   };
 }
 

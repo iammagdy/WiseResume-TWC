@@ -8,10 +8,12 @@ import type { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { cn } from '@/lib/utils';
 
 const CATEGORY_LABELS: Record<string, string> = {
-  completeness: 'Completeness',
-  atsReadiness: 'ATS Readiness',
-  impactLanguage: 'Impact Language',
-  formatting: 'Formatting',
+  keywordOptimization: 'Keywords',
+  contentQuality: 'Content Quality',
+  sectionStructure: 'Structure',
+  parsability: 'Parsability',
+  contactCompleteness: 'Contact Info',
+  lengthDensity: 'Length & Density',
 };
 
 function getBarColor(score: number): string {
@@ -48,7 +50,7 @@ export const ATSScorePreview = memo(function ATSScorePreview({ atsScore, isScori
           </div>
         </div>
         <div className="space-y-2">
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="flex items-center gap-2">
               <Skeleton className="h-3 w-20" />
               <Skeleton className="h-2 flex-1 rounded-full" />
