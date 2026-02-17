@@ -93,6 +93,8 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
         });
     },
     enabled: !!user && open,
+    refetchOnMount: 'always',
+    staleTime: 0,
   });
 
   const credited = useMemo(() => allActivity?.filter((a) => !a.isBackground) ?? [], [allActivity]);
