@@ -439,7 +439,7 @@ export default function ApplicationsPage() {
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           onClick={() => { haptics.medium(); setShowSaveJob(true); }}
-          className="fixed bottom-24 sm:bottom-20 right-4 pr-safe z-50 w-16 h-16 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-16 h-16 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
           aria-label="Save new job"
         >
           <Plus className="w-6 h-6 text-primary-foreground" />
