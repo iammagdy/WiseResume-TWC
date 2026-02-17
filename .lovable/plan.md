@@ -1,92 +1,80 @@
 
 
-## Pipeline Analysis: Issues Found and Fixes
+## ATS-Targeted Resume Import Flow
 
-### Summary
-After tracing through every recently-changed pipeline (ATS Suggestions, Deep Analyze, Public Portfolio PDF, and the editor integration), I found **3 issues** that need fixing and confirmed several areas are wired correctly.
-
----
-
-### Issue 1: Wrong Supabase Client Import in `useATSSuggestions`
-
-**File:** `src/hooks/useATSSuggestions.ts` (line 3)
-
-**Problem:** The hook imports from `@/integrations/supabase/client` but the rest of the app consistently uses `@/integrations/supabase/safeClient`. The `safeClient` wrapper has error-recovery fallback logic for initialization failures. Using the raw `client` means the hook could fail silently if the environment variables are missing at init time.
-
-**Fix:** Change the import to:
-```typescript
-import { supabase } from '@/integrations/supabase/safeClient';
-```
+### Overview
+Add an ATS score preview step to the existing resume import pipeline. After the AI parses the uploaded file and before the user selects sections to import, the system automatically scores the resume and displays a visual ATS health breakdown. This gives users immediate insight into their resume's ATS readiness before they start editing.
 
 ---
 
-### Issue 2: `isAnalyzing` State is Global, Not Per-Section
+### How It Works
 
-**File:** `src/hooks/useATSSuggestions.ts` (line 107)
-
-**Problem:** `isAnalyzing` is a single boolean. If a user taps "Deep Analyze" on the Summary section, every `ATSInlineSuggestions` instance across all sections will show the spinner simultaneously (since `isAnalyzing` is passed to all 4 instances). Additionally, if a user quickly taps Deep Analyze on two sections, the first section's loading state will be cleared when the second finishes.
-
-**Fix:** Change `isAnalyzing` from a single boolean to a `Set<string>` tracking which sections are currently analyzing:
-```text
-const [analyzingSections, setAnalyzingSections] = useState<Set<string>>(new Set());
-
-// In fetchDeepSuggestions:
-setAnalyzingSections(prev => new Set(prev).add(section));
-// ...in finally:
-setAnalyzingSections(prev => { const next = new Set(prev); next.delete(section); return next; });
-
-// Return:
-isAnalyzingSection: (section) => analyzingSections.has(section)
-```
-
-Then update `ATSInlineSuggestions` to receive `isAnalyzing` as a boolean derived from `isAnalyzingSection(section)` at the call site in EditorPage.
+1. User uploads a resume (PDF, Word, Image, JSON, HTML) -- unchanged
+2. AI parses the file into structured data -- unchanged
+3. **NEW: ATS Score Step** -- after parsing completes, the system calls the `score-resume` edge function and shows results in the Import Review Sheet
+4. User reviews sections + ATS score, then imports -- enhanced UI
 
 ---
 
-### Issue 3: Missing Error Toast in Deep Analyze Failure Path
+### Implementation Steps
 
-**File:** `src/hooks/useATSSuggestions.ts` (line 214)
+**Step 1: Add ATS scoring to `ImportReviewSheet`**
 
-**Problem:** When `fetchDeepSuggestions` fails, it only does `console.error`. The user sees the spinner stop but gets no feedback about what went wrong. This is especially bad for 429/402 rate-limit errors from the edge function.
+File: `src/components/upload/ImportReviewSheet.tsx`
 
-**Fix:** Add a toast notification in the catch block:
-```typescript
-catch (err) {
-  console.error('Deep ATS analysis failed:', err);
-  const msg = err instanceof Error ? err.message : 'Deep analysis failed';
-  // Dynamic import to avoid circular deps
-  import('sonner').then(({ toast }) => toast.error(msg));
-}
-```
+- Add a new `atsScore` prop of type `ResumeHealthScore | null` and an `isScoring` boolean prop
+- Insert an ATS Score Card at the top of the scrollable content (above the section cards):
+  - Reuses the existing `ScoreRing` component to show the overall score with animated ring
+  - Shows 4 category bars (Completeness, ATS Readiness, Impact Language, Formatting) using the same layout as `ATSScoreBreakdown`
+  - Displays `topStrength` and `topImprovement` as short text badges
+  - While scoring is in progress, shows a skeleton/pulse state with "Analyzing ATS compatibility..." text
+- Below the score card, show a contextual tip based on the score:
+  - Score >= 80: "Your resume is well-optimized for ATS systems"
+  - Score 50-79: "Consider improving weak areas before applying"
+  - Score < 50: "Significant improvements recommended"
+
+**Step 2: Trigger ATS scoring in `UploadPage` after parse completes**
+
+File: `src/pages/UploadPage.tsx`
+
+- Import `useResumeScore` hook
+- Add state: `importATSScore` (ResumeHealthScore | null) and `isImportScoring` (boolean)
+- In every handler that sets `pendingResumeData` + opens the review sheet (PDF, Word, Image, HTML, JSON flows):
+  - After setting `setPendingResumeData(resumeData)` and `setShowImportReview(true)`
+  - Fire off `scoreResume(tempId, resumeData, now)` asynchronously (non-blocking)
+  - On completion, set `importATSScore` to the result
+  - Reset `importATSScore` to null when the review sheet closes
+- Pass `atsScore={importATSScore}` and `isScoring={isImportScoring}` to `ImportReviewSheet`
+
+**Step 3: Style the ATS preview card**
+
+The card will use the existing design system:
+- `glass-elevated` card background with rounded-2xl corners
+- `ScoreRing` component (already exists) for the circular score visualization
+- Colored progress bars for each category (reuse `getScoreBarBg` from `ATSScoreBreakdown`)
+- Priority badge colors: green for >= 80, amber for 50-79, red for < 50
+- All touch targets maintain 44x44px minimum
+- `active:scale-95` on interactive elements
 
 ---
 
-### Verified: No Issues Found
+### Technical Details
 
-| Pipeline | Status |
-|----------|--------|
-| Edge function `enhance-section` request body shape | Correct -- accepts `section`, `action`, `currentContent`, `context` |
-| Edge function `ats_optimize` action validation | Correct -- listed in `VALID_ACTIONS` |
-| `deepResults` state + `clearDeepResult` wiring in EditorPage | Correct -- all 4 sections pass `deepResult`, `onApplyDeep`, `onDiscardDeep` |
-| `handleApplyDeep` section-to-field mapping | Correct -- covers all section types with type guards |
-| `resumeStore.updateResume` sanitization | Correct -- sanitizes `experience`, `education`, `skills` arrays |
-| `renderEditorContent` dependency array | Correct -- includes all new deps |
-| Badge `glass` variant | Correct -- exists in badge component |
-| `haptics` module API (`.light()`, `.medium()`, `.success()`) | Correct -- all methods exist |
-| `ATSScanSheet` props and lazy import | Correct |
-| Public Portfolio PDF: `generatePDF` signature match | Correct -- `(resume, templateId, element, undefined, options)` |
-| Public Portfolio: `usePublicPortfolio` hook `templateId` mapping | Correct |
-| `downloadFile` utility usage | Correct |
+**Score invocation is non-blocking:**
+The review sheet opens immediately after parsing. The ATS score loads asynchronously in the background -- users can already review and toggle sections while the score computes. This avoids adding latency to the import flow.
 
----
+**Temp ID for scoring:**
+Since the resume isn't saved yet, we generate a temporary UUID for the score cache key. This prevents cache collisions with real resume IDs.
 
-### Files to Modify
+**No new edge functions or database changes needed.**
+Reuses the existing `score-resume` edge function and `useResumeScore` hook.
+
+**Files to modify:**
 
 | File | Change |
 |------|--------|
-| `src/hooks/useATSSuggestions.ts` | Fix import to `safeClient`, make `isAnalyzing` per-section, add error toast |
-| `src/components/editor/ATSInlineSuggestions.tsx` | No changes needed (already receives `isAnalyzing` as a prop) |
-| `src/pages/EditorPage.tsx` | Update `isATSAnalyzing` usage to call per-section check at each `ATSInlineSuggestions` |
+| `src/components/upload/ImportReviewSheet.tsx` | Add ATS score card with ScoreRing, category bars, and contextual tip |
+| `src/pages/UploadPage.tsx` | Trigger `scoreResume` after parse, pass results to review sheet |
 
-No database changes or new files required.
+**No new files required.**
 
