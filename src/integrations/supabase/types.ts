@@ -490,6 +490,7 @@ export type Database = {
           linkedin_url: string | null
           location: string | null
           onboarding_completed: boolean | null
+          phone_number: string | null
           portfolio_bio: string | null
           portfolio_enabled: boolean | null
           portfolio_resume_id: string | null
@@ -515,6 +516,7 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null
+          phone_number?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
           portfolio_resume_id?: string | null
@@ -540,6 +542,7 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null
+          phone_number?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
           portfolio_resume_id?: string | null

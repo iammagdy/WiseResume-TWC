@@ -24,6 +24,7 @@ interface Profile {
   twitterUrl: string | null;
   contactEmail: string | null;
   theme: string | null;
+  phoneNumber: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -65,7 +66,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, views')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, views, phone_number')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -93,6 +94,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       twitterUrl: (data as Record<string, unknown>).twitter_url as string | null,
       contactEmail: (data as Record<string, unknown>).contact_email as string | null,
       theme: (data as Record<string, unknown>).portfolio_theme as string | null,
+      phoneNumber: (data as Record<string, unknown>).phone_number as string | null,
     };
   }
 
@@ -118,6 +120,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     twitterUrl: null,
     contactEmail: null,
     theme: null,
+    phoneNumber: null,
   };
 
   // Create the row via upsert
@@ -167,6 +170,7 @@ export function useProfile(userId: string | undefined, user?: User | null) {
         twitter_url: updates.twitterUrl !== undefined ? updates.twitterUrl : profile?.twitterUrl ?? null,
         contact_email: updates.contactEmail !== undefined ? updates.contactEmail : profile?.contactEmail ?? null,
         portfolio_theme: updates.theme !== undefined ? updates.theme : profile?.theme ?? null,
+        phone_number: updates.phoneNumber !== undefined ? updates.phoneNumber : profile?.phoneNumber ?? null,
       };
 
       const { error } = await supabase
