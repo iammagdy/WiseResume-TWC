@@ -11,6 +11,8 @@ interface PullToRefreshProps {
   threshold?: number;
 }
 
+const DEAD_ZONE = 10;
+
 /** Walk up from `el` to find the nearest ancestor with overflow scroll/auto */
 function findScrollParent(el: HTMLElement | null): HTMLElement | null {
   let node = el?.parentElement ?? null;
@@ -65,16 +67,27 @@ export function PullToRefresh({
     const handleTouchMove = (e: TouchEvent) => {
       if (!isPulling.current || isRefreshing) return;
 
+      // If scroll position moved away from top, abort pull
+      if (getScrollTop() > 0) {
+        isPulling.current = false;
+        if (y.get() > 0) y.set(0);
+        return;
+      }
+
       const currentY = e.touches[0].clientY;
       const diff = currentY - startY.current;
 
       if (diff > 0 && getScrollTop() <= 0) {
-        if (diff > 5) isDragging.current = true;
+        // Dead zone: ignore small movements to prevent false triggers
+        if (diff < DEAD_ZONE) return;
+
+        if (!isDragging.current) isDragging.current = true;
 
         if (isDragging.current) {
           if (e.cancelable) e.preventDefault();
 
-          const damped = diff * 0.5 * (1 - Math.min(diff / (window.innerHeight * 0.5), 0.5));
+          const adjustedDiff = diff - DEAD_ZONE;
+          const damped = adjustedDiff * 0.5 * (1 - Math.min(adjustedDiff / (window.innerHeight * 0.5), 0.5));
           const limited = Math.min(damped, threshold * 2.5);
 
           y.set(limited);
@@ -127,7 +140,7 @@ export function PullToRefresh({
   }, [isRefreshing, onRefresh, threshold, y]);
 
   return (
-    <div className={cn('relative', className)}>
+    <div className={cn('relative', className)} style={{ overscrollBehaviorY: 'none' }}>
       {/* Pull indicator */}
       <motion.div
         className="absolute left-0 right-0 flex items-center justify-center z-50 pointer-events-none"

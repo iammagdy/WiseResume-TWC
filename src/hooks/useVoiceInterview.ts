@@ -42,7 +42,7 @@ const FEMALE_VOICE_KEYWORDS = ['female', 'samantha', 'zira', 'karen', 'fiona', '
 const MALE_VOICE_KEYWORDS = ['male', 'daniel', 'david', 'james', 'alex', 'fred', 'google uk english male', 'google us english male', 'microsoft david'];
 
 function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
-  const voices = window.speechSynthesis.getVoices();
+  const voices = window.speechSynthesis?.getVoices() ?? [];
   const englishVoices = voices.filter(v => v.lang.startsWith('en'));
   if (englishVoices.length === 0) return null;
 
@@ -255,14 +255,14 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     if (window.speechSynthesis) {
       window.speechSynthesis.getVoices();
       window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
+        window.speechSynthesis?.getVoices();
       };
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (noSpeechTimerRef.current) clearTimeout(noSpeechTimerRef.current);
-      window.speechSynthesis.cancel();
+      window.speechSynthesis?.cancel();
     };
   }, []);
 
@@ -401,7 +401,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   }, [stopListening]);
 
   const startListening = useCallback(async () => {
-    window.speechSynthesis.cancel();
+    window.speechSynthesis?.cancel();
     finalTextRef.current = '';
     clearSilenceTimer();
     isListeningRef.current = true;
@@ -502,7 +502,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       noSpeechTimerRef.current = null;
     }
     disconnectCurrentSTT();
-    window.speechSynthesis.cancel();
+    window.speechSynthesis?.cancel();
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -524,7 +524,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       noSpeechTimerRef.current = null;
     }
     disconnectCurrentSTT();
-    window.speechSynthesis.cancel();
+    window.speechSynthesis?.cancel();
     if (timerRef.current) clearInterval(timerRef.current);
     setStatus('idle');
     setTranscript([]);
