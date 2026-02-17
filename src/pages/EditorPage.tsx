@@ -29,13 +29,16 @@ const CertificationsSection = lazy(() => import('@/components/editor/Certificati
 const LanguagesSection = lazy(() => import('@/components/editor/LanguagesSection').then(m => ({ default: m.LanguagesSection })));
 // AIAssistantBar moved to AI Studio tab
 import { SectionAIAction } from '@/components/editor/SectionAIAction';
+import { ATSInlineSuggestions } from '@/components/editor/ATSInlineSuggestions';
 import { AddSectionSheet } from '@/components/editor/AddSectionSheet';
+import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useShallow } from 'zustand/react/shallow';
 const ApplyPromptDialog = lazy(() => import('@/components/applications/ApplyPromptDialog').then(m => ({ default: m.ApplyPromptDialog })));
+const ATSScanSheet = lazy(() => import('@/components/editor/ATSScanSheet').then(m => ({ default: m.ATSScanSheet })));
 
 // Lazy-loaded sheet components (only loaded when opened)
 const JobAnalysisSheet = lazy(() => import('@/components/editor/JobAnalysisSheet').then(m => ({ default: m.JobAnalysisSheet })));
@@ -171,6 +174,7 @@ export default function EditorPage() {
   });
   const [showATSBadge, setShowATSBadge] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
+  const [showATSScan, setShowATSScan] = useState(false);
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview'>('editor');
   const isMobile = useIsMobile();
   // Auto-open Tailor sheet if navigated with ?openTailor=1
@@ -558,8 +562,12 @@ export default function EditorPage() {
     'versions': { description: 'Browse saved versions', iconColor: 'text-muted-foreground' },
     'tailor': { description: 'Match resume to a job post', iconColor: 'text-amber-500' },
     'ats-check': { description: 'Score against ATS systems', iconColor: 'text-emerald-500' },
+    'ats-scan': { description: 'Quick keyword match scan', iconColor: 'text-cyan-500' },
     'proofread': { description: 'Fix grammar & typos', iconColor: 'text-red-500' },
   };
+
+  // ATS Suggestions hook
+  const { getSuggestions: getATSSuggestions, isAnalyzing: isATSAnalyzing, fetchDeepSuggestions, scanSummary } = useATSSuggestions(currentResume, jobDescription);
 
   // Mobile-only editor tools panel groups
   const editorToolGroups = useMemo((): ActionsPanelGroup[] => {
@@ -578,6 +586,7 @@ export default function EditorPage() {
       actions: [
         { id: 'tailor', label: 'Tailor to Job', icon: Target, onClick: handleTailor },
         { id: 'ats-check', label: 'ATS Check', icon: BarChart3, onClick: () => setShowJobSheet(true) },
+        { id: 'ats-scan', label: 'ATS Scan', icon: Sparkles, onClick: () => setShowATSScan(true) },
         { id: 'proofread', label: 'Proofread', icon: Scissors, onClick: handleProofread },
       ],
     };
@@ -598,6 +607,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
             <Suspense fallback={<SectionSkeleton />}><SummarySection /></Suspense>
+            {jobDescription && <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} />}
           </SectionCard>
         </div>
       )}
@@ -605,6 +615,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
             <Suspense fallback={<SectionSkeleton />}><ExperienceSection /></Suspense>
+            {jobDescription && <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} />}
           </SectionCard>
         </div>
       )}
@@ -612,6 +623,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
             <Suspense fallback={<SectionSkeleton />}><EducationSection /></Suspense>
+            {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} />}
           </SectionCard>
         </div>
       )}
@@ -619,6 +631,7 @@ export default function EditorPage() {
         <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
             <Suspense fallback={<SectionSkeleton />}><SkillsSection /></Suspense>
+            {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isATSAnalyzing} onDeepAnalyze={fetchDeepSuggestions} />}
           </SectionCard>
         </div>
       )}
@@ -707,7 +720,7 @@ export default function EditorPage() {
         )}
       </div>
     </>
-  ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate]);
+  ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isATSAnalyzing, fetchDeepSuggestions]);
 
   // Proofread hook
   const { issues: proofreadIssues, score: proofreadScore, isChecking: isProofreadChecking, checkNow, fixIssue, ignoreIssue, fixAll } = useProofread(currentResume);
@@ -1142,6 +1155,7 @@ export default function EditorPage() {
               jobUrl={lastAppliedJobInfo.jobUrl}
             />
           )}
+          {showATSScan && <ATSScanSheet open={showATSScan} onOpenChange={setShowATSScan} summary={scanSummary} onJumpToSection={handleTabChange} />}
         </Suspense>
       </ErrorBoundary>
 
