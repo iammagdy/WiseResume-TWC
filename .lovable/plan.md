@@ -1,38 +1,47 @@
 
 
-## Add AI Credits Visibility to Dashboard and Settings
+## Phase 3 Assessment and Implementation Plan
 
-### What Already Exists
-- `AICreditsIndicator` component (shows remaining daily credits with color coding)
-- `useAICredits` hook (queries `ai_credits` table, auto-resets daily)
-- `useAICreditsMutations` hook (increment usage, check limits, low-credit warnings)
-- Already displayed in: AI Studio header, Editor AI Assistant bar
+### Tasks Already Complete (No Work Needed)
 
-### What's Missing
-The credits indicator is not visible on the two most-visited screens: Dashboard and Settings.
+| Task | Status | Evidence |
+|------|--------|----------|
+| 3.1 Empty State UX | Done | Already shows only 2 CTAs + 3-step guide + template previews + tips carousel. No "8 action cards" issue exists. |
+| 3.4 Version History UI | Done | `VersionHistorySheet.tsx` has full timeline, restore, compare, checkpoint creation, delete, and date formatting. |
+| 3.5 Auto-Scoring Performance | Done | Uses `requestIdleCallback`, sequential scoring with cancellation, in-memory cache keyed by `updated_at`, and 1s debounce. |
+| 3.6 Template Preview/Guidance | Done | `templateData.ts` includes `atsScore` (high/medium) and `category` (professional/creative/tech/minimalist) for all 30 templates. The Templates page already has category filtering. |
 
-### Changes
+### Task 3.3: Link Tailored Resumes to Applications -- Deferred
 
-**1. Add AICreditsIndicator to Dashboard header** (`src/pages/DashboardPage.tsx`)
-- Import `AICreditsIndicator`
-- Place it next to the existing `AIHealthBadge` in the header bar (line ~367)
-- One-line addition
+This requires a database migration (`job_application_id` on resumes table) and cross-feature wiring. It is a substantial feature that should be scoped as its own project rather than bundled here.
 
-**2. Add AI Credits section to Settings page** (`src/pages/SettingsPage.tsx`)
-- Add a row in the "AI & Intelligence" section showing current credits usage
-- Display: "X / 20 credits used today" with a progress bar
-- Uses existing `useAICredits` hook
+### Task 3.2: Add Resume Filtering and Sorting -- Ready to Implement
 
-### Tasks NOT applicable (and why)
+This is the one genuinely missing feature. Currently the dashboard only has text search.
 
-| Task | Status | Reason |
-|------|--------|--------|
-| 1.1 Frontend Service Failure | N/A | Lovable manages the dev server automatically -- no supervisor config exists |
-| 1.2 Edge Function Security | Already Secure | Lovable Cloud requires `verify_jwt = false` in config.toml with in-code JWT validation (which all 26 functions already implement). This is the documented correct pattern. |
+**What will be added:**
 
-### Technical Details
+1. A compact filter/sort bar below the search input on the Dashboard
+2. Sort options: Last edited (default), Alphabetical, ATS Score (high to low)
+3. Filter chips: Template category (Professional, Creative, Tech, Minimalist), Score range (needs work / good / excellent)
+4. "Clear all" button when any filter is active
+5. Filters stored in component state (no URL persistence needed for this scope)
 
-**Files modified:**
-- `src/pages/DashboardPage.tsx` -- import and render `AICreditsIndicator` in header
-- `src/pages/SettingsPage.tsx` -- add credits usage row with progress bar in AI settings section
+**Implementation details:**
+
+**New file: `src/components/dashboard/ResumeFilters.tsx`**
+- A horizontal scrollable chip bar with sort dropdown and filter chips
+- Sort dropdown using a Popover with radio options
+- Filter chips that toggle on/off
+- "Clear" button when filters are active
+- Compact mobile-first design using existing glass-surface styling
+
+**Modified file: `src/pages/DashboardPage.tsx`**
+- Add sort and filter state variables
+- Import and render `ResumeFilters` between the search input and the resume list
+- Apply sorting logic after the existing search filter
+- Apply category/score filters to the filtered list
+- Pass filter state and handlers to `ResumeFilters`
+
+The filter bar will only appear when the user has 2+ resumes (hidden in empty state). Sort defaults to "Last edited" matching the current behavior.
 
