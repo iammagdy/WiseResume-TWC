@@ -149,6 +149,14 @@ export default function SettingsPage() {
   const [changelogLoading, setChangelogLoading] = useState(false);
   const [changelogError, setChangelogError] = useState(false);
 
+  // Fetch changelog on mount for version, and re-fetch when dialog opens
+  useEffect(() => {
+    fetch('/changelog.json')
+      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+      .then(data => setChangelogData(data))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     if (!changelogOpen) return;
     setChangelogLoading(true);
@@ -160,7 +168,7 @@ export default function SettingsPage() {
       .finally(() => setChangelogLoading(false));
   }, [changelogOpen]);
 
-  const appVersion = changelogData[0]?.version || 'v1.5.0';
+  const appVersion = changelogData[0]?.version || 'v2.0.0';
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -886,6 +894,7 @@ export default function SettingsPage() {
               title="Creator & Developer"
               avatarUrl={developerPhoto}
               websiteUrl="https://magdysaber.com"
+              githubUrl="https://github.com/iammagdy"
               onContactClick={() => window.open('mailto:contact@magdysaber.com')}
             />
           </Suspense>
@@ -900,13 +909,6 @@ export default function SettingsPage() {
                   className="text-sm font-medium text-foreground hover:text-primary transition-colors touch-manipulation"
                 >
                   WiseResume {appVersion}
-                </button>
-                <button
-                  onClick={() => openExternal('https://github.com/iammagdy')}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-muted/50 transition-colors text-muted-foreground hover:text-primary touch-manipulation active:scale-95"
-                  aria-label="GitHub"
-                >
-                  <Github className="w-4 h-4" />
                 </button>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

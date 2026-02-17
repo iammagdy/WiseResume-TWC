@@ -1,6 +1,7 @@
 import React from 'react';
-import { Mail, ExternalLink } from 'lucide-react';
+import { Mail, ExternalLink, Github } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
+import { openExternal } from '@/lib/openExternal';
 import './DeveloperCreditCard.css';
 
 interface DeveloperCreditCardProps {
@@ -8,6 +9,7 @@ interface DeveloperCreditCardProps {
   title: string;
   avatarUrl: string;
   websiteUrl?: string;
+  githubUrl?: string;
   onContactClick: () => void;
 }
 
@@ -16,6 +18,7 @@ export function DeveloperCreditCard({
   title,
   avatarUrl,
   websiteUrl,
+  githubUrl,
   onContactClick
 }: DeveloperCreditCardProps) {
   const handleContactClick = () => {
@@ -77,14 +80,28 @@ export function DeveloperCreditCard({
             <h3 className="dev-name">{name}</h3>
             <p className="dev-title">{title}</p>
             
-            {/* Contact button with glow pulse */}
-            <button 
-              className="dev-contact-btn"
-              onClick={handleContactClick}
-            >
-              <Mail className="dev-mail-icon" />
-              <span>Contact Me</span>
-            </button>
+            {/* Button row: Contact Me + GitHub */}
+            <div className="dev-btn-row">
+              <button 
+                className="dev-contact-btn"
+                onClick={handleContactClick}
+              >
+                <Mail className="dev-mail-icon" />
+                <span>Contact Me</span>
+              </button>
+              {githubUrl && (
+                <button
+                  className="dev-github-btn"
+                  onClick={() => {
+                    haptics.light();
+                    openExternal(githubUrl);
+                  }}
+                  aria-label="GitHub"
+                >
+                  <Github className="w-[1.1rem] h-[1.1rem]" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
