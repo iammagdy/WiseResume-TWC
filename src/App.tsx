@@ -82,6 +82,18 @@ const queryClient = new QueryClient({
    useBackButton();
    useStatusBarThemeSync();
    useDeepLinking();
+
+   // Restore saved theme on mount (safety net for the inline script in index.html)
+   useEffect(() => {
+     const saved = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+     const theme = saved || 'dark';
+     const resolved = theme === 'system'
+       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+       : theme;
+     const root = document.documentElement;
+     root.classList.remove('light', 'dark');
+     root.classList.add(resolved);
+   }, []);
    
    const { biometricLockEnabled, biometricLockTimeout } = useSettingsStore();
    const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);

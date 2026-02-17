@@ -24,6 +24,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="format-detection" content="telephone=no" />
 
+    <script>
+      (function() {
+        var t = localStorage.getItem('theme') || 'dark';
+        var resolved = t === 'system'
+          ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          : t;
+        document.documentElement.classList.add(resolved);
+      })();
+    </script>
+
     <meta property="og:title" content="Wise Resume - AI Resume Editor" />
     <meta property="og:description" content="Land your dream job with AI-powered resume optimization" />
     <meta property="og:type" content="website" />
