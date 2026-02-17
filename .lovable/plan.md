@@ -1,144 +1,56 @@
 
 
-## Public Portfolio Website Feature
+## Portfolio UX Improvements
 
-### Overview
+Three issues to fix in the Public Portfolio section on the Profile page:
 
-Transform each user's resume data into a permanent, shareable portfolio website at `wiseresume.lovable.app/p/{username}`. Users claim a unique username, toggle their portfolio live, and get an AI-generated friendly bio -- all from existing resume data with zero extra work.
+### 1. Resume Selector Dropdown
 
-### What Users Get
+Add a `Select` dropdown labeled "Source Resume" above the Bio section. It lists all the user's resumes by title. The selected resume is used as the data source for AI bio generation instead of silently picking the primary/first resume.
 
-- A permanent URL like `wiseresume.lovable.app/p/magdy` they can put on LinkedIn, email signatures, or Twitter
-- A modern Bento Grid layout with animated sections: Hero, About Me (AI bio), Experience Timeline, Projects, Skills/Stack, Education
-- A "Built with WiseResume" footer badge that drives viral traffic
-- One-tap toggle to make it public/private from the Profile page
+- Add a `selectedResumeId` state initialized to the primary resume's ID (or first resume)
+- Render a `Select` component from shadcn with options mapped from `resumes`
+- Update `handleGenerateBio` to use the selected resume's data instead of hardcoded `resumes.find(r => r.is_primary) || resumes[0]`
 
----
+### 2. Username Availability Indicator
 
-### Phase 1: Database Changes
+After the user types a valid username (passes format validation), run a debounced check against the database to see if the username is taken.
 
-**Migration 1 -- Add username and portfolio fields to `profiles`:**
-- `username TEXT UNIQUE` -- the vanity URL slug (lowercase, alphanumeric + hyphens, 3-30 chars)
-- `portfolio_bio TEXT` -- AI-generated friendly "About Me" text
-- `portfolio_enabled BOOLEAN DEFAULT false` -- toggle to make portfolio public
+- Add `usernameAvailable` state (`null | boolean`) and `checkingUsername` state
+- After `validateUsername` passes (no format error, length >= 3), debounce a query: `supabase.from('profiles').select('id').eq('username', clean).neq('user_id', user.id).maybeSingle()`
+- Show a small indicator below the input:
+  - Spinner while checking
+  - Green checkmark + "Available" if no match found
+  - Red X + "Taken" if match found
+- Disable Save button if username is taken
 
-**Migration 2 -- Create a SECURITY DEFINER function `get_public_portfolio(p_username)`:**
-- Looks up `profiles` by username where `portfolio_enabled = true`
-- Fetches the user's primary resume (`is_primary = true`) or first resume
-- Returns combined JSON (profile info + resume data) without exposing sensitive fields (email, phone stripped unless user opts in)
-- Returns NULL if username not found or portfolio disabled
+### 3. Smarter Bio Generation Validation
 
-**No new RLS policies on `resumes` for anon access** -- the SECURITY DEFINER function handles all data access securely, matching the existing `get_shared_resume` pattern.
+Instead of blocking with an error toast when the selected resume has no data, show a softer warning and still allow generation if the profile has a job title. The current logic already checks `profile?.jobTitle` but the user's profile says "Add a job title" meaning it's null -- so the real fix is ensuring the resume selector points to a resume that actually has data, and the error message guides the user to pick a different resume or fill in their profile.
 
----
-
-### Phase 2: AI Bio Generator (Edge Function)
-
-**New edge function: `supabase/functions/generate-portfolio-bio/index.ts`**
-
-- Accepts the user's resume summary, name, and job title
-- Uses the Lovable AI Gateway (google/gemini-2.5-flash) to rewrite the formal summary into a warm, first-person "About Me" paragraph
-- Prompt: "Rewrite this resume summary as a friendly, first-person bio for a personal portfolio website. Keep it under 150 words. Make it warm and human, not corporate."
-- Returns `{ bio: string }`
-- Protected: requires auth JWT, increments AI usage credits
+- Update validation message to say: "The selected resume has no summary or experience. Please choose a different resume or add details first."
 
 ---
 
-### Phase 3: Frontend -- Public Portfolio Page
+### Technical Details
 
-**New file: `src/pages/PublicPortfolioPage.tsx`**
+**File: `src/pages/ProfilePage.tsx`**
 
-A fully public, unauthenticated page rendered at `/p/:username`. Design:
-
+New state variables:
 ```
-+------------------------------------------+
-|  [Avatar]  Name                          |
-|  Job Title - Location                    |
-|  LinkedIn icon                           |
-+------------------------------------------+
-|                                          |
-|  "About Me" Card (AI bio, italic)        |
-|                                          |
-+-------------------+----------------------+
-|                   |                      |
-|  Experience       |  Skills/Stack        |
-|  Timeline Cards   |  Badge Grid          |
-|  (animated)       |                      |
-+-------------------+----------------------+
-|                                          |
-|  Projects Grid (if any)                  |
-|  Bento cards with tech tags              |
-|                                          |
-+------------------------------------------+
-|  Education Cards                         |
-+------------------------------------------+
-|  "Built with WiseResume" badge + CTA     |
-+------------------------------------------+
+const [selectedResumeId, setSelectedResumeId] = useState<string>('');
+const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+const [checkingUsername, setCheckingUsername] = useState(false);
 ```
 
-Key design decisions:
-- Mobile-first: single column on xs, bento grid on md+
-- Uses framer-motion for scroll-reveal animations on each section
-- Dark/light theme respects system preference via existing theme system
-- Glass-elevated cards matching the app's "Vibrant Space" theme
-- No BottomTabBar or AppShell (fully standalone public page)
-- SEO meta tags injected via document.title and meta description
+Initialize `selectedResumeId` in a `useEffect` when `resumes` loads (pick primary or first).
 
-**New file: `src/hooks/usePublicPortfolio.ts`**
+Username availability check with `useEffect` + `setTimeout` debounce (500ms) on `username` changes, only when format validation passes.
 
-- Calls the `get_public_portfolio` RPC function with the username
-- Returns typed portfolio data (profile + resume)
-- Uses TanStack Query with 5-minute stale time
+Resume selector: shadcn `Select` component placed between the Username field and the Bio section.
 
----
+**No database changes needed** -- we're querying the existing `profiles.username` column.
 
-### Phase 4: Frontend -- Username Claim + Portfolio Toggle
-
-**Modified file: `src/pages/ProfilePage.tsx`**
-
-Add a new "Portfolio" section between the action buttons and stats:
-- Username input with availability check (debounced query)
-- Format validation: lowercase, 3-30 chars, alphanumeric + hyphens
-- "Generate Bio" button that calls the AI edge function
-- Bio preview/edit textarea
-- Toggle switch for "Make Portfolio Public"
-- Copy URL button showing `wiseresume.lovable.app/p/{username}`
-
-**Modified file: `src/hooks/useProfile.ts`**
-
-- Add `username`, `portfolioBio`, `portfolioEnabled` to the Profile interface
-- Update fetch/update functions to include the new columns
-
----
-
-### Phase 5: Route Registration
-
-**Modified file: `src/App.tsx`**
-
-Add the public route (outside ProtectedRoute, outside AppShell):
-```
-<Route path="/p/:username" element={<PublicPortfolioPage />} />
-```
-
----
-
-### Files Created
-- `src/pages/PublicPortfolioPage.tsx` -- the public portfolio page
-- `src/hooks/usePublicPortfolio.ts` -- data fetcher hook
-- `supabase/functions/generate-portfolio-bio/index.ts` -- AI bio generator
-
-### Files Modified
-- `src/App.tsx` -- add `/p/:username` route
-- `src/hooks/useProfile.ts` -- add username/bio/enabled fields
-- `src/pages/ProfilePage.tsx` -- add portfolio settings section
-
-### Database Changes
-- `profiles` table: add `username`, `portfolio_bio`, `portfolio_enabled` columns
-- New RPC function: `get_public_portfolio(p_username text)`
-
-### Security Model
-- Portfolio data is served through a SECURITY DEFINER function (same pattern as resume sharing)
-- No direct anon access to `profiles` or `resumes` tables
-- Email and phone are stripped from the public response by default
-- Username uniqueness enforced at DB level with UNIQUE constraint
+**Files Modified:**
+- `src/pages/ProfilePage.tsx` -- add resume selector, username availability check, update bio generation logic
 
