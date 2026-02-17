@@ -81,7 +81,7 @@ export function ResumeListSheet({ open, onOpenChange, filter }: ResumeListSheetP
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[70vh] flex flex-col p-0">
         <SheetHeader className="shrink-0 px-6 pt-6 pb-4 border-b border-border">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pr-10">
             <Icon className="w-5 h-5 text-primary" />
             <SheetTitle>{title}</SheetTitle>
             <Badge variant="secondary" className="ml-auto">{filtered.length}</Badge>
