@@ -1,48 +1,61 @@
 
 
-## Fix: AI Enhancements Destroying Resume Data (Score Drop Root Cause)
+## Fix: AI Enhancements Must Produce Schema-Correct Data
 
-### Root Cause
+### The Real Problem
 
-The score drops from 78 to 49 because **the enhanced content is being truncated and corrupted before it's applied to the resume**.
+The score drops because the AI enhancer returns **structurally invalid data** that doesn't match the app's TypeScript types. For example:
 
-Here's the chain of events:
+- **Experience**: The app expects `{ id, company, position, startDate, endDate, current, description, achievements, responsibilities }` but the AI returns objects missing `id`, `achievements`, `responsibilities`, and `current` fields
+- **Education**: The app expects `{ id, institution, degree, field, startDate, endDate, gpa }` but the AI returns objects with different/missing keys
+- **Skills**: Sometimes returns `{ name: "Python", level: "Expert" }` objects instead of plain strings
 
-1. The AI returns proper structured data (arrays of experience objects, skill arrays, etc.)
-2. `contentToString()` on line 71 converts arrays to JSON and **truncates to 500 characters**: `.slice(0, 500)`
-3. This truncated string is stored as `improved` in the `SectionResult`
-4. When the user clicks "Apply", `applyResult()` tries to `JSON.parse()` that truncated string
-5. The truncated JSON is invalid, so parsing fails
-6. The `catch` block applies the raw truncated string directly to the resume store
-7. The resume now has corrupted/incomplete data instead of proper structured content
-8. The scorer reads this broken data and gives a much lower score
+When these malformed objects are stored in the resume, the scorer sees incomplete data (empty descriptions, missing achievements) and penalizes heavily. The `sanitizeAIContent` function only strips Markdown -- it does NOT validate or repair the schema.
 
-For example, an experience section with 5 detailed entries becomes a 500-character fragment of broken JSON. The scorer sees "No description" for most entries.
+### Root Cause Chain
+1. The enhance prompt says `"improved": <the enhanced content - string for summary, object for experience/education, array for skills>` -- this is far too vague
+2. AI returns data in its own invented format (missing `id`, `current`, `achievements` fields)
+3. The `applyResult` function blindly passes `rawImproved` to `updateResume`
+4. The resume store accepts it (it only validates `Array.isArray`, not individual objects)
+5. The scorer sees broken/incomplete entries and gives a lower score
 
-### Fix
+### Fix (3 changes)
 
-**Store the raw AI response data separately from the display string.** The `SectionResult` interface needs a `rawImproved` field that holds the actual structured data from the AI, while `improved` (the string) is only used for display.
+#### 1. Add explicit JSON schema to the enhance prompt (`supabase/functions/enhance-section/index.ts`)
 
-### Changes
+Tell the AI exactly what format each section must return, matching the TypeScript types:
 
-**`src/components/editor/ai/AIEnhanceSheet.tsx`**
+- **Summary**: Return a plain string
+- **Experience**: Return an array where each object has `{ id: string, company: string, position: string, startDate: string, endDate: string, current: boolean, description: string, achievements: string[], responsibilities: string[] }`
+- **Education**: Return an array where each object has `{ id: string, institution: string, degree: string, field: string, startDate: string, endDate: string, gpa: string }`
+- **Skills**: Return a flat array of strings only (e.g., `["Python", "React", "AWS"]`)
 
-1. Add `rawImproved: unknown` to the `SectionResult` interface -- this holds the actual AI data (arrays, objects, strings)
-2. When storing results (line 146-154), set `rawImproved: data.improved` (the raw AI response) and keep `improved: contentToString(data.improved)` for display only
-3. Remove the `.slice(0, 500)` truncation in `contentToString` -- use a separate `contentToPreview()` for display that truncates, but never truncate the stored data
-4. In `applyResult()`, use `result.rawImproved` directly instead of trying to parse the display string back into data. This eliminates the JSON parse/truncation problem entirely
-5. The display strings (`original` and `improved` shown in the UI) can still be truncated for readability -- they're only for visual comparison
+The prompt will include the current content's exact structure as a template the AI must follow, preserving all `id` values and structural fields.
+
+#### 2. Add schema validation/repair in `applyResult` (`src/components/editor/ai/AIEnhanceSheet.tsx`)
+
+Before applying enhanced data, validate and repair it:
+
+- **Experience**: For each item, ensure `id` exists (copy from original or generate UUID), ensure `achievements` is an array, ensure `current` is boolean, ensure `description` is string
+- **Education**: Ensure `id`, `institution`, `degree`, `field` exist
+- **Skills**: Flatten any objects to strings
+- Merge AI-enhanced fields with original entry fields so nothing is lost (e.g., if AI omits `responsibilities`, keep the original)
+
+#### 3. Merge strategy instead of replace (`src/components/editor/ai/AIEnhanceSheet.tsx`)
+
+For experience and education, instead of wholesale replacing the array, merge each AI-enhanced entry with its corresponding original entry by index or `id`. This ensures fields the AI didn't touch (like `id`, `isProject`, `credentialId`) are preserved.
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/components/editor/ai/AIEnhanceSheet.tsx` | Add `rawImproved` field to `SectionResult`; store raw AI data; fix `applyResult` to use raw data; separate display truncation from data storage |
+| `supabase/functions/enhance-section/index.ts` | Add per-section JSON schema examples to the prompt response format; include current content structure as a template |
+| `src/components/editor/ai/AIEnhanceSheet.tsx` | Add `repairExperience()`, `repairEducation()`, `repairSkills()` helper functions; update `applyResult()` to merge AI data with originals preserving all fields |
 
 ### Why This Guarantees Scores Go Up
 
-- The scorer receives the same structured data the AI produced
-- No truncation, no broken JSON, no data loss
-- The `ats_improve` prompt already targets the exact 6 scoring pillars
-- With intact data, the scorer will see all the keywords, action verbs, and metrics the enhancer added
+- Every enhanced entry retains its `id`, `achievements`, `responsibilities`, and all other fields
+- The scorer sees complete, well-structured data with the AI's keyword/metric additions on top
+- No data loss, no schema mismatches, no empty fields replacing populated ones
+- The merge strategy means even if the AI forgets a field, the original value is preserved
 
