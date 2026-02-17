@@ -5,12 +5,13 @@ import {
   Loader2,
   Copy,
   Check,
-  ChevronDown,
   Briefcase,
   User,
   Hash,
   Lightbulb,
   Globe,
+  FileDown,
+  ClipboardList,
 } from 'lucide-react';
 import {
   Sheet,
@@ -28,6 +29,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { downloadFile } from '@/lib/downloadUtils';
 
 
 interface LinkedInOptimizerSheetProps {
@@ -63,13 +65,56 @@ const REGION_OPTIONS: { id: RegionOption; label: string; icon: string }[] = [
   { id: 'americas', label: 'Americas', icon: '🇺🇸' },
 ];
 
+function buildAllContentText(result: LinkedInResult, name: string): string {
+  const lines: string[] = [];
+  lines.push(`LinkedIn Profile Content — ${name}`, '');
+
+  if (result.headlines?.length) {
+    lines.push('═══ HEADLINES ═══', '');
+    result.headlines.forEach((h, i) => lines.push(`${i + 1}. ${h}`));
+    lines.push('');
+  }
+
+  if (result.aboutSections) {
+    lines.push('═══ ABOUT — SHORT ═══', '', result.aboutSections.short, '');
+    lines.push('═══ ABOUT — MEDIUM ═══', '', result.aboutSections.medium, '');
+    lines.push('═══ ABOUT — LONG ═══', '', result.aboutSections.long, '');
+  }
+
+  if (result.experienceRewrites?.length) {
+    lines.push('═══ EXPERIENCE REWRITES ═══', '');
+    result.experienceRewrites.forEach(e => {
+      lines.push(`${e.position} at ${e.company}`, e.linkedin, '');
+    });
+  }
+
+  if (result.suggestedSkills?.length) {
+    lines.push('═══ SUGGESTED SKILLS ═══', '', result.suggestedSkills.join(', '), '');
+  }
+
+  if (result.keywords?.length) {
+    lines.push('═══ KEYWORDS ═══', '', result.keywords.join(', '), '');
+  }
+
+  if (result.tips?.length) {
+    lines.push('═══ TIPS ═══', '');
+    result.tips.forEach(t => lines.push(`• ${t}`));
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
 export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizerSheetProps) {
   const { currentResume } = useResumeStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<RegionOption>('global');
   const [result, setResult] = useState<LinkedInResult | null>(null);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'linkedin' });
+
+  const userName = currentResume?.contactInfo?.fullName || 'User';
 
   const handleOptimize = async () => {
     if (!currentResume) {
@@ -110,6 +155,124 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
     haptics.light();
     toast.success('Copied to clipboard!');
     setTimeout(() => setCopiedItem(null), 2000);
+  };
+
+  const handleCopyAll = () => {
+    if (!result) return;
+    const text = buildAllContentText(result, userName);
+    navigator.clipboard.writeText(text);
+    haptics.light();
+    toast.success('All content copied to clipboard!');
+  };
+
+  const handleDownloadDocx = async () => {
+    if (!result) return;
+
+    haptics.medium();
+    setIsDownloading(true);
+
+    try {
+      const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } = await import('docx');
+
+      const children: InstanceType<typeof Paragraph>[] = [];
+
+      // Title
+      children.push(new Paragraph({
+        children: [new TextRun({ text: `LinkedIn Profile Content — ${userName}`, bold: true, size: 32 })],
+        heading: HeadingLevel.TITLE,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 },
+      }));
+
+      // Headlines
+      if (result.headlines?.length) {
+        children.push(new Paragraph({ text: 'Headlines', heading: HeadingLevel.HEADING_1, spacing: { before: 300, after: 200 } }));
+        result.headlines.forEach((h, i) => {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `${i + 1}. ${h}`, size: 22 })],
+            spacing: { after: 100 },
+          }));
+        });
+      }
+
+      // About sections
+      if (result.aboutSections) {
+        const aboutEntries: [string, string][] = [
+          ['About — Short (~150 words)', result.aboutSections.short],
+          ['About — Medium (~300 words)', result.aboutSections.medium],
+          ['About — Long (~500 words)', result.aboutSections.long],
+        ];
+        aboutEntries.forEach(([title, text]) => {
+          children.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_1, spacing: { before: 300, after: 200 } }));
+          children.push(new Paragraph({
+            children: [new TextRun({ text, size: 22 })],
+            spacing: { after: 200 },
+          }));
+        });
+      }
+
+      // Experience Rewrites
+      if (result.experienceRewrites?.length) {
+        children.push(new Paragraph({ text: 'Experience Rewrites', heading: HeadingLevel.HEADING_1, spacing: { before: 300, after: 200 } }));
+        result.experienceRewrites.forEach(e => {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `${e.position} at ${e.company}`, bold: true, size: 22 })],
+            spacing: { after: 80 },
+          }));
+          children.push(new Paragraph({
+            children: [new TextRun({ text: e.linkedin, size: 22 })],
+            spacing: { after: 200 },
+          }));
+        });
+      }
+
+      // Skills
+      if (result.suggestedSkills?.length) {
+        children.push(new Paragraph({ text: 'Suggested Skills', heading: HeadingLevel.HEADING_1, spacing: { before: 300, after: 200 } }));
+        children.push(new Paragraph({
+          children: [new TextRun({ text: result.suggestedSkills.join(', '), size: 22 })],
+          spacing: { after: 200 },
+        }));
+      }
+
+      // Keywords
+      if (result.keywords?.length) {
+        children.push(new Paragraph({ text: 'Keywords', heading: HeadingLevel.HEADING_1, spacing: { before: 300, after: 200 } }));
+        children.push(new Paragraph({
+          children: [new TextRun({ text: result.keywords.join(', '), size: 22 })],
+          spacing: { after: 200 },
+        }));
+      }
+
+      // Tips
+      if (result.tips?.length) {
+        children.push(new Paragraph({ text: 'Tips', heading: HeadingLevel.HEADING_1, spacing: { before: 300, after: 200 } }));
+        result.tips.forEach(t => {
+          children.push(new Paragraph({
+            children: [new TextRun({ text: `• ${t}`, size: 22 })],
+            spacing: { after: 100 },
+          }));
+        });
+      }
+
+      const doc = new Document({
+        sections: [{ children }],
+      });
+
+      const blob = await Packer.toBlob(doc);
+      const safeName = userName.replace(/[^a-zA-Z0-9]/g, '_');
+      await downloadFile({
+        blob,
+        fileName: `LinkedIn_Profile_${safeName}.docx`,
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      });
+      toast.success('Downloaded LinkedIn content as Word!');
+    } catch (err) {
+      console.error('DOCX generation error:', err);
+      toast.error('Failed to generate Word file.');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const CopyButton = ({ text, id }: { text: string; id: string }) => (
@@ -338,7 +501,7 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border shrink-0">
+        <div className="p-4 border-t border-border shrink-0 space-y-2">
           {!result ? (
             <Button
               className="w-full"
@@ -353,13 +516,29 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
               Generate LinkedIn Content
             </Button>
           ) : (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setResult(null)}
-            >
-              Start Over
-            </Button>
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={handleDownloadDocx} disabled={isDownloading}>
+                  {isDownloading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <FileDown className="w-4 h-4 mr-2" />
+                  )}
+                  Download Word
+                </Button>
+                <Button variant="outline" onClick={handleCopyAll}>
+                  <ClipboardList className="w-4 h-4 mr-2" />
+                  Copy All
+                </Button>
+              </div>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => setResult(null)}
+              >
+                Start Over
+              </Button>
+            </>
           )}
         </div>
       </SheetContent>
