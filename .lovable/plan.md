@@ -1,87 +1,77 @@
 
 
-## Enhance AI Generation Feedback: Stepped Progress + Cancel
+## Guest-to-User Data Migration Flow
 
 ### Overview
-Add a cancel button to `TailorProgressComponent`, add stepped progress with cancel support to `CoverLetterGenerator`, and wire AbortController through the tailor/cover-letter generation flows.
+When a guest user signs in or signs up, any resume data they created locally (stored in the Zustand persist store under `localStorage["resume-storage"]`) should be automatically migrated to their authenticated account in the database.
+
+### How Guest Data Works Today
+- Guest resumes are created with a `uuidv4()` ID and stored only in the Zustand store (`resume-storage` localStorage key)
+- The store holds `currentResume` (full ResumeData object) and `currentResumeId`
+- No `guest_resumes` or `wise_resume_state` keys exist -- all guest data lives in `resume-storage`
 
 ### Changes
 
-**1. New shared component: `src/components/ui/GenerationProgress.tsx`**
+**1. New file: `src/hooks/useGuestMigration.ts`**
 
-A reusable stepped progress indicator used by both cover letter and tailor flows. Features:
-- Timer-based step advancement (every 2.5s) through configurable step labels
-- Animated circular progress ring (reused from TailorProgress pattern)
-- "Cancel Generation" button that appears after 5 seconds, becomes prominent (destructive variant) after 30s
-- Accepts `onCancel` callback and `steps` array as props
-- Compact design that fits inside existing Sheet content without changing dimensions
+A custom hook that:
+- Reads the Zustand `resume-storage` from localStorage on mount
+- Checks if `currentResume` exists and `currentResumeId` is a local UUID (not from the DB)
+- When a valid user session is provided, inserts the guest resume directly into the `resumes` table using the Supabase client (no edge function needed -- the client SDK with RLS handles this securely)
+- On success: clears the Zustand store's `currentResume`/`currentResumeId`, shows a success toast
+- Exposes `isMigrating: boolean` so the dashboard can gate the "Create New Resume" button
+- Runs only once per sign-in (uses a ref to prevent duplicate migrations)
 
-**2. Modified: `src/components/editor/tailor/TailorProgress.tsx`**
+Why no edge function: The `resumes` table already has RLS policies allowing authenticated users to INSERT their own rows. The client SDK handles auth automatically, so an edge function would add unnecessary complexity. The resume data is small JSON -- no server-side processing needed.
 
-- Add `onCancel?: () => void` to `TailorProgressProps`
-- Render a "Cancel" button below the progress bar when `onCancel` is provided and generation has been running for 5+ seconds
-- After 30s elapsed, button text changes to "Taking too long? Cancel" with destructive styling
-- No layout dimension changes -- button fits within existing padding
+**2. Modified: `src/pages/AuthPage.tsx`**
 
-**3. Modified: `src/lib/aiTailor.ts`**
+- Import and call `useGuestMigration(session)` after the auth state resolves
+- The hook runs silently; no UI changes needed on the auth page itself
+- Migration triggers after successful sign-in/sign-up before navigating to `/dashboard`
 
-- `tailorResumeWithProgress`: Accept optional `signal?: AbortSignal` parameter
-- Pass `signal` to `supabase.functions.invoke` via fetch options
-- `generateCoverLetter`: Accept optional `signal?: AbortSignal` parameter and pass it through
+**3. Modified: `src/pages/DashboardPage.tsx`**
 
-**4. Modified: `src/components/editor/TailorSheet.tsx`**
-
-- Create an `AbortController` ref (`abortRef`)
-- Pass `abortRef.current.signal` to `tailorResumeWithProgress`
-- Pass `onCancel` callback to `TailorProgressComponent` that calls `abortRef.current.abort()`, sets `isTailoring = false`, and shows a toast
-- Reset controller on each new tailor attempt
-
-**5. Modified: `src/components/editor/tailor/CoverLetterGenerator.tsx`**
-
-- Replace the simple `Loader2` spinner during generation with a stepped progress UI inline (no new component import needed -- built directly into the file for simplicity)
-- Steps: "Analyzing Job Description...", "Matching Keywords...", "Optimizing Structure...", "Finalizing Content..."
-- Timer advances active step every 2.5s
-- Add `AbortController` ref; pass `signal` to `generateCoverLetter`
-- Show "Cancel Generation" button after 5s, destructive after 30s
-- On cancel: abort controller, reset `isGenerating`, show info toast
+- Import `useGuestMigration` and call it with the current user
+- Use the `isMigrating` flag to disable the "Create New Resume" / FloatingCreateButton while migration is in progress
+- Once migration completes, the resumes query auto-refetches (via `queryClient.invalidateQueries`)
 
 ### Technical Details
 
-**AbortController wiring:**
+**useGuestMigration hook logic:**
 
 ```text
-TailorSheet                          aiTailor.ts
-  abortRef = new AbortController()
-  tailorResumeWithProgress(           signal passed to
-    ..., abortRef.signal)  --------> supabase.functions.invoke({ signal })
+1. Read localStorage['resume-storage'] -> parse JSON
+2. Extract state.currentResume and state.currentResumeId
+3. If no resume or user is null -> return { isMigrating: false }
+4. Check: is currentResumeId a valid UUID that does NOT exist in the DB?
+   (Simple heuristic: if the resumes query returns and doesn't include that ID, it's a guest resume)
+5. Insert resume into DB via supabase.from('resumes').insert(...)
+6. Clear Zustand store: setCurrentResume(null), setCurrentResumeId(null)
+7. Invalidate 'resumes' query
+8. Show toast: "Your draft resume has been saved to your account."
+9. Set isMigrating = false
+```
+
+**Guard for "Create New Resume" button:**
+
+```text
+DashboardPage:
+  const { isMigrating } = useGuestMigration(user);
   
-  onCancel:
-    abortRef.abort()
-    setIsTailoring(false)
+  <FloatingCreateButton disabled={isMigrating} ... />
+  <Button disabled={isMigrating} ... />
 ```
-
-**CoverLetterGenerator stepped progress (inline):**
-
-```text
-State: generationStep (0-3), timer increments every 2.5s
-Steps array: ["Analyzing Job Description...", "Matching Keywords...", 
-              "Optimizing Structure...", "Finalizing Content..."]
-
-UI: replaces Loader2 spinner with:
-  - Step dots (4 circles, active one pulses)
-  - Current step label with fade transition
-  - Cancel button (appears after 5s)
-```
-
-**Cancel button behavior:**
-- Hidden for first 5 seconds (most generations complete quickly)
-- Appears as ghost/outline variant: "Cancel"
-- After 30s: switches to destructive variant with "Taking too long? Cancel generation"
-- Min touch target: 44x44px with `active:scale-95` haptic feedback
 
 ### Files Changed
-- `src/components/editor/tailor/TailorProgress.tsx` -- add onCancel prop + cancel button
-- `src/lib/aiTailor.ts` -- add signal param to `tailorResumeWithProgress` and `generateCoverLetter`
-- `src/components/editor/TailorSheet.tsx` -- wire AbortController + onCancel
-- `src/components/editor/tailor/CoverLetterGenerator.tsx` -- stepped progress + cancel button
+- `src/hooks/useGuestMigration.ts` (new) -- migration hook
+- `src/pages/DashboardPage.tsx` (modified) -- wire hook, gate create button
+- `src/pages/AuthPage.tsx` (modified) -- trigger migration after sign-in
+
+### Edge Cases Handled
+- No guest data: hook is a no-op, isMigrating stays false
+- Multiple resumes: only `currentResume` from the store is migrated (guests can only have one active resume)
+- Migration failure: catches error, shows error toast, does not clear local data (preserves the draft)
+- Already migrated: uses a sessionStorage flag to prevent re-running on the same session
+- User signs out and back in: sessionStorage flag resets naturally
 
