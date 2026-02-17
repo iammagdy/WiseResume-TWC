@@ -1,5 +1,5 @@
-import { memo, useState, useCallback } from 'react';
-import { ChevronDown, ChevronUp, X, Zap, AlertTriangle, Info, Sparkles, Check } from 'lucide-react';
+import { memo, useState, useCallback, useEffect } from 'react';
+import { ChevronDown, ChevronUp, X, Zap, AlertTriangle, Info, Sparkles, Check, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,12 +9,16 @@ import { SectionId } from '@/types/resume';
 import { useResumeStore } from '@/store/resumeStore';
 import { toast } from 'sonner';
 import haptics from '@/lib/haptics';
+import type { DeepResult } from '@/hooks/useATSSuggestions';
 
 interface ATSInlineSuggestionsProps {
   section: SectionId;
   suggestions: ATSSuggestion[];
   isAnalyzing: boolean;
   onDeepAnalyze: (section: SectionId) => void;
+  deepResult?: DeepResult;
+  onApplyDeep?: (improved: unknown) => void;
+  onDiscardDeep?: () => void;
 }
 
 const priorityConfig = {
@@ -23,16 +27,34 @@ const priorityConfig = {
   low: { icon: Info, color: 'text-primary', bg: 'bg-primary/10' },
 };
 
+const PROGRESS_STEPS = ['Analyzing…', 'Optimizing…', 'Finalizing…'];
+
 export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
   section,
   suggestions,
   isAnalyzing,
   onDeepAnalyze,
+  deepResult,
+  onApplyDeep,
+  onDiscardDeep,
 }: ATSInlineSuggestionsProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const updateResume = useResumeStore(state => state.updateResume);
   const currentSkills = useResumeStore(state => state.currentResume?.skills || []);
+
+  // Stepped progress indicator
+  const [progressStep, setProgressStep] = useState(0);
+  useEffect(() => {
+    if (!isAnalyzing) {
+      setProgressStep(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setProgressStep(prev => Math.min(prev + 1, PROGRESS_STEPS.length - 1));
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [isAnalyzing]);
 
   const handleDismiss = useCallback((id: string) => {
     haptics.light();
@@ -53,7 +75,8 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
   }, [section, currentSkills, updateResume]);
 
   const visible = suggestions.filter(s => !dismissed.has(s.id));
-  if (visible.length === 0) return null;
+  const hasContent = visible.length > 0 || deepResult || isAnalyzing;
+  if (!hasContent) return null;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -61,9 +84,11 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
         <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] active:scale-[0.98] touch-manipulation">
           <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
           <span className="text-xs font-medium text-foreground flex-1 text-left">ATS Tips</span>
-          <Badge variant="glass" className="text-[10px] px-1.5 py-0">
-            {visible.length}
-          </Badge>
+          {visible.length > 0 && (
+            <Badge variant="glass" className="text-[10px] px-1.5 py-0">
+              {visible.length}
+            </Badge>
+          )}
           {isOpen ? (
             <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
           ) : (
@@ -73,6 +98,17 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
 
         <CollapsibleContent>
           <div className="px-3 pb-3 space-y-1.5">
+            {/* Stepped progress while analyzing */}
+            {isAnalyzing && (
+              <div className="flex items-center gap-2 rounded-lg px-2.5 py-2.5 bg-primary/5 border border-primary/10">
+                <Loader2 className="w-4 h-4 text-primary animate-spin shrink-0" />
+                <span className="text-xs text-primary font-medium">
+                  {PROGRESS_STEPS[progressStep]}
+                </span>
+              </div>
+            )}
+
+            {/* Keyword suggestions */}
             {visible.map(suggestion => {
               const config = priorityConfig[suggestion.priority];
               const PriorityIcon = config.icon;
@@ -108,20 +144,68 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
               );
             })}
 
+            {/* Deep Analysis Results Panel */}
+            {deepResult && deepResult.improved && !isAnalyzing && (
+              <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2.5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-xs font-semibold text-foreground">AI Optimized Content Ready</span>
+                </div>
+
+                {deepResult.changes.length > 0 && (
+                  <ul className="space-y-1 pl-1">
+                    {deepResult.changes.map((change, i) => (
+                      <li key={i} className="text-[11px] text-muted-foreground flex items-start gap-1.5">
+                        <Check className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                        <span>{change}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="flex gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    className="flex-1 text-xs min-h-[36px]"
+                    onClick={() => {
+                      haptics.success();
+                      onApplyDeep?.(deepResult.improved);
+                    }}
+                  >
+                    <Check className="w-3.5 h-3.5 mr-1" />
+                    Apply Changes
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs min-h-[36px]"
+                    onClick={() => {
+                      haptics.light();
+                      onDiscardDeep?.();
+                    }}
+                  >
+                    Discard
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Deep Analyze CTA */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-xs mt-1"
-              onClick={() => {
-                haptics.light();
-                onDeepAnalyze(section);
-              }}
-              disabled={isAnalyzing}
-            >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              {isAnalyzing ? 'Analyzing…' : 'Deep Analyze'}
-            </Button>
+            {!deepResult && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs mt-1"
+                onClick={() => {
+                  haptics.light();
+                  onDeepAnalyze(section);
+                }}
+                disabled={isAnalyzing}
+              >
+                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                Deep Analyze
+              </Button>
+            )}
           </div>
         </CollapsibleContent>
       </div>

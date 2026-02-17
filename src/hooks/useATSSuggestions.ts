@@ -95,11 +95,17 @@ function hashString(str: string): string {
   return String(hash);
 }
 
+export interface DeepResult {
+  improved: unknown;
+  changes: string[];
+  suggestions?: string[];
+}
+
 export function useATSSuggestions(resume: ResumeData | null, jobDescription: string) {
   const [deepSuggestions, setDeepSuggestions] = useState<Record<string, ATSSuggestion[]>>({});
+  const [deepResults, setDeepResults] = useState<Record<string, DeepResult>>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const cacheRef = useRef<Record<string, ATSSuggestion[]>>({});
-
+  const cacheRef = useRef<Record<string, { suggestions: ATSSuggestion[]; result: DeepResult }>>({});
   // Client-side keyword analysis
   const suggestions = useMemo(() => {
     if (!resume || !jobDescription.trim()) return {} as Record<SectionId, ATSSuggestion[]>;
@@ -147,47 +153,64 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     return [...clientSide, ...deep.filter(s => !ids.has(s.id))];
   }, [suggestions, deepSuggestions]);
 
+  const clearDeepResult = useCallback((section: SectionId) => {
+    setDeepResults(prev => {
+      const next = { ...prev };
+      delete next[section];
+      return next;
+    });
+  }, []);
+
   const fetchDeepSuggestions = useCallback(async (section: SectionId) => {
     if (!resume || !jobDescription) return;
 
     const cacheKey = `${section}-${hashString(jobDescription)}`;
     if (cacheRef.current[cacheKey]) {
-      setDeepSuggestions(prev => ({ ...prev, [section]: cacheRef.current[cacheKey] }));
+      const cached = cacheRef.current[cacheKey];
+      setDeepSuggestions(prev => ({ ...prev, [section]: cached.suggestions }));
+      setDeepResults(prev => ({ ...prev, [section]: cached.result }));
       return;
     }
 
     setIsAnalyzing(true);
     try {
-      const content = getSectionContent(resume, section);
+      const currentContent = getSectionContent(resume, section);
       const { data, error } = await supabase.functions.invoke('enhance-section', {
         body: {
           section,
-          content,
           action: 'ats_optimize',
-          resumeData: resume,
-          jobDescription,
+          currentContent,
+          context: { resume, jobDescription },
         },
       });
 
       if (error) throw error;
 
-      // Parse AI suggestions into ATSSuggestion format
+      // Store full result for apply/discard UI
+      const result: DeepResult = {
+        improved: data?.improved,
+        changes: Array.isArray(data?.changes) ? data.changes : [],
+        suggestions: Array.isArray(data?.suggestions) ? data.suggestions : [],
+      };
+
+      // Parse suggestions (may be plain strings) into ATSSuggestion objects
       const aiSuggestions: ATSSuggestion[] = [];
-      if (data?.suggestions && Array.isArray(data.suggestions)) {
-        for (const s of data.suggestions) {
+      if (result.suggestions) {
+        for (const s of result.suggestions) {
+          const msg = typeof s === 'string' ? s : (s as Record<string, unknown>)?.message || String(s);
           aiSuggestions.push({
             id: `deep-${section}-${aiSuggestions.length}`,
-            type: s.type || 'missing_keyword',
-            message: s.message || s.suggestion || String(s),
+            type: 'missing_keyword',
+            message: String(msg),
             section,
-            priority: s.priority || 'medium',
-            autoFix: s.autoFix,
+            priority: 'medium',
           });
         }
       }
 
-      cacheRef.current[cacheKey] = aiSuggestions;
+      cacheRef.current[cacheKey] = { suggestions: aiSuggestions, result };
       setDeepSuggestions(prev => ({ ...prev, [section]: aiSuggestions }));
+      setDeepResults(prev => ({ ...prev, [section]: result }));
     } catch (err) {
       console.error('Deep ATS analysis failed:', err);
     } finally {
@@ -233,5 +256,5 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     return { matchPercentage, perSection, totalKeywords: total, matchedKeywords: matched };
   }, [resume, jobDescription, suggestions]);
 
-  return { getSuggestions, isAnalyzing, fetchDeepSuggestions, scanSummary, suggestions };
+  return { getSuggestions, isAnalyzing, fetchDeepSuggestions, scanSummary, suggestions, deepResults, clearDeepResult };
 }
