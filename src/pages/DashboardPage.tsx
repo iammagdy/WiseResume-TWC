@@ -83,7 +83,10 @@ export default function DashboardPage() {
   // Check onboarding status for authenticated users
   useEffect(() => {
     const checkOnboardingStatus = async () => {
-      if (!user) return;
+      if (!user) {
+        setProfileLoaded(true);
+        return;
+      }
       try {
         const { data } = await supabase
           .from('profiles')
