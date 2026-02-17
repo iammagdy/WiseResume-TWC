@@ -27,6 +27,7 @@ import { ImportUploadSheet, FileType } from '@/components/upload/ImportUploadShe
 import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
+import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 
 export default function UploadPage() {
   const navigate = useNavigate();
@@ -176,6 +177,10 @@ export default function UploadPage() {
           ...filteredData,
           id: newResume.id,
         });
+        // Record import ATS score under the real resume ID
+        if (importATSScore) {
+          useATSScoreHistoryStore.getState().addScore(newResume.id, importATSScore);
+        }
       } catch (error) {
         console.error('Failed to save to cloud:', error);
         setCurrentResume(filteredData);
