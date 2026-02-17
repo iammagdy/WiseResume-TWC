@@ -1,66 +1,102 @@
 
 
-## Fix: Username Uniqueness Check and URL Display
+## Standalone Portfolio Editor Page with Enhanced Features
 
-### Problem 1: Username Always Shows "Available" (Critical)
-The username availability check queries the `profiles` table directly, but RLS policies only allow users to see their own profile row. This means when checking if another user already has a username, the query returns empty (blocked by RLS), so every username falsely appears as "Available."
+### What Changes
 
-### Problem 2: URL Display Format
-The username field currently shows `wiseresume.lovable.app/p/` inline next to the input. The user wants:
-- A label "Username" on top
-- Below it: `wiseresume.lovable.app/p/` as a static prefix on its own line
-- Then the username input field
+Extract the entire "Public Portfolio" section from the Profile page into a dedicated `/portfolio` route, and enhance it with powerful new capabilities.
 
-### Solution
+### Navigation Flow
 
-**1. Create a database function to check username availability (bypasses RLS safely)**
+From the Profile page, the "Public Portfolio" card becomes a navigation link to `/portfolio` instead of an inline form. The card shows the portfolio status (enabled/disabled, username, view count) as a summary.
 
-Create a new `check_username_available` RPC function with `SECURITY DEFINER` that:
-- Accepts a username and the requesting user's ID
-- Returns `true` if the username is not taken by any other user
-- Returns `false` if another user already has that username
-- Returns `true` if the requesting user already owns that username
+### New Page: `/portfolio` (PortfolioEditorPage)
 
-```sql
-CREATE OR REPLACE FUNCTION public.check_username_available(p_username text, p_user_id uuid)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-BEGIN
-  RETURN NOT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE username = lower(p_username)
-      AND user_id != p_user_id
-  );
-END;
-$$;
-```
+A full standalone page with a polished header and organized sections:
 
-**2. Update `src/pages/ProfilePage.tsx`**
+**Section 1: Portfolio Status Card**
+- Live/Draft badge showing whether the portfolio is public
+- View count stat (pulled from profile)
+- "Preview Portfolio" button that opens the live URL in a new tab
+- URL display with copy button
 
-- Replace the direct Supabase query (lines 100-114) with a call to the new RPC function:
-  ```typescript
-  const { data } = await supabase.rpc('check_username_available', {
-    p_username: username,
-    p_user_id: user!.id,
-  });
-  setUsernameAvailable(data === true);
-  ```
+**Section 2: Identity**
+- Username field with availability check (existing logic, moved here)
+- Source Resume selector (existing, moved here)
+- Portfolio Theme picker (existing, moved here)
 
-- Also update the username save logic in `handleSavePortfolio` to block saving if `usernameAvailable` is false (already done on line 502).
+**Section 3: About Me Bio**
+- Bio textarea with AI Generate button (existing, moved here)
+- Character counter
 
-- Fix the URL display layout (lines 359-393): show the URL prefix `wiseresume.lovable.app/p/` on its own line above the input, not inline next to it.
+**Section 4: Social Links and Contact**
+- GitHub, Website, X/Twitter URLs (existing, moved here)
+- Contact Email for "Hire Me" button (existing, moved here)
 
-**3. Add a save-time guard in `handleSavePortfolio`**
+**Section 5: NEW - Custom Sections Toggle**
+Choose which resume sections appear on the public portfolio:
+- Experience (on/off)
+- Education (on/off)
+- Skills (on/off)
+- Projects (on/off)
+- Certifications (on/off)
+- Awards (on/off)
+- Publications (on/off)
+- Volunteering (on/off)
 
-Before saving, do a final RPC check to prevent race conditions where two users try to claim the same username simultaneously. If the username was claimed in between, show an error toast and abort the save.
+This gives users control over what visitors see without editing the resume itself. Stored as a JSON object in the `profiles` table (new `portfolio_sections` column).
 
-### Files to Change
+**Section 6: NEW - SEO and Sharing**
+- Custom meta title override (defaults to "Name -- Job Title")
+- Custom meta description override (defaults to bio)
+- OG Image preview note (future enhancement)
+
+**Section 7: Publish Controls**
+- "Make Portfolio Public" toggle (existing)
+- Save button
+- Danger zone: "Unpublish Portfolio" destructive action
+
+### Files to Create/Change
 
 | File | Change |
 |------|--------|
-| Database migration | Add `check_username_available` RPC function |
-| `src/pages/ProfilePage.tsx` | Use RPC for availability check; fix URL prefix layout; add save-time guard |
+| `src/pages/PortfolioEditorPage.tsx` | New standalone page with all portfolio editing features |
+| `src/pages/ProfilePage.tsx` | Replace inline portfolio form with a summary card that navigates to `/portfolio` |
+| `src/App.tsx` | Add `/portfolio` route (protected) |
+| Database migration | Add `portfolio_sections` (jsonb) and `portfolio_meta_title` / `portfolio_meta_description` (text) columns to `profiles` |
+| `src/hooks/usePublicPortfolio.ts` | Pass section visibility data through to the public page |
+| `src/pages/PublicPortfolioPage.tsx` | Respect section visibility toggles; use custom SEO meta if set |
 
+### Technical Details
+
+**New database columns on `profiles`:**
+```sql
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS portfolio_sections jsonb DEFAULT '{"experience":true,"education":true,"skills":true,"projects":true,"certifications":true,"awards":true,"publications":true,"volunteering":true}'::jsonb,
+  ADD COLUMN IF NOT EXISTS portfolio_meta_title text,
+  ADD COLUMN IF NOT EXISTS portfolio_meta_description text;
+```
+
+**Profile page portfolio card (replaces inline form):**
+The card shows:
+- Globe icon + "Public Portfolio" heading
+- Status badge: "Live" (green) or "Draft" (muted)
+- Username and view count if live
+- Chevron right icon indicating navigation
+- Tapping navigates to `/portfolio`
+
+**PortfolioEditorPage structure:**
+- Header with back button ("Portfolio Settings")
+- Scrollable content with organized card sections
+- Sticky bottom save button
+- All existing portfolio logic (username check, bio generation, save) moves here
+
+**Section visibility in PublicPortfolioPage:**
+The `get_public_portfolio` RPC already returns profile data. The new `portfolio_sections` field will be passed through, and each section on the public page will check its visibility flag before rendering.
+
+### Summary of Enhancements
+1. Standalone dedicated page -- cleaner UX, room to grow
+2. Section visibility toggles -- control what the public sees
+3. Custom SEO meta -- better sharing on social media
+4. Status dashboard -- view count, live/draft status at a glance
+5. Organized card-based layout -- each concern in its own section
