@@ -1,35 +1,42 @@
 
 
-## Fix AI Credits Indicator: Add Bolt Icon + Fix Number Mismatch
+## Fix: Activity History Showing Non-Credit Entries
 
-### Problem 1: No visual context
-The CreditRing on the dashboard is just a circle with a number. Users can't tell it represents AI credits -- it looks like a notification badge.
+### Problem
 
-### Problem 2: Misleading numbers
-The ring shows **remaining credits** (11 = 20 - 9) while the sheet inside shows **used credits** (9/20). The user sees "11" outside and "9" inside and thinks there's a bug.
+The "Today's Activity" list in the Credit Usage Sheet shows ~50 "ATS Score" entries, but the credit counter only shows 9 used. This happens because:
 
-### Fix
+- **Background scoring** (automatic dashboard scoring) calls the `score-resume` backend function, which **always** logs an entry to the activity table via `recordUsage`
+- But background scoring does **not** deduct credits (by design, from our previous fix)
+- Result: the activity list is flooded with entries that didn't cost credits, creating confusion
 
-**File: `src/components/editor/ai/AICreditsIndicator.tsx`**
+### Solution
 
-- Add a small Zap (bolt) icon next to the CreditRing to visually signal "AI credits"
-- Wrap both in a row layout with a subtle label or just the icon
+Two changes to fix this:
 
-```
-[Zap icon] [Ring with number]
-```
+**1. Backend: Skip logging for background calls** (`supabase/functions/score-resume/index.ts`)
 
-**File: `src/components/ai/CreditRing.tsx`**
+- Accept an optional `background: true` flag in the request body
+- When `background` is true, skip calling `recordUsage()` so no log entry is created
+- Rate limiting still applies (via `checkRateLimit`)
 
-- Change the center number from `remaining` to `used` so it matches the sheet
-- This way the ring shows "9" and the sheet shows "9 / 20" -- consistent
+**2. Client: Pass the background flag** (`src/hooks/useResumeScore.ts`)
+
+- Update `invokeScoreResume` to accept an optional `background` parameter
+- When `backgroundScore` calls it, pass `background: true`
+- When `scoreResume` (user-initiated) calls it, pass nothing (defaults to false)
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/components/ai/CreditRing.tsx` | Line 17: change `remaining` to `used`; Line 61: display `used` instead of `remaining` |
-| `src/components/editor/ai/AICreditsIndicator.tsx` | Add `Zap` icon from lucide-react next to the ring button, sized at 14px with primary color |
+| `supabase/functions/score-resume/index.ts` | Line 49: extract `background` from request body; Line 126: wrap `recordUsage` in `if (!background)` |
+| `src/hooks/useResumeScore.ts` | Line 37: add `background?: boolean` param to `invokeScoreResume`; Line 52-53: pass it in the body; Line 120: call with `background: true` |
 
-The ring's color logic stays the same (based on percentage used), keeping the visual warning system intact.
+### What This Fixes
+
+- Activity history only shows entries that actually cost credits
+- The number in the activity list matches the credit counter (e.g., 9 entries = 9 credits used)
+- Background ATS scoring still works silently without polluting the history
+- Rate limiting remains intact for both background and user-initiated calls
 
