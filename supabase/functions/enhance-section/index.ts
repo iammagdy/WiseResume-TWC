@@ -22,6 +22,51 @@ interface EnhanceRequest {
   userGeminiKey?: string;
 }
 
+function getSchemaInstructions(section: string, currentContent: unknown): string {
+  switch (section) {
+    case 'summary':
+      return `Return "improved" as a plain string (the enhanced summary text).`;
+    case 'experience':
+      return `Return "improved" as a JSON array of experience objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "company": "<string>",
+  "position": "<string>",
+  "startDate": "<string, e.g. Jan 2020>",
+  "endDate": "<string, e.g. Present>",
+  "current": <boolean>,
+  "description": "<string — a brief role summary>",
+  "achievements": ["<string>", "<string>"],
+  "responsibilities": ["<string>", "<string>"]
+}
+You MUST preserve all original "id" values. Do NOT omit any field. If a field was empty, keep it as empty string or empty array.
+Here are the exact IDs and structure you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, company: e.company, position: e.position, startDate: e.startDate, endDate: e.endDate, current: e.current
+})), null, 2)}`;
+    case 'education':
+      return `Return "improved" as a JSON array of education objects. Each object MUST have EXACTLY these fields:
+{
+  "id": "<PRESERVE the original id exactly>",
+  "institution": "<string>",
+  "degree": "<string>",
+  "field": "<string>",
+  "startDate": "<string>",
+  "endDate": "<string>",
+  "gpa": "<string or empty string>"
+}
+You MUST preserve all original "id" values. Do NOT omit any field.
+Here are the exact IDs you must preserve:
+${JSON.stringify((Array.isArray(currentContent) ? currentContent : []).map((e: Record<string, unknown>) => ({
+  id: e.id, institution: e.institution, degree: e.degree
+})), null, 2)}`;
+    case 'skills':
+      return `Return "improved" as a flat JSON array of strings ONLY. Example: ["Python", "React", "AWS", "Leadership"]. Do NOT return objects like {"name":"Python","level":"Expert"} — only plain strings.`;
+    default:
+      return `Return "improved" in the same format as the input.`;
+  }
+}
+
 function buildPrompt(section: string, action: string, currentContent: unknown, context: unknown, fixInstruction?: string): string {
   const baseContext = `You are an expert resume writer and career coach. Your goal is to help users create compelling, ATS-friendly resume content.
 
@@ -59,11 +104,17 @@ Critical Rules:
     custom: `${fixInstruction || String(currentContent)}. Respond with valid JSON only.`
   };
 
+  const schemaInstructions = getSchemaInstructions(section, currentContent);
+
   return baseContext + '\n\nTask: ' + (actionPrompts[action] || actionPrompts.improve) + `
 
-IMPORTANT: Respond with ONLY valid JSON in this exact format, no markdown or code blocks. All text values inside the JSON must be plain text WITHOUT any Markdown formatting -- do not use **, *, #, _, or backticks in the text content:
+CRITICAL RESPONSE FORMAT: Respond with ONLY valid JSON, no markdown or code blocks. All text values must be plain text WITHOUT any Markdown formatting (no **, *, #, _, or backticks).
+
+${schemaInstructions}
+
+Full response structure:
 {
-  "improved": <the enhanced content - string for summary, object for experience/education, array for skills>,
+  "improved": <see schema instructions above>,
   "changes": ["<change 1>", "<change 2>"],
   "suggestions": ["<optional suggestion 1>"]
 }`;

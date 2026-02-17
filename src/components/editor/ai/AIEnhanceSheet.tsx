@@ -174,12 +174,52 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
     haptics.medium();
 
     let data = sanitizeAIContent(result.rawImproved);
-    if (result.section === 'skills' && Array.isArray(data)) {
-      data = data.map((s: unknown) => typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s));
+
+    // Repair skills: flatten any objects to strings
+    if (result.section === 'skills') {
+      if (!Array.isArray(data)) data = currentResume.skills || [];
+      data = (data as unknown[]).map((s: unknown) =>
+        typeof s === 'string' ? s : (s as Record<string, string>)?.name || String(s)
+      );
     }
-    if ((result.section === 'experience' || result.section === 'education') && !Array.isArray(data)) {
-      data = [];
+
+    // Repair & merge experience: preserve original fields AI may have omitted
+    if (result.section === 'experience') {
+      if (!Array.isArray(data)) data = [];
+      const originals = currentResume.experience || [];
+      data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
+        const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
+        const base = orig || {} as Record<string, unknown>;
+        return {
+          ...base,
+          ...aiEntry,
+          id: (aiEntry.id as string) || (orig?.id) || crypto.randomUUID(),
+          current: typeof aiEntry.current === 'boolean' ? aiEntry.current : (orig?.current ?? false),
+          description: typeof aiEntry.description === 'string' ? aiEntry.description : (orig?.description || ''),
+          achievements: Array.isArray(aiEntry.achievements) ? aiEntry.achievements : (orig?.achievements || []),
+          responsibilities: Array.isArray(aiEntry.responsibilities) ? aiEntry.responsibilities : (orig?.responsibilities || []),
+        };
+      });
     }
+
+    // Repair & merge education: preserve original fields AI may have omitted
+    if (result.section === 'education') {
+      if (!Array.isArray(data)) data = [];
+      const originals = currentResume.education || [];
+      data = (data as Record<string, unknown>[]).map((aiEntry, i) => {
+        const orig = originals.find(o => o.id === (aiEntry.id as string)) || originals[i];
+        const base = orig || {} as Record<string, unknown>;
+        return {
+          ...base,
+          ...aiEntry,
+          id: (aiEntry.id as string) || (orig?.id) || crypto.randomUUID(),
+          institution: typeof aiEntry.institution === 'string' ? aiEntry.institution : (orig?.institution || ''),
+          degree: typeof aiEntry.degree === 'string' ? aiEntry.degree : (orig?.degree || ''),
+          field: typeof aiEntry.field === 'string' ? aiEntry.field : (orig?.field || ''),
+        };
+      });
+    }
+
     updateResume({ [result.section]: data });
 
     setResults(prev => prev.map((r, i) => i === index ? { ...r, applied: true } : r));
