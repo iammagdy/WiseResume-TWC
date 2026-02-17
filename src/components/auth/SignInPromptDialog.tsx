@@ -2,8 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { Check, Mail } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { lovable } from '@/integrations/lovable/index';
-import { toast } from 'sonner';
+import { signInWithGoogle } from '@/lib/socialAuth';
 
 const DEFAULT_BENEFITS = [
   'Save your resume permanently',
@@ -38,14 +37,8 @@ export function SignInPromptDialog({
   };
 
   const handleGoogle = async () => {
-    try {
-      const { error } = await lovable.auth.signInWithOAuth('google', {
-        redirect_uri: window.location.origin,
-      });
-      if (error) throw error;
-    } catch {
-      toast.error('Google sign-in failed. Please try again.');
-    }
+    try { await signInWithGoogle(); }
+    catch { /* handled in helper */ }
   };
 
   const handleContinueAsGuest = () => {
