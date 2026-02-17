@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo, useDeferredValue } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, ArrowLeft, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2 } from 'lucide-react';
+import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, Job } from '@/hooks/useJobs';
@@ -182,19 +182,10 @@ export default function ApplicationsPage() {
     <div className="flex-1 flex flex-col min-h-0 pb-4">
       {/* Header */}
       <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <div className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              <h1 className="text-lg font-display font-semibold">My Activity</h1>
-            </div>
+        <div className="flex items-center justify-between max-w-3xl mx-auto w-full">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary" />
+            <h1 className="text-lg font-display font-semibold">My Activity</h1>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -225,7 +216,7 @@ export default function ApplicationsPage() {
 
       {/* All scrollable content inside PullToRefresh */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="px-4 py-4 space-y-6">
+        <div className="px-4 py-4 space-y-6 max-w-3xl mx-auto w-full">
           {/* Tabs */}
           <div className="flex gap-2 w-full -mt-2">
             {TABS.map(t => (
@@ -245,8 +236,8 @@ export default function ApplicationsPage() {
               {/* Status Filter */}
               <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
 
-              {/* Stats */}
-              <JobActivityStatsCard
+              {/* Stats - hide when no data at all */}
+              {(stats.applicationsSubmitted > 0 || stats.originals > 0) && <JobActivityStatsCard
                 stats={stats}
                 onOriginalsTap={() => {
                   setResumeListFilter('originals');
@@ -256,7 +247,7 @@ export default function ApplicationsPage() {
                   setResumeListFilter('tailored');
                   setResumeListOpen(true);
                 }}
-              />
+              />}
 
               {/* Application Cards */}
               {applications.length > 0 ? (

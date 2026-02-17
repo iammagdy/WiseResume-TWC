@@ -4,7 +4,6 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
-import { toast } from 'sonner';
 
 interface TabItem {
   path: string;
@@ -66,15 +65,13 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     return location.pathname === tab.path;
   };
 
-  const isEditorDisabled = !currentResumeId;
-
   const handleTabPress = (tab: TabItem) => {
     haptics.selection();
-    if (tab.guarded && isEditorDisabled) {
-      toast.info('Create a resume first to access the editor');
+    if (tab.guarded && !currentResumeId) {
+      // Instead of blocking, navigate to dashboard with create action
+      navigate('/dashboard?action=create');
       return;
     }
-    // Allow navigation to /applications even for guests (teaser screen handles gate)
     navigate(tab.path);
   };
 
@@ -89,29 +86,25 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
       aria-label="Main navigation"
     >
       <div
-        className="flex items-center justify-around h-16 relative"
+        className="flex items-center justify-around h-16 relative max-w-3xl mx-auto w-full"
         role="tablist"
       >
         {tabs.map((tab) => {
           const active = isActive(tab);
           const Icon = tab.icon;
-          const disabled = (tab.guarded && isEditorDisabled);
-          
-          return (
-            <button
-              key={tab.path}
-              role="tab"
-              aria-selected={active}
-              aria-disabled={disabled || undefined}
-              aria-label={tab.label}
-              tabIndex={0}
-              onClick={() => handleTabPress(tab)}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px]',
-                'touch-manipulation active:scale-95 transition-all duration-200 touch-ripple',
-                'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset',
-                tab.guarded && isEditorDisabled && 'opacity-50'
-              )}
+              return (
+                <button
+                  key={tab.path}
+                  role="tab"
+                  aria-selected={active}
+                  aria-label={tab.label}
+                  tabIndex={0}
+                  onClick={() => handleTabPress(tab)}
+                  className={cn(
+                    'flex flex-col items-center justify-center gap-0.5 flex-1 h-full min-h-[48px]',
+                    'touch-manipulation active:scale-95 transition-all duration-200 touch-ripple',
+                    'min-w-[52px] relative focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset'
+                  )}
             >
               {/* Pill indicator */}
               <div
