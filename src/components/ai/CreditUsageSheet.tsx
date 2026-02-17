@@ -1,12 +1,14 @@
 import { memo, useMemo } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Zap, Clock, History } from 'lucide-react';
+import { Zap, Clock, History, Eye } from 'lucide-react';
 import { useAICredits } from '@/hooks/useAICredits';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
 import { CreditRing } from './CreditRing';
+import { getAICost } from '@/lib/aiCostEstimates';
 import { format } from 'date-fns';
+import { Json } from '@/integrations/supabase/types';
 
 interface CreditUsageSheetProps {
   open: boolean;
@@ -30,6 +32,26 @@ const CATEGORY_LABELS: Record<string, string> = {
   'agentic-chat': 'AI Chat',
 };
 
+interface ActivityEntry {
+  type: string;
+  label: string;
+  time: string;
+  isBackground: boolean;
+  cost: number;
+}
+
+function isBackground(metadata: Json | null): boolean {
+  if (metadata && typeof metadata === 'object' && !Array.isArray(metadata)) {
+    return (metadata as Record<string, unknown>).background === true;
+  }
+  return false;
+}
+
+function formatTime(time: string): string {
+  const d = new Date(time);
+  return isNaN(d.getTime()) ? '--:--' : format(d, 'h:mm a');
+}
+
 export const CreditUsageSheet = memo(function CreditUsageSheet({
   open,
   onOpenChange,
@@ -41,33 +63,39 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
   const limit = credits?.daily_limit ?? 20;
   const totalLifetime = credits?.total_usage ?? 0;
 
-  // Recent activity: last 10 user-initiated AI actions (today only)
-  const { data: recentActivity } = useQuery({
+  const { data: allActivity } = useQuery({
     queryKey: ['ai-usage-breakdown', user?.id],
     queryFn: async () => {
       if (!user) return [];
       const today = new Date().toISOString().split('T')[0];
       const { data, error } = await supabase
         .from('ai_usage_logs')
-        .select('action_type, created_at')
+        .select('action_type, created_at, metadata')
         .eq('user_id', user.id)
         .gte('created_at', `${today}T00:00:00`)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(50);
 
       if (error) throw error;
       return (data ?? [])
         .filter((log) => log.created_at)
-        .map((log) => ({
-          type: log.action_type,
-          label: CATEGORY_LABELS[log.action_type] || log.action_type,
-          time: log.created_at,
-        }));
+        .map((log): ActivityEntry => {
+          const bg = isBackground(log.metadata);
+          return {
+            type: log.action_type,
+            label: CATEGORY_LABELS[log.action_type] || log.action_type,
+            time: log.created_at,
+            isBackground: bg,
+            cost: bg ? 0 : getAICost(log.action_type),
+          };
+        });
     },
     enabled: !!user && open,
   });
 
-  // Midnight countdown
+  const credited = useMemo(() => allActivity?.filter((a) => !a.isBackground) ?? [], [allActivity]);
+  const background = useMemo(() => allActivity?.filter((a) => a.isBackground) ?? [], [allActivity]);
+
   const timeUntilReset = useMemo(() => {
     const now = new Date();
     const midnight = new Date(now);
@@ -88,12 +116,14 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
           </SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-6 pb-6 overflow-y-auto">
+        <div className="space-y-5 pb-6 overflow-y-auto">
           {/* Main ring */}
           <div className="flex flex-col items-center gap-3">
             <CreditRing used={used} limit={limit} size={80} />
             <div className="text-center">
-              <p className="text-2xl font-bold">{used} <span className="text-muted-foreground font-normal text-base">/ {limit}</span></p>
+              <p className="text-2xl font-bold">
+                {used} <span className="text-muted-foreground font-normal text-base">/ {limit}</span>
+              </p>
               <p className="text-xs text-muted-foreground">credits used today</p>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -102,35 +132,63 @@ export const CreditUsageSheet = memo(function CreditUsageSheet({
             </div>
           </div>
 
-          {/* Recent activity history */}
+          {/* Credited activity */}
           <div className="space-y-2">
             <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
-              <History className="w-3.5 h-3.5" />
-              Today's Activity
+              <Zap className="w-3.5 h-3.5" />
+              Credited Activity
             </h3>
-            {recentActivity && recentActivity.length > 0 ? (
+            {credited.length > 0 ? (
               <div className="space-y-1 max-h-48 overflow-y-auto">
-                {recentActivity.map((item, i) => (
+                {credited.map((item, i) => (
                   <div
-                    key={`${item.time}-${i}`}
+                    key={`c-${item.time}-${i}`}
                     className="flex items-center justify-between px-3 py-2 rounded-xl bg-muted/30"
                   >
                     <span className="text-sm font-medium">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {(() => {
-                        const d = new Date(item.time);
-                        return isNaN(d.getTime()) ? '--:--' : format(d, 'h:mm a');
-                      })()}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-semibold text-destructive">
+                        -{item.cost} credit{item.cost > 1 ? 's' : ''}
+                      </span>
+                      <span className="text-xs text-muted-foreground w-16 text-right">
+                        {formatTime(item.time)}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-center text-sm text-muted-foreground py-4">
-                No AI actions used yet today. Start creating!
+                No credited AI actions yet today. Start creating!
               </p>
             )}
           </div>
+
+          {/* Background activity */}
+          {background.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                <Eye className="w-3.5 h-3.5" />
+                Background Activity
+              </h3>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {background.map((item, i) => (
+                  <div
+                    key={`b-${item.time}-${i}`}
+                    className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-muted/15"
+                  >
+                    <span className="text-xs text-muted-foreground">{item.label}</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-[11px] text-muted-foreground/60 italic">Free</span>
+                      <span className="text-[11px] text-muted-foreground/60 w-16 text-right">
+                        {formatTime(item.time)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Lifetime stat */}
           <div className="flex items-center justify-between px-3 py-3 rounded-xl glass-surface">

@@ -122,8 +122,10 @@ Scoring guide:
       );
     }
 
-    // Record usage for rate limiting (skip for background calls)
-    if (!background) {
+    // Record usage: credited calls get a normal log; background calls get metadata flag
+    if (background) {
+      await recordUsage(user.id, 'score', { background: true });
+    } else {
       await recordUsage(user.id, 'score');
     }
 
