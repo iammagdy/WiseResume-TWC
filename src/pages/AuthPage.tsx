@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { InputFormField } from '@/components/ui/form-field';
 import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { lovable } from '@/integrations/lovable/index';
+import { signInWithGoogle, signInWithApple } from '@/lib/socialAuth';
 import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { toast } from 'sonner';
@@ -161,19 +161,15 @@ export default function AuthPage() {
 
   const handleGoogleSignIn = async () => {
     setSocialLoading('google');
-    try {
-      const { error } = await lovable.auth.signInWithOAuth('google', { redirect_uri: window.location.origin });
-      if (error) toast.error('Failed to sign in with Google');
-    } catch { toast.error('Failed to sign in with Google'); }
+    try { await signInWithGoogle(); }
+    catch { /* handled in helper */ }
     finally { setTimeout(() => setSocialLoading(null), 2000); }
   };
 
   const handleAppleSignIn = async () => {
     setSocialLoading('apple');
-    try {
-      const { error } = await lovable.auth.signInWithOAuth('apple', { redirect_uri: window.location.origin });
-      if (error) toast.error('Failed to sign in with Apple');
-    } catch { toast.error('Failed to sign in with Apple'); }
+    try { await signInWithApple(); }
+    catch { /* handled in helper */ }
     finally { setTimeout(() => setSocialLoading(null), 2000); }
   };
 
