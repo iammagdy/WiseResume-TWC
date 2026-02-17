@@ -1,60 +1,53 @@
 
-
-## Fix Onboarding Tour UI Issues
+## Fix Dashboard Resume Card UI Issues
 
 ### Problems Identified
 
-1. **Skip button not visible** -- The "Skip Tour" button exists at the top-right but is either scrolled out of view or blends into the background. It needs to be sticky/fixed and more prominent.
-2. **Red vertical line through steps** -- The SVG animated line on Screen 2 ("Follow our proven framework") renders as a solid red bar cutting through the step icons. The line should connect the steps subtly, not overlap the icons.
-3. **Large empty space** below content on some screens -- Content is vertically centered with `justify-center` but leaves too much dead space, especially on taller devices.
-4. **Bottom Tab Bar visible behind the tour** -- The `fixed inset-0 z-50` overlay doesn't fully cover the BottomTabBar, which also uses z-50.
-5. **No "Next" button on the last screen** -- When on Screen 4 (Choose your starting point), the Next button disappears but there's no clear way to dismiss or skip if the user doesn't want to pick a choice.
+1. **Red line below score** -- The ATS Score breakdown has a progress bar (h-2 red bar) that renders **outside** the collapsible content, so it always shows as a harsh red stripe even when the breakdown is collapsed. This is the most visible issue in the screenshot.
+2. **Left border adds more red** -- The card has a `border-l-4 border-l-destructive` that creates another red accent when scores are low, making the card feel overly alarming.
+3. **Too much visual density** -- The card stacks: Score Ring, Title + badges, Target Job, Completion bar, Edited time, AND ATS score bar + breakdown -- all in a tight space. On mobile this creates clutter.
+4. **Completion bar and ATS bar confusion** -- Two separate colored bars (completion at 12% and ATS at 10/100) appear close together and look similar, creating confusion about what each represents.
 
 ---
 
-### Fixes (all in `src/components/onboarding/OnboardingCarousel.tsx`)
+### Fixes
 
-#### 1. Make Skip Button Fixed and Prominent
-- Move the "Skip Tour" button into a `fixed` position (top-right) so it stays visible during scrolling
-- Add a semi-transparent background pill so it's visible over any content
-- Increase z-index above the carousel content
+#### 1. Move ATS Score Bar Inside the Collapsible (ATSScoreBreakdown.tsx)
 
-#### 2. Fix the Vertical Line
-- Replace the SVG `<line>` with a proper `<div>` connector placed between each step (not overlapping icons)
-- Position the line as a thin connector between the icon circles, offset to the left side of the icons
-- Use the primary color with reduced opacity so it's subtle, not a harsh red bar
+Move the always-visible `h-2` progress bar (lines 96-101) inside the `CollapsibleContent` so it only shows when the user expands the ATS breakdown. This eliminates the floating red line.
 
-#### 3. Fix Content Spacing
-- Change the carousel container from `justify-center` to `justify-start` with top padding to keep content in the upper portion
-- Add `pt-16` or similar to push content down from the skip button but avoid leaving half the screen empty
+#### 2. Soften the Left Border (ResumeListCard.tsx)
 
-#### 4. Fix Z-Index Over Bottom Tab Bar
-- Increase the overlay z-index from `z-50` to `z-[60]` in `DashboardPage.tsx` to ensure it sits above the BottomTabBar
+Change the `border-l-4` from hard status colors to a subtle `border-l-primary/30` so it provides structure without screaming red on low-score resumes.
 
-#### 5. Add Skip/Done Button on Last Screen
-- Show a subtle "Skip" text link on the last screen so users aren't forced to pick a choice
+#### 3. Add Labels to Distinguish Bars
+
+Add a tiny "Completeness" label next to the completion progress percentage and ensure the ATS bar only appears inside its collapsible section, so there's no confusion between the two metrics.
+
+#### 4. Tighten Spacing
+
+Reduce some margins (`mb-2` to `mb-1`) on the target job and completion sections to decrease card height without losing readability.
 
 ---
 
 ### Technical Details
 
-**File: `src/components/onboarding/OnboardingCarousel.tsx`**
+**File: `src/components/dashboard/ATSScoreBreakdown.tsx`**
+- Move lines 96-101 (the score bar div) inside the `CollapsibleContent` block, right before the category breakdowns
+- This means the red bar only shows when the user taps to expand
 
-- Lines 91-97: Restructure the Skip button to be `fixed top-4 right-4 z-10` with safe-area padding
-- Lines 125-155: Replace the SVG line with CSS-based connectors between steps. Each step pair gets a thin `h-4 w-0.5 bg-primary/30 rounded-full` divider element rendered between the icon rows
-- Lines 100-101: Change the carousel items from `justify-center` to `justify-start pt-20` for better content positioning
-- Lines 238-261: Ensure the bottom CTA area always shows at least a "Skip" option on the last screen
+**File: `src/components/dashboard/ResumeListCard.tsx`**
+- Line 150-154: Change the border-l color logic to always use `border-l-primary/20` for a subtle, non-alarming accent
+- Line 290: Reduce `mb-2` to `mb-1` on the completion progress wrapper
+- Line 281: Reduce `mb-2` to `mb-1` on the target job button
 
-**File: `src/pages/DashboardPage.tsx`**
+---
 
-- Line 302: Change `className="fixed inset-0 z-50"` to `className="fixed inset-0 z-[60]"` to cover the BottomTabBar
-
-### Summary of Changes
+### Summary
 
 | Issue | Fix |
 |-------|-----|
-| Skip button not visible | Make it fixed position with pill background |
-| Red line through icons | Replace SVG with CSS gap connectors between steps |
-| Empty space below content | Align content to upper portion with padding |
-| Tab bar bleeding through | Increase z-index to z-[60] |
-| No dismiss on last screen | Add skip option on final screen |
+| Red line below score | Move ATS bar inside collapsible -- hidden by default |
+| Aggressive red left border | Use subtle `border-l-primary/20` for all cards |
+| Bar confusion | ATS bar only visible on expand; completion bar always visible |
+| Card too tall | Tighten vertical spacing |
