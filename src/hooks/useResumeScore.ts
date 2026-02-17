@@ -34,7 +34,7 @@ export function clearCachedScore(resumeId: string, updatedAt: string) {
 /** Helper: wait ms */
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; latencyMs: number }> {
+async function invokeScoreResume(resume: ResumeData, background?: boolean): Promise<{ data: any; latencyMs: number }> {
   const _start = Date.now();
   // Explicitly grab token to ensure it's fresh (important for Capacitor WebView)
   const { data: sessionData } = await supabase.auth.getSession();
@@ -50,7 +50,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
 
   try {
     const result = await supabase.functions.invoke('score-resume', {
-      body: { resume },
+      body: { resume, ...(background ? { background: true } : {}) },
     });
 
     if (result.error) {
@@ -77,7 +77,7 @@ async function invokeScoreResume(resume: ResumeData): Promise<{ data: any; laten
           'Authorization': `Bearer ${token}`,
           'apikey': anonKey,
         },
-        body: JSON.stringify({ resume }),
+        body: JSON.stringify({ resume, ...(background ? { background: true } : {}) }),
       });
 
       if (!res.ok) {
@@ -117,7 +117,7 @@ export async function backgroundScore(resumeId: string, resume: ResumeData, upda
   const key = cacheKey(resumeId, updatedAt);
   if (scoreCache.has(key)) return;
   try {
-    const { data, latencyMs } = await invokeScoreResume(resume);
+    const { data, latencyMs } = await invokeScoreResume(resume, true);
     useAIHealthStore.getState().recordSuccess(latencyMs);
     trackGeminiUsage();
     const score: ResumeHealthScore = { ...data, scoredAt: new Date().toISOString() };

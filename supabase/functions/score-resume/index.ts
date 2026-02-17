@@ -46,7 +46,7 @@ serve(async (req) => {
       );
     }
 
-    const { resume } = await req.json();
+    const { resume, background } = await req.json();
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
@@ -122,8 +122,10 @@ Scoring guide:
       );
     }
 
-    // Record usage for rate limiting
-    await recordUsage(user.id, 'score');
+    // Record usage for rate limiting (skip for background calls)
+    if (!background) {
+      await recordUsage(user.id, 'score');
+    }
 
     return new Response(
       JSON.stringify(result),
