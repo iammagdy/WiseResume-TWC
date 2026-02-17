@@ -104,6 +104,7 @@ export function EditProfileSheet({
     username: null,
     portfolioBio: null,
     portfolioEnabled: false,
+    portfolioResumeId: null,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 

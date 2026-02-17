@@ -18,6 +18,7 @@ interface Profile {
   username: string | null;
   portfolioBio: string | null;
   portfolioEnabled: boolean;
+  portfolioResumeId: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -59,7 +60,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -81,6 +82,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       username: (data as Record<string, unknown>).username as string | null,
       portfolioBio: (data as Record<string, unknown>).portfolio_bio as string | null,
       portfolioEnabled: ((data as Record<string, unknown>).portfolio_enabled as boolean) ?? false,
+      portfolioResumeId: (data as Record<string, unknown>).portfolio_resume_id as string | null,
     };
   }
 
@@ -100,6 +102,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     username: null,
     portfolioBio: null,
     portfolioEnabled: false,
+    portfolioResumeId: null,
   };
 
   // Create the row via upsert
@@ -143,6 +146,7 @@ export function useProfile(userId: string | undefined, user?: User | null) {
         username: updates.username !== undefined ? updates.username : profile?.username ?? null,
         portfolio_bio: updates.portfolioBio !== undefined ? updates.portfolioBio : profile?.portfolioBio ?? null,
         portfolio_enabled: updates.portfolioEnabled !== undefined ? updates.portfolioEnabled : profile?.portfolioEnabled ?? false,
+        portfolio_resume_id: updates.portfolioResumeId !== undefined ? updates.portfolioResumeId : profile?.portfolioResumeId ?? null,
       };
 
       const { error } = await supabase

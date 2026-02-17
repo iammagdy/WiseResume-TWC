@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -104,7 +105,7 @@ function ProjectCard({ project }: { project: Project }) {
   );
 }
 
-export default function PublicPortfolioPage() {
+function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
 
@@ -259,5 +260,13 @@ export default function PublicPortfolioPage() {
         </motion.div>
       </motion.div>
     </div>
+  );
+}
+
+export default function PublicPortfolioPage() {
+  return (
+    <ErrorBoundary>
+      <PublicPortfolioContent />
+    </ErrorBoundary>
   );
 }
