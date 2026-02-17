@@ -1,7 +1,8 @@
 import React from 'react';
-import { Mail, ExternalLink, Github } from 'lucide-react';
+import { Mail, ExternalLink } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { openExternal } from '@/lib/openExternal';
+import githubLogo from '@/assets/github-logo.png';
 import './DeveloperCreditCard.css';
 
 interface DeveloperCreditCardProps {
@@ -98,7 +99,7 @@ export function DeveloperCreditCard({
                 }}
                 aria-label="GitHub">
 
-                  <Github className="w-[1.1rem] h-[1.1rem]" />
+                  <img src={githubLogo} alt="GitHub" className="w-[1.1rem] h-[1.1rem] invert" />
                 </button>
               }
             </div>
