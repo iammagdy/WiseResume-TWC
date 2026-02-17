@@ -213,10 +213,10 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: `Bug from ${resolvedEmail} <bugs@magdysaber.com>`,
+            from: `Bug Reported by ${resolvedEmail} <bugs@magdysaber.com>`,
             to: [DEVELOPER_EMAIL],
             reply_to: resolvedEmail,
-            subject: `[Bug Report] ${screenDisplay} — ${error_message.slice(0, 50)}`,
+            subject: `[Bug Reported] ${screenDisplay} — ${error_message.slice(0, 50)}`,
             html: emailHtml,
           }),
         });
