@@ -3,6 +3,7 @@ import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
 import { Loader2, ArrowDown } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { ScrollProgressBar } from '@/components/layout/ScrollProgressBar';
 
 interface PullToRefreshProps {
   children: ReactNode;
@@ -160,9 +161,10 @@ export function PullToRefresh({
       >
         <div
           ref={containerRef}
-          className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide"
+          className="flex-1 overflow-y-auto overscroll-contain scrollbar-hide relative"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
+          <ScrollProgressBar containerRef={containerRef} />
           {children}
         </div>
       </motion.div>

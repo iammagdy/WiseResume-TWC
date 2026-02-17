@@ -1,8 +1,6 @@
 import { useLocation, useOutlet } from 'react-router-dom';
-import { useRef } from 'react';
 import { BottomTabBar } from './BottomTabBar';
 import { OfflineBanner } from './OfflineBanner';
-import { ScrollProgressBar } from './ScrollProgressBar';
 import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +11,6 @@ const TAB_ROUTES = ['/dashboard', '/upload', '/settings', '/interview', '/editor
 export function AppShell() {
   const location = useLocation();
   const currentOutlet = useOutlet();
-  const scrollRef = useRef<HTMLDivElement>(null);
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
 
   return (
@@ -26,13 +23,11 @@ export function AppShell() {
         Skip to content
       </a>
       <OfflineBanner />
-      <ScrollProgressBar containerRef={scrollRef} />
       <main
         id="main-content"
         className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}
       >
         <div
-          ref={scrollRef}
           className="flex-1 flex flex-col min-h-0 w-full animate-fade-in overflow-y-auto"
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
