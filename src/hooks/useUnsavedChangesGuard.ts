@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
-import { useBlocker } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { ResumeData } from '@/types/resume';
 
 interface UseUnsavedChangesGuardOptions {
@@ -13,6 +13,8 @@ export function useUnsavedChangesGuard({
   lastSavedResumeRef,
   saveToCloud,
 }: UseUnsavedChangesGuardOptions) {
+  const navigate = useNavigate();
+  const [pendingPath, setPendingPath] = useState<string | null>(null);
   const [isSavingBeforeLeave, setIsSavingBeforeLeave] = useState(false);
 
   const isDirty = useCallback(() => {
@@ -20,42 +22,48 @@ export function useUnsavedChangesGuard({
     return current !== lastSavedResumeRef.current && lastSavedResumeRef.current !== '';
   }, [resumeRef, lastSavedResumeRef]);
 
-  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
-    return isDirty() && currentLocation.pathname !== nextLocation.pathname;
-  });
+  // Intercept navigation: if dirty, store path and show dialog instead
+  const interceptNavigate = useCallback((path: string) => {
+    if (isDirty()) {
+      setPendingPath(path);
+    } else {
+      navigate(path);
+    }
+  }, [isDirty, navigate]);
 
   const proceed = useCallback(() => {
-    if (blocker.state === 'blocked') {
-      blocker.proceed();
-    }
-  }, [blocker]);
+    const path = pendingPath;
+    setPendingPath(null);
+    if (path) navigate(path);
+  }, [pendingPath, navigate]);
 
   const cancel = useCallback(() => {
-    if (blocker.state === 'blocked') {
-      blocker.reset();
-    }
-  }, [blocker]);
+    setPendingPath(null);
+  }, []);
 
   const saveAndProceed = useCallback(async () => {
-    if (blocker.state !== 'blocked') return;
+    if (!pendingPath) return;
     setIsSavingBeforeLeave(true);
     try {
       await saveToCloud();
-      blocker.proceed();
+      const path = pendingPath;
+      setPendingPath(null);
+      navigate(path);
     } catch {
       // Save failed — stay on page
-      blocker.reset();
+      setPendingPath(null);
     } finally {
       setIsSavingBeforeLeave(false);
     }
-  }, [blocker, saveToCloud]);
+  }, [pendingPath, saveToCloud, navigate]);
 
   return {
     isDirty,
-    isBlocked: blocker.state === 'blocked',
+    isBlocked: pendingPath !== null,
     isSavingBeforeLeave,
     proceed,
     cancel,
     saveAndProceed,
+    interceptNavigate,
   };
 }
