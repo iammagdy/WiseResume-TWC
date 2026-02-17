@@ -1,56 +1,50 @@
 
 
-## Sign-Up Page Enhancements and Password Eye Icon Fix
+## Phone Number Keyboard and LinkedIn Auto-Complete Fix
 
-### Two Issues to Fix
+### Problem 1: Phone field opens full keyboard on mobile
+The phone input uses `type="tel"` but doesn't set `inputMode="numeric"`, so some mobile browsers still show the full letter keyboard. Additionally, the field currently accepts letters, which shouldn't be allowed.
 
-**Issue 1: Sign-up needs additional fields**
-Currently, both sign-in and sign-up share the same form with just email and password. The sign-up flow needs to collect the user's full name and phone number, and save them to their profile automatically after account creation.
-
-**Issue 2: Eye icon disappears on password field**
-The `InputFormField` component has built-in logic that shows a checkmark icon or a clear (X) button when the user types, which overrides the eye/eye-off toggle passed via `rightElement`. This causes the password visibility toggle to vanish as soon as the user starts typing.
+### Problem 2: LinkedIn field requires full URL
+Users have to type the entire `https://linkedin.com/in/` prefix. Instead, the field should show this prefix as fixed text and only ask the user to type their username (e.g., `johndoe`).
 
 ---
 
 ### Changes
 
-**1. Add `phone_number` column to profiles table**
-A database migration adds a nullable `phone_number` text column to the existing `profiles` table so we can store the user's phone number.
+**1. `src/components/ui/form-field.tsx`**
+- Add `inputMode` prop to `InputFormFieldProps` (values like `"numeric"`, `"tel"`, `"text"`, `"url"`)
+- Add `prefix` prop for showing a fixed prefix inside the input (for LinkedIn URL)
+- Pass `inputMode` to the underlying `<Input>` element
+- When `prefix` is provided, render it as a styled label before the input
 
-**2. Update `src/components/ui/form-field.tsx` -- Fix eye icon priority**
-Change the rendering logic so that when a `rightElement` is provided (like the eye icon), it always takes priority over the built-in checkmark and clear button. The clear button and valid-check icon will not render when `rightElement` is present.
+**2. `src/components/ui/input.tsx`**
+- Add `inputMode` to the forwarded props (it's already a valid HTML attribute, so this should work automatically, but we ensure it's passed through)
 
-**3. Update `src/pages/AuthPage.tsx` -- Add sign-up fields**
-- Add `fullName` and `phoneNumber` state variables
-- Show "Full Name" and "Phone Number" input fields only when mode is `signup`
-- Add validation: name is required on sign-up, phone is optional but validated if provided
-- After successful sign-up, save `full_name` and `phone_number` to the `profiles` table using an upsert
-- Sign-in form remains unchanged (just email + password)
-
-**4. Update `src/hooks/useProfile.ts` -- Support phone number**
-- Add `phoneNumber` to the `Profile` interface
-- Include `phone_number` in the fetch query select and in the update mutation mapping
-
----
+**3. `src/components/editor/ContactSection.tsx`**
+- **Phone field**: Add `inputMode="tel"` and filter out non-digit/non-phone characters on change (only allow digits, +, -, spaces, parentheses)
+- **LinkedIn field**: Replace the full URL input with a prefix-based input:
+  - Show `linkedin.com/in/` as a fixed, non-editable prefix
+  - Store/read only the username part
+  - On save, combine prefix + username into the full URL for `contactInfo.linkedin`
+  - On load, strip the prefix from existing full URLs to show just the username
+  - Update validation to check the username format instead of full URL
+  - Update placeholder to just `"johndoe"` instead of the full URL
 
 ### Technical Details
 
-**Database migration:**
-```sql
-ALTER TABLE public.profiles ADD COLUMN phone_number text;
+**Phone input filtering:**
 ```
+onChange={(value) => {
+  const filtered = value.replace(/[^0-9+\-\s()]/g, '');
+  handleChange('phone', filtered);
+}}
+```
+Combined with `inputMode="tel"` this ensures only the numeric phone keyboard opens on mobile.
 
-**form-field.tsx logic change (lines 133-153):**
-Current priority: checkmark > clear button > rightElement
-New priority: rightElement > checkmark > clear button
-
-When `rightElement` is provided, skip rendering both the checkmark and clear button entirely, so the eye icon always stays visible.
-
-**AuthPage.tsx sign-up form:**
-- Two new fields appear above email when mode is `signup`: "Full Name" (required, User icon) and "Phone Number" (optional, Phone icon)
-- After `supabase.auth.signUp()` succeeds and returns a session, upsert into `profiles` with `full_name` and `phone_number`
-- If sign-up returns no session (email confirmation required), store name/phone in `signUp()` `options.data` metadata so the `handle_new_user` trigger can populate the profile later
-
-**Profile hook update:**
-- `phoneNumber` field mapped to `phone_number` DB column in both read and write paths
+**LinkedIn prefix approach:**
+- A helper extracts the username: if value starts with common LinkedIn URL patterns, strip them; otherwise use as-is
+- On change, store the full URL (`https://linkedin.com/in/{username}`) in the resume data
+- The prefix `linkedin.com/in/` is shown as a styled, non-editable element to the left of the input
+- Validation checks the username: must be 3+ characters, alphanumeric with hyphens only
 
