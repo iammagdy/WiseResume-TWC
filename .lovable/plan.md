@@ -1,87 +1,48 @@
 
 
-## Real ATS-Standard Scoring System
+## Fix: AI Enhancements Destroying Resume Data (Score Drop Root Cause)
 
-### Problem
-The current scoring prompt is a generic "rate this resume's quality" instruction with vague categories. It doesn't reflect how real Applicant Tracking Systems actually evaluate resumes. Real ATS systems use specific, weighted criteria based on industry standards -- keyword density, parsability, section structure, quantified achievements, and formatting compliance. The current approach produces inconsistent, unreliable scores that don't correlate with actual ATS performance.
+### Root Cause
 
-### What Real ATS Systems Evaluate (Based on Industry Research)
+The score drops from 78 to 49 because **the enhanced content is being truncated and corrupted before it's applied to the resume**.
 
-Real ATS scoring is built on **6 pillars** with specific weights:
+Here's the chain of events:
 
-| Pillar | Weight | What It Measures |
-|--------|--------|------------------|
-| Keyword Optimization | 35% | Industry terms, hard/soft skills, tools, certifications present |
-| Content Quality | 25% | Action verbs, quantified achievements (%, $, numbers), result-oriented bullets |
-| Section Structure | 15% | Standard headers (Experience, Education, Skills), logical ordering, no missing critical sections |
-| Parsability | 10% | Clean text (no special characters, tables, columns), consistent date formats, standard job titles |
-| Contact Completeness | 10% | Full name, email, phone, location, LinkedIn URL present and valid |
-| Length and Density | 5% | Appropriate length (1-2 pages worth of content), bullet density, no empty filler |
+1. The AI returns proper structured data (arrays of experience objects, skill arrays, etc.)
+2. `contentToString()` on line 71 converts arrays to JSON and **truncates to 500 characters**: `.slice(0, 500)`
+3. This truncated string is stored as `improved` in the `SectionResult`
+4. When the user clicks "Apply", `applyResult()` tries to `JSON.parse()` that truncated string
+5. The truncated JSON is invalid, so parsing fails
+6. The `catch` block applies the raw truncated string directly to the resume store
+7. The resume now has corrupted/incomplete data instead of proper structured content
+8. The scorer reads this broken data and gives a much lower score
 
-### Solution
+For example, an experience section with 5 detailed entries becomes a 500-character fragment of broken JSON. The scorer sees "No description" for most entries.
 
-Rewrite the `score-resume` edge function prompt to use these real ATS pillars with explicit rubrics for each score range. Also upgrade the model from `gemini-2.5-flash-lite` to `gemini-2.5-flash` for more accurate, nuanced evaluation.
+### Fix
+
+**Store the raw AI response data separately from the display string.** The `SectionResult` interface needs a `rawImproved` field that holds the actual structured data from the AI, while `improved` (the string) is only used for display.
 
 ### Changes
 
-**1. `supabase/functions/score-resume/index.ts`** -- Complete prompt rewrite
+**`src/components/editor/ai/AIEnhanceSheet.tsx`**
 
-Replace the system and user prompts with an ATS-standards-based scoring system:
-
-- **System prompt**: Define the AI as an ATS parsing engine that evaluates resumes the way Greenhouse, Lever, Workday, and Taleo do
-- **User prompt**: Provide explicit rubrics for each of the 6 categories with score ranges (0-25, 26-50, 51-75, 76-100) and what qualifies for each
-- **Model upgrade**: Switch from `gemini-2.5-flash-lite` to `gemini-2.5-flash` for better evaluation accuracy
-- **Updated response schema**: Change categories from `{completeness, atsReadiness, impactLanguage, formatting}` to `{keywordOptimization, contentQuality, sectionStructure, parsability, contactCompleteness, lengthDensity}`
-- **Weighted overall score**: The overall score is calculated as a weighted average (not simple average) based on the pillar weights above
-- **Send full resume data**: Include achievements, responsibilities, certifications, awards, projects, languages, and hobbies in the prompt so the AI can evaluate the full picture (not just summary-level data)
-
-**2. `src/hooks/useResumeScore.ts`** -- Update the `ResumeHealthScore` interface
-
-Update the `categories` type to match the new 6-pillar structure:
-```
-categories: {
-  keywordOptimization: number;
-  contentQuality: number;
-  sectionStructure: number;
-  parsability: number;
-  contactCompleteness: number;
-  lengthDensity: number;
-}
-```
-
-**3. `src/components/dashboard/ATSScoreBreakdown.tsx`** -- Update category labels and hints
-
-- Update `CATEGORY_LABELS` to match new category keys
-- Update `CATEGORY_HINTS` with actionable advice for each new category
-- Keep the same visual layout (collapsible, color-coded bars)
-
-**4. `src/store/atsScoreHistoryStore.ts`** -- Update the `ScoreHistoryEntry` type
-
-Update the `categories` type to match the new 6-pillar structure so history entries are consistent.
-
-**5. `src/components/dashboard/ATSScoreTrendChart.tsx`** -- Update chart series
-
-If this component renders per-category trend lines, update the category keys to match the new 6 pillars.
-
-**6. `supabase/functions/enhance-section/index.ts`** -- Align `ats_improve` prompt
-
-Update the `ats_improve` prompt to reference the same 6 scoring pillars, so enhancements directly target what the scorer evaluates. This ensures improvements always increase the score.
-
-### What Stays the Same
-- The scoring API contract (endpoint, auth, rate limiting)
-- The `overallScore`, `topStrength`, `topImprovement` fields
-- The collapsible UI pattern in ATSScoreBreakdown
-- Cache invalidation logic in useResumeScore
-- Background scoring behavior
+1. Add `rawImproved: unknown` to the `SectionResult` interface -- this holds the actual AI data (arrays, objects, strings)
+2. When storing results (line 146-154), set `rawImproved: data.improved` (the raw AI response) and keep `improved: contentToString(data.improved)` for display only
+3. Remove the `.slice(0, 500)` truncation in `contentToString` -- use a separate `contentToPreview()` for display that truncates, but never truncate the stored data
+4. In `applyResult()`, use `result.rawImproved` directly instead of trying to parse the display string back into data. This eliminates the JSON parse/truncation problem entirely
+5. The display strings (`original` and `improved` shown in the UI) can still be truncated for readability -- they're only for visual comparison
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `supabase/functions/score-resume/index.ts` | Rewrite prompts with 6-pillar ATS rubric; upgrade model to `gemini-2.5-flash`; send full resume data; weighted scoring |
-| `src/hooks/useResumeScore.ts` | Update `ResumeHealthScore.categories` type to 6 new keys |
-| `src/components/dashboard/ATSScoreBreakdown.tsx` | Update `CATEGORY_LABELS` and `CATEGORY_HINTS` for 6 pillars |
-| `src/store/atsScoreHistoryStore.ts` | Update `ScoreHistoryEntry.categories` type |
-| `src/components/dashboard/ATSScoreTrendChart.tsx` | Update category keys if used in chart series |
-| `supabase/functions/enhance-section/index.ts` | Align `ats_improve` prompt with same 6 pillars |
+| `src/components/editor/ai/AIEnhanceSheet.tsx` | Add `rawImproved` field to `SectionResult`; store raw AI data; fix `applyResult` to use raw data; separate display truncation from data storage |
+
+### Why This Guarantees Scores Go Up
+
+- The scorer receives the same structured data the AI produced
+- No truncation, no broken JSON, no data loss
+- The `ats_improve` prompt already targets the exact 6 scoring pillars
+- With intact data, the scorer will see all the keywords, action verbs, and metrics the enhancer added
 
