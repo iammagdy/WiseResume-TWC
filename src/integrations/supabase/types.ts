@@ -221,6 +221,45 @@ export type Database = {
           },
         ]
       }
+      feature_requests: {
+        Row: {
+          app_version: string | null
+          created_at: string | null
+          feature_description: string
+          feature_title: string
+          id: string
+          route: string | null
+          status: string | null
+          user_agent: string | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          app_version?: string | null
+          created_at?: string | null
+          feature_description: string
+          feature_title: string
+          id?: string
+          route?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          app_version?: string | null
+          created_at?: string | null
+          feature_description?: string
+          feature_title?: string
+          id?: string
+          route?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       interview_sessions: {
         Row: {
           created_at: string | null
