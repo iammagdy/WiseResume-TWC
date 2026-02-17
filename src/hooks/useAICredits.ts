@@ -65,24 +65,15 @@ export function useAICreditsMutations() {
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
 
-      // Use secure server-side function to increment usage
       const { error } = await supabase.rpc('increment_ai_usage', {
         p_user_id: user.id,
       });
 
       if (error) throw error;
-
-      // Fetch updated credits after increment
-      const { data } = await supabase
-        .from('ai_credits')
-        .select('daily_usage, daily_limit')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      return { daily_usage: data?.daily_usage || 1, daily_limit: data?.daily_limit || 20 };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['ai-credits'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-credits'], refetchType: 'all' });
+      queryClient.invalidateQueries({ queryKey: ['ai-usage-breakdown'], refetchType: 'all' });
     },
   });
 
