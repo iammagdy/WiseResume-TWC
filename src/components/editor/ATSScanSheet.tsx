@@ -7,6 +7,7 @@ import { BarChart3, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SectionId } from '@/types/resume';
 import haptics from '@/lib/haptics';
+import { AICostBadge } from '@/components/ai/AICostBadge';
 
 interface ScanSummary {
   matchPercentage: number;
@@ -43,6 +44,7 @@ export const ATSScanSheet = memo(function ATSScanSheet({
           <SheetTitle className="flex items-center gap-2 text-base">
             <BarChart3 className="w-5 h-5 text-primary" />
             ATS Keyword Scan
+            <AICostBadge operation="score" />
           </SheetTitle>
         </SheetHeader>
 
