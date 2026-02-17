@@ -35,7 +35,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { sections, userGeminiKey } = await req.json();
+    const { sections } = await req.json();
 
     if (!sections || !Array.isArray(sections) || sections.length === 0) {
       return new Response(JSON.stringify({ error: "No sections provided" }), {
@@ -109,7 +109,7 @@ ${combinedText}`;
         { role: "user", content: userPrompt },
       ],
       temperature: 0.2,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const parsed = parseAIJSON<{

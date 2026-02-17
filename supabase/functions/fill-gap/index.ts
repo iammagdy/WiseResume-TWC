@@ -52,7 +52,7 @@ serve(async (req) => {
       );
     }
 
-    const { gap, category, userDescription, previousJob, nextJob, userGeminiKey }: FillGapRequest = await req.json();
+    const { gap, category, userDescription, previousJob, nextJob }: FillGapRequest = await req.json();
 
     if (!gap || !category) {
       return new Response(
@@ -118,7 +118,7 @@ serve(async (req) => {
         },
       ],
       toolChoice: { type: "function", function: { name: "suggest_gap_fill" } },
-      userGeminiKey,
+      userId: user.id,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];

@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { resume, targetRole, region = 'global', userGeminiKey }: LinkedInOptimizeRequest = await req.json();
+    const { resume, targetRole, region = 'global' }: LinkedInOptimizeRequest = await req.json();
 
     if (!resume) {
       return new Response(
@@ -148,7 +148,7 @@ Generate a comprehensive LinkedIn optimization package. Return a JSON object wit
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const result = parseAIJSON(aiResponse.content || '{}');

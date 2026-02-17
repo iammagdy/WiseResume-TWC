@@ -42,7 +42,7 @@ serve(async (req) => {
       );
     }
 
-    const { messages, resumeData, jobDescription, endInterview, analyzeRole, userGeminiKey, quickPractice } = await req.json();
+    const { messages, resumeData, jobDescription, endInterview, analyzeRole, quickPractice } = await req.json();
 
     // Input validation
     if (messages) {
@@ -93,7 +93,7 @@ Return JSON: {"title":"","keySkills":[""],"questionCategories":[""],"industryIns
       const aiResponse = await callAI({
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: analyzePrompt }],
-        userGeminiKey,
+        userId: user.id,
       });
 
       const roleAnalysis = parseAIJSON(aiResponse.content || '{}') || {
@@ -115,7 +115,7 @@ Return JSON: {"title":"","keySkills":[""],"questionCategories":[""],"industryIns
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: "system", content: systemPrompt }, ...messages],
-      userGeminiKey,
+      userId: user.id,
     });
 
     const reply = aiResponse.content || "I couldn't generate a response. Let's try again.";

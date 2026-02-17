@@ -164,7 +164,7 @@ serve(async (req) => {
     const userId = user.id;
     console.log('Authenticated user:', userId);
 
-    const { url, userGeminiKey } = await req.json();
+    const { url } = await req.json();
     
     if (!url || typeof url !== 'string') {
       return new Response(
@@ -270,7 +270,7 @@ If you can't find certain fields, make reasonable guesses based on context. The 
             { role: 'user', content: userPrompt },
           ],
           temperature: 0.2,
-          userGeminiKey,
+          userId: user.id,
         });
         aiContent = aiResponse.content || '';
       } catch (aiErr: unknown) {

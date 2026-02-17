@@ -36,7 +36,7 @@ serve(async (req) => {
       );
     }
 
-    const { profileText, userGeminiKey } = await req.json();
+    const { profileText } = await req.json();
 
     if (!profileText || typeof profileText !== "string") {
       return new Response(
@@ -126,7 +126,7 @@ Extract: Summary/About, Experience, Education, Skills. For dates, use "Jan 2020"
         },
       ],
       toolChoice: { type: "function", function: { name: "extract_linkedin_data" } },
-      userGeminiKey,
+      userId: user.id,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];

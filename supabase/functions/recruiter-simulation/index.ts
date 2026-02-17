@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { resume, persona, targetRole, targetIndustry, userGeminiKey }: RecruiterSimulationRequest = await req.json();
+    const { resume, persona, targetRole, targetIndustry }: RecruiterSimulationRequest = await req.json();
 
     if (!resume || !persona) {
       return new Response(
@@ -191,7 +191,7 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
       ],
       temperature: 0.7,
       maxTokens: 2000,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const analysis = parseAIJSON(aiResponse.content || '{}');

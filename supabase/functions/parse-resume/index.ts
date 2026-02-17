@@ -128,7 +128,7 @@ serve(async (req) => {
       );
     }
 
-    const { text, userGeminiKey } = await req.json();
+    const { text } = await req.json();
 
     if (!text || typeof text !== 'string') {
       return new Response(
@@ -152,7 +152,7 @@ serve(async (req) => {
       ],
       tools: [parseResumeTool],
       toolChoice: { type: 'function', function: { name: 'parse_resume' } },
-      userGeminiKey,
+      userId: user.id,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];
