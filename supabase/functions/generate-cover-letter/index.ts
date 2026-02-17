@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
@@ -50,7 +50,11 @@ serve(async (req) => {
       );
     }
 
-    const { resume, jobDescription, tone = 'professional', userGeminiKey } = await req.json();
+    const reqBody = await req.json();
+    const resume = reqBody.resume;
+    const rawJobDescription = reqBody.jobDescription;
+    const tone = reqBody.tone || 'professional';
+    const userGeminiKey = reqBody.userGeminiKey;
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
@@ -59,12 +63,15 @@ serve(async (req) => {
       );
     }
 
-    if (!jobDescription || typeof jobDescription !== 'string') {
+    if (!rawJobDescription || typeof rawJobDescription !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Job description is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Sanitize and truncate job description
+    const jobDescription = sanitizeInputText(rawJobDescription, 15_000);
 
     if (JSON.stringify(resume).length > MAX_RESUME_SIZE) {
       return new Response(
@@ -114,7 +121,7 @@ ${jobDescription}
 
 Write a ${validTone} cover letter with a professional header containing actual contact details.`;
 
-    const aiResponse = await callAI({
+    const aiResponse = await callAIWithRetry({
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: "system", content: systemPrompt },

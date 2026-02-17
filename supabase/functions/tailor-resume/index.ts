@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 /** Safely extract skills as a comma-separated string */
@@ -58,8 +58,10 @@ serve(async (req) => {
       );
     }
 
-    const { resume, jobDescription, intensity } = await req.json();
-    const tailorIntensity = intensity || 'moderate';
+    const body = await req.json();
+    const resume = body.resume;
+    const rawJobDescription = body.jobDescription;
+    const tailorIntensity = body.intensity || 'moderate';
     
     // ============= SECURITY: Input validation =============
     if (!resume || typeof resume !== 'object') {
@@ -69,11 +71,17 @@ serve(async (req) => {
       );
     }
 
-    if (!jobDescription || typeof jobDescription !== 'string') {
+    if (!rawJobDescription || typeof rawJobDescription !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Job description is required and must be a string' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Sanitize and truncate job description to prevent token overflow
+    const jobDescription = sanitizeInputText(rawJobDescription, 15_000);
+    if (jobDescription.length < rawJobDescription.length) {
+      console.log(`[tailor] Job description truncated from ${rawJobDescription.length} to ${jobDescription.length} chars`);
     }
 
     const resumeStr = JSON.stringify(resume);
@@ -310,7 +318,7 @@ Analyze deeply, then return this exact JSON structure:
 
     console.log("Calling SUPERCHARGED AI engine for resume tailoring...");
 
-    const aiResponse = await callAI({
+    const aiResponse = await callAIWithRetry({
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },

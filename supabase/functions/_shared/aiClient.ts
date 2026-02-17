@@ -30,6 +30,8 @@ export interface AICallOptions {
   userGeminiKey?: string;
   /** User ID to look up their Gemini key from the database */
   userId?: string;
+  /** Override default timeout in ms */
+  timeout?: number;
 }
 
 export interface AIResponse {
@@ -140,7 +142,7 @@ export async function getUserKeyFromDB(userId: string, provider = 'gemini'): Pro
  * Falls back to userGeminiKey (deprecated) for backward compat.
  */
 export async function callAI(options: AICallOptions): Promise<AIResponse> {
-  const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId } = options;
+  const { model, messages, temperature = 0.7, maxTokens, tools, toolChoice, userId, timeout = 30_000 } = options;
   
   // Resolve the user's Gemini key: prefer DB lookup, fall back to deprecated body param
   let userGeminiKey = options.userGeminiKey;
@@ -149,7 +151,7 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30_000);
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
 
   try {
     if (userGeminiKey) {
@@ -167,12 +169,97 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
     }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw createAIError('network', 'AI request timed out after 30 seconds. Please try again.', 408);
+      throw createAIError('network', `AI request timed out after ${Math.round(timeout / 1000)} seconds. Please try again.`, 408);
     }
     throw error;
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+// ============= Retry + Fallback Logic =============
+
+const RETRY_DELAYS = [1000, 2000, 4000];
+const RETRY_TIMEOUTS = [30_000, 45_000, 55_000];
+const FALLBACK_MODEL = 'google/gemini-2.5-flash-lite';
+
+function isRetryableError(error: unknown): boolean {
+  if (error instanceof DOMException && error.name === 'AbortError') return true;
+  if (isAIError(error)) {
+    if (error.status >= 500) return true;
+    if (error.type === 'network') return true;
+  }
+  return false;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * Calls AI with retry + exponential backoff + model fallback.
+ * - Up to 3 attempts with escalating timeouts (30s, 45s, 55s)
+ * - Retries only on 5xx / timeout / network errors
+ * - 4xx errors (400, 401, 402, 429) throw immediately
+ * - After all retries fail, one final attempt with a lighter fallback model
+ */
+export async function callAIWithRetry(options: AICallOptions): Promise<AIResponse> {
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      return await callAI({ ...options, timeout: RETRY_TIMEOUTS[attempt] });
+    } catch (error) {
+      lastError = error;
+      if (!isRetryableError(error)) throw error;
+      console.warn(`[AI] Attempt ${attempt + 1}/3 failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      if (attempt < 2) await sleep(RETRY_DELAYS[attempt]);
+    }
+  }
+
+  // All retries failed — try fallback model
+  console.warn(`[AI] Primary model ${options.model} failed after 3 attempts, trying fallback: ${FALLBACK_MODEL}`);
+  try {
+    return await callAI({ ...options, model: FALLBACK_MODEL, timeout: 55_000 });
+  } catch (fallbackError) {
+    console.error('[AI] Fallback model also failed:', fallbackError instanceof Error ? fallbackError.message : fallbackError);
+    // Throw the original error as it's more meaningful
+    throw lastError;
+  }
+}
+
+// ============= Input Sanitization =============
+
+/**
+ * Sanitizes and truncates input text for AI processing.
+ * - Normalizes whitespace (collapses excessive newlines/spaces)
+ * - Strips non-printable characters
+ * - Truncates at a clean sentence boundary if exceeding maxChars
+ */
+export function sanitizeInputText(text: string, maxChars = 15_000): string {
+  let cleaned = text
+    .replace(/\r\n/g, '\n')           // Normalize line endings
+    .replace(/\n{3,}/g, '\n\n')       // Collapse 3+ newlines to 2
+    .replace(/ {2,}/g, ' ')           // Collapse multiple spaces
+    .replace(/[^\x09\x0A\x0D\x20-\x7E\u00A0-\uFFFF]/g, '') // Strip non-printable (keep tabs, newlines, printable)
+    .trim();
+
+  if (cleaned.length <= maxChars) return cleaned;
+
+  // Truncate at last sentence boundary before limit
+  const truncated = cleaned.slice(0, maxChars);
+  const lastSentenceEnd = Math.max(
+    truncated.lastIndexOf('. '),
+    truncated.lastIndexOf('.\n'),
+    truncated.lastIndexOf('! '),
+    truncated.lastIndexOf('? ')
+  );
+
+  if (lastSentenceEnd > maxChars * 0.8) {
+    return truncated.slice(0, lastSentenceEnd + 1);
+  }
+
+  return truncated;
 }
 
 /**
