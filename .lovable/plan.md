@@ -1,28 +1,52 @@
 
+## Optimize Preview Page for Mobile
 
-## Fix Preview Page Bottom Actions - Oversized Buttons on Mobile
+### Problems
+1. **Header is oversized**: The back button has `p-3` padding with `min-w-[48px] min-h-[48px]`, and the header has `py-3` -- totaling ~56px height
+2. **Template switcher row is too tall**: `py-3` padding plus full-height pills
+3. **ATS badge row wastes space**: A full-width row just for "ATS-Ready" badge and page break toggle
+4. **NextStepBanner adds another row** before the actual preview
+5. **Bottom actions take ~100px**: Two rows of buttons plus padding
+6. **Outer wrapper has `pb-20`** for bottom tab bar, but the bottom actions already have `pb-safe` -- double spacing
+7. **Preview area has nested overflow**: `flex-1 flex flex-col min-h-0 overflow-hidden` wrapper inside the outer `flex-1 flex flex-col min-h-0 overflow-hidden pb-20`
 
-### Problems Identified
-
-1. **Download button too tall**: Uses `size="lg"` with `h-12 sm:h-14` (48px on mobile) -- combined with `text-base sm:text-lg` font, it looks disproportionately large
-2. **Secondary action row also oversized**: Edit, Interview, Share buttons use `size="lg"` with `h-11 sm:h-12` -- these are secondary actions that don't need to be this prominent
-3. **Excessive padding**: The bottom container has `p-4` padding and `space-y-2 sm:space-y-3` gap, eating into the already limited mobile viewport
-4. **Icons too large in secondary row**: `w-5 h-5` icons in the secondary buttons make them feel chunky
-5. **Double bottom spacing**: `pb-safe` on the bottom actions container plus the BottomTabBar's own padding creates visual bloat
+Combined, these chrome elements consume roughly 280-320px of a 812px mobile viewport, leaving only ~500px for the actual resume -- and the resume itself has `minHeight: 792px`, so users must scroll heavily.
 
 ### Changes
 
-**File: `src/pages/PreviewPage.tsx`** (lines 591-669)
+**File: `src/pages/PreviewPage.tsx`**
 
-Reduce button sizes and spacing for mobile while keeping desktop comfortable:
+1. **Compact header** (line 479):
+   - Reduce header padding from `py-3` to `py-2`
+   - Reduce back button from `p-3 min-w-[48px] min-h-[48px]` to `p-2 min-w-[44px] min-h-[44px]`
+   - Reduce title from `text-lg` to `text-base`
 
-- **Download button**: Change from `h-12 sm:h-14 text-base sm:text-lg` to `h-10 sm:h-12 text-sm sm:text-base` -- still prominent but not oversized
-- **Export dropdown button**: Match at `h-10 sm:h-12`
-- **Secondary row (Edit, Interview, Share)**: Change from `size="lg" h-11 sm:h-12` to `size="default" h-9 sm:h-10` -- clearly secondary
-- **Container padding**: Reduce from `p-4` to `px-3 py-2 sm:p-4`
-- **Row gap**: Change `space-y-2 sm:space-y-3` to `space-y-1.5 sm:space-y-2`
-- **Icon sizes in secondary**: Change `w-4 h-4 sm:w-5 sm:h-5` to `w-3.5 h-3.5 sm:w-4 sm:h-4`
-- **Download icon**: `w-4 h-4 sm:w-5 sm:h-5` (down from `w-5 h-5`)
+2. **Compact template switcher** (line 493-520):
+   - Reduce padding from `py-3` to `py-2`
+   - Reduce pill padding from `px-4 py-2` to `px-3 py-1.5`
+   - Reduce pill text from `text-sm` to `text-xs`
 
-These changes save roughly 30-40px of vertical space on mobile, making the preview area taller and the buttons feel proportional to the screen.
+3. **Merge ATS badge into template row** (lines 522-558):
+   - Move the ATS badge and page break toggle into the template switcher row (right-aligned) instead of taking a separate full row
+   - This saves ~36px of vertical space
 
+4. **Reduce preview padding** (line 564):
+   - Change from `p-2 sm:p-4` to `p-1 sm:p-4` on mobile
+
+5. **Remove redundant wrapper** (line 491):
+   - The inner `flex-1 flex flex-col min-h-0 overflow-hidden` wrapper is redundant since the outer div at line 477 already has the same classes
+   - Flatten to remove one nesting level
+
+6. **Bottom actions already optimized** from the last edit -- keep as-is
+
+### Estimated Space Savings on Mobile
+- Header: ~10px saved
+- Template row: ~8px saved
+- ATS row merged: ~36px saved
+- Preview padding: ~4px saved
+- **Total: ~58px more preview area visible**
+
+### Technical Approach
+- Merge the ATS badge row into a sub-row beneath the template pills, inside the same border-b container, reducing it to a compact inline bar
+- All touch targets remain at 44px minimum
+- No functional changes -- only visual compaction
