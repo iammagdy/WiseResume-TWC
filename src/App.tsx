@@ -161,9 +161,9 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+        <BugReportDialog />
         <ErrorBoundary>
           <Toaster />
-          <BugReportDialog />
           <BrowserRouter>
             <AuthProvider>
               <AppRoutes />
