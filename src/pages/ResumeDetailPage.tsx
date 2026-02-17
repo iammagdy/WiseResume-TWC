@@ -28,6 +28,13 @@ import { TemplateId } from '@/types/resume';
 import { calcOverallScore, calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, getSectionStatus } from '@/lib/resumeCompletionRules';
 import { ProgressBar } from '@/components/editor/ProgressBar';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Card, CardContent } from '@/components/ui/card';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
+import { ChevronDown } from 'lucide-react';
+
+const ATSScoreTrendChart = lazyWithRetry(() => import('@/components/dashboard/ATSScoreTrendChart').then(m => ({ default: m.ATSScoreTrendChart })));
 
 const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
 
@@ -68,6 +75,7 @@ export default function ResumeDetailPage() {
   const resumeData = dbToResumeData(dbResume);
   const templateInfo = templates.find(t => t.id === dbResume.template_id);
   const healthScore = getCachedScore(dbResume.id, dbResume.updated_at);
+  const scoreHistory = useATSScoreHistoryStore(s => s.getHistory(dbResume.id));
   const isTailored = !!dbResume.parent_resume_id;
   const isMaster = !!dbResume.is_primary;
 
@@ -241,6 +249,25 @@ export default function ResumeDetailPage() {
               )}
               {scoringId === dbResume.id ? 'Scoring…' : 'Score Resume'}
             </Button>
+          )}
+
+          {/* Score Trend Chart */}
+          {scoreHistory.length >= 2 && (
+            <Collapsible defaultOpen>
+              <Card>
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-4">
+                  <span className="text-sm font-semibold text-foreground">Score History</span>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform [[data-state=open]>svg&]:rotate-180" />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-0">
+                    <Suspense fallback={<div className="h-[200px] bg-muted animate-pulse rounded-xl" />}>
+                      <ATSScoreTrendChart history={scoreHistory} mode="full" />
+                    </Suspense>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
         </div>
 

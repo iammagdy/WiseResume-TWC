@@ -31,6 +31,7 @@ import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
+import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useProfile } from '@/hooks/useProfile';
 import { haptics } from '@/lib/haptics';
@@ -236,13 +237,13 @@ export default function DashboardPage() {
       haptics.warning();
       deleteResume.mutate(deleteResumeId, {
         onSuccess: () => {
+          // Clear score trend history for deleted resume
+          useATSScoreHistoryStore.getState().clearHistory(deleteResumeId!);
           // Show toast with undo option
           toast.success(`"${resumeToDelete?.title}" deleted`, {
             action: {
               label: 'Undo',
               onClick: () => {
-                // Note: True undo would require soft delete in DB
-                // For now, we just show the message
                 toast.info('Undo not available - resume permanently deleted');
               },
             },

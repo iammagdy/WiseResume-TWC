@@ -4,6 +4,7 @@ import { trackGeminiUsage } from '@/lib/aiProvider';
 import { ResumeData } from '@/types/resume';
 import { toast } from 'sonner';
 import { useAIHealthStore } from '@/store/aiHealthStore';
+import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 
 export interface ResumeHealthScore {
   overallScore: number;
@@ -142,6 +143,7 @@ export function useResumeScore() {
       };
 
       scoreCache.set(cacheKey(resumeId, updatedAt), score);
+      useATSScoreHistoryStore.getState().addScore(resumeId, score);
       return score;
     } catch (err: any) {
       useAIHealthStore.getState().recordFailure(err.isRateLimit ? 429 : err.isAuth ? 401 : 0);
