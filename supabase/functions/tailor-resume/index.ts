@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 /** Safely extract skills as a comma-separated string */
 function safeSkillsString(skills: unknown): string {
@@ -48,6 +49,14 @@ serve(async (req) => {
 
     const userId = user.id;
     console.log('Authenticated user:', userId);
+
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 10, windowSeconds: 60, actionType: 'tailor' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const { resume, jobDescription, intensity } = await req.json();
     const tailorIntensity = intensity || 'moderate';
@@ -408,6 +417,8 @@ Analyze deeply, then return this exact JSON structure:
     };
 
     console.log("Successfully tailored resume with SUPERCHARGED data");
+
+    await recordUsage(userId, 'tailor');
 
     return new Response(
       JSON.stringify(tailoredResult),

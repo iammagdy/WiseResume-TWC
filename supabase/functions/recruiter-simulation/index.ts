@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 interface ResumeData {
   contactInfo: {
@@ -111,6 +112,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    const rateCheck = await checkRateLimit(user.id, { maxRequests: 10, windowSeconds: 60, actionType: 'recruiter_sim' });
+    if (!rateCheck.allowed) {
+      return new Response(
+        JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { resume, persona, targetRole, targetIndustry }: RecruiterSimulationRequest = await req.json();
 
     if (!resume || !persona) {
@@ -202,6 +211,8 @@ Analyze this resume from your unique perspective as ${personaConfig.name}. Be sp
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    await recordUsage(user.id, 'recruiter_sim');
 
     return new Response(
       JSON.stringify({
