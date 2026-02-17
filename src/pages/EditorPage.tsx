@@ -530,7 +530,6 @@ export default function EditorPage() {
   // Tool descriptions & icon colors for mobile tools sheet
   const toolMeta: Record<string, { description: string; iconColor: string }> = {
     'design': { description: 'Change template & colors', iconColor: 'text-pink-500' },
-    'preview': { description: 'See your resume live', iconColor: 'text-blue-500' },
     'wise-ai': { description: 'Chat with AI assistant', iconColor: 'text-primary' },
     'versions': { description: 'Browse saved versions', iconColor: 'text-muted-foreground' },
     'tailor': { description: 'Match resume to a job post', iconColor: 'text-amber-500' },
@@ -545,7 +544,6 @@ export default function EditorPage() {
       title: 'Quick Actions',
       actions: [
         { id: 'design', label: 'Design', icon: Palette, onClick: handleCustomize },
-        { id: 'preview', label: 'Live Preview', icon: Eye, onClick: () => setShowPreview(v => !v) },
         { id: 'wise-ai', label: 'Wise AI', icon: MessageSquare, onClick: () => setShowChat(true) },
         ...(user && currentResumeId ? [{ id: 'versions', label: 'Versions', icon: Clock, onClick: () => setShowVersionHistory(true) }] : []),
       ],
@@ -826,7 +824,18 @@ export default function EditorPage() {
             </button>
           </div>
           {/* Mobile-only: consolidated tools trigger (Sheet-based for portal rendering) */}
-          <div className="flex md:hidden">
+          <div className="flex items-center gap-1 md:hidden">
+            <button
+              onClick={() => { haptics.light(); setShowPreview(v => !v); }}
+              className={cn(
+                "rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 touch-manipulation",
+                showPreview ? "bg-primary/15 text-primary" : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              )}
+              aria-label={showPreview ? "Close preview" : "Open preview"}
+            >
+              <Eye className="w-5 h-5" />
+              <span className="text-[9px] font-medium leading-none">Preview</span>
+            </button>
             <button
               onClick={() => { haptics.light(); setShowToolsSheet(true); }}
               className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
