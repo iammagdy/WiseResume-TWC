@@ -2,13 +2,40 @@ import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { HeartHandshake, Send, CheckCircle2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { onBugReport, type BugReportData } from '@/lib/bugReport';
 
 const SESSION_CACHE_KEY = 'sb-auth-session-cache';
 
-// Cache the app version from changelog.json (fetched once)
+const SCREEN_OPTIONS = [
+  { value: '/dashboard', label: 'Dashboard' },
+  { value: '/editor', label: 'Resume Editor' },
+  { value: '/preview', label: 'Preview' },
+  { value: '/upload', label: 'Upload' },
+  { value: '/settings', label: 'Settings' },
+  { value: '/applications', label: 'Applications' },
+  { value: '/cover-letters', label: 'Cover Letters' },
+  { value: '/interview', label: 'Interview Prep' },
+  { value: '/career', label: 'Career Tools' },
+  { value: '/ai-studio', label: 'AI Studio' },
+  { value: '/templates', label: 'Templates' },
+  { value: '/examples', label: 'Examples' },
+  { value: '/guides', label: 'Guides' },
+  { value: '/resignation-letters', label: 'Resignation Letters' },
+  { value: '/profile', label: 'Profile' },
+  { value: '/notifications', label: 'Notifications' },
+  { value: 'other', label: 'Other / General' },
+];
+
+function matchRouteToScreen(pathname: string): string {
+  const match = SCREEN_OPTIONS.find(
+    (opt) => opt.value !== 'other' && pathname.startsWith(opt.value)
+  );
+  return match?.value || 'other';
+}
+
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
   if (cachedAppVersion) return cachedAppVersion;
@@ -44,12 +71,14 @@ export function BugReportDialog() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<BugReportData | null>(null);
   const [additionalContext, setAdditionalContext] = useState('');
+  const [selectedScreen, setSelectedScreen] = useState('other');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     return onBugReport((reportData) => {
       setData(reportData);
       setAdditionalContext('');
+      setSelectedScreen(matchRouteToScreen(reportData.route));
       setStatus('idle');
       setOpen(true);
     });
@@ -60,14 +89,15 @@ export function BugReportDialog() {
     setStatus('sending');
 
     const auth = getAuthFromCache();
-
     const appVersion = await getAppVersion();
+    const screenLabel = SCREEN_OPTIONS.find(o => o.value === selectedScreen)?.label || 'Other';
 
     const payload = {
       error_message: data.errorMessage,
       error_stack: data.errorStack || null,
       component_stack: data.componentStack || null,
       route: data.route,
+      selected_screen: screenLabel,
       user_id: auth.userId || null,
       user_email: auth.userEmail || 'anonymous',
       session_id: auth.sessionId || null,
@@ -87,7 +117,7 @@ export function BugReportDialog() {
     } catch {
       setStatus('error');
     }
-  }, [data, additionalContext]);
+  }, [data, additionalContext, selectedScreen]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -125,6 +155,24 @@ export function BugReportDialog() {
                 <p className="text-xs text-foreground/70 font-mono line-clamp-2 break-all">
                   {data?.errorMessage || 'Unknown error'}
                 </p>
+              </div>
+
+              <div>
+                <label htmlFor="bug-screen" className="text-sm font-medium text-foreground mb-1.5 block">
+                  Which screen is affected?
+                </label>
+                <Select value={selectedScreen} onValueChange={setSelectedScreen}>
+                  <SelectTrigger id="bug-screen" className="w-full bg-background">
+                    <SelectValue placeholder="Select a screen" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover z-50">
+                    {SCREEN_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div>
