@@ -1,58 +1,87 @@
 
 
-## Refactor EditorPage: Mobile Tabs Layout
+## Enhance AI Generation Feedback: Stepped Progress + Cancel
 
-### Problem
-On mobile, the editor uses a bottom-sheet drawer for preview, requiring users to dismiss it to return to editing. This is not ideal for frequent editor/preview toggling. The ResizablePanelGroup is desktop-only but the mobile fallback could be improved with a tab-based UI.
-
-### Solution
-Use `useIsMobile` to switch between two layouts:
-- **Mobile**: A shadcn `Tabs` component with "Editor" and "Preview" tabs, rendering each full-width
-- **Desktop**: Keep the existing `ResizablePanelGroup` split-screen behavior unchanged
+### Overview
+Add a cancel button to `TailorProgressComponent`, add stepped progress with cancel support to `CoverLetterGenerator`, and wire AbortController through the tailor/cover-letter generation flows.
 
 ### Changes
 
-**Modified: `src/pages/EditorPage.tsx`**
+**1. New shared component: `src/components/ui/GenerationProgress.tsx`**
 
-1. **Import Tabs** (line ~1): Add `import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'`
+A reusable stepped progress indicator used by both cover letter and tailor flows. Features:
+- Timer-based step advancement (every 2.5s) through configurable step labels
+- Animated circular progress ring (reused from TailorProgress pattern)
+- "Cancel Generation" button that appears after 5 seconds, becomes prominent (destructive variant) after 30s
+- Accepts `onCancel` callback and `steps` array as props
+- Compact design that fits inside existing Sheet content without changing dimensions
 
-2. **Add mobile tab state** (line ~157): Add `const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview'>('editor')` for tracking active tab on mobile.
+**2. Modified: `src/components/editor/tailor/TailorProgress.tsx`**
 
-3. **Replace layout block** (lines 1008-1042): Replace the current conditional layout with:
+- Add `onCancel?: () => void` to `TailorProgressProps`
+- Render a "Cancel" button below the progress bar when `onCancel` is provided and generation has been running for 5+ seconds
+- After 30s elapsed, button text changes to "Taking too long? Cancel" with destructive styling
+- No layout dimension changes -- button fits within existing padding
 
-```text
-Desktop (isMobile === false):
-  - If showPreview: ResizablePanelGroup (unchanged)
-  - Else: single-column editor (unchanged)
+**3. Modified: `src/lib/aiTailor.ts`**
 
-Mobile (isMobile === true):
-  <Tabs value={mobileEditorTab} onValueChange={setMobileEditorTab}>
-    <TabsList className="w-full sticky top-0 z-10">
-      <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
-      <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
-    </TabsList>
-    <TabsContent value="editor">
-      {renderEditorContent()}
-    </TabsContent>
-    <TabsContent value="preview">
-      <LivePreviewPanel highlightSection={activeTab} />
-    </TabsContent>
-  </Tabs>
-```
+- `tailorResumeWithProgress`: Accept optional `signal?: AbortSignal` parameter
+- Pass `signal` to `supabase.functions.invoke` via fetch options
+- `generateCoverLetter`: Accept optional `signal?: AbortSignal` parameter and pass it through
 
-4. **Remove mobile Preview header button** (lines 827-838): The dedicated mobile Preview button in the header becomes unnecessary since the Tabs handle navigation. Remove it to declutter the header.
+**4. Modified: `src/components/editor/TailorSheet.tsx`**
 
-5. **Remove LivePreviewSheet on mobile** (line 1071): Remove `{showPreview && isMobile && <LivePreviewSheet ...>}` since preview is now inline via the Tabs.
+- Create an `AbortController` ref (`abortRef`)
+- Pass `abortRef.current.signal` to `tailorResumeWithProgress`
+- Pass `onCancel` callback to `TailorProgressComponent` that calls `abortRef.current.abort()`, sets `isTailoring = false`, and shows a toast
+- Reset controller on each new tailor attempt
 
-6. **Float Proofread FAB above tab bar** (line 1052): Add `bottom-24` positioning class to ensure it clears the bottom navigation bar on mobile.
+**5. Modified: `src/components/editor/tailor/CoverLetterGenerator.tsx`**
+
+- Replace the simple `Loader2` spinner during generation with a stepped progress UI inline (no new component import needed -- built directly into the file for simplicity)
+- Steps: "Analyzing Job Description...", "Matching Keywords...", "Optimizing Structure...", "Finalizing Content..."
+- Timer advances active step every 2.5s
+- Add `AbortController` ref; pass `signal` to `generateCoverLetter`
+- Show "Cancel Generation" button after 5s, destructive after 30s
+- On cancel: abort controller, reset `isGenerating`, show info toast
 
 ### Technical Details
 
-- The `Tabs` component from shadcn uses Radix `TabsPrimitive` which is not a Popper-based component, so it won't cause the known infinite re-render issue.
-- `LivePreviewPanel` is already lazy-loaded; wrapping it in `TabsContent` means it only renders when the "Preview" tab is active.
-- The `TabsList` gets `sticky top-0 z-10` so it remains visible while scrolling editor content.
-- Desktop behavior is completely unchanged -- the `isMobile` guard ensures the `ResizablePanelGroup` path is untouched.
+**AbortController wiring:**
+
+```text
+TailorSheet                          aiTailor.ts
+  abortRef = new AbortController()
+  tailorResumeWithProgress(           signal passed to
+    ..., abortRef.signal)  --------> supabase.functions.invoke({ signal })
+  
+  onCancel:
+    abortRef.abort()
+    setIsTailoring(false)
+```
+
+**CoverLetterGenerator stepped progress (inline):**
+
+```text
+State: generationStep (0-3), timer increments every 2.5s
+Steps array: ["Analyzing Job Description...", "Matching Keywords...", 
+              "Optimizing Structure...", "Finalizing Content..."]
+
+UI: replaces Loader2 spinner with:
+  - Step dots (4 circles, active one pulses)
+  - Current step label with fade transition
+  - Cancel button (appears after 5s)
+```
+
+**Cancel button behavior:**
+- Hidden for first 5 seconds (most generations complete quickly)
+- Appears as ghost/outline variant: "Cancel"
+- After 30s: switches to destructive variant with "Taking too long? Cancel generation"
+- Min touch target: 44x44px with `active:scale-95` haptic feedback
 
 ### Files Changed
-- `src/pages/EditorPage.tsx` (import addition, new state, layout refactor, cleanup of preview button and sheet)
+- `src/components/editor/tailor/TailorProgress.tsx` -- add onCancel prop + cancel button
+- `src/lib/aiTailor.ts` -- add signal param to `tailorResumeWithProgress` and `generateCoverLetter`
+- `src/components/editor/TailorSheet.tsx` -- wire AbortController + onCancel
+- `src/components/editor/tailor/CoverLetterGenerator.tsx` -- stepped progress + cancel button
 
