@@ -991,6 +991,10 @@ export type Database = {
         }
         Returns: Json
       }
+      check_username_available: {
+        Args: { p_user_id: string; p_username: string }
+        Returns: boolean
+      }
       get_public_portfolio: { Args: { p_username: string }; Returns: Json }
       get_share_comments: { Args: { p_share_token: string }; Returns: Json }
       get_shared_resume:
