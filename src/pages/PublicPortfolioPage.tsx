@@ -213,22 +213,14 @@ function PublicPortfolioContent() {
           </div>
         </motion.div>
 
-        {/* Download Resume Button */}
-        {portfolio.resume.id && (
-          <motion.div variants={fadeUp} className="text-center">
-            <a href={`/api/resumes/${portfolio.resume.id}/pdf`} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
-              <Download className="w-5 h-5 mr-2" /> Download Resume (PDF)
-            </a>
-          </motion.div>
-        )}
+        {/* Download Resume - placeholder: PDF generation requires full resume data not available here */}
 
         {/* Hire Me CTA */}
         {profile.contactEmail && (
           <motion.div variants={fadeUp} className="text-center mt-4">
             <a href={`mailto:${profile.contactEmail}`}
-              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-secondary hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary">
-              <Mail className="w-5 h-5 mr-2" /> Hire Me
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-medium rounded-full shadow-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors active:scale-95">
+              <Mail className="w-5 h-5" /> Hire Me
             </a>
           </motion.div>
         )}

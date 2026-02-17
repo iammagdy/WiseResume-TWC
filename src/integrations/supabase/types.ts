@@ -441,8 +441,10 @@ export type Database = {
         Row: {
           avatar_url: string | null
           career_level: string | null
+          contact_email: string | null
           created_at: string | null
           full_name: string | null
+          github_url: string | null
           id: string
           industry: string | null
           job_title: string | null
@@ -452,16 +454,22 @@ export type Database = {
           portfolio_bio: string | null
           portfolio_enabled: boolean | null
           portfolio_resume_id: string | null
+          portfolio_theme: string | null
           profile_completed: boolean | null
+          twitter_url: string | null
           updated_at: string | null
           user_id: string
           username: string | null
+          views: number | null
+          website_url: string | null
         }
         Insert: {
           avatar_url?: string | null
           career_level?: string | null
+          contact_email?: string | null
           created_at?: string | null
           full_name?: string | null
+          github_url?: string | null
           id?: string
           industry?: string | null
           job_title?: string | null
@@ -471,16 +479,22 @@ export type Database = {
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
           portfolio_resume_id?: string | null
+          portfolio_theme?: string | null
           profile_completed?: boolean | null
+          twitter_url?: string | null
           updated_at?: string | null
           user_id: string
           username?: string | null
+          views?: number | null
+          website_url?: string | null
         }
         Update: {
           avatar_url?: string | null
           career_level?: string | null
+          contact_email?: string | null
           created_at?: string | null
           full_name?: string | null
+          github_url?: string | null
           id?: string
           industry?: string | null
           job_title?: string | null
@@ -490,10 +504,14 @@ export type Database = {
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
           portfolio_resume_id?: string | null
+          portfolio_theme?: string | null
           profile_completed?: boolean | null
+          twitter_url?: string | null
           updated_at?: string | null
           user_id?: string
           username?: string | null
+          views?: number | null
+          website_url?: string | null
         }
         Relationships: [
           {
