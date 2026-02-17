@@ -474,7 +474,7 @@ export default function PreviewPage() {
   const TemplateComponent = templateComponentMap[selectedTemplate];
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
       <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-2 pt-safe">
         <div className="flex items-center gap-2">
@@ -589,7 +589,7 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-          className="shrink-0 px-3 py-2 sm:p-4 glass border-t border-border space-y-1.5 sm:space-y-2 pb-safe"
+          className="shrink-0 px-3 py-2 sm:p-4 glass border-t border-border space-y-1.5 sm:space-y-2 pb-24"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
