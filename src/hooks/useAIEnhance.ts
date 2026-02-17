@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { trackGeminiUsage } from '@/lib/aiProvider';
@@ -20,11 +20,18 @@ interface UseAIEnhanceOptions {
   onApply?: (content: unknown) => void;
 }
 
+function isTimeoutError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = error.message.toLowerCase();
+  return msg.includes('timed out') || msg.includes('abort') || msg.includes('timeout') || msg.includes('408');
+}
+
 export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [result, setResult] = useState<EnhanceResult | null>(null);
   const [currentAction, setCurrentAction] = useState<ActionType | null>(null);
   const { incrementUsage, checkCredits } = useAICreditsMutations();
+  const slowToastShown = useRef(false);
 
   const enhance = useCallback(async (
     action: ActionType,
@@ -35,11 +42,21 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     setIsEnhancing(true);
     setCurrentAction(action);
     setResult(null);
+    slowToastShown.current = false;
+
+    // Show "taking longer than usual" after 20s
+    const slowTimer = setTimeout(() => {
+      if (!slowToastShown.current) {
+        slowToastShown.current = true;
+        toast.info('This is taking longer than usual. Hang tight…');
+      }
+    }, 20_000);
 
     try {
       // Check AI credits before proceeding
       const hasCredits = await checkCredits();
       if (!hasCredits) {
+        clearTimeout(slowTimer);
         setIsEnhancing(false);
         setCurrentAction(null);
         return null;
@@ -57,6 +74,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
           },
         },
       });
+      clearTimeout(slowTimer);
       const _latency = Date.now() - _start;
 
       if (error) {
@@ -85,8 +103,13 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
       return data;
 
     } catch (error) {
+      clearTimeout(slowTimer);
       console.error('AI enhancement error:', error);
-      toast.error('Failed to enhance content. Please try again.');
+      if (isTimeoutError(error)) {
+        toast.warning('The request timed out. Please try again.');
+      } else {
+        toast.error('Failed to enhance content. Please try again.');
+      }
       return null;
     } finally {
       setIsEnhancing(false);

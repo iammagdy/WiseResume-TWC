@@ -93,12 +93,25 @@ export async function tailorResumeWithProgress(
     }
   }, 200);
 
+  // Show slow-request toast after 25s
+  let slowToastShown = false;
+  const slowTimer = setTimeout(() => {
+    if (!slowToastShown) {
+      slowToastShown = true;
+      // Import toast dynamically to avoid circular deps
+      import('sonner').then(({ toast }) => {
+        toast.info('This is taking longer than usual. Hang tight…');
+      });
+    }
+  }, 25_000);
+
   try {
     const { data, error } = await supabase.functions.invoke('tailor-resume', {
       body: { resume, jobDescription, intensity },
       ...(signal ? { options: { signal } } : {}),
     } as any);
     clearInterval(progressInterval);
+    clearTimeout(slowTimer);
 
     if (error) {
       console.error('Tailor resume error:', error);
@@ -114,6 +127,12 @@ export async function tailorResumeWithProgress(
       if (msg.includes('402') || msg.toLowerCase().includes('credits')) {
         const e = new Error('Your AI credits have been used up for today. Add your own Gemini API key for unlimited access.');
         (e as TailorError).code = 'credits_exhausted';
+        throw e;
+      }
+      // Check for timeout errors
+      if (msg.toLowerCase().includes('timed out') || msg.toLowerCase().includes('abort') || msg.toLowerCase().includes('timeout') || msg.includes('408')) {
+        const e = new Error('The request timed out. Please try again — or try a shorter job description.');
+        (e as TailorError).code = 'generic';
         throw e;
       }
       const e = new Error(msg || 'Failed to tailor resume');
@@ -133,6 +152,7 @@ export async function tailorResumeWithProgress(
     return data;
   } catch (error) {
     clearInterval(progressInterval);
+    clearTimeout(slowTimer);
     throw error;
   }
 }

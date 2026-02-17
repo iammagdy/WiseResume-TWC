@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -144,7 +144,7 @@ serve(async (req) => {
     const prompt = buildPrompt(section, action, currentContent, context, fixInstruction);
 
     // Call AI using the shared client
-    const aiResponse = await callAI({
+    const aiResponse = await callAIWithRetry({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 // ============= SECURITY: Input validation limits =============
@@ -57,7 +57,9 @@ serve(async (req) => {
       );
     }
 
-    const { resume, jobDescription } = await req.json();
+    const body = await req.json();
+    const resume = body.resume;
+    const rawJobDescription = body.jobDescription;
     
     // ============= SECURITY: Input validation =============
     if (!resume || typeof resume !== 'object') {
@@ -67,11 +69,17 @@ serve(async (req) => {
       );
     }
 
-    if (!jobDescription || typeof jobDescription !== 'string') {
+    if (!rawJobDescription || typeof rawJobDescription !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Job description is required and must be a string' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Sanitize and truncate job description
+    const jobDescription = sanitizeInputText(rawJobDescription, 15_000);
+    if (jobDescription.length < rawJobDescription.length) {
+      console.log(`[analyze] Job description truncated from ${rawJobDescription.length} to ${jobDescription.length} chars`);
     }
 
     const resumeStr = JSON.stringify(resume);
@@ -128,7 +136,7 @@ Provide analysis in this exact JSON format:
   }
 }`;
 
-    const aiResponse = await callAI({
+    const aiResponse = await callAIWithRetry({
       model: 'google/gemini-3-flash-preview',
       messages: [
         { role: 'system', content: systemPrompt },
