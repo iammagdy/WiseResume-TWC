@@ -25,7 +25,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 
 interface OnePageWizardSheetProps {
   open: boolean;
@@ -87,7 +87,6 @@ export function OnePageWizardSheet({ open, onOpenChange, onExportOnePage }: OneP
         body: {
           resume: currentResume,
           preserveRecent: 2,
-          userGeminiKey: getUserGeminiKey(),
         },
       });
 

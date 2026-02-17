@@ -5,7 +5,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAIHealthStore } from '@/store/aiHealthStore';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 import type { ResumeData } from '@/types/resume';
 import type { ProofreadIssue } from '@/types/proofread';
 import { toast } from 'sonner';
@@ -87,10 +87,6 @@ export function useProofread(resume: ResumeData | null) {
       setIsChecking(true);
       try {
         const body: Record<string, unknown> = { sections };
-        const userGeminiKey = getUserGeminiKey();
-        if (userGeminiKey) {
-          body.userGeminiKey = userGeminiKey;
-        }
 
         const _start = Date.now();
         const { data, error } = await supabase.functions.invoke('proofread-resume', {

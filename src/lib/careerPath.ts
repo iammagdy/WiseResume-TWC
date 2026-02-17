@@ -1,7 +1,7 @@
 import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from './aiProvider';
+import { trackGeminiUsage } from './aiProvider';
 
 export interface NextRole {
   title: string;
@@ -52,10 +52,8 @@ export async function analyzeCareerPath(
     throw new Error(`Too many requests. Please wait ${rateCheck.waitSeconds}s.`);
   }
 
-  const userGeminiKey = getUserGeminiKey();
-
   const { data, error } = await supabase.functions.invoke('career-path-advisor', {
-    body: { resume, userGeminiKey },
+    body: { resume },
   });
 
   if (error) {

@@ -181,6 +181,12 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'wiseresume-settings',
+      partialize: (state) => {
+        // Exclude sensitive keys from localStorage persistence
+        // Keys are now stored server-side via manage-api-keys edge function
+        const { geminiApiKey, elevenlabsApiKey, ...rest } = state;
+        return rest;
+      },
     }
   )
 );

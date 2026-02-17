@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Loader2, Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
+import { trackGeminiUsage } from '@/lib/aiProvider';
 import { toast } from 'sonner';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
 
@@ -29,7 +29,6 @@ export function QuickActions({ resume, tailorResult, jobDescription, onUpdateRes
     setLoading(actionId);
 
     try {
-      const userGeminiKey = getUserGeminiKey();
       let instruction = '';
 
       switch (actionId) {
@@ -67,7 +66,6 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           section: 'custom',
           content: instruction,
           instruction,
-          userGeminiKey,
         },
       });
 

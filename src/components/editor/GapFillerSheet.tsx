@@ -8,7 +8,7 @@ import { Loader2, Sparkles, Plus, Shield, BookOpen, Heart, Compass, Briefcase, M
 import { GapInfo } from '@/lib/dateUtils';
 import { Experience } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { v4 as uuidv4 } from 'uuid';
@@ -128,7 +128,6 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
           userDescription,
           previousJob,
           nextJob,
-          userGeminiKey: getUserGeminiKey(),
         },
       });
 

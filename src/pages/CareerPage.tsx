@@ -13,7 +13,7 @@ import { useCareerAssessment, useCareerMutations } from '@/hooks/useCareerAssess
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
+import { trackGeminiUsage } from '@/lib/aiProvider';
 import { checkAIRateLimit } from '@/lib/rateLimiter';
 import { CareerPathResult } from '@/lib/careerPath';
 import { haptics } from '@/lib/haptics';
@@ -48,10 +48,9 @@ export default function CareerPage() {
     setIsAnalyzing(true);
     try {
       const resumeData = dbToResumeData(primaryResume);
-      const userGeminiKey = getUserGeminiKey();
 
       const { data, error } = await supabase.functions.invoke('career-assessment', {
-        body: { resume: resumeData, quizAnswers: answers, userGeminiKey },
+        body: { resume: resumeData, quizAnswers: answers },
       });
 
       if (error) throw new Error(error.message || 'Analysis failed');

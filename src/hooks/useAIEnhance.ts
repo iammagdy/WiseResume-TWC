@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
-import { getUserGeminiKey, trackGeminiUsage } from '@/lib/aiProvider';
+import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAICreditsMutations } from '@/hooks/useAICredits';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 
@@ -44,8 +44,6 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
         return null;
       }
 
-      const userGeminiKey = getUserGeminiKey();
-      
       const _start = Date.now();
       const { data, error } = await supabase.functions.invoke('enhance-section', {
         body: {
@@ -56,7 +54,6 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
             resume: resumeContext,
             jobDescription,
           },
-          userGeminiKey,
         },
       });
       const _latency = Date.now() - _start;
