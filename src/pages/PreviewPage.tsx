@@ -590,79 +590,79 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-          className="shrink-0 p-4 glass border-t border-border space-y-2 sm:space-y-3 pb-safe"
+          className="shrink-0 px-3 py-2 sm:p-4 glass border-t border-border space-y-1.5 sm:space-y-2 pb-safe"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
           <div className="flex gap-2">
             <Button
-              size="lg"
-              className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-semibold gradient-primary touch-manipulation shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+              size="default"
+              className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold gradient-primary touch-manipulation shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
               onClick={handleQuickDownload}
               disabled={isGenerating}
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
                   <span className="hidden xs:inline">Generating...</span>
                   <span className="xs:hidden">...</span>
                 </>
               ) : (
                 <>
-                  <Download className="w-5 h-5 mr-2" />
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                   Download
                 </>
               )}
             </Button>
             <Button
-              size="lg"
+              size="default"
               variant="outline"
-              className="h-12 sm:h-14 px-3 sm:px-4 touch-manipulation"
+              className="h-10 sm:h-12 px-3 sm:px-4 touch-manipulation"
               onClick={() => setShowExportSheet(true)}
               disabled={isGenerating}
             >
-              <ChevronDown className="w-5 h-5" />
+              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
             </Button>
           </div>
 
-          <div className="flex gap-2 sm:gap-3">
+          <div className="flex gap-1.5 sm:gap-2">
             <Button
               variant="outline"
-              size="lg"
-              className="w-auto px-3 h-11 sm:h-12 touch-manipulation"
+              size="sm"
+              className="w-auto px-2.5 h-9 sm:h-10 touch-manipulation"
               onClick={() => navigate('/editor')}
             >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
               <span className="text-xs sm:text-sm">Edit</span>
             </Button>
             {isIOS && (
               <Button
                 variant="outline"
-                size="lg"
-                className="flex-1 h-11 sm:h-12 touch-manipulation"
+                size="sm"
+                className="flex-1 h-9 sm:h-10 touch-manipulation"
                 onClick={handleSaveToFiles}
                 disabled={isGenerating}
               >
-                <FolderDown className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+                <FolderDown className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
                 <span className="text-xs sm:text-sm">Save</span>
               </Button>
             )}
             <Button
               variant="outline"
-              size="lg"
-              className="flex-1 h-11 sm:h-12 touch-manipulation"
+              size="sm"
+              className="flex-1 h-9 sm:h-10 touch-manipulation"
               onClick={() => navigate('/interview')}
             >
-              <Mic className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
               <span className="text-xs sm:text-sm">Interview</span>
             </Button>
             <Button
               variant="outline"
-              size="lg"
-              className="flex-1 h-11 sm:h-12 touch-manipulation"
+              size="sm"
+              className="flex-1 h-9 sm:h-10 touch-manipulation"
               onClick={() => setShowShareSheet(true)}
             >
-              <Share2 className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" />
+              <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
               <span className="text-xs sm:text-sm">Share</span>
             </Button>
           </div>
