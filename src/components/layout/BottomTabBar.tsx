@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, Briefcase, Sparkles } from 'lucide-react';
+import { FileText, Settings, Home, BarChart3, Sparkles } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -37,8 +37,8 @@ const tabs: TabItem[] = [
   },
   { 
     path: '/applications', 
-    icon: Briefcase, 
-    label: 'Jobs',
+    icon: BarChart3, 
+    label: 'Activity',
     matchPaths: ['/applications']
   },
   { 
