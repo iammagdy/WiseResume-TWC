@@ -33,7 +33,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { useResumes, useResumeMutations, dbToResumeData } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
-import { useResumeScore, ResumeHealthScore } from '@/hooks/useResumeScore';
+import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
 import { useATSScoreHistoryStore } from '@/store/atsScoreHistoryStore';
 import { NextStepBanner } from '@/components/editor/NextStepBanner';
 import { useProfile } from '@/hooks/useProfile';
@@ -166,16 +166,17 @@ export default function DashboardPage() {
           continue;
         }
         const resumeData = dbToResumeData(resume);
-        const score = await scoreResume(resume.id, resumeData, resume.updated_at);
-        if (score && !cancelled) {
-          setHealthScores(prev => ({ ...prev, [resume.id]: score }));
+        await backgroundScore(resume.id, resumeData, resume.updated_at);
+        const newCached = getCachedScore(resume.id, resume.updated_at);
+        if (newCached && !cancelled) {
+          setHealthScores(prev => ({ ...prev, [resume.id]: newCached }));
         }
       }
     };
     
     const timer = setTimeout(scoreNext, 1000);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [resumes, scoreResume, getCachedScore]);
+  }, [resumes, getCachedScore]);
 
   const [onboardingTemplateId, setOnboardingTemplateId] = useState<string | null>(null);
 
