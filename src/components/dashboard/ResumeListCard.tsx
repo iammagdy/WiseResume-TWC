@@ -147,11 +147,7 @@ export const ResumeListCard = memo(function ResumeListCard({
   return (
     <div className={cn(
       "relative overflow-hidden rounded-2xl border-l-4 transition-colors duration-500",
-      healthScore
-        ? healthScore.overallScore >= 80 ? "border-l-success"
-          : healthScore.overallScore >= 60 ? "border-l-warning"
-          : "border-l-destructive"
-        : "border-l-muted",
+      "border-l-primary/20",
     )}>
       {/* Swipe action backgrounds */}
       <div className="absolute inset-0 flex">
@@ -267,7 +263,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               {/* Target Job */}
               {hasTargetJob ? (
                 <button
-                  className="flex items-center gap-1 text-sm text-muted-foreground mb-2 hover:text-foreground transition-colors"
+                  className="flex items-center gap-1 text-sm text-muted-foreground mb-1 hover:text-foreground transition-colors"
                   onClick={(e) => { e.stopPropagation(); haptics.light(); setShowTargetJobSheet(true); }}
                 >
                   <Target className="w-3.5 h-3.5 text-primary" />
@@ -278,7 +274,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                 </button>
               ) : (
                 <button
-                  className="flex items-center gap-1 text-sm text-primary/80 hover:text-primary mb-2 transition-colors"
+                  className="flex items-center gap-1 text-sm text-primary/80 hover:text-primary mb-1 transition-colors"
                   onClick={(e) => { e.stopPropagation(); haptics.light(); setShowTargetJobSheet(true); }}
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -287,7 +283,7 @@ export const ResumeListCard = memo(function ResumeListCard({
               )}
 
               {/* Completion Progress */}
-              <div className="mb-2">
+              <div className="mb-1">
                 <ProgressBar resume={resumeForProgress} compact className="" />
               </div>
 
