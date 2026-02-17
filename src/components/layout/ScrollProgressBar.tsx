@@ -31,7 +31,7 @@ export function ScrollProgressBar({ containerRef }: ScrollProgressBarProps) {
   if (progress <= 0) return null;
 
   return (
-    <div className="absolute top-0 left-0 right-0 h-[3px] z-40 bg-transparent pointer-events-none">
+    <div className="sticky top-0 left-0 right-0 h-[3px] z-50 bg-transparent pointer-events-none">
       <div
         className="h-full bg-primary transition-[width] duration-75 ease-out"
         style={{ width: `${progress}%` }}
