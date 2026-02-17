@@ -92,16 +92,15 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
         </button>
       </CollapsibleTrigger>
 
-      {/* Score bar */}
-      <div className="w-full h-2 rounded-full bg-muted overflow-hidden mb-1">
-        <div
-          className={cn('h-full rounded-full transition-all duration-500', getScoreBarBg(overall))}
-          style={{ width: `${overall}%` }}
-        />
-      </div>
-
       <CollapsibleContent>
-        <div className="space-y-2 pt-2">
+        {/* Score bar - only visible when expanded */}
+        <div className="w-full h-2 rounded-full bg-muted overflow-hidden mb-3 mt-1">
+          <div
+            className={cn('h-full rounded-full transition-all duration-500', getScoreBarBg(overall))}
+            style={{ width: `${overall}%` }}
+          />
+        </div>
+        <div className="space-y-2">
           {Object.entries(healthScore.categories).map(([key, score]) => {
             const hint = CATEGORY_HINTS[key]?.(score) || '';
             return (
