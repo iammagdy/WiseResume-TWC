@@ -41,7 +41,7 @@
     --secondary-foreground: 240 20% 4%;
 
     --muted: 240 15% 15%;
-    --muted-foreground: 240 10% 60%;
+    --muted-foreground: 240 10% 65%;
 
     /* Accent - Hot Pink */
     --accent: 330 100% 65%;
@@ -102,7 +102,7 @@
     --secondary-foreground: 0 0% 100%;
 
     --muted: 240 5% 92%;
-    --muted-foreground: 240 5% 45%;
+    --muted-foreground: 240 5% 40%;
 
     --accent: 330 80% 55%;
     --accent-foreground: 0 0% 100%;
@@ -142,7 +142,7 @@
     --secondary: 185 100% 50%;
     --secondary-foreground: 240 20% 4%;
     --muted: 240 15% 15%;
-    --muted-foreground: 240 10% 60%;
+    --muted-foreground: 240 10% 65%;
     --accent: 330 100% 65%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
