@@ -1,102 +1,48 @@
 
 
-## Standalone Portfolio Editor Page with Enhanced Features
+## Fix Three Bugs: Interview Crash, Rename Not Working, Share Link Broken
 
-### What Changes
+### Bug 1: Interview Page Crash -- "Cannot read properties of undefined (reading 'cancel')"
 
-Extract the entire "Public Portfolio" section from the Profile page into a dedicated `/portfolio` route, and enhance it with powerful new capabilities.
+**Root Cause:** In `src/hooks/useVoiceInterview.ts` line 286, `window.speechSynthesis.cancel()` is called **without** optional chaining (`?.`). On the user's Android WebView (V2205, Android 14), `window.speechSynthesis` can be `undefined`, causing the crash. The interview also hangs indefinitely if the `interview-chat` edge function times out, leaving the user stuck.
 
-### Navigation Flow
+**Fix:**
+- Add optional chaining to the `speak` function's `window.speechSynthesis.cancel()` call (line 286)
+- Wrap the entire `speak` function body and the `callAI` function in try/catch to prevent unhandled rejections from crashing the page
+- Add a safety timeout (30 seconds) to `callAI` so the interview never hangs forever
 
-From the Profile page, the "Public Portfolio" card becomes a navigation link to `/portfolio` instead of an inline form. The card shows the portfolio status (enabled/disabled, username, view count) as a summary.
+**File:** `src/hooks/useVoiceInterview.ts`
 
-### New Page: `/portfolio` (PortfolioEditorPage)
+---
 
-A full standalone page with a polished header and organized sections:
+### Bug 2: Rename Option Not Working from Three-Dot Menu
 
-**Section 1: Portfolio Status Card**
-- Live/Draft badge showing whether the portfolio is public
-- View count stat (pulled from profile)
-- "Preview Portfolio" button that opens the live URL in a new tab
-- URL display with copy button
+**Root Cause:** In `src/components/dashboard/ResumeListCard.tsx` line 365, when the user taps "Rename," the action sheet closes (`setShowActionsSheet(false)`) and `setIsRenaming(true)` is set simultaneously. The sheet's exit animation steals focus from the auto-focused rename input, so the user never sees or can interact with the rename field. Additionally, on mobile the inline input may be too small or blend in with the title.
 
-**Section 2: Identity**
-- Username field with availability check (existing logic, moved here)
-- Source Resume selector (existing, moved here)
-- Portfolio Theme picker (existing, moved here)
+**Fix:**
+- Delay `setIsRenaming(true)` by ~350ms (after the sheet close animation completes) so focus isn't stolen
+- Keep the rename input implementation as-is (it's correct), just fix the timing
 
-**Section 3: About Me Bio**
-- Bio textarea with AI Generate button (existing, moved here)
-- Character counter
+**File:** `src/components/dashboard/ResumeListCard.tsx`
 
-**Section 4: Social Links and Contact**
-- GitHub, Website, X/Twitter URLs (existing, moved here)
-- Contact Email for "Hire Me" button (existing, moved here)
+---
 
-**Section 5: NEW - Custom Sections Toggle**
-Choose which resume sections appear on the public portfolio:
-- Experience (on/off)
-- Education (on/off)
-- Skills (on/off)
-- Projects (on/off)
-- Certifications (on/off)
-- Awards (on/off)
-- Publications (on/off)
-- Volunteering (on/off)
+### Bug 3: Share Button Generates Localhost Link
 
-This gives users control over what visitors see without editing the resume itself. Stored as a JSON object in the `profiles` table (new `portfolio_sections` column).
+**Root Cause:** In `src/components/dashboard/ResumeListCard.tsx` line 396, the share URL is built using `window.location.origin`, which returns `https://localhost` on the Capacitor Android APK. This produces a non-functional link.
 
-**Section 6: NEW - SEO and Sharing**
-- Custom meta title override (defaults to "Name -- Job Title")
-- Custom meta description override (defaults to bio)
-- OG Image preview note (future enhancement)
+**Fix:**
+- Replace `window.location.origin` with the published production URL (`https://wiseresume.lovable.app`) using a constant
+- Create a shared constant `APP_PUBLIC_URL` that can be referenced throughout the app for any share links
 
-**Section 7: Publish Controls**
-- "Make Portfolio Public" toggle (existing)
-- Save button
-- Danger zone: "Unpublish Portfolio" destructive action
+**File:** `src/components/dashboard/ResumeListCard.tsx`
 
-### Files to Create/Change
+---
+
+### Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/pages/PortfolioEditorPage.tsx` | New standalone page with all portfolio editing features |
-| `src/pages/ProfilePage.tsx` | Replace inline portfolio form with a summary card that navigates to `/portfolio` |
-| `src/App.tsx` | Add `/portfolio` route (protected) |
-| Database migration | Add `portfolio_sections` (jsonb) and `portfolio_meta_title` / `portfolio_meta_description` (text) columns to `profiles` |
-| `src/hooks/usePublicPortfolio.ts` | Pass section visibility data through to the public page |
-| `src/pages/PublicPortfolioPage.tsx` | Respect section visibility toggles; use custom SEO meta if set |
+| `src/hooks/useVoiceInterview.ts` | Add `?.` to `speechSynthesis.cancel()` in `speak()`; add try/catch in `callAI` and `speak`; add 30s timeout to AI calls |
+| `src/components/dashboard/ResumeListCard.tsx` | Delay rename activation by 350ms after sheet close; replace `window.location.origin` with production URL constant for share links |
 
-### Technical Details
-
-**New database columns on `profiles`:**
-```sql
-ALTER TABLE public.profiles
-  ADD COLUMN IF NOT EXISTS portfolio_sections jsonb DEFAULT '{"experience":true,"education":true,"skills":true,"projects":true,"certifications":true,"awards":true,"publications":true,"volunteering":true}'::jsonb,
-  ADD COLUMN IF NOT EXISTS portfolio_meta_title text,
-  ADD COLUMN IF NOT EXISTS portfolio_meta_description text;
-```
-
-**Profile page portfolio card (replaces inline form):**
-The card shows:
-- Globe icon + "Public Portfolio" heading
-- Status badge: "Live" (green) or "Draft" (muted)
-- Username and view count if live
-- Chevron right icon indicating navigation
-- Tapping navigates to `/portfolio`
-
-**PortfolioEditorPage structure:**
-- Header with back button ("Portfolio Settings")
-- Scrollable content with organized card sections
-- Sticky bottom save button
-- All existing portfolio logic (username check, bio generation, save) moves here
-
-**Section visibility in PublicPortfolioPage:**
-The `get_public_portfolio` RPC already returns profile data. The new `portfolio_sections` field will be passed through, and each section on the public page will check its visibility flag before rendering.
-
-### Summary of Enhancements
-1. Standalone dedicated page -- cleaner UX, room to grow
-2. Section visibility toggles -- control what the public sees
-3. Custom SEO meta -- better sharing on social media
-4. Status dashboard -- view count, live/draft status at a glance
-5. Organized card-based layout -- each concern in its own section
