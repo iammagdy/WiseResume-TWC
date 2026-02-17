@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, ChevronUp, BarChart3, Undo2, Redo2, Scissors } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
@@ -915,6 +915,14 @@ export default function EditorPage() {
           {/* Mobile-only: consolidated tools trigger (Sheet-based for portal rendering) */}
           <div className="flex items-center gap-1 md:hidden">
             <button
+              onClick={() => { haptics.light(); setShowTemplates(true); }}
+              className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
+              aria-label="Change template"
+            >
+              <LayoutGrid className="w-5 h-5 text-muted-foreground" />
+              <span className="text-[9px] font-medium leading-none text-muted-foreground">Template</span>
+            </button>
+            <button
               onClick={() => { haptics.light(); setShowToolsSheet(true); }}
               className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
               aria-label="Editor tools"
@@ -990,7 +998,7 @@ export default function EditorPage() {
             }
           `}</style>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-1">
-            <ProgressBar resume={currentResume} />
+            <ProgressBar resume={currentResume} compact />
             {user && currentResumeId && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2" aria-live="polite" aria-atomic="true">
                 {!isOnline ? (
@@ -1018,33 +1026,29 @@ export default function EditorPage() {
               </div>
             )}
           </div>
-          {/* Compact ATS Score Badge */}
-          <div className="flex items-center gap-2 mt-1">
-            <button
-              onClick={() => { setShowATSBadge(v => !v); haptics.light(); }}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[44px]"
-              aria-expanded={showATSBadge}
-              aria-label="Toggle completeness breakdown"
+          {/* Expandable completeness details */}
+          <details className="mt-1 group">
+            <summary
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[36px] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+              aria-label="View completeness breakdown"
             >
               <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs font-medium">Completeness:</span>
-              <span className={cn('text-xs font-bold', getScoreColorClass(overallScore))}>{overallScore}/100</span>
-              {showATSBadge ? <ChevronUp className="w-3 h-3 text-muted-foreground" /> : <ChevronDown className="w-3 h-3 text-muted-foreground" />}
-            </button>
-            <p className="text-[11px] sm:text-xs text-muted-foreground min-w-0 truncate">
-              {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length} of {steps.filter(s => s.id !== 'more').length} sections completed
-            </p>
-          </div>
-          {showATSBadge && localHealthScore && (
-            <div className="mt-2 border-t border-border pt-2">
-              <ATSScoreBreakdown
-                healthScore={localHealthScore}
-                compact
-                defaultOpen
-                onImprove={() => setShowTailor(true)}
-              />
-            </div>
-          )}
+              <span className="text-xs text-muted-foreground">
+                {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length}/{steps.filter(s => s.id !== 'more').length} sections
+              </span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            {localHealthScore && (
+              <div className="mt-2 border-t border-border pt-2">
+                <ATSScoreBreakdown
+                  healthScore={localHealthScore}
+                  compact
+                  defaultOpen
+                  onImprove={() => setShowTailor(true)}
+                />
+              </div>
+            )}
+          </details>
         </div>
 
         {/* Tailored Resume Indicator Banner */}
