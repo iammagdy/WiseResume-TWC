@@ -1,27 +1,26 @@
 
 
-## Fix: Add AI Health Badge to Dashboard and Fix Scroll Indicator
+## Fix: AI Health Badge Overlapping Editor Header
 
-### Issue 1: AI Health Badge Missing on Dashboard
-The `AIHealthBadge` only appears on routes listed in `AI_ROUTES` (line 12 of `AppShell.tsx`). `/dashboard` is not in that list, so the badge never renders on the dashboard.
+### Problem
+The AI Health Badge is positioned as `absolute top-2 right-3 z-30` in the `AppShell` layout. On the editor page, the editor has its own sticky header at `z-50` with action buttons in the top-right area. The health badge visually overlaps with the editor's header elements (profile picture/avatar), creating the layering issue visible in the screenshot.
 
-**Fix**: Add `/dashboard` to the `AI_ROUTES` array in `src/components/layout/AppShell.tsx`.
-
-### Issue 2: Scroll Bar Not Reflecting Real Scroll Position
-The dashboard scrolls inside a nested `div` in `AppShell.tsx` (line 42) with `overflow-y-auto`. The global CSS sets the scrollbar to only 4px wide with a subtle primary color thumb. On many mobile devices and in WebView/preview environments, this thin scrollbar is either invisible or doesn't visually track scroll position well because the scroll container is the inner div, not the window.
-
-**Fix**: Add a thin scroll progress bar at the top of the dashboard that tracks the actual scroll position of the content area. This provides a clear, always-visible indicator of how far the user has scrolled.
+### Solution
+Remove `/editor` from the `AI_ROUTES` array. The editor already has its own AI provider indicators (AIEngineBadge, AIProviderBadge) embedded within its sheets and AI action bars, so the floating health badge is redundant on this page and causes overlap.
 
 ### Technical Details
 
 **File: `src/components/layout/AppShell.tsx`**
-1. Add `/dashboard` to the `AI_ROUTES` array so the health badge appears
-2. Add a `ref` to the scrollable `div` and track scroll progress with a thin fixed bar at the top of the content area
 
-**File: `src/components/layout/ScrollProgressBar.tsx`** (new file)
-A small component that:
-- Takes a scroll container ref
-- Listens to the `scroll` event on that container
-- Renders a thin (2-3px) fixed bar at the top showing scroll progress as a percentage fill using the primary color
-- Uses `requestAnimationFrame` for smooth updates without jank
+Remove `'/editor'` from the `AI_ROUTES` array (line 14):
+
+```typescript
+// Before
+const AI_ROUTES = ['/dashboard', '/editor', '/ai-studio', '/interview', '/cover-letter', '/career', '/resignation-letter'];
+
+// After
+const AI_ROUTES = ['/dashboard', '/ai-studio', '/interview', '/cover-letter', '/career', '/resignation-letter'];
+```
+
+This is the simplest fix: the editor page has dedicated AI provider badges in its sheets and toolbars, so the floating AppShell badge is unnecessary and causes the overlap with the editor header.
 
