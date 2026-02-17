@@ -518,7 +518,7 @@ export default function PreviewPage() {
           )}
           </div>
           {/* ATS Ready Badge & Page Break Toggle - merged into template row */}
-          <div className="px-3 pb-2 flex items-center justify-between text-xs">
+          <div className="px-3 pb-2 flex items-center justify-between text-xs pt-[8px]">
             <div className="flex items-center gap-1.5">
               <Check className="w-3.5 h-3.5 text-success" />
               <span className="text-success font-medium">ATS-Ready</span>
