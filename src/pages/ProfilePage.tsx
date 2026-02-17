@@ -38,6 +38,11 @@ export default function ProfilePage() {
   const [checkingUsername, setCheckingUsername] = useState(false);
   const [bio, setBio] = useState('');
   const [portfolioEnabled, setPortfolioEnabled] = useState(false);
+  const [githubUrl, setGithubUrl] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [twitterUrl, setTwitterUrl] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [selectedTheme, setSelectedTheme] = useState("system");
   const [generatingBio, setGeneratingBio] = useState(false);
   const [copied, setCopied] = useState(false);
   const [savingPortfolio, setSavingPortfolio] = useState(false);
@@ -48,8 +53,13 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profile) {
       setUsername(profile.username || '');
-      setBio(profile.portfolioBio || '');
+      setBio(profile.portfolioBio || "");
       setPortfolioEnabled(profile.portfolioEnabled || false);
+      setGithubUrl(profile.githubUrl || "");
+      setWebsiteUrl(profile.websiteUrl || "");
+      setTwitterUrl(profile.twitterUrl || "");
+      setContactEmail(profile.contactEmail || "");
+      setSelectedTheme(profile.theme || "system");
     }
   }, [profile]);
 
@@ -215,6 +225,11 @@ export default function ProfilePage() {
         portfolioBio: bio || null,
         portfolioEnabled,
         portfolioResumeId: selectedResumeId || null,
+        githubUrl: githubUrl || null,
+        websiteUrl: websiteUrl || null,
+        twitterUrl: twitterUrl || null,
+        contactEmail: contactEmail || null,
+        theme: selectedTheme,
       });
       toast.success('Portfolio settings saved!');
     } catch {
@@ -248,34 +263,38 @@ export default function ProfilePage() {
       <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6">
         {/* Avatar & Name */}
         <div className="flex flex-col items-center text-center gap-3">
-          <Avatar className="h-20 w-20 border-2 border-border">
+          <Avatar className="h-24 w-24 border-2 border-primary/30 shadow-lg">
             <AvatarImage src={profile?.avatarUrl || undefined} />
-            <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-              {getInitials()}
-            </AvatarFallback>
+            <AvatarFallback className="bg-primary text-primary-foreground text-2xl">{getInitials()}</AvatarFallback>
           </Avatar>
           <div>
-            <h2 className="text-xl font-bold text-foreground">{profile?.fullName || 'Your Name'}</h2>
-            <p className="text-sm text-muted-foreground">{profile?.jobTitle || 'Add a job title'}</p>
+            <h2 className="text-2xl font-bold text-foreground">{profile?.fullName || 'Your Name'}</h2>
+            <p className="text-sm text-muted-foreground">{user.email}</p>
           </div>
         </div>
 
         {/* Profile Completion */}
         <div className="glass-elevated rounded-2xl p-4 space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Profile completion</span>
-            <span className="font-semibold text-primary">{completion}%</span>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-foreground">Profile Completion</h3>
+            <span className="text-sm text-primary font-medium">{completion}%</span>
           </div>
           <Progress value={completion} className="h-2" />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
+          <p className="text-xs text-muted-foreground">
+            Complete your profile to unlock more features and improve your resume.
+          </p>
+          <Button variant="secondary" size="sm" className="w-full" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
           </Button>
+        </div>
+
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-3">
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={handleShareProfile}>
             <Share2 className="w-4 h-4 mr-2" /> Share
+          </Button>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
+            <Edit2 className="w-4 h-4 mr-2" /> Edit
           </Button>
         </div>
 
@@ -285,6 +304,56 @@ export default function ProfilePage() {
             <Globe className="w-5 h-5 text-primary" />
             <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Public Portfolio</h3>
           </div>
+
+          {/* Social Links and Contact Email */}
+          {portfolioEnabled && (
+            <div className="space-y-2">
+              <label htmlFor="portfolio-github" className="text-sm font-medium">GitHub URL</label>
+              <Input
+                id="portfolio-github"
+                placeholder="https://github.com/yourusername"
+                value={githubUrl}
+                onChange={(e) => setGithubUrl(e.target.value)}
+              />
+            </div>
+          )}
+
+          {portfolioEnabled && (
+            <div className="space-y-2">
+              <label htmlFor="portfolio-website" className="text-sm font-medium">Personal Website URL</label>
+              <Input
+                id="portfolio-website"
+                placeholder="https://yourwebsite.com"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+              />
+            </div>
+          )}
+
+          {portfolioEnabled && (
+            <div className="space-y-2">
+              <label htmlFor="portfolio-twitter" className="text-sm font-medium">X (Twitter) URL</label>
+              <Input
+                id="portfolio-twitter"
+                placeholder="https://x.com/yourusername"
+                value={twitterUrl}
+                onChange={(e) => setTwitterUrl(e.target.value)}
+              />
+            </div>
+          )}
+
+          {portfolioEnabled && (
+            <div className="space-y-2">
+              <label htmlFor="portfolio-contact-email" className="text-sm font-medium">Contact Email (for "Hire Me" button)</label>
+              <Input
+                id="portfolio-contact-email"
+                type="email"
+                placeholder="your@email.com"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+              />
+            </div>
+          )}
 
           {/* Username */}
           <div className="space-y-1.5">
@@ -386,6 +455,25 @@ export default function ProfilePage() {
             </div>
             <Switch checked={portfolioEnabled} onCheckedChange={setPortfolioEnabled} />
           </div>
+
+          {portfolioEnabled && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="portfolio-theme" className="text-sm font-medium">Portfolio Theme</label>
+                <Select value={selectedTheme} onValueChange={setSelectedTheme}>
+                  <SelectTrigger id="portfolio-theme" className="w-full">
+                    <SelectValue placeholder="Select a theme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system">System Default</SelectItem>
+                    <SelectItem value="dark">Dark</SelectItem>
+                    <SelectItem value="light">Light</SelectItem>
+                    {/* Add more themes here if desired */}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
 
           {/* URL Copy */}
           {username && portfolioEnabled && (

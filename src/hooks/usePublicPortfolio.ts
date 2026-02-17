@@ -10,7 +10,13 @@ export interface PublicProfile {
   careerLevel: string | null;
   location: string | null;
   linkedinUrl: string | null;
+  githubUrl: string | null;
+  websiteUrl: string | null;
+  twitterUrl: string | null;
+  contactEmail: string | null;
   portfolioBio: string | null;
+  theme: string | null; // For theme customization
+  views: number; // For view tracking
   username: string;
 }
 
@@ -58,7 +64,13 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       careerLevel: (profile.careerLevel as string) || null,
       location: (profile.location as string) || null,
       linkedinUrl: (profile.linkedinUrl as string) || null,
+      githubUrl: (profile.githubUrl as string) || null,
+      websiteUrl: (profile.websiteUrl as string) || null,
+      twitterUrl: (profile.twitterUrl as string) || null,
+      contactEmail: (profile.contactEmail as string) || null,
       portfolioBio: (profile.portfolioBio as string) || null,
+      theme: (profile.theme as string) || null,
+      views: (profile.views as number) || 0,
       username: (profile.username as string) || username,
     },
     resume: {

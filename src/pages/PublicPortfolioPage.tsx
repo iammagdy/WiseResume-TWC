@@ -1,10 +1,11 @@
 import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/safeClient';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen, Heart, BookOpen } from 'lucide-react';
+import { MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen, Heart, BookOpen, Github, Globe, Mail, X, Download, ExternalLink } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useEffect } from 'react';
 import type { Experience, Education, Project, Certification } from '@/types/resume';
@@ -109,11 +110,31 @@ function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
 
+  // Increment view count
+  useEffect(() => {
+    if (portfolio?.profile?.username) {
+      // Call a backend function to increment view count
+      supabase.functions.invoke("track-portfolio-view", {
+        body: { username: portfolio.profile.username },
+      }).then(({ data, error }) => {
+        if (error) console.error("Error tracking portfolio view:", error);
+        else console.log("Portfolio view tracked:", data);
+      });
+    }
+  }, [portfolio]);
+
   useEffect(() => {
     if (portfolio?.profile) {
       const name = portfolio.profile.fullName || portfolio.profile.username;
       const title = portfolio.profile.jobTitle;
       document.title = title ? `${name} — ${title}` : name;
+
+      // Apply theme
+      if (portfolio.profile.theme) {
+        document.documentElement.setAttribute("data-theme", portfolio.profile.theme);
+      } else {
+        document.documentElement.removeAttribute("data-theme");
+      }
 
       let meta = document.querySelector('meta[name="description"]');
       if (!meta) {
@@ -123,7 +144,7 @@ function PublicPortfolioContent() {
       }
       meta.setAttribute('content', portfolio.profile.portfolioBio || `${name}'s professional portfolio`);
     }
-    return () => { document.title = 'WiseResume'; };
+    return () => { document.title = 'WiseResume'; document.documentElement.removeAttribute("data-theme"); };
   }, [portfolio]);
 
   if (isLoading) return <PortfolioSkeleton />;
@@ -161,14 +182,56 @@ function PublicPortfolioContent() {
               )}
               {profile.industry && <Badge variant="outline" className="text-xs">{profile.industry}</Badge>}
             </div>
+
+            {/* Social Links */}
+            <div className="flex items-center justify-center gap-3 mt-2">
+              {profile.linkedinUrl && (
+                <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  <Linkedin className="w-4 h-4" /> LinkedIn
+                </a>
+              )}
+              {profile.githubUrl && (
+                <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  <Github className="w-4 h-4" /> GitHub
+                </a>
+              )}
+              {profile.websiteUrl && (
+                <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  <ExternalLink className="w-4 h-4" /> Website
+                </a>
+              )}
+              {profile.twitterUrl && (
+                <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+                  <X className="w-4 h-4" /> X (Twitter)
+                </a>
+              )}
+            </div>
           </div>
-          {profile.linkedinUrl && (
-            <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
-              <Linkedin className="w-4 h-4" /> LinkedIn
-            </a>
-          )}
         </motion.div>
+
+        {/* Download Resume Button */}
+        {portfolio.resume.id && (
+          <motion.div variants={fadeUp} className="text-center">
+            <a href={`/api/resumes/${portfolio.resume.id}/pdf`} target="_blank" rel="noopener noreferrer"
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-primary hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary">
+              <Download className="w-5 h-5 mr-2" /> Download Resume (PDF)
+            </a>
+          </motion.div>
+        )}
+
+        {/* Hire Me CTA */}
+        {profile.contactEmail && (
+          <motion.div variants={fadeUp} className="text-center mt-4">
+            <a href={`mailto:${profile.contactEmail}`}
+              className="inline-flex items-center justify-center px-6 py-3 border border-transparent text-base font-medium rounded-full shadow-sm text-white bg-secondary hover:bg-secondary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary">
+              <Mail className="w-5 h-5 mr-2" /> Hire Me
+            </a>
+          </motion.div>
+        )}
 
         {/* About Me */}
         {profile.portfolioBio && (
