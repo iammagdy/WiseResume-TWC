@@ -1,82 +1,79 @@
 
 
-## Fix Dashboard Scroll - New Approach
+## Build a Complete AI Credit System
 
-### Why All Previous Fixes Failed
+### Current Problems
+1. Only 2 of 18+ AI features actually check and deduct credits -- the rest bypass the system entirely
+2. The credit indicator is tiny and easy to miss (just a number with a bolt icon)
+3. No visual feedback when credits are consumed
+4. No credit history or usage breakdown
+5. Cost badges only appear on 4 sheets
 
-All 4 previous attempts tried to fix classes on the DashboardPage child element. But the real problem is in the **parent**: AppShell's wrapper div has `overflow-y-auto`, making it a scroll container. Inside a scroll container, flex children expand to their full content height -- they are never constrained. So PullToRefresh's inner scroll container never activates because its height equals its content height (nothing to scroll).
+### Proposed Credit System
 
-```text
-CURRENT (BROKEN):
-AppShell wrapper: overflow-y-auto (SCROLL CONTAINER - lets children grow)
-  DashboardPage: flex-1 (IGNORED - parent is scroll container, so this expands)
-    PullToRefresh inner: overflow-y-auto (DEAD - height = content height, nothing to scroll)
-```
+#### 1. Universal Credit Enforcement Hook
+Create a single `useAIAction` wrapper hook that every AI feature must go through. It handles: check credits -> execute action -> deduct credits -> show feedback. This replaces the scattered `checkCredits()` / `incrementUsage.mutate()` calls.
 
-### The Fix: Two files, simple changes
+#### 2. Enhanced Credit Indicator (Dashboard + AI Studio headers)
+Replace the plain number with a small progress ring showing daily usage visually:
+- Ring fills as credits are used (green -> amber -> red)
+- Tapping it opens a "Credit Usage" sheet with breakdown
+- Animated deduction: when a credit is spent, the number ticks down with a brief scale animation
 
-**Strategy**: Remove PullToRefresh's nested scroll container. Let the content flow naturally inside AppShell's existing scroll. PullToRefresh only handles the pull-down gesture by listening to the AppShell scroll container (its nearest scrollable ancestor), not its own internal div.
+#### 3. Credit Usage Sheet
+A bottom sheet accessible from the credit indicator showing:
+- Daily usage ring chart (e.g., "14 / 20 used today")
+- Per-category breakdown (Enhance: 4, Tailor: 2, Score: 3, etc.) pulled from `ai_usage_logs`
+- "Resets at midnight" countdown
+- Total lifetime usage stat
 
-#### File 1: `src/components/ui/pull-to-refresh.tsx`
+#### 4. Wire All AI Features to Credit System
+Connect the remaining 16+ unwired features to the credit check/deduct flow:
+- `score-resume`, `tailor-resume`, `analyze-resume`, `career-path-advisor`
+- `generate-cover-letter`, `recruiter-simulation`, `optimize-for-linkedin`
+- `detect-and-humanize`, `one-page-optimizer`, `proofread-resume`
+- `interview-chat`, `agentic-chat`, `career-assessment`
+- `explain-gap`, `fill-gap`, `generate-headshot`
 
-Remove the internal `overflow-y-auto` scroll container. Instead of creating its own scroll context, PullToRefresh will:
-- Render children directly without wrapping them in a scrollable div
-- Find the nearest scrollable ancestor to detect `scrollTop === 0` for the pull gesture
-- Keep the pull-down animation (motion.div with y transform) working as before
+#### 5. Cost Badges on All AI Buttons
+Add `AICostBadge` to every AI action button across the app so users always know the cost before they click.
 
-Key changes:
-- The inner `containerRef` div changes from `overflow-y-auto` to a simple non-scrolling wrapper
-- Touch handlers look for the nearest scrollable parent to check `scrollTop`
-- Remove the `ScrollProgressBar` from inside PullToRefresh (AppShell already has one)
+#### 6. Credit Deduction Toast
+After each AI action, show a subtle toast: "1 credit used -- 15 remaining" with the Zap icon, so users always know what happened.
 
-```text
-BEFORE:
-  <div class="h-full flex-col">        (PTR root)
-    <motion.div class="flex-1">        (transform wrapper)
-      <div class="overflow-y-auto">    (SCROLL CONTAINER B - broken)
-        {children}
-      </div>
-    </motion.div>
-  </div>
+---
 
-AFTER:
-  <div class="relative">               (PTR root - no height constraint needed)
-    <motion.div>                        (transform wrapper)
-      <div ref={containerRef}>          (just a wrapper, no scroll)
-        {children}
-      </div>
-    </motion.div>
-  </div>
-```
+### Technical Details
 
-The touch handler change: instead of `container.scrollTop`, walk up to find the nearest scrollable ancestor and check its `scrollTop`.
+**New files:**
+- `src/hooks/useAIAction.ts` -- Universal wrapper that calls `checkCredits`, runs the action, calls `incrementUsage`, and shows the deduction toast
+- `src/components/ai/CreditUsageSheet.tsx` -- Bottom sheet with usage ring and per-category breakdown
+- `src/components/ai/CreditRing.tsx` -- Small circular progress indicator replacing the plain number
 
-#### File 2: `src/pages/DashboardPage.tsx`
+**Modified files:**
+- `src/components/editor/ai/AICreditsIndicator.tsx` -- Replace with `CreditRing` + tap to open `CreditUsageSheet`
+- `src/hooks/useAIEnhance.ts` -- Replace manual `checkCredits`/`incrementUsage` with `useAIAction`
+- `src/components/editor/ai/AIEnhanceSheet.tsx` -- Same cleanup
+- `src/components/editor/TailorSheet.tsx` -- Wire to credit system
+- `src/components/editor/ATSScanSheet.tsx` -- Wire to credit system
+- `src/components/editor/tailor/CoverLetterGenerator.tsx` -- Wire to credit system
+- `src/components/editor/ai/RecruiterSimSheet.tsx` -- Wire to credit system
+- `src/components/editor/ai/LinkedInOptimizerSheet.tsx` -- Wire to credit system
+- `src/components/editor/ai/AIDetectorSheet.tsx` -- Wire to credit system
+- `src/components/editor/ai/OnePageWizardSheet.tsx` -- Wire to credit system
+- `src/components/editor/CareerPathSheet.tsx` -- Wire to credit system
+- `src/components/editor/GapExplainerSheet.tsx` -- Wire to credit system
+- `src/components/editor/GapFillerSheet.tsx` -- Wire to credit system
+- `src/components/editor/AgenticChatSheet.tsx` -- Wire to credit system
+- `src/components/editor/ProofreadSheet.tsx` -- Wire to credit system
+- `src/pages/InterviewPage.tsx` -- Wire to credit system
+- All AI action buttons -- Add `AICostBadge` where missing
 
-Remove the scroll-fighting classes. Since AppShell handles scrolling, DashboardPage just needs to be a normal block element that flows naturally.
+**Database:**
+- Query `ai_usage_logs` table (already exists) for per-category breakdown in the usage sheet
+- No new tables needed
 
-- Change root div from `flex-1 flex flex-col overflow-hidden min-h-0` to just `flex flex-col` (or even simpler)
-- Content flows naturally, AppShell's `overflow-y-auto` scrolls everything
-- The `pb-safe` padding on the inner content ensures clearance above the bottom tab bar
-
-```text
-BEFORE: <div className="flex-1 flex flex-col overflow-hidden min-h-0">
-AFTER:  <div className="flex flex-col min-h-full">
-```
-
-Wait -- `min-h-full` was the original and it didn't work either. The issue was that content was clipped. But now with PullToRefresh no longer creating its own scroll container, the content flows naturally and AppShell scrolls it. `min-h-full` ensures the page fills the viewport when content is short, and grows beyond when content is long.
-
-### Why This Will Work
-
-- **Single scroll container**: Only AppShell's wrapper scrolls. No competing scroll containers.
-- **Content flows naturally**: DashboardPage and its children expand to their natural height. Resume cards, stats, everything renders at full height.
-- **AppShell handles scrolling**: The existing `overflow-y-auto` on AppShell's wrapper scrolls all the content. The `pb-20` padding on `main` ensures the bottom tab bar doesn't overlap.
-- **Pull-to-refresh still works**: The gesture detection checks the scroll ancestor's `scrollTop === 0` before activating the pull-down animation.
-
-### Summary of Changes
-
-| File | Change |
-|------|--------|
-| `src/components/ui/pull-to-refresh.tsx` | Remove internal scroll container; find nearest scrollable ancestor for scrollTop check; remove embedded ScrollProgressBar |
-| `src/pages/DashboardPage.tsx` | Simplify root classes to `flex flex-col min-h-full` -- no overflow/height constraints needed |
-
+**Estimated scope:** This is a large change touching 20+ files. Recommend breaking into 3 phases:
+1. Phase 1: `useAIAction` hook + wire all features (core enforcement)
+2. Phase 2: `CreditRing` indicator + `CreditUsageSheet` (visual upgrade)
+3. Phase 3: Cost badges on all remaining buttons + deduction toasts (polish)
