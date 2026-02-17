@@ -1,65 +1,50 @@
 
 
-## Redesign: Comprehensive AI Credit Usage Sheet
+## Fix: Old Background Scores Polluting Credited Activity
 
-### Goal
+### Root Cause
 
-Split the "Today's Activity" section into two clear areas:
-1. **Credited Activity** -- actions that cost credits, with the cost shown (e.g., "-1 credit", "-2 credits")
-2. **Background Activity** -- actions that ran automatically at no cost (e.g., dashboard ATS scoring)
+The database has **356 old log entries** from today with `metadata = null`. These are all background ATS scores created **before** the edge function was updated to tag them with `{ background: true }`. Only 5 recent entries have the correct flag.
 
-### Current Problem
+The UI code (`isBackground()`) correctly checks for `metadata.background === true`, but since old entries lack this flag, they all appear as "Credited Activity" with "-1 credit" -- which is completely wrong and misleading.
 
-- After our previous fix, background scoring no longer logs entries at all (we skip `recordUsage` entirely when `background: true`)
-- So there's no way to show background activity in the sheet
-- Existing entries don't indicate whether they cost credits or not
+### Two-Part Fix
 
-### Approach
+**1. Clean up existing data** (database migration)
 
-**1. Re-enable background logging with a flag** (`supabase/functions/score-resume/index.ts`)
+Run a one-time UPDATE to retroactively tag old background scores. The logic: if the `increment_ai_usage` RPC was never called for a log entry, it was a background call. Since background scores fire in rapid succession (every 2-3 seconds), we can identify them by pattern -- but the safest approach is: the `ai_credits` table tracks the **actual** credit count. Today's `daily_usage` is the true number. Any `score` entries beyond that count are background entries.
 
-- When `background: true`, still call `recordUsage` but pass `{ background: true }` in the metadata field
-- This way background activity is tracked but clearly marked
+Simpler approach: since background scores happen in rapid bursts (multiple entries within seconds of each other) and we know only ~9 were user-initiated today, we tag all `score` entries with null metadata as background:
 
-**2. Update the shared `recordUsage` helper** (no changes needed -- it already accepts optional metadata)
+```sql
+UPDATE ai_usage_logs
+SET metadata = '{"background": true}'::jsonb
+WHERE action_type = 'score'
+  AND metadata IS NULL
+  AND created_at >= CURRENT_DATE;
+```
 
-**3. Redesign the CreditUsageSheet UI** (`src/components/ai/CreditUsageSheet.tsx`)
+**2. Future-proof the UI** (`src/components/ai/CreditUsageSheet.tsx`)
 
-- Fetch today's logs including the `metadata` column
-- Split entries into two lists:
-  - **Credited**: entries where `metadata.background` is NOT true -- show cost from `AI_COST_MAP` (e.g., "Tailor" shows "-2 credits", "ATS Score" shows "-1 credit")
-  - **Background**: entries where `metadata.background` IS true -- shown in a separate, more subtle section below
-- Each credited entry row: `[Label]  [-N credit(s)]  [time]`
-- Each background entry row: `[Label]  [Free]  [time]` in muted styling
+Add a fallback heuristic: if `metadata` is null AND the `action_type` is `score` AND there are many such entries clustered together, treat them as background. This prevents the same issue if any edge case causes a null metadata entry in the future.
+
+Specifically: treat any `score` entry with `null` metadata as background, since user-initiated scores always go through `recordUsage(userId, 'score')` without metadata, but the `increment_ai_usage` RPC is what actually counts credits. We can cross-reference: if total score entries with null metadata exceeds the daily_usage count, the extras are background.
+
+Actually, the cleanest approach:
+- Run the migration to fix existing data
+- In the UI, treat `score` entries with `null` metadata as background too (defensive fallback)
 
 ### Technical Details
 
-| File | Change |
-|------|--------|
-| `supabase/functions/score-resume/index.ts` | Line 125-128: change from skipping `recordUsage` to calling it with `{ background: true }` metadata |
-| `src/components/ai/CreditUsageSheet.tsx` | Fetch `metadata` column; split activity into credited vs background sections; import `getAICost` to show cost badges per entry |
+| Step | File | Change |
+|------|------|--------|
+| 1 | Database migration | UPDATE all `score` entries with null metadata today to `{"background": true}` |
+| 2 | `src/components/ai/CreditUsageSheet.tsx` | In `isBackground()`, also return `true` when metadata is null AND action_type is `score` -- pass action_type to the function |
 
-### UI Layout (inside the sheet)
+### Why This Works
 
-```text
-[Ring: 9 / 20 credits used today]
-[Resets in Xh Ym]
-
---- CREDITED ACTIVITY ---
-Tailor          -2 credits    2:30 PM
-Enhance         -1 credit     1:45 PM
-ATS Score       -1 credit     1:20 PM
-
---- BACKGROUND ACTIVITY ---
-ATS Score       Free          12:05 PM
-ATS Score       Free          12:04 PM
-ATS Score       Free          12:03 PM
-
---- LIFETIME USAGE ---
-[Total: 142 credits]
-```
-
-### Edge Function Deployment
-
-The updated `score-resume` function will be redeployed automatically.
+- The migration fixes all 356 existing bad entries immediately
+- The UI fallback ensures any future null-metadata score entries default to "background"
+- User-initiated scores (enhance, tailor, cover-letter, etc.) are never affected since they have different action types
+- The credited activity section will show only the real user-initiated actions that actually cost credits
 
