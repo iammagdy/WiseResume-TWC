@@ -1,50 +1,63 @@
 
 
-## Fix: Eliminate Phantom Score Changes from Client-Side Cache Bugs
+## Fix: Score Reverts After Re-score + Unlimited Improve Abuse
 
-### What's Actually Happening
+### Problem 1: Enhanced Data Not Saved to Database
 
-I tested the scoring function directly -- calling it twice with the exact same data produces **identical results** (score: 60 both times). The function is working correctly and is 100% deterministic.
+When the user clicks "Improve Score" on the Resume Detail Page and applies AI enhancements:
 
-The problem is on the **client side** -- three bugs cause the app to show different scores even when the user hasn't intentionally changed anything:
+1. The enhanced data is written to the **Zustand store** (in-memory only)
+2. The immediate re-score after closing the sheet uses the Zustand store data -- so it correctly shows 69%
+3. But when the user clicks **"Re-score"** manually, the page reads `resumeData` from `dbToResumeData(dbResume)` -- the **database**, which still has the old un-enhanced data
+4. Result: score drops back to 64%
 
-1. **Background scoring uses a random cache key**: In the Editor, every auto-save triggers a background score with `new Date().toISOString()` as the cache key. This means the cache NEVER works for background scores, and each one creates a new history entry with potentially stale data.
+The root cause is that the Resume Detail Page has no database save logic. The `saveToCloud` function only exists in the Editor Page.
 
-2. **Score history pollution**: Every background score adds a new entry to the ATS Score History chart. If the editor auto-saved tiny formatting changes (whitespace, field ordering), each background score may produce a slightly different result, creating a false "trend."
+### Problem 2: Unlimited Section Improvement
 
-3. **Data source mismatch**: The ResumeDetailPage reads resume data from the database via `dbToResumeData()`, but the Editor's background scorer reads from the Zustand store. These can differ slightly (e.g., after AI enhancements are applied to the store but not yet saved).
+Users can select the same section (e.g., Summary) for "Improve Score" over and over, each time getting new "improvements" that consume AI credits and server resources. There is no tracking of which sections have already been optimized.
 
-### The Fix (3 Changes)
+### Fix Plan
 
-#### 1. Fix background scoring cache key (`src/pages/EditorPage.tsx`)
+#### 1. Save enhanced data to the database after applying (`src/pages/ResumeDetailPage.tsx`)
 
-Replace `new Date().toISOString()` with a **content hash** of the resume data. This way:
-- If the resume content hasn't changed, the cache hits and no network call is made
-- If it HAS changed, a new score is correctly computed
-- No more phantom history entries
+After the AI Enhance Sheet closes and the user has applied changes:
+- Read the updated resume from the Zustand store
+- Call `supabase.from('resumes').update(...)` to persist the enhanced content to the database
+- Invalidate the React Query cache so the page re-fetches the latest data from the database
+- This ensures "Re-score" reads the same enhanced data
 
-Use a simple JSON string hash to generate a stable cache key from the actual resume content.
+#### 2. Use the updated (saved) data for Re-score (`src/pages/ResumeDetailPage.tsx`)
 
-#### 2. Add content-based deduplication to score history (`src/store/atsScoreHistoryStore.ts`)
+After saving to the database, the re-score button will naturally use the refreshed `dbResume` data since React Query will refetch it.
 
-Before adding a new score entry, check if the most recent entry has the **same overall score and same category scores**. If so, skip the duplicate. This prevents the history chart from showing fake "changes."
+#### 3. Track improved sections and block re-improvement (`src/components/editor/ai/AIEnhanceSheet.tsx`)
 
-#### 3. Normalize resume data before sending to scorer (`src/hooks/useResumeScore.ts`)
+- Add a `recentlyImprovedSections` prop (a `Set<SectionType>`) to the AIEnhanceSheet
+- Sections that were already improved in the current session are shown as disabled with a "Already optimized" badge
+- The user must actually edit the section content in the Editor before they can re-optimize it
+- This prevents API abuse while still allowing legitimate re-optimization after real edits
 
-Add a `normalizeForScoring()` function that strips fields irrelevant to scoring (like `id`, `createdAt`, `updatedAt`, `templateId`) and ensures consistent field ordering. This guarantees that two resumes with the same content always produce the same request body, regardless of which page triggered the scoring.
+#### 4. Track improved sections in ResumeDetailPage state (`src/pages/ResumeDetailPage.tsx`)
+
+- Add a `useState<Set<SectionType>>` to track which sections have been improved
+- When the AIEnhanceSheet reports `onEnhanced`, record the improved sections
+- Pass this set to AIEnhanceSheet as `recentlyImprovedSections`
+- Reset when the user navigates away or edits in the Editor
 
 ### Technical Details
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Replace `new Date().toISOString()` cache key with a stable content hash derived from `JSON.stringify(resume)` |
-| `src/store/atsScoreHistoryStore.ts` | Add deduplication check in `addScore()` -- skip if latest entry has identical scores |
-| `src/hooks/useResumeScore.ts` | Add `normalizeForScoring()` to strip non-content fields and ensure consistent data shape before sending to the backend |
+| `src/pages/ResumeDetailPage.tsx` | Add database save after enhancement is applied; add improved-sections tracking state; pass it to AIEnhanceSheet; invalidate React Query cache after save |
+| `src/components/editor/ai/AIEnhanceSheet.tsx` | Accept `recentlyImprovedSections` prop; disable already-improved sections in the section selector; show "Already optimized" badge |
+| `src/hooks/useResumes.ts` | Verify that `useResume` query key allows invalidation (likely already works) |
 
 ### What This Guarantees
 
-- Re-scoring the same CV will always show the exact same number
-- The score history chart will only show real changes, not noise
-- Background scoring in the editor will not pollute the history with duplicate entries
-- The scoring function remains 100% deterministic (already working correctly)
+- After applying AI improvements, the data is saved to the database immediately
+- "Re-score" will always read the latest saved data, so scores remain consistent
+- Users cannot repeatedly optimize the same section without making real edits first
+- AI credits and server resources are protected from abuse
+- The score only changes when actual content changes -- no more phantom drops
 
