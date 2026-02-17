@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Toaster as Sonner, toast } from "sonner";
-import { CheckCircle2, XCircle, AlertTriangle, Info } from "lucide-react";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
@@ -25,27 +24,20 @@ const Toaster = ({ ...props }: ToasterProps) => {
       position="top-center"
       closeButton={false}
       richColors={false}
-      duration={4000}
+      visibleToasts={3}
+      duration={3000}
+      gap={8}
       icons={{
-        success: <CheckCircle2 className="h-5 w-5 text-[hsl(var(--success))]" />,
-        error: <XCircle className="h-5 w-5 text-[hsl(var(--destructive))]" />,
-        warning: <AlertTriangle className="h-5 w-5 text-[hsl(var(--warning))]" />,
-        info: <Info className="h-5 w-5 text-[hsl(var(--secondary))]" />,
+        success: <span className="toast-dot toast-dot-success" />,
+        error: <span className="toast-dot toast-dot-error" />,
+        warning: <span className="toast-dot toast-dot-warning" />,
+        info: <span className="toast-dot toast-dot-info" />,
       }}
       toastOptions={{
         classNames: {
-          toast:
-            "group toast toast-premium group-[.toaster]:text-foreground",
-          description: "group-[.toast]:text-muted-foreground group-[.toast]:text-sm",
-          actionButton:
-            "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground group-[.toast]:rounded-lg group-[.toast]:font-medium group-[.toast]:text-xs group-[.toast]:px-3 group-[.toast]:py-1.5",
-          cancelButton:
-            "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground group-[.toast]:rounded-lg",
-          success: "toast-success-accent",
-          error: "toast-error-accent",
-          warning: "toast-warning-accent",
-          info: "toast-info-accent",
+          toast: "toast-pill",
         },
+        duration: 3000,
       }}
       {...props}
     />
