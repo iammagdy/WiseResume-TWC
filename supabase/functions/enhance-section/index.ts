@@ -314,7 +314,13 @@ serve(async (req) => {
     // Record usage for rate limiting
     await recordUsage(userId, 'enhance', { section, action });
 
-    return new Response(JSON.stringify(enhancedContent), {
+    const responseBody: Record<string, unknown> = { ...(enhancedContent as Record<string, unknown>) };
+    if (aiResponse.fallbackUsed) {
+      responseBody._fallbackUsed = true;
+      responseBody._fallbackReason = aiResponse.fallbackReason;
+    }
+
+    return new Response(JSON.stringify(responseBody), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

@@ -2,6 +2,7 @@ import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress,
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
+import { checkAIFallback } from './aiFallbackToast';
 
 export interface TailorError extends Error {
   code?: 'rate_limit' | 'credits_exhausted' | 'generic';
@@ -143,6 +144,7 @@ export async function tailorResumeWithProgress(
 
     // Track usage for Gemini free tier
     trackGeminiUsage();
+    checkAIFallback(data);
 
     onProgress({
       step: 'complete',
@@ -175,6 +177,7 @@ export async function tailorResume(
   }
 
   trackGeminiUsage();
+  checkAIFallback(data);
   return data;
 }
 

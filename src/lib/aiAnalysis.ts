@@ -2,6 +2,7 @@ import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from './aiProvider';
 import { extractErrorMessage } from './errorToast';
+import { checkAIFallback } from './aiFallbackToast';
 
 interface AnalysisResult {
   score: JobMatchScore;
@@ -25,5 +26,6 @@ export async function analyzeResume(
   }
 
   trackGeminiUsage();
+  checkAIFallback(data);
   return data;
 }

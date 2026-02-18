@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSettingsStore, AIProvider, GeminiKeyTier } from '@/store/settingsStore';
-import { validateGeminiKey } from '@/lib/geminiKeyValidator';
+import { resetFallbackToast } from '@/lib/aiFallbackToast';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
@@ -80,12 +80,23 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
       haptics.light();
 
       try {
-        const result = await validateGeminiKey(keyInput.trim());
+        // Validate server-side via edge function (key never exposed in browser network)
+        const { data: validationResult, error: validationError } = await supabase.functions.invoke('validate-api-key', {
+          body: { apiKey: keyInput.trim(), provider: 'gemini' },
+        });
 
-        if (result.isValid) {
+        if (validationError) {
+          haptics.error();
+          toast.error('Failed to validate key. Please try again.');
+          setGeminiKeyValidated(false);
+          setIsValidating(false);
+          return;
+        }
+
+        if (validationResult?.isValid) {
           // Save key server-side via manage-api-keys edge function
           const { error: saveError } = await supabase.functions.invoke('manage-api-keys', {
-            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: result.tier },
+            body: { action: 'save', provider: 'gemini', apiKey: keyInput.trim(), tier: validationResult.tier },
           });
 
           if (saveError) {
@@ -96,13 +107,14 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
           }
 
           setGeminiApiKey(keyInput.trim());
-          setGeminiKeyTier(result.tier);
+          setGeminiKeyTier(validationResult.tier);
           setGeminiKeyValidated(true);
+          resetFallbackToast();
           haptics.success();
-          toast.success(`API key validated & saved! Tier: ${result.tier === 'paid' ? 'Paid' : 'Free'}`);
+          toast.success(`API key validated & saved! Tier: ${validationResult.tier === 'paid' ? 'Paid' : 'Free'}`);
         } else {
           haptics.error();
-          toast.error(result.error || 'Invalid API key');
+          toast.error(validationResult?.error || 'Invalid API key');
           setGeminiKeyValidated(false);
         }
       } catch (error) {
