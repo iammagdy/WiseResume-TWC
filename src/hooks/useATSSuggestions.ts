@@ -1,7 +1,7 @@
 import { useMemo, useCallback, useRef, useState } from 'react';
 import { ResumeData, SectionId } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { toast } from 'sonner';
+import { showErrorToast } from '@/lib/errorToast';
 
 export interface ATSSuggestion {
   id: string;
@@ -186,6 +186,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
 
       // Store full result for apply/discard UI
       const result: DeepResult = {
@@ -215,7 +216,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
     } catch (err) {
       console.error('Deep ATS analysis failed:', err);
       const msg = err instanceof Error ? err.message : 'Deep analysis failed';
-      toast.error(msg);
+      showErrorToast(msg, err);
     } finally {
       setAnalyzingSections(prev => { const next = new Set(prev); next.delete(section); return next; });
     }

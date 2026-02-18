@@ -434,6 +434,34 @@ export function isAIError(error: unknown): error is AIError {
 }
 
 /**
+ * Maps raw errors to user-friendly error responses for edge functions.
+ * Returns { status, error, message } suitable for JSON responses.
+ */
+export function toUserError(error: unknown): { status: number; error: string; message: string } {
+  if (isAIError(error)) {
+    const map: Record<string, string> = {
+      rate_limit: 'Rate limit reached. Please try again in a moment.',
+      payment_required: 'AI credits exhausted. Please try again later or use your own API key.',
+      invalid_key: 'Invalid API key. Please check your settings.',
+      quota_exceeded: 'Daily quota exceeded. Try again tomorrow or use a different API key.',
+      network: 'Network error communicating with AI. Please try again.',
+    };
+    return {
+      status: error.status,
+      error: error.type,
+      message: map[error.type] || error.message || 'AI request failed. Please try again.',
+    };
+  }
+  // For non-AI errors, return a safe generic message (don't leak internals)
+  console.error('[toUserError] Internal error:', error);
+  return {
+    status: 500,
+    error: 'internal',
+    message: 'Something went wrong. Please try again.',
+  };
+}
+
+/**
  * Robust JSON extraction from AI response text.
  * Tries direct parse first, then regex extraction.
  */

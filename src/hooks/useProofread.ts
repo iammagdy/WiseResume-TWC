@@ -5,6 +5,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAIHealthStore } from '@/store/aiHealthStore';
+import { showErrorToast } from '@/lib/errorToast';
 
 import type { ResumeData } from '@/types/resume';
 import type { ProofreadIssue } from '@/types/proofread';
@@ -98,6 +99,7 @@ export function useProofread(resume: ResumeData | null) {
         if (error) {
           useAIHealthStore.getState().recordFailure(0);
           console.error('Proofread error:', error);
+          showErrorToast('Proofreading failed. Please try again.', error);
           return;
         }
 

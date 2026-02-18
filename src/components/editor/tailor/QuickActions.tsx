@@ -3,6 +3,7 @@ import { Loader2, Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from '@/lib/aiProvider';
+import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
 
@@ -70,6 +71,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.message || data.error);
       trackGeminiUsage();
 
       if (actionId === 'quantify' && data?.experience) {
@@ -90,9 +92,10 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
       }
 
       setCompleted(prev => [...prev, actionId]);
-    } catch (error) {
-      console.error('Quick action error:', error);
-      toast.error('Action failed. Please try again.');
+    } catch (err) {
+      console.error('Quick action error:', err);
+      const msg = err instanceof Error ? err.message : 'Action failed. Please try again.';
+      showErrorToast(msg, err);
     } finally {
       setLoading(null);
     }

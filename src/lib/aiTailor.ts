@@ -1,6 +1,7 @@
 import { ResumeData, TailorProgress, EnhancedTailorStep, EnhancedTailorProgress, SuperTailorResult } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from './aiProvider';
+import { extractErrorMessage } from './errorToast';
 
 export interface TailorError extends Error {
   code?: 'rate_limit' | 'credits_exhausted' | 'generic';
@@ -167,10 +168,10 @@ export async function tailorResume(
 
   if (error) {
     console.error('Tailor resume error:', error);
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      throw new Error('Unauthorized. Please log in again.');
-    }
-    throw new Error('Failed to tailor resume');
+    throw new Error(extractErrorMessage(error, data, 'Failed to tailor resume'));
+  }
+  if (data?.error) {
+    throw new Error(data.message || data.error);
   }
 
   trackGeminiUsage();
@@ -184,10 +185,10 @@ export async function parseJobUrl(url: string): Promise<{ title: string; company
 
   if (error) {
     console.error('Parse job URL error:', error);
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      throw new Error('Unauthorized. Please log in again.');
-    }
-    throw new Error('Failed to parse job URL');
+    throw new Error(extractErrorMessage(error, data, 'Failed to parse job URL'));
+  }
+  if (data?.error) {
+    throw new Error(data.message || data.error);
   }
 
   trackGeminiUsage();
@@ -207,10 +208,10 @@ export async function generateCoverLetter(
 
   if (error) {
     console.error('Cover letter error:', error);
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      throw new Error('Unauthorized. Please log in again.');
-    }
-    throw new Error('Failed to generate cover letter');
+    throw new Error(extractErrorMessage(error, data, 'Failed to generate cover letter'));
+  }
+  if (data?.error) {
+    throw new Error(data.message || data.error);
   }
 
   trackGeminiUsage();
