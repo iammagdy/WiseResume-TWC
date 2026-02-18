@@ -78,7 +78,7 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
             <div className="w-11 h-11 rounded-xl glass-elevated flex items-center justify-center">
               <item.icon className={cn('w-5 h-5', item.iconColor)} />
             </div>
-            <span className="text-[11px] font-medium text-foreground">{item.label}</span>
+            <span className="text-xs font-medium text-foreground">{item.label}</span>
           </motion.button>
         ))}
       </div>
