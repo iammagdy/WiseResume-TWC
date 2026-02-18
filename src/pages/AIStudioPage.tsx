@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense, useCallback } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -110,7 +110,32 @@ export default function AIStudioPage() {
   const [moreToolsOpen, setMoreToolsOpen] = useState(true);
   const [stickyInput, setStickyInput] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkHandled = useRef(false);
 
+  // Deep-link: open tool from ?tool= query param (e.g. from Cmd+K)
+  useEffect(() => {
+    if (deepLinkHandled.current) return;
+    const tool = searchParams.get('tool');
+    if (!tool) return;
+    deepLinkHandled.current = true;
+    const toolMap: Record<string, () => void> = {
+      'tailor': () => setShowTailor(true),
+      'job-match': () => setShowJobSheet(true),
+      'ab-compare': () => setShowABCompare(true),
+      'proofread': () => setShowProofread(true),
+      'enhance': () => setShowEnhance(true),
+      'humanizer': () => setShowAIDetector(true),
+      'linkedin': () => setShowLinkedIn(true),
+      'onepage': () => setShowOnePage(true),
+      'recruiter': () => setShowRecruiterSim(true),
+      'career': () => setShowCareerPath(true),
+      'ideas': () => setShowContentLibrary(true),
+      'customize': () => setShowCustomize(true),
+      'chat': () => setShowChat(true),
+    };
+    toolMap[tool]?.();
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const handleStickySubmit = useCallback(() => {
     if (!stickyInput.trim()) return;
