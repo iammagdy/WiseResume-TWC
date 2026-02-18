@@ -1,162 +1,141 @@
-## AI Edge Function Error Handling Audit
-
-### Audit Summary
-
-i want when there is a error indicated when showing the user the error msg it should add a button to report a bug for the user
-
-After reviewing all 18 AI edge functions and their ~28 client-side callers, the error handling is **generally solid** -- most functions already return structured `{ error: "..." }` JSON with proper HTTP status codes (401, 400, 429, 500, 502). However, there are specific gaps on both the server and client side that need fixing.
-
----
-
-### Gap 1: Server-side catch blocks return raw `error.message` instead of user-friendly messages
-
-**Affected edge functions** (9 functions use the "bare catch" pattern):
 
 
-| Function                      | Current catch output     | Problem                                                        |
-| ----------------------------- | ------------------------ | -------------------------------------------------------------- |
-| `career-assessment`           | `error.message` verbatim | Leaks internal errors like "Failed to parse career assessment" |
-| `career-path-advisor`         | `error.message` verbatim | Same issue                                                     |
-| `explain-gap`                 | `error.message` verbatim | Same                                                           |
-| `fill-gap`                    | `error.message` verbatim | Same                                                           |
-| `generate-cover-letter`       | `error.message` verbatim | Same                                                           |
-| `generate-resignation-letter` | `error.message` verbatim | Same                                                           |
-| `detect-and-humanize`         | `error.message` verbatim | Same                                                           |
-| `agentic-chat`                | `error.message` verbatim | Same                                                           |
-| `parse-linkedin`              | `error.message` verbatim | Same                                                           |
+## Shake-to-Report, Haptic Audit, Mobile Responsiveness and UX Analysis
 
+### Overview
 
-These all use the pattern:
-
-```
-const message = error instanceof Error ? error.message : "Unknown error";
-return new Response(JSON.stringify({ error: message }), { status })
-```
-
-While `isAIError` maps to proper status codes, the non-AI errors (JSON parse failures, network issues in callAI, etc.) leak raw technical messages. Some AI errors also lack the structured `{ error: code, message: string }` format that `enhance-section` uses.
-
-**Fix**: Standardize these to return `{ error: "<error_code>", message: "<user-friendly message>" }` like `enhance-section` does, with a helper function.
+This plan covers four areas: (1) adding a "shake to report bug" gesture, (2) auditing haptic feedback coverage, (3) mobile responsiveness analysis, and (4) UX/user flow analysis. The app is already in strong shape -- haptics are used in 122 files, `active:scale-95` appears in 84 files, and the landing page renders beautifully at 375px. The main gaps are the missing shake detection and a handful of components lacking haptic feedback.
 
 ---
 
-### Gap 2: Client callers override server error messages with generic strings
+### 1. Shake-to-Report Bug Feature
 
-**Affected callers** (7 callers that discard server messages):
+**What it does:** When the user shakes their device, the existing Bug Report dialog opens automatically with a pre-filled "Shake reported" context message. A strong haptic buzz confirms detection.
 
+**New file: `src/hooks/useShakeDetect.ts`**
 
-| Caller                                      | Server returns   | Client shows                                       |
-| ------------------------------------------- | ---------------- | -------------------------------------------------- |
-| `src/lib/careerPath.ts`                     | Specific message | Always `"Failed to analyze career path"`           |
-| `src/lib/aiAnalysis.ts`                     | Specific message | Always `"Failed to analyze resume"`                |
-| `src/lib/agenticChat.ts`                    | Specific message | Always `"Chat request failed"`                     |
-| `src/lib/aiTailor.ts` (simple)              | Specific message | Always `"Failed to tailor resume"`                 |
-| `src/lib/aiTailor.ts` (parseJobUrl)         | Specific message | Always `"Failed to parse job URL"`                 |
-| `src/lib/aiTailor.ts` (generateCoverLetter) | Specific message | Always `"Failed to generate cover letter"`         |
-| `GapFillerSheet.tsx`                        | Specific message | Always `"Something went wrong. Please try again."` |
+A custom hook that:
+- Listens to `window.devicemotion` events (accelerometer data)
+- Uses a threshold algorithm: if acceleration exceeds ~15 m/s^2 on any axis 3+ times within a 1-second window, it counts as a "shake"
+- On iOS 13+, requests `DeviceMotionEvent.requestPermission()` (required by Safari)
+- Calls `haptics.heavy()` on detection, then invokes `triggerBugReport()` from the existing `src/lib/bugReport.ts` system
+- Includes a 3-second cooldown to prevent duplicate triggers
+- Only activates on mobile (checks `'DeviceMotionEvent' in window`)
 
+**File to modify: `src/App.tsx`**
 
-These callers check for `error` from `supabase.functions.invoke()` but then throw a hardcoded string, discarding the server's actual message. The server may return "Rate limit exceeded. Try again in 30s." but the user sees "Failed to analyze resume".
+- Import and call `useShakeDetect()` inside the `AppRoutes` component (alongside existing `useBackButton`, `useStatusBar`, etc.)
+- The hook will use the existing `triggerBugReport()` which the already-mounted `BugReportDialog` listens to
 
-**Fix**: Propagate the server error message. When `supabase.functions.invoke` returns an error, check `error.message` or `data?.error` for the server's message and use that in the thrown Error.
+**File to modify: `src/store/settingsStore.ts`**
 
----
+- Add `shakeToReportEnabled: boolean` (default `true`) and `setShakeToReportEnabled` action
+- Add a toggle in Settings page under the "About and Help" section so users can disable this
 
-### Gap 3: Some callers silently swallow errors without any toast
+**File to modify: `src/pages/SettingsPage.tsx`**
 
-
-| Caller                 | Behavior                                                                     |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `useProofread.ts`      | Errors logged to console only, no toast                                      |
-| `useATSSuggestions.ts` | Shows `toast.error(msg)` but msg may be generic "Deep analysis failed"       |
-| `QuickActions.tsx`     | Shows generic `"Action failed. Please try again."` -- discards server detail |
-
-
-**Fix**: Add toast for proofread errors. Surface server messages in the others.
+- Add a `SettingsRow` toggle for "Shake to Report Bug" with a `Vibrate` icon, reading/writing `shakeToReportEnabled` from the settings store
 
 ---
 
-### Gap 4: `generate-headshot` doesn't use shared `isAIError` pattern for non-gateway errors
+### 2. Haptic Feedback Audit
 
-The `generate-headshot` function doesn't use `callAI`/`isAIError` since it calls the gateway directly. Its catch block returns raw `error.message` which could leak internal details.
+**Current state:** Haptics are well-integrated across 122 files using `haptics.light()`, `haptics.medium()`, `haptics.selection()`, etc. The `src/lib/haptics.ts` utility uses the Web Vibration API.
 
-**Fix**: Wrap with a user-friendly fallback message.
+**Gaps found -- components missing haptic feedback:**
 
----
+| Component | Interaction Missing Haptics | Fix |
+|-----------|---------------------------|-----|
+| `CreateResumeDialog` | "Create" button press | Add `haptics.medium()` |
+| `AddSectionSheet` | Section selection | Add `haptics.light()` |
+| `ExportOptionsSheet` | Export format selection | Add `haptics.light()` |
+| `ShareSheet` | Copy link / share actions | Add `haptics.success()` |
+| `VersionHistorySheet` | Restore version | Add `haptics.medium()` |
+| `CustomizeSheet` | Color/font selection | Add `haptics.light()` |
+| `GapFillerSheet` | Generate / apply actions | Add `haptics.medium()` |
+| `GapExplainerSheet` | Generate action | Add `haptics.medium()` |
+| Pull-to-refresh (`PullToRefresh`) | Refresh trigger | Add `haptics.medium()` |
 
-### Gap 5: Missing `data?.error` check in some client callers
+Each fix is a single line addition (`haptics.light()` or `haptics.medium()`) in the click handler.
 
-Some callers check `error` from `supabase.functions.invoke()` but forget to check `data?.error` (which is how many edge functions communicate failures within a 200 response):
-
-
-| Caller                 | Missing check                        |
-| ---------------------- | ------------------------------------ |
-| `QuickActions.tsx`     | Checks `error` but not `data?.error` |
-| `useATSSuggestions.ts` | Checks `error` but not `data?.error` |
-
-
-**Fix**: Add `if (data?.error) throw new Error(data.message || data.error)` after the invoke call.
-
----
-
-### Files to Modify
-
-**Server-side (edge functions)** -- 9 functions:
-
-
-| File                                                      | Change                                                                             |
-| --------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `supabase/functions/_shared/aiClient.ts`                  | Add `userFriendlyMessage(error)` helper that maps internal errors to safe messages |
-| `supabase/functions/career-assessment/index.ts`           | Use friendly error messages in catch                                               |
-| `supabase/functions/explain-gap/index.ts`                 | Same                                                                               |
-| `supabase/functions/fill-gap/index.ts`                    | Same                                                                               |
-| `supabase/functions/generate-cover-letter/index.ts`       | Same                                                                               |
-| `supabase/functions/generate-resignation-letter/index.ts` | Same                                                                               |
-| `supabase/functions/detect-and-humanize/index.ts`         | Same                                                                               |
-| `supabase/functions/agentic-chat/index.ts`                | Same                                                                               |
-| `supabase/functions/parse-linkedin/index.ts`              | Same                                                                               |
-| `supabase/functions/generate-headshot/index.ts`           | Wrap catch with safe message                                                       |
-
-
-**Client-side** -- 7 files:
-
-
-| File                                            | Change                                                                 |
-| ----------------------------------------------- | ---------------------------------------------------------------------- |
-| `src/lib/careerPath.ts`                         | Propagate `error.message` or `data?.error` instead of generic fallback |
-| `src/lib/aiAnalysis.ts`                         | Same                                                                   |
-| `src/lib/agenticChat.ts`                        | Same                                                                   |
-| `src/lib/aiTailor.ts`                           | Same (for `tailorResume`, `parseJobUrl`, `generateCoverLetter`)        |
-| `src/hooks/useProofread.ts`                     | Add `toast.error` when proofread edge function fails                   |
-| `src/hooks/useATSSuggestions.ts`                | Add `data?.error` check                                                |
-| `src/components/editor/tailor/QuickActions.tsx` | Add `data?.error` check and propagate server message                   |
-
+**Also ensure `active:scale-95` is on all these buttons** for the visual press feedback per project guidelines.
 
 ---
 
-### Technical Approach
+### 3. Mobile Responsiveness Analysis
 
-**Shared server helper** (in `_shared/aiClient.ts`):
+**Current state -- STRONG:** The app already has excellent mobile foundations:
+- Uses `100dvh` for viewport height (handles mobile browser chrome)
+- `WebkitOverflowScrolling: 'touch'` and `overscrollBehavior: 'contain'` on scroll containers
+- Safe area insets (`pt-safe`, `pb-safe`) throughout
+- 44px minimum touch targets enforced across most interactive elements
+- Bottom tab bar with `pb-safe` and proper `z-50` stacking
+- Fluid typography via `clamp()` system
+- All sheets/dialogs are mobile-optimized with max-height constraints
 
-Add a `toUserError(error)` function that:
+**Minor issues found:**
 
-- If `isAIError`, maps to structured `{ error: type, message: friendly }` using the same map as `enhance-section`
-- For generic errors, returns `{ error: "internal", message: "Something went wrong. Please try again." }` to avoid leaking internals
-- Preserves the HTTP status code
+| Issue | Location | Fix |
+|-------|----------|-----|
+| Search input in Dashboard has no `min-h-[44px]` | `DashboardPage.tsx` search bar | Add `min-h-[44px]` class |
+| Resume filter chips could be tight on iPhone SE (375px) | `ResumeFilters.tsx` | Ensure horizontal scroll with `overflow-x-auto` and `flex-nowrap` |
+| Some editor section move-up/move-down buttons are 32px (below 44px standard) | `HobbiesSection`, `LanguagesSection`, `AwardsSection` | Increase to `min-w-[44px] min-h-[44px]` |
+| `CommandPalette` dialog doesn't have mobile-optimized sizing | `CommandPalette.tsx` | Already uses `CommandDialog` which has responsive sizing -- no change needed |
 
-**Client pattern** (standardized across callers):
+---
 
-```typescript
-const { data, error } = await supabase.functions.invoke('fn-name', { body });
-if (error) {
-  const msg = error.message || 'Request failed';
-  // check for known status patterns
-  if (msg.includes('429')) throw new Error('Rate limit reached. Try again shortly.');
-  if (msg.includes('401')) throw new Error('Session expired. Please sign in again.');
-  throw new Error(msg);
-}
-if (data?.error) {
-  throw new Error(data.message || data.error);
-}
+### 4. UX and User Flow Analysis
+
+**Overall flow assessment:**
+
+The app has a well-designed mobile-first flow:
+
+```text
+Landing (/) --> Auth (/auth) --> Onboarding Carousel --> Dashboard (/dashboard)
+                                                              |
+                                    +-------------------------+-------------------------+
+                                    |              |              |            |         |
+                                 Editor        AI Studio     Applications  Settings   Upload
+                                 (/editor)     (/ai-studio)  (/applications) (/settings) (/upload)
 ```
 
-This ensures the server's specific error (rate limit, credits, validation) always reaches the user as a toast instead of being replaced with a generic string.
+**Strengths:**
+- Bottom tab bar provides native-app-feel navigation
+- Pull-to-refresh on Dashboard
+- Lazy loading with skeleton fallbacks on every route
+- Error boundaries wrapping the app
+- Biometric lock for sensitive data
+- Offline sync support
+- Deep linking from Cmd+K to AI Studio tools
+
+**UX gaps identified:**
+
+| Gap | Impact | Recommendation |
+|-----|--------|----------------|
+| No empty state guidance when shake-to-report is triggered but user hasn't encountered an error | Low | Pre-fill the bug report with "Manual report via shake gesture" as the error message |
+| Editor move-up/move-down buttons are visually small on mobile | Medium | Increase tap targets to 44px as noted above |
+| No haptic feedback on error toasts | Low | Add `haptics.error()` call in `showErrorToast()` in `src/lib/errorToast.ts` |
+| No haptic on successful save/auto-save | Low | Add `haptics.light()` in the auto-save success path |
+
+---
+
+### Implementation Summary
+
+| Priority | Task | Files |
+|----------|------|-------|
+| 1 | Create `useShakeDetect` hook | New: `src/hooks/useShakeDetect.ts` |
+| 2 | Wire shake hook into App + Settings toggle | `src/App.tsx`, `src/store/settingsStore.ts`, `src/pages/SettingsPage.tsx` |
+| 3 | Add missing haptics to ~9 components | Various editor/sheet components |
+| 4 | Fix touch target sizes on editor reorder buttons | `HobbiesSection`, `LanguagesSection`, `AwardsSection` |
+| 5 | Add `haptics.error()` to `showErrorToast` | `src/lib/errorToast.ts` |
+
+### Technical Details for Shake Detection
+
+The shake algorithm:
+1. Listen to `devicemotion` events
+2. Track acceleration magnitude: `sqrt(x^2 + y^2 + z^2)` from `accelerationIncludingGravity`
+3. If magnitude exceeds threshold (15) three times in 1 second, trigger shake
+4. On trigger: `haptics.heavy()` then `triggerBugReport({ errorMessage: 'Bug report via shake gesture', route: location.pathname })`
+5. Set a 3-second cooldown via timestamp comparison
+6. iOS permission: check `typeof DeviceMotionEvent.requestPermission === 'function'` and call it; if denied, silently disable
+
