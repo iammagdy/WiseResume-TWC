@@ -1,214 +1,165 @@
 
 
-# WiseResume Full Analysis: AI Features, Database, and Codebase Health
+## WiseResume AI Service Analysis: Default Provider, BYOK Risks, and Recommendations
 
-## Part 1: AI Features Map
+---
 
-### Complete AI Feature Inventory (20 Edge Functions)
+### Part 1: Current AI Architecture
+
+**Default Provider:** Lovable AI Gateway (`ai.gateway.lovable.dev`)
+**Default Model:** `google/gemini-2.5-flash` (used by 17 of 20 edge functions)
+**Secondary Models:**
+- `google/gemini-3-flash-preview` -- used by `analyze-resume` and `parse-job-url`
+- `google/gemini-2.5-flash-lite` -- automatic fallback after 3 retries fail
+
+**BYOK Provider:** Google Gemini direct API only (OpenAI-compatible endpoint at `generativelanguage.googleapis.com/v1beta/openai/chat/completions`)
 
 ```text
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| AI Feature                    | Edge Function               | Client Entry Points        | DB Tables Used     |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Resume Scoring (deterministic)| score-resume                | useResumeScore,            | ai_usage_logs      |
-|                               | (NO AI model - pure logic)  | DashboardPage, EditorPage  |                    |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Section Enhancement           | enhance-section             | useAIEnhance,              | ai_usage_logs,     |
-|                               |                             | SectionAIAction,           | ai_credits         |
-|                               |                             | AIEnhanceSheet,            |                    |
-|                               |                             | ATSScanSheet, QuickActions |                    |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Resume Analysis (job match)   | analyze-resume              | aiAnalysis.ts,             | ai_usage_logs      |
-|                               |                             | AnalyzeJobSheet            |                    |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Smart Tailoring               | tailor-resume               | aiTailor.ts,               | ai_usage_logs,     |
-|                               |                             | TailorSheet, AIStudioPage  | tailor_history     |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Cover Letter Generation       | generate-cover-letter       | aiTailor.ts,               | ai_usage_logs,     |
-|                               |                             | CoverLetterGenerator       | cover_letters      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Agentic Chat                  | agentic-chat                | agenticChat.ts,            | ai_usage_logs      |
-|                               |                             | AgenticChatSheet           |                    |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Interview Practice            | interview-chat              | useVoiceInterview,         | ai_usage_logs,     |
-|                               |                             | InterviewPage              | interview_sessions |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Career Path Advisor           | career-path-advisor         | careerPath.ts,             | ai_usage_logs      |
-|                               |                             | CareerPathSheet            |                    |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Career Assessment             | career-assessment           | useCareerAssessment,       | ai_usage_logs,     |
-|                               |                             | CareerPage                 | career_assessments |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| AI Detector + Humanizer       | detect-and-humanize         | AIDetectorSheet            | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| LinkedIn Optimizer            | optimize-for-linkedin       | LinkedInOptimizerSheet     | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| One-Page Optimizer            | one-page-optimizer          | OnePageWizardSheet         | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Recruiter Simulation          | recruiter-simulation        | RecruiterSimSheet          | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Proofread Resume              | proofread-resume            | useProofread,              | ai_usage_logs      |
-|                               |                             | ProofreadSheet             |                    |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Gap Explainer                 | explain-gap                 | GapExplainerSheet          | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Gap Filler                    | fill-gap                    | GapFillerSheet             | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Parse Resume (upload)         | parse-resume                | UploadPage                 | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Parse LinkedIn                | parse-linkedin              | LinkedInImportSheet        | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Parse Job URL                 | parse-job-url               | JobUrlParser               | ai_usage_logs      |
-+-------------------------------+-----------------------------+----------------------------+--------------------+
-| Resignation Letter            | generate-resignation-letter | ResignationLetterNewPage   | ai_usage_logs,     |
-|                               |                             |                            | resignation_letters|
-+-------------------------------+-----------------------------+----------------------------+--------------------+
++------------------+      +-------------------+      +------------------------+
+|  Mobile App      |      |  Edge Functions   |      |  AI Backends           |
+|  (React/Vite)    | ---> |  (20 functions)   | ---> |                        |
+|                  |      |  _shared/aiClient  |      |  1. Lovable Gateway    |
+|  supabase.       |      |                   |      |     (default)          |
+|  functions.      |      |  callAI() /       |      |                        |
+|  invoke()        |      |  callAIWithRetry() |      |  2. Google Gemini      |
+|                  |      |                   |      |     (BYOK fallback)    |
++------------------+      +-------------------+      +------------------------+
 ```
 
-### Non-AI Edge Functions (4)
+**How provider switching works today:**
+1. `callAI()` checks if the user has a Gemini key stored in `user_api_keys` table (encrypted, fetched via `getUserKeyFromDB(userId)`)
+2. If key exists: calls Google Gemini directly first, falls back to Lovable Gateway on error
+3. If no key: calls Lovable Gateway directly
+4. Both paths use OpenAI-compatible response format, parsed by the same `parseOpenAIResponse()` function
 
-| Function | Purpose |
-|----------|---------|
-| manage-api-keys | CRUD encrypted user API keys |
-| ai-health | Health check endpoint |
-| send-bug-report | Email bug reports via Resend |
-| send-feature-request | Email feature requests |
-| send-push-notification | Web push via VAPID |
-| elevenlabs-scribe-token | ElevenLabs voice token |
-| generate-headshot | AI headshot (image gen) |
-| generate-portfolio-bio | Portfolio bio generation |
-| track-portfolio-view | Analytics counter |
+**This is already provider-agnostic at the response layer.** Both Lovable Gateway and Google Gemini's OpenAI-compatible endpoint return `choices[0].message.content` format, and both support `tools` / `tool_calls` in the same shape.
 
 ---
 
-## Part 2: Inconsistencies and Issues Found
+### Part 2: Risk Assessment Per Feature
 
-### Issue 1: Deprecated `getUserGeminiKey()` still called (CLEANUP - APPROVED)
+| Feature | Edge Function | Tool Calling? | JSON Parsing? | Risk if Provider Changes |
+|---------|--------------|---------------|---------------|-------------------------|
+| Section Enhancement | enhance-section | No | Yes (strict schema) | **Medium** -- relies on model following JSON schema exactly |
+| Resume Tailoring | tailor-resume | No | Yes (strict schema) | **Medium** -- complex JSON output; truncation recovery logic |
+| Resume Analysis | analyze-resume | No | Yes | **Medium** -- structured JSON expected |
+| Cover Letter | generate-cover-letter | No | No (plain text) | **Safe** -- returns plain text |
+| Agentic Chat | agentic-chat | **Yes** (5 tools) | Yes | **High** -- depends on tool-calling support |
+| Interview Chat | interview-chat | No | Yes (inline score blocks) | **Medium** -- custom `---SCORE---` delimiters |
+| Explain Gap | explain-gap | **Yes** (1 tool) | Via tool args | **High** -- tool-calling required |
+| Fill Gap | fill-gap | **Yes** (1 tool) | Via tool args | **High** -- tool-calling required |
+| Proofread | proofread-resume | **Yes** (1 tool) | Via tool args | **High** -- tool-calling required |
+| LinkedIn Optimizer | optimize-for-linkedin | No | Yes | Medium |
+| One-Page Optimizer | one-page-optimizer | No | Yes | Medium |
+| AI Detector | detect-and-humanize | No | Yes | Medium |
+| Career Path | career-path-advisor | No | Yes | Medium |
+| Career Assessment | career-assessment | No | Yes | Medium |
+| Recruiter Sim | recruiter-simulation | No | Yes | Medium |
+| Parse Resume | parse-resume | **Yes** (1 tool) | Via tool args | **High** |
+| Parse LinkedIn | parse-linkedin | **Yes** (1 tool) | Via tool args | **High** |
+| Parse Job URL | parse-job-url | No | Yes | Medium |
+| Resignation Letter | generate-resignation-letter | No | No (plain text) | **Safe** |
+| Generate Headshot | generate-headshot | No | Image generation | **Safe** (separate API) |
 
-**File:** `src/lib/aiProvider.ts` (stub), `src/pages/ResignationLetterEditPage.tsx` (caller)
-**Problem:** `getUserGeminiKey()` always returns `undefined`. ResignationLetterEditPage still passes `userGeminiKey: getUserGeminiKey()` in its fetch body. This sends `userGeminiKey: undefined` which is harmless but dead code.
-**Fix:** Remove the import and the `userGeminiKey` field from the fetch body in ResignationLetterEditPage. Remove the function from aiProvider.ts.
-
-### Issue 2: Dead store fields `geminiApiKey` and `elevenlabsApiKey` (CLEANUP - APPROVED)
-
-**File:** `src/store/settingsStore.ts`
-**Problem:** These fields exist in the interface and defaults but are excluded from persistence (line 191) and are never read meaningfully. Keys migrated to server-side `user_api_keys` table.
-**Fix:** Remove the fields, their setter actions, and update the interface. Keep the `partialize` exclusion logic harmless by removing the destructure of already-gone fields.
-
-### Issue 3: Inconsistent credit deduction patterns
-
-**Problem:** AI credit tracking happens in 3 different ways across features:
-1. **useAIAction wrapper** (used by `useAIEnhance`): checks credits, executes, deducts via `incrementUsage.mutate()`, shows toast
-2. **Direct `incrementUsage.mutate()`** (used by `AIEnhanceSheet`): manual deduction after success
-3. **No deduction at all** (used by `aiAnalysis.ts`, `agenticChat.ts`, `careerPath.ts`, `aiTailor.ts`): these call `trackGeminiUsage()` (client-side free-tier counter only) but never call `incrementUsage` to deduct from the `ai_credits` table
-
-**Impact:** Many AI operations (analyze, tailor, career path, chat, cover letter) don't deduct credits from the database. Only enhance operations do. This means the daily credit limit shown in the UI doesn't accurately reflect usage.
-**Recommendation (PROPOSAL ONLY):** Flag as tech debt. All AI service functions should route through `useAIAction` for consistent credit tracking. This is a behavioral change and should be addressed in a dedicated sprint.
-
-### Issue 4: Dual rate limiting (FLAGGED PER YOUR REQUEST)
-
-**Client-side:** `src/lib/rateLimiter.ts` (in-memory, provider-aware, 245 lines)
-**Server-side:** `supabase/functions/_shared/rateLimiter.ts` (DB-based, per-user)
-**Status:** Both active. Client-side provides early rejection before network round-trip. Server-side is authoritative. Flagged as tech debt -- keep both for now as defense-in-depth.
-
-### Issue 5: `trackGeminiUsage()` is a semi-dead function
-
-**Problem:** `trackGeminiUsage()` in `src/lib/aiProvider.ts` only increments a Zustand counter (`geminiDailyUsage`) for Gemini free-tier users. It's called from 9 files. Since keys moved server-side, the client doesn't know the user's tier until the settings store is loaded. The function still has a purpose for the free-tier daily counter UI, so it should be kept but noted as a candidate for server-side consolidation.
-**Recommendation:** No change now. Flag for future: move daily usage tracking to the server (it's already done via `ai_usage_logs`).
+**Summary:** 6 functions use tool/function calling (high risk), 12 use JSON text parsing (medium risk), 2 are plain text (safe).
 
 ---
 
-## Part 3: Database Schema Analysis
+### Part 3: What Actually Happens When a User Adds Their Own Gemini Key
 
-### Tables in Use -- Summary
+**Current flow (working correctly):**
 
-| Table | Used By | Status |
-|-------|---------|--------|
-| resumes | Core data, Editor, Dashboard, all AI features | Active, healthy |
-| profiles | Settings, Portfolio, auth trigger | Active, healthy |
-| ai_credits | useAICredits, increment_ai_usage RPC | Active but under-utilized (see Issue 3) |
-| ai_usage_logs | All edge functions via rateLimiter | Active, healthy |
-| cover_letters | CoverLettersPage, CoverLetterEditPage | Active |
-| resignation_letters | ResignationLettersPage | Active |
-| interview_sessions | InterviewPage, useInterviewHistory | Active |
-| career_assessments | CareerPage, useCareerAssessment | Active |
-| job_applications | ApplicationsPage | Active |
-| jobs | JobDetailPage, useJobs | Active |
-| resume_versions | VersionHistorySheet | Active |
-| resume_shares | ShareSheet, SharePage | Active |
-| share_comments | SharePage comments | Active |
-| tailor_history | TailorHistorySheet | Active |
-| notifications | NotificationsPage | Active |
-| bug_reports | BugReportDialog | Active |
-| feature_requests | FeatureRequestDialog | Active |
-| push_subscriptions | PushNotificationSettings | Active |
-| user_api_keys | manage-api-keys edge function | Active |
-| user_preferences | Settings sync (biometric, defaults) | Active |
+1. User opens AI Settings sheet and selects "Your Gemini API Key"
+2. User pastes key; client-side `geminiKeyValidator.ts` calls Google directly from the browser to validate
+3. On success, key is sent to `manage-api-keys` edge function, encrypted via AES-GCM, and stored in `user_api_keys` table
+4. When any AI feature fires, the edge function calls `callAI({ userId })` which fetches the encrypted key from DB, decrypts it, and calls `generativelanguage.googleapis.com` directly
+5. If the user's key fails (quota, rate limit, invalid), `callAI` automatically falls back to Lovable Gateway
 
-### Schema Observations (PROPOSAL ONLY - no changes)
+**This fallback is already implemented and working.** The architecture is sound for Gemini BYOK.
 
-1. **ai_credits table lacks UPDATE RLS policy**: Users can INSERT and SELECT but cannot UPDATE their own credits. The `increment_ai_usage` RPC uses SECURITY DEFINER to bypass this, which is correct. However, if any future feature needs direct updates, a policy would be needed.
+**What does NOT work / known gaps:**
 
-2. **No foreign key from ai_credits.user_id to auth.users**: This is intentional per project guidelines (no FK to auth.users). The RPC handles integrity.
+1. **Client-side key exposure:** `geminiKeyValidator.ts` sends the API key directly from the browser to Google's API. The key is visible in the browser's network tab. This is a security concern flagged in the previous audit. **Recommendation: move validation to an edge function** (proposal only).
 
-3. **tailor_history.job_description is nullable but tailor_history.job_title is NOT NULL**: Minor inconsistency -- a tailor always has a job description. Proposal: make `job_description` NOT NULL in a future migration if desired.
+2. **Only Gemini BYOK is supported:** The UI only allows "WiseResume AI" or "Your Gemini API Key." There is no option for OpenAI, Anthropic, or other providers. The code in `callGeminiDirect()` is hardcoded to Google's endpoint and model mapping.
 
-4. **feature_requests has no SELECT policy**: Users can create feature requests but cannot view their own. This is likely intentional (admin-only viewing) but worth noting.
+3. **Model mapping is Gemini-only:** `MODEL_MAPPING` in `aiClient.ts` only maps Gemini model names. If a different provider were added, this mapping would need extension.
+
+4. **Tool calling compatibility:** All 6 tool-calling functions use OpenAI-compatible `tools` format. Google Gemini's OpenAI-compatible endpoint supports this format, so BYOK with Gemini keys works. However, if a non-Gemini provider were added that doesn't support the same tool schema, these 6 functions would break.
 
 ---
 
-## Part 4: Codebase Cleanup Candidates
+### Part 4: Verdict -- Is the Architecture Already Provider-Agnostic?
 
-### Files to Clean Up (approved changes)
+**Yes, mostly.** The shared `aiClient.ts` is already a centralized abstraction layer that:
+- Accepts a unified `AICallOptions` interface
+- Normalizes responses via `parseOpenAIResponse()`
+- Handles errors via typed `AIError` objects
+- Implements retry + fallback logic
+- Supports tool calling in OpenAI format
 
-| File | Action | Reason |
-|------|--------|--------|
-| `src/lib/aiProvider.ts` | Remove `getUserGeminiKey()` function | Always returns undefined; deprecated stub |
-| `src/pages/ResignationLetterEditPage.tsx` | Remove `getUserGeminiKey` import and usage | Dead code sending undefined |
-| `src/store/settingsStore.ts` | Remove `geminiApiKey`, `elevenlabsApiKey` fields and their setters | Dead fields, keys stored server-side |
+**What it lacks (minor):**
+- Only two backends (Lovable Gateway and Google Gemini direct) are implemented
+- Model mapping is Gemini-specific
+- No provider-level configuration flag (it's implicit: has user key = Gemini, no key = Gateway)
 
-### Files Flagged as Tech Debt (no changes now)
-
-| File | Issue | Priority |
-|------|-------|----------|
-| `src/lib/rateLimiter.ts` | Redundant with server-side limiter (245 lines) | Low -- keep as defense-in-depth |
-| `src/lib/aiProvider.ts` | `trackGeminiUsage()` is semi-dead; 9 call sites | Low -- still serves free-tier counter |
-| `src/lib/geminiKeyValidator.ts` | Makes direct API calls to Google from client; could leak key in network logs | Medium -- should move to edge function |
-| `src/hooks/useAIAction.ts` | Not used by most AI features; only useAIEnhance wraps it | Medium -- should be adopted universally |
-
-### Large Files That Could Benefit From Splitting (future, not now)
-
-| File | Lines | Suggestion |
-|------|-------|------------|
-| `src/pages/PreviewPage.tsx` | 700+ | Extract bottom action bar into its own component |
-| `src/pages/EditorPage.tsx` | Very large | Extract section routing/lazy loading logic |
-| `src/lib/rateLimiter.ts` | 245 | Three full rate-limit profiles could be config objects |
+**Conclusion:** No major refactoring is needed. The current architecture handles provider switching safely for the one supported BYOK provider (Gemini). The fallback-to-gateway behavior ensures features never break even if a user's key is bad.
 
 ---
 
-## Part 5: Implementation Steps
+### Part 5: Recommended Improvements (All Proposals, None Applied)
 
-### Step 1: Remove `getUserGeminiKey()` dead code
-- Delete the function from `src/lib/aiProvider.ts`
-- Remove import and `userGeminiKey` usage from `src/pages/ResignationLetterEditPage.tsx`
+#### Improvement 1: Move key validation to edge function (MEDIUM priority)
 
-### Step 2: Clean up dead store fields
-- Remove `geminiApiKey`, `elevenlabsApiKey`, `setGeminiApiKey`, `setElevenlabsApiKey` from `src/store/settingsStore.ts`
-- Update the `partialize` function to remove destructuring of deleted fields
+**Problem:** `geminiKeyValidator.ts` sends the raw API key from the browser to Google's API, exposing it in network logs.
 
-### Step 3: Verify no regressions
-- Confirm ResignationLetterEditPage still generates letters correctly
-- Confirm settings store initializes without errors
-- Confirm AI provider detection still works
+**Proposal:** Create a `validate-api-key` edge function that accepts the key, validates it server-side, and returns `{ isValid, tier }`. The client never calls Google directly.
+
+**Risk:** Low. Only changes the validation flow, not the AI calling flow.
+
+#### Improvement 2: Add provider field to callAI options (LOW priority)
+
+**Current:** Provider is inferred (has user key = Gemini, no key = Gateway).
+
+**Proposal:** Add an explicit `provider?: 'gateway' | 'gemini'` field to `AICallOptions`. This makes the routing decision explicit and would make it easier to add future providers.
+
+**Risk:** Very low. No behavior change; just makes the code more explicit.
+
+#### Improvement 3: Ensure all AI functions pass userId (LOW priority)
+
+**Current state:** All 20 edge functions already pass `userId` to `callAI()`. This was verified in the search.
+
+**Status:** Already done. No action needed.
+
+#### Improvement 4: Document tool-calling dependency (INFO only)
+
+The 6 functions that use tool calling (`agentic-chat`, `explain-gap`, `fill-gap`, `proofread-resume`, `parse-resume`, `parse-linkedin`) are high-risk if a non-Gemini, non-OpenAI provider is ever added. These should be documented as provider-dependent.
 
 ---
 
-## Part 6: Remaining Tech Debt Summary
+### Part 6: Questions Before Any Changes
 
-| Item | Risk | Recommendation |
-|------|------|----------------|
-| Inconsistent credit deduction (Issue 3) | Users may exceed limits without deduction | Adopt `useAIAction` wrapper for all AI calls |
-| `geminiKeyValidator.ts` sends key from client | Key visible in browser network tab | Move validation to edge function |
-| `trackGeminiUsage()` semi-dead | Confusing code, 9 call sites for minimal value | Server-side daily tracking via ai_usage_logs |
-| Client-side rate limiter | 245 lines of redundant logic | Remove once confident in server-side limits |
+Before implementing any of the above proposals, I need your input on:
+
+1. **Do you want to support providers beyond Gemini for BYOK?** If yes, we would need to extend `callAI` with additional backends (e.g., OpenAI direct, Anthropic). If Gemini-only BYOK is sufficient, the current code is fine as-is.
+
+2. **Should we move Gemini key validation server-side?** This would mean creating a new edge function (`validate-api-key`), updating `AISettingsSheet.tsx` to call it, and removing `geminiKeyValidator.ts`. It's safer but adds one more edge function to maintain.
+
+3. **If a user's BYOK key fails and we fall back to the Lovable Gateway, should we notify the user?** Currently the fallback is silent (only logged to console). Should we show a toast like "Your API key failed, using WiseResume AI instead"?
+
+---
+
+### Summary Table
+
+| Area | Current Status | Risk Level | Action Needed |
+|------|---------------|------------|---------------|
+| Provider abstraction layer | Already centralized in `aiClient.ts` | None | None |
+| Response normalization | Both backends use OpenAI format | None | None |
+| BYOK Gemini support | Working with auto-fallback | Low | None |
+| Tool-calling compatibility | Works with Gemini + Gateway | Medium (if new providers added) | Document only |
+| Key validation security | Client-side (browser network exposure) | Medium | Proposal: move server-side |
+| Error handling | Typed errors, graceful fallback | None | None |
+| Data integrity | JSON parsing + schema validation in each function | Low | None |
+
+**Bottom line:** The WiseResume AI service is well-architected for its current scope (Lovable Gateway default + Gemini BYOK). No urgent changes are needed. The three proposals above are improvements for future robustness, not fixes for current bugs.
 
