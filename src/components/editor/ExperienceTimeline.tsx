@@ -163,31 +163,35 @@ export function ExperienceTimeline({ experiences, onDismiss, onExplainGap, onFil
                   <span className="text-xs text-muted-foreground whitespace-nowrap">{segment.label}</span>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-3.5 h-3.5 text-destructive/70 shrink-0" />
-                  <span className="text-xs text-destructive/80">Employment gap</span>
-                  {onExplainGap && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleExplainGap(segment)}
-                      className="min-h-[44px] text-xs gap-1 text-warning-foreground"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      Explain
-                    </Button>
-                  )}
-                  {onFillGap && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleFillGap(segment)}
-                      className="min-h-[44px] text-xs gap-1 text-primary"
-                    >
-                      <Wand2 className="w-3 h-3" />
-                      Fill Gap
-                    </Button>
-                  )}
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-destructive/70 shrink-0" />
+                    <span className="text-xs font-medium text-destructive/90">Employment gap</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {onExplainGap && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExplainGap(segment)}
+                        className="h-8 text-xs gap-1.5 border-warning/50 bg-warning/10 text-warning hover:bg-warning/20 active:scale-95"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        Explain
+                      </Button>
+                    )}
+                    {onFillGap && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleFillGap(segment)}
+                        className="h-8 text-xs gap-1.5 border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 active:scale-95"
+                      >
+                        <Wand2 className="w-3 h-3" />
+                        Fill Gap
+                      </Button>
+                    )}
+                  </div>
                 </div>
               )}
             </motion.div>
