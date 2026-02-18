@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
   CheckCircle2, XCircle, Search, Palette, Layout, Type, Zap, ChevronDown,
-  User, Link2, Eye
+  User, Link2, Eye, QrCode, Download, Share2, X
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -209,6 +210,7 @@ export default function PortfolioEditorPage() {
   const [portfolioFont, setPortfolioFont] = useState<PortfolioFont>('inter');
   const [openToWork, setOpenToWork] = useState(false);
   const [availabilityHeadline, setAvailabilityHeadline] = useState('');
+  const [showQR, setShowQR] = useState(false);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -417,15 +419,46 @@ export default function PortfolioEditorPage() {
     }
   };
 
-  const portfolioUrl = username ? `wiseresume.lovable.app/p/${username}` : '';
+  // Display URL (cosmetic — no "lovable" branding shown to user)
+  const portfolioDisplayUrl = username ? `wiseresume.app/p/${username}` : '';
+  // Actual URL (real domain the app runs on — dynamic, works with custom domains)
+  const actualPortfolioUrl = username ? `${window.location.origin}/p/${username}` : '';
 
   const handleCopyUrl = async () => {
-    if (!portfolioUrl) return;
-    await navigator.clipboard.writeText(`https://${portfolioUrl}`);
+    if (!actualPortfolioUrl) return;
+    await navigator.clipboard.writeText(actualPortfolioUrl);
     setCopied(true);
     haptics.light();
-    toast.success('URL copied!');
+    toast.success('Link copied!');
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadQR = async () => {
+    if (!actualPortfolioUrl) return;
+    haptics.light();
+    try {
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(actualPortfolioUrl)}&color=e84545&bgcolor=0a0a14&format=png&margin=2`;
+      const res = await fetch(qrUrl);
+      const blob = await res.blob();
+      const { downloadFile } = await import('@/lib/downloadUtils');
+      await downloadFile({ blob, fileName: `${username || 'portfolio'}-qr.png`, mimeType: 'image/png' });
+      toast.success('QR code downloaded!');
+    } catch {
+      toast.error('Failed to download QR code');
+    }
+  };
+
+  const handleShareQR = async () => {
+    if (!actualPortfolioUrl) return;
+    haptics.light();
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url: actualPortfolioUrl });
+      } catch { /* cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(actualPortfolioUrl);
+      toast.success('Link copied!');
+    }
   };
 
   const toggleSectionVisibility = (key: keyof PortfolioSections) => {
@@ -479,20 +512,30 @@ export default function PortfolioEditorPage() {
           </div>
           {portfolioEnabled && username && (
             <>
+              {/* URL display row — shows branded URL, copies actual URL */}
               <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
                 <Globe className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-xs text-foreground truncate flex-1">{portfolioUrl}</span>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyUrl}>
+                <span className="text-xs text-foreground truncate flex-1 font-mono">{portfolioDisplayUrl}</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyUrl} title="Copy link">
                   {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
                 </Button>
               </div>
-              <Button
-                variant="outline"
-                className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation"
-                onClick={() => window.open(`https://${portfolioUrl}`, '_blank', 'noopener,noreferrer')}
-              >
-                <ExternalLink className="w-4 h-4 mr-2" /> Preview Live Site
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
+                  onClick={() => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer')}
+                >
+                  <ExternalLink className="w-4 h-4 mr-1.5" /> Preview
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
+                  onClick={() => { haptics.light(); setShowQR(true); }}
+                >
+                  <QrCode className="w-4 h-4 mr-1.5" /> Get QR Code
+                </Button>
+              </div>
             </>
           )}
           {profile?.views != null && (
@@ -501,6 +544,47 @@ export default function PortfolioEditorPage() {
             </p>
           )}
         </div>
+
+        {/* ── QR Code Dialog ───────────────────────────────────────────── */}
+        <Dialog open={showQR} onOpenChange={setShowQR}>
+          <DialogContent className="max-w-[320px] p-6">
+            <DialogHeader>
+              <DialogTitle className="text-center flex items-center justify-center gap-2">
+                <QrCode className="w-5 h-5 text-primary" /> Your Portfolio QR
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4 pt-2">
+              {/* QR image via free qrserver.com API */}
+              <div className="rounded-2xl overflow-hidden border border-border p-3 bg-[#0a0a14]">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(actualPortfolioUrl)}&color=e84545&bgcolor=0a0a14&format=png&margin=1`}
+                  alt="Portfolio QR Code"
+                  width={220}
+                  height={220}
+                  className="rounded-lg"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground font-mono text-center">{portfolioDisplayUrl}</p>
+              <div className="grid grid-cols-2 gap-2 w-full">
+                <Button
+                  variant="outline"
+                  className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs"
+                  onClick={handleDownloadQR}
+                >
+                  <Download className="w-4 h-4 mr-1.5" /> Download QR
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs"
+                  onClick={handleShareQR}
+                >
+                  <Share2 className="w-4 h-4 mr-1.5" />
+                  {navigator.share ? 'Share' : 'Copy Link'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* ── Portfolio Strength (collapsible) ──────────────────────────── */}
         <CollapsibleCard
@@ -693,7 +777,7 @@ export default function PortfolioEditorPage() {
         >
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Username</label>
-            <p className="text-xs text-muted-foreground">wiseresume.lovable.app/p/</p>
+            <p className="text-xs text-muted-foreground">wiseresume.app/p/</p>
             <Input value={username} onChange={(e) => handleUsernameChange(e.target.value)} placeholder="your-name" />
             {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
             {!usernameError && username.length >= 3 && (
