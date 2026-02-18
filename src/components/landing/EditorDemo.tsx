@@ -105,9 +105,6 @@ export function EditorDemo() {
 
   return (
     <div className="flex flex-col items-center">
-      <h2 className="text-2xl font-bold text-foreground text-center mb-2">See It in Action</h2>
-      <p className="text-sm text-muted-foreground text-center mb-5">Watch AI transform your resume in seconds</p>
-
       {/* Phone frame */}
       <div className="w-[260px] rounded-[28px] border-2 border-border/40 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
         {/* Status bar */}

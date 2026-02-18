@@ -1,8 +1,39 @@
 [
   {
+    "version": "v2.1.0",
+    "date": "2026-02-18",
+    "latest": true,
+    "items": [
+      {
+        "title": "Public Portfolio Website — Now Live",
+        "description": "Turn your resume into a beautiful personal website in one click. Share a real link — not just a PDF — with recruiters, clients, or your network."
+      },
+      {
+        "title": "Premium Portfolio Hero + Themes",
+        "description": "The public portfolio page has been completely redesigned with a bold hero, animated avatar glow, role pill badge, sticky header on scroll, and curated themes (Minimal, Bold Dark, Glass Pro, Classic Clean)."
+      },
+      {
+        "title": "Case Studies + Services Sections",
+        "description": "Add portfolio-only sections — Case Studies (with challenge, outcome, and tech used) and Services (with category, description, and optional pricing) — that live alongside your resume content."
+      },
+      {
+        "title": "Resume ↔ Portfolio Sync Mode",
+        "description": "Choose between Auto-sync (portfolio reflects resume changes in real time) or Locked (snapshot your resume content so your portfolio stays fixed while you keep editing)."
+      },
+      {
+        "title": "AI Portfolio Content Helpers",
+        "description": "AI can now generate your About section, write a Case Study from a project description (challenge + outcome), and craft availability headlines — all with preview-then-confirm flows so you stay in control."
+      },
+      {
+        "title": "Portfolio URL Branding",
+        "description": "Your portfolio link now shows your real custom domain everywhere in the app — no more wiseresume.lovable.app references."
+      }
+    ]
+  },
+  {
     "version": "v2.0.0",
     "date": "2026-02-17",
-    "latest": true,
+    "latest": false,
     "items": [
       {
         "title": "Unsaved Changes Navigation Guard",
