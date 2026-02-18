@@ -2,6 +2,7 @@ import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from './aiProvider';
+import { extractErrorMessage } from './errorToast';
 
 export interface NextRole {
   title: string;
@@ -58,10 +59,10 @@ export async function analyzeCareerPath(
 
   if (error) {
     console.error('Career path error:', error);
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      throw new Error('Unauthorized. Please log in again.');
-    }
-    throw new Error('Failed to analyze career path');
+    throw new Error(extractErrorMessage(error, data, 'Failed to analyze career path'));
+  }
+  if (data?.error) {
+    throw new Error(data.message || data.error);
   }
 
   trackGeminiUsage();

@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const MAX_BODY_SIZE = 150 * 1024;
@@ -139,10 +139,9 @@ ${resume.education?.map((e: any) => `- ${e.degree} in ${e.field} from ${e.instit
     });
   } catch (error) {
     console.error("career-assessment error:", error);
-    const status = isAIError(error) ? error.status : 500;
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const { status, error: code, message } = toUserError(error);
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({ error: code, message }),
       { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

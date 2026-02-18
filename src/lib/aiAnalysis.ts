@@ -1,6 +1,7 @@
 import { ResumeData, JobMatchScore, GapAnalysis } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from './aiProvider';
+import { extractErrorMessage } from './errorToast';
 
 interface AnalysisResult {
   score: JobMatchScore;
@@ -17,10 +18,10 @@ export async function analyzeResume(
 
   if (error) {
     console.error('Analyze resume error:', error);
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      throw new Error('Unauthorized. Please log in again.');
-    }
-    throw new Error('Failed to analyze resume');
+    throw new Error(extractErrorMessage(error, data, 'Failed to analyze resume'));
+  }
+  if (data?.error) {
+    throw new Error(data.message || data.error);
   }
 
   trackGeminiUsage();

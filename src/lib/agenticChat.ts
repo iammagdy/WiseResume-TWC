@@ -2,7 +2,7 @@ import { ResumeData } from '@/types/resume';
 import { checkAIRateLimit } from './rateLimiter';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from './aiProvider';
-
+import { extractErrorMessage } from './errorToast';
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -82,10 +82,10 @@ export async function sendChatMessage(
 
   if (error) {
     console.error('Chat error:', error);
-    if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
-      throw new Error('Unauthorized. Please log in again.');
-    }
-    throw new Error('Chat request failed');
+    throw new Error(extractErrorMessage(error, data, 'Chat request failed'));
+  }
+  if (data?.error) {
+    throw new Error(data.message || data.error);
   }
 
   trackGeminiUsage();
