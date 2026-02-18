@@ -26,6 +26,7 @@ interface SettingsState {
   quietHoursEnd: string;   // HH:mm
   
   // Privacy
+  shakeToReportEnabled: boolean;
   localOnlyMode: boolean;
   analyticsEnabled: boolean;
   biometricLockEnabled: boolean;
@@ -63,6 +64,7 @@ interface SettingsState {
   setQuietHoursEnabled: (value: boolean) => void;
   setQuietHoursStart: (time: string) => void;
   setQuietHoursEnd: (time: string) => void;
+  setShakeToReportEnabled: (value: boolean) => void;
   setLocalOnlyMode: (value: boolean) => void;
   setAnalyticsEnabled: (value: boolean) => void;
   setBiometricLockEnabled: (value: boolean) => void;
@@ -96,6 +98,7 @@ const defaultSettings = {
   quietHoursEnabled: false,
   quietHoursStart: '22:00',
   quietHoursEnd: '08:00',
+  shakeToReportEnabled: true,
   localOnlyMode: false,
   analyticsEnabled: true,
   biometricLockEnabled: false,
@@ -138,6 +141,7 @@ export const useSettingsStore = create<SettingsState>()(
       setQuietHoursEnabled: (value) => set({ quietHoursEnabled: value }),
       setQuietHoursStart: (time) => set({ quietHoursStart: time }),
       setQuietHoursEnd: (time) => set({ quietHoursEnd: time }),
+      setShakeToReportEnabled: (value) => set({ shakeToReportEnabled: value }),
       setLocalOnlyMode: (value) => set({ localOnlyMode: value }),
       setAnalyticsEnabled: (value) => set({ analyticsEnabled: value }),
       setBiometricLockEnabled: (value) => set({ biometricLockEnabled: value }),

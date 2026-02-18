@@ -69,8 +69,8 @@ export const LanguagesSection = memo(function LanguagesSection() {
             <div key={lang.id} className="rounded-xl border border-border p-4 space-y-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => moveUp(index)} disabled={index === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center active:scale-95" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => moveDown(index)} disabled={index === languages.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center active:scale-95" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move up"><ArrowUp className="w-4 h-4" /></button>
+                  <button onClick={() => moveDown(index)} disabled={index === languages.length - 1} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move down"><ArrowDown className="w-4 h-4" /></button>
                 </div>
                 <div className="flex-1 min-w-0">
                   <Input value={lang.name} onChange={e => updateLang(lang.id, { name: e.target.value })} placeholder="English, Spanish, etc." className="h-12" />

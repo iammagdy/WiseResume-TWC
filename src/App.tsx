@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
+import { useShakeDetect } from "@/hooks/useShakeDetect";
 import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -83,6 +84,9 @@ const queryClient = new QueryClient({
    useBackButton();
    useStatusBarThemeSync();
    useDeepLinking();
+   
+   const { shakeToReportEnabled } = useSettingsStore();
+   useShakeDetect(shakeToReportEnabled);
 
    // Restore saved theme on mount (safety net for the inline script in index.html)
    useEffect(() => {

@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useSettingsStore } from '@/store/settingsStore';
 import { estimateOnePageScale } from '@/lib/pdfUtils';
 import { cn } from '@/lib/utils';
+import haptics from '@/lib/haptics';
 import type { ExportProgress } from '@/hooks/useExportProgress';
 
 interface ExportOptionsSheetProps {
@@ -191,7 +192,7 @@ export function ExportOptionsSheet({
             {exportOptions.map((option) => (
               <motion.button
                 key={option.id}
-                onClick={() => option.available && setSelectedType(option.id)}
+                onClick={() => { if (option.available) { haptics.light(); setSelectedType(option.id); } }}
                 disabled={!option.available}
                 className={cn(
                   'w-full p-4 rounded-xl border-2 text-left transition-all',
