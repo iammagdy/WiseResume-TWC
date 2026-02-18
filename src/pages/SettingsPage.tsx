@@ -1043,6 +1043,11 @@ export default function SettingsPage() {
                       <span className="text-[10px] font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Latest</span>
                     )}
                   </div>
+                  {(release as { summary?: string }).summary && (
+                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed italic">
+                      {(release as { summary?: string }).summary}
+                    </p>
+                  )}
                   {release.items.length === 1 ? (
                     <p className="text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">{release.items[0].title}</span> — {release.items[0].description}
