@@ -378,6 +378,13 @@ export default function PortfolioEditorPage() {
   };
 
   const handleSave = async (overrides?: { portfolioEnabled?: boolean }) => {
+    const isEnabling = overrides?.portfolioEnabled === true ||
+      (overrides?.portfolioEnabled === undefined && portfolioEnabled);
+    if (isEnabling && !username) {
+      toast.error('Set a username before publishing your portfolio.');
+      setSavingPortfolio(false);
+      return;
+    }
     if (usernameError) return;
     setSavingPortfolio(true);
     haptics.light();

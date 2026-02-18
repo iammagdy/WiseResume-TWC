@@ -214,39 +214,39 @@ export function useProfile(userId: string | undefined, user?: User | null) {
     mutationFn: async (updates: Partial<Profile>) => {
       if (!userId) throw new Error('No user ID');
 
-      const dbUpdates: Record<string, unknown> = {
-        user_id: userId,
-        full_name: updates.fullName !== undefined ? updates.fullName : profile?.fullName ?? null,
-        avatar_url: updates.avatarUrl !== undefined ? updates.avatarUrl : profile?.avatarUrl ?? null,
-        job_title: updates.jobTitle !== undefined ? updates.jobTitle : profile?.jobTitle ?? null,
-        industry: updates.industry !== undefined ? updates.industry : profile?.industry ?? null,
-        career_level: updates.careerLevel !== undefined ? updates.careerLevel : profile?.careerLevel ?? null,
-        location: updates.location !== undefined ? updates.location : profile?.location ?? null,
-        linkedin_url: updates.linkedinUrl !== undefined ? updates.linkedinUrl : profile?.linkedinUrl ?? null,
-        profile_completed: updates.profileCompleted !== undefined ? updates.profileCompleted : profile?.profileCompleted ?? false,
-        username: updates.username !== undefined ? updates.username : profile?.username ?? null,
-        portfolio_bio: updates.portfolioBio !== undefined ? updates.portfolioBio : profile?.portfolioBio ?? null,
-        portfolio_enabled: updates.portfolioEnabled !== undefined ? updates.portfolioEnabled : profile?.portfolioEnabled ?? false,
-        portfolio_resume_id: updates.portfolioResumeId !== undefined ? updates.portfolioResumeId : profile?.portfolioResumeId ?? null,
-        github_url: updates.githubUrl !== undefined ? updates.githubUrl : profile?.githubUrl ?? null,
-        website_url: updates.websiteUrl !== undefined ? updates.websiteUrl : profile?.websiteUrl ?? null,
-        twitter_url: updates.twitterUrl !== undefined ? updates.twitterUrl : profile?.twitterUrl ?? null,
-        contact_email: updates.contactEmail !== undefined ? updates.contactEmail : profile?.contactEmail ?? null,
-        portfolio_theme: updates.theme !== undefined ? updates.theme : profile?.theme ?? null,
-        phone_number: updates.phoneNumber !== undefined ? updates.phoneNumber : profile?.phoneNumber ?? null,
-        portfolio_sections: updates.portfolioSections !== undefined ? updates.portfolioSections : profile?.portfolioSections ?? null,
-        portfolio_meta_title: updates.portfolioMetaTitle !== undefined ? updates.portfolioMetaTitle : profile?.portfolioMetaTitle ?? null,
-        portfolio_meta_description: updates.portfolioMetaDescription !== undefined ? updates.portfolioMetaDescription : profile?.portfolioMetaDescription ?? null,
-        // New fields
-        portfolio_style: updates.portfolioStyle !== undefined ? updates.portfolioStyle : profile?.portfolioStyle ?? null,
-        portfolio_layout: updates.portfolioLayout !== undefined ? updates.portfolioLayout : profile?.portfolioLayout ?? null,
-        portfolio_accent_color: updates.portfolioAccentColor !== undefined ? updates.portfolioAccentColor : profile?.portfolioAccentColor ?? null,
-        portfolio_font: updates.portfolioFont !== undefined ? updates.portfolioFont : profile?.portfolioFont ?? null,
-        open_to_work: updates.openToWork !== undefined ? updates.openToWork : profile?.openToWork ?? false,
-        availability_headline: updates.availabilityHeadline !== undefined ? updates.availabilityHeadline : profile?.availabilityHeadline ?? null,
-        portfolio_extras: updates.portfolioExtras !== undefined ? updates.portfolioExtras : profile?.portfolioExtras ?? {},
-        portfolio_sync_mode: updates.portfolioSyncMode !== undefined ? updates.portfolioSyncMode : profile?.portfolioSyncMode ?? 'auto',
-      };
+      // Only send the fields that are explicitly in `updates` — prevents data races
+      // on concurrent saves and avoids overwriting stale fallback values.
+      const dbUpdates: Record<string, unknown> = { user_id: userId };
+
+      if (updates.fullName !== undefined) dbUpdates.full_name = updates.fullName;
+      if (updates.avatarUrl !== undefined) dbUpdates.avatar_url = updates.avatarUrl;
+      if (updates.jobTitle !== undefined) dbUpdates.job_title = updates.jobTitle;
+      if (updates.industry !== undefined) dbUpdates.industry = updates.industry;
+      if (updates.careerLevel !== undefined) dbUpdates.career_level = updates.careerLevel;
+      if (updates.location !== undefined) dbUpdates.location = updates.location;
+      if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
+      if (updates.profileCompleted !== undefined) dbUpdates.profile_completed = updates.profileCompleted;
+      if (updates.username !== undefined) dbUpdates.username = updates.username;
+      if (updates.portfolioBio !== undefined) dbUpdates.portfolio_bio = updates.portfolioBio;
+      if (updates.portfolioEnabled !== undefined) dbUpdates.portfolio_enabled = updates.portfolioEnabled;
+      if (updates.portfolioResumeId !== undefined) dbUpdates.portfolio_resume_id = updates.portfolioResumeId;
+      if (updates.githubUrl !== undefined) dbUpdates.github_url = updates.githubUrl;
+      if (updates.websiteUrl !== undefined) dbUpdates.website_url = updates.websiteUrl;
+      if (updates.twitterUrl !== undefined) dbUpdates.twitter_url = updates.twitterUrl;
+      if (updates.contactEmail !== undefined) dbUpdates.contact_email = updates.contactEmail;
+      if (updates.theme !== undefined) dbUpdates.portfolio_theme = updates.theme;
+      if (updates.phoneNumber !== undefined) dbUpdates.phone_number = updates.phoneNumber;
+      if (updates.portfolioSections !== undefined) dbUpdates.portfolio_sections = updates.portfolioSections;
+      if (updates.portfolioMetaTitle !== undefined) dbUpdates.portfolio_meta_title = updates.portfolioMetaTitle;
+      if (updates.portfolioMetaDescription !== undefined) dbUpdates.portfolio_meta_description = updates.portfolioMetaDescription;
+      if (updates.portfolioStyle !== undefined) dbUpdates.portfolio_style = updates.portfolioStyle;
+      if (updates.portfolioLayout !== undefined) dbUpdates.portfolio_layout = updates.portfolioLayout;
+      if (updates.portfolioAccentColor !== undefined) dbUpdates.portfolio_accent_color = updates.portfolioAccentColor;
+      if (updates.portfolioFont !== undefined) dbUpdates.portfolio_font = updates.portfolioFont;
+      if (updates.openToWork !== undefined) dbUpdates.open_to_work = updates.openToWork;
+      if (updates.availabilityHeadline !== undefined) dbUpdates.availability_headline = updates.availabilityHeadline;
+      if (updates.portfolioExtras !== undefined) dbUpdates.portfolio_extras = updates.portfolioExtras;
+      if (updates.portfolioSyncMode !== undefined) dbUpdates.portfolio_sync_mode = updates.portfolioSyncMode;
 
       const { error } = await supabase
         .from('profiles')
