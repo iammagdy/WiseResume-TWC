@@ -1,67 +1,49 @@
 
 
-## Mobile AI UX Polish -- 2 Issues Found
+## Mobile Export/Preview Flow -- 3 Issues Found
 
-### Audit Summary
+### Issue 1: Bottom action bar secondary buttons below 44px touch target (HIGH)
 
-Tested all AI entry points and flows on 360x640: AI Studio tools grid, chat suggestions, InlineAIButton (section-level), AIEnhanceDialog, AIEnhanceSheet, AIContextualNudge (compact and non-compact), SectionEmptyState AI buttons, and the editor stepper. Most are already solid with 44px+ targets. Found **2 components** with undersized touch targets on AI action buttons.
+**Screen:** Preview page (`/preview`) -- bottom action bar
+**Problem:** The secondary row buttons (Edit, Interview, Share, and iOS Save) use `h-9` (36px) -- below the 44px mobile standard. On small phones, users rushing to tap "Share" or "Interview" will misfire. These are critical actions in the final export flow.
 
----
+**Fix:** Change `h-9 sm:h-10` to `h-11 sm:h-11` (44px) on all secondary action buttons.
 
-### Issue 1: AIContextualNudge compact action button and dismiss are tiny (HIGH)
-
-**Screen:** Editor -- appears inside expanded experience entries and other sections when AI suggestions are available.
-
-**Problem:** The compact variant's action button is `h-5` (20px) with `text-[10px]` and the dismiss X button is `p-0.5` (~19px effective area). Both are under half the 44px standard. On a phone, these nudges are the primary way users discover and trigger AI improvements on individual resume entries, but the buttons are nearly impossible to tap accurately with a thumb.
-
-The non-compact variant's action button is `h-6` (24px) -- also below standard but less critical since the non-compact nudge dismiss button was already fixed to 44px in a prior round.
-
-**Fix:**
-- Compact action button: change `h-5 px-2 text-[10px]` to `h-8 px-3 text-xs` (32px height -- a practical compromise that stays inline without blowing out the layout, paired with 12px readable text)
-- Compact dismiss button: change `p-0.5` to `p-2 min-w-[36px] min-h-[36px] flex items-center justify-center` (36px -- compromise for inline layout)
-- Non-compact action button: change `h-6 px-3 text-xs` to `h-8 px-3 text-xs` (32px -- matches compact)
-
-**File:** `src/components/editor/AIContextualNudge.tsx` (lines 43, 48-49, 66)
+**File:** `src/pages/PreviewPage.tsx` lines 631, 641, 653, 661
+**Change:** Replace `h-9 sm:h-10` with `h-11 sm:h-11` on the 4 secondary buttons.
 
 ---
 
-### Issue 2: AI Studio chat suggestion chips below 44px (LOW)
+### Issue 2: Bottom action bar lacks safe-area padding on notched devices (HIGH)
 
-**Screen:** AI Studio (`/ai-studio`) -- the quick suggestion chips inside the Wise AI Chat card ("Write a summary...", "Add metrics...", "Proofread my resume")
+**Screen:** Preview page (`/preview`) -- bottom action bar
+**Problem:** The bottom action bar uses `pb-[4px]` with no `pb-safe` utility. On devices with a home indicator (iPhone with notch, newer Android gesture-nav phones), the bottom row of buttons sits directly under the home indicator, making them hard or impossible to tap. The app uses `pb-safe` consistently elsewhere (BottomTabBar, sheets) but the Preview page's custom bottom bar omits it.
 
-**Problem:** These chips use `min-h-[36px]` which is 8px below the 44px standard. They're the first thing users see and tap in AI Studio to start an AI interaction.
+**Fix:** Replace `pb-[4px]` with `pb-safe` in the bottom action bar container, and add a minimum fallback padding.
 
-**Fix:** Change `min-h-[36px]` to `min-h-[44px]` on the suggestion chips.
-
-**File:** `src/pages/AIStudioPage.tsx` (line 298)
-
----
-
-### Components Verified as Working (no changes needed)
-
-| Component | Touch Target | Status |
-|-----------|-------------|--------|
-| InlineAIButton (section AI Assist) | 44px+ via Button component | OK |
-| InlineAIButton mobile sheet actions | 64px min-h | OK |
-| AIEnhanceDialog Apply/Discard | h-12 (48px) | OK |
-| AIEnhanceSheet mode chips | min-h-[44px] | OK |
-| AIEnhanceSheet section checkboxes | min-h-[44px] | OK |
-| AIEnhanceSheet Enhance button | h-12 (48px) | OK |
-| SectionEmptyState AI buttons | min-h-[44px] | OK |
-| AI Studio Featured Tool cards | min-h-[100px] | OK |
-| AI Studio "More AI Tools" grid | min-h-[100px] | OK |
-| AI Studio chat input | Good size | OK |
-| StepperNav mobile dropdown | min-h-[56px] | OK |
-| Non-compact nudge dismiss button | min-w/h-[44px] | OK (already fixed) |
+**File:** `src/pages/PreviewPage.tsx` line 592
+**Change:** Replace `pb-[4px] pt-0 mb-0 mt-0` with `pb-[max(8px,env(safe-area-inset-bottom))] pt-1`.
 
 ---
 
-### Technical Changes
+### Issue 3: Template switcher chips below 44px touch target (MEDIUM)
 
-| File | Change | Lines |
-|------|--------|-------|
-| `src/components/editor/AIContextualNudge.tsx` | Increase compact action button to h-8, compact dismiss to p-2 min-w/h-[36px], non-compact action to h-8 | Lines 43, 48-49, 66 |
-| `src/pages/AIStudioPage.tsx` | Change suggestion chip min-h-[36px] to min-h-[44px] | Line 298 |
+**Screen:** Preview page (`/preview`) -- template quick switcher row
+**Problem:** Template name chips use `min-h-[32px]` -- 12px below the 44px standard. Since there are 30 templates and users scroll horizontally to find the right one, misfire taps switch templates accidentally. This is the only place where users pick their template in the preview flow.
 
-Total: 2 files, 4 line changes. No logic changes, no component removals, desktop unaffected.
+**Fix:** Change `min-h-[32px]` to `min-h-[44px]` on the template selector buttons.
 
+**File:** `src/pages/PreviewPage.tsx` line 509
+**Change:** Replace `min-h-[32px]` with `min-h-[44px]` in the template button className.
+
+---
+
+### Technical Changes Summary
+
+| File | Line(s) | Change | Impact |
+|------|---------|--------|--------|
+| `src/pages/PreviewPage.tsx` | 509 | Template chip `min-h-[32px]` to `min-h-[44px]` | Touch target compliance |
+| `src/pages/PreviewPage.tsx` | 592 | Bottom bar `pb-[4px] pt-0` to `pb-[max(8px,env(safe-area-inset-bottom))] pt-1` | Safe area on notched devices |
+| `src/pages/PreviewPage.tsx` | 631, 641, 653, 661 | Secondary buttons `h-9 sm:h-10` to `h-11 sm:h-11` | Touch target compliance |
+
+Total: 1 file, 6 line changes. No logic changes, no export flow changes, desktop unaffected.
