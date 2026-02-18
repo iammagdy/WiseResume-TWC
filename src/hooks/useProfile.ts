@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { User } from '@supabase/supabase-js';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { toast } from 'sonner';
 
 export type CareerLevel = 'entry' | 'mid' | 'senior' | 'executive';
 
@@ -28,6 +27,14 @@ interface Profile {
   portfolioSections: Record<string, boolean> | null;
   portfolioMetaTitle: string | null;
   portfolioMetaDescription: string | null;
+  // New fields
+  views: number;
+  portfolioStyle: string | null;
+  portfolioLayout: string | null;
+  portfolioAccentColor: string | null;
+  portfolioFont: string | null;
+  openToWork: boolean;
+  availabilityHeadline: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -69,7 +76,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, views, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -79,6 +86,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
   }
 
   if (data) {
+    const d = data as Record<string, unknown>;
     return {
       fullName: data.full_name,
       avatarUrl: data.avatar_url,
@@ -88,19 +96,27 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       location: data.location,
       linkedinUrl: data.linkedin_url,
       profileCompleted: data.profile_completed ?? false,
-      username: (data as Record<string, unknown>).username as string | null,
-      portfolioBio: (data as Record<string, unknown>).portfolio_bio as string | null,
-      portfolioEnabled: ((data as Record<string, unknown>).portfolio_enabled as boolean) ?? false,
-      portfolioResumeId: (data as Record<string, unknown>).portfolio_resume_id as string | null,
-      githubUrl: (data as Record<string, unknown>).github_url as string | null,
-      websiteUrl: (data as Record<string, unknown>).website_url as string | null,
-      twitterUrl: (data as Record<string, unknown>).twitter_url as string | null,
-      contactEmail: (data as Record<string, unknown>).contact_email as string | null,
-      theme: (data as Record<string, unknown>).portfolio_theme as string | null,
-      phoneNumber: (data as Record<string, unknown>).phone_number as string | null,
-      portfolioSections: (data as Record<string, unknown>).portfolio_sections as Record<string, boolean> | null,
-      portfolioMetaTitle: (data as Record<string, unknown>).portfolio_meta_title as string | null,
-      portfolioMetaDescription: (data as Record<string, unknown>).portfolio_meta_description as string | null,
+      username: d.username as string | null,
+      portfolioBio: d.portfolio_bio as string | null,
+      portfolioEnabled: (d.portfolio_enabled as boolean) ?? false,
+      portfolioResumeId: d.portfolio_resume_id as string | null,
+      githubUrl: d.github_url as string | null,
+      websiteUrl: d.website_url as string | null,
+      twitterUrl: d.twitter_url as string | null,
+      contactEmail: d.contact_email as string | null,
+      theme: d.portfolio_theme as string | null,
+      phoneNumber: d.phone_number as string | null,
+      portfolioSections: d.portfolio_sections as Record<string, boolean> | null,
+      portfolioMetaTitle: d.portfolio_meta_title as string | null,
+      portfolioMetaDescription: d.portfolio_meta_description as string | null,
+      // New fields
+      views: (d.views as number) ?? 0,
+      portfolioStyle: (d.portfolio_style as string) ?? null,
+      portfolioLayout: (d.portfolio_layout as string) ?? null,
+      portfolioAccentColor: (d.portfolio_accent_color as string) ?? null,
+      portfolioFont: (d.portfolio_font as string) ?? null,
+      openToWork: (d.open_to_work as boolean) ?? false,
+      availabilityHeadline: (d.availability_headline as string) ?? null,
     };
   }
 
@@ -130,6 +146,13 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     portfolioSections: null,
     portfolioMetaTitle: null,
     portfolioMetaDescription: null,
+    views: 0,
+    portfolioStyle: null,
+    portfolioLayout: null,
+    portfolioAccentColor: null,
+    portfolioFont: null,
+    openToWork: false,
+    availabilityHeadline: null,
   };
 
   // Create the row via upsert
@@ -152,8 +175,8 @@ export function useProfile(userId: string | undefined, user?: User | null) {
     queryKey: ['profile', userId],
     queryFn: () => fetchProfile(userId!, user),
     enabled: !!userId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - matches resume query
-    gcTime: 10 * 60 * 1000, // 10 minutes cache retention
+    staleTime: 0, // Always fetch fresh data after saves
+    gcTime: 10 * 60 * 1000,
   });
 
   const updateMutation = useMutation({
@@ -183,23 +206,30 @@ export function useProfile(userId: string | undefined, user?: User | null) {
         portfolio_sections: updates.portfolioSections !== undefined ? updates.portfolioSections : profile?.portfolioSections ?? null,
         portfolio_meta_title: updates.portfolioMetaTitle !== undefined ? updates.portfolioMetaTitle : profile?.portfolioMetaTitle ?? null,
         portfolio_meta_description: updates.portfolioMetaDescription !== undefined ? updates.portfolioMetaDescription : profile?.portfolioMetaDescription ?? null,
+        // New fields
+        portfolio_style: updates.portfolioStyle !== undefined ? updates.portfolioStyle : profile?.portfolioStyle ?? null,
+        portfolio_layout: updates.portfolioLayout !== undefined ? updates.portfolioLayout : profile?.portfolioLayout ?? null,
+        portfolio_accent_color: updates.portfolioAccentColor !== undefined ? updates.portfolioAccentColor : profile?.portfolioAccentColor ?? null,
+        portfolio_font: updates.portfolioFont !== undefined ? updates.portfolioFont : profile?.portfolioFont ?? null,
+        open_to_work: updates.openToWork !== undefined ? updates.openToWork : profile?.openToWork ?? false,
+        availability_headline: updates.availabilityHeadline !== undefined ? updates.availabilityHeadline : profile?.availabilityHeadline ?? null,
       };
 
       const { error } = await supabase
         .from('profiles')
-        .upsert(dbUpdates as any, { onConflict: 'user_id' });
+        .upsert(dbUpdates as never, { onConflict: 'user_id' });
 
+      if (error) throw error;
       return updates;
     },
     onSuccess: (updates) => {
-      // Optimistically update the cache
-      queryClient.setQueryData(['profile', userId], (old: Profile | null) => 
+      // Optimistically update the cache — no toast here to avoid double toast
+      queryClient.setQueryData(['profile', userId], (old: Profile | null) =>
         old ? { ...old, ...updates } : updates as Profile
       );
-      toast.success('Profile updated successfully');
     },
     onError: () => {
-      toast.error('Failed to update profile');
+      // Let callers handle error display
     },
   });
 
