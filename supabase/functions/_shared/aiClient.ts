@@ -48,6 +48,10 @@ export interface AIResponse {
     promptTokens: number;
     completionTokens: number;
   };
+  /** True if the user's BYOK key failed and the request fell back to the default gateway */
+  fallbackUsed?: boolean;
+  /** Reason for fallback (e.g. 'quota_exceeded', 'rate_limit', 'invalid_key') */
+  fallbackReason?: string;
 }
 
 export interface AIError {
@@ -160,7 +164,10 @@ export async function callAI(options: AICallOptions): Promise<AIResponse> {
       } catch (geminiErr) {
         if (isAIError(geminiErr) && (geminiErr.type === 'quota_exceeded' || geminiErr.type === 'rate_limit' || geminiErr.type === 'invalid_key' || geminiErr.type === 'unknown')) {
           console.warn(`[AI] User Gemini key failed (${geminiErr.type}), falling back to Lovable gateway`);
-          return await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+          const result = await callLovableGateway(model, messages, temperature, maxTokens, tools, toolChoice, controller.signal);
+          result.fallbackUsed = true;
+          result.fallbackReason = geminiErr.type;
+          return result;
         }
         throw geminiErr;
       }

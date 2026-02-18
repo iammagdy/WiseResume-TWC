@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.send-feature-request]
 verify_jwt = false
+
+[functions.validate-api-key]
+verify_jwt = false

@@ -5,6 +5,7 @@ import { trackGeminiUsage } from '@/lib/aiProvider';
 import { useAIAction } from '@/hooks/useAIAction';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
+import { checkAIFallback } from '@/lib/aiFallbackToast';
 
 export type SectionType = 'summary' | 'experience' | 'education' | 'skills' | 'contact' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'certifications' | 'languages';
 export type ActionType = 'generate' | 'improve' | 'ats_improve' | 'ats_optimize' | 'shorten' | 'expand' | 'add_metrics' | 'generate_bullets';
@@ -89,6 +90,7 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
 
         useAIHealthStore.getState().recordSuccess(_latency);
         trackGeminiUsage();
+        checkAIFallback(data);
         data.improved = sanitizeAIContent(data.improved);
         return data;
       });
