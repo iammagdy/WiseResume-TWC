@@ -86,6 +86,7 @@ export default function EditorPage() {
   const { user, loading: authLoading } = useAuth();
   const storeHydrated = useResumeStoreHydration();
   const { hasSeenAIIntro, setHasSeenAIIntro } = useSettingsStore();
+  const [templateBtnSeen, setTemplateBtnSeen] = useState(() => localStorage.getItem('template_btn_seen') === 'true');
 
   // Use shallow selector to prevent unnecessary re-renders when unrelated store parts change
   const { 
@@ -915,12 +916,13 @@ export default function EditorPage() {
           {/* Mobile-only: consolidated tools trigger (Sheet-based for portal rendering) */}
           <div className="flex items-center gap-1 md:hidden">
             <button
-              onClick={() => { haptics.light(); setShowTemplates(true); }}
-              className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
+              onClick={() => { haptics.light(); if (!templateBtnSeen) { localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true); } setShowTemplates(true); }}
+              className="relative rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
               aria-label="Change template"
             >
-              <LayoutGrid className="w-5 h-5 text-muted-foreground" />
-              <span className="text-[9px] font-medium leading-none text-muted-foreground">Template</span>
+              {!templateBtnSeen && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />}
+              <LayoutGrid className={`w-5 h-5 ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`} />
+              <span className={`text-[9px] font-medium leading-none ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`}>Template</span>
             </button>
             <button
               onClick={() => { haptics.light(); setShowToolsSheet(true); }}
