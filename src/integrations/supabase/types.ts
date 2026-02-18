@@ -478,6 +478,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          availability_headline: string | null
           avatar_url: string | null
           career_level: string | null
           contact_email: string | null
@@ -490,13 +491,18 @@ export type Database = {
           linkedin_url: string | null
           location: string | null
           onboarding_completed: boolean | null
+          open_to_work: boolean | null
           phone_number: string | null
+          portfolio_accent_color: string | null
           portfolio_bio: string | null
           portfolio_enabled: boolean | null
+          portfolio_font: string | null
+          portfolio_layout: string | null
           portfolio_meta_description: string | null
           portfolio_meta_title: string | null
           portfolio_resume_id: string | null
           portfolio_sections: Json | null
+          portfolio_style: string | null
           portfolio_theme: string | null
           profile_completed: boolean | null
           twitter_url: string | null
@@ -507,6 +513,7 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          availability_headline?: string | null
           avatar_url?: string | null
           career_level?: string | null
           contact_email?: string | null
@@ -519,13 +526,18 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null
+          open_to_work?: boolean | null
           phone_number?: string | null
+          portfolio_accent_color?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_font?: string | null
+          portfolio_layout?: string | null
           portfolio_meta_description?: string | null
           portfolio_meta_title?: string | null
           portfolio_resume_id?: string | null
           portfolio_sections?: Json | null
+          portfolio_style?: string | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
           twitter_url?: string | null
@@ -536,6 +548,7 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          availability_headline?: string | null
           avatar_url?: string | null
           career_level?: string | null
           contact_email?: string | null
@@ -548,13 +561,18 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null
+          open_to_work?: boolean | null
           phone_number?: string | null
+          portfolio_accent_color?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_font?: string | null
+          portfolio_layout?: string | null
           portfolio_meta_description?: string | null
           portfolio_meta_title?: string | null
           portfolio_resume_id?: string | null
           portfolio_sections?: Json | null
+          portfolio_style?: string | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
           twitter_url?: string | null

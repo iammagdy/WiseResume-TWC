@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
@@ -119,29 +119,65 @@ export default function ProfilePage() {
           </Button>
         </div>
 
-        {/* Portfolio Summary Card - navigates to /portfolio */}
-        <button
-          onClick={() => { haptics.light(); navigate('/portfolio'); }}
-          className="w-full glass-elevated rounded-2xl p-4 flex items-center gap-3 text-left active:scale-[0.98] transition-transform touch-manipulation"
-        >
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Globe className="w-5 h-5 text-primary" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-foreground text-sm">Public Portfolio</h3>
-              <Badge variant={profile?.portfolioEnabled ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
-                {profile?.portfolioEnabled ? 'Live' : 'Draft'}
-              </Badge>
+        {/* Portfolio Website Card */}
+        <div className="glass-elevated rounded-2xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Globe className="w-5 h-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-foreground text-sm">My Portfolio Website</h3>
+                  <Badge variant={(profile as unknown as Record<string, unknown>)?.portfolioEnabled ? 'default' : 'secondary'} className="text-[10px] px-1.5 py-0">
+                    {(profile as unknown as Record<string, unknown>)?.portfolioEnabled ? '🟢 Live' : 'Draft'}
+                  </Badge>
+                </div>
+                {profile?.username ? (
+                  <p className="text-xs text-muted-foreground truncate">wiseresume.lovable.app/p/{profile.username}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Create your personal portfolio site</p>
+                )}
+              </div>
             </div>
-            {profile?.username ? (
-              <p className="text-xs text-muted-foreground truncate">wiseresume.lovable.app/p/{profile.username}</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">Set up your public portfolio</p>
-            )}
           </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-        </button>
+          {(profile as unknown as Record<string, unknown>)?.views != null && Number((profile as unknown as Record<string, unknown>).views) > 0 && (
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              👁 <span className="font-semibold text-foreground">{String((profile as unknown as Record<string, unknown>).views)}</span> total views
+            </p>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            {profile?.username && (profile as unknown as Record<string, unknown>)?.portfolioEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
+                onClick={() => { haptics.light(); window.open(`https://wiseresume.lovable.app/p/${profile.username}`, '_blank', 'noopener,noreferrer'); }}
+              >
+                <ExternalLink className="w-3.5 h-3.5 mr-1" /> Preview
+              </Button>
+            )}
+            {profile?.username && (profile as unknown as Record<string, unknown>)?.portfolioEnabled && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
+                onClick={handleShareProfile}
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1" /> Share
+              </Button>
+            )}
+            <Button
+              variant={profile?.username ? 'outline' : 'default'}
+              size="sm"
+              className={`h-9 rounded-xl text-xs active:scale-95 touch-manipulation ${!(profile?.username && (profile as unknown as Record<string, unknown>)?.portfolioEnabled) ? 'col-span-3' : ''}`}
+              onClick={() => { haptics.light(); navigate('/portfolio'); }}
+            >
+              <Edit2 className="w-3.5 h-3.5 mr-1" />
+              {profile?.username ? 'Edit' : 'Set Up Portfolio'}
+            </Button>
+          </div>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
