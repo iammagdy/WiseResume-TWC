@@ -1,67 +1,38 @@
 
+## Mobile Flow Blockers and Confusing Interactions Fix
 
-## Mobile Layout, Readability, and Touch Target Audit
+### Issue 1: AI Intro Tooltip "Got It!" button unreachable on mobile (CRITICAL BLOCKER)
 
-### Audit Summary
+**Screen:** Editor (`/editor`) -- first visit
+**How to reproduce:** Open a resume in the editor for the first time. The AI intro tooltip appears as a full-screen overlay. On 640px height viewports, the "Got It!" button at the bottom of the card is completely hidden behind the PWA install banner (z-40 at bottom-[11.5rem]). The backdrop click to dismiss is also intercepted by the install banner.
 
-After testing all major screens (Landing, Dashboard, Editor, AI Studio, Applications, Settings) at 360x640, the app is in excellent mobile shape overall. The layout foundations (100dvh, safe areas, bottom tab bar, glass cards) are solid. I found **3 actionable issues** that need surgical CSS fixes -- no logic or component changes needed.
+**Root cause:** The tooltip card uses `p-6 pt-8` with `mb-6` spacing between sections, making the card too tall. The "Got It!" button and hint text end up behind the install banner overlay.
 
----
+**Fix:** Increase the tooltip's z-index from `z-50` to `z-[60]` so it renders above the install banner. Also make the card scrollable on very short viewports by adding `max-h-[calc(100dvh-6rem)] overflow-y-auto` to the card container.
 
-### Issue 1: StatusFilter chips far below 44px touch target (HIGH)
-
-**Screen:** Applications page (`/applications`)  
-**Component:** `src/components/applications/StatusFilter.tsx`
-
-**Problem:** Each status filter button uses `py-1.5` (6px vertical padding) with `text-xs` (12px font), resulting in an effective height of ~24px -- nearly half the 44px minimum. On a thumb-operated phone, these chips are very hard to tap accurately, especially "Interviewing" which is a long word next to "Offer."
-
-**Fix:** Add `min-h-[44px]` to each button, keeping the same visual density via padding but ensuring the tappable area is large enough.
-
-**File:** `src/components/applications/StatusFilter.tsx` line 35  
-**Change:** Add `min-h-[44px]` to the button className.
+**File:** `src/components/editor/AIIntroTooltip.tsx` (lines 19 and 27)
 
 ---
 
-### Issue 2: QuickActionChips label text too small at 11px (MEDIUM)
+### Issue 2: Install banner dismiss button below 44px touch target (MEDIUM)
 
-**Screen:** Dashboard (`/dashboard`)  
-**Component:** `src/components/dashboard/QuickActionChips.tsx`
+**Screen:** All screens where the install banner appears
+**How to reproduce:** Try to tap the small X button on the install banner. The button is `p-1` (~28px effective area).
 
-**Problem:** The labels under each quick action icon ("New Resume", "Upload PDF", etc.) use `text-[11px]` which is below the 12px minimum for comfortable mobile reading. On low-DPI Android phones, this becomes even harder to read.
+**Fix:** Increase the dismiss button padding from `p-1` to `p-2` and add `min-w-[44px] min-h-[44px] flex items-center justify-center` for reliable thumb targeting.
 
-**Fix:** Increase from `text-[11px]` to `text-xs` (12px), which adds just 1px but brings it to the standard minimum.
-
-**File:** `src/components/dashboard/QuickActionChips.tsx` line 81  
-**Change:** Replace `text-[11px]` with `text-xs`.
+**File:** `src/components/pwa/InstallPrompt.tsx` (line 76)
 
 ---
 
-### Issue 3: DashboardStats greeting clipped on narrow screens with long names (LOW)
+### Issue 3: "Mark as Applied" button below 44px touch target (LOW)
 
-**Screen:** Dashboard (`/dashboard`)  
-**Component:** `src/components/dashboard/DashboardStats.tsx`
+**Screen:** Applications page, Activity Timeline
+**How to reproduce:** In the Activity Timeline, the "Mark as Applied" button has `min-h-[28px]` -- well below the 44px standard.
 
-**Problem:** The greeting "Good morning, Magdy" at `text-xl` can collide with the streak badge on very narrow (360px) viewports with longer names. The text has no truncation.
+**Fix:** Change `min-h-[28px]` to `min-h-[44px]` on the button.
 
-**Fix:** Add `truncate` to the greeting h2 and add `shrink-0` to the streak badge so the name gets truncated rather than the badge being pushed off-screen.
-
-**File:** `src/components/dashboard/DashboardStats.tsx` lines 110 and 116  
-**Change:** Add `truncate` class to the h2, add `shrink-0` to the streak badge container.
-
----
-
-### Screens Verified as Working (no changes needed)
-
-| Screen | Status | Notes |
-|--------|--------|-------|
-| Landing page (/) | OK | Hero, features, how-it-works, CTA all render cleanly at 360px |
-| Dashboard (/dashboard) | OK | Search bar h-12 (48px), filter chips already 44px (fixed in prior round), FAB accessible |
-| AI Studio (/ai-studio) | OK | pb-[180px] fix from prior round gives enough scroll room |
-| Editor (/editor) | OK | Tabs, stepper, sections all render within viewport |
-| Settings (/settings) | OK | All rows tappable, theme toggle, profile card, scroll works |
-| Bottom Tab Bar | OK | 5 tabs, 44px+ height, safe area padding, active states |
-| Resume cards | OK | Swipe gestures, menu button, score ring all accessible |
-| Sheets and dialogs | OK | All open within viewport, drag handles visible, close buttons 44px+ |
+**File:** `src/components/applications/ActivityTimeline.tsx` (line 162)
 
 ---
 
@@ -69,9 +40,8 @@ After testing all major screens (Landing, Dashboard, Editor, AI Studio, Applicat
 
 | File | Change | Impact |
 |------|--------|--------|
-| `src/components/applications/StatusFilter.tsx` | Add `min-h-[44px]` to filter buttons | Touch target compliance |
-| `src/components/dashboard/QuickActionChips.tsx` | `text-[11px]` to `text-xs` | Readability on small screens |
-| `src/components/dashboard/DashboardStats.tsx` | Add `truncate` to greeting, `shrink-0` to streak badge | Prevent text overflow on narrow viewports |
+| `src/components/editor/AIIntroTooltip.tsx` | Increase z-index to z-[60], add max-height + overflow to card | Fixes blocked "Got It!" button |
+| `src/components/pwa/InstallPrompt.tsx` | Increase dismiss X button padding to meet 44px | Touch target compliance |
+| `src/components/applications/ActivityTimeline.tsx` | Change min-h-[28px] to min-h-[44px] | Touch target compliance |
 
-Total: 3 files, 3 line changes. No component renames, no logic changes, no route modifications. Desktop behavior unaffected since all changes use min-height constraints and truncation that only activate on narrow viewports.
-
+Total: 3 files, 3 surgical line changes. No logic changes, no component removals, desktop unaffected.
