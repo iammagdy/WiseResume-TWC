@@ -83,7 +83,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
 
   return (
     <nav
-      className={cn("fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar glass-surface border-t pb-safe shadow-[0_-4px_32px_-4px_hsl(var(--background)/0.8)] pb-[5px] border-dashed border-2 border-[#200e14] rounded-3xl",
+      className={cn("fixed bottom-0 left-0 right-0 z-50 bottom-tab-bar glass-surface border-t pb-safe shadow-[0_-4px_32px_-4px_hsl(var(--background)/0.8)] pb-[5px] border border-border/20 rounded-3xl",
 
 
 
