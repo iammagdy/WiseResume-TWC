@@ -1112,3 +1112,19 @@ button,
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
+
+/* ===== Long-content / RTL utilities ===== */
+
+/* Prevents long URLs or unbroken strings from overflowing template cells */
+.resume-text-content {
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+/* Skip off-screen layout calculations for editor section cards on mobile
+   (content-visibility: auto lets the browser defer painting of unseen items) */
+.editor-scroll-container > * {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 500px;
+}

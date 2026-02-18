@@ -310,6 +310,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
                             />
                           </div>
                           <Textarea
+                            dir="auto"
                             value={exp.description}
                             onChange={(e) => updateExperience(exp.id, { description: e.target.value })}
                             placeholder="Describe your responsibilities and achievements..."

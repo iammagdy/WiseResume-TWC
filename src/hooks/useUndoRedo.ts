@@ -49,11 +49,14 @@ const MAX_HISTORY = 50;
 export function useUndoRedo(currentResume: ResumeData | null) {
   const [history, setHistory] = useState<UndoEntry[]>([]);
   const [pointer, setPointer] = useState(-1);
+  // Keep pointer in a ref too so the snapshot effect doesn't re-register
+  // every time pointer state changes (which caused a double JSON.stringify per undo/redo)
+  const pointerRef = useRef(-1);
   const isUndoRedoRef = useRef(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const lastSnapshotRef = useRef<string>('');
 
-  // Record changes with debounce
+  // Record changes with debounce — depends only on currentResume, NOT on pointer state
   useEffect(() => {
     if (!currentResume || isUndoRedoRef.current) {
       isUndoRedoRef.current = false;
@@ -70,7 +73,7 @@ export function useUndoRedo(currentResume: ResumeData | null) {
 
       setHistory(prev => {
         // If pointer is not at the end, discard redo stack
-        const base = prev.slice(0, pointer + 1);
+        const base = prev.slice(0, pointerRef.current + 1);
 
         let desc = 'Updated resume';
         if (prevJson && base.length > 0) {
@@ -85,7 +88,9 @@ export function useUndoRedo(currentResume: ResumeData | null) {
         const newHistory = [...base, { snapshot: JSON.parse(json), description: desc }];
         if (newHistory.length > MAX_HISTORY) newHistory.shift();
 
-        setPointer(newHistory.length - 1);
+        const newPointer = newHistory.length - 1;
+        pointerRef.current = newPointer;
+        setPointer(newPointer);
         return newHistory;
       });
     }, 500);
@@ -93,7 +98,7 @@ export function useUndoRedo(currentResume: ResumeData | null) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [currentResume, pointer]);
+  }, [currentResume]); // ← pointer removed: reads pointerRef.current instead
 
   const canUndo = pointer > 0;
   const canRedo = pointer < history.length - 1;
@@ -105,6 +110,7 @@ export function useUndoRedo(currentResume: ResumeData | null) {
     if (!canUndo) return null;
     isUndoRedoRef.current = true;
     const newPointer = pointer - 1;
+    pointerRef.current = newPointer;
     setPointer(newPointer);
     const entry = history[newPointer];
     lastSnapshotRef.current = JSON.stringify(entry.snapshot);
@@ -115,6 +121,7 @@ export function useUndoRedo(currentResume: ResumeData | null) {
     if (!canRedo) return null;
     isUndoRedoRef.current = true;
     const newPointer = pointer + 1;
+    pointerRef.current = newPointer;
     setPointer(newPointer);
     const entry = history[newPointer];
     lastSnapshotRef.current = JSON.stringify(entry.snapshot);
