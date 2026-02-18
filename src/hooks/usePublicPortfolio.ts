@@ -32,6 +32,13 @@ export interface PublicProfile {
   portfolioSections: PortfolioSections | null;
   metaTitle: string | null;
   metaDescription: string | null;
+  // New portfolio design fields
+  portfolioStyle: 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean';
+  portfolioLayout: 'single' | 'two-col';
+  portfolioAccentColor: string | null;
+  portfolioFont: 'inter' | 'space-grotesk' | 'serif';
+  openToWork: boolean;
+  availabilityHeadline: string | null;
 }
 
 export interface PublicResume {
@@ -91,6 +98,12 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       portfolioSections: (profile.portfolioSections as PortfolioSections) || null,
       metaTitle: (profile.metaTitle as string) || null,
       metaDescription: (profile.metaDescription as string) || null,
+      portfolioStyle: ((profile.portfolioStyle as string) || 'minimal') as 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean',
+      portfolioLayout: ((profile.portfolioLayout as string) || 'single') as 'single' | 'two-col',
+      portfolioAccentColor: (profile.portfolioAccentColor as string) || null,
+      portfolioFont: ((profile.portfolioFont as string) || 'inter') as 'inter' | 'space-grotesk' | 'serif',
+      openToWork: (profile.openToWork as boolean) || false,
+      availabilityHeadline: (profile.availabilityHeadline as string) || null,
     },
     resume: {
       id: (resume.id as string) || '',
