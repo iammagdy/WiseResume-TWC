@@ -32,7 +32,7 @@ export function StatusFilter({ value, onChange, counts }: StatusFilterProps) {
               onChange(s.value);
             }}
             className={cn(
-              'shrink-0 min-w-fit px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation snap-start flex items-center gap-1.5',
+              'shrink-0 min-w-fit min-h-[44px] px-3 py-1.5 rounded-full text-xs font-semibold transition-all touch-manipulation snap-start flex items-center gap-1.5',
               i === STATUSES.length - 1 && 'mr-4',
               value === s.value
                 ? s.color

@@ -107,7 +107,7 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
         <div className="relative z-10">
           {/* Greeting - compact */}
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-xl sm:text-lg font-semibold">
+            <h2 className="text-xl sm:text-lg font-semibold truncate">
               {greeting}{firstName ? `, ${firstName}` : ''}{' '}
               <span className="text-base">👋</span>
             </h2>
@@ -115,7 +115,7 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20"
+                className="shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full bg-warning/10 border border-warning/20"
               >
                 <Flame className="w-3.5 h-3.5 text-warning" />
                 <span className="text-xs font-bold text-warning">{streak}</span>
