@@ -295,7 +295,7 @@ export default function AIStudioPage() {
             {SUGGESTIONS.slice(0, 3).map(s => (
               <span
                 key={s}
-                className="text-sm px-3 py-1.5 min-h-[36px] flex items-center justify-center sm:justify-start rounded-full bg-primary/5 border border-primary/10 text-muted-foreground"
+                className="text-sm px-3 py-1.5 min-h-[44px] flex items-center justify-center sm:justify-start rounded-full bg-primary/5 border border-primary/10 text-muted-foreground"
               >
                 {s}
               </span>
