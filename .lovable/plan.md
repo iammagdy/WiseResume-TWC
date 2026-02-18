@@ -1,175 +1,294 @@
 
+# Mobile Network Resilience Audit: Slow 3G / Offline Testing
 
-## Mobile Interruption Resilience: Analysis and Fixes
+## What Was Tested (Analysis of Code Paths)
 
-### Current State Assessment
-
-The Editor has a solid foundation for data persistence but has one critical gap when running as an APK or PWA on mobile.
+I traced through all five key surfaces — Auth, Dashboard, Editor (typing + AI), Export — for two network failure modes: **Slow 3G / high latency** and **complete offline**. Here is what I found.
 
 ---
 
-### How Data Persistence Works Today
+## Current State: What's Already Good
 
-```text
-User types in Editor
-        |
-        v
-Zustand store updated (in-memory)
-        |
-        v
-useEffect fires on currentResume change
-        |
-        v
-3-second debounce timer starts
-        |
-        v
-saveToCloud() sends to database
-        |
-        v
-On network error: queued in offlineSyncStore (persisted to localStorage)
+| Surface | Behavior | Status |
+|---------|----------|--------|
+| Editor autosave (offline) | Queued to `offlineSyncStore` → localStorage | Safe |
+| Editor offline indicator | `OfflineIndicator` badge + save status bar show "Offline" | Good |
+| App-level offline banner | `OfflineBanner` appears in `AppShell` with "You're offline" | Good |
+| Dashboard resumes (offline) | `networkMode: 'offlineFirst'`, staleTime 5m, serves cache | Good |
+| Tailor slow-request toast | 25s timer shows "This is taking longer than usual. Hang tight…" | Good |
+| Enhance slow-request toast | 20s timer shows same message | Good |
+| AI fallback toast | BYOK key failure now notifies user (from previous sprint) | Good |
+| Auth token refresh | `autoRefreshToken: true` in Supabase client | Good |
+| Store persistence | Zustand persist writes to localStorage on every state change | Good |
+| Background flush | `useAppLifecycle` + `saveToCloud()` on backgrounding (from previous sprint) | Good |
+
+---
+
+## Issues Found: Specific Gaps in Error Messaging
+
+### Issue 1 — Auth login on slow/offline: generic errors, no network awareness
+
+**File:** `src/pages/AuthPage.tsx` lines 114–162
+
+**What happens today on Slow 3G or offline:**
+- `supabase.auth.signInWithPassword()` throws a `Failed to fetch` / network error
+- Caught by the outer `catch {}` at line 158, which only shows: `toast.error('An unexpected error occurred.')`
+- No retry button. No "check your connection" message. User is stuck.
+
+**On offline specifically:** The Submit button just spins and then shows a useless generic error.
+
+**Fix:** Before calling `signInWithPassword`, check `navigator.onLine`. If offline, show a specific "You're offline — please check your connection and try again" message immediately. In the catch, detect network errors and show a more helpful message with a retry hint.
+
+**Risk:** Very low — only changes error message strings, no business logic.
+
+---
+
+### Issue 2 — Dashboard empty state on first load offline: no message
+
+**File:** `src/pages/DashboardPage.tsx` — `useResumes()` hook is `networkMode: 'offlineFirst'`
+
+**What happens today:**
+- On first-ever launch with no cache while offline, `useResumes()` returns `{ data: undefined, isError: true }`.
+- The Dashboard falls through to the `<EmptyState>` component which shows "No resumes yet" — the same state as a brand new user.
+- There is no indication that the empty state is caused by being offline rather than genuinely having no resumes.
+
+**Fix:** In the Dashboard, if `isError === true` AND `!navigator.onLine` AND `resumes === undefined`, show an inline offline state card instead of the generic empty state.
+
+**Risk:** Very low — additive, no existing logic changes.
+
+---
+
+### Issue 3 — Editor save failure on slow network: silent failure
+
+**File:** `src/pages/EditorPage.tsx` line 282
+
+**What happens today on a slow/flaky network (not fully offline):**
+```
+// Don't show error toast - OfflineIndicator handles it
+```
+The comment explains the choice, but there's a gap: the `OfflineIndicator` only shows when `!isOnline` (navigator.onLine is false). On a **slow but technically online** connection where `fetch` times out, `navigator.onLine` stays `true`, but the save fails. The error is swallowed silently with only a `console.error`.
+
+The user sees the save spinner (Saving...) that never resolves, with no feedback. Their edit may be in localStorage but not in the cloud, and they don't know it failed.
+
+**Fix:** In the catch block for non-network errors (i.e., online but save still failed), show a brief `toast.warning('Auto-save failed — your changes are safe locally and will retry.')` with a short 4s duration. The message is honest, non-alarming, and tells the user their data is safe.
+
+**Risk:** Very low — adds one `toast.warning` call in an existing catch block.
+
+---
+
+### Issue 4 — AI actions when offline: cryptic errors
+
+**File:** `src/hooks/useAIEnhance.ts` line 113–116
+
+**What happens today when AI is triggered while offline:**
+```ts
+} catch (error) {
+  if (isTimeoutError(error)) {
+    toast.warning('The request timed out. Please try again.');
+  } else {
+    toast.error('Failed to enhance content. Please try again.');
+  }
+}
 ```
 
-**What's protected:**
-- Browser tab close / refresh: `beforeunload` event warns user
-- In-app navigation: `useUnsavedChangesGuard` intercepts and shows dialog
-- Android back button: `useBackButton` checks for dirty state before navigating
-- Keyboard close: dedicated `keyboard-close` event triggers save
-- Network loss: changes queued to `offlineSyncStore` (persisted in localStorage)
-- Zustand store itself: persisted to localStorage via `zustand/persist`
+A `Failed to fetch` error caused by being offline hits the `else` branch and shows: **"Failed to enhance content. Please try again."**
+
+Same problem in `aiTailor.ts`: the generic outer `throw` escalates to wherever `tailorResumeWithProgress` is called from, and the caller shows generic error text.
+
+Both messages don't tell the user **why** it failed or that their existing content is **safe**.
+
+**Fix:** Add a `navigator.onLine` check inside the catch block. If offline, show: **"You're offline — AI features need an internet connection. Your resume content is saved."** This is specific, calming, and actionable.
+
+**Risk:** Very low — only changes toast message in the catch block. No logic change.
 
 ---
 
-### The Gap: No Save on App Background
+### Issue 5 — Export on slow network / offline: silent Loader2 spinner
 
-**Problem:** When the user switches apps, receives a call, or locks the device, none of the existing save triggers fire:
+**File:** `src/components/editor/ExportOptionsSheet.tsx` lines 315–335 and the export handler in `EditorPage.tsx`
 
-- `beforeunload` does NOT fire when a mobile app goes to background (only on tab close/refresh)
-- The 3-second debounce timer gets suspended by the OS when the app is backgrounded
-- If the OS kills the WebView while backgrounded (common on Android with low memory), unsaved changes in the Zustand in-memory store are lost
-- The Zustand `persist` middleware only writes to localStorage on state changes, not on a schedule -- so the in-memory state IS already in localStorage. However, the cloud save may not have completed.
+**What happens today:**
+- Export is fully client-side (html2canvas + pdf-lib) — no network needed for PDF/DOCX generation.
+- However, the export handler catches errors silently. If the template rendering fails (e.g., image loading fails because of no network for avatars), the export spinner never resolves and the sheet stays open.
 
-**Risk level by scenario:**
+**Check needed in EditorPage export handler** — add a try/catch around the generatePDF call that shows a `toast.error('Export failed — please try again.')` and resets the export state.
 
-| Scenario | Data in localStorage? | Data in Cloud DB? | Risk |
-|----------|----------------------|-------------------|------|
-| Switch app, return within seconds | Yes | Maybe (depends if 3s debounce fired) | **Low** |
-| Switch app, return after minutes | Yes | Maybe | **Low** (store rehydrates from localStorage) |
-| Switch app, OS kills WebView | Yes (already persisted) | **No** if debounce hadn't fired | **Medium** |
-| Lock device, unlock | Yes | Maybe | **Low** |
-| Receive call during AI operation | Yes (pre-AI state) | No (AI result may be lost) | **Medium** |
+Also: for **online-required** exports (like cover letter package which requires a backend call), if the user is offline, the button should proactively show an offline warning rather than spinning and failing.
 
-**Key insight:** Because Zustand's `persist` middleware writes to localStorage synchronously on every state change, the resume data itself is safe in localStorage. The risk is that the **cloud save** (database) may lag behind by up to 3 seconds.
+**Fix:**
+1. In `EditorPage.tsx` export handler: wrap in try/catch, show a clear toast on failure, always call `reset()` in finally.
+2. In `ExportOptionsSheet.tsx`: when `!navigator.onLine` and the selected export type requires network, show a small inline `Alert` near the export button.
+
+**Risk:** Low — additive try/catch and one conditional Alert UI.
 
 ---
 
-### Scenario-by-Scenario Analysis
+### Issue 6 — Slow login button has no timeout or retry
 
-#### 1. Switch Away Mid-Typing, Come Back
+**File:** `src/pages/AuthPage.tsx` — `handleSubmit`
 
-**Current behavior:**
-- Zustand store persists to localStorage on every keystroke (synchronous)
-- If user returns before OS kills WebView: timer resumes, save completes -- no data loss
-- If OS kills WebView: localStorage has latest state, but cloud DB may be 0-3s behind
+**What happens today on Slow 3G:**
+- Auth `signInWithPassword` has no timeout. On very slow connections it can take 30–60s with the button stuck as `isLoading=true`.
+- There is no "Still connecting…" feedback after a delay.
+- No retry affordance.
 
-**Verdict:** Generally safe. The `resumeStore` persistence covers this. Cloud sync is the gap.
+**Fix:** Add a 15-second slow-connection indicator using a `setTimeout`: after 15s of loading, show a small note below the button: "This is taking longer than usual. Please check your connection." This matches the pattern already used in `useAIEnhance`.
 
-**Fix:** Add a `visibilitychange` listener (web) and `appStateChange` listener (Capacitor) to flush `saveToCloud()` immediately when the app goes to background.
-
-#### 2. Call/Notification Mid-Flow
-
-**Current behavior:**
-- Incoming call overlay doesn't kill the WebView -- app stays alive
-- The 3s debounce timer is paused while app is in background on some Android devices
-- When user returns, timer resumes and save fires normally
-
-**Verdict:** Safe in most cases. Same fix as above ensures save fires immediately.
-
-#### 3. Lock/Unlock Device
-
-**Current behavior:**
-- Biometric lock activates if enabled (based on `lockTimeout` setting)
-- The security curtain (blur) is applied via `appStateChange` in `useBiometricLock`
-- After unlock, the Editor resumes normally -- Zustand state is intact
-
-**Verdict:** Safe. Biometric flow is well-implemented.
-
-#### 4. AI Operation Interrupted
-
-**Current behavior:**
-- AI calls use `callAIWithRetry` with 30/45/55s timeouts and 3 retries
-- If user backgrounds app during an AI call, the fetch continues in the background briefly
-- If OS kills the WebView, the AI response is lost (it was never saved)
-- No checkpoint is created before AI operations in the autosave flow
-
-**Verdict:** Medium risk. If an AI enhance/tailor completes but the user has already left, the result may not be applied to the store.
-
-**Fix:** The existing `saveToCloud()` should be called before starting any AI operation. This is already partially handled (undo checkpoint), but cloud save is not guaranteed.
-
-#### 5. Export Screen Interrupted
-
-**Current behavior:**
-- Export is a client-side operation (html2canvas, pdf-lib) -- no server round-trip
-- If interrupted mid-export, the export simply fails silently
-- Resume data is not at risk since export is read-only
-
-**Verdict:** Safe. Export can be retried. No data loss possible.
+**Risk:** Very low — additive `useState` + `setTimeout` only.
 
 ---
 
-### Proposed Fixes (3 Changes)
+## Implementation Plan
 
-#### Fix 1: Save on App Background (Critical)
+### Files to Change (6 changes, all UI-only)
 
-Create a `useAppLifecycle` hook that listens for both:
-- `document.visibilitychange` (PWA/browser)
-- `App.addListener('appStateChange')` (Capacitor APK)
+| # | File | What Changes |
+|---|------|-------------|
+| 1 | `src/pages/AuthPage.tsx` | Add `navigator.onLine` guard in `handleSubmit`; add slow-connection timeout indicator (15s); improve catch message for network failures |
+| 2 | `src/pages/DashboardPage.tsx` | Add offline+error empty state detection: show "You're offline" card instead of generic empty state when `isError && !resumes && !isOnline` |
+| 3 | `src/pages/EditorPage.tsx` | In `saveToCloud` catch: add `toast.warning` for non-network save failures (slow/flaky online). Wrap export call in try/catch with toast on failure |
+| 4 | `src/hooks/useAIEnhance.ts` | In catch: add `navigator.onLine` check to show "You're offline — AI features need internet. Your resume is saved." instead of generic error |
+| 5 | `src/lib/aiTailor.ts` | Same offline check in the catch block before rethrowing, so TailorSheet receives an offline-specific error code |
+| 6 | `src/components/editor/ExportOptionsSheet.tsx` | Add inline offline `Alert` when user is offline and export type requires network (cover letter package). No change for PDF/DOCX which are client-side |
 
-When the app goes to background, immediately call `saveToCloud()` (bypassing the 3s debounce).
-
-**Where:** New hook `src/hooks/useAppLifecycle.ts`, consumed in `EditorPage.tsx`.
-
-**Technical details:**
-- Listen for `document.visibilityState === 'hidden'` and Capacitor `appStateChange { isActive: false }`
-- Call the existing `saveToCloud()` ref immediately (no debounce)
-- This is a fire-and-forget call -- if the OS kills the app before the network request completes, localStorage still has the data, and `offlineSyncStore` will pick it up on next launch
-
-#### Fix 2: Flush Debounce on Background (Editor-specific)
-
-In `EditorPage.tsx`, when the app goes to background:
-- Clear the existing 3s debounce timer
-- Call `saveToCloud()` immediately
-
-This ensures the latest keystroke makes it to the database before the OS can kill the WebView.
-
-#### Fix 3: AI Operation Pre-Save
-
-Before any AI operation begins (enhance, tailor, proofread, etc.), ensure `saveToCloud()` is called first. This way, if the AI operation is interrupted, the user's pre-AI state is safely in the database.
-
-**Where:** `EditorPage.tsx` -- wrap the AI trigger callbacks to call `saveToCloud()` first.
-
-**Note:** This is a minor optimization. The undo system already creates snapshots, and localStorage persistence means the pre-AI state is recoverable. But having it in the cloud adds an extra safety net.
+### What Does NOT Change
+- No database schema changes
+- No edge function changes
+- No business logic changes
+- No prompt changes
+- No autosave timing changes (already fixed in previous sprint)
+- The existing `OfflineBanner` and `OfflineIndicator` components are already correct — only their surrounding page-level error states need improvement
 
 ---
 
-### What Does NOT Need Fixing
+## Detailed Change Specs
 
-| Area | Why It's Already Safe |
-|------|----------------------|
-| Auth session persistence | Supabase SDK handles `persistSession: true` and `autoRefreshToken: true`. Session survives app restart. |
-| Navigation state (which resume, which section) | `currentResumeId` is in Zustand persisted store. `activeTab` is local state but resets to 'contact' which is acceptable. |
-| Offline queue | `offlineSyncStore` is persisted to localStorage. Survives app kill. Syncs on reconnect. |
-| Biometric lock on background | Already implemented via `useBiometricLock` with `appStateChange` listener and security curtain. |
-| Store hydration | `useResumeStoreHydration` reliably rehydrates from localStorage on app restart. |
+### Change 1: `src/pages/AuthPage.tsx`
+
+In `handleSubmit`, before calling `signInWithPassword`:
+```ts
+if (!navigator.onLine) {
+  toast.error("You're offline — please check your connection and try again.");
+  setIsLoading(false);
+  return;
+}
+```
+
+In the catch block (currently just `toast.error('An unexpected error occurred.')`):
+```ts
+} catch (err) {
+  const isNetworkErr = err instanceof Error && 
+    (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
+  toast.error(isNetworkErr 
+    ? "Connection failed — check your network and try again." 
+    : 'Something went wrong. Please try again.');
+}
+```
+
+Add a slow-connection timer: after `setIsLoading(true)`, start a 15s timer that sets a `isSlowConnection` state to `true`. Render a small note under the submit button when `isSlowConnection && isLoading`.
+
+### Change 2: `src/pages/DashboardPage.tsx`
+
+After the `useResumes()` destructuring, add:
+```ts
+const { data: resumes, isLoading: resumesLoading, isError: resumesError, refetch } = useResumes();
+const isOfflineAndEmpty = resumesError && !resumes && !navigator.onLine;
+```
+
+In the render, before the `<EmptyState>`:
+```tsx
+if (isOfflineAndEmpty) {
+  return <OfflineEmptyState onRetry={refetch} />;
+}
+```
+
+`OfflineEmptyState` is a small inline component (not a new file) with a WifiOff icon, "You're offline" headline, "Connect to the internet to load your resumes" description, and a "Retry" button.
+
+### Change 3: `src/pages/EditorPage.tsx`
+
+In `saveToCloud` catch (around line 272):
+```ts
+} catch (error) {
+  const isNetworkError = !navigator.onLine || ...;
+  if (isNetworkError && currentResumeId) {
+    addPendingChange(currentResumeId, resume);
+    // Don't show error toast - OfflineIndicator handles it
+  } else {
+    console.error('Auto-save failed:', error);
+    // NEW: slow/flaky network — save failed but user is "online"
+    toast.warning('Auto-save failed — your changes are safe locally and will retry.', { duration: 4000 });
+  }
+}
+```
+
+In the export handler (wherever `generatePDF` / export is called):
+```ts
+try {
+  await handleExportLogic(...);
+} catch (err) {
+  toast.error('Export failed — please try again.');
+  reset(); // reset export progress
+}
+```
+
+### Change 4: `src/hooks/useAIEnhance.ts`
+
+In the catch block (around line 108):
+```ts
+} catch (error) {
+  clearTimeout(slowTimer);
+  console.error('AI enhancement error:', error);
+  if (!navigator.onLine) {
+    toast.warning("You're offline — AI features need an internet connection. Your resume content is safe.");
+  } else if (isTimeoutError(error)) {
+    toast.warning('The request timed out. Please try again.');
+  } else {
+    toast.error('Failed to enhance content. Please try again.');
+  }
+}
+```
+
+### Change 5: `src/lib/aiTailor.ts`
+
+In the catch rethrow block (around line 156):
+```ts
+} catch (error) {
+  clearInterval(progressInterval);
+  clearTimeout(slowTimer);
+  // Tag offline errors for callers to handle with specific messaging
+  if (!navigator.onLine && error instanceof Error && !error.message.includes('offline')) {
+    const e = new Error('You\'re offline — AI features need an internet connection. Your resume content is safe.');
+    (e as TailorError).code = 'generic';
+    throw e;
+  }
+  throw error;
+}
+```
+
+### Change 6: `src/components/editor/ExportOptionsSheet.tsx`
+
+Add `useNetworkStatus` hook import.
+
+Before the Export button, when `!isOnline` and `selectedType === 'full-package'` (the only network-dependent export):
+```tsx
+{!isOnline && selectedType === 'full-package' && (
+  <Alert>
+    <WifiOff className="h-4 w-4" />
+    <AlertDescription>
+      You're offline. The cover letter package requires an internet connection. PDF and DOCX exports still work offline.
+    </AlertDescription>
+  </Alert>
+)}
+```
 
 ---
 
-### Implementation Summary
+## Risk Summary
 
-| # | Change | File | Risk |
-|---|--------|------|------|
-| 1 | New `useAppLifecycle` hook | `src/hooks/useAppLifecycle.ts` (new) | Very low -- additive only |
-| 2 | Wire hook into EditorPage | `src/pages/EditorPage.tsx` | Very low -- adds one hook call |
-| 3 | Pre-save before AI operations | `src/pages/EditorPage.tsx` | Very low -- adds `await saveToCloud()` before AI triggers |
-
-No existing business logic changes. No database schema changes. No prompt changes. Pure reliability improvement.
-
+All 6 changes are purely additive UI improvements:
+- No backend changes
+- No database changes
+- No business logic changes
+- No breaking changes to existing flows
+- Each change adds 1-3 lines or a small conditional render
+- The only new UI elements are toast messages with better wording and one conditional Alert in the export sheet
