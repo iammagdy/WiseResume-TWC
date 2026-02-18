@@ -1,122 +1,105 @@
 
-# Version 2.1 + "See It in Action" Landing Section
+# Editor Header + Space Fix: Two Focused Changes
 
-## What we're doing — two clean, contained changes
+## The Two Problems
 
-### Change 1: Bump version + add v2.1.0 changelog entry (`public/changelog.json`)
+### Problem 1 — Header has both "Template" + "Tools" buttons on mobile (taking up space + causing confusion)
+The user wants: remove "Tools", replace with a "Chat" button that goes **directly** to the Wise AI chat (not a tools menu).
 
-The app version is **dynamically read** from `changelog.json[0].version` in `SettingsPage.tsx` (line 172) and by `BugReportDialog.tsx` + `FeatureRequestDialog.tsx`. There is no separate version constant — the JSON is the single source of truth.
+Currently on mobile (lines 994–1061):
+- Button 1: "Template" → opens template gallery (keep this)
+- Button 2: "Tools" → opens a bottom sheet with a full tools menu (REPLACE THIS with "Chat")
 
-The plan:
-- Add a new entry at the **top** of the array as the first element, marked `"latest": true`
-- Change the existing `v2.0.0` entry's `"latest": true` to `"latest": false` (only one entry should carry the badge)
-- New entry version: `"v2.1.0"`, date: `"2026-02-18"`
-- 6 items covering: Public Portfolio Website launch, premium hero + themes redesign, Case Studies + Services sections, resume ↔ portfolio sync mode, AI portfolio content helpers, and URL branding fix
+### Problem 2 — The top area on mobile takes too much vertical space, leaving the editor cramped
+Looking at the screenshot and the code, the chrome above the editor content consists of:
 
-### Change 2: "See It in Action" two-card landing section in `src/pages/Index.tsx`
+1. **Header** (`py-3`) — title, back button, undo/redo, Template + Tools buttons → ~60px
+2. **Progress Bar section** (`py-3` with `mb-1`, plus a `<details>` disclosure) → ~60-70px
+3. **Tailored Resume Indicator Banner** (conditional, ~36px min-height) → ~36px
+4. **StepperNav** (section tabs with scroll) → ~56px
+5. **Editor/Preview TabsList** (sticky) → ~44px
 
-**Current problem:** The `<EditorDemo>` component already internally renders its own "See It in Action" title + phone mock. The landing page just drops `<EditorDemo />` as a section. This makes it impossible to add a sibling Portfolio card next to it at the same layout level.
+That's ~5 layers of chrome before the editor content even starts. On a 375px phone with a 56px bottom bar, the editor gets maybe 180-200px of space.
 
-**Solution:**
-1. Remove the `h2` and `p` title/subtitle from inside `EditorDemo.tsx` — the phone frame animation stays, just strip the header text out (it becomes a pure visual widget)
-2. In `Index.tsx`, replace the `<EditorDemo>` section with a new **"See It in Action" section** that contains:
-   - A shared section header: "See It in Action" + subtitle
-   - Two cards side by side on desktop, stacked on mobile:
-     - **Card A — AI Resume Editor**: wraps the existing `<EditorDemo />` phone frame, card title "AI-Enhanced Editor", 1-line desc, "Try the AI Editor →" CTA
-     - **Card B — Public Portfolio**: a new lightweight animated mock showing a portfolio hero assembling (avatar circle + name bar + role badge + 3 section rows fading in sequentially, then a theme color cycling indicator), card title "Public Portfolio Website", 1-line desc, "Build Your Portfolio →" CTA
+**Fix strategy — compact the progress bar section on mobile:**
+- Change `py-3` → `py-1.5` on the progress bar container
+- Move the "Last saved" status inline with the progress bar (on one row instead of two rows) on mobile
+- Make the `<details>` disclosure for ATS breakdown **hidden on mobile** (accessible via the StepperNav or a dedicated button) — this alone removes ~20px
+- Reduce `py-1.5` on the tailored banner to `py-1`
+- Change StepperNav container from `shrink-0` (no padding) — it already has internal padding in the component, no change needed
 
-**Portfolio card animation design** (pure CSS + framer-motion, no external deps):
-- Phone/browser frame (same 260px width style as EditorDemo for visual consistency)
-- Inside: avatar circle pulses in → name bar slides in → role badge fades in → 3 section rows slide in sequentially (Experience, Skills, Projects labeled)
-- In the corner, 3 small color dots cycle (representing themes: accent, teal, orange) — one highlights at a time on a 2s interval
-- The whole sequence loops with a 3s hold then restarts
-- Respects `useReducedMotion` — if reduced motion, shows static final state
+Let me be precise about what changes and what the pixel savings are:
 
-**Layout:**
-```
-mobile (< lg):         desktop (≥ lg):
-┌──────────────┐       ┌──────────────┐ ┌──────────────┐
-│  AI Editor   │       │  AI Editor   │ │  Portfolio   │
-│   card       │       │    card      │ │    card      │
-├──────────────┤       └──────────────┘ └──────────────┘
-│  Portfolio   │
-│   card       │
-└──────────────┘
-```
+**Exact changes:**
 
-Each card is wrapped in a `Card` (uses `glass-elevated` from the design system), with consistent padding, rounded corners, and the CTA buttons use the existing `Button` component.
+**Change A: Progress bar container** (`px-4 py-3 border-b border-border` → `px-4 py-1.5 border-b border-border`)
+- Saves ~12px (top+bottom padding from 12px each → 6px each)
 
----
+**Change B: Progress bar flex direction** — on mobile the save status goes on the same row as the progress bar, not a column:
+- Change `flex flex-col sm:flex-row` → `flex flex-row flex-wrap` so they're always on one line
+- This collapses the "Last saved · X ago" from a second row to inline
 
-## Files Changed
+**Change C: ATS score breakdown `<details>` — hide on mobile:**
+- Wrap the `<details>` in `hidden sm:block` so it doesn't take up space on mobile phones
+- The ATS score is accessible in the Resume Detail page, so this isn't a loss
 
-| File | Change |
-|---|---|
-| `public/changelog.json` | Prepend `v2.1.0` entry (6 items), flip `v2.0.0` `latest` to false |
-| `src/components/landing/EditorDemo.tsx` | Remove the internal `h2` + `p` header (lines 108–109) so it becomes a pure phone-frame widget |
-| `src/pages/Index.tsx` | Replace the single `<EditorDemo>` section with a new two-card "See It in Action" section; add a new inline `PortfolioDemo` component |
+**Change D: Tailored banner** — reduce padding `py-1.5` → `py-1` (saves 4px)
+
+**Change E: Editor/Preview tabs** (`TabsList`) — the sticky tabs are fine but the `mt-2` on `TabsContent` can be removed (it already has `mt-0`)
+
+**Total savings: ~30-40px** = significantly more editor real estate on a phone
 
 ---
 
-## Detailed content for the changelog entry
+## Changes Summary
 
-```json
-{
-  "version": "v2.1.0",
-  "date": "2026-02-18",
-  "latest": true,
-  "items": [
-    {
-      "title": "Public Portfolio Website — Now Live",
-      "description": "Turn your resume into a beautiful personal website in one click. Share a real link — not just a PDF — with recruiters, clients, or your network."
-    },
-    {
-      "title": "Premium Portfolio Hero + Themes",
-      "description": "The public portfolio page has been completely redesigned with a bold hero, animated avatar glow, role pill badge, sticky header on scroll, and curated themes (Minimal, Bold Dark, Glass Pro, Classic Clean)."
-    },
-    {
-      "title": "Case Studies + Services Sections",
-      "description": "Add portfolio-only sections — Case Studies (with challenge, outcome, and tech used) and Services (with category, description, and optional pricing) — that live alongside your resume content."
-    },
-    {
-      "title": "Resume ↔ Portfolio Sync Mode",
-      "description": "Choose between Auto-sync (portfolio reflects resume changes in real time) or Locked (snapshot your resume content so your portfolio stays fixed while you keep editing)."
-    },
-    {
-      "title": "AI Portfolio Content Helpers",
-      "description": "AI can now generate your About section, write a Case Study from a project description (challenge + outcome), and craft availability headlines — all with preview-then-confirm flows so you stay in control."
-    },
-    {
-      "title": "Portfolio URL Branding",
-      "description": "Your portfolio link now shows your real custom domain everywhere in the app — no more wiseresume.lovable.app references."
-    }
-  ]
-}
+### File 1: `src/pages/EditorPage.tsx`
+
+**Change 1a — Replace "Tools" button with "Chat" button** (lines 1005–1012):
+
+```tsx
+// BEFORE:
+<button
+  onClick={() => { haptics.light(); setShowToolsSheet(true); }}
+  className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
+  aria-label="Editor tools"
+>
+  <Sparkles className="w-5 h-5 text-primary" />
+  <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
+</button>
+
+// AFTER:
+<button
+  onClick={() => { haptics.light(); setShowChat(true); }}
+  className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation animate-[pulse-glow_2s_ease-in-out_infinite]"
+  aria-label="Open Wise AI Chat"
+>
+  <span className="relative">
+    <MessageSquare className="w-5 h-5 text-primary" />
+    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+  </span>
+  <span className="text-[9px] font-medium leading-none text-primary">Chat</span>
+</button>
 ```
 
----
+The `Sheet` block for `showToolsSheet` (lines 1013–1060) gets **removed** — it becomes dead code since no button triggers it anymore. The `setShowToolsSheet` state can be left (it's also used internally nowhere else on mobile — tools were only accessible via this button). Actually we should keep the state so the `editorToolGroups`/`toolMeta` don't break, but the Sheet itself can be removed from the JSX.
 
-## PortfolioDemo component (inline in Index.tsx)
+**Change 1b — Compact the progress bar section on mobile** (lines 1067–1138):
+- `px-4 py-3` → `px-4 py-1.5 sm:py-3`  
+- `flex flex-col sm:flex-row sm:items-center` → `flex flex-row flex-wrap items-center` (always one row)
+- Wrap the `<details>` (lines 1116–1137) in `<div className="hidden sm:block">` so it only shows on tablet/desktop
 
-The new `PortfolioDemo` component lives inside `Index.tsx` (no new file needed). It uses:
-- `useState` for `animStep` (0–5) and `themeIndex` (0–2)
-- `useEffect` with timeouts to advance `animStep` through: 0=blank → 1=avatar in → 2=name in → 3=role badge → 4=sections fade → 5=hold → reset
-- A separate `useEffect` cycling `themeIndex` every 2s for the theme dot switcher
-- `useReducedMotion()` respected: if true, skip directly to `animStep = 5`
-- Visual: same phone-frame container style as EditorDemo, but shows a simplified portfolio layout inside:
-  - Top: avatar circle + name + role badge
-  - Below: 3 compact section rows (labeled "Experience", "Skills", "Projects") with placeholder bars
-  - Bottom-right: 3 small color dots (red/teal/orange) cycling highlight
-
-This keeps the animation fully in CSS+Framer+React state — zero additional dependencies.
+**Change 1c — Compact the tailored banner** (line 1142):
+- `py-1.5` → `py-1` on the tailored indicator banner
 
 ---
 
-## What is NOT changed
+## What is NOT Changed
 
-- The public `/p/:username` routes — untouched
-- The EditorDemo animation logic — only its header text is removed
-- All existing feature cards, chips, hero, and scroll behavior in Index.tsx — additive only
-- SettingsPage changelog dialog — reads from the same JSON, will automatically show v2.1.0 as "Latest"
-- BugReportDialog + FeatureRequestDialog — will automatically pick up "v2.1.0" from changelog.json[0].version
-- Any portfolio editor, DB, or hook code — no changes
+- Template button — stays exactly as-is
+- `showToolsSheet` state variable — kept (editorToolGroups/toolMeta still reference it, no issue leaving the state)
+- The tools Sheet JSX is removed from the render tree (no button triggers it so it's dead code, but removing it is clean)
+- Desktop layout — completely untouched (the `hidden md:flex` group at lines 944–993 keeps the full "Template / Design / Live / Wise AI" buttons)
+- `AgenticChatSheet` — no change, still rendered at line 1273
+- All other sheets, StepperNav, editor content — untouched
+- Mobile Editor/Preview tabs — untouched
