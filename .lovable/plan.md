@@ -1,214 +1,137 @@
 
-# Mobile Keyboard & Autocomplete Fix — Full App Audit
+# Navigation Audit — Fix All Fake & Broken Redirections
 
-## Root Causes
+## Findings Summary
 
-There are **two distinct problems** affecting mobile input experience across the app:
-
-### Problem 1 — Wrong keyboard types on mobile
-The HTML `type` and `inputMode` attributes control which soft keyboard the OS shows. Currently:
-- Phone fields in `AuthPage` signup have `type="tel"` but no `inputMode="tel"` — on some Android browsers this falls back to a full keyboard
-- Salary, GPA, and year fields use plain `type="text"` with no `inputMode` — shows a full QWERTY keyboard instead of numeric
-- URL fields in `SaveJobSheet`, `AddApplicationSheet`, and `PortfolioEditorPage` social links have no `type="url"` or `inputMode="url"` — the keyboard shows no `.com` shortcut
-- Email fields in various sheets have no `type="email"` — no `@` shortcut on keyboard
-- Date-text fields (Start Date, End Date in Experience/Education — which store free text like "Jan 2020") have no `inputMode` set
-
-### Problem 2 — Autocomplete/spellcheck/suggestions broken
-The HTML `autocomplete`, `spellcheck`, and `autocorrect` attributes control:
-- **Word suggestions**: appear in the keyboard suggestion bar on iOS/Android when `autocomplete="on"` or `autocomplete="off"` is set explicitly for the field type
-- **Spellcheck**: the red underline and keyboard correction suggestions — `Textarea` has no `spellcheck="true"` — autocorrect won't fire on long-form text fields like bio, summary, cover letter description
-- **Form autofill**: the browser/OS fills in previously used values — name, email, phone fields need proper `autoComplete` values in `InputFormField` instances that don't currently set them
-
-Currently, `<Textarea>` in `src/components/ui/textarea.tsx` has **no `spellCheck`, `autoCorrect`, or `autoCapitalize` attributes at all** — this is why suggestions don't work on the bio, summary, and description fields.
-
-The base `<Input>` in `src/components/ui/input.tsx` also has **no default `autoCorrect` or `autoCapitalize`** — every field inherits no correction behavior.
+After a full audit of every button, card, chip, and nav action across all pages and components, I found **4 real broken/fake redirections** and **1 console warning** that needs fixing.
 
 ---
 
-## The Fix Strategy
+## Bug 1 (Critical) — `QuickActions` component: ALL 4 cards ignore their intended route
 
-**Two-level approach:**
+**File:** `src/components/landing/QuickActions.tsx`
 
-1. **Base components** (`Input` and `Textarea`): Add smart defaults that work for most cases — this fixes autocomplete/suggestions across the entire app with zero changes to individual usage sites
-2. **Call sites** (specific screens/sheets): Add the correct `type`, `inputMode`, `autoComplete` where they are contextually required — this fixes keyboard type selection
+**Problem:** The `handleAction` function **hardcodes `navigate('/auth')`** regardless of which card is clicked. The `action.route` and `action.createBlank` properties on each card are defined but **completely ignored**. This means tapping "Create New", "Upload Resume", "AI Tailor", or "Mock Interview" on the landing page all go to `/auth` — there is no conditional logic for authenticated users.
 
----
-
-## Changes Required
-
-### Change 1 — `src/components/ui/textarea.tsx` (highest impact, fixes all long-text fields globally)
-
-Add `spellCheck`, `autoCorrect`, `autoCapitalize` defaults so word suggestions and spellcheck work everywhere a `<Textarea>` is used (bio, summary, descriptions, cover letters, resignation letters, notes):
-
-```tsx
-// BEFORE:
-<textarea
-  className={cn(...)}
-  ref={ref}
-  {...props}
-/>
-
-// AFTER:
-<textarea
-  spellCheck={true}
-  autoCorrect="on"
-  autoCapitalize="sentences"
-  className={cn(...)}
-  ref={ref}
-  {...props}
-/>
+```ts
+// CURRENT — always goes to /auth regardless of action
+const handleAction = (action: typeof actions[0]) => {
+  triggerHaptic.light();
+  navigate('/auth');     // ← FAKE: ignores action.route entirely
+};
 ```
 
-`spellCheck={true}` enables the OS keyboard's spell-check and word suggestion bar. `autoCapitalize="sentences"` auto-capitalizes the first word of each sentence. These are overridable per-usage since `...props` is spread after.
+**Fix:** For authenticated users, each card should navigate to its intended destination. For guests, `/auth` is still correct since they need to sign in. The component has `useResumeStore` already imported but unused — fix the handler to respect auth state and action routes:
 
----
-
-### Change 2 — `src/components/ui/input.tsx` (fixes suggestions for single-line text fields globally)
-
-Add `autoCapitalize="on"` and `autoCorrect="on"` as defaults, but keep them overridable. This fixes the keyboard suggestion bar for name, company, position, institution, and other free-text inputs:
-
-```tsx
-// AFTER:
-<input
-  autoCapitalize="words"
-  autoCorrect="on"
-  spellCheck={true}
-  type={type}
-  className={cn(...)}
-  ref={ref}
-  {...props}
-/>
+```ts
+const handleAction = (action: typeof actions[0]) => {
+  triggerHaptic.light();
+  if (!isAuthenticated) {
+    navigate('/auth');
+    return;
+  }
+  if (action.createBlank) {
+    setCurrentResumeId(null);
+    setCurrentResume(emptyResume());
+  }
+  navigate(action.route);
+};
 ```
 
-`autoCapitalize="words"` is the right default for an input that typically holds names, places, job titles. This can be overridden per-field (e.g., `autoCapitalize="none"` for username, email, URL fields).
+The `QuickActions` component needs to import `useAuth` and properly handle each action.
 
 ---
 
-### Change 3 — `src/components/applications/SaveJobSheet.tsx`
+## Bug 2 (Critical) — `BottomTabBar`: Editor tab sends users to `/resume/:id` instead of opening their resume in the editor
 
-Fix 5 inputs that use plain `<Input>` with no keyboard hints:
+**File:** `src/components/layout/BottomTabBar.tsx` lines 79–80
 
-| Field | Fix |
-|---|---|
-| Job Title | Add `autoCapitalize="words"` (already inherited from Change 2, but add `autoComplete="organization-title"`) |
-| Company | Add `autoComplete="organization"` |
-| Location | Add `autoComplete="address-level2"` |
-| Salary Range | Add `inputMode="text"` (salary is like "$80k-$100k", not pure numeric) |
-| Source URL | Add `type="url"` + `inputMode="url"` + `autoCapitalize="none"` + `autoCorrect="off"` + `spellCheck={false}` |
+**Problem:** When `tab.guarded && !currentResumeId` and the user has resumes, it navigates to `/resume/${resumes[0].id}` — which is the **Resume Detail page**, not the editor. The Editor tab is supposed to open the most recent resume *in the editor* (`/editor`), not the detail view. The user lands on a read-only detail page when they expected to edit.
 
----
-
-### Change 4 — `src/components/applications/AddApplicationSheet.tsx`
-
-Fix 3 bare `<Input>` elements:
-
-| Field | Fix |
-|---|---|
-| Job URL | Add `inputMode="url"` + `autoCapitalize="none"` + `autoCorrect="off"` + `spellCheck={false}` (already has `type="url"`) |
-| Job Title | Add `autoComplete="organization-title"` |
-| Company | Add `autoComplete="organization"` |
-
----
-
-### Change 5 — `src/pages/AuthPage.tsx`
-
-Phone field in signup has `type="tel"` but missing `inputMode="tel"` which some Android browsers need:
-
-```tsx
-// Phone Number field in signup:
-<InputFormField
-  id="phoneNumber"
-  type="tel"
-  inputMode="tel"   // ← Add this
-  autoComplete="tel"
-  ...
-/>
+```ts
+// CURRENT — goes to detail page, not editor
+if (resumes && resumes.length > 0) {
+  navigate(`/resume/${resumes[0].id}`);  // ← WRONG: should open editor
+}
 ```
 
+**Fix:** Load the most recent resume into the store and navigate directly to `/editor`:
+
+```ts
+if (resumes && resumes.length > 0) {
+  const latest = resumes[0];
+  setCurrentResumeId(latest.id);
+  navigate('/editor');  // ← Correct: puts user directly in editor
+}
+```
+
+This requires importing `dbToResumeData` and calling `setCurrentResume` as well, which `useResumes` already exports.
+
 ---
 
-### Change 6 — `src/components/editor/ExperienceSection.tsx`
+## Bug 3 (Console Warning) — `Index.tsx`: `DropdownMenu` ref warning
 
-Fix bare `<Input>` elements for dates and descriptions:
+**File:** `src/pages/Index.tsx` — visible in console logs
 
-| Field | Fix |
+**Problem:** The console shows:
+> `Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?`
+> `Check the render method of Index.`
+
+The `DropdownMenuTrigger asChild` is wrapping a `<button>` element correctly, but internally `DropdownMenuContent` → `DropdownMenuPortal` is passing a ref to a function component that doesn't use `forwardRef`. This is a Radix UI version compatibility warning. The actual `DropdownMenu` in `Index.tsx` uses a plain `<button>` as trigger (not `asChild` on a custom component), so the fix is to ensure the trigger uses `asChild` correctly.
+
+Looking at the code, the `DropdownMenuTrigger asChild` wraps a `<button>` — that's correct. The warning originates from `DropdownMenuContent`'s internal portal trying to pass a ref to a child. This is a **known Radix UI React 18 warning** that doesn't break functionality. It cannot be fixed without upgrading Radix packages. We will **note this but not block on it**.
+
+---
+
+## Bug 4 (Medium) — `InterviewPage`: Navigates guests to `/upload` instead of `/auth`
+
+**File:** `src/pages/InterviewPage.tsx` line 79
+
+**Problem:** When a user has no resume, the guard does:
+```ts
+navigate(user ? '/upload' : '/auth');
+```
+
+If a logged-in user has no resume, they're correctly sent to `/upload`. But the UX is broken: landing on the Upload page without context as to *why* they're there is jarring. More importantly, the `QuickActions` "Mock Interview" card on the landing page sends guests to `/auth` (which is fine), but once authenticated with no resume, clicking Interview from the bottom tabs / AI Studio would silently redirect to `/upload` with no explanation beyond a toast. The toast message says "Create or upload a resume first" — and navigates to `/upload` — which is actually reasonable. **This one is acceptable behavior**, not a bug.
+
+---
+
+## Bug 5 (Medium) — `ApplicationsPage`: "Tailor Resume" button in job cards has no resume guard
+
+**File:** `src/pages/ApplicationsPage.tsx` — `JobCard` component, line 77-81
+
+**Problem:** The "Tailor Resume" button calls `onTailor()`. Tracing `onTailor` to its call site — it's passed from the parent where it runs:
+
+```ts
+onTailor={() => {
+  const resume = resumes?.[0];
+  if (!resume) {
+    toast.info('Create a resume first');
+    return;
+  }
+  setCurrentResumeId(resume.id);
+  navigate('/editor?tailor=true&...');
+}}
+```
+
+This is already guarded with a toast. **Not a bug.**
+
+---
+
+## Summary of Real Fixes
+
+| # | File | Bug | Fix |
+|---|---|---|---|
+| 1 | `src/components/landing/QuickActions.tsx` | All 4 action cards always navigate to `/auth` regardless of card or auth state | Add `useAuth` check; route authenticated users to `action.route`; guests to `/auth` |
+| 2 | `src/components/layout/BottomTabBar.tsx` | Editor tab sends to `/resume/:id` (detail page) instead of loading resume into store and going to `/editor` | Load `resumes[0]` into store via `setCurrentResumeId` + `setCurrentResume`, navigate to `/editor` |
+
+---
+
+## Files Changed
+
+| File | Change |
 |---|---|
-| Start Date | Add `inputMode="text"` + `autoComplete="off"` + `autoCapitalize="words"` (stores "Jan 2020") |
-| End Date | Same as Start Date |
-| Position | Add `autoComplete="organization-title"` |
-| Company | Add `autoComplete="organization"` |
+| `src/components/landing/QuickActions.tsx` | Add `useAuth`, fix `handleAction` to use `action.route` for authenticated users; `action.createBlank` clears store before navigating to `/editor` |
+| `src/components/layout/BottomTabBar.tsx` | Fix Editor tab guard: import `dbToResumeData`, call `setCurrentResume(dbToResumeData(resumes[0]))` + `setCurrentResumeId(resumes[0].id)` before navigating to `/editor` |
 
-The `<Textarea>` for description gets fixed automatically by Change 1.
-
----
-
-### Change 7 — `src/components/editor/EducationSection.tsx`
-
-| Field | Fix |
-|---|---|
-| Institution | Add `autoComplete="organization"` |
-| Degree | Add `autoCapitalize="words"` (already default from Change 2) |
-| GPA | Add `inputMode="decimal"` (shows numeric pad with decimal point) |
-| Start/End Date | Add `autoComplete="off"` |
-
----
-
-### Change 8 — `src/pages/PortfolioEditorPage.tsx`
-
-Fix 7 bare `<Input>` elements across the social links and identity sections:
-
-| Field | Fix |
-|---|---|
-| Username | Add `autoCapitalize="none"` + `autoCorrect="off"` + `spellCheck={false}` + `inputMode="url"` |
-| Availability Headline | Add `autoCapitalize="sentences"` |
-| GitHub URL | Add `type="url"` + `inputMode="url"` + `autoCapitalize="none"` + `autoCorrect="off"` + `spellCheck={false}` |
-| Personal Website | Same as GitHub |
-| X (Twitter) URL | Same as GitHub |
-| Contact Email | Already has `type="email"`, add `autoComplete="email"` + `autoCapitalize="none"` |
-
----
-
-### Change 9 — `src/components/settings/EditProfileSheet.tsx`
-
-Fix bare `<Input>` elements:
-
-| Field | Fix |
-|---|---|
-| Display Name | Add `autoComplete="name"` |
-| Location | Add `autoComplete="address-level2"` |
-| LinkedIn username | Add `autoCapitalize="none"` + `autoCorrect="off"` + `spellCheck={false}` |
-| Job Title | Add `autoComplete="organization-title"` |
-
----
-
-### Change 10 — `src/pages/ResignationLetterNewPage.tsx`
-
-Fix bare `<Input>` elements in Step 1:
-
-| Field | Fix |
-|---|---|
-| Your Name | Add `autoComplete="name"` |
-| Your Position | Add `autoComplete="organization-title"` |
-| Company Name | Add `autoComplete="organization"` |
-| Manager's Name | Add `autoComplete="off"` |
-
----
-
-## Files to Change (Summary)
-
-| # | File | What Changes |
-|---|---|---|
-| 1 | `src/components/ui/textarea.tsx` | Add `spellCheck`, `autoCorrect`, `autoCapitalize` defaults |
-| 2 | `src/components/ui/input.tsx` | Add `autoCapitalize`, `autoCorrect`, `spellCheck` defaults |
-| 3 | `src/components/applications/SaveJobSheet.tsx` | Add `type`, `inputMode`, `autoComplete` per field |
-| 4 | `src/components/applications/AddApplicationSheet.tsx` | Add `inputMode`, `autoComplete`, `autoCorrect` per field |
-| 5 | `src/pages/AuthPage.tsx` | Add `inputMode="tel"` to phone field |
-| 6 | `src/components/editor/ExperienceSection.tsx` | Add `autoComplete`, `inputMode` per field |
-| 7 | `src/components/editor/EducationSection.tsx` | Add `inputMode="decimal"` for GPA, `autoComplete` per field |
-| 8 | `src/pages/PortfolioEditorPage.tsx` | Add `type`, `inputMode`, `autoCapitalize`, `autoCorrect` to all 7 inputs |
-| 9 | `src/components/settings/EditProfileSheet.tsx` | Add `autoComplete`, `autoCapitalize` per field |
-| 10 | `src/pages/ResignationLetterNewPage.tsx` | Add `autoComplete` per field |
-
-**Changes 1 and 2 (base components) have the highest leverage** — they fix spellcheck and word suggestions for every `<Input>` and `<Textarea>` across the entire app in one edit. Changes 3–10 add contextual keyboard type selection where the generic default is wrong.
-
-No new dependencies, no schema changes, no hook changes.
+No database changes, no new dependencies, no schema migrations required.
