@@ -503,17 +503,16 @@ export default function EditorPage() {
     return base;
   }, [currentResume]);
 
-  // Granular section scores
-  const sectionScores = useMemo(() => {
-    if (!currentResume) return { contact: 0, summary: 0, experience: 0, education: 0, skills: 0 };
-    return {
-      contact: calcContactScore(currentResume.contactInfo),
-      summary: calcSummaryScore(currentResume.summary),
-      experience: calcExperienceScore(currentResume.experience),
-      education: calcEducationScore(currentResume.education),
-      skills: calcSkillsScore(currentResume.skills),
-    };
-  }, [currentResume]);
+  // Granular section scores — each memo only re-runs when its own slice changes,
+  // so typing in Summary does NOT recompute contactScore/experienceScore/etc.
+  const contactScore    = useMemo(() => currentResume ? calcContactScore(currentResume.contactInfo)   : 0, [currentResume?.contactInfo]);
+  const summaryScore    = useMemo(() => currentResume ? calcSummaryScore(currentResume.summary)        : 0, [currentResume?.summary]);
+  const experienceScore = useMemo(() => currentResume ? calcExperienceScore(currentResume.experience)  : 0, [currentResume?.experience]);
+  const educationScore  = useMemo(() => currentResume ? calcEducationScore(currentResume.education)    : 0, [currentResume?.education]);
+  const skillsScore     = useMemo(() => currentResume ? calcSkillsScore(currentResume.skills)          : 0, [currentResume?.skills]);
+  const sectionScores   = useMemo(() => ({
+    contact: contactScore, summary: summaryScore, experience: experienceScore, education: educationScore, skills: skillsScore,
+  }), [contactScore, summaryScore, experienceScore, educationScore, skillsScore]);
 
   // Overall score for ATS badge (local, no API call)
   const overallScore = useMemo(() => {
@@ -1194,9 +1193,11 @@ export default function EditorPage() {
               </div>
             </TabsContent>
             <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0">
-              <Suspense fallback={null}>
-                <LivePreviewPanel highlightSection={activeTab} />
-              </Suspense>
+              {mobileEditorTab === 'preview' && (
+                <Suspense fallback={null}>
+                  <LivePreviewPanel highlightSection={activeTab} />
+                </Suspense>
+              )}
             </TabsContent>
           </Tabs>
         ) : showPreview ? (

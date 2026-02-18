@@ -234,6 +234,7 @@ export function TextareaFormField({
         <Textarea
           ref={textareaRef}
           id={id}
+          dir="auto"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onBlur={handleBlur}
