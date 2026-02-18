@@ -870,6 +870,18 @@ export default function SettingsPage() {
                       });
                     }}
                   />
+                  <Separator className="bg-border/30" />
+                  <SettingsRow
+                    type="toggle"
+                    label="Shake to Report Bug"
+                    description="Shake your device to quickly open the bug report"
+                    icon={<Activity className="w-4 h-4" />}
+                    checked={useSettingsStore.getState().shakeToReportEnabled}
+                    onCheckedChange={(val) => {
+                      haptics.light();
+                      useSettingsStore.getState().setShakeToReportEnabled(val);
+                    }}
+                  />
                 </>
               )}
             </div>

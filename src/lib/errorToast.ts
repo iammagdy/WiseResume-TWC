@@ -1,11 +1,13 @@
 import { toast } from 'sonner';
 import { reportBug } from './bugReport';
+import { haptics } from './haptics';
 
 /**
  * Shows an error toast with an optional "Report Bug" action button.
  * Use this for all AI / edge-function errors so users can easily report issues.
  */
 export function showErrorToast(message: string, error?: unknown) {
+  haptics.error();
   toast.error(message, {
     duration: 5000,
     action: {

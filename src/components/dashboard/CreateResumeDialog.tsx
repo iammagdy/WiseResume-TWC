@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useResumeMutations, DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
+import haptics from '@/lib/haptics';
 import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
@@ -234,7 +235,7 @@ export function CreateResumeDialog({
           <div className="space-y-3 py-4">
             <motion.button
               whileTap={{ scale: 0.98 }}
-              onClick={() => setMode('blank')}
+              onClick={() => { haptics.light(); setMode('blank'); }}
               className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
             >
               <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -249,7 +250,7 @@ export function CreateResumeDialog({
 
             <motion.button
               whileTap={{ scale: 0.98 }}
-              onClick={handleUpload}
+              onClick={() => { haptics.light(); handleUpload(); }}
               className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
             >
               <div className="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center">
@@ -265,7 +266,7 @@ export function CreateResumeDialog({
             {existingResumes.length > 0 && (
               <motion.button
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setMode('duplicate')}
+                onClick={() => { haptics.light(); setMode('duplicate'); }}
                 className="w-full flex items-center gap-4 p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-primary/5 transition-all touch-manipulation"
               >
                 <div className="w-12 h-12 rounded-lg bg-accent/10 flex items-center justify-center">
