@@ -274,10 +274,17 @@ export default function EditorPage() {
       const isNetworkError = !navigator.onLine ||
         errorMessage.includes('Failed to fetch') ||
         errorMessage.includes('NetworkError');
+      const isAuthError = errorMessage.includes('401') ||
+        errorMessage.toLowerCase().includes('unauthorized') ||
+        errorMessage.toLowerCase().includes('jwt expired') ||
+        errorMessage.toLowerCase().includes('invalid jwt');
 
       if (isNetworkError && currentResumeId) {
         addPendingChange(currentResumeId, resume);
         // Don't show error toast - OfflineIndicator handles it
+      } else if (isAuthError) {
+        // Session expired mid-edit — data is safe, redirect is imminent
+        toast.warning('Session expired — your changes are saved locally. Please sign back in.', { duration: 5000 });
       } else {
         console.error('Auto-save failed:', error);
         // Flaky network: technically online but request failed — reassure user
