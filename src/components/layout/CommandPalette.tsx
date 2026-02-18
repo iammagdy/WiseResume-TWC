@@ -8,7 +8,11 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { FileText, Upload, Briefcase, Settings, Home, BookOpen, Palette, Mic, PenTool } from 'lucide-react';
+import {
+  FileText, Upload, Briefcase, Settings, Home, BookOpen, Palette, Mic, PenTool,
+  Wand2, Target, SpellCheck, Sparkles, Shield, Linkedin, UserCheck, TrendingUp,
+  Lightbulb, GitCompareArrows, MessageSquare,
+} from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 
 export function CommandPalette() {
@@ -53,6 +57,60 @@ export function CommandPalette() {
           <CommandItem onSelect={() => go('/interview')}>
             <Mic className="mr-2 h-4 w-4" />
             Practice Interview
+          </CommandItem>
+        </CommandGroup>
+        <CommandGroup heading="AI Tools">
+          <CommandItem onSelect={() => go('/ai-studio?tool=chat')}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Wise AI Chat
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=tailor')}>
+            <Wand2 className="mr-2 h-4 w-4" />
+            Smart Tailor
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=ab-compare')}>
+            <GitCompareArrows className="mr-2 h-4 w-4" />
+            A/B Compare
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=job-match')}>
+            <Target className="mr-2 h-4 w-4" />
+            Job Match Analysis
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=enhance')}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            AI Enhance
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=proofread')}>
+            <SpellCheck className="mr-2 h-4 w-4" />
+            Proofread Resume
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=humanizer')}>
+            <Shield className="mr-2 h-4 w-4" />
+            AI Detector / Humanize
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=linkedin')}>
+            <Linkedin className="mr-2 h-4 w-4" />
+            LinkedIn Optimizer
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=onepage')}>
+            <FileText className="mr-2 h-4 w-4" />
+            One-Page Wizard
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=recruiter')}>
+            <UserCheck className="mr-2 h-4 w-4" />
+            Recruiter Simulation
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=career')}>
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Career Path Advisor
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=ideas')}>
+            <Lightbulb className="mr-2 h-4 w-4" />
+            Content Ideas
+          </CommandItem>
+          <CommandItem onSelect={() => go('/ai-studio?tool=customize')}>
+            <Palette className="mr-2 h-4 w-4" />
+            Customize Design
           </CommandItem>
         </CommandGroup>
         <CommandGroup heading="Navigation">
