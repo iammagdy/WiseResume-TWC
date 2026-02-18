@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap, CheckSquare, X, Trash2, WifiOff } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap, CheckSquare, X, Trash2, WifiOff, Globe } from 'lucide-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -715,6 +715,13 @@ export default function DashboardPage() {
                     description="Career tips & advice"
                     onClick={() => navigate('/guides')}
                     aria-label="Career guides"
+                  />
+                  <ActionCard
+                    icon={Globe}
+                    title="My Portfolio"
+                    description="Build your personal site"
+                    onClick={() => navigate('/portfolio')}
+                    aria-label="Portfolio builder"
                   />
                 </div>
                 <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
