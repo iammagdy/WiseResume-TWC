@@ -80,6 +80,7 @@ import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
+import { useAppLifecycle } from '@/hooks/useAppLifecycle';
 export default function EditorPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -321,6 +322,19 @@ export default function EditorPage() {
     window.addEventListener('keyboard-close', handleKbClose);
     return () => window.removeEventListener('keyboard-close', handleKbClose);
   }, [saveToCloud]);
+
+  // Flush cloud save immediately when app goes to background (mobile multitasking resilience)
+  useAppLifecycle({
+    onBackground: useCallback(() => {
+      // Cancel the pending 3s debounce so we don't double-save
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      // Fire-and-forget immediate save
+      saveToCloud();
+    }, [saveToCloud]),
+  });
 
   // Network status for enhanced save indicator
   const { isOnline } = useNetworkStatus();
