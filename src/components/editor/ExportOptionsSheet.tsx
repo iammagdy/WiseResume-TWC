@@ -166,9 +166,9 @@ export function ExportOptionsSheet({
     if (selectedType === 'linkedin') return 'Copy LinkedIn Text';
     if (selectedType === 'plain-text') return 'Download .txt';
     if (selectedType === 'share-link') return 'Copy Share Link';
-    if (selectedType === 'ats-pdf') return 'Download ATS PDF';
-    if (selectedType === 'one-page') return 'Download One-Page PDF';
-    return 'Download PDF';
+    if (selectedType === 'ats-pdf') return 'Download CV (ATS)';
+    if (selectedType === 'one-page') return 'Download CV (1 Page)';
+    return 'Download CV';
   };
 
   return (
@@ -257,9 +257,15 @@ export function ExportOptionsSheet({
             ))}
           </div>
 
-          {/* Footer options - only for PDF types */}
-          {isPdfType && !isTextType && selectedType !== 'ats-pdf' && (
-            <div className="space-y-3 shrink-0">
+          {/* Footer options - always rendered for stable layout, hidden via opacity when not relevant */}
+          <div
+            className={cn(
+              'space-y-3 shrink-0 transition-opacity duration-150',
+              isPdfType && !isTextType && selectedType !== 'ats-pdf'
+                ? 'opacity-100'
+                : 'opacity-0 pointer-events-none h-0 overflow-hidden'
+            )}
+          >
               <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50">
                 <div className="space-y-0.5">
                   <Label htmlFor="page-numbers" className="font-medium">
@@ -292,8 +298,7 @@ export function ExportOptionsSheet({
                   onCheckedChange={setShowBranding}
                 />
               </div>
-            </div>
-          )}
+          </div>
 
           {/* Progress indicator */}
           {exportProgress?.isActive && (
