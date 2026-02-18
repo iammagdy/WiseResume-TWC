@@ -1,108 +1,96 @@
 
-# Skills Section — Compact Badge & Input Sizing
+# Landing Page "See It in Action" + Changelog Polish
 
-## The Problem
+## What Already Exists (No Duplication)
 
-On mobile, every skill badge has `min-h-[44px]` which forces each pill to be very tall. The input row also uses `h-12` (48px). With 3–4 skills per line at large sizes, they quickly fill the entire visible area.
+After thorough exploration, here is what is already in place:
 
-The 44px rule exists as a touch target requirement — but we can satisfy it differently: wrap each badge in a slightly larger invisible hit area (padding wrapper) while keeping the visual badge smaller. This is a common pattern for compact tag chips.
+- **Changelog v2.1.0** — Already in `public/changelog.json` as `"latest": true` with 6 Portfolio bullet items. The app derives its version string dynamically from this file (in Settings, Bug Reports, Feature Requests) — so the version is already showing as `v2.1.0` everywhere.
+- **"See It in Action" section** — Already exists in `src/pages/Index.tsx` (lines 350–413) with two animated cards: `EditorDemo` (AI Editor) and `PortfolioDemo` (Public Portfolio).
 
-## Three changes in `src/components/editor/SkillsSection.tsx`
+## What Actually Needs Fixing
 
-### Change 1 — Input row (lines 112–123)
-Reduce input and button height from `h-12` (48px) to `h-10` (40px) on mobile, staying `h-12` on sm+ screens:
+### Problem 1 — Portfolio CTA button goes to wrong route
+Line 406: `navigate(isAuthenticated ? '/profile' : '/auth')`
 
-```tsx
-// Before
-<Input className="h-12 text-base" />
-<Button className="h-12 min-h-[48px] px-6">
+The `/profile` route is the user profile settings page, **not** the portfolio editor. The portfolio editor lives at `/portfolio`. This is a functional bug — authenticated users who click "Build Your Portfolio" end up on the wrong page.
 
-// After
-<Input className="h-10 sm:h-12 text-sm sm:text-base" />
-<Button className="h-10 sm:h-12 min-h-[40px] sm:min-h-[48px] px-4 sm:px-6">
+**Fix:** Change destination to `/portfolio` for authenticated users.
+
+### Problem 2 — Changelog is missing a "why this matters" intro summary
+The v2.1.0 changelog has 6 bullet items but no parent summary/headline that wraps them with a user-centered narrative. The Settings page renders each entry's `title` + `description` individually, so the JSON schema supports adding a `summary` field and rendering it in the dialog.
+
+**Fix:** Add a `summary` field to the v2.1.0 changelog entry with a professional 1–2 sentence overview. Update `SettingsPage.tsx` to render it when present.
+
+### Problem 3 — "See It in Action" card visual polish
+The two cards use `bg-card/50 border-border/30` which is flat and doesn't match the vibrant brand language. The section subtitle is generic. Cards could benefit from:
+- Colored top accent borders matching each card's theme (primary red for Editor, emerald for Portfolio)
+- A subtle gradient overlay at the bottom of each demo area
+- The Portfolio card's "New in v2.1" badge should use a stronger glow to draw attention
+- Section subtitle updated from "Two powerful tools built for your career" to something more compelling
+
+## Exact File Changes
+
+### File 1: `public/changelog.json`
+Add `"summary"` field to the v2.1.0 entry — a single rich sentence explaining the user benefit. No other entries are touched.
+
+```json
+{
+  "version": "v2.1.0",
+  "date": "2026-02-18",
+  "latest": true,
+  "summary": "WiseResume now turns your resume into a full personal website — complete with themes, AI-written content, and a shareable link you can send to anyone.",
+  "items": [...]
+}
 ```
 
-### Change 2 — Current skill badges (lines 126–140)
-Switch from one large badge to a compact inline pill with a tight close button. Keep the outer `div` as the 44px touch target wrapper:
+### File 2: `src/pages/SettingsPage.tsx`
+In the changelog dialog render block (around lines 1037–1050), add a summary line rendered when `release.summary` exists:
 
 ```tsx
-// Before
-<div key={skill} className="transition-all duration-200">
-  <Badge
-    className="min-h-[44px] px-3 sm:px-4 gap-2 ... text-sm"
-  >
-    {skill}
-    <span className="inline-flex items-center justify-center min-w-[36px] min-h-[36px]">
-      <X className="w-4 h-4" />
-    </span>
-  </Badge>
-</div>
-
-// After
-<div key={skill} className="transition-all duration-200 min-h-[36px] flex items-center">
-  <Badge
-    className="h-8 px-2.5 gap-1.5 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-xs font-medium"
-    onClick={() => removeSkill(skill)}
-  >
-    {skill}
-    <X className="w-3 h-3 shrink-0" />
-  </Badge>
-</div>
+{release.summary && (
+  <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{release.summary}</p>
+)}
 ```
 
-Key changes:
-- `min-h-[44px]` → `h-8` (32px visual height) — much more compact
-- `text-sm` → `text-xs font-medium` — readable but tighter
-- `px-3 sm:px-4` → `px-2.5` — less horizontal padding
-- Remove the `min-w-[36px] min-h-[36px]` wrapper around `X` — the icon sits inline
-- `gap-2` → `gap-1.5`, icon `w-4 h-4` → `w-3 h-3`
+### File 3: `src/pages/Index.tsx`
+Three targeted changes:
 
-### Change 3 — Suggested skills + Common skills badges (lines 175–210)
-Same treatment: `min-h-[44px]` → `h-8`, `text-sm` → `text-xs font-medium`, icon size reduced:
-
-**Suggested skills (line 183):**
+**Change A — Fix Portfolio CTA route (line 406):**
 ```tsx
-// Before
-className="min-h-[44px] px-4 gap-2 ... text-sm"
-<Plus className="w-4 h-4" />
-
-// After
-className="h-8 px-2.5 gap-1.5 ... text-xs font-medium"
-<Plus className="w-3 h-3" />
+// Before:
+navigate(isAuthenticated ? '/profile' : '/auth')
+// After:
+navigate(isAuthenticated ? '/portfolio' : '/auth')
 ```
 
-**Common skills (line 205):**
+**Change B — Improve section subtitle (line 359):**
 ```tsx
-// Before
-className="min-h-[44px] px-3 text-sm ..."
-
-// After
-className="h-8 px-2.5 text-xs font-medium ..."
+// Before:
+"Two powerful tools built for your career"
+// After:
+"From AI resume writing to a shareable personal website — all in one place"
 ```
 
-Also change the grid from `grid-cols-2` to `flex flex-wrap` for both suggested and common skills so they pack naturally instead of forcing 2 equal columns (which makes short words look overstretched):
+**Change C — Richer card styling:**
+- AI Editor card: add `border-t-2 border-t-primary/40` for a colored top accent + update badge background to match
+- Portfolio card: add `border-t-2 border-t-emerald-500/40` + give the "New in v2.1" badge a subtle `shadow-[0_0_12px_-2px_hsl(142_71%_45%/0.4)]` glow
+- Both cards: add `hover:shadow-lg hover:border-primary/20` transition for interactive depth on desktop
 
-```tsx
-// Before
-<div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+## What Is NOT Changed
+- All existing changelog entries (v2.0.0, v1.6.0, v1.5.0, v1.0.0) — untouched
+- The `PortfolioDemo` and `EditorDemo` animation components — untouched
+- Any routes, auth flows, or portfolio functionality
+- Mobile layout — the grid is already `grid-cols-1 lg:grid-cols-2` which is correct
+- The version string derivation — already reads from `changelog.json[0].version` dynamically, no hardcoded strings to update
+- Desktop layout — untouched beyond card styling improvements
 
-// After  
-<div className="flex flex-wrap gap-1.5">
-```
+## Summary of Changes
 
-## Space savings estimate
-
-| Element | Before | After | Saved per item |
-|---|---|---|---|
-| Input row | 48px | 40px | 8px |
-| Each skill badge | 44px min | 32px | ~12px |
-| Badge gap | 8px | 6px | ~2px |
-
-With 5–6 skills visible before: now **8–10 skills** fit in the same vertical space. The section overall shrinks by ~60–80px, giving back significant room to the editor.
-
-## What is NOT Changed
-- Touch functionality — badges still tap to remove, tap area is unaffected
-- The `space-y-5` container spacing — stays for breathing room between sections
-- The section header, AI nudge, empty state — untouched
-- Suggested skills visibility logic — untouched
-- Desktop behavior — `h-8` badges look fine on desktop too (consistent with tag/chip conventions across UI)
+| File | Change | Type |
+|---|---|---|
+| `public/changelog.json` | Add `summary` field to v2.1.0 entry | Content |
+| `src/pages/SettingsPage.tsx` | Render `summary` in changelog dialog | UI |
+| `src/pages/Index.tsx` | Fix Portfolio CTA `/profile` → `/portfolio` | Bug fix |
+| `src/pages/Index.tsx` | Update section subtitle copy | Copy |
+| `src/pages/Index.tsx` | Add colored top borders + hover glow to cards | Visual polish |
