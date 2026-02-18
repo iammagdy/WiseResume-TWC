@@ -12,6 +12,7 @@ import {
   Mic,
   Shield,
   Linkedin,
+  GitCompareArrows,
   FileText,
   UserCheck,
   FileSearch,
@@ -46,6 +47,7 @@ const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrar
 const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
+const ResumeABCompareSheet = lazy(() => import('@/components/ai-studio/ResumeABCompareSheet'));
 
 const SUGGESTIONS = [
   'Write a summary for a software engineer',
@@ -104,6 +106,7 @@ export default function AIStudioPage() {
   const [showCustomize, setShowCustomize] = useState(false);
   const [showProofread, setShowProofread] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
+  const [showABCompare, setShowABCompare] = useState(false);
   const [moreToolsOpen, setMoreToolsOpen] = useState(true);
   const [stickyInput, setStickyInput] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -297,6 +300,18 @@ export default function AIStudioPage() {
           </div>
         </button>
         <button
+          onClick={() => { haptics.medium(); setShowABCompare(true); }}
+          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
+        >
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <GitCompareArrows className="w-7 h-7 text-primary" />
+          </div>
+          <div className="text-left flex-1 min-w-0">
+            <p className="font-semibold text-base sm:text-sm">A/B Compare</p>
+            <p className="text-sm sm:text-xs text-muted-foreground">Score two resumes against a job description</p>
+          </div>
+        </button>
+        <button
           onClick={() => requireResume(() => setShowJobSheet(true))}
           className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
         >
@@ -410,6 +425,7 @@ export default function AIStudioPage() {
           {showCustomize && <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} onApply={() => {}} />}
           {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
           {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
+          {showABCompare && <ResumeABCompareSheet open={showABCompare} onOpenChange={setShowABCompare} />}
         </Suspense>
       </ErrorBoundary>
 
