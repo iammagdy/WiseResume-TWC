@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { useSettingsStore } from '@/store/settingsStore';
 
 interface UseElevenLabsScribeOptions {
   onPartialTranscript?: (text: string) => void;
@@ -11,6 +10,7 @@ interface UseElevenLabsScribeOptions {
 }
 
 const CONNECTION_TIMEOUT_MS = 5000;
+const DEV = import.meta.env.DEV;
 
 export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
   const [isConnected, setIsConnected] = useState(false);
@@ -49,19 +49,20 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
   }, []);
 
   // Pre-fetch token (can be called before connect for faster startup)
+  // The edge function now retrieves the ElevenLabs key server-side from user_api_keys;
+  // no API key is ever sent in the request body.
   const prefetchToken = useCallback(async () => {
-    const { elevenlabsApiKey } = useSettingsStore.getState();
-    
     // Return cached token if still valid (with 30s buffer)
     if (tokenCacheRef.current && tokenCacheRef.current.expiresAt > Date.now() + 30000) {
-      console.log('[ElevenLabs] Using cached token');
+      if (DEV) console.log('[ElevenLabs] Using cached token');
       return tokenCacheRef.current.token;
     }
 
     try {
-      console.log('[ElevenLabs] Fetching scribe token...');
+      if (DEV) console.log('[ElevenLabs] Fetching scribe token...');
+      // No customApiKey in body — server looks up user's key from encrypted DB store
       const { data, error } = await supabase.functions.invoke('elevenlabs-scribe-token', {
-        body: { customApiKey: elevenlabsApiKey || undefined },
+        body: {},
       });
 
       if (error || !data?.token) {
@@ -70,7 +71,7 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
         throw new Error(msg);
       }
 
-      console.log('[ElevenLabs] Token fetched successfully');
+      if (DEV) console.log('[ElevenLabs] Token fetched successfully');
       // Cache token for 14 minutes (tokens expire in 15 min)
       tokenCacheRef.current = {
         token: data.token,
@@ -99,15 +100,15 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
       }
 
       // Request microphone
-      console.log('[ElevenLabs] Requesting microphone...');
+      if (DEV) console.log('[ElevenLabs] Requesting microphone...');
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
       streamRef.current = stream;
-      console.log('[ElevenLabs] Microphone acquired');
+      if (DEV) console.log('[ElevenLabs] Microphone acquired');
 
       // Open WebSocket with connection timeout
-      console.log('[ElevenLabs] Opening WebSocket...');
+      if (DEV) console.log('[ElevenLabs] Opening WebSocket...');
       const ws = new WebSocket(
         `wss://api.elevenlabs.io/v1/speech-to-text/realtime?model_id=scribe_v2_realtime&language_code=en&sample_rate=16000&token=${token}`
       );
@@ -125,7 +126,7 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
 
       ws.onopen = async () => {
         clearTimeout(timeoutId);
-        console.log('[ElevenLabs] WebSocket connected');
+        if (DEV) console.log('[ElevenLabs] WebSocket connected');
         setIsConnected(true);
         setConnectionFailed(false);
         optionsRef.current.onConnected?.();
@@ -180,11 +181,12 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
             setPartialTranscript(msg.text);
             optionsRef.current.onPartialTranscript?.(msg.text);
           } else if (msg.type === 'committed_transcript' && msg.text) {
-            console.log('[ElevenLabs] Committed transcript:', msg.text);
+            // DEV-only: transcript text is sensitive user speech data
+            if (DEV) console.log('[ElevenLabs] Committed transcript:', msg.text);
             setPartialTranscript('');
             optionsRef.current.onCommittedTranscript?.(msg.text);
           } else if (msg.type === 'session_started') {
-            console.log('[ElevenLabs] Session started:', msg);
+            if (DEV) console.log('[ElevenLabs] Session started:', msg);
           }
         } catch {}
       };
@@ -199,7 +201,7 @@ export function useElevenLabsScribe(options: UseElevenLabsScribeOptions = {}) {
 
       ws.onclose = (event) => {
         clearTimeout(timeoutId);
-        console.log('[ElevenLabs] WebSocket closed, code:', event.code, 'reason:', event.reason);
+        if (DEV) console.log('[ElevenLabs] WebSocket closed, code:', event.code, 'reason:', event.reason);
         setIsConnected(false);
         setAudioLevel(0);
       };
