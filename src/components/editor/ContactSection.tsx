@@ -8,6 +8,8 @@ import { InlineAIButton } from './InlineAIButton';
 import { z } from 'zod';
 import { SectionEmptyState } from './SectionEmptyState';
 import { contactExample } from '@/lib/emptyStateExamples';
+import { AIContextualNudge } from './AIContextualNudge';
+import { useResumeNudges } from '@/hooks/useResumeNudges';
 
 // Validation schemas
 const emailSchema = z.string().email('Please enter a valid email');
@@ -41,8 +43,11 @@ export const ContactSection = memo(function ContactSection() {
     onApply: () => {},
   });
 
+  const { getNudgeForSection, dismissNudge } = useResumeNudges({ resume: currentResume });
+
   if (!contactInfo || !currentResume) return null;
 
+  const contactNudge = getNudgeForSection('contact');
   const isEmpty = !contactInfo.fullName && !contactInfo.email && !contactInfo.phone;
 
   if (isEmpty && !started) {
@@ -165,6 +170,15 @@ export const ContactSection = memo(function ContactSection() {
 
   return (
     <div className="space-y-5">
+      <AIContextualNudge
+        show={!!contactNudge}
+        message={contactNudge?.message || ''}
+        actionLabel={contactNudge?.actionLabel || ''}
+        onAction={() => {
+          if (contactNudge) dismissNudge(contactNudge.trigger);
+        }}
+        onDismiss={() => contactNudge && dismissNudge(contactNudge.trigger)}
+      />
         <InputFormField
           id="fullName"
           label="Full Name"
