@@ -1,4 +1,4 @@
-import { useState, useEffect, forwardRef } from 'react';
+import { useState, useEffect } from 'react';
 import { openExternal } from '@/lib/openExternal';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -32,8 +32,7 @@ interface AISettingsSheetProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
-  function AISettingsSheet({ open, onOpenChange }, ref) {
+export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
     const {
       aiProvider,
       setAIProvider,
@@ -156,7 +155,7 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
 
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]" ref={ref}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
           <SheetHeader className="shrink-0">
             <SheetTitle className="flex items-center gap-2">
               <Brain className="w-5 h-5 text-primary" />
@@ -329,5 +328,4 @@ export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
         </SheetContent>
       </Sheet>
     );
-  }
-);
+}

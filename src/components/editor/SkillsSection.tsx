@@ -123,7 +123,7 @@ export const SkillsSection = memo(function SkillsSection() {
       </div>
 
       {/* Current skills */}
-      <div className="flex flex-wrap gap-1.5 overflow-hidden">
+      <div className="flex flex-wrap gap-1.5">
         {skills.map((skill) => (
             <div key={skill} className="transition-all duration-200 min-h-[36px] flex items-center">
               <Badge

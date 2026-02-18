@@ -659,7 +659,7 @@ export default function DashboardPage() {
             ) : !resumes || resumes.length === 0 ? (
               <>
                 {/* Quick Actions Grid */}
-                <div className="grid grid-cols-2 gap-2 px-4 xs:gap-3 xs:px-6 mb-4">
+                <div className="grid grid-cols-2 gap-2 px-4 xs:gap-3 xs:px-6 mb-4 [&>*:last-child:nth-child(odd)]:col-span-2">
                   <ActionCard
                     icon={FileTextIcon}
                     title="New Resume"
