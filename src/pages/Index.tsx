@@ -356,13 +356,13 @@ const Index = () => {
             See It in Action
           </motion.h2>
           <p className="text-sm text-muted-foreground text-center mb-6">
-            Two powerful tools built for your career
+            From AI resume writing to a shareable personal website — all in one place
           </p>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto">
             {/* Card A — AI Resume Editor */}
             <motion.div {...inView(0.05)}>
-              <Card className="p-5 border-border/30 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4">
+              <Card className="p-5 border-t-2 border-border/30 border-t-primary/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-primary/20 transition-shadow duration-300">
                 <div className="text-center">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2">
                     <Sparkles className="w-3 h-3" />
@@ -387,9 +387,9 @@ const Index = () => {
 
             {/* Card B — Public Portfolio */}
             <motion.div {...inView(0.1)}>
-              <Card className="p-5 border-border/30 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4">
+              <Card className="p-5 border-t-2 border-border/30 border-t-emerald-500/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-emerald-500/20 transition-shadow duration-300">
                 <div className="text-center">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2 shadow-[0_0_12px_-2px_hsl(142_71%_45%/0.4)]">
                     <Globe className="w-3 h-3" />
                     New in v2.1
                   </div>
@@ -403,7 +403,7 @@ const Index = () => {
                   variant="outline"
                   size="sm"
                   className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95"
-                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/profile' : '/auth'); }}
+                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/portfolio' : '/auth'); }}
                 >
                   Build Your Portfolio <ArrowRight className="w-3.5 h-3.5" />
                 </Button>
