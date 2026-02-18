@@ -43,7 +43,7 @@ interface SettingsState {
   hasSeenInterviewHint: boolean;
   hasSeenAIStudioTour: boolean;
   
-  // Integrations
+  // Integrations (in-memory only, not persisted — keys stored server-side)
   elevenlabsApiKey: string;
   
   // Proofread
@@ -52,6 +52,7 @@ interface SettingsState {
   // AI Provider Settings
   aiProvider: AIProvider;
   geminiApiKey: string;
+  
   geminiKeyTier: GeminiKeyTier;
   geminiKeyValidated: boolean;
   geminiDailyUsage: GeminiDailyUsage;
@@ -82,6 +83,7 @@ interface SettingsState {
   // AI Provider Actions
   setAIProvider: (provider: AIProvider) => void;
   setGeminiApiKey: (key: string) => void;
+  
   setGeminiKeyTier: (tier: GeminiKeyTier) => void;
   setGeminiKeyValidated: (validated: boolean) => void;
   incrementGeminiDailyUsage: () => void;

@@ -10,7 +10,7 @@ import { ResignationChecklist } from '@/components/resignation/ResignationCheckl
 import { useAuth } from '@/hooks/useAuth';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
-import { getUserGeminiKey } from '@/lib/aiProvider';
+
 import { toast } from 'sonner';
 import { DetailSkeleton } from '@/components/layout/PageSkeletons';
 import {
@@ -144,7 +144,6 @@ export default function ResignationLetterEditPage() {
             tone: letter.tone,
             templateStyle: letter.template_style,
             additions: Array.isArray(letter.additions) ? letter.additions : [],
-            userGeminiKey: getUserGeminiKey(),
           }),
         }
       );
