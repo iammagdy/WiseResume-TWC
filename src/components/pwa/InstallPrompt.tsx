@@ -74,7 +74,7 @@ export function InstallPrompt() {
       >
         <button
           onClick={handleDismiss}
-          className="absolute top-3 right-3 p-1 rounded-full hover:bg-muted transition-colors"
+          className="absolute top-3 right-3 p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-muted transition-colors"
           aria-label="Dismiss"
         >
           <X className="w-4 h-4 text-muted-foreground" />
