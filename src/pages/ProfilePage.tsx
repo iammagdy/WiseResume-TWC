@@ -49,7 +49,7 @@ export default function ProfilePage() {
 
   const handleShareProfile = async () => {
     if (profile?.portfolioEnabled && profile?.username) {
-      const url = `https://wiseresume.lovable.app/p/${profile.username}`;
+      const url = `${window.location.origin}/p/${profile.username}`;
       if (navigator.share) {
         try {
           await navigator.share({ title: `${profile?.fullName || 'My'} Portfolio`, url });
@@ -134,7 +134,7 @@ export default function ProfilePage() {
                   </Badge>
                 </div>
                 {profile?.username ? (
-                  <p className="text-xs text-muted-foreground truncate">wiseresume.lovable.app/p/{profile.username}</p>
+                  <p className="text-xs text-muted-foreground truncate">{window.location.hostname}/p/{profile.username}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Create your personal portfolio site</p>
                 )}
@@ -152,7 +152,7 @@ export default function ProfilePage() {
                 variant="outline"
                 size="sm"
                 className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
-                onClick={() => { haptics.light(); window.open(`https://wiseresume.lovable.app/p/${profile.username}`, '_blank', 'noopener,noreferrer'); }}
+                onClick={() => { haptics.light(); window.open(`${window.location.origin}/p/${profile.username}`, '_blank', 'noopener,noreferrer'); }}
               >
                 <ExternalLink className="w-3.5 h-3.5 mr-1" /> Preview
               </Button>

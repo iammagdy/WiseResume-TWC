@@ -121,6 +121,8 @@ export function EditProfileSheet({
     portfolioFont: null,
     openToWork: false,
     availabilityHeadline: null,
+    portfolioExtras: null,
+    portfolioSyncMode: 'auto' as const,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 
