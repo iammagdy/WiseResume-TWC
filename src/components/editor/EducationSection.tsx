@@ -184,6 +184,7 @@ export const EducationSection = memo(function EducationSection() {
                             onChange={(e) => updateEducation(edu.id, { institution: e.target.value })}
                             placeholder="University Name"
                             className="h-12"
+                            autoComplete="organization"
                           />
                         </div>
 
@@ -219,6 +220,7 @@ export const EducationSection = memo(function EducationSection() {
                               onChange={(e) => updateEducation(edu.id, { startDate: e.target.value })}
                               placeholder="2016"
                               className="h-12"
+                              autoComplete="off"
                             />
                           </div>
                           <div>
@@ -231,6 +233,7 @@ export const EducationSection = memo(function EducationSection() {
                               onChange={(e) => updateEducation(edu.id, { endDate: e.target.value })}
                               placeholder="2020"
                               className="h-12"
+                              autoComplete="off"
                             />
                           </div>
                         </div>
@@ -242,6 +245,8 @@ export const EducationSection = memo(function EducationSection() {
                             onChange={(e) => updateEducation(edu.id, { gpa: e.target.value })}
                             placeholder="3.8/4.0"
                             className="h-12"
+                            inputMode="decimal"
+                            autoComplete="off"
                           />
                         </div>
 

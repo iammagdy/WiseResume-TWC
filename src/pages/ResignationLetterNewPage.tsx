@@ -217,19 +217,19 @@ export default function ResignationLetterNewPage() {
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Your Name</label>
-                <Input placeholder="John Doe" value={userName} onChange={(e) => setUserName(e.target.value)} />
+                <Input placeholder="John Doe" value={userName} onChange={(e) => setUserName(e.target.value)} autoComplete="name" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Your Position *</label>
-                <Input placeholder="Software Engineer" value={position} onChange={(e) => setPosition(e.target.value)} />
+                <Input placeholder="Software Engineer" value={position} onChange={(e) => setPosition(e.target.value)} autoComplete="organization-title" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Company Name *</label>
-                <Input placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} />
+                <Input placeholder="Acme Corp" value={company} onChange={(e) => setCompany(e.target.value)} autoComplete="organization" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Manager's Name</label>
-                <Input placeholder="Jane Smith" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} />
+                <Input placeholder="Jane Smith" value={recipientName} onChange={(e) => setRecipientName(e.target.value)} autoComplete="off" autoCapitalize="words" />
               </div>
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Last Working Day</label>

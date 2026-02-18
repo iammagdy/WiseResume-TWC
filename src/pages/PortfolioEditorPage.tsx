@@ -777,6 +777,7 @@ export default function PortfolioEditorPage() {
               onChange={e => setAvailabilityHeadline(e.target.value)}
               placeholder="Open to remote full-time · From June 2025"
               maxLength={100}
+              autoCapitalize="sentences"
             />
             <p className="text-xs text-muted-foreground text-right">{availabilityHeadline.length}/100</p>
           </div>
@@ -794,7 +795,7 @@ export default function PortfolioEditorPage() {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Username</label>
             <p className="text-xs text-muted-foreground">wiseresume.app/p/</p>
-            <Input value={username} onChange={(e) => handleUsernameChange(e.target.value)} placeholder="your-name" />
+            <Input value={username} onChange={(e) => handleUsernameChange(e.target.value)} placeholder="your-name" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url" />
             {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
             {!usernameError && username.length >= 3 && (
               <div className="flex items-center gap-1.5">
@@ -866,19 +867,19 @@ export default function PortfolioEditorPage() {
         >
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">GitHub URL</label>
-            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} />
+            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Personal Website</label>
-            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
+            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} />
+            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
-            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} />
+            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
           </div>
         </CollapsibleCard>
 
