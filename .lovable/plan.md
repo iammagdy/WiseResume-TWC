@@ -1,158 +1,165 @@
 
-## Session Expiry / Force-Logout Resilience Audit
+# Multi-Device Sync Audit: Web + Mobile Simultaneous Editing
 
-### What I Tested (Code Path Analysis)
+## What Was Analyzed
 
-I traced the complete session lifecycle across the Editor, AI operations, and Preview/Export for two failure modes:
-1. **Token expiry / silent SIGNED_OUT** — Supabase SDK emits a `SIGNED_OUT` event when a refresh token expires
-2. **Force logout from another device** — Same Supabase event path
+I traced the complete data flow for the scenario where the same user has the editor open on two devices simultaneously (e.g., desktop browser + mobile APK), and one or both devices make changes.
 
 ---
 
-### What Currently Happens (Step-by-Step)
+## How the Current Architecture Works (Single-Device)
 
-**The good news — the auth event chain IS wired correctly:**
-- `AuthContext` listens to `onAuthStateChange`. On a `SIGNED_OUT` event, it calls `resolveInitialLoad(null, null)` which sets `user = null`.
-- `ProtectedRoute` watches `user`. When it becomes `null`, it renders `<Navigate to="/auth" replace />`.
-- **The redirect DOES happen** — the user will end up on `/auth`.
-
-**The gap — what the user experiences in those brief seconds before redirect:**
-
-#### Scenario 1: User is mid-typing in the Editor when session expires
-
-1. Supabase SDK silently emits `SIGNED_OUT`
-2. `user` becomes `null` in context (React re-render queued)
-3. The user's current keystroke lands in the Zustand store (this is safe — persisted to localStorage)
-4. The 3-second debounced `saveToCloud()` fires — **fails with a 401/unauthorized error** from Supabase
-5. The catch block sees this as a non-network error and shows: *"Auto-save failed — your changes are safe locally and will retry."* (from our last sprint's fix)
-6. **No specific "your session expired" message is shown** — the user sees a generic warning and is then silently redirected
-7. After redirect to `/auth`, the user logs back in and is taken to `/dashboard` — their unsaved edits from the last 3 seconds are in localStorage but the cloud is behind
-
-**Gap:** The warning message doesn't explain *why* the save failed. The user doesn't know they need to log back in before the redirect happens.
-
-#### Scenario 2: User triggers an AI action (enhance/tailor) when session expires mid-flight
-
-1. `supabase.functions.invoke('enhance-section', ...)` fires with an expired JWT
-2. The edge function returns a **401 Unauthorized** or the Supabase client rejects the call
-3. In `useAIEnhance`: the error hits the `else` branch → *"Failed to enhance content. Please try again."*
-4. In `aiTailor.ts`: the 401 check **does** exist (line 121-122) → throws *"Unauthorized. Please log in again."*
-5. But `useAIEnhance` has **no 401 detection** — it shows a generic error instead of "session expired"
-6. The redirect to `/auth` happens in the background via `ProtectedRoute`, but the toast message doesn't explain the connection
-
-**Gap:** `useAIEnhance` doesn't detect 401 errors. AI tools show a confusing "try again" message moments before the user is redirected.
-
-#### Scenario 3: User tries to export from Preview page when session is expired
-
-1. PDF export is **fully client-side** (html2canvas + pdf-lib) — no auth needed. PDF export works even with an expired session.
-2. However, `share-link` and `combined` (cover letter package) exports require Supabase calls with the user's JWT
-3. These will silently fail with 401 errors, showing: *"Failed to generate PDF."* with a Retry button that will also fail
-4. No session-expired explanation is given before the retry
-
-**Gap:** Export errors from 401s look identical to PDF generation errors. The user doesn't know to log back in.
-
-#### Scenario 4: User returns to the app after being force-logged-out (APK backgrounded, session killed)
-
-1. App resumes, Supabase tries to refresh the token
-2. Token refresh fails → `SIGNED_OUT` event → `user = null`
-3. `ProtectedRoute` redirects to `/auth` — this works correctly
-4. **After re-login**: user is sent to `/dashboard` via `navigate('/dashboard')`
-5. The `currentResume` in Zustand is still hydrated from localStorage — **the user can navigate back to the editor and resume exactly where they left off**
-6. The cloud save (via `offlineSyncStore`) will flush any pending changes
-
-**This scenario is actually well-handled already.**
-
----
-
-### Gap Summary Table
-
-| Scenario | Current Behavior | Gap |
-|---------|-----------------|-----|
-| Mid-typing session expiry | Redirect works; generic save warning shown | No "session expired" explanation in the toast |
-| AI enhance with expired JWT | Generic "failed" error + redirect | No 401 detection in `useAIEnhance` |
-| AI tailor with expired JWT | "Unauthorized. Please log in again." message | Good — already handled |
-| Export (PDF) with expired JWT | Export still works (client-side) | No issue |
-| Export (share-link/combined) with expired JWT | Generic export error + redirect | No 401 detection in export |
-| Return from background after token kill | Redirect to auth, localStorage intact | No issue — works correctly |
-| Re-login recovery | Redirected to dashboard, can resume editing | No issue — localStorage restores state |
-
----
-
-### Proposed Fixes (4 Changes)
-
-**All UI-only. No auth provider changes. No backend changes.**
-
----
-
-#### Fix 1: Detect 401 errors in `saveToCloud` in `EditorPage.tsx`
-
-**Problem:** When the session expires mid-edit, the debounced save fails with a 401. The current catch block treats all non-network errors the same: *"Auto-save failed — your changes are safe locally and will retry."*
-
-**Fix:** Add a 401/unauthorized check in the `saveToCloud` catch block. If the error indicates an expired session, show a more specific, actionable message:
-
-> *"Session expired — your changes are saved locally. Please sign back in."*
-
-Since the `ProtectedRoute` redirect is about to happen anyway, this toast serves as the "warning before the redirect" that mobile users need.
-
-**File:** `src/pages/EditorPage.tsx` — in the `saveToCloud` catch block (around line 272-285)
-
----
-
-#### Fix 2: Detect 401 errors in `useAIEnhance`
-
-**Problem:** When the session expires mid-AI-enhance, the Supabase functions call returns an error. The catch block only checks for `navigator.onLine` (offline) and timeout errors. A 401 hits the generic `else` branch: *"Failed to enhance content. Please try again."*
-
-**Fix:** Add a check for 401/unauthorized errors before the generic fallback:
-
+```text
+User types on Device A
+        |
+        v
+Zustand store updated (in-memory + localStorage via persist middleware)
+        |
+        v
+3-second debounce fires → saveToCloud() → Supabase UPDATE resumes SET ...
+        |
+        v
+updateResume.mutateAsync() on success → queryClient.invalidateQueries(['resume', id])
 ```
-if (is401Error(error)) {
-  toast.error('Session expired — please sign in again to use AI features.');
+
+**Key observation:** `queryClient.invalidateQueries` only refetches data for components that are actively subscribed to that query key. There is **no push notification** from the database to any other device.
+
+---
+
+## Multi-Device Scenario Analysis
+
+### Scenario A: Edit on Web, Mobile Is Idle (Open on Editor Page)
+
+**What currently happens:**
+
+1. User types on web. Zustand updates. 3s debounce fires. `saveToCloud()` runs. Database row updated (with new `updated_at`).
+2. On mobile, the editor is showing the **stale cached version** from when it initially loaded.
+3. The React Query cache on mobile has `staleTime: 0` for `useResume(id)` — this means the query IS considered stale immediately.
+4. BUT React Query only refetches stale data when: the query is remounted, the window is refocused (`refetchOnWindowFocus`, which defaults to `true`), or `queryClient.invalidateQueries` is called.
+5. On mobile APK/PWA: `refetchOnWindowFocus` fires when the user switches back to the app via the `visibilitychange` event — BUT the Supabase client and React Query use `focus` and `visibilitychange` events from the browser, which do fire on mobile when the user brings the app to the foreground.
+
+**Result:** If the mobile user switches away and comes back, React Query refetches the resume and gets the latest version from the server. If they **never leave the app**, the mobile view stays stale indefinitely.
+
+**The dangerous gap:** The mobile user is actively looking at the editor showing V1. The web user edits and saves V2 to the database. The mobile user then types something in their stale V1 editor and saves — this overwrites V2 with a version that doesn't include the web edits. **Silent last-write-wins overwrite — no warning.**
+
+### Scenario B: Edit on Mobile, Web Is Idle (Open on Editor Page)
+
+Same as Scenario A but reversed. Same silent overwrite risk on web when web user resumes typing.
+
+### Scenario C: Both Devices Edit Simultaneously
+
+1. Both load V1 from the database.
+2. Web user edits Summary → debounce → saves V2 (Summary changed).
+3. Mobile user edits Skills → debounce → saves V3 **based on their stale V1** (Summary reverts to V1 text, Skills added).
+4. The most recent write wins. Web user's Summary change is **silently lost**.
+
+The existing offline sync conflict detection (`useOfflineSync` / `offlineSyncStore`) only handles the case where `navigator.onLine === false`. It does NOT protect against this "online but stale" scenario.
+
+### Scenario D: AI Action on Device A While Device B Is Open
+
+1. Device A runs Tailor AI. Gets result. Applies to store. Saves to cloud.
+2. Device B is still showing pre-AI version in the editor.
+3. If Device B user makes a change, they overwrite Device A's AI improvements.
+
+**Result:** AI work is silently lost without any "this resume was updated elsewhere" warning.
+
+---
+
+## What Is Already Safe
+
+| Behavior | Status |
+|---------|--------|
+| `refetchOnWindowFocus` for React Query | Active by default — when user tabs back, query refetches |
+| `visibilitychange` foreground detection | `useAppLifecycle` handles this for save flushing; React Query also fires a refetch |
+| `offlineSyncStore` conflict detection | Works correctly for offline→online sync (checks `updated_at` against server) |
+| Session persistence | Token refresh is automatic; sessions survive backgrounding |
+| localStorage persistence | Zustand persist always has latest local state |
+
+**The key insight:** The `offlineSyncStore` actually has the exact logic needed to detect stale overwrites — it checks `serverTime > change.timestamp` before syncing. But this logic ONLY runs for the offline sync queue, not for the live "online" autosave path.
+
+---
+
+## Proposed Fixes (3 Changes — Light Touch, No Real-Time Logic)
+
+### Fix 1: "Last Updated" label in Editor header with relative time
+
+**Problem:** The user has no awareness that the resume they're looking at may be stale (saved 3 minutes ago by another device).
+
+**Fix:** In `EditorPage.tsx`, show a "Last saved · 3 min ago" label next to the save indicator. This uses the existing `lastSavedAt` Zustand field (already set by `saveToCloud` via `setLastSavedAt`). Format it with `date-fns/formatDistanceToNow`.
+
+This gives the user a passive awareness signal: if they see "Last saved · 8 min ago" when they've been typing for only 2 minutes, they know something else was editing.
+
+**File:** `src/pages/EditorPage.tsx` — the save status area around line 1028–1052.
+
+**Risk:** Very low — purely additive display label.
+
+---
+
+### Fix 2: Stale-resume detection banner on Editor focus/return
+
+**Problem:** When the user returns to the editor (e.g., brings the mobile app to foreground after another device has saved), React Query refetches but silently discards the result if the local Zustand store already has a resume loaded.
+
+Looking at the hydration effect in `EditorPage.tsx` lines 120–138:
+```ts
+// Hydrate store if needed
+if (!currentResume) {
+  useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
 }
 ```
 
-**File:** `src/hooks/useAIEnhance.ts` — in the catch block (around line 108-117)
+If `currentResume` is already set (which it is, since Zustand persists to localStorage), the new server data from `resumeFromDb` is **silently ignored**. The stale local version stays in the store.
+
+**Fix:** Extend the hydration effect to detect when `resumeFromDb.updated_at` is **newer** than the locally stored resume's `updatedAt`. If a newer server version exists AND the local store has no pending dirty changes (i.e., `lastSavedResumeRef.current === JSON.stringify(currentResume)` — meaning the user hasn't typed since last save), automatically pull in the fresh data silently and show a brief toast: *"Resume updated — refreshed to latest version."*
+
+If the user HAS typed something (dirty state), show a non-blocking banner: *"This resume was updated on another device. [Discard local · Keep local]"* — using the same visual pattern as the existing `SyncConflictDialog`.
+
+**Files:**
+- `src/pages/EditorPage.tsx` — extend the hydration `useEffect` (lines 120–138)
+- No new files needed — reuse existing `toast` and the `lastSavedResumeRef` pattern already in the file
+
+**Risk:** Low — extends an existing effect with a timestamp comparison. No new state management needed.
 
 ---
 
-#### Fix 3: Add a session-expiry interceptor in `AuthContext`
+### Fix 3: Pre-save timestamp check in `saveToCloud` (online conflict guard)
 
-**Problem:** When `SIGNED_OUT` fires due to token expiry (not a user-initiated sign-out), there is currently no differentiation — the user is silently redirected with no explanation shown at the page level.
+**Problem:** When `saveToCloud()` fires in an online scenario, it does NOT check whether the server's `updated_at` is newer than the timestamp when the local session started editing. The offline sync queue checks this (via `offlineSyncStore`), but the live online save path does not.
 
-**Fix:** In `AuthContext`, differentiate between **user-initiated sign-out** (from `signOut()`) and **forced/expired sign-out** (from `onAuthStateChange` event). When an unexpected `SIGNED_OUT` arrives and there *was* a previous authenticated user, dispatch a custom event (`app:session-expired`) that components can listen to.
+**Fix:** Before calling `updateResume.mutateAsync`, fetch the server's `updated_at` for this resume and compare it against the `resumeFromDb.updated_at` value cached in React Query's cache (already available via `useResume(currentResumeId)`).
 
-Then, in the `ProtectedRoute`, when redirecting to `/auth` with `user = null`, check if this is a session expiry redirect and pass a `?reason=session_expired` query parameter to the auth page.
+If `serverUpdatedAt > localLoadedAt` AND the local session has dirty changes, show the `SyncConflictDialog` (already implemented) by calling `setConflict()` from `offlineSyncStore` — this reuses the entire existing conflict UI.
 
-**File:** `src/contexts/AuthContext.tsx` — add `wasAuthenticated` flag + dispatch custom event on unexpected SIGNED_OUT. Also `src/components/layout/ProtectedRoute.tsx` — pass reason query param. Also `src/pages/AuthPage.tsx` — read `?reason=session_expired` and show a banner/toast.
+**Files:**
+- `src/pages/EditorPage.tsx` — in the `saveToCloud` callback (around line 242–296), add a quick `resumeFromDb?.updated_at` comparison before writing
 
----
-
-#### Fix 4: Detect 401 errors in the export handler (`PreviewPage.tsx`)
-
-**Problem:** When `share-link` or `combined` exports fail with a 401 (session expired), the error message is identical to a PDF generation failure: *"Failed to generate PDF."* with a Retry button that will also fail.
-
-**Fix:** In the `tryExport` catch block, add a check for 401/unauthorized errors and show a session-specific message instead of the generic PDF error:
-
-> *"Session expired — please sign in again to generate this export."*
-
-**File:** `src/pages/PreviewPage.tsx` — in the `tryExport` catch block (around line 396-415)
+**Risk:** Low — adds one timestamp comparison before every save. No UI changes needed — reuses existing `SyncConflictDialog` infrastructure.
 
 ---
 
-### Implementation Summary
+## Implementation Summary
 
-| # | File | Change | Risk |
-|---|------|--------|------|
-| 1 | `src/pages/EditorPage.tsx` | Add 401 detection in `saveToCloud` catch; show session-expired toast | Very low |
-| 2 | `src/hooks/useAIEnhance.ts` | Add 401 detection before generic error fallback | Very low |
-| 3 | `src/contexts/AuthContext.tsx` | Flag unexpected SIGNED_OUT; dispatch `app:session-expired` event | Low |
-| 3b | `src/components/layout/ProtectedRoute.tsx` | Pass `?reason=session_expired` on redirect when session was unexpectedly lost | Very low |
-| 3c | `src/pages/AuthPage.tsx` | Read `reason` param and show informational banner on the auth page | Very low |
-| 4 | `src/pages/PreviewPage.tsx` | Add 401 detection in export catch to show session-specific error | Very low |
+| # | Change | Files | Risk |
+|---|--------|-------|------|
+| 1 | "Last saved · X min ago" relative timestamp in Editor header | `EditorPage.tsx` | Very low |
+| 2 | Stale-resume detection on foreground return: auto-refresh if clean, show banner if dirty | `EditorPage.tsx` | Low |
+| 3 | Pre-save server timestamp check for online multi-device conflict detection | `EditorPage.tsx` | Low |
 
-### What Is NOT Changed
-- No auth provider changes
-- No Supabase configuration changes
+All three changes are in a single file. No new files. No database changes. No real-time infrastructure. No new hooks.
+
+The changes build directly on top of what's already there:
+- `resumeFromDb` (already fetched via `useResume`)
+- `lastSavedResumeRef` (already tracking dirty state)
+- `SyncConflictDialog` + `offlineSyncStore.setConflict()` (already implemented for offline sync)
+- `setLastSavedAt` / `lastSavedAt` (already in the Zustand store)
+
+---
+
+## What Is NOT Changed
+
+- No real-time WebSocket/Supabase Realtime subscription (would add significant complexity)
+- No polling mechanism (respects battery and network constraints)
+- No changes to the offline sync queue logic
+- No changes to the cloud save debounce timing
+- No backend changes
 - No database schema changes
-- No edge function changes
-- No existing autosave or localStorage persistence logic
-- No redirect flows (ProtectedRoute still redirects to `/auth` the same way)
-- The data safety guarantee: Zustand localStorage persistence ensures all typed content survives the session expiry and is available immediately after re-login
+- The `SyncConflictDialog` UI and resolution flow are reused as-is
