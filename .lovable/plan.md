@@ -1,105 +1,82 @@
 
-# Editor Header + Space Fix: Two Focused Changes
+# Fix: Employment Gap "Explain" Button Visibility
 
-## The Two Problems
+## The Problem
 
-### Problem 1 — Header has both "Template" + "Tools" buttons on mobile (taking up space + causing confusion)
-The user wants: remove "Tools", replace with a "Chat" button that goes **directly** to the Wise AI chat (not a tools menu).
+In `src/components/editor/ExperienceTimeline.tsx`, the inline gap row (mobile cards, lines 165–190) renders two action buttons inside a `bg-destructive/5` dark card:
 
-Currently on mobile (lines 994–1061):
-- Button 1: "Template" → opens template gallery (keep this)
-- Button 2: "Tools" → opens a bottom sheet with a full tools menu (REPLACE THIS with "Chat")
+- **"Explain"** — `variant="ghost"` + `className="text-warning-foreground"` → ghost gives no background fill, and `text-warning-foreground` on the deep red/dark background is nearly invisible (screenshot shows it as a barely-readable dim label)
+- **"Fill Gap"** — `variant="ghost"` + `className="text-primary"` → slightly better (primary red is visible) but still ghosted
 
-### Problem 2 — The top area on mobile takes too much vertical space, leaving the editor cramped
-Looking at the screenshot and the code, the chrome above the editor content consists of:
+The entire row also crowds `AlertCircle + "Employment gap" label + two buttons` into a single flex row with `gap-2`, leaving almost no space for the buttons to breathe.
 
-1. **Header** (`py-3`) — title, back button, undo/redo, Template + Tools buttons → ~60px
-2. **Progress Bar section** (`py-3` with `mb-1`, plus a `<details>` disclosure) → ~60-70px
-3. **Tailored Resume Indicator Banner** (conditional, ~36px min-height) → ~36px
-4. **StepperNav** (section tabs with scroll) → ~56px
-5. **Editor/Preview TabsList** (sticky) → ~44px
+## The Fix — One File, 20 Lines
 
-That's ~5 layers of chrome before the editor content even starts. On a 375px phone with a 56px bottom bar, the editor gets maybe 180-200px of space.
+**File:** `src/components/editor/ExperienceTimeline.tsx` (lines 165–191)
 
-**Fix strategy — compact the progress bar section on mobile:**
-- Change `py-3` → `py-1.5` on the progress bar container
-- Move the "Last saved" status inline with the progress bar (on one row instead of two rows) on mobile
-- Make the `<details>` disclosure for ATS breakdown **hidden on mobile** (accessible via the StepperNav or a dedicated button) — this alone removes ~20px
-- Reduce `py-1.5` on the tailored banner to `py-1`
-- Change StepperNav container from `shrink-0` (no padding) — it already has internal padding in the component, no change needed
+### Visual changes
 
-Let me be precise about what changes and what the pixel savings are:
+1. **"Explain" button** — change from `ghost` to `outline` variant, use `border-warning/50 bg-warning/10 text-warning hover:bg-warning/20` so the warning amber color is clearly visible with a subtle tinted background
+2. **"Fill Gap" button** — change from `ghost` to `outline` variant, use `border-primary/50 bg-primary/10 text-primary hover:bg-primary/20` for consistent styling with a visible tinted pill
+3. **Layout** — change the single cramped flex row into two rows:
+   - Row 1: `AlertCircle + "Employment gap" label` (the descriptor)
+   - Row 2: `flex gap-2` with the two action buttons side by side, so they have full width and breathing room
 
-**Exact changes:**
+### Before → After
 
-**Change A: Progress bar container** (`px-4 py-3 border-b border-border` → `px-4 py-1.5 border-b border-border`)
-- Saves ~12px (top+bottom padding from 12px each → 6px each)
-
-**Change B: Progress bar flex direction** — on mobile the save status goes on the same row as the progress bar, not a column:
-- Change `flex flex-col sm:flex-row` → `flex flex-row flex-wrap` so they're always on one line
-- This collapses the "Last saved · X ago" from a second row to inline
-
-**Change C: ATS score breakdown `<details>` — hide on mobile:**
-- Wrap the `<details>` in `hidden sm:block` so it doesn't take up space on mobile phones
-- The ATS score is accessible in the Resume Detail page, so this isn't a loss
-
-**Change D: Tailored banner** — reduce padding `py-1.5` → `py-1` (saves 4px)
-
-**Change E: Editor/Preview tabs** (`TabsList`) — the sticky tabs are fine but the `mt-2` on `TabsContent` can be removed (it already has `mt-0`)
-
-**Total savings: ~30-40px** = significantly more editor real estate on a phone
-
----
-
-## Changes Summary
-
-### File 1: `src/pages/EditorPage.tsx`
-
-**Change 1a — Replace "Tools" button with "Chat" button** (lines 1005–1012):
-
+**Before (all jammed in one row, ghost buttons):**
 ```tsx
-// BEFORE:
-<button
-  onClick={() => { haptics.light(); setShowToolsSheet(true); }}
-  className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
-  aria-label="Editor tools"
->
-  <Sparkles className="w-5 h-5 text-primary" />
-  <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
-</button>
-
-// AFTER:
-<button
-  onClick={() => { haptics.light(); setShowChat(true); }}
-  className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation animate-[pulse-glow_2s_ease-in-out_infinite]"
-  aria-label="Open Wise AI Chat"
->
-  <span className="relative">
-    <MessageSquare className="w-5 h-5 text-primary" />
-    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
-  </span>
-  <span className="text-[9px] font-medium leading-none text-primary">Chat</span>
-</button>
+<div className="flex items-center gap-2">
+  <AlertCircle ... /> <span>Employment gap</span>
+  <Button variant="ghost" className="text-warning-foreground">Explain</Button>
+  <Button variant="ghost" className="text-primary">Fill Gap</Button>
+</div>
 ```
 
-The `Sheet` block for `showToolsSheet` (lines 1013–1060) gets **removed** — it becomes dead code since no button triggers it anymore. The `setShowToolsSheet` state can be left (it's also used internally nowhere else on mobile — tools were only accessible via this button). Actually we should keep the state so the `editorToolGroups`/`toolMeta` don't break, but the Sheet itself can be removed from the JSX.
+**After (two rows, visible outline pill buttons):**
+```tsx
+<div className="flex flex-col gap-1.5">
+  <div className="flex items-center gap-1.5">
+    <AlertCircle className="w-3.5 h-3.5 text-destructive/70 shrink-0" />
+    <span className="text-xs font-medium text-destructive/90">Employment gap</span>
+  </div>
+  <div className="flex items-center gap-2">
+    {onExplainGap && (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleExplainGap(segment)}
+        className="h-8 text-xs gap-1.5 border-warning/50 bg-warning/10 text-warning hover:bg-warning/20 active:scale-95"
+      >
+        <Sparkles className="w-3 h-3" />
+        Explain
+      </Button>
+    )}
+    {onFillGap && (
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => handleFillGap(segment)}
+        className="h-8 text-xs gap-1.5 border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 active:scale-95"
+      >
+        <Wand2 className="w-3 h-3" />
+        Fill Gap
+      </Button>
+    )}
+  </div>
+</div>
+```
 
-**Change 1b — Compact the progress bar section on mobile** (lines 1067–1138):
-- `px-4 py-3` → `px-4 py-1.5 sm:py-3`  
-- `flex flex-col sm:flex-row sm:items-center` → `flex flex-row flex-wrap items-center` (always one row)
-- Wrap the `<details>` (lines 1116–1137) in `<div className="hidden sm:block">` so it only shows on tablet/desktop
+### Why these classes work
 
-**Change 1c — Compact the tailored banner** (line 1142):
-- `py-1.5` → `py-1` on the tailored indicator banner
-
----
+- `border-warning/50 bg-warning/10 text-warning` — The amber/yellow warning color stands out clearly on both dark and light backgrounds. The `bg-warning/10` tint gives the button a visible pill shape even without a full solid fill.
+- `border-primary/50 bg-primary/10 text-primary` — Matches the existing design system's primary red color, consistent with other CTA buttons in the editor.
+- Two-row layout ensures the label is always fully readable and the buttons are never squashed.
+- `h-8` instead of `min-h-[44px]` since these are inline secondary actions inside an already-pressable card; the card itself provides the touch target.
 
 ## What is NOT Changed
 
-- Template button — stays exactly as-is
-- `showToolsSheet` state variable — kept (editorToolGroups/toolMeta still reference it, no issue leaving the state)
-- The tools Sheet JSX is removed from the render tree (no button triggers it so it's dead code, but removing it is clean)
-- Desktop layout — completely untouched (the `hidden md:flex` group at lines 944–993 keeps the full "Template / Design / Live / Wise AI" buttons)
-- `AgenticChatSheet` — no change, still rendered at line 1273
-- All other sheets, StepperNav, editor content — untouched
-- Mobile Editor/Preview tabs — untouched
+- The bottom alert banner (lines 244–270) with "Explain with AI" + "Fill Gap" — those are already styled with `border-warning/30 text-warning-foreground hover:bg-warning/10` and are more visible, so they stay as-is
+- Desktop horizontal bar view — untouched
+- All gap detection logic, callbacks, `GapInfo` types — untouched
+- `GapExplainerSheet` and `GapFillerSheet` — untouched
