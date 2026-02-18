@@ -396,6 +396,15 @@ export default function PreviewPage() {
       } catch (error) {
         attempt++;
         const isPdfError = error instanceof PdfGenerationError;
+        const errMsg = error instanceof Error ? error.message : '';
+        const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
+
+        // Session-expired errors show a specific, actionable message
+        if (is401) {
+          toast.error('Session expired — please sign in again to generate this export.');
+          return;
+        }
+
         const errorMessage = isPdfError && error.code === 'EMPTY_CANVAS' ?
         'Empty canvas captured. Ensure the resume preview is visible.' :
         isPdfError && error.code === 'MISSING_ELEMENT' ?

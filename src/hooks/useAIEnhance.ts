@@ -108,8 +108,12 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     } catch (error) {
       clearTimeout(slowTimer);
       console.error('AI enhancement error:', error);
+      const errMsg = error instanceof Error ? error.message : '';
+      const is401 = errMsg.includes('401') || errMsg.toLowerCase().includes('unauthorized') || errMsg.toLowerCase().includes('jwt expired');
       if (!navigator.onLine) {
         toast.warning("You're offline — AI features need an internet connection. Your resume content is safe.");
+      } else if (is401) {
+        toast.error('Session expired — please sign in again to use AI features.');
       } else if (isTimeoutError(error)) {
         toast.warning('The request timed out. Please try again.');
       } else {

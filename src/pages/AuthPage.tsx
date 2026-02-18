@@ -74,6 +74,18 @@ export default function AuthPage() {
   const fullNameError = mode === 'signup' ? getFullNameError() : undefined;
   const phoneError = mode === 'signup' ? getPhoneError() : undefined;
 
+  // Show session-expired banner if redirected here due to token expiry
+  useEffect(() => {
+    if (searchParams.get('reason') === 'session_expired') {
+      toast.info('Your session expired. Please sign in again — your work is saved.', {
+        duration: 6000,
+        icon: '🔐',
+      });
+      // Clean the URL without full reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams]);
+
   // Detect password reset callback
   useEffect(() => {
     if (searchParams.get('reset') === 'true') {

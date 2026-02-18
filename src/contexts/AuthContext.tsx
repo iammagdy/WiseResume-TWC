@@ -27,6 +27,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Track the active user ID to prevent session hijacking from stale second sessions
   const activeUserIdRef = useRef<string | null>(null);
+  // Track whether a user was previously authenticated (to detect unexpected sign-outs)
+  const wasAuthenticatedRef = useRef<boolean>(false);
+  // Track whether the current sign-out was user-initiated
+  const userInitiatedSignOutRef = useRef<boolean>(false);
 
   useEffect(() => {
     let initialResolved = false;
@@ -40,7 +44,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
       activeUserIdRef.current = user?.id ?? null;
-      if (user) migrateLocalKeysToServer();
+      // Detect unexpected sign-out (session expired, force-logout from another device)
+      if (!user && wasAuthenticatedRef.current && !userInitiatedSignOutRef.current) {
+        window.dispatchEvent(new CustomEvent('app:session-expired'));
+      }
+      if (user) {
+        wasAuthenticatedRef.current = true;
+        userInitiatedSignOutRef.current = false;
+        migrateLocalKeysToServer();
+      }
       setState(prev => {
         if (prev.user?.id === user?.id && !prev.loading) {
           return prev;
@@ -93,6 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    userInitiatedSignOutRef.current = true;
+    wasAuthenticatedRef.current = false;
     activeUserIdRef.current = null;
     setState({ user: null, session: null, loading: false });
     await supabase.auth.signOut({ scope: 'local' });
