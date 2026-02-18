@@ -1,48 +1,31 @@
-## Fix Four Editor Issues
-
-### Issue 1: Duplicate Progress Indicators -- Simplify to Bar Only
-
-**Problem:** Below the resume title in the editor header, there are two redundant indicators: "Resume 51% Complete" text with a progress bar, AND a "Completeness: 51/100" collapsible badge below it. This is cluttered.
-
-**Fix in `src/pages/EditorPage.tsx` (lines 978-1048):**
-
-- Remove the "Resume X% Complete" text label from the `ProgressBar` component by passing `compact` prop (shows only the bar without text)
-- Remove the "Completeness: X/100" collapsible badge section entirely
-- Keep only the slim progress bar + save status indicator in a clean single row while keeping it can be expanded so the user can see what is missing but it will be as a simple pop up
-
-### Issue 2: TailorSheet X Button and Settings Button Too Close
-
-**Problem:** In the AI Resume Tailor sheet header, the Settings gear button and the sheet's built-in X (close) button are side by side with only `gap-1` spacing, making them easy to mis-tap on mobile.
-
-**Fix in `src/components/editor/TailorSheet.tsx` (lines 413-433):**
-
-- Increase gap between the Settings button and the sheet close button by adding `mr-6` (or `pr-10`) to the button container so it doesn't collide with the sheet's absolute-positioned close button
-- The `SheetContent` component renders an automatic `X` close button at `top-4 right-4`; the Settings/History buttons need to stay clear of that zone
-
-### Issue 3: Gap Explain/Fill Buttons Do Nothing
-
-**Problem:** In `ExperienceTimeline.tsx`, the `useIsMobile()` hook is called on line 93, AFTER a conditional early return on line 88. This violates React's Rules of Hooks (hooks must not be called conditionally), causing the component to potentially crash or behave incorrectly on re-renders. Additionally, the gap detection threshold differs between timeline segments (>= 1 month) and `detectGaps()` (>= 2 months effective), so some displayed gaps have no matching entry in the `gaps` array, making buttons non-functional.
-
-**Fix in `src/components/editor/ExperienceTimeline.tsx`:**
-
-- Move `useIsMobile()` call to the top of the component, BEFORE any conditional returns (above the `useMemo`)
-- Align gap detection: use each segment's own gap info to pass to the callbacks instead of always picking the "longest gap" from a separately-computed array
-
-### Issue 4: Template Chooser Hidden on Mobile
-
-**Problem:** On mobile, the "Change Template" option is buried inside the Tools sheet (accessible via the sparkles button). Users may not discover it easily.
-
-**Fix in `src/pages/EditorPage.tsx` (lines 916-924):**
-
-- Add a dedicated "Template" button in the mobile header next to the existing "Tools" button
-- This button uses the `LayoutGrid` icon and directly opens the template selector sheet
-- Keep the template option in the Tools sheet as well for discoverability
-
-### Files Changed
 
 
-| File                                           | Change                                                                                              |
-| ---------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| `src/pages/EditorPage.tsx`                     | Remove duplicate completeness badge; add compact progress bar; add mobile Template button in header |
-| `src/components/editor/TailorSheet.tsx`        | Add right padding to header buttons to avoid overlap with sheet close X                             |
-| `src/components/editor/ExperienceTimeline.tsx` | Move `useIsMobile()` above conditional return; fix gap button callbacks                             |
+## Add Visual Indicator to Template Button for First-Time Users
+
+### What Changes
+
+A subtle "new" dot badge and a one-time shimmer animation will draw attention to the Template button in the mobile editor header. After the user taps it once, the indicator disappears permanently (stored in localStorage).
+
+### Design
+
+- A small pulsing primary-colored dot (like the one on the Wise AI button) will appear on the Template button
+- The button text will briefly use the primary color instead of muted to stand out
+- Once the user taps "Template" for the first time, `localStorage.setItem('template_btn_seen', 'true')` is set, and the dot and highlight are removed
+- This is lightweight -- no modals, no tooltips, just a subtle visual cue
+
+### Technical Details
+
+**File: `src/pages/EditorPage.tsx`**
+
+1. Add a state variable: `const [templateBtnSeen, setTemplateBtnSeen] = useState(() => localStorage.getItem('template_btn_seen') === 'true')`
+2. In the Template button's `onClick`, add `localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true);`
+3. When `!templateBtnSeen`:
+   - Add a pulsing dot badge (`<span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />`) -- same pattern as the Wise AI button
+   - Change text and icon color from `text-muted-foreground` to `text-primary`
+   - Wrap the button in `relative` positioning for the dot
+4. When `templateBtnSeen`: render the current muted style with no dot
+
+| File | Change |
+|------|--------|
+| `src/pages/EditorPage.tsx` | Add first-time pulsing dot indicator and primary color highlight to Template button, dismissed on first tap via localStorage |
+
