@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/safeClient';
 import type { Experience, Education, Project, Certification, Award, Publication, Volunteering, Hobby } from '@/types/resume';
+import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 
 export interface PortfolioSections {
   experience: boolean;
@@ -32,13 +33,17 @@ export interface PublicProfile {
   portfolioSections: PortfolioSections | null;
   metaTitle: string | null;
   metaDescription: string | null;
-  // New portfolio design fields
+  // Portfolio design fields
   portfolioStyle: 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean';
   portfolioLayout: 'single' | 'two-col';
   portfolioAccentColor: string | null;
   portfolioFont: 'inter' | 'space-grotesk' | 'serif';
   openToWork: boolean;
   availabilityHeadline: string | null;
+  // Portfolio extras
+  caseStudies: CaseStudy[];
+  services: PortfolioService[];
+  portfolioSyncMode: 'auto' | 'locked';
 }
 
 export interface PublicResume {
@@ -78,6 +83,8 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
   const profile = raw.profile as Record<string, unknown>;
   const resume = raw.resume as Record<string, unknown>;
 
+  const extras = (profile.portfolioExtras as Record<string, unknown>) || {};
+
   return {
     profile: {
       fullName: (profile.fullName as string) || null,
@@ -104,6 +111,9 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       portfolioFont: ((profile.portfolioFont as string) || 'inter') as 'inter' | 'space-grotesk' | 'serif',
       openToWork: (profile.openToWork as boolean) || false,
       availabilityHeadline: (profile.availabilityHeadline as string) || null,
+      caseStudies: (extras.caseStudies as CaseStudy[]) || [],
+      services: (extras.services as PortfolioService[]) || [],
+      portfolioSyncMode: ((profile.portfolioSyncMode as string) || 'auto') as 'auto' | 'locked',
     },
     resume: {
       id: (resume.id as string) || '',

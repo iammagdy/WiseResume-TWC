@@ -496,6 +496,7 @@ export type Database = {
           portfolio_accent_color: string | null
           portfolio_bio: string | null
           portfolio_enabled: boolean | null
+          portfolio_extras: Json | null
           portfolio_font: string | null
           portfolio_layout: string | null
           portfolio_meta_description: string | null
@@ -503,6 +504,7 @@ export type Database = {
           portfolio_resume_id: string | null
           portfolio_sections: Json | null
           portfolio_style: string | null
+          portfolio_sync_mode: string | null
           portfolio_theme: string | null
           profile_completed: boolean | null
           twitter_url: string | null
@@ -531,6 +533,7 @@ export type Database = {
           portfolio_accent_color?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_extras?: Json | null
           portfolio_font?: string | null
           portfolio_layout?: string | null
           portfolio_meta_description?: string | null
@@ -538,6 +541,7 @@ export type Database = {
           portfolio_resume_id?: string | null
           portfolio_sections?: Json | null
           portfolio_style?: string | null
+          portfolio_sync_mode?: string | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
           twitter_url?: string | null
@@ -566,6 +570,7 @@ export type Database = {
           portfolio_accent_color?: string | null
           portfolio_bio?: string | null
           portfolio_enabled?: boolean | null
+          portfolio_extras?: Json | null
           portfolio_font?: string | null
           portfolio_layout?: string | null
           portfolio_meta_description?: string | null
@@ -573,6 +578,7 @@ export type Database = {
           portfolio_resume_id?: string | null
           portfolio_sections?: Json | null
           portfolio_style?: string | null
+          portfolio_sync_mode?: string | null
           portfolio_theme?: string | null
           profile_completed?: boolean | null
           twitter_url?: string | null

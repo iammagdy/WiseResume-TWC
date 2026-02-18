@@ -5,6 +5,30 @@ import { supabase } from '@/integrations/supabase/safeClient';
 
 export type CareerLevel = 'entry' | 'mid' | 'senior' | 'executive';
 
+export interface CaseStudy {
+  id: string;
+  title: string;
+  challenge: string;
+  outcome: string;
+  technologies: string[];
+  url?: string;
+  linkedProjectId?: string;
+}
+
+export interface PortfolioService {
+  id: string;
+  title: string;
+  description: string;
+  category: 'development' | 'design' | 'consulting' | 'writing' | 'other';
+  startingPrice?: string;
+}
+
+export interface PortfolioExtras {
+  caseStudies?: CaseStudy[];
+  services?: PortfolioService[];
+  portfolioSnapshot?: Record<string, unknown> | null;
+}
+
 interface Profile {
   fullName: string | null;
   avatarUrl: string | null;
@@ -35,6 +59,9 @@ interface Profile {
   portfolioFont: string | null;
   openToWork: boolean;
   availabilityHeadline: string | null;
+  // Portfolio extras (case studies, services, snapshot)
+  portfolioExtras: PortfolioExtras;
+  portfolioSyncMode: 'auto' | 'locked';
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -76,7 +103,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -117,6 +144,8 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       portfolioFont: (d.portfolio_font as string) ?? null,
       openToWork: (d.open_to_work as boolean) ?? false,
       availabilityHeadline: (d.availability_headline as string) ?? null,
+      portfolioExtras: (d.portfolio_extras as PortfolioExtras) ?? {},
+      portfolioSyncMode: ((d.portfolio_sync_mode as string) ?? 'auto') as 'auto' | 'locked',
     };
   }
 
@@ -153,6 +182,8 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     portfolioFont: null,
     openToWork: false,
     availabilityHeadline: null,
+    portfolioExtras: {},
+    portfolioSyncMode: 'auto',
   };
 
   // Create the row via upsert
@@ -213,6 +244,8 @@ export function useProfile(userId: string | undefined, user?: User | null) {
         portfolio_font: updates.portfolioFont !== undefined ? updates.portfolioFont : profile?.portfolioFont ?? null,
         open_to_work: updates.openToWork !== undefined ? updates.openToWork : profile?.openToWork ?? false,
         availability_headline: updates.availabilityHeadline !== undefined ? updates.availabilityHeadline : profile?.availabilityHeadline ?? null,
+        portfolio_extras: updates.portfolioExtras !== undefined ? updates.portfolioExtras : profile?.portfolioExtras ?? {},
+        portfolio_sync_mode: updates.portfolioSyncMode !== undefined ? updates.portfolioSyncMode : profile?.portfolioSyncMode ?? 'auto',
       };
 
       const { error } = await supabase
