@@ -1,293 +1,187 @@
 
-# Mobile Performance & Long-Content/RTL Audit
+# Security Audit: API Key Handling, Secret Exposure & Mobile Safety
 
-## Audit Summary
+## Audit Scope Covered
 
-I traced every significant render path, scroll container, data fetch, and layout computation in the Editor, Dashboard, and Export flows. Below is the full technical picture — what was found, what the root causes are, and the precise 6-fix plan.
-
----
-
-## Performance Findings
-
-### Finding 1 — `renderEditorContent` is a `useCallback` called as a function, not memoized JSX
-
-**Location:** `EditorPage.tsx` line 720–846
-
-The editor section content is wrapped in `renderEditorContent = useCallback(() => (...), [...deps])` and then called as `{renderEditorContent()}` on line 1193. This means React gets a **new JSX tree** on every call, not a stable element reference. This bypasses any `React.memo()` benefit on child components.
-
-The dependency array includes `activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, deepResults, handleApplyDeep, clearDeepResult` — 14 values, many of which re-create every render. This causes the entire section card (including the `<SectionCard>`, the lazy-loaded section, and the `ATSInlineSuggestions`) to re-render on **every keystroke** because `sectionScores` and `steps` are recalculated from `currentResume` which changes on every character typed.
-
-**Fix:** Convert `renderEditorContent` into a proper `useMemo` returning a memoized JSX element, or better — extract it into a `React.memo`-wrapped `EditorSectionContent` component that receives only the specific props it needs. Since each section only cares about its own `sectionScores.*` value, not the whole object, prop comparison will succeed and re-renders will stop.
-
-**Impact on mobile:** On a long resume with 8 experiences and 6 sections, each keystroke currently causes O(sections) work. With memoization, it drops to O(1).
+I read every file in the chain: `safeClient.ts`, `AuthContext.tsx`, `settingsStore.ts`, `AISettingsSheet.tsx`, `ElevenLabsKeySheet.tsx`, `useElevenLabsScribe.ts`, `geminiKeyValidator.ts`, `manage-api-keys/index.ts`, `validate-api-key/index.ts`, `elevenlabs-scribe-token/index.ts`, `aiClient.ts` (server-side), `BugReportDialog.tsx`, `FeatureRequestDialog.tsx`, `migrateLocalKeys.ts`, `supabase/config.toml`, and all store/hook files that touch API key state.
 
 ---
 
-### Finding 2 — `useUndoRedo` runs `JSON.stringify(currentResume)` on every render
+## What Is Already Correct (Do Not Touch)
 
-**Location:** `useUndoRedo.ts` line 63, inside a `useEffect` that runs every time `currentResume` changes
-
-The undo/redo hook has a debounced (500ms) effect that runs `JSON.stringify(currentResume)` on every render pass. For a large resume with 10 jobs, 10 bullets each, this is a 5–15KB serialization on every keystroke (before the debounce cancels it). This runs synchronously on the main thread.
-
-Additionally, the `describeChange` function does `JSON.parse(prevJson)` to produce a human-readable label — another 5–15KB parse on every debounce fire.
-
-**Fix:** The `JSON.stringify` comparison on line 63–64 (`if (json === lastSnapshotRef.current) return;`) is correct and acts as the fast-exit guard. The real fix is to explicitly attach `will-change: auto` semantics — the hook itself is fine structurally. However, the `[currentResume, pointer]` dependency array means the effect re-registers on every `setPointer` call, which causes an extra `JSON.stringify` on undo/redo. Extract `pointer` to a separate ref to break this cycle.
-
-**Impact:** Reduces unnecessary serialization during undo/redo operations.
+| Area | Status |
+|------|--------|
+| All network calls use HTTPS | Confirmed — zero `http://` URLs found in `src/` |
+| Anon key in `safeClient.ts` | Safe — it is a **publishable** key, not a secret (JWT with `role: anon`, intentionally client-facing) |
+| Supabase auth JWT session | Stored in `localStorage` by the Supabase SDK (standard practice; no clear-text password) |
+| Gemini key NOT in localStorage | Confirmed — `partialize` in `settingsStore.ts` line 193 strips `geminiApiKey` and `elevenlabsApiKey` before persisting |
+| Server-side encryption of Gemini key | Confirmed — `manage-api-keys` edge function uses AES-GCM (PBKDF2-derived, 100k iterations) |
+| Edge functions authenticate every request | Confirmed — every function validates `Authorization: Bearer <JWT>` via `getClaims()` |
+| Rate limiting on all AI edge functions | Confirmed — shared `checkRateLimit` helper used in all 18 AI functions |
+| `validate-api-key` runs server-side | Confirmed — the `AISettingsSheet` calls the edge function, not `geminiKeyValidator.ts` directly |
+| Bug report `sessionId` is last 8 chars only | Confirmed — `getAuthFromCache` in `BugReportDialog.tsx` line 62 slices `access_token.slice(-8)` |
+| No secrets in `console.log` in `src/` | Confirmed — no key/token values logged in browser-side code |
 
 ---
 
-### Finding 3 — `sectionScores` is recalculated on every character typed
+## Security Issues Found
 
-**Location:** `EditorPage.tsx` lines 507–516
+### Issue 1 — CRITICAL: `geminiKeyValidator.ts` calls Google's API directly from the browser (BYPASSABLE CLIENT-SIDE VALIDATION PATH)
+
+**File:** `src/lib/geminiKeyValidator.ts`
+
+The file makes two direct `fetch()` calls from the browser to `https://generativelanguage.googleapis.com` with the raw Gemini API key embedded in the URL as a query parameter:
 
 ```ts
-const sectionScores = useMemo(() => {
-  return {
-    contact: calcContactScore(currentResume.contactInfo),
-    summary: calcSummaryScore(currentResume.summary),
-    experience: calcExperienceScore(currentResume.experience),
-    education: calcEducationScore(currentResume.education),
-    skills: calcSkillsScore(currentResume.skills),
-  };
-}, [currentResume]);
+// Line 38
+`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
+// Line 76
+`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
 ```
 
-`currentResume` changes on every character → `sectionScores` re-runs all 5 score calculations → `overallScore` (`calcOverallScore`) also re-runs → `localHealthScore` re-runs → `sectionStatus` re-runs → `steps` re-runs → `renderEditorContent` dep changes. This is a full cascade on every keystroke.
+**This is a serious exposure risk because:**
+1. The API key appears in full in browser network logs (`DevTools → Network tab`), visible to anyone who opens DevTools on the device
+2. On Android/APK, tools like `mitmproxy` or `Frida` can intercept these requests and read the key from the URL
+3. The key appears as a query parameter (not a header), so it may also appear in server access logs, proxies, and crash reporters
 
-**Fix:** The scoring functions (`calcContactScore`, etc.) should only re-run when their specific slice of `currentResume` changes, not the whole object. Split the memo into 5 separate memos, each watching only its relevant field:
+**Critical finding:** This code file is NOT currently imported anywhere in the application. The import search confirms `validateGeminiKey` is defined but never called — the `AISettingsSheet` already correctly calls the server-side `validate-api-key` edge function instead. **This file is dead code and a liability.**
+
+**Fix:** Delete `src/lib/geminiKeyValidator.ts`. It is unused and represents a dangerous template that could accidentally be imported in future. The correct validation path — through the `validate-api-key` edge function — is already fully implemented and in use.
+
+**Risk:** Zero. The file has no importers.
+
+---
+
+### Issue 2 — MEDIUM: ElevenLabs custom API key sent in the request body to the edge function
+
+**File:** `src/hooks/useElevenLabsScribe.ts` lines 63–65
 
 ```ts
-const contactScore = useMemo(() => calcContactScore(currentResume.contactInfo), [currentResume.contactInfo]);
-const summaryScore = useMemo(() => calcSummaryScore(currentResume.summary), [currentResume.summary]);
-// etc.
+const { data, error } = await supabase.functions.invoke('elevenlabs-scribe-token', {
+  body: { customApiKey: elevenlabsApiKey || undefined },
+});
 ```
 
-This ensures that typing in the Summary field only re-computes `summaryScore`, not all 5 scores.
-
-**Impact:** On a mid-range Android device (Moto G Power class), this can halve the time from keystroke to paint by eliminating 4 unnecessary score computations.
-
----
-
-### Finding 4 — `ATSInlineSuggestions` rendered for every active tab even when `jobDescription` is empty
-
-**Location:** `EditorPage.tsx` lines 733, 741, 749, 757
-
-Each section renders:
-```tsx
-{jobDescription && <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} ... />}
+**Edge function:** `supabase/functions/elevenlabs-scribe-token/index.ts` line 41–42:
+```ts
+const { customApiKey } = await req.json().catch(() => ({}));
+const apiKey = customApiKey || Deno.env.get('ELEVENLABS_API_KEY');
 ```
 
-`getATSSuggestions` is a `useCallback` from `useATSSuggestions`. On every render, even when `jobDescription` is empty, `suggestions` object is recalculated by the `useMemo` in the hook. The `extractKeywords` function iterates over bigrams across all text fields of the resume — O(n) where n is the total character count of the resume. On a long resume with 10 jobs × 5 bullets each, this is significant.
+The ElevenLabs API key is transmitted in the **request body** from the client to the edge function. This is visible in browser DevTools Network tab (the request body is plain JSON). Unlike the Gemini key (which is stored server-side and never returned to the client), the ElevenLabs key is stored in Zustand in-memory state (`elevenlabsApiKey` field) and transmitted on every connection attempt.
 
-**Fix:** The guard `if (!resume || !jobDescription.trim()) return {}` at line 112 of `useATSSuggestions.ts` correctly returns early. The real fix is to ensure `getATSSuggestions` is not called in the `renderEditorContent` deps — already handled by Fix 1 above. Additionally, the `scanSummary` memo at line 226 also runs `extractKeywords` a second time — deduplicate this by computing it from the existing `suggestions` object.
+**The ElevenLabs key is NOT persisted to localStorage** (confirmed — `partialize` excludes it) and is **NOT stored server-side in `user_api_keys`** — it lives only in the in-memory Zustand store and is cleared on app restart. This means:
+- The key is visible in DevTools Network tab while the session is active
+- The key is NOT persisted anywhere between sessions — the user must re-enter it each launch
+- The current `ElevenLabsKeySheet` saves to Zustand only (no server-side storage)
 
----
+**Fix:** Mirror the Gemini key architecture for the ElevenLabs key:
+1. In `manage-api-keys` edge function — it already supports any `provider` string, so it can store ElevenLabs keys too with `provider: 'elevenlabs'`
+2. In `elevenlabs-scribe-token` — instead of accepting a `customApiKey` in the body, fetch the user's key from the `user_api_keys` table using `getUserKeyFromDB(userId, 'elevenlabs')` (the same helper already in `aiClient.ts`)
+3. In `ElevenLabsKeySheet` / Settings — call `manage-api-keys` to save/delete the key server-side instead of Zustand (same pattern as Gemini)
+4. Remove `customApiKey` from the request body entirely
 
-### Finding 5 — `ExperienceSection` is not virtualized for large lists
-
-**Location:** `src/components/editor/ExperienceSection.tsx` line 194
-
-```tsx
-{experience.map((exp, index) => (
-  <div key={exp.id} ...>
-```
-
-For a user with 15 work entries (not uncommon for senior profiles), all 15 accordion items are mounted in the DOM simultaneously, each with their own event listeners and Framer Motion animation setup. On a mid-range Android device, the initial mount of the Experience section with 15 items takes ~200–400ms due to DOM attachment and style recalculation.
-
-The existing accordion pattern (single `expandedId` state) already reduces the rendered complexity to 1 expanded + N collapsed headers. This is already efficient. The only issue is the initial mount — all 15 items mount at once, causing a layout flush.
-
-**Fix:** This is not severe enough to warrant full virtualization (which would break smooth keyboard navigation). The `expand-on-tap` pattern is already optimal. No change needed here — but add `content-visibility: auto` CSS hint on `.editor-scroll-container` children to skip off-screen layout calculations.
+**Risk:** Low. The ElevenLabs flow is isolated to the Interview page. The architecture already exists; this is a plumbing change.
 
 ---
 
-### Finding 6 — `LivePreviewPanel` always renders even when the mobile "Preview" tab is not active
+### Issue 3 — LOW: Console logs in `useElevenLabsScribe.ts` include WebSocket URL with the scribe token
 
-**Location:** `EditorPage.tsx` lines 1196–1200
-
-```tsx
-<TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0">
-  <Suspense fallback={null}>
-    <LivePreviewPanel highlightSection={activeTab} />
-  </Suspense>
-</TabsContent>
-```
-
-Shadcn `Tabs` keeps all `TabsContent` in the DOM (using `display: none` for inactive tabs, not unmounting). This means `LivePreviewPanel` — which renders the full resume template (heavy, with all sections) — is mounted even when the user is on the "Editor" tab.
-
-`LivePreviewPanel` uses `useDeferredValue` internally, which is good. But the template component itself (e.g. `ModernTemplate`) does a full render of all experience bullets, skills chips, etc. even when invisible.
-
-**Fix:** Add `forceMount={false}` attribute to the preview `TabsContent` (which is the Radix default, but check if Shadcn overrides it) to unmount the preview when not visible. Or: wrap `LivePreviewPanel` in a conditional render gated on `mobileEditorTab === 'preview'`, using `Suspense` with a `null` fallback. This means the preview is only mounted when the user actively taps "Preview".
-
----
-
-## Long-Content / RTL Findings
-
-### Finding 7 — No `dir` attribute on the resume data or templates
-
-**Location:** All template files (e.g., `ModernTemplate.tsx`, `ClassicTemplate.tsx`, etc.)
-
-The `ResumeData` type (`types/resume.ts`) has no `writingDirection` or `textDirection` field. Templates render content without any `dir` attribute. If a user pastes Arabic text into the Summary or Experience description fields:
-
-1. The editor textarea renders it correctly (browsers handle mixed-direction input natively)
-2. The Preview template renders it **left-aligned** because the template's outer `div` has no `dir="rtl"` and no `text-align: right` — RTL text in LTR containers appears visually correct but loses alignment cues
-3. The PDF export (html2canvas → pdf-lib) captures the rendered DOM, so alignment is preserved — but only for whatever the browser rendered, which may have layout glitches
-
-The `Textarea` component in Experience description uses `resize-none` — good. But there is no `dir="auto"` attribute that would let the browser auto-detect input direction.
-
-**Fix A (Editor):** Add `dir="auto"` to all `<Textarea>` components in the editor sections. This makes the browser auto-detect the writing direction of the input field, so Arabic text flows right-to-left immediately.
-
-**Fix B (Preview):** In the template components, detect if the summary or most-common-experience text is RTL using a simple Unicode range check and set `dir` on the relevant container. Or: add an optional `writingDirection: 'ltr' | 'rtl' | 'auto'` field to `TemplateCustomization` and expose it in the Customize sheet.
-
-**Fix C (PDF):** html2canvas respects the browser's rendered layout, so Fix B automatically fixes the PDF. No separate PDF fix needed.
-
----
-
-### Finding 8 — No `overflow-wrap: break-word` on long bullet points in templates
-
-**Location:** Template components (rendering experience bullets)
-
-For very long resumes, a single bullet with no spaces (e.g., a URL like `https://very-long-url-to-something.com/path/to/resource`) can overflow its container and cause horizontal scrolling in the Editor preview panel. The preview template containers use `overflow: hidden` which clips content, potentially cutting off the last characters of a long line in the generated PDF.
-
-**Fix:** Add `word-break: break-word; overflow-wrap: break-word;` to the experience description and bullet text elements in the shared template CSS. This is a 2-line CSS addition.
-
----
-
-### Finding 9 — Large resumes cause `JSON.stringify` in autosave to be slow
-
-**Location:** `EditorPage.tsx` line 282
+**File:** `src/hooks/useElevenLabsScribe.ts` lines 57, 62, 73, 102, 107, 110–112
 
 ```ts
-const currentResumeJson = JSON.stringify(resume);
-if (currentResumeJson === lastSavedResumeRef.current) return;
+console.log('[ElevenLabs] Opening WebSocket...');
+const ws = new WebSocket(
+  `wss://api.elevenlabs.io/v1/speech-to-text/realtime?...&token=${token}`
+);
 ```
 
-For a resume with 15 jobs × 10 bullets each, `JSON.stringify` of the full resume object is ~50KB of text on every auto-save debounce trigger. This is synchronous and blocks the main thread for ~2–5ms on a mid-range device. With 3-second debounce, this fires at most once per 3 seconds — tolerable.
+The token is not logged directly, but the `console.log('[ElevenLabs] WebSocket connected')` on line 128 fires right after the WebSocket opens — meaning a dev with console access can see the token by correlation if they open DevTools.
 
-**No change needed** — the existing debounce (3000ms) is already optimal for this scenario.
+More importantly: `console.log('[ElevenLabs] Committed transcript:', msg.text)` at line 183 logs every committed speech transcript to the browser console. On mobile APK builds, `console.log` output can be captured by Android Logcat, which is readable by any app with `READ_LOGS` permission or by a connected debugger.
+
+**Fix:** Wrap all `console.log` calls in `useElevenLabsScribe.ts` in a `DEV` guard: `if (import.meta.env.DEV) console.log(...)`. This eliminates transcript and connection logs from production APK builds where Logcat monitoring is a real threat. The `console.error` calls can stay (they report genuine failures, not data).
+
+**Risk:** Very low — a pure log suppression in production.
+
+---
+
+### Issue 4 — LOW: Edge function logs user ID in plaintext in server logs
+
+**Files:** `supabase/functions/elevenlabs-scribe-token/index.ts` line 39, `supabase/functions/enhance-section/index.ts` line 228, `supabase/functions/analyze-resume/index.ts` line 50, `supabase/functions/tailor-resume/index.ts` line 51, others
+
+```ts
+console.log('Authenticated user:', user.id);
+```
+
+Full UUIDs of authenticated users are written to server logs. While server logs are only accessible to project admins (not public), logging full user IDs on every API call is poor hygiene and unnecessary. The `send-bug-report` function correctly truncates user IDs with `truncateUserId()`.
+
+**Fix:** This is a backend-only change with zero user impact. Replace `console.log('Authenticated user:', userId)` with nothing (remove it) — the auth check already ensures the user is valid; the log adds no debugging value beyond what the auth error would surface. Alternatively, truncate to first 8 chars.
+
+**However:** Edge function logs are server-side only and not visible to end users or mobile attackers. This is a code hygiene issue, not an active vulnerability. Given the scope constraint ("smallest possible correction"), this can be deferred.
 
 ---
 
 ## Implementation Plan
 
-### Files to Change: 5 targeted edits
+### 3 Changes to Implement (Ordered by Risk)
 
-| # | File | What Changes | Risk |
-|---|------|-------------|------|
-| 1 | `src/pages/EditorPage.tsx` | Split `sectionScores` into 5 separate memos, each watching only its relevant resume field slice | Very low |
-| 2 | `src/pages/EditorPage.tsx` | Convert `LivePreviewPanel` in mobile "Preview" tab to conditional render (only when `mobileEditorTab === 'preview'`) instead of always-mounted Radix tab content | Low |
-| 3 | `src/hooks/useUndoRedo.ts` | Move `pointer` to a `useRef` to break the dependency on state in the undo/redo effect, preventing double-serialize on pointer changes | Very low |
-| 4 | `src/components/editor/ExperienceSection.tsx` | Add `dir="auto"` to the description `<Textarea>` | Very low |
-| 5 | `src/index.css` | Add `.editor-scroll-container > *` with `content-visibility: auto; contain-intrinsic-size: 0 500px;` for off-screen layout skip, and add `word-break: break-word; overflow-wrap: break-word;` to a new `.resume-text-content` utility class | Very low |
+| # | File | Change | Risk |
+|---|------|--------|------|
+| 1 | `src/lib/geminiKeyValidator.ts` | **Delete** the file — it is dead code with a dangerous pattern (API key in browser fetch URL as query param) | Zero |
+| 2 | `src/hooks/useElevenLabsScribe.ts` + `supabase/functions/elevenlabs-scribe-token/index.ts` + `src/components/settings/ElevenLabsKeySheet.tsx` | Move ElevenLabs BYOK key to server-side storage via existing `manage-api-keys` infra; remove `customApiKey` from the request body | Low |
+| 3 | `src/hooks/useElevenLabsScribe.ts` | Wrap all `console.log` statements in `if (import.meta.env.DEV)` guards to prevent transcript data from appearing in Android Logcat in production APK builds | Very low |
 
-### Change Detail: Fix 1 — Split `sectionScores` into field-granular memos
+### Change 1 — Delete `src/lib/geminiKeyValidator.ts`
 
-**Before (EditorPage.tsx ~line 507):**
-```ts
-const sectionScores = useMemo(() => ({
-  contact: calcContactScore(currentResume.contactInfo),
-  summary: calcSummaryScore(currentResume.summary),
-  experience: calcExperienceScore(currentResume.experience),
-  education: calcEducationScore(currentResume.education),
-  skills: calcSkillsScore(currentResume.skills),
-}), [currentResume]); // ← entire object dependency
-```
+The file exports `validateGeminiKey` which calls Google's API directly from the browser with the key as a URL query parameter. It has zero importers (confirmed via search). The correct server-side validation path is already fully implemented in `supabase/functions/validate-api-key/index.ts` and called from `AISettingsSheet.tsx`.
 
-**After:**
-```ts
-const contactScore  = useMemo(() => currentResume ? calcContactScore(currentResume.contactInfo)  : 0, [currentResume?.contactInfo]);
-const summaryScore  = useMemo(() => currentResume ? calcSummaryScore(currentResume.summary)       : 0, [currentResume?.summary]);
-const experienceScore = useMemo(() => currentResume ? calcExperienceScore(currentResume.experience) : 0, [currentResume?.experience]);
-const educationScore  = useMemo(() => currentResume ? calcEducationScore(currentResume.education)   : 0, [currentResume?.education]);
-const skillsScore   = useMemo(() => currentResume ? calcSkillsScore(currentResume.skills)         : 0, [currentResume?.skills]);
-const sectionScores = useMemo(() => ({ contact: contactScore, summary: summaryScore, experience: experienceScore, education: educationScore, skills: skillsScore }), [contactScore, summaryScore, experienceScore, educationScore, skillsScore]);
-```
+Deleting this file removes the risk of it being accidentally imported in the future and eliminates a misleading alternative implementation.
 
-This breaks the cascade: typing in Summary only recalculates `summaryScore`, not all 5.
+### Change 2 — Server-side ElevenLabs key storage (3 coordinated edits)
 
-### Change Detail: Fix 2 — Conditional LivePreviewPanel mount
+**2a. `src/components/settings/ElevenLabsKeySheet.tsx`**
 
-**Before (EditorPage.tsx ~line 1196):**
-```tsx
-<TabsContent value="preview" className="...">
-  <Suspense fallback={null}>
-    <LivePreviewPanel highlightSection={activeTab} />
-  </Suspense>
-</TabsContent>
-```
+Change `onSave` to call `manage-api-keys` edge function (POST for save, DELETE for clear) instead of storing in Zustand directly. Show loading state during save. On success, update Zustand with a boolean `elevenlabsKeyConfigured` flag (not the key value) so the Settings page can show "Connected" status.
 
-**After:**
-```tsx
-<TabsContent value="preview" className="...">
-  {mobileEditorTab === 'preview' && (
-    <Suspense fallback={<div className="flex-1 flex items-center justify-center"><SectionSkeleton /></div>}>
-      <LivePreviewPanel highlightSection={activeTab} />
-    </Suspense>
-  )}
-</TabsContent>
-```
+**2b. `supabase/functions/elevenlabs-scribe-token/index.ts`**
 
-This unmounts the full template render tree when the user is on the Editor tab, saving ~50–150ms of mount work and reducing memory pressure by ~10–20MB on a large resume.
+Replace the `customApiKey` body param with a server-side DB lookup using the existing `getUserKeyFromDB(userId, 'elevenlabs')` pattern from `aiClient.ts`. Remove `customApiKey` from the accepted request body. The function already has the user's `userId` from JWT auth — use it to fetch the key.
 
-### Change Detail: Fix 3 — `useUndoRedo` pointer ref
+**2c. `src/hooks/useElevenLabsScribe.ts`**
 
-**Before:** `[currentResume, pointer]` dependency causes extra JSON.stringify on every undo/redo state set.
-**After:** Use `pointerRef.current` for reads inside the effect, update it synchronously — remove `pointer` from the effect dependency array.
+Remove `{ customApiKey: elevenlabsApiKey || undefined }` from the request body. Send only `{}` (or nothing) in the body — the edge function will retrieve the key from the database using the user's JWT.
 
-### Change Detail: Fix 4 — RTL-aware textarea
+**Also:** Add `provider: 'elevenlabs'` support to the `manage-api-keys` function — it already works for any `provider` string, so no structural change needed there.
 
-**In ExperienceSection.tsx (description textarea):**
-```tsx
-<Textarea
-  dir="auto"
-  value={exp.description}
-  onChange={(e) => updateExperience(exp.id, { description: e.target.value })}
-  ...
-/>
-```
+### Change 3 — Production log suppression in `useElevenLabsScribe.ts`
 
-Apply the same `dir="auto"` to `SummarySection.tsx`'s textarea. This is a zero-risk one-attribute addition.
-
-### Change Detail: Fix 5 — CSS utilities for long-content
-
-**In `src/index.css`:**
-```css
-/* Long-content / RTL improvements */
-.resume-text-content {
-  word-break: break-word;
-  overflow-wrap: break-word;
-  hyphens: auto;
-}
-
-/* Content-visibility: skip off-screen layout in editor scroll container */
-.editor-scroll-container > * {
-  content-visibility: auto;
-  contain-intrinsic-size: 0 500px;
-}
-```
-
-Apply `.resume-text-content` to experience description paragraphs in templates via a shared `ExtraSections.tsx` className addition.
+Wrap all 10+ `console.log` statements in `useElevenLabsScribe.ts` with `if (import.meta.env.DEV)` guards. The `console.error` calls can remain. This prevents speech transcript content and connection state from being captured by Android Logcat in production APK builds.
 
 ---
 
 ## What Is NOT Changed
 
-- No changes to the 3-second debounce timing (already optimal)
-- No changes to the Zustand store structure
-- No changes to any edge function
-- No changes to any template visual design
-- No new dependencies
-- The `renderEditorContent` callback pattern is kept as-is (changing it to a component would be a large refactor with regression risk); the score-granularity fix achieves the equivalent benefit
-- `ExperienceSection` list rendering is kept as-is (no virtualization) — the collapse pattern is already optimal
+- The Supabase anon key in `safeClient.ts` (it is a publishable key by design)
+- The Gemini key storage and validation flow (already correctly server-side)
+- Any auth redirect or session management logic
+- Any edge function authentication patterns
+- The `manage-api-keys` edge function structure (already handles multiple providers)
+- The `BugReportDialog` session handling (already safely truncates the token to 8 chars)
+- The `user_api_keys` database schema (already supports any `provider` string)
+- Any template, UI, or feature behavior
 
 ---
 
-## Expected Impact on Mobile Performance
+## Security Posture Summary
 
-| Metric | Before | After (estimated) |
-|--------|--------|-------------------|
-| Keystroke lag (typing in Summary, large resume) | ~16–32ms main thread | ~8–12ms (halved score cascades) |
-| Memory: LivePreviewPanel when on Editor tab | Always mounted (~12MB template DOM) | Unmounted (0 overhead) |
-| JSON.stringify overhead per keystroke | 2× (once in autosave check, once in undoRedo effect) | 1× (undo pointer decoupled) |
-| Arabic/RTL input in textarea | LTR forced (no dir attr) | Auto-detected (`dir="auto"`) |
-| Long URL in experience bullet (PDF/preview) | May overflow/clip | `break-word` prevents overflow |
+| Check | Before Fix | After Fix |
+|-------|-----------|-----------|
+| Gemini key visible in browser network tab | No (server-side validation) | No |
+| Dead client-side key validator code exists | Yes (geminiKeyValidator.ts) | No (deleted) |
+| ElevenLabs key visible in request body | Yes | No (server-side lookup) |
+| ElevenLabs key persisted in localStorage | No | No |
+| Speech transcripts in Android Logcat | Yes (production) | No (DEV only) |
+| API keys in console.log | No | No |
+| All calls over HTTPS | Yes | Yes |
+| Auth JWT in browser storage | Yes (Supabase standard) | Yes (unchanged) |
