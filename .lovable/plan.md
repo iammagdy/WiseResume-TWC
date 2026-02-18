@@ -1,141 +1,103 @@
 
 
-## Shake-to-Report, Haptic Audit, Mobile Responsiveness and UX Analysis
+## Mobile QA Report -- WiseResume (360x640 viewport)
 
-### Overview
+### Test Summary
 
-This plan covers four areas: (1) adding a "shake to report bug" gesture, (2) auditing haptic feedback coverage, (3) mobile responsiveness analysis, and (4) UX/user flow analysis. The app is already in strong shape -- haptics are used in 122 files, `active:scale-95` appears in 84 files, and the landing page renders beautifully at 375px. The main gaps are the missing shake detection and a handful of components lacking haptic feedback.
+Tested all core flows: Landing --> Dashboard --> Resume Detail --> Editor --> Preview --> AI Studio --> Applications --> Settings on a 360x640 mobile viewport with touch-only interactions.
 
----
-
-### 1. Shake-to-Report Bug Feature
-
-**What it does:** When the user shakes their device, the existing Bug Report dialog opens automatically with a pre-filled "Shake reported" context message. A strong haptic buzz confirms detection.
-
-**New file: `src/hooks/useShakeDetect.ts`**
-
-A custom hook that:
-- Listens to `window.devicemotion` events (accelerometer data)
-- Uses a threshold algorithm: if acceleration exceeds ~15 m/s^2 on any axis 3+ times within a 1-second window, it counts as a "shake"
-- On iOS 13+, requests `DeviceMotionEvent.requestPermission()` (required by Safari)
-- Calls `haptics.heavy()` on detection, then invokes `triggerBugReport()` from the existing `src/lib/bugReport.ts` system
-- Includes a 3-second cooldown to prevent duplicate triggers
-- Only activates on mobile (checks `'DeviceMotionEvent' in window`)
-
-**File to modify: `src/App.tsx`**
-
-- Import and call `useShakeDetect()` inside the `AppRoutes` component (alongside existing `useBackButton`, `useStatusBar`, etc.)
-- The hook will use the existing `triggerBugReport()` which the already-mounted `BugReportDialog` listens to
-
-**File to modify: `src/store/settingsStore.ts`**
-
-- Add `shakeToReportEnabled: boolean` (default `true`) and `setShakeToReportEnabled` action
-- Add a toggle in Settings page under the "About and Help" section so users can disable this
-
-**File to modify: `src/pages/SettingsPage.tsx`**
-
-- Add a `SettingsRow` toggle for "Shake to Report Bug" with a `Vibrate` icon, reading/writing `shakeToReportEnabled` from the settings store
+**Overall verdict:** The app is in strong shape for mobile. Navigation, bottom sheets, scrolling, and touch interactions work well across most screens. Found 5 issues that need fixing, ranked by severity.
 
 ---
 
-### 2. Haptic Feedback Audit
+### Issue 1: AI Studio -- Sticky chat input covers content (HIGH)
 
-**Current state:** Haptics are well-integrated across 122 files using `haptics.light()`, `haptics.medium()`, `haptics.selection()`, etc. The `src/lib/haptics.ts` utility uses the Web Vibration API.
+**Screen:** AI Studio (`/ai-studio`)
 
-**Gaps found -- components missing haptic feedback:**
+**How to reproduce:** Navigate to AI Studio. The "A/B Compare" and "Job Match Analysis" featured tool cards, plus the "More AI Tools" section and Pro Tip, are partially or fully hidden behind the fixed chat input bar.
 
-| Component | Interaction Missing Haptics | Fix |
-|-----------|---------------------------|-----|
-| `CreateResumeDialog` | "Create" button press | Add `haptics.medium()` |
-| `AddSectionSheet` | Section selection | Add `haptics.light()` |
-| `ExportOptionsSheet` | Export format selection | Add `haptics.light()` |
-| `ShareSheet` | Copy link / share actions | Add `haptics.success()` |
-| `VersionHistorySheet` | Restore version | Add `haptics.medium()` |
-| `CustomizeSheet` | Color/font selection | Add `haptics.light()` |
-| `GapFillerSheet` | Generate / apply actions | Add `haptics.medium()` |
-| `GapExplainerSheet` | Generate action | Add `haptics.medium()` |
-| Pull-to-refresh (`PullToRefresh`) | Refresh trigger | Add `haptics.medium()` |
+**Root cause:** The sticky chat input is positioned at `bottom-[68px]` (fixed), and the page has `pb-[140px]` for scroll clearance. However, the page content height plus AppShell's `pb-20` creates a situation where the featured tools below "Smart Tailor" are obscured on short viewports (640px). The `pb-[140px]` is on the page's own `overflow-y-auto` container, but AppShell's inner div is ALSO `overflow-y-auto`, creating competing scroll contexts where the inner one may not get enough height to scroll properly.
 
-Each fix is a single line addition (`haptics.light()` or `haptics.medium()`) in the click handler.
+**Expected behavior:** All featured tools and the "More AI Tools" section should be scrollable above the sticky chat input.
 
-**Also ensure `active:scale-95` is on all these buttons** for the visual press feedback per project guidelines.
+**Fix:**
+- In `src/pages/AIStudioPage.tsx` line 194: increase bottom padding from `pb-[140px]` to `pb-[180px]` on mobile to give more scroll room for the content to clear both the sticky input (68px position + ~56px height) and the bottom tab bar
+- This is a 1-word CSS change
 
 ---
 
-### 3. Mobile Responsiveness Analysis
+### Issue 2: AI Studio -- Sticky input overlaps "A/B Compare" card visually (MEDIUM)
 
-**Current state -- STRONG:** The app already has excellent mobile foundations:
-- Uses `100dvh` for viewport height (handles mobile browser chrome)
-- `WebkitOverflowScrolling: 'touch'` and `overscrollBehavior: 'contain'` on scroll containers
-- Safe area insets (`pt-safe`, `pb-safe`) throughout
-- 44px minimum touch targets enforced across most interactive elements
-- Bottom tab bar with `pb-safe` and proper `z-50` stacking
-- Fluid typography via `clamp()` system
-- All sheets/dialogs are mobile-optimized with max-height constraints
+**Screen:** AI Studio (`/ai-studio`)
 
-**Minor issues found:**
+**How to reproduce:** Scroll the AI Studio page. The fixed chat input at `bottom-[68px]` visually overlaps the bottom of the page content area, making the transition between scrollable content and the fixed input unclear.
 
-| Issue | Location | Fix |
-|-------|----------|-----|
-| Search input in Dashboard has no `min-h-[44px]` | `DashboardPage.tsx` search bar | Add `min-h-[44px]` class |
-| Resume filter chips could be tight on iPhone SE (375px) | `ResumeFilters.tsx` | Ensure horizontal scroll with `overflow-x-auto` and `flex-nowrap` |
-| Some editor section move-up/move-down buttons are 32px (below 44px standard) | `HobbiesSection`, `LanguagesSection`, `AwardsSection` | Increase to `min-w-[44px] min-h-[44px]` |
-| `CommandPalette` dialog doesn't have mobile-optimized sizing | `CommandPalette.tsx` | Already uses `CommandDialog` which has responsive sizing -- no change needed |
+**Expected behavior:** The sticky input should have a clear visual separation or the content should never render behind it.
+
+**Fix:**
+- The `pb-[180px]` fix from Issue 1 addresses this. Additionally, the sticky input already has `shadow-[0_-4px_12px_rgba(0,0,0,0.2)]` which provides some separation. No additional CSS needed beyond the padding increase.
 
 ---
 
-### 4. UX and User Flow Analysis
+### Issue 3: Filter chips below 44px touch target (LOW)
 
-**Overall flow assessment:**
+**Screen:** Dashboard (`/dashboard`) -- Resume filter area
 
-The app has a well-designed mobile-first flow:
+**How to reproduce:** The category and score filter chips (Professional, Creative, Tech, Minimalist, <50, 50-79, 80+) have `min-h-[36px]`, which is 8px below the 44px touch target standard.
 
-```text
-Landing (/) --> Auth (/auth) --> Onboarding Carousel --> Dashboard (/dashboard)
-                                                              |
-                                    +-------------------------+-------------------------+
-                                    |              |              |            |         |
-                                 Editor        AI Studio     Applications  Settings   Upload
-                                 (/editor)     (/ai-studio)  (/applications) (/settings) (/upload)
-```
+**Expected behavior:** All interactive elements should meet the 44px minimum touch target per project guidelines.
 
-**Strengths:**
-- Bottom tab bar provides native-app-feel navigation
-- Pull-to-refresh on Dashboard
-- Lazy loading with skeleton fallbacks on every route
-- Error boundaries wrapping the app
-- Biometric lock for sensitive data
-- Offline sync support
-- Deep linking from Cmd+K to AI Studio tools
-
-**UX gaps identified:**
-
-| Gap | Impact | Recommendation |
-|-----|--------|----------------|
-| No empty state guidance when shake-to-report is triggered but user hasn't encountered an error | Low | Pre-fill the bug report with "Manual report via shake gesture" as the error message |
-| Editor move-up/move-down buttons are visually small on mobile | Medium | Increase tap targets to 44px as noted above |
-| No haptic feedback on error toasts | Low | Add `haptics.error()` call in `showErrorToast()` in `src/lib/errorToast.ts` |
-| No haptic on successful save/auto-save | Low | Add `haptics.light()` in the auto-save success path |
+**Fix:**
+- In `src/components/dashboard/ResumeFilters.tsx`: Change `min-h-[36px]` to `min-h-[44px]` on lines 64, 103, 124, and 145 (sort button, category chips, score chips, clear button)
+- This is a find-and-replace of 4 occurrences
 
 ---
 
-### Implementation Summary
+### Issue 4: Install PWA banner overlaps resume card content (LOW)
 
-| Priority | Task | Files |
-|----------|------|-------|
-| 1 | Create `useShakeDetect` hook | New: `src/hooks/useShakeDetect.ts` |
-| 2 | Wire shake hook into App + Settings toggle | `src/App.tsx`, `src/store/settingsStore.ts`, `src/pages/SettingsPage.tsx` |
-| 3 | Add missing haptics to ~9 components | Various editor/sheet components |
-| 4 | Fix touch target sizes on editor reorder buttons | `HobbiesSection`, `LanguagesSection`, `AwardsSection` |
-| 5 | Add `haptics.error()` to `showErrorToast` | `src/lib/errorToast.ts` |
+**Screen:** Dashboard (`/dashboard`)
 
-### Technical Details for Shake Detection
+**How to reproduce:** When the PWA install banner appears, it overlaps the resume cards behind it. The banner is at `bottom-[11.5rem]` (184px) and is opaque enough to hide content underneath.
 
-The shake algorithm:
-1. Listen to `devicemotion` events
-2. Track acceleration magnitude: `sqrt(x^2 + y^2 + z^2)` from `accelerationIncludingGravity`
-3. If magnitude exceeds threshold (15) three times in 1 second, trigger shake
-4. On trigger: `haptics.heavy()` then `triggerBugReport({ errorMessage: 'Bug report via shake gesture', route: location.pathname })`
-5. Set a 3-second cooldown via timestamp comparison
-6. iOS permission: check `typeof DeviceMotionEvent.requestPermission === 'function'` and call it; if denied, silently disable
+**Expected behavior:** The banner should not obscure actionable content. This is by design (staggered positioning), but the card content behind it is partially unreadable.
+
+**Fix:**
+- This is a known design tradeoff documented in project memories. The banner can be dismissed and persists dismissal in localStorage. **No code change recommended** -- the existing behavior is intentional per `memory/ui/layout/floating-elements-staggering`.
+
+---
+
+### Issue 5: Sort button label hidden on 360px width (INFO)
+
+**Screen:** Dashboard (`/dashboard`) -- Filter area
+
+**How to reproduce:** The sort button uses `hidden xs:inline` for its label, so at 360px (which matches the `xs` breakpoint) the sort option label may or may not show depending on the exact breakpoint config.
+
+**Expected behavior:** The icon-only sort button is acceptable UX since the ArrowUpDown icon is recognizable.
+
+**Fix:** No change needed. The `xs:inline` pattern correctly hides text on the smallest screens while keeping the button functional.
+
+---
+
+### Screens Verified as Working
+
+| Screen | Status | Notes |
+|--------|--------|-------|
+| Landing page (`/`) | OK | Hero, CTA, feature grid, scroll all render correctly at 360px |
+| Dashboard (`/dashboard`) | OK | Cards, search, FAB, quick actions, pull-to-refresh all work |
+| Resume Detail (`/resume/:id`) | OK | Edit/Preview/PDF tabs, ATS score, back navigation all functional |
+| Editor (`/editor`) | OK | Section navigation, Editor/Preview tabs, stepper, contact form all render properly |
+| Editor Preview tab | OK | Zoom controls, template preview, download button all accessible |
+| Settings (`/settings`) | OK | Profile card, theme toggle, all rows scrollable and tappable |
+| Applications (`/applications`) | OK | My Applications/Saved Jobs tabs, stats cards, empty state all render |
+| Bottom Tab Bar | OK | All 5 tabs navigate correctly, active states render, haptics fire |
+| Back navigation | OK | Hardware back button mapping works per BACK_ROUTES, no dead ends |
+
+### Files to Modify
+
+| File | Change | Lines |
+|------|--------|-------|
+| `src/pages/AIStudioPage.tsx` | Increase `pb-[140px]` to `pb-[180px]` | Line 194 |
+| `src/components/dashboard/ResumeFilters.tsx` | Change `min-h-[36px]` to `min-h-[44px]` (4 occurrences) | Lines 64, 103, 124, 145 |
+
+Total: 2 files, 5 line changes. Zero component renames, no route changes, no feature removals.
 
