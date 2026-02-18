@@ -1,31 +1,68 @@
 
 
-## Add Visual Indicator to Template Button for First-Time Users
+## Contextual AI Nudges -- Compact Chip Redesign and Expanded Coverage
+
+### Overview
+
+The existing nudge system (`useResumeNudges` + `AIContextualNudge`) already works across Summary, Experience, Skills, and Education. This plan redesigns the visual component into a compact inline chip and adds smarter, more granular detection rules plus Contact section coverage.
 
 ### What Changes
 
-A subtle "new" dot badge and a one-time shimmer animation will draw attention to the Template button in the mobile editor header. After the user taps it once, the indicator disappears permanently (stored in localStorage).
+**1. Redesign `AIContextualNudge` as a compact chip (not a card)**
 
-### Design
+Replace the current large card-style banner with a slim, single-line chip that feels native and non-intrusive:
 
-- A small pulsing primary-colored dot (like the one on the Wise AI button) will appear on the Template button
-- The button text will briefly use the primary color instead of muted to stand out
-- Once the user taps "Template" for the first time, `localStorage.setItem('template_btn_seen', 'true')` is set, and the dot and highlight are removed
-- This is lightweight -- no modals, no tooltips, just a subtle visual cue
+```text
+Before:  [  icon  |  multi-line message  |  CTA button  |  Dismiss button  |  X  ]
+After:   [ Sparkles icon  "AI can add metrics"  [Fix]  X ]
+```
 
-### Technical Details
+- Single row, `rounded-full`, `bg-primary/5 border-primary/20`
+- Sparkles icon (not Lightbulb) to match the AI branding used elsewhere
+- Short message (max ~40 chars) + small action button + dismiss X
+- `animate-in fade-in-0 slide-in-from-left-2` for a subtle entrance
+- `active:scale-95` on the action button for haptic consistency
 
-**File: `src/pages/EditorPage.tsx`**
+**2. Add new nudge triggers to `useResumeNudges`**
 
-1. Add a state variable: `const [templateBtnSeen, setTemplateBtnSeen] = useState(() => localStorage.getItem('template_btn_seen') === 'true')`
-2. In the Template button's `onClick`, add `localStorage.setItem('template_btn_seen', 'true'); setTemplateBtnSeen(true);`
-3. When `!templateBtnSeen`:
-   - Add a pulsing dot badge (`<span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />`) -- same pattern as the Wise AI button
-   - Change text and icon color from `text-muted-foreground` to `text-primary`
-   - Wrap the button in `relative` positioning for the dot
-4. When `templateBtnSeen`: render the current muted style with no dot
+| Trigger | Section | Condition | Message | Action |
+|---------|---------|-----------|---------|--------|
+| `weak_verbs` | experience | Description starts with passive words (managed, responsible for) instead of action verbs | "AI can strengthen your bullet points" | `improve` |
+| `no_action_verbs` | experience | No recognized action verbs in any description | "Add impactful action verbs" | `improve` |
+| `missing_contact` | contact | Email or phone missing | "Complete your contact info" | `improve` |
+| `no_linkedin` | contact | LinkedIn field empty | "Add LinkedIn to boost visibility" | `generate` |
+| `generic_skills` | skills | Skills are too generic (e.g., "Microsoft Office", "Communication") | "AI can suggest role-specific skills" | `generate` |
+
+**3. Wire Contact section into the nudge system**
+
+ContactSection currently has no nudge integration. Add `useResumeNudges` and `AIContextualNudge` to it, showing nudges for missing email/phone/LinkedIn.
+
+**4. Per-entry nudge chips in Experience**
+
+Instead of one nudge for the whole Experience section, show a small inline chip *inside each expanded experience card* when that specific entry has no metrics. This makes it clear which job needs improvement.
+
+### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Add first-time pulsing dot indicator and primary color highlight to Template button, dismissed on first tap via localStorage |
+| `src/components/editor/AIContextualNudge.tsx` | Redesign from card to compact chip; add `compact` prop for per-entry usage |
+| `src/hooks/useResumeNudges.ts` | Add `weak_verbs`, `no_action_verbs`, `missing_contact`, `no_linkedin`, `generic_skills` triggers; add `contact` section nudges; add `getNudgesForExperience(expId)` helper |
+| `src/components/editor/ContactSection.tsx` | Import and render `AIContextualNudge` with contact nudges |
+| `src/components/editor/ExperienceSection.tsx` | Add per-entry inline chip nudges inside expanded cards |
 
+### Technical Details
+
+**Action verb detection** (for `weak_verbs` / `no_action_verbs`):
+- A small set of ~30 strong action verbs (Led, Developed, Implemented, Increased, etc.) checked against the first word of each bullet/description line
+- Passive indicators: starts with "Responsible for", "Managed", "Helped", "Assisted"
+
+**Generic skills detection**:
+- A blocklist of ~15 overly common skills ("Microsoft Office", "Communication", "Teamwork", "Problem Solving") that add little ATS value
+
+**Per-entry experience nudges**:
+- New `getNudgesForExperience(expId: string)` function in the hook returns nudges specific to one experience entry
+- Uses a compact variant of `AIContextualNudge` (smaller text, no dismiss button, just chip + action)
+
+**Dismissed state**:
+- Dismissals remain in React state (reset on page reload), keeping the current behavior
+- Per-entry dismissals use a key like `no_metrics_${expId}`
