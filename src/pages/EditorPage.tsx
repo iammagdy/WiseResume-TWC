@@ -1003,68 +1003,23 @@ export default function EditorPage() {
               <span className={`text-[9px] font-medium leading-none ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`}>Template</span>
             </button>
             <button
-              onClick={() => { haptics.light(); setShowToolsSheet(true); }}
+              onClick={() => { haptics.light(); setShowChat(true); }}
               className="rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-primary/10 hover:bg-primary/15 touch-manipulation"
-              aria-label="Editor tools"
+              aria-label="Open Wise AI Chat"
             >
-              <Sparkles className="w-5 h-5 text-primary" />
-              <span className="text-[9px] font-medium leading-none text-primary">Tools</span>
+              <span className="relative">
+                <MessageSquare className="w-5 h-5 text-primary" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+              </span>
+              <span className="text-[9px] font-medium leading-none text-primary">Chat</span>
             </button>
-            <Sheet open={showToolsSheet} onOpenChange={setShowToolsSheet}>
-              <SheetContent side="bottom" className="pb-safe max-h-[80dvh] overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Editor Tools</SheetTitle>
-                </SheetHeader>
-                <div className="pt-4 space-y-1">
-                  {editorToolGroups.map((group, groupIndex) => (
-                    <div key={group.id}>
-                      {groupIndex > 0 && <Separator className="my-1" />}
-                      {group.title && (
-                        <p className="px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                          {group.title}
-                        </p>
-                      )}
-                      {group.actions.map((action) => {
-                        const Icon = action.icon;
-                        const meta = toolMeta[action.id];
-                        const isDestructive = action.variant === 'destructive';
-                        return (
-                          <button
-                            key={action.id}
-                            className={cn(
-                              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all min-h-[48px] touch-manipulation active:scale-95 hover:bg-muted",
-                              isDestructive && "text-destructive hover:bg-destructive/10"
-                            )}
-                            onClick={() => {
-                              haptics.light();
-                              setShowToolsSheet(false);
-                              action.onClick();
-                            }}
-                          >
-                            {Icon && (
-                              <Icon className={cn("h-5 w-5 shrink-0", isDestructive ? "text-destructive" : meta?.iconColor || "text-muted-foreground")} />
-                            )}
-                            <div className="flex flex-col min-w-0">
-                              <span className="truncate font-medium">{action.label}</span>
-                              {meta?.description && (
-                                <span className="text-xs text-muted-foreground truncate">{meta.description}</span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
-              </SheetContent>
-            </Sheet>
           </div>
         </div>
       </header>
 
 
         {/* Progress Bar with Save Status */}
-        <div className="shrink-0 px-4 py-3 border-b border-border">
+        <div className="shrink-0 px-4 py-1.5 sm:py-3 border-b border-border">
           <style>{`
             @keyframes spring-enter {
               0% { opacity: 0; transform: translateY(12px) scale(0.98); }
@@ -1077,7 +1032,7 @@ export default function EditorPage() {
               100% { transform: scale(1); }
             }
           `}</style>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-1">
+          <div className="flex flex-row flex-wrap items-center justify-between gap-1 mb-1">
             <ProgressBar resume={currentResume} compact />
             {user && currentResumeId && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2" aria-live="polite" aria-atomic="true">
@@ -1112,34 +1067,36 @@ export default function EditorPage() {
               </div>
             )}
           </div>
-          {/* Expandable completeness details */}
-          <details className="mt-1 group">
-            <summary
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[36px] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
-              aria-label="View completeness breakdown"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">
-                {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length}/{steps.filter(s => s.id !== 'more').length} sections
-              </span>
-              <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-open:rotate-180" />
-            </summary>
-            {localHealthScore && (
-              <div className="mt-2 border-t border-border pt-2">
-                <ATSScoreBreakdown
-                  healthScore={localHealthScore}
-                  compact
-                  defaultOpen
-                  onImprove={() => setShowTailor(true)}
-                />
-              </div>
-            )}
-          </details>
+          {/* Expandable completeness details — hidden on mobile to save vertical space */}
+          <div className="hidden sm:block">
+            <details className="mt-1 group">
+              <summary
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[36px] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+                aria-label="View completeness breakdown"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">
+                  {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length}/{steps.filter(s => s.id !== 'more').length} sections
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-open:rotate-180" />
+              </summary>
+              {localHealthScore && (
+                <div className="mt-2 border-t border-border pt-2">
+                  <ATSScoreBreakdown
+                    healthScore={localHealthScore}
+                    compact
+                    defaultOpen
+                    onImprove={() => setShowTailor(true)}
+                  />
+                </div>
+              )}
+            </details>
+          </div>
         </div>
 
         {/* Tailored Resume Indicator Banner */}
         {resumeFromDb?.parent_resume_id && (
-          <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-primary/10 border-b border-primary/20" style={{ minHeight: 36 }}>
+          <div className="shrink-0 flex items-center gap-2 px-4 py-1 bg-primary/10 border-b border-primary/20" style={{ minHeight: 36 }}>
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-semibold uppercase tracking-wide shrink-0">
                 <Scissors className="w-3 h-3" />
