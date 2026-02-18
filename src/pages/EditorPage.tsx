@@ -280,6 +280,8 @@ export default function EditorPage() {
         // Don't show error toast - OfflineIndicator handles it
       } else {
         console.error('Auto-save failed:', error);
+        // Flaky network: technically online but request failed — reassure user
+        toast.warning('Auto-save failed — your changes are safe locally and will retry.', { duration: 4000 });
       }
     } finally {
       setIsSaving(false);
