@@ -1,168 +1,155 @@
 
-# Completing the 5 Remaining Items
+# Post-Changes Audit: Findings & Fixes
 
-## Full Diagnosis
+## Audit Summary
 
-### 🔴 1 — Build error: `EditProfileSheet.tsx` line 124 — `portfolioExtras` type mismatch
-The local `Profile` interface (lines 35–43) only has 8 fields. The `currentFormProfile` object built at lines 95–126 includes `portfolioExtras: null` and `portfolioSyncMode: 'auto' as const` — but these aren't in the `Profile` interface, so TypeScript can throw when `calculateProfileCompletion(currentFormProfile)` is called because the function signature expects those fields. The fix is to extend the local `Profile` interface to include the full shape expected by `calculateProfileCompletion`.
-
-**Fix:** Add `portfolioExtras`, `portfolioSyncMode`, and the other extended fields to the local `Profile` interface inside `EditProfileSheet.tsx` so the type matches `currentFormProfile` exactly.
-
-### 🔄 2 — `PortfolioEditorPage.tsx` — Case Studies + Services cards, sync mode toggle
-The portfolio editor currently has no UI for:
-- **Case Studies** — part of `portfolioExtras.caseStudies[]` JSONB
-- **Portfolio Services** — part of `portfolioExtras.services[]` JSONB  
-- **Sync Mode toggle** — `portfolioSyncMode: 'auto' | 'locked'` (auto-syncs from selected resume vs locks content)
-
-All three must be added as new `CollapsibleCard` sections below the existing "Section Visibility" section.
-
-**Fix:** Add three new collapsible cards and the corresponding state variables + save logic.
-
-### 🔄 3 — `DashboardPage.tsx` — Portfolio promo card
-The dashboard empty state (when user has no resumes, lines 659–721) has 8 action cards but no Portfolio promo. When resumes exist, there's no Portfolio entry in the popover profile menu either.
-
-**Fix:** Add a `Globe`-icon action card "My Portfolio" to the 8-card empty state grid (making it a 9-card grid), and add a "My Portfolio" button to the profile popover menu.
-
-### 🔄 4 — `ProfilePage.tsx` — URL fixes
-The portfolio URL preview on line 137 uses `window.location.hostname` which shows the raw Lovable preview domain instead of the branded `wiseresume.app` domain. The share handler already correctly uses `window.location.origin`, so only the display string is wrong.
-
-**Fix:** Change line 137 from `` `${window.location.hostname}/p/${profile.username}` `` to `` `wiseresume.app/p/${profile.username}` `` for the display label. The actual click/share URLs already use `window.location.origin` correctly.
-
-### 🔄 5 — `BottomTabBar.tsx` — Portfolio Globe tab
-The tab bar has: Home · Editor · Studio · Activity · Settings. The plan called for replacing one tab (or inserting a Globe/Portfolio tab). Per memory `ui/navigation/bottom-tab-layout-v3`, the tab bar is intentionally 5 tabs. The cleanest solution: replace the existing **Studio** tab path to add "Portfolio" as a 5th option, or swap one lower-priority tab. The most natural swap is replacing the `Sparkles / Studio` tab label to a "Portfolio" tab pointing to `/portfolio`, since Studio is also accessible from the Editor → AI Hub. However, reviewing the memory note more carefully: "Studio tab uses Sparkles icon" is the new correct state. A better approach is to **not** add a 6th tab (which breaks mobile layout), but instead add a **Globe icon button** to the right of the existing 5 tabs — but that too would crowd the bar.
-
-The most balanced solution: **replace the Settings tab** (least frequently used primary action) with a Portfolio tab (`Globe` icon, `/portfolio`), and move Settings access to remain available via the profile popover on the dashboard and via the existing Settings route. However, Settings is a critical tab for first-time users and biometric setup.
-
-**Cleanest solution**: Keep 5 tabs, swap `BarChart3 / Activity` → to show both Activity and Portfolio under a smarter arrangement. Actually the simplest correct solution per the original plan: **add Globe/Portfolio tab by replacing the `applications` tab** — Activity is already a dedicated page but less frequently used. No — let's not break Activity.
-
-**Final decision**: Replace the 5th tab (Settings) with Portfolio, and move Settings into the profile popover which already has a Settings button. This is the correct mobile-first pattern: profile popover = account/settings, bottom nav = primary feature navigation.
-
-Tabs become: Home · Editor · Studio · Activity · **Portfolio**
-
-Settings remains accessible via the profile popover on the Dashboard (already has a "Settings" button there).
+After a thorough read of all recently changed files, here is a complete list of confirmed bugs, regressions, and polish issues — with exact fixes for each.
 
 ---
 
-## Exact File Changes
+## Bug 1 (Critical) — `/portfolio` missing from AppShell TAB_ROUTES
 
-### File 1 — `src/components/settings/EditProfileSheet.tsx`
-**Lines 35–43:** Extend the local `Profile` interface to include all fields that `currentFormProfile` uses:
+**File:** `src/components/layout/AppShell.tsx` line 11
 
+**Problem:** The Portfolio Editor page (`/portfolio`) is not in `TAB_ROUTES`. This means:
+- The bottom nav bar is **hidden** on the Portfolio page (even though Portfolio is now a tab)
+- The `pb-20` padding is not applied, so the "Save Portfolio" button at the bottom of the page is **hidden behind where the tab bar would be**
+- The Portfolio tab in the nav appears to work (navigates correctly) but the destination page has no visible nav and a clipped save button
+
+**Fix:** Add `'/portfolio'` to `TAB_ROUTES`:
 ```ts
-interface Profile {
-  fullName: string | null;
-  avatarUrl: string | null;
-  jobTitle: string | null;
-  industry: string | null;
-  careerLevel: CareerLevel | null;
-  location: string | null;
-  linkedinUrl: string | null;
-  profileCompleted: boolean;
-  // Extended fields needed by calculateProfileCompletion
-  username?: string | null;
-  portfolioBio?: string | null;
-  portfolioEnabled?: boolean;
-  portfolioResumeId?: string | null;
-  githubUrl?: string | null;
-  websiteUrl?: string | null;
-  twitterUrl?: string | null;
-  contactEmail?: string | null;
-  theme?: string | null;
-  phoneNumber?: string | null;
-  portfolioSections?: unknown;
-  portfolioMetaTitle?: string | null;
-  portfolioMetaDescription?: string | null;
-  views?: number;
-  portfolioStyle?: string | null;
-  portfolioLayout?: string | null;
-  portfolioAccentColor?: string | null;
-  portfolioFont?: string | null;
-  openToWork?: boolean;
-  availabilityHeadline?: string | null;
-  portfolioExtras?: unknown;
-  portfolioSyncMode?: 'auto' | 'locked';
-}
+const TAB_ROUTES = [..., '/portfolio'];
 ```
 
-### File 2 — `src/pages/PortfolioEditorPage.tsx`
-Add three new state variables and three new collapsible cards:
+---
 
-**State to add (after line 212):**
+## Bug 2 (Console Warning / Minor React) — AISettingsSheet forwardRef misuse
+
+**Files:** `src/components/settings/AISettingsSheet.tsx`, `src/components/editor/ai/AIProviderBadge.tsx`
+
+**Problem:** `AISettingsSheet` is wrapped in `forwardRef` (line 35) but `AIProviderBadge` renders it as `<AISettingsSheet open={...} onOpenChange={...} />` — with no `ref` prop passed. React warns:
+> "Function components cannot be given refs. Did you mean to use React.forwardRef()?"
+
+This is backwards — `forwardRef` is defined but a ref is never passed TO it. The fix is to remove `forwardRef` from `AISettingsSheet` since no consuming component uses a ref.
+
+**Fix in `AISettingsSheet.tsx`:** Remove `forwardRef` wrapper, change to a regular named export function:
 ```ts
-const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
-const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
-const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
+// Before:
+export const AISettingsSheet = forwardRef<HTMLDivElement, AISettingsSheetProps>(
+  function AISettingsSheet({ open, onOpenChange }, ref) { ... }
+);
+
+// After:
+export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) { ... }
 ```
+Also remove `forwardRef` from the import line.
 
-**Profile sync (inside the `useEffect` at line 218):**
-```ts
-setSyncMode((p.portfolioSyncMode as 'auto' | 'locked') || 'auto');
-const extras = (p.portfolioExtras as Record<string,unknown>) || {};
-setCaseStudies((extras.caseStudies as typeof caseStudies) || []);
-setServices((extras.services as typeof services) || []);
-```
+---
 
-**Save updates (inside `handleSave` at line 390):**
-```ts
-portfolioSyncMode: syncMode,
-portfolioExtras: { caseStudies, services },
-```
+## Bug 3 (UX) — Dashboard empty-state grid: 9th card causes odd layout on mobile
 
-**New collapsible cards** after "Section Visibility" (line 887):
+**File:** `src/pages/DashboardPage.tsx` lines 662–726
 
-1. **Sync Mode card** — A simple two-option toggle (`auto` = always reflects the source resume, `locked` = content frozen at last save). Uses inline radio buttons.
+**Problem:** The grid is `grid-cols-2` with 9 cards. On mobile this creates 4 rows of 2 + 1 orphaned card that spans only half the width. The "My Portfolio" card (9th) sits alone on the left, looking unfinished.
 
-2. **Case Studies card** — Add/remove case studies with title + challenge + outcome fields. Each case study rendered as a compact card with a remove button.
+**Fix:** Change the grid to `grid-cols-3` for the last row using CSS, or move "My Portfolio" to be the 8th card (swap with "Guides" which is less important), making the grid a clean 4×2 layout of 8 core actions. Then put Guides in a secondary position or simply accept the 3-column variant for xs screens.
 
-3. **Services card** — Add/remove portfolio services with title + description + category. Same compact card pattern.
-
-### File 3 — `src/pages/DashboardPage.tsx`
-**Empty state grid (lines 662–719):** Add a 9th action card for Portfolio after the Guides card:
-```tsx
-<ActionCard
-  icon={Globe}
-  title="My Portfolio"
-  description="Build your personal site"
-  onClick={() => navigate('/portfolio')}
-  aria-label="Portfolio builder"
-/>
-```
-Also add `Globe` to the lucide-react import.
-
-**Profile popover (line 512 area):** The popover already has "Manage Account" and "Settings" and "Sign Out" buttons. No change needed — Settings is still accessible there.
-
-### File 4 — `src/pages/ProfilePage.tsx`
-**Line 137:** Change display URL from `window.location.hostname` to branded domain:
+The cleanest minimal fix: change to `grid-cols-3` for the 9-item grid on mobile — this gives 3 rows of 3:
 ```tsx
 // Before:
-<p className="text-xs text-muted-foreground truncate">{window.location.hostname}/p/{profile.username}</p>
+<div className="grid grid-cols-2 gap-2 px-4 ...">
+
 // After:
-<p className="text-xs text-muted-foreground truncate">wiseresume.app/p/{profile.username}</p>
+<div className="grid grid-cols-3 gap-2 px-4 ...">
 ```
-
-### File 5 — `src/components/layout/BottomTabBar.tsx`
-Replace the Settings tab with Portfolio (`Globe` icon, `/portfolio`):
-
-```ts
-import { FileText, Globe, Home, BarChart3, Sparkles } from 'lucide-react';
-
-const tabs: TabItem[] = [
-  { path: '/dashboard', icon: Home, label: 'Home', matchPaths: ['/dashboard'] },
-  { path: '/editor', icon: FileText, label: 'Editor', matchPaths: ['/editor', '/preview'], guarded: true },
-  { path: '/ai-studio', icon: Sparkles, label: 'Studio', matchPaths: ['/ai-studio'] },
-  { path: '/applications', icon: BarChart3, label: 'Activity', matchPaths: ['/applications'] },
-  { path: '/portfolio', icon: Globe, label: 'Portfolio', matchPaths: ['/portfolio'] },
-];
-```
-
-Settings remains reachable via the Dashboard profile popover (already has the "Settings" button) and via direct URL `/settings`.
+But `ActionCard` must then have smaller text for 3-col. A better approach: reorder so "My Portfolio" is card #8, swap it with "Guides" (card #8 → #9). Then move "Guides" to card #9 or remove it from this grid (it's accessible from the main nav already). This keeps clean `grid-cols-2` (4 rows of 2 = 8 cards). Actually the cleanest fix: **keep 8 cards** (remove the "Guides" card from this grid — it's accessible via the sidebar). The Portfolio card becomes #8, filling the grid perfectly.
 
 ---
 
-## What is NOT Changed
-- All existing changelog entries — untouched
-- The public portfolio routes (`/p/:username`) — untouched
-- Auth flows — untouched
-- The "Strength" checklist, QR code, themes, and all other existing PortfolioEditorPage sections — untouched
-- Mobile layout and safe area padding — untouched
-- `AppShell.tsx` — Settings route still renders correctly when accessed directly
+## Bug 4 (Minor UX) — Portfolio tab active state doesn't highlight on `/portfolio` page itself
+
+**Cause:** Same as Bug 1 — because `/portfolio` is not in TAB_ROUTES, the bottom nav is hidden entirely on that page. Once Bug 1 is fixed (adding `/portfolio` to TAB_ROUTES), this resolves automatically.
+
+---
+
+## Bug 5 (Cosmetic) — BottomTabBar has `border-dashed border-2 border-[#200e14] rounded-3xl` styling that looks odd on light mode
+
+**File:** `src/components/layout/BottomTabBar.tsx` line 86
+
+**Problem:** The nav has a hard-coded dark maroon dashed border (`#200e14`) which is only visible against dark backgrounds. On light mode or medium themes it looks like a broken border.
+
+**Fix:** Replace the hard-coded color with a theme-aware token:
+```tsx
+// Before:
+"... border-dashed border-2 border-[#200e14] rounded-3xl"
+
+// After:
+"... border-border/20 rounded-3xl"
+```
+
+---
+
+## Mobile Responsiveness Polish
+
+### Portfolio Editor — `pb-safe` at bottom
+**Current:** The `div` at line 509 ends with `pb-safe`. Once the TAB_ROUTES fix is applied and `pb-20` kicks in, the "Save Portfolio" button at the bottom (line 1041) will clear the nav bar. No additional change needed after Bug 1 fix.
+
+### Skills Section — confirmed clean
+The compact badge changes are in place and correct: `h-8`, `text-xs font-medium`, `flex flex-wrap gap-1.5`. No regressions.
+
+### SkillsSection — `overflow-hidden` on flex-wrap container
+**File:** `src/components/editor/SkillsSection.tsx` line 126
+
+**Problem:** `className="flex flex-wrap gap-1.5 overflow-hidden"` — `overflow-hidden` clips badges that wrap to new lines beyond the container height. Skill badges can get cut off if there are many.
+
+**Fix:** Remove `overflow-hidden`:
+```tsx
+// Before:
+<div className="flex flex-wrap gap-1.5 overflow-hidden">
+
+// After:
+<div className="flex flex-wrap gap-1.5">
+```
+
+### Landing Page cards — confirmed clean
+The `border-t-2 border-t-primary/40` and `border-t-emerald-500/40` styles are in place. The Portfolio CTA navigates to `/portfolio` correctly. The subtitle copy is updated. No regressions found.
+
+### Changelog — confirmed clean
+The `summary` field renders in SettingsPage with the italic treatment. The v2.1.0 entry has all 6 bullet items and the new summary line.
+
+### EditProfileSheet — confirmed clean
+The `Profile` interface now includes `portfolioExtras` and `portfolioSyncMode`. The `currentFormProfile` object type-checks correctly. No build error in the current code.
+
+---
+
+## AI Feature Checklist — No Regressions Found
+
+All AI features connect through Supabase Edge Functions that were not modified in recent changes:
+
+| Feature | Entry Point | Status |
+|---|---|---|
+| Enhance section (summary, skills, etc.) | `enhance-section` edge fn | No changes — intact |
+| Tailor to job | `tailor-resume` edge fn | No changes — intact |
+| Proofread | `proofread-resume` edge fn | No changes — intact |
+| AI gap explanation | `explain-gap` edge fn | No changes — intact |
+| Portfolio bio generation | `generate-portfolio-bio` edge fn | No changes — intact |
+| Agentic chat | `agentic-chat` edge fn | No changes — intact |
+| Cover letter | `generate-cover-letter` edge fn | No changes — intact |
+| ATS scan | `score-resume` edge fn | No changes — intact |
+| Interview chat | `interview-chat` edge fn | No changes — intact |
+
+The only AI-related console issue is the `forwardRef` React warning in `AISettingsSheet` (Bug 2 above) — this is a warning, not an error, and AI functionality is unaffected.
+
+---
+
+## Summary of All Changes to Make
+
+| # | File | Change | Severity |
+|---|---|---|---|
+| 1 | `src/components/layout/AppShell.tsx` | Add `/portfolio` to TAB_ROUTES | Critical |
+| 2 | `src/components/settings/AISettingsSheet.tsx` | Remove `forwardRef` wrapper | Warning fix |
+| 3 | `src/pages/DashboardPage.tsx` | Reorder cards: Portfolio as card #8, remove Guides from grid | UX |
+| 4 | `src/components/layout/BottomTabBar.tsx` | Replace `border-[#200e14]` with `border-border/20` | Cosmetic |
+| 5 | `src/components/editor/SkillsSection.tsx` | Remove `overflow-hidden` from skill badges container | Layout |
+
+All other recently-edited areas (PortfolioEditorPage, ProfilePage, SettingsPage changelog, Index.tsx landing page) are confirmed correct and working.
