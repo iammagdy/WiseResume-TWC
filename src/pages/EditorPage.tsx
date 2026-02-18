@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
+import { formatDistanceToNow } from 'date-fns';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -97,6 +98,7 @@ export default function EditorPage() {
     jobDescription,
     selectedTemplate,
     isSaving,
+    lastSavedAt,
     setIsSaving,
     setLastSavedAt,
     setCurrentResumeId,
@@ -107,6 +109,7 @@ export default function EditorPage() {
     jobDescription: state.jobDescription,
     selectedTemplate: state.selectedTemplate,
     isSaving: state.isSaving,
+    lastSavedAt: state.lastSavedAt,
     setIsSaving: state.setIsSaving,
     setLastSavedAt: state.setLastSavedAt,
     setCurrentResumeId: state.setCurrentResumeId,
@@ -117,6 +120,10 @@ export default function EditorPage() {
   const { updateResume } = useResumeMutations();
 
   // Single hydration effect: sync DB data into Zustand store + ownership check
+  // Also detects stale resume (Fix 2): if server version is newer than local, auto-refresh or show conflict banner
+  const setConflict = useOfflineSyncStore(s => s.setConflict);
+  const localLoadedAtRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!resumeFromDb || !currentResumeId) return;
 
@@ -128,14 +135,43 @@ export default function EditorPage() {
       return;
     }
 
-    // Hydrate store if needed
+    // Initial hydration: store is empty → just load from DB
     if (!currentResume) {
       useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
       useResumeStore.getState().setSelectedTemplate(
         (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
       );
+      // Record the server timestamp we loaded from so we can detect future conflicts
+      localLoadedAtRef.current = resumeFromDb.updated_at ?? null;
+      return;
     }
-  }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate]);
+
+    // Fix 2: Stale-resume detection on subsequent React Query refetches (e.g. window focus / foreground return)
+    const serverUpdatedAt = resumeFromDb.updated_at;
+    const localLoadedAt = localLoadedAtRef.current;
+    if (serverUpdatedAt && localLoadedAt && serverUpdatedAt > localLoadedAt) {
+      // Server has a newer version than when this session loaded
+      const isClean = lastSavedResumeRef.current === JSON.stringify(currentResume);
+      if (isClean) {
+        // No local edits since last save — auto-refresh silently
+        useResumeStore.getState().setCurrentResume(dbToResumeData(resumeFromDb));
+        useResumeStore.getState().setSelectedTemplate(
+          (resumeFromDb.template_id || 'modern') as import('@/types/resume').TemplateId
+        );
+        localLoadedAtRef.current = serverUpdatedAt;
+        lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
+        toast.info('Resume updated — refreshed to latest version.', { duration: 3000 });
+      } else {
+        // Dirty local state + newer server version → wire into the SyncConflictDialog flow
+        setConflict(
+          { resumeId: currentResumeId, updates: currentResume, timestamp: Date.now() },
+          serverUpdatedAt
+        );
+      }
+      // Update the baseline so we don't re-fire on the same server version
+      localLoadedAtRef.current = serverUpdatedAt;
+    }
+  }, [resumeFromDb, currentResume, currentResumeId, user, setCurrentResumeId, navigate, setConflict]);
 
   // Safety timeout: if no resume after 8s, bail out (independent of storeHydrated)
   useEffect(() => {
@@ -245,6 +281,22 @@ export default function EditorPage() {
     
     const currentResumeJson = JSON.stringify(resume);
     if (currentResumeJson === lastSavedResumeRef.current) return;
+
+    // Fix 3: Pre-save online conflict guard
+    // Compare the server's updated_at (from React Query cache) against the timestamp
+    // we recorded when this session first loaded the resume. If another device has
+    // saved since we loaded, block the write and show the conflict dialog instead.
+    const serverUpdatedAt = resumeFromDb?.updated_at;
+    const sessionLoadedAt = localLoadedAtRef.current;
+    if (serverUpdatedAt && sessionLoadedAt && serverUpdatedAt > sessionLoadedAt) {
+      // Another device has saved a newer version since we loaded — show SyncConflictDialog
+      setConflict(
+        { resumeId: currentResumeId, updates: resume, timestamp: Date.now() },
+        serverUpdatedAt
+      );
+      setIsSaving(false);
+      return;
+    }
     
     setIsSaving(true);
     try {
@@ -254,6 +306,10 @@ export default function EditorPage() {
       });
       lastSavedResumeRef.current = currentResumeJson;
       setLastSavedAt(new Date());
+      // Update our baseline timestamp so subsequent saves don't false-positive
+      if (resumeFromDb?.updated_at) {
+        localLoadedAtRef.current = resumeFromDb.updated_at;
+      }
 
       // Throttled background ATS re-score (max once per 60s)
       if (currentResumeId && resume && Date.now() - lastScoreTimeRef.current > 60_000) {
@@ -293,7 +349,7 @@ export default function EditorPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange]);
+  }, [user, currentResumeId, updateResume, setIsSaving, setLastSavedAt, addPendingChange, resumeFromDb, setConflict]);
 
   // Debounced auto-save effect
   useEffect(() => {
@@ -1040,6 +1096,12 @@ export default function EditorPage() {
                   <>
                     <Check className="w-3.5 h-3.5 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
                     <span>Saved</span>
+                  </>
+                ) : lastSavedAt ? (
+                  <>
+                    <Cloud className="w-3.5 h-3.5 opacity-50" />
+                    {/* Fix 1: "Last saved · X ago" — passive multi-device staleness awareness */}
+                    <span className="opacity-70">Last saved · {formatDistanceToNow(lastSavedAt, { addSuffix: false })} ago</span>
                   </>
                 ) : null}
               </div>
