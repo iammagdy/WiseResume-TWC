@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes } from '@/hooks/useResumes';
+import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 
 interface TabItem {
   path: string;
@@ -59,6 +60,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const currentResumeId = useResumeStore((s) => s.currentResumeId);
   const { user } = useAuth();
   const { data: resumes } = useResumes();
+  const { hasNew, markSeen } = useChangelogBadge();
 
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
@@ -69,6 +71,9 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
 
   const handleTabPress = (tab: TabItem) => {
     haptics.selection();
+    if (tab.path === '/dashboard') {
+      markSeen();
+    }
     if (tab.guarded && !currentResumeId) {
       // Navigate to most recent resume, or create dialog if none exist
       if (resumes && resumes.length > 0) {
@@ -140,13 +145,20 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                       'opacity-50 dark:invert dark:opacity-40'
                     )} /> :
 
-
-                  <Icon
-                    className={cn(
-                      'w-6 h-6 sm:w-5 sm:h-5 transition-colors duration-200',
-                      active ? 'text-primary' : 'text-muted-foreground'
+                  <div className="relative">
+                    <Icon
+                      className={cn(
+                        'w-6 h-6 sm:w-5 sm:h-5 transition-colors duration-200',
+                        active ? 'text-primary' : 'text-muted-foreground'
+                      )}
+                      aria-hidden="true" />
+                    {tab.path === '/dashboard' && hasNew && (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-in fade-in duration-500"
+                        aria-label="New updates available"
+                      />
                     )}
-                    aria-hidden="true" />
+                  </div>
 
                   }
                 </div>
