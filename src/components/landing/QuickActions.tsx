@@ -3,6 +3,7 @@ import { FileText, Upload, Target, Mic } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useResumeStore } from '@/store/resumeStore';
 import triggerHaptic from '@/lib/haptics';
+import { useAuth } from '@/hooks/useAuth';
 
 const actions = [
   {
@@ -36,10 +37,19 @@ const actions = [
 export function QuickActions() {
   const navigate = useNavigate();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
+  const { isAuthenticated } = useAuth();
 
   const handleAction = (action: typeof actions[0]) => {
     triggerHaptic.light();
-    navigate('/auth');
+    if (!isAuthenticated) {
+      navigate('/auth');
+      return;
+    }
+    if (action.createBlank) {
+      setCurrentResumeId(null);
+      setCurrentResume(null);
+    }
+    navigate(action.route);
   };
 
   return (

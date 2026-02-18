@@ -4,7 +4,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
-import { useResumes } from '@/hooks/useResumes';
+import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 
 interface TabItem {
@@ -58,6 +58,8 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const currentResumeId = useResumeStore((s) => s.currentResumeId);
+  const setCurrentResumeId = useResumeStore((s) => s.setCurrentResumeId);
+  const setCurrentResume = useResumeStore((s) => s.setCurrentResume);
   const { user } = useAuth();
   const { data: resumes } = useResumes();
   const { hasNew, markSeen } = useChangelogBadge();
@@ -75,9 +77,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
       markSeen();
     }
     if (tab.guarded && !currentResumeId) {
-      // Navigate to most recent resume, or create dialog if none exist
+      // Load most recent resume into store and open editor, or prompt creation
       if (resumes && resumes.length > 0) {
-        navigate(`/resume/${resumes[0].id}`);
+        const latest = resumes[0];
+        setCurrentResumeId(latest.id);
+        setCurrentResume(dbToResumeData(latest));
+        navigate('/editor');
       } else {
         navigate('/dashboard?action=create');
       }
