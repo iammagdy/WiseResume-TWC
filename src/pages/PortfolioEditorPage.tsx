@@ -155,6 +155,8 @@ export default function PortfolioEditorPage() {
   const [contactEmail, setContactEmail] = useState('');
   const [selectedTheme, setSelectedTheme] = useState('system');
   const [generatingBio, setGeneratingBio] = useState(false);
+  const [generatingSEO, setGeneratingSEO] = useState(false);
+  const [generatingAvailability, setGeneratingAvailability] = useState(false);
   const [copied, setCopied] = useState(false);
   const [savingPortfolio, setSavingPortfolio] = useState(false);
   const [selectedResumeId, setSelectedResumeId] = useState<string>('');
@@ -260,6 +262,27 @@ export default function PortfolioEditorPage() {
     validateUsername(clean);
   };
 
+  const callPortfolioAI = async (action: string, extraBody?: Record<string, unknown>) => {
+    const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-portfolio-bio`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+      body: JSON.stringify({
+        action,
+        summary: selectedResume?.summary || '',
+        fullName: profile?.fullName || '',
+        jobTitle: profile?.jobTitle || '',
+        experience: selectedResume?.experience || [],
+        skills: selectedResume?.skills || [],
+        careerLevel: (profile as unknown as Record<string, unknown>)?.careerLevel || 'mid',
+        ...extraBody,
+      }),
+    });
+    if (!res.ok) throw new Error(`AI request failed`);
+    return res.json();
+  };
+
   const handleGenerateBio = async () => {
     const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
     if (!selectedResume?.summary && !profile?.jobTitle && (!selectedResume?.experience || (selectedResume.experience as unknown[]).length === 0)) {
@@ -269,25 +292,42 @@ export default function PortfolioEditorPage() {
     setGeneratingBio(true);
     haptics.light();
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/generate-portfolio-bio`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({
-          summary: selectedResume?.summary || '',
-          fullName: profile?.fullName || '',
-          jobTitle: profile?.jobTitle || '',
-          experience: selectedResume?.experience || [],
-        }),
-      });
-      if (!res.ok) throw new Error('Failed to generate bio');
-      const { bio: generatedBio } = await res.json();
+      const { bio: generatedBio } = await callPortfolioAI('bio');
       setBio(generatedBio);
       toast.success('Bio generated!');
     } catch (err: unknown) {
       toast.error((err as Error).message || 'Failed to generate bio');
     } finally {
       setGeneratingBio(false);
+    }
+  };
+
+  const handleGenerateSEO = async () => {
+    setGeneratingSEO(true);
+    haptics.light();
+    try {
+      const { metaTitle: t, metaDescription: d } = await callPortfolioAI('seo');
+      if (t) setMetaTitle(t);
+      if (d) setMetaDescription(d);
+      toast.success('SEO meta generated!');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Failed to generate SEO meta');
+    } finally {
+      setGeneratingSEO(false);
+    }
+  };
+
+  const handleGenerateAvailability = async () => {
+    setGeneratingAvailability(true);
+    haptics.light();
+    try {
+      const { headline } = await callPortfolioAI('availability');
+      if (headline) setAvailabilityHeadline(headline);
+      toast.success('Availability headline generated!');
+    } catch (err: unknown) {
+      toast.error((err as Error).message || 'Failed to generate headline');
+    } finally {
+      setGeneratingAvailability(false);
     }
   };
 
@@ -403,6 +443,54 @@ export default function PortfolioEditorPage() {
             </p>
           )}
         </div>
+
+        {/* ── Portfolio Strength ──────────────────────────────────────── */}
+        {(() => {
+          const selectedResume = resumes.find(r => r.id === selectedResumeId) || resumes[0];
+          const checks = [
+            { ok: !!( (profile as unknown as Record<string,unknown>)?.avatarUrl ), tip: 'Add a profile photo in Settings → Profile' },
+            { ok: bio.length >= 50,                                               tip: 'Write a bio (at least 50 characters)' },
+            { ok: username.length >= 3,                                           tip: 'Set a portfolio username' },
+            { ok: !!(githubUrl || websiteUrl || twitterUrl || contactEmail),      tip: 'Add at least one social link or contact email' },
+            { ok: availabilityHeadline.length > 0,                               tip: 'Set an availability headline' },
+            { ok: metaTitle.length > 0,                                           tip: 'Add a custom page title for SEO' },
+            { ok: metaDescription.length > 0,                                    tip: 'Add a meta description for SEO' },
+            { ok: Array.isArray(selectedResume?.experience) && (selectedResume?.experience as unknown[]).length >= 1, tip: 'Add work experience to your resume' },
+            { ok: Array.isArray(selectedResume?.skills) && (selectedResume?.skills as unknown[]).length >= 3,         tip: 'Add at least 3 skills to your resume' },
+            { ok: portfolioEnabled,                                               tip: 'Publish your portfolio to make it live' },
+          ];
+          const score = Math.round((checks.filter(c => c.ok).length / checks.length) * 100);
+          const missing = checks.filter(c => !c.ok).slice(0, 3);
+          const color = score < 40 ? 'bg-destructive' : score < 70 ? 'bg-yellow-500' : 'bg-green-500';
+          const label = score < 40 ? 'Needs work' : score < 70 ? 'Good' : 'Strong';
+          return (
+            <div className="glass-elevated rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-base">💪</span>
+                  <h3 className="font-semibold text-foreground">Portfolio Strength</h3>
+                </div>
+                <span className="text-sm font-bold text-foreground">{score}%</span>
+              </div>
+              <div className="space-y-1">
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-500 ${color}`} style={{ width: `${score}%` }} />
+                </div>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+              {missing.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-foreground">Missing:</p>
+                  {missing.map((m, i) => (
+                    <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <span className="text-primary shrink-0 mt-0.5">·</span>{m.tip}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── Theme Gallery ───────────────────────────────────────────── */}
         <div className="glass-elevated rounded-2xl p-4 space-y-4">
@@ -533,7 +621,13 @@ export default function PortfolioEditorPage() {
             <Switch checked={openToWork} onCheckedChange={v => { haptics.light(); setOpenToWork(v); }} />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Availability headline</label>
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">Availability headline</label>
+              <Button variant="ghost" size="sm" onClick={handleGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
+                {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                AI Suggest
+              </Button>
+            </div>
             <Input
               value={availabilityHeadline}
               onChange={e => setAvailabilityHeadline(e.target.value)}
@@ -643,9 +737,15 @@ export default function PortfolioEditorPage() {
 
         {/* ── SEO ─────────────────────────────────────────────────────── */}
         <div className="glass-elevated rounded-2xl p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-primary" />
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">SEO & Sharing</h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Search className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">SEO & Sharing</h3>
+            </div>
+            <Button variant="ghost" size="sm" onClick={handleGenerateSEO} disabled={generatingSEO} className="h-7 text-xs px-2 active:scale-95">
+              {generatingSEO ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+              AI Generate
+            </Button>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-medium text-foreground">Custom Page Title</label>
