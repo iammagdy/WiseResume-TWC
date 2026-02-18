@@ -16,7 +16,7 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-in fade-in-0 duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-in fade-in-0 duration-200">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-background/80 backdrop-blur-sm"
@@ -24,7 +24,7 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
       />
 
       {/* Card */}
-      <div className="relative w-full max-w-sm bg-card rounded-2xl border border-border shadow-xl overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 duration-300">
+      <div className="relative w-full max-w-sm max-h-[calc(100dvh-6rem)] overflow-y-auto bg-card rounded-2xl border border-border shadow-xl animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-4 duration-300">
         {/* Gradient accent */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
 

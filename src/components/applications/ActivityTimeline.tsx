@@ -159,7 +159,7 @@ export function ActivityTimeline() {
                       haptics.light();
                       navigate(`/applications?tab=applications&action=add&jobTitle=${encodeURIComponent(entry.jobTitle)}&company=${encodeURIComponent(entry.company || '')}`);
                     }}
-                    className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1 rounded-lg bg-success/10 hover:bg-success/15 transition-colors mt-1.5 w-fit touch-manipulation min-h-[28px]"
+                    className="flex items-center gap-1 text-[11px] text-success font-medium px-2 py-1 rounded-lg bg-success/10 hover:bg-success/15 transition-colors mt-1.5 w-fit touch-manipulation min-h-[44px]"
                   >
                     <Send className="w-3 h-3" /> Mark as Applied
                   </button>
