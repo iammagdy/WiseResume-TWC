@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic } from 'lucide-react';
+import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,7 @@ import { estimateOnePageScale } from '@/lib/pdfUtils';
 import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
 import type { ExportProgress } from '@/hooks/useExportProgress';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 
 interface ExportOptionsSheetProps {
   open: boolean;
@@ -43,6 +44,7 @@ export function ExportOptionsSheet({
 }: ExportOptionsSheetProps) {
   const { pdfDefaults } = useSettingsStore();
   const navigate = useNavigate();
+  const { isOnline } = useNetworkStatus();
   
   const [selectedType, setSelectedType] = useState<ExportType>('resume');
   const [showPageNumbers, setShowPageNumbers] = useState(pdfDefaults.showPageNumbers ?? true);
@@ -309,6 +311,16 @@ export function ExportOptionsSheet({
               </div>
               <Progress value={exportProgress.progress} className="h-2" />
             </div>
+          )}
+
+          {/* Offline warning for network-required exports */}
+          {!isOnline && (selectedType === 'combined' || selectedType === 'cover-letter') && (
+            <Alert>
+              <WifiOff className="h-4 w-4" />
+              <AlertDescription className="text-sm">
+                You're offline. This export requires an internet connection. PDF and DOCX exports still work offline.
+              </AlertDescription>
+            </Alert>
           )}
 
           {/* Export button */}

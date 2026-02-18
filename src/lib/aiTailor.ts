@@ -156,6 +156,12 @@ export async function tailorResumeWithProgress(
   } catch (error) {
     clearInterval(progressInterval);
     clearTimeout(slowTimer);
+    // Tag offline errors so callers can show a specific, calming message
+    if (!navigator.onLine && error instanceof Error && !error.message.includes('offline')) {
+      const e = new Error("You're offline — AI features need an internet connection. Your resume content is safe.") as TailorError;
+      e.code = 'generic';
+      throw e;
+    }
     throw error;
   }
 }

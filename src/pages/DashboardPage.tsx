@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap, CheckSquare, X, Trash2 } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap, CheckSquare, X, Trash2, WifiOff } from 'lucide-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ export default function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading: authLoading, session } = useAuth();
   const { isMigrating } = useGuestMigration(session);
-  const { data: resumes, isLoading: resumesLoading, refetch } = useResumes();
+  const { data: resumes, isLoading: resumesLoading, isError: resumesError, refetch } = useResumes();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
@@ -638,6 +638,23 @@ export default function DashboardPage() {
             {isLoading ? (
               <div className="px-4">
                 <SkeletonCardList count={3} />
+              </div>
+            ) : resumesError && !resumes && !navigator.onLine ? (
+              /* Offline and no cached data — show specific offline state */
+              <div className="flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                  <WifiOff className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-1">You're offline</h3>
+                  <p className="text-sm text-muted-foreground">Connect to the internet to load your resumes.</p>
+                </div>
+                <button
+                  onClick={() => refetch()}
+                  className="text-sm text-primary hover:underline min-h-[44px] touch-manipulation flex items-center"
+                >
+                  Retry
+                </button>
               </div>
             ) : !resumes || resumes.length === 0 ? (
               <>

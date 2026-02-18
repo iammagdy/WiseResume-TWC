@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, User, Phone } from 'lucide-react';
+import { Mail, Lock, Loader2, ArrowLeft, Eye, EyeOff, User, Phone, WifiOff } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { InputFormField } from '@/components/ui/form-field';
@@ -33,6 +33,7 @@ export default function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSlowConnection, setIsSlowConnection] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
   const [touched, setTouched] = useState<{ email: boolean; password: boolean; confirmPassword: boolean; fullName: boolean; phoneNumber: boolean }>({
     email: false,
@@ -109,7 +110,18 @@ export default function AuthPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs()) return;
+
+    // Immediate offline guard
+    if (!navigator.onLine) {
+      toast.error("You're offline — please check your connection and try again.");
+      return;
+    }
+
     setIsLoading(true);
+    setIsSlowConnection(false);
+
+    // Show slow-connection hint after 15s
+    const slowTimer = setTimeout(() => setIsSlowConnection(true), 15_000);
 
     try {
       if (mode === 'login') {
@@ -155,9 +167,15 @@ export default function AuthPage() {
           setMode('login');
         }
       }
-    } catch {
-      toast.error('An unexpected error occurred.');
+    } catch (err) {
+      const isNetworkErr = err instanceof Error &&
+        (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
+      toast.error(isNetworkErr
+        ? 'Connection failed — check your network and try again.'
+        : 'Something went wrong. Please try again.');
     } finally {
+      clearTimeout(slowTimer);
+      setIsSlowConnection(false);
       setIsLoading(false);
     }
   };
@@ -402,6 +420,18 @@ export default function AuthPage() {
                     isLogin ? 'Sign In' : 'Create Account'
                   )}
                 </Button>
+
+                {/* Slow-connection hint (appears after 15s of loading) */}
+                {isSlowConnection && isLoading && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground text-center"
+                  >
+                    <WifiOff className="w-3 h-3" />
+                    This is taking longer than usual — please check your connection.
+                  </motion.p>
+                )}
               </form>
 
               {/* Social Divider */}

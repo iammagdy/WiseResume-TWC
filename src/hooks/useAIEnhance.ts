@@ -108,7 +108,9 @@ export function useAIEnhance({ section, onApply }: UseAIEnhanceOptions) {
     } catch (error) {
       clearTimeout(slowTimer);
       console.error('AI enhancement error:', error);
-      if (isTimeoutError(error)) {
+      if (!navigator.onLine) {
+        toast.warning("You're offline — AI features need an internet connection. Your resume content is safe.");
+      } else if (isTimeoutError(error)) {
         toast.warning('The request timed out. Please try again.');
       } else {
         toast.error('Failed to enhance content. Please try again.');
