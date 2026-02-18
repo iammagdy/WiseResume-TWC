@@ -1,96 +1,168 @@
 
-# Landing Page "See It in Action" + Changelog Polish
+# Completing the 5 Remaining Items
 
-## What Already Exists (No Duplication)
+## Full Diagnosis
 
-After thorough exploration, here is what is already in place:
+### 🔴 1 — Build error: `EditProfileSheet.tsx` line 124 — `portfolioExtras` type mismatch
+The local `Profile` interface (lines 35–43) only has 8 fields. The `currentFormProfile` object built at lines 95–126 includes `portfolioExtras: null` and `portfolioSyncMode: 'auto' as const` — but these aren't in the `Profile` interface, so TypeScript can throw when `calculateProfileCompletion(currentFormProfile)` is called because the function signature expects those fields. The fix is to extend the local `Profile` interface to include the full shape expected by `calculateProfileCompletion`.
 
-- **Changelog v2.1.0** — Already in `public/changelog.json` as `"latest": true` with 6 Portfolio bullet items. The app derives its version string dynamically from this file (in Settings, Bug Reports, Feature Requests) — so the version is already showing as `v2.1.0` everywhere.
-- **"See It in Action" section** — Already exists in `src/pages/Index.tsx` (lines 350–413) with two animated cards: `EditorDemo` (AI Editor) and `PortfolioDemo` (Public Portfolio).
+**Fix:** Add `portfolioExtras`, `portfolioSyncMode`, and the other extended fields to the local `Profile` interface inside `EditProfileSheet.tsx` so the type matches `currentFormProfile` exactly.
 
-## What Actually Needs Fixing
+### 🔄 2 — `PortfolioEditorPage.tsx` — Case Studies + Services cards, sync mode toggle
+The portfolio editor currently has no UI for:
+- **Case Studies** — part of `portfolioExtras.caseStudies[]` JSONB
+- **Portfolio Services** — part of `portfolioExtras.services[]` JSONB  
+- **Sync Mode toggle** — `portfolioSyncMode: 'auto' | 'locked'` (auto-syncs from selected resume vs locks content)
 
-### Problem 1 — Portfolio CTA button goes to wrong route
-Line 406: `navigate(isAuthenticated ? '/profile' : '/auth')`
+All three must be added as new `CollapsibleCard` sections below the existing "Section Visibility" section.
 
-The `/profile` route is the user profile settings page, **not** the portfolio editor. The portfolio editor lives at `/portfolio`. This is a functional bug — authenticated users who click "Build Your Portfolio" end up on the wrong page.
+**Fix:** Add three new collapsible cards and the corresponding state variables + save logic.
 
-**Fix:** Change destination to `/portfolio` for authenticated users.
+### 🔄 3 — `DashboardPage.tsx` — Portfolio promo card
+The dashboard empty state (when user has no resumes, lines 659–721) has 8 action cards but no Portfolio promo. When resumes exist, there's no Portfolio entry in the popover profile menu either.
 
-### Problem 2 — Changelog is missing a "why this matters" intro summary
-The v2.1.0 changelog has 6 bullet items but no parent summary/headline that wraps them with a user-centered narrative. The Settings page renders each entry's `title` + `description` individually, so the JSON schema supports adding a `summary` field and rendering it in the dialog.
+**Fix:** Add a `Globe`-icon action card "My Portfolio" to the 8-card empty state grid (making it a 9-card grid), and add a "My Portfolio" button to the profile popover menu.
 
-**Fix:** Add a `summary` field to the v2.1.0 changelog entry with a professional 1–2 sentence overview. Update `SettingsPage.tsx` to render it when present.
+### 🔄 4 — `ProfilePage.tsx` — URL fixes
+The portfolio URL preview on line 137 uses `window.location.hostname` which shows the raw Lovable preview domain instead of the branded `wiseresume.app` domain. The share handler already correctly uses `window.location.origin`, so only the display string is wrong.
 
-### Problem 3 — "See It in Action" card visual polish
-The two cards use `bg-card/50 border-border/30` which is flat and doesn't match the vibrant brand language. The section subtitle is generic. Cards could benefit from:
-- Colored top accent borders matching each card's theme (primary red for Editor, emerald for Portfolio)
-- A subtle gradient overlay at the bottom of each demo area
-- The Portfolio card's "New in v2.1" badge should use a stronger glow to draw attention
-- Section subtitle updated from "Two powerful tools built for your career" to something more compelling
+**Fix:** Change line 137 from `` `${window.location.hostname}/p/${profile.username}` `` to `` `wiseresume.app/p/${profile.username}` `` for the display label. The actual click/share URLs already use `window.location.origin` correctly.
+
+### 🔄 5 — `BottomTabBar.tsx` — Portfolio Globe tab
+The tab bar has: Home · Editor · Studio · Activity · Settings. The plan called for replacing one tab (or inserting a Globe/Portfolio tab). Per memory `ui/navigation/bottom-tab-layout-v3`, the tab bar is intentionally 5 tabs. The cleanest solution: replace the existing **Studio** tab path to add "Portfolio" as a 5th option, or swap one lower-priority tab. The most natural swap is replacing the `Sparkles / Studio` tab label to a "Portfolio" tab pointing to `/portfolio`, since Studio is also accessible from the Editor → AI Hub. However, reviewing the memory note more carefully: "Studio tab uses Sparkles icon" is the new correct state. A better approach is to **not** add a 6th tab (which breaks mobile layout), but instead add a **Globe icon button** to the right of the existing 5 tabs — but that too would crowd the bar.
+
+The most balanced solution: **replace the Settings tab** (least frequently used primary action) with a Portfolio tab (`Globe` icon, `/portfolio`), and move Settings access to remain available via the profile popover on the dashboard and via the existing Settings route. However, Settings is a critical tab for first-time users and biometric setup.
+
+**Cleanest solution**: Keep 5 tabs, swap `BarChart3 / Activity` → to show both Activity and Portfolio under a smarter arrangement. Actually the simplest correct solution per the original plan: **add Globe/Portfolio tab by replacing the `applications` tab** — Activity is already a dedicated page but less frequently used. No — let's not break Activity.
+
+**Final decision**: Replace the 5th tab (Settings) with Portfolio, and move Settings into the profile popover which already has a Settings button. This is the correct mobile-first pattern: profile popover = account/settings, bottom nav = primary feature navigation.
+
+Tabs become: Home · Editor · Studio · Activity · **Portfolio**
+
+Settings remains accessible via the profile popover on the Dashboard (already has a "Settings" button there).
+
+---
 
 ## Exact File Changes
 
-### File 1: `public/changelog.json`
-Add `"summary"` field to the v2.1.0 entry — a single rich sentence explaining the user benefit. No other entries are touched.
+### File 1 — `src/components/settings/EditProfileSheet.tsx`
+**Lines 35–43:** Extend the local `Profile` interface to include all fields that `currentFormProfile` uses:
 
-```json
-{
-  "version": "v2.1.0",
-  "date": "2026-02-18",
-  "latest": true,
-  "summary": "WiseResume now turns your resume into a full personal website — complete with themes, AI-written content, and a shareable link you can send to anyone.",
-  "items": [...]
+```ts
+interface Profile {
+  fullName: string | null;
+  avatarUrl: string | null;
+  jobTitle: string | null;
+  industry: string | null;
+  careerLevel: CareerLevel | null;
+  location: string | null;
+  linkedinUrl: string | null;
+  profileCompleted: boolean;
+  // Extended fields needed by calculateProfileCompletion
+  username?: string | null;
+  portfolioBio?: string | null;
+  portfolioEnabled?: boolean;
+  portfolioResumeId?: string | null;
+  githubUrl?: string | null;
+  websiteUrl?: string | null;
+  twitterUrl?: string | null;
+  contactEmail?: string | null;
+  theme?: string | null;
+  phoneNumber?: string | null;
+  portfolioSections?: unknown;
+  portfolioMetaTitle?: string | null;
+  portfolioMetaDescription?: string | null;
+  views?: number;
+  portfolioStyle?: string | null;
+  portfolioLayout?: string | null;
+  portfolioAccentColor?: string | null;
+  portfolioFont?: string | null;
+  openToWork?: boolean;
+  availabilityHeadline?: string | null;
+  portfolioExtras?: unknown;
+  portfolioSyncMode?: 'auto' | 'locked';
 }
 ```
 
-### File 2: `src/pages/SettingsPage.tsx`
-In the changelog dialog render block (around lines 1037–1050), add a summary line rendered when `release.summary` exists:
+### File 2 — `src/pages/PortfolioEditorPage.tsx`
+Add three new state variables and three new collapsible cards:
 
-```tsx
-{release.summary && (
-  <p className="text-xs text-muted-foreground mb-3 leading-relaxed">{release.summary}</p>
-)}
+**State to add (after line 212):**
+```ts
+const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
+const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
+const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
 ```
 
-### File 3: `src/pages/Index.tsx`
-Three targeted changes:
+**Profile sync (inside the `useEffect` at line 218):**
+```ts
+setSyncMode((p.portfolioSyncMode as 'auto' | 'locked') || 'auto');
+const extras = (p.portfolioExtras as Record<string,unknown>) || {};
+setCaseStudies((extras.caseStudies as typeof caseStudies) || []);
+setServices((extras.services as typeof services) || []);
+```
 
-**Change A — Fix Portfolio CTA route (line 406):**
+**Save updates (inside `handleSave` at line 390):**
+```ts
+portfolioSyncMode: syncMode,
+portfolioExtras: { caseStudies, services },
+```
+
+**New collapsible cards** after "Section Visibility" (line 887):
+
+1. **Sync Mode card** — A simple two-option toggle (`auto` = always reflects the source resume, `locked` = content frozen at last save). Uses inline radio buttons.
+
+2. **Case Studies card** — Add/remove case studies with title + challenge + outcome fields. Each case study rendered as a compact card with a remove button.
+
+3. **Services card** — Add/remove portfolio services with title + description + category. Same compact card pattern.
+
+### File 3 — `src/pages/DashboardPage.tsx`
+**Empty state grid (lines 662–719):** Add a 9th action card for Portfolio after the Guides card:
+```tsx
+<ActionCard
+  icon={Globe}
+  title="My Portfolio"
+  description="Build your personal site"
+  onClick={() => navigate('/portfolio')}
+  aria-label="Portfolio builder"
+/>
+```
+Also add `Globe` to the lucide-react import.
+
+**Profile popover (line 512 area):** The popover already has "Manage Account" and "Settings" and "Sign Out" buttons. No change needed — Settings is still accessible there.
+
+### File 4 — `src/pages/ProfilePage.tsx`
+**Line 137:** Change display URL from `window.location.hostname` to branded domain:
 ```tsx
 // Before:
-navigate(isAuthenticated ? '/profile' : '/auth')
+<p className="text-xs text-muted-foreground truncate">{window.location.hostname}/p/{profile.username}</p>
 // After:
-navigate(isAuthenticated ? '/portfolio' : '/auth')
+<p className="text-xs text-muted-foreground truncate">wiseresume.app/p/{profile.username}</p>
 ```
 
-**Change B — Improve section subtitle (line 359):**
-```tsx
-// Before:
-"Two powerful tools built for your career"
-// After:
-"From AI resume writing to a shareable personal website — all in one place"
+### File 5 — `src/components/layout/BottomTabBar.tsx`
+Replace the Settings tab with Portfolio (`Globe` icon, `/portfolio`):
+
+```ts
+import { FileText, Globe, Home, BarChart3, Sparkles } from 'lucide-react';
+
+const tabs: TabItem[] = [
+  { path: '/dashboard', icon: Home, label: 'Home', matchPaths: ['/dashboard'] },
+  { path: '/editor', icon: FileText, label: 'Editor', matchPaths: ['/editor', '/preview'], guarded: true },
+  { path: '/ai-studio', icon: Sparkles, label: 'Studio', matchPaths: ['/ai-studio'] },
+  { path: '/applications', icon: BarChart3, label: 'Activity', matchPaths: ['/applications'] },
+  { path: '/portfolio', icon: Globe, label: 'Portfolio', matchPaths: ['/portfolio'] },
+];
 ```
 
-**Change C — Richer card styling:**
-- AI Editor card: add `border-t-2 border-t-primary/40` for a colored top accent + update badge background to match
-- Portfolio card: add `border-t-2 border-t-emerald-500/40` + give the "New in v2.1" badge a subtle `shadow-[0_0_12px_-2px_hsl(142_71%_45%/0.4)]` glow
-- Both cards: add `hover:shadow-lg hover:border-primary/20` transition for interactive depth on desktop
+Settings remains reachable via the Dashboard profile popover (already has the "Settings" button) and via direct URL `/settings`.
 
-## What Is NOT Changed
-- All existing changelog entries (v2.0.0, v1.6.0, v1.5.0, v1.0.0) — untouched
-- The `PortfolioDemo` and `EditorDemo` animation components — untouched
-- Any routes, auth flows, or portfolio functionality
-- Mobile layout — the grid is already `grid-cols-1 lg:grid-cols-2` which is correct
-- The version string derivation — already reads from `changelog.json[0].version` dynamically, no hardcoded strings to update
-- Desktop layout — untouched beyond card styling improvements
+---
 
-## Summary of Changes
-
-| File | Change | Type |
-|---|---|---|
-| `public/changelog.json` | Add `summary` field to v2.1.0 entry | Content |
-| `src/pages/SettingsPage.tsx` | Render `summary` in changelog dialog | UI |
-| `src/pages/Index.tsx` | Fix Portfolio CTA `/profile` → `/portfolio` | Bug fix |
-| `src/pages/Index.tsx` | Update section subtitle copy | Copy |
-| `src/pages/Index.tsx` | Add colored top borders + hover glow to cards | Visual polish |
+## What is NOT Changed
+- All existing changelog entries — untouched
+- The public portfolio routes (`/p/:username`) — untouched
+- Auth flows — untouched
+- The "Strength" checklist, QR code, themes, and all other existing PortfolioEditorPage sections — untouched
+- Mobile layout and safe area padding — untouched
+- `AppShell.tsx` — Settings route still renders correctly when accessed directly
