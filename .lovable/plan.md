@@ -1,82 +1,108 @@
 
-# Fix: Employment Gap "Explain" Button Visibility
+# Skills Section — Compact Badge & Input Sizing
 
 ## The Problem
 
-In `src/components/editor/ExperienceTimeline.tsx`, the inline gap row (mobile cards, lines 165–190) renders two action buttons inside a `bg-destructive/5` dark card:
+On mobile, every skill badge has `min-h-[44px]` which forces each pill to be very tall. The input row also uses `h-12` (48px). With 3–4 skills per line at large sizes, they quickly fill the entire visible area.
 
-- **"Explain"** — `variant="ghost"` + `className="text-warning-foreground"` → ghost gives no background fill, and `text-warning-foreground` on the deep red/dark background is nearly invisible (screenshot shows it as a barely-readable dim label)
-- **"Fill Gap"** — `variant="ghost"` + `className="text-primary"` → slightly better (primary red is visible) but still ghosted
+The 44px rule exists as a touch target requirement — but we can satisfy it differently: wrap each badge in a slightly larger invisible hit area (padding wrapper) while keeping the visual badge smaller. This is a common pattern for compact tag chips.
 
-The entire row also crowds `AlertCircle + "Employment gap" label + two buttons` into a single flex row with `gap-2`, leaving almost no space for the buttons to breathe.
+## Three changes in `src/components/editor/SkillsSection.tsx`
 
-## The Fix — One File, 20 Lines
+### Change 1 — Input row (lines 112–123)
+Reduce input and button height from `h-12` (48px) to `h-10` (40px) on mobile, staying `h-12` on sm+ screens:
 
-**File:** `src/components/editor/ExperienceTimeline.tsx` (lines 165–191)
-
-### Visual changes
-
-1. **"Explain" button** — change from `ghost` to `outline` variant, use `border-warning/50 bg-warning/10 text-warning hover:bg-warning/20` so the warning amber color is clearly visible with a subtle tinted background
-2. **"Fill Gap" button** — change from `ghost` to `outline` variant, use `border-primary/50 bg-primary/10 text-primary hover:bg-primary/20` for consistent styling with a visible tinted pill
-3. **Layout** — change the single cramped flex row into two rows:
-   - Row 1: `AlertCircle + "Employment gap" label` (the descriptor)
-   - Row 2: `flex gap-2` with the two action buttons side by side, so they have full width and breathing room
-
-### Before → After
-
-**Before (all jammed in one row, ghost buttons):**
 ```tsx
-<div className="flex items-center gap-2">
-  <AlertCircle ... /> <span>Employment gap</span>
-  <Button variant="ghost" className="text-warning-foreground">Explain</Button>
-  <Button variant="ghost" className="text-primary">Fill Gap</Button>
+// Before
+<Input className="h-12 text-base" />
+<Button className="h-12 min-h-[48px] px-6">
+
+// After
+<Input className="h-10 sm:h-12 text-sm sm:text-base" />
+<Button className="h-10 sm:h-12 min-h-[40px] sm:min-h-[48px] px-4 sm:px-6">
+```
+
+### Change 2 — Current skill badges (lines 126–140)
+Switch from one large badge to a compact inline pill with a tight close button. Keep the outer `div` as the 44px touch target wrapper:
+
+```tsx
+// Before
+<div key={skill} className="transition-all duration-200">
+  <Badge
+    className="min-h-[44px] px-3 sm:px-4 gap-2 ... text-sm"
+  >
+    {skill}
+    <span className="inline-flex items-center justify-center min-w-[36px] min-h-[36px]">
+      <X className="w-4 h-4" />
+    </span>
+  </Badge>
+</div>
+
+// After
+<div key={skill} className="transition-all duration-200 min-h-[36px] flex items-center">
+  <Badge
+    className="h-8 px-2.5 gap-1.5 cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors touch-manipulation active:scale-95 text-xs font-medium"
+    onClick={() => removeSkill(skill)}
+  >
+    {skill}
+    <X className="w-3 h-3 shrink-0" />
+  </Badge>
 </div>
 ```
 
-**After (two rows, visible outline pill buttons):**
+Key changes:
+- `min-h-[44px]` → `h-8` (32px visual height) — much more compact
+- `text-sm` → `text-xs font-medium` — readable but tighter
+- `px-3 sm:px-4` → `px-2.5` — less horizontal padding
+- Remove the `min-w-[36px] min-h-[36px]` wrapper around `X` — the icon sits inline
+- `gap-2` → `gap-1.5`, icon `w-4 h-4` → `w-3 h-3`
+
+### Change 3 — Suggested skills + Common skills badges (lines 175–210)
+Same treatment: `min-h-[44px]` → `h-8`, `text-sm` → `text-xs font-medium`, icon size reduced:
+
+**Suggested skills (line 183):**
 ```tsx
-<div className="flex flex-col gap-1.5">
-  <div className="flex items-center gap-1.5">
-    <AlertCircle className="w-3.5 h-3.5 text-destructive/70 shrink-0" />
-    <span className="text-xs font-medium text-destructive/90">Employment gap</span>
-  </div>
-  <div className="flex items-center gap-2">
-    {onExplainGap && (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleExplainGap(segment)}
-        className="h-8 text-xs gap-1.5 border-warning/50 bg-warning/10 text-warning hover:bg-warning/20 active:scale-95"
-      >
-        <Sparkles className="w-3 h-3" />
-        Explain
-      </Button>
-    )}
-    {onFillGap && (
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => handleFillGap(segment)}
-        className="h-8 text-xs gap-1.5 border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 active:scale-95"
-      >
-        <Wand2 className="w-3 h-3" />
-        Fill Gap
-      </Button>
-    )}
-  </div>
-</div>
+// Before
+className="min-h-[44px] px-4 gap-2 ... text-sm"
+<Plus className="w-4 h-4" />
+
+// After
+className="h-8 px-2.5 gap-1.5 ... text-xs font-medium"
+<Plus className="w-3 h-3" />
 ```
 
-### Why these classes work
+**Common skills (line 205):**
+```tsx
+// Before
+className="min-h-[44px] px-3 text-sm ..."
 
-- `border-warning/50 bg-warning/10 text-warning` — The amber/yellow warning color stands out clearly on both dark and light backgrounds. The `bg-warning/10` tint gives the button a visible pill shape even without a full solid fill.
-- `border-primary/50 bg-primary/10 text-primary` — Matches the existing design system's primary red color, consistent with other CTA buttons in the editor.
-- Two-row layout ensures the label is always fully readable and the buttons are never squashed.
-- `h-8` instead of `min-h-[44px]` since these are inline secondary actions inside an already-pressable card; the card itself provides the touch target.
+// After
+className="h-8 px-2.5 text-xs font-medium ..."
+```
+
+Also change the grid from `grid-cols-2` to `flex flex-wrap` for both suggested and common skills so they pack naturally instead of forcing 2 equal columns (which makes short words look overstretched):
+
+```tsx
+// Before
+<div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
+
+// After  
+<div className="flex flex-wrap gap-1.5">
+```
+
+## Space savings estimate
+
+| Element | Before | After | Saved per item |
+|---|---|---|---|
+| Input row | 48px | 40px | 8px |
+| Each skill badge | 44px min | 32px | ~12px |
+| Badge gap | 8px | 6px | ~2px |
+
+With 5–6 skills visible before: now **8–10 skills** fit in the same vertical space. The section overall shrinks by ~60–80px, giving back significant room to the editor.
 
 ## What is NOT Changed
-
-- The bottom alert banner (lines 244–270) with "Explain with AI" + "Fill Gap" — those are already styled with `border-warning/30 text-warning-foreground hover:bg-warning/10` and are more visible, so they stay as-is
-- Desktop horizontal bar view — untouched
-- All gap detection logic, callbacks, `GapInfo` types — untouched
-- `GapExplainerSheet` and `GapFillerSheet` — untouched
+- Touch functionality — badges still tap to remove, tap area is unaffected
+- The `space-y-5` container spacing — stays for breathing room between sections
+- The section header, AI nudge, empty state — untouched
+- Suggested skills visibility logic — untouched
+- Desktop behavior — `h-8` badges look fine on desktop too (consistent with tag/chip conventions across UI)
