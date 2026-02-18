@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } fro
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, ChevronDown, FileText, Mic, FolderDown } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, FileText, Mic, FolderDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
@@ -597,30 +597,23 @@ export default function PreviewPage() {
             <Button
             size="default"
             className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-semibold gradient-primary touch-manipulation shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
-            onClick={handleQuickDownload}
+            onClick={() => setShowExportSheet(true)}
             disabled={isGenerating}>
-
-              {isGenerating ?
-            <>
-                  <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" />
-                  <span className="hidden xs:inline">Generating...</span>
-                  <span className="xs:hidden">...</span>
-                </> :
-
-            <>
-                  <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                  Download
-                </>
-            }
+              <Download className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+              Export CV
             </Button>
             <Button
             size="default"
             variant="outline"
             className="h-10 sm:h-12 px-3 sm:px-4 touch-manipulation"
-            onClick={() => setShowExportSheet(true)}
-            disabled={isGenerating}>
-
-              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5" />
+            onClick={handleQuickDownload}
+            disabled={isGenerating}
+            title="Quick PDF download">
+              {isGenerating ? (
+                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+              )}
             </Button>
           </div>
 
