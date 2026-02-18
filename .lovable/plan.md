@@ -1,47 +1,67 @@
 
-## Mobile Flow Blockers and Confusing Interactions Fix
 
-### Issue 1: AI Intro Tooltip "Got It!" button unreachable on mobile (CRITICAL BLOCKER)
+## Mobile AI UX Polish -- 2 Issues Found
 
-**Screen:** Editor (`/editor`) -- first visit
-**How to reproduce:** Open a resume in the editor for the first time. The AI intro tooltip appears as a full-screen overlay. On 640px height viewports, the "Got It!" button at the bottom of the card is completely hidden behind the PWA install banner (z-40 at bottom-[11.5rem]). The backdrop click to dismiss is also intercepted by the install banner.
+### Audit Summary
 
-**Root cause:** The tooltip card uses `p-6 pt-8` with `mb-6` spacing between sections, making the card too tall. The "Got It!" button and hint text end up behind the install banner overlay.
-
-**Fix:** Increase the tooltip's z-index from `z-50` to `z-[60]` so it renders above the install banner. Also make the card scrollable on very short viewports by adding `max-h-[calc(100dvh-6rem)] overflow-y-auto` to the card container.
-
-**File:** `src/components/editor/AIIntroTooltip.tsx` (lines 19 and 27)
+Tested all AI entry points and flows on 360x640: AI Studio tools grid, chat suggestions, InlineAIButton (section-level), AIEnhanceDialog, AIEnhanceSheet, AIContextualNudge (compact and non-compact), SectionEmptyState AI buttons, and the editor stepper. Most are already solid with 44px+ targets. Found **2 components** with undersized touch targets on AI action buttons.
 
 ---
 
-### Issue 2: Install banner dismiss button below 44px touch target (MEDIUM)
+### Issue 1: AIContextualNudge compact action button and dismiss are tiny (HIGH)
 
-**Screen:** All screens where the install banner appears
-**How to reproduce:** Try to tap the small X button on the install banner. The button is `p-1` (~28px effective area).
+**Screen:** Editor -- appears inside expanded experience entries and other sections when AI suggestions are available.
 
-**Fix:** Increase the dismiss button padding from `p-1` to `p-2` and add `min-w-[44px] min-h-[44px] flex items-center justify-center` for reliable thumb targeting.
+**Problem:** The compact variant's action button is `h-5` (20px) with `text-[10px]` and the dismiss X button is `p-0.5` (~19px effective area). Both are under half the 44px standard. On a phone, these nudges are the primary way users discover and trigger AI improvements on individual resume entries, but the buttons are nearly impossible to tap accurately with a thumb.
 
-**File:** `src/components/pwa/InstallPrompt.tsx` (line 76)
+The non-compact variant's action button is `h-6` (24px) -- also below standard but less critical since the non-compact nudge dismiss button was already fixed to 44px in a prior round.
 
----
+**Fix:**
+- Compact action button: change `h-5 px-2 text-[10px]` to `h-8 px-3 text-xs` (32px height -- a practical compromise that stays inline without blowing out the layout, paired with 12px readable text)
+- Compact dismiss button: change `p-0.5` to `p-2 min-w-[36px] min-h-[36px] flex items-center justify-center` (36px -- compromise for inline layout)
+- Non-compact action button: change `h-6 px-3 text-xs` to `h-8 px-3 text-xs` (32px -- matches compact)
 
-### Issue 3: "Mark as Applied" button below 44px touch target (LOW)
-
-**Screen:** Applications page, Activity Timeline
-**How to reproduce:** In the Activity Timeline, the "Mark as Applied" button has `min-h-[28px]` -- well below the 44px standard.
-
-**Fix:** Change `min-h-[28px]` to `min-h-[44px]` on the button.
-
-**File:** `src/components/applications/ActivityTimeline.tsx` (line 162)
+**File:** `src/components/editor/AIContextualNudge.tsx` (lines 43, 48-49, 66)
 
 ---
 
-### Technical Changes Summary
+### Issue 2: AI Studio chat suggestion chips below 44px (LOW)
 
-| File | Change | Impact |
-|------|--------|--------|
-| `src/components/editor/AIIntroTooltip.tsx` | Increase z-index to z-[60], add max-height + overflow to card | Fixes blocked "Got It!" button |
-| `src/components/pwa/InstallPrompt.tsx` | Increase dismiss X button padding to meet 44px | Touch target compliance |
-| `src/components/applications/ActivityTimeline.tsx` | Change min-h-[28px] to min-h-[44px] | Touch target compliance |
+**Screen:** AI Studio (`/ai-studio`) -- the quick suggestion chips inside the Wise AI Chat card ("Write a summary...", "Add metrics...", "Proofread my resume")
 
-Total: 3 files, 3 surgical line changes. No logic changes, no component removals, desktop unaffected.
+**Problem:** These chips use `min-h-[36px]` which is 8px below the 44px standard. They're the first thing users see and tap in AI Studio to start an AI interaction.
+
+**Fix:** Change `min-h-[36px]` to `min-h-[44px]` on the suggestion chips.
+
+**File:** `src/pages/AIStudioPage.tsx` (line 298)
+
+---
+
+### Components Verified as Working (no changes needed)
+
+| Component | Touch Target | Status |
+|-----------|-------------|--------|
+| InlineAIButton (section AI Assist) | 44px+ via Button component | OK |
+| InlineAIButton mobile sheet actions | 64px min-h | OK |
+| AIEnhanceDialog Apply/Discard | h-12 (48px) | OK |
+| AIEnhanceSheet mode chips | min-h-[44px] | OK |
+| AIEnhanceSheet section checkboxes | min-h-[44px] | OK |
+| AIEnhanceSheet Enhance button | h-12 (48px) | OK |
+| SectionEmptyState AI buttons | min-h-[44px] | OK |
+| AI Studio Featured Tool cards | min-h-[100px] | OK |
+| AI Studio "More AI Tools" grid | min-h-[100px] | OK |
+| AI Studio chat input | Good size | OK |
+| StepperNav mobile dropdown | min-h-[56px] | OK |
+| Non-compact nudge dismiss button | min-w/h-[44px] | OK (already fixed) |
+
+---
+
+### Technical Changes
+
+| File | Change | Lines |
+|------|--------|-------|
+| `src/components/editor/AIContextualNudge.tsx` | Increase compact action button to h-8, compact dismiss to p-2 min-w/h-[36px], non-compact action to h-8 | Lines 43, 48-49, 66 |
+| `src/pages/AIStudioPage.tsx` | Change suggestion chip min-h-[36px] to min-h-[44px] | Line 298 |
+
+Total: 2 files, 4 line changes. No logic changes, no component removals, desktop unaffected.
+
