@@ -506,7 +506,7 @@ export default function PreviewPage() {
             role="radio"
             aria-checked={selectedTemplate === template.id}
             className={cn(
-              'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all snap-center touch-manipulation min-h-[32px]',
+              'flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all snap-center touch-manipulation min-h-[44px]',
               selectedTemplate === template.id ?
               'bg-primary text-primary-foreground' :
               'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -589,7 +589,7 @@ export default function PreviewPage() {
 
         {/* Bottom actions */}
         <motion.div
-        className="shrink-0 px-3 py-2 sm:p-4 glass border-t border-border space-y-1.5 sm:space-y-2 pl-[10px] pr-[10px] pb-[4px] pt-0 mb-0 mt-0"
+        className="shrink-0 px-3 py-2 sm:p-4 glass border-t border-border space-y-1.5 sm:space-y-2 pl-[10px] pr-[10px] pb-[max(8px,env(safe-area-inset-bottom))] pt-1 mb-0 mt-0"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}>
 
@@ -628,7 +628,7 @@ export default function PreviewPage() {
             <Button
             variant="outline"
             size="sm"
-            className="w-auto px-2.5 h-9 sm:h-10 touch-manipulation"
+            className="w-auto px-2.5 h-11 sm:h-11 touch-manipulation"
             onClick={() => navigate('/editor')}>
 
               <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
@@ -638,7 +638,7 @@ export default function PreviewPage() {
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-9 sm:h-10 touch-manipulation"
+            className="flex-1 h-11 sm:h-11 touch-manipulation"
             onClick={handleSaveToFiles}
             disabled={isGenerating}>
 
@@ -649,7 +649,7 @@ export default function PreviewPage() {
             <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-9 sm:h-10 touch-manipulation"
+            className="flex-1 h-11 sm:h-11 touch-manipulation"
             onClick={() => navigate('/interview')}>
 
               <Mic className="sm:w-4 sm:h-4 mr-1 sm:mr-1.5 w-[20px] h-[20px]" />
@@ -658,7 +658,7 @@ export default function PreviewPage() {
             <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-9 sm:h-10 touch-manipulation"
+            className="flex-1 h-11 sm:h-11 touch-manipulation"
             onClick={() => setShowShareSheet(true)}>
 
               <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
