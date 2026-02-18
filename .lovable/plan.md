@@ -1,49 +1,84 @@
 
 
-## Mobile Export/Preview Flow -- 3 Issues Found
+## Mobile Export/Preview Flow -- End-to-End Improvements
 
-### Issue 1: Bottom action bar secondary buttons below 44px touch target (HIGH)
+### What was tested
 
-**Screen:** Preview page (`/preview`) -- bottom action bar
-**Problem:** The secondary row buttons (Edit, Interview, Share, and iOS Save) use `h-9` (36px) -- below the 44px mobile standard. On small phones, users rushing to tap "Share" or "Interview" will misfire. These are critical actions in the final export flow.
+Walked through Dashboard -> Resume Detail -> Editor -> Preview -> Export Options sheet on a 360x800 viewport. Verified: template switching, page break indicators, all 10 export options visible and scrollable, the Download CTA, and secondary actions (Edit, Interview, Share). No console errors found.
 
-**Fix:** Change `h-9 sm:h-10` to `h-11 sm:h-11` (44px) on all secondary action buttons.
+### User Preferences Applied
 
-**File:** `src/pages/PreviewPage.tsx` lines 631, 641, 653, 661
-**Change:** Replace `h-9 sm:h-10` with `h-11 sm:h-11` on the 4 secondary buttons.
-
----
-
-### Issue 2: Bottom action bar lacks safe-area padding on notched devices (HIGH)
-
-**Screen:** Preview page (`/preview`) -- bottom action bar
-**Problem:** The bottom action bar uses `pb-[4px]` with no `pb-safe` utility. On devices with a home indicator (iPhone with notch, newer Android gesture-nav phones), the bottom row of buttons sits directly under the home indicator, making them hard or impossible to tap. The app uses `pb-safe` consistently elsewhere (BottomTabBar, sheets) but the Preview page's custom bottom bar omits it.
-
-**Fix:** Replace `pb-[4px]` with `pb-safe` in the bottom action bar container, and add a minimum fallback padding.
-
-**File:** `src/pages/PreviewPage.tsx` line 592
-**Change:** Replace `pb-[4px] pt-0 mb-0 mt-0` with `pb-[max(8px,env(safe-area-inset-bottom))] pt-1`.
+- Primary CTA: Open Export Options sheet (not quick download)
+- All 10 export options remain visible
+- Button label: "Download CV" instead of "Download"
 
 ---
 
-### Issue 3: Template switcher chips below 44px touch target (MEDIUM)
+### Change 1: Make Export Options the primary CTA (HIGH)
 
-**Screen:** Preview page (`/preview`) -- template quick switcher row
-**Problem:** Template name chips use `min-h-[32px]` -- 12px below the 44px standard. Since there are 30 templates and users scroll horizontally to find the right one, misfire taps switch templates accidentally. This is the only place where users pick their template in the preview flow.
+**Current:** The big pink button says "Download" and triggers a quick PDF download. A small chevron-down button next to it opens the Export Options sheet.
 
-**Fix:** Change `min-h-[32px]` to `min-h-[44px]` on the template selector buttons.
+**Problem:** Users must discover the tiny chevron to access all export formats. The user wants the Export Options sheet to be the primary action.
 
-**File:** `src/pages/PreviewPage.tsx` line 509
-**Change:** Replace `min-h-[32px]` with `min-h-[44px]` in the template button className.
+**Fix:** Swap the button roles:
+- The large primary button becomes "Export CV" and opens the Export Options sheet
+- A smaller secondary button offers "Quick PDF" for power users who just want the default download
+
+**File:** `src/pages/PreviewPage.tsx` (lines 596-625)
+- Change the primary button's onClick from `handleQuickDownload` to `() => setShowExportSheet(true)`, label from "Download" to "Export CV"
+- Change the chevron button to a quick-download button with a Download icon
+
+---
+
+### Change 2: Rename Export sheet CTA to "Download CV" (LOW)
+
+**Current:** The bottom CTA in the ExportOptionsSheet says "Download PDF", "Download DOCX", etc.
+
+**Fix:** Update `getButtonLabel()` so:
+- PDF types say "Download CV" instead of "Download PDF"
+- ATS PDF says "Download CV (ATS)"
+- One-page says "Download CV (1 Page)"
+- Keep DOCX, LinkedIn, plain text labels as-is since they clarify format
+
+**File:** `src/components/editor/ExportOptionsSheet.tsx` (lines 162-172)
+
+---
+
+### Change 3: Export sheet footer options jump when scrolling (MEDIUM)
+
+**Current:** The "Page Numbers" and "WiseResume Badge" toggle section sits between the scrollable list and the CTA button. When users scroll the option list, the toggles and CTA stay in view -- this is correct. However, the toggles appear/disappear based on selected type, causing a layout jump.
+
+**Fix:** Always render the toggle container (with a consistent height) but only show toggle content when relevant. Use opacity + pointer-events instead of conditional rendering so the layout doesn't jump. This is a small CSS-only change.
+
+**File:** `src/components/editor/ExportOptionsSheet.tsx` (lines 260-296)
+- Wrap the toggle section in a container that always takes space but hides content via opacity when not applicable
+
+---
+
+### What Passed (No changes needed)
+
+| Area | Status |
+|------|--------|
+| Template switcher chips (44px) | OK |
+| Bottom action bar safe-area | OK |
+| Secondary buttons (Edit/Interview/Share at 44px) | OK |
+| Export sheet scrollability | OK |
+| All 10 export options visible | OK |
+| Export progress bar | OK |
+| Error toasts with retry | OK |
+| iOS share/save-to-files flow | OK |
+| Android anchor download | OK |
+| Page break indicators | OK |
+| PDF generation (no console errors) | OK |
 
 ---
 
 ### Technical Changes Summary
 
-| File | Line(s) | Change | Impact |
-|------|---------|--------|--------|
-| `src/pages/PreviewPage.tsx` | 509 | Template chip `min-h-[32px]` to `min-h-[44px]` | Touch target compliance |
-| `src/pages/PreviewPage.tsx` | 592 | Bottom bar `pb-[4px] pt-0` to `pb-[max(8px,env(safe-area-inset-bottom))] pt-1` | Safe area on notched devices |
-| `src/pages/PreviewPage.tsx` | 631, 641, 653, 661 | Secondary buttons `h-9 sm:h-10` to `h-11 sm:h-11` | Touch target compliance |
+| File | Change | Lines |
+|------|--------|-------|
+| `src/pages/PreviewPage.tsx` | Swap primary button to open Export sheet; secondary becomes quick PDF | ~596-625 |
+| `src/components/editor/ExportOptionsSheet.tsx` | Rename CTA labels to "Download CV" variants; stabilize toggle layout | ~162-172, ~260-296 |
 
-Total: 1 file, 6 line changes. No logic changes, no export flow changes, desktop unaffected.
+Total: 2 files, surgical changes only. No export logic, PDF generation, or download utility changes. No component removals. Desktop unaffected.
+
