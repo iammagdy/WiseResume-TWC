@@ -6,8 +6,11 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, ...props }, ref) => {
   return (
-    <textarea
-      className={cn(
+      <textarea
+        spellCheck={true}
+        autoCorrect="on"
+        autoCapitalize="sentences"
+        className={cn(
         "flex min-h-[120px] sm:min-h-[80px] w-full rounded-xl glass-input px-3 py-2 text-[16px] leading-relaxed ring-offset-background placeholder:text-muted-foreground/60 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 transition-all",
         className,
       )}

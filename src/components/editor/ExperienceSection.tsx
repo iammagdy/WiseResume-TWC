@@ -247,6 +247,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
                               onChange={(e) => updateExperience(exp.id, { position: e.target.value })}
                               placeholder="Job Title"
                               className="h-12"
+                              autoComplete="organization-title"
                             />
                           </div>
                           <div>
@@ -259,6 +260,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
                               onChange={(e) => updateExperience(exp.id, { company: e.target.value })}
                               placeholder="Company Name"
                               className="h-12"
+                              autoComplete="organization"
                             />
                           </div>
                         </div>
@@ -274,6 +276,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
                               onChange={(e) => updateExperience(exp.id, { startDate: e.target.value })}
                               placeholder="Jan 2020"
                               className="h-12"
+                              autoComplete="off"
+                              autoCapitalize="words"
                             />
                           </div>
                           <div>
@@ -287,6 +291,8 @@ export const ExperienceSection = memo(function ExperienceSection() {
                               placeholder="Present"
                               disabled={exp.current}
                               className="h-12"
+                              autoComplete="off"
+                              autoCapitalize="words"
                             />
                           </div>
                         </div>

@@ -451,6 +451,7 @@ export function EditProfileSheet({
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       className="bg-background"
+                      autoComplete="name"
                     />
                   </div>
 
@@ -465,6 +466,7 @@ export function EditProfileSheet({
                       value={location}
                       onChange={(e) => setLocation(e.target.value)}
                       className="bg-background"
+                      autoComplete="address-level2"
                     />
                   </div>
 
@@ -483,6 +485,9 @@ export function EditProfileSheet({
                         value={linkedinUrl?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '') || ''}
                         onChange={(e) => setLinkedinUrl(`https://linkedin.com/in/${e.target.value.replace(/\s/g, '')}`)}
                         className="pl-[115px] bg-background"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
                       />
                     </div>
                   </div>
@@ -530,6 +535,7 @@ export function EditProfileSheet({
                       value={jobTitle}
                       onChange={(e) => setJobTitle(e.target.value)}
                       className="bg-background"
+                      autoComplete="organization-title"
                     />
                   </div>
 

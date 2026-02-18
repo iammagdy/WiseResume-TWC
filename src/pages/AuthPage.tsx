@@ -370,6 +370,7 @@ export default function AuthPage() {
                     <div>
                       <InputFormField
                         id="phoneNumber" label="Phone Number" type="tel"
+                        inputMode="tel"
                         icon={<Phone className="w-4 h-4" />}
                         value={phoneNumber} onChange={setPhoneNumber}
                         onBlur={() => setTouched(prev => ({ ...prev, phoneNumber: true }))}

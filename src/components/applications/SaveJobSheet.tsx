@@ -76,9 +76,9 @@ export function SaveJobSheet({ open, onOpenChange }: Props) {
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto space-y-3 mt-4 min-h-0">
-          <Input placeholder="Job Title *" value={title} onChange={e => setTitle(e.target.value)} />
-          <Input placeholder="Company *" value={company} onChange={e => setCompany(e.target.value)} />
-          <Input placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} />
+          <Input placeholder="Job Title *" value={title} onChange={e => setTitle(e.target.value)} autoComplete="organization-title" />
+          <Input placeholder="Company *" value={company} onChange={e => setCompany(e.target.value)} autoComplete="organization" />
+          <Input placeholder="Location" value={location} onChange={e => setLocation(e.target.value)} autoComplete="address-level2" />
           
           <Select value={jobType} onValueChange={setJobType}>
             <SelectTrigger>
@@ -93,10 +93,10 @@ export function SaveJobSheet({ open, onOpenChange }: Props) {
             </SelectContent>
           </Select>
 
-          <Input placeholder="Salary Range" value={salaryRange} onChange={e => setSalaryRange(e.target.value)} />
+          <Input placeholder="Salary Range" value={salaryRange} onChange={e => setSalaryRange(e.target.value)} inputMode="text" />
           
           <div className="flex gap-2">
-            <Input placeholder="Source URL" value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} className="flex-1" />
+            <Input placeholder="Source URL" value={sourceUrl} onChange={e => setSourceUrl(e.target.value)} className="flex-1" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
             <Button variant="outline" size="icon" onClick={handlePasteUrl} className="shrink-0 min-w-[48px] min-h-[48px]">
               <ClipboardPaste className="w-4 h-4" />
             </Button>

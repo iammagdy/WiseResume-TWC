@@ -114,6 +114,10 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
               <Input
                 id="url"
                 type="url"
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder="https://... (paste to auto-detect details)"
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
@@ -132,6 +136,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
               placeholder="e.g. Software Engineer"
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
+              autoComplete="organization-title"
             />
           </div>
 
@@ -142,6 +147,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
               placeholder="e.g. Google"
               value={company}
               onChange={(e) => setCompany(e.target.value)}
+              autoComplete="organization"
             />
           </div>
 
