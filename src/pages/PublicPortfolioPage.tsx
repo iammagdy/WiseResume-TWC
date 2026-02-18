@@ -8,12 +8,14 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen,
-  Github, Globe, Mail, X, Download, ExternalLink, Loader2, ChevronDown, ChevronUp
+  Github, Globe, Mail, X, Download, ExternalLink, Loader2, ChevronDown, ChevronUp,
+  Wrench, Layers, ArrowUpRight, Code2, Paintbrush, MessageSquare, PenLine, Star
 } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState, useRef } from 'react';
 import { toast } from 'sonner';
 import type { Experience, Education, Project } from '@/types/resume';
+import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -47,26 +49,26 @@ function getThemeVars(style: string, accentColor: string | null, font: string): 
 function PortfolioSkeleton() {
   return (
     <div className="min-h-screen bg-[--pf-bg,#0a0a0f] p-6 space-y-6 max-w-4xl mx-auto">
-      <div className="flex flex-col items-center gap-4 pt-12">
-        <Skeleton className="h-32 w-32 rounded-full" />
-        <Skeleton className="h-9 w-56" />
-        <Skeleton className="h-5 w-40" />
-        <Skeleton className="h-4 w-64" />
+      <div className="flex flex-col items-center gap-4 pt-16">
+        <Skeleton className="h-36 w-36 rounded-full" />
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-6 w-44" />
+        <Skeleton className="h-4 w-72" />
         <div className="flex gap-3">
           <Skeleton className="h-10 w-10 rounded-full" />
           <Skeleton className="h-10 w-10 rounded-full" />
           <Skeleton className="h-10 w-10 rounded-full" />
         </div>
         <div className="flex gap-3">
-          <Skeleton className="h-11 w-32 rounded-full" />
-          <Skeleton className="h-11 w-40 rounded-full" />
+          <Skeleton className="h-12 w-36 rounded-full" />
+          <Skeleton className="h-12 w-44 rounded-full" />
         </div>
       </div>
       <Skeleton className="h-28 w-full rounded-2xl" />
       <div className="space-y-3">
         <Skeleton className="h-6 w-32" />
-        <Skeleton className="h-36 rounded-2xl" />
-        <Skeleton className="h-36 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
       </div>
     </div>
   );
@@ -80,7 +82,7 @@ function NotFound() {
         <div className="text-6xl mb-4">🔍</div>
         <h1 className="text-3xl font-bold text-white">Portfolio Not Found</h1>
         <p className="text-white/60">This portfolio doesn't exist or isn't public yet.</p>
-        <a href="https://wiseresume.lovable.app" className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
+        <a href={window.location.origin} className="inline-flex items-center gap-2 mt-4 px-6 py-3 bg-[#e84545] text-white rounded-full font-medium text-sm hover:bg-[#e84545]/90 transition-colors">
           Create your free portfolio with WiseResume →
         </a>
       </div>
@@ -92,19 +94,20 @@ function NotFound() {
 function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: string; style: string }) {
   if (style === 'classic-clean') {
     return (
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-1 h-7 rounded-full" style={{ backgroundColor: 'var(--pf-accent)' }} />
-        <h2 className="text-lg font-semibold" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{title}</h2>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-1.5 h-8 rounded-full" style={{ backgroundColor: 'var(--pf-accent)' }} />
+        <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{title}</h2>
+        <div className="flex-1 h-px opacity-20" style={{ background: 'var(--pf-fg, #111)' }} />
       </div>
     );
   }
   if (style === 'bold-dark') {
     return (
-      <div className="flex items-center gap-2 mb-5">
-        <span className="text-[var(--pf-accent)] opacity-80">{icon}</span>
-        <h2 className="text-xl font-black tracking-tight" style={{
+      <div className="flex items-center gap-3 mb-6">
+        <span className="text-[var(--pf-accent)]">{icon}</span>
+        <h2 className="text-2xl font-black tracking-tight" style={{
           fontFamily: 'var(--pf-heading-font)',
-          background: `linear-gradient(135deg, var(--pf-accent), color-mix(in srgb, var(--pf-accent) 60%, white))`,
+          background: `linear-gradient(135deg, var(--pf-accent), color-mix(in srgb, var(--pf-accent) 50%, white))`,
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
         }}>{title}</h2>
@@ -113,92 +116,105 @@ function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: s
   }
   // minimal & glass-pro
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <span className="opacity-60" style={{ color: 'var(--pf-accent)' }}>{icon}</span>
-      <h2 className="text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{title}</h2>
+    <div className="flex items-center gap-3 mb-6">
+      <span style={{ color: 'var(--pf-accent)' }}>{icon}</span>
+      <h2 className="text-lg font-bold tracking-tight" style={{ color: 'var(--pf-fg, inherit)', fontFamily: 'var(--pf-heading-font)' }}>{title}</h2>
       <div className="flex-1 h-px" style={{ background: 'var(--pf-border, rgba(255,255,255,0.08))' }} />
     </div>
   );
 }
 
 // ─── Experience Card ──────────────────────────────────────────────────────────
-function ExperienceCard({ exp, style }: { exp: Experience; style: string }) {
+function ExperienceCard({ exp, style, isLast }: { exp: Experience; style: string; isLast: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const hasLongContent = (exp.description?.length ?? 0) > 200 || (exp.achievements?.length ?? 0) > 3;
 
   const cardClass = style === 'bold-dark'
-    ? 'rounded-2xl p-5 space-y-3 border transition-all'
+    ? 'rounded-2xl p-5 space-y-3 border transition-all hover:border-[var(--pf-accent)]/40'
     : style === 'glass-pro'
-    ? 'rounded-2xl p-5 space-y-3 backdrop-blur-sm'
+    ? 'rounded-2xl p-5 space-y-3 backdrop-blur-sm transition-all hover:bg-white/10'
     : style === 'classic-clean'
-    ? 'rounded-none border-l-2 pl-5 py-3 space-y-2'
-    : 'rounded-2xl p-5 space-y-3 border';
+    ? 'pl-5 py-4 space-y-2'
+    : 'rounded-2xl p-5 space-y-3 border transition-all';
 
   const cardStyle: React.CSSProperties = style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', borderColor: 'color-mix(in srgb, var(--pf-accent) 30%, transparent)' }
+    ? { background: 'rgba(255,255,255,0.03)', borderColor: 'color-mix(in srgb, var(--pf-accent) 20%, transparent)' }
     : style === 'glass-pro'
     ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }
     : style === 'classic-clean'
-    ? { borderLeftColor: 'var(--pf-accent)' }
+    ? { borderLeft: '2px solid var(--pf-accent)' }
     : { background: 'var(--pf-card, rgba(255,255,255,0.04))', borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' };
 
   return (
-    <motion.div variants={fadeUp} className={cardClass} style={cardStyle}>
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex-1 min-w-0">
-          <h4 className="font-bold text-base leading-tight" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
-            {exp.position}
-          </h4>
-          <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--pf-accent)' }}>{exp.company}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {exp.current && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--pf-accent) 20%, transparent)', color: 'var(--pf-accent)' }}>
-              NOW
+    <div className="relative">
+      {/* Timeline dot connector */}
+      {style === 'classic-clean' && !isLast && (
+        <div className="absolute left-[-1px] top-full w-[2px] h-4" style={{ background: 'var(--pf-border, #e5e7eb)' }} />
+      )}
+      <motion.div variants={fadeUp} className={cardClass} style={cardStyle}>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            {/* Company logo placeholder circle */}
+            <div className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-xs font-bold"
+              style={{ background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)', color: 'var(--pf-accent)' }}>
+              {exp.company?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-base leading-tight" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
+                {exp.position}
+              </h4>
+              <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--pf-accent)' }}>{exp.company}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {exp.current && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--pf-accent) 20%, transparent)', color: 'var(--pf-accent)' }}>
+                NOW
+              </span>
+            )}
+            <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', color: 'var(--pf-muted, #9ca3af)', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
+              {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
             </span>
-          )}
-          <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', color: 'var(--pf-muted, #9ca3af)', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
-            {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
-          </span>
+          </div>
         </div>
-      </div>
 
-      {exp.description && (
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-          {!expanded && exp.description.length > 200 ? exp.description.slice(0, 200) + '…' : exp.description}
-        </p>
-      )}
+        {exp.description && (
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+            {!expanded && exp.description.length > 200 ? exp.description.slice(0, 200) + '…' : exp.description}
+          </p>
+        )}
 
-      {exp.achievements?.length > 0 && (expanded || !hasLongContent) && (
-        <ul className="space-y-1.5">
-          {(expanded ? exp.achievements : exp.achievements.slice(0, 3)).map((a, i) => (
-            <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-              <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--pf-accent)' }} />
-              {a}
-            </li>
-          ))}
-        </ul>
-      )}
+        {exp.achievements?.length > 0 && (expanded || !hasLongContent) && (
+          <ul className="space-y-1.5">
+            {(expanded ? exp.achievements : exp.achievements.slice(0, 3)).map((a, i) => (
+              <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--pf-accent)' }} />
+                {a}
+              </li>
+            ))}
+          </ul>
+        )}
 
-      {hasLongContent && (
-        <button
-          onClick={() => setExpanded(!expanded)}
-          className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-80"
-          style={{ color: 'var(--pf-accent)' }}
-        >
-          {expanded ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</> : <><ChevronDown className="w-3.5 h-3.5" /> Show more</>}
-        </button>
-      )}
-    </motion.div>
+        {hasLongContent && (
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-80"
+            style={{ color: 'var(--pf-accent)' }}
+          >
+            {expanded ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</> : <><ChevronDown className="w-3.5 h-3.5" /> Show more</>}
+          </button>
+        )}
+      </motion.div>
+    </div>
   );
 }
 
 // ─── Education Card ───────────────────────────────────────────────────────────
 function EducationCard({ edu, style }: { edu: Education; style: string }) {
   const cardStyle: React.CSSProperties = style === 'classic-clean'
-    ? { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem' }
+    ? { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem', paddingTop: '0.75rem', paddingBottom: '0.75rem' }
     : style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
+    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 20%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
     : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
 
   return (
@@ -206,7 +222,7 @@ function EducationCard({ edu, style }: { edu: Education; style: string }) {
       <h4 className="font-bold text-sm" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
         {edu.degree}{edu.field ? ` in ${edu.field}` : ''}
       </h4>
-      <p className="text-sm font-medium" style={{ color: 'var(--pf-accent)' }}>{edu.institution}</p>
+      <p className="text-sm font-semibold" style={{ color: 'var(--pf-accent)' }}>{edu.institution}</p>
       <p className="text-xs" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{edu.startDate} – {edu.endDate}</p>
       {edu.gpa && <p className="text-xs" style={{ color: 'var(--pf-muted, #9ca3af)' }}>GPA: {edu.gpa}</p>}
     </motion.div>
@@ -216,17 +232,26 @@ function EducationCard({ edu, style }: { edu: Education; style: string }) {
 // ─── Project Card ─────────────────────────────────────────────────────────────
 function ProjectCard({ project, style }: { project: Project; style: string }) {
   const cardStyle: React.CSSProperties = style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 30%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
+    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
     : style === 'glass-pro'
     ? { background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.25rem' }
     : style === 'classic-clean'
-    ? { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem', paddingTop: '0.5rem', paddingBottom: '0.5rem' }
+    ? { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem', paddingTop: '0.75rem', paddingBottom: '0.75rem' }
     : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
 
   return (
-    <motion.div variants={fadeUp} style={cardStyle} className="space-y-3">
+    <motion.div variants={fadeUp} style={cardStyle} className="space-y-3 group">
       <div>
-        <h4 className="font-bold text-base" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{project.name}</h4>
+        {project.url ? (
+          <a href={project.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-bold text-base transition-opacity hover:opacity-80"
+            style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
+            {project.name}
+            <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--pf-accent)' }} />
+          </a>
+        ) : (
+          <h4 className="font-bold text-base" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{project.name}</h4>
+        )}
         {project.role && <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--pf-accent)' }}>{project.role}</p>}
       </div>
       {project.description && (
@@ -235,26 +260,26 @@ function ProjectCard({ project, style }: { project: Project; style: string }) {
       {project.technologies?.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {project.technologies.map((t, i) => (
-            <span key={i} className="text-xs px-2.5 py-0.5 rounded-full font-medium" style={{
-              background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)',
+            <span key={i} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{
+              background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
               color: 'var(--pf-accent)',
-              border: '1px solid color-mix(in srgb, var(--pf-accent) 30%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)',
             }}>{t}</span>
           ))}
         </div>
       )}
       {(project.url || project.githubUrl) && (
-        <div className="flex gap-3">
+        <div className="flex gap-2 flex-wrap">
           {project.url && (
             <a href={project.url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full transition-opacity hover:opacity-80"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-85"
               style={{ background: 'var(--pf-accent)', color: '#fff' }}>
-              <ExternalLink className="w-3 h-3" /> Live
+              <ExternalLink className="w-3 h-3" /> Live Demo
             </a>
           )}
           {project.githubUrl && (
             <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full border transition-opacity hover:opacity-80"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all hover:opacity-85"
               style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.15))', color: 'var(--pf-fg, inherit)' }}>
               <Github className="w-3 h-3" /> GitHub
             </a>
@@ -265,14 +290,173 @@ function ProjectCard({ project, style }: { project: Project; style: string }) {
   );
 }
 
+// ─── Case Study Card ──────────────────────────────────────────────────────────
+function CaseStudyCard({ cs, style }: { cs: CaseStudy; style: string }) {
+  const cardStyle: React.CSSProperties = style === 'bold-dark'
+    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 30%, transparent)', borderRadius: '1rem', padding: '1.5rem' }
+    : style === 'glass-pro'
+    ? { background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '1rem', padding: '1.5rem' }
+    : style === 'classic-clean'
+    ? { borderLeft: '3px solid var(--pf-accent)', paddingLeft: '1.5rem', paddingTop: '1rem', paddingBottom: '1rem', borderRadius: '0 0.75rem 0.75rem 0', background: 'var(--pf-card, #f9f9f9)' }
+    : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.5rem' };
 
+  return (
+    <motion.div variants={fadeUp} style={cardStyle} className="space-y-4 relative">
+      {/* Tag */}
+      <div className="absolute top-4 right-4">
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+          style={{ background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)', color: 'var(--pf-accent)', border: '1px solid color-mix(in srgb, var(--pf-accent) 30%, transparent)' }}>
+          Case Study
+        </span>
+      </div>
 
+      <div className="pr-20">
+        {cs.url ? (
+          <a href={cs.url} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-bold text-lg transition-opacity hover:opacity-80 group"
+            style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
+            {cs.title}
+            <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100" style={{ color: 'var(--pf-accent)' }} />
+          </a>
+        ) : (
+          <h4 className="font-bold text-lg" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{cs.title}</h4>
+        )}
+      </div>
+
+      {cs.challenge && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--pf-accent)' }}>Challenge</p>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cs.challenge}</p>
+        </div>
+      )}
+
+      {cs.outcome && (
+        <div className="space-y-1.5">
+          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--pf-accent)' }}>Outcome</p>
+          <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cs.outcome}</p>
+        </div>
+      )}
+
+      {cs.technologies?.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {cs.technologies.map((t, i) => (
+            <span key={i} className="text-xs px-2.5 py-1 rounded-full font-medium"
+              style={{ background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)', color: 'var(--pf-accent)', border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)' }}>
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Service Card ─────────────────────────────────────────────────────────────
+const SERVICE_ICONS: Record<string, React.ReactNode> = {
+  development: <Code2 className="w-5 h-5" />,
+  design: <Paintbrush className="w-5 h-5" />,
+  consulting: <MessageSquare className="w-5 h-5" />,
+  writing: <PenLine className="w-5 h-5" />,
+  other: <Star className="w-5 h-5" />,
+};
+
+function ServiceCard({ service, style }: { service: PortfolioService; style: string }) {
+  const cardStyle: React.CSSProperties = style === 'bold-dark'
+    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 20%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
+    : style === 'glass-pro'
+    ? { background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.25rem' }
+    : style === 'classic-clean'
+    ? { background: 'var(--pf-card, #f9f9f9)', border: '1px solid var(--pf-border, #e5e7eb)', borderRadius: '1rem', padding: '1.25rem' }
+    : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
+
+  return (
+    <motion.div variants={fadeUp} style={cardStyle} className="space-y-3">
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+        style={{ background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)', color: 'var(--pf-accent)' }}>
+        {SERVICE_ICONS[service.category] || SERVICE_ICONS.other}
+      </div>
+      <div>
+        <h4 className="font-bold text-sm" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{service.title}</h4>
+        {service.startingPrice && (
+          <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--pf-accent)' }}>
+            From {service.startingPrice}
+          </p>
+        )}
+      </div>
+      {service.description && (
+        <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+          {service.description.slice(0, 100)}{service.description.length > 100 ? '…' : ''}
+        </p>
+      )}
+    </motion.div>
+  );
+}
+
+// ─── Sticky Header ────────────────────────────────────────────────────────────
+function StickyHeader({
+  name, avatarUrl, initials, contactEmail, accentColor, visible
+}: {
+  name: string | null; avatarUrl: string | null; initials: string;
+  contactEmail: string | null; accentColor: string; visible: boolean;
+}) {
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.2 }}
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2"
+          data-pdf-exclude
+          style={{
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            background: 'var(--pf-bg-alpha, rgba(10,10,20,0.85))',
+            borderBottom: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
+          }}
+        >
+          <div className="flex items-center gap-2.5">
+            <Avatar className="w-8 h-8 border" style={{ borderColor: accentColor }}>
+              <AvatarImage src={avatarUrl || undefined} />
+              <AvatarFallback className="text-xs font-bold" style={{ background: accentColor, color: '#fff' }}>{initials}</AvatarFallback>
+            </Avatar>
+            <span className="font-semibold text-sm" style={{ color: 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
+              {name || 'Portfolio'}
+            </span>
+          </div>
+          {contactEmail && (
+            <a href={`mailto:${contactEmail}`}
+              className="text-xs font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-85"
+              style={{ background: accentColor, color: '#fff' }}>
+              Get in Touch
+            </a>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showMoreSkills, setShowMoreSkills] = useState(false);
+  const [stickyVisible, setStickyVisible] = useState(false);
+  const heroRef = useRef<HTMLDivElement>(null);
+
+  // Sticky header observer
+  useEffect(() => {
+    if (!heroRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setStickyVisible(!entry.isIntersecting),
+      { threshold: 0.1, rootMargin: '-80px 0px 0px 0px' }
+    );
+    observer.observe(heroRef.current);
+    return () => observer.disconnect();
+  }, [portfolio]);
 
   // Increment view count
   useEffect(() => {
@@ -304,7 +488,6 @@ function PublicPortfolioContent() {
       }
       meta.setAttribute('content', profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`);
 
-      // OG / Twitter meta
       const setMeta = (prop: string, val: string, attr = 'property') => {
         let el = document.querySelector(`meta[${attr}="${prop}"]`);
         if (!el) { el = document.createElement('meta'); el.setAttribute(attr, prop); document.head.appendChild(el); }
@@ -342,6 +525,7 @@ function PublicPortfolioContent() {
         useCORS: true,
         logging: false,
         allowTaint: true,
+        ignoreElements: (el) => el.hasAttribute('data-pdf-exclude'),
       });
 
       const pdfDoc = await PDFDocument.create();
@@ -349,7 +533,7 @@ function PublicPortfolioContent() {
       const imgBytes = await fetch(imgData).then(r => r.arrayBuffer());
       const img = await pdfDoc.embedJpg(imgBytes);
 
-      const pageWidth = 595; // A4 width in points
+      const pageWidth = 595;
       const pageHeight = Math.round((canvas.height / canvas.width) * pageWidth);
       const page = pdfDoc.addPage([pageWidth, pageHeight]);
       page.drawImage(img, { x: 0, y: 0, width: pageWidth, height: pageHeight });
@@ -373,7 +557,7 @@ function PublicPortfolioContent() {
   const { profile, resume } = portfolio;
   const pStyle = profile.portfolioStyle || 'minimal';
   const pLayout = profile.portfolioLayout || 'single';
-  const accentColor = profile.portfolioAccentColor || null;
+  const accentColor = profile.portfolioAccentColor || '#e84545';
   const pFont = profile.portfolioFont || 'inter';
 
   const sections = profile.portfolioSections;
@@ -385,34 +569,38 @@ function PublicPortfolioContent() {
   const hasSkills = show('skills') && resume.skills?.length > 0;
   const hasProjects = show('projects') && resume.projects?.length > 0;
   const hasCerts = show('certifications') && resume.certifications?.length > 0;
+  const hasCaseStudies = profile.caseStudies?.length > 0;
+  const hasServices = profile.services?.length > 0;
 
-  // Theme-specific vars injected inline
   const themeVars = getThemeVars(pStyle, accentColor, pFont);
 
-  // Theme-specific root styles
   const rootStyle: React.CSSProperties = {
     ...themeVars,
     fontFamily: 'var(--pf-body-font, Inter, system-ui, sans-serif)',
     ...(pStyle === 'bold-dark' ? {
       '--pf-bg': '#0a0a0f',
+      '--pf-bg-alpha': 'rgba(10,10,15,0.88)',
       '--pf-card': 'rgba(255,255,255,0.03)',
       '--pf-border': 'rgba(255,255,255,0.08)',
       '--pf-fg': '#f8f8ff',
       '--pf-muted': '#9ca3af',
     } as React.CSSProperties : pStyle === 'glass-pro' ? {
       '--pf-bg': '#0d1117',
+      '--pf-bg-alpha': 'rgba(13,17,23,0.88)',
       '--pf-card': 'rgba(255,255,255,0.06)',
       '--pf-border': 'rgba(255,255,255,0.1)',
       '--pf-fg': '#f0f4ff',
       '--pf-muted': '#a0aec0',
     } as React.CSSProperties : pStyle === 'classic-clean' ? {
       '--pf-bg': '#ffffff',
+      '--pf-bg-alpha': 'rgba(255,255,255,0.92)',
       '--pf-card': '#f9f9f9',
       '--pf-border': '#e5e7eb',
       '--pf-fg': '#111827',
       '--pf-muted': '#6b7280',
-    } as React.CSSProperties : /* minimal default */ {
+    } as React.CSSProperties : /* minimal */ {
       '--pf-bg': '#0a0a14',
+      '--pf-bg-alpha': 'rgba(10,10,20,0.88)',
       '--pf-card': 'rgba(255,255,255,0.04)',
       '--pf-border': 'rgba(255,255,255,0.08)',
       '--pf-fg': '#f5f5ff',
@@ -420,16 +608,23 @@ function PublicPortfolioContent() {
     } as React.CSSProperties),
   };
 
-  // Hero ambient background per theme
   const heroBg: React.CSSProperties = pStyle === 'bold-dark'
-    ? { background: `radial-gradient(ellipse 80% 40% at 50% 0%, color-mix(in srgb, ${accentColor || '#e84545'} 18%, transparent), transparent)` }
+    ? { background: `radial-gradient(ellipse 90% 50% at 50% 0%, color-mix(in srgb, ${accentColor} 22%, transparent), transparent)` }
     : pStyle === 'glass-pro'
-    ? { background: `radial-gradient(ellipse 80% 50% at 50% -10%, color-mix(in srgb, ${accentColor || '#e84545'} 12%, transparent), transparent)` }
+    ? { background: `radial-gradient(ellipse 90% 60% at 50% -5%, color-mix(in srgb, ${accentColor} 16%, transparent), transparent)` }
     : pStyle === 'classic-clean'
-    ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor || '#e84545'} 4%, #ffffff), #ffffff)` }
-    : { background: `radial-gradient(ellipse 70% 35% at 50% 0%, color-mix(in srgb, ${accentColor || '#e84545'} 10%, transparent), transparent)` };
+    ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor} 6%, #ffffff), #ffffff 60%)` }
+    : { background: `radial-gradient(ellipse 80% 40% at 50% 0%, color-mix(in srgb, ${accentColor} 14%, transparent), transparent)` };
 
   const isTwoCol = pLayout === 'two-col';
+
+  const SKILL_LIMIT = 28;
+  const allSkills = resume.skills.map((s) => typeof s === 'string' ? s : (s as Record<string, string>).name || String(s));
+  const visibleSkills = showMoreSkills ? allSkills : allSkills.slice(0, SKILL_LIMIT);
+  const hasMoreSkills = allSkills.length > SKILL_LIMIT;
+
+  // Tagline: availability headline or first ~80 chars of bio
+  const tagline = profile.availabilityHeadline || (profile.portfolioBio ? profile.portfolioBio.slice(0, 90) + (profile.portfolioBio.length > 90 ? '…' : '') : null);
 
   return (
     <div
@@ -438,6 +633,16 @@ function PublicPortfolioContent() {
       style={{ ...rootStyle, backgroundColor: 'var(--pf-bg, #0a0a14)', color: 'var(--pf-fg, #f5f5ff)' }}
       data-portfolio-style={pStyle}
     >
+      {/* Sticky mini-header */}
+      <StickyHeader
+        name={profile.fullName}
+        avatarUrl={profile.avatarUrl}
+        initials={initials}
+        contactEmail={profile.contactEmail}
+        accentColor={accentColor}
+        visible={stickyVisible}
+      />
+
       <motion.div
         className="max-w-4xl mx-auto px-4 py-0"
         initial="hidden"
@@ -446,20 +651,25 @@ function PublicPortfolioContent() {
       >
         {/* ── Hero ───────────────────────────────────────────────────────── */}
         <motion.div
+          ref={heroRef}
           variants={fadeUp}
-          className="relative flex flex-col items-center text-center pt-16 pb-10 px-4"
+          className="relative flex flex-col items-center text-center pt-16 pb-12 px-4"
           style={heroBg}
         >
-          {/* Avatar with accent ring */}
-          <div className="relative mb-5">
+          {/* Avatar with animated glow ring */}
+          <div className="relative mb-6">
             <div
-              className="absolute inset-0 rounded-full scale-110 opacity-30 blur-sm"
-              style={{ background: `radial-gradient(circle, ${accentColor || '#e84545'}, transparent)` }}
+              className="absolute inset-0 rounded-full scale-125 animate-pulse opacity-20 blur-lg"
+              style={{ background: accentColor }}
             />
-            <Avatar className="h-32 w-32 relative z-10 border-[3px]" style={{ borderColor: accentColor || '#e84545' }}>
+            <div
+              className="absolute inset-[-4px] rounded-full opacity-40"
+              style={{ background: `conic-gradient(${accentColor}, transparent, ${accentColor})`, animation: 'spin 6s linear infinite' }}
+            />
+            <Avatar className="h-36 w-36 relative z-10 border-[3px]" style={{ borderColor: accentColor }}>
               <AvatarFallback
-                className="text-3xl font-bold"
-                style={{ background: `linear-gradient(135deg, ${accentColor || '#e84545'}, color-mix(in srgb, ${accentColor || '#e84545'} 60%, purple))`, color: '#fff' }}
+                className="text-4xl font-black"
+                style={{ background: `linear-gradient(135deg, ${accentColor}, color-mix(in srgb, ${accentColor} 60%, purple))`, color: '#fff' }}
               >
                 {initials}
               </AvatarFallback>
@@ -467,18 +677,21 @@ function PublicPortfolioContent() {
             </Avatar>
           </div>
 
-          {/* Name */}
-          <h1 className="text-4xl md:text-5xl font-black leading-tight mb-2" style={{ fontFamily: 'var(--pf-heading-font)' }}>
+          {/* Name — dominant */}
+          <h1 className="text-5xl md:text-6xl font-black leading-tight mb-3" style={{ fontFamily: 'var(--pf-heading-font)' }}>
             {profile.fullName || 'Anonymous'}
           </h1>
 
-          {/* Job Title + Open to Work */}
+          {/* Role pill + Open to Work badge */}
           <div className="flex items-center justify-center gap-2.5 flex-wrap mb-3">
             {profile.jobTitle && (
-              <p className="text-lg font-semibold" style={{ color: accentColor || '#e84545' }}>{profile.jobTitle}</p>
+              <span className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-1.5 rounded-full"
+                style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, color: accentColor, border: `1px solid color-mix(in srgb, ${accentColor} 35%, transparent)` }}>
+                {profile.jobTitle}
+              </span>
             )}
             {profile.openToWork && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full" style={{
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full" style={{
                 background: 'rgba(34,197,94,0.15)',
                 color: '#22c55e',
                 border: '1px solid rgba(34,197,94,0.3)',
@@ -507,19 +720,19 @@ function PublicPortfolioContent() {
             )}
           </div>
 
-          {/* Availability headline */}
-          {profile.availabilityHeadline && (
-            <p className="text-sm italic mb-4 max-w-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-              "{profile.availabilityHeadline}"
+          {/* Tagline */}
+          {tagline && (
+            <p className="text-sm italic mb-5 max-w-md leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+              "{tagline}"
             </p>
           )}
 
           {/* Social icon buttons */}
           {(profile.linkedinUrl || profile.githubUrl || profile.websiteUrl || profile.twitterUrl) && (
-            <div className="flex items-center justify-center gap-2 mb-5">
+            <div className="flex items-center justify-center gap-2 mb-6">
               {profile.linkedinUrl && (
                 <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
                   title="LinkedIn">
                   <Linkedin className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
@@ -527,7 +740,7 @@ function PublicPortfolioContent() {
               )}
               {profile.githubUrl && (
                 <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
                   title="GitHub">
                   <Github className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
@@ -535,7 +748,7 @@ function PublicPortfolioContent() {
               )}
               {profile.websiteUrl && (
                 <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
                   title="Website">
                   <Globe className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
@@ -543,7 +756,7 @@ function PublicPortfolioContent() {
               )}
               {profile.twitterUrl && (
                 <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-transform hover:scale-110 active:scale-95"
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
                   title="X / Twitter">
                   <X className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
@@ -552,56 +765,76 @@ function PublicPortfolioContent() {
             </div>
           )}
 
-          {/* CTAs */}
+          {/* CTAs: primary = Get in Touch, secondary = View Projects, tertiary = Download */}
           <div className="flex items-center justify-center gap-3 flex-wrap">
             {profile.contactEmail && (
               <a
                 href={`mailto:${profile.contactEmail}`}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95"
-                style={{ background: accentColor || '#e84545', color: '#fff' }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg"
+                style={{ background: accentColor, color: '#fff', boxShadow: `0 4px 20px -4px ${accentColor}60` }}
               >
-                <Mail className="w-4 h-4" /> Hire Me
+                <Mail className="w-4 h-4" /> Get in Touch
+              </a>
+            )}
+            {hasProjects && (
+              <a
+                href="#projects"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border"
+                style={{ borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`, color: accentColor, background: `color-mix(in srgb, ${accentColor} 8%, transparent)` }}
+              >
+                <FolderOpen className="w-4 h-4" /> View Projects
               </a>
             )}
             <button
               onClick={handleDownload}
               disabled={isDownloading}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border"
-              style={{
-                background: 'transparent',
-                borderColor: 'var(--pf-border, rgba(255,255,255,0.2))',
-                color: 'var(--pf-fg, #f5f5ff)',
-              }}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border"
+              style={{ background: 'transparent', borderColor: 'var(--pf-border, rgba(255,255,255,0.2))', color: 'var(--pf-fg, #f5f5ff)' }}
             >
               {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {isDownloading ? 'Generating…' : 'Download Portfolio PDF'}
+              {isDownloading ? 'Generating…' : 'Download CV'}
             </button>
           </div>
         </motion.div>
 
         {/* ── Body content ─────────────────────────────────────────────── */}
-        <div className={`px-2 pb-16 pt-8 ${isTwoCol ? 'md:grid md:grid-cols-5 md:gap-8' : 'space-y-8'}`}>
+        <div className={`px-2 pb-20 pt-10 ${isTwoCol ? 'md:grid md:grid-cols-5 md:gap-10' : 'space-y-10'}`}>
 
           {/* Left column (or full width in single layout) */}
-          <div className={isTwoCol ? 'md:col-span-3 space-y-8' : 'space-y-8'}>
+          <div className={isTwoCol ? 'md:col-span-3 space-y-10' : 'space-y-10'}>
 
             {/* About */}
             {profile.portfolioBio && (
               <motion.section variants={fadeUp}>
-                <SectionHeader icon={<Briefcase className="w-4 h-4" />} title="About" style={pStyle} />
-                <p className="text-sm leading-loose" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                  {profile.portfolioBio}
-                </p>
+                <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
+                <div className="p-5 rounded-2xl"
+                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
+                  <p className="text-sm leading-loose" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                    {profile.portfolioBio}
+                  </p>
+                </div>
               </motion.section>
             )}
 
             {/* Experience */}
             {hasExperience && (
               <motion.section variants={stagger}>
-                <SectionHeader icon={<Briefcase className="w-4 h-4" />} title="Experience" style={pStyle} />
+                <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
                 <div className="space-y-4">
                   {resume.experience.map((exp, i) => (
-                    <ExperienceCard key={exp.id || i} exp={exp} style={pStyle} />
+                    <ExperienceCard key={exp.id || i} exp={exp} style={pStyle} isLast={i === resume.experience.length - 1} />
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {/* Case Studies */}
+            {hasCaseStudies && (
+              <motion.section variants={stagger}>
+                <SectionHeader icon={<Layers className="w-5 h-5" />} title="Case Studies" style={pStyle} />
+                <div className="space-y-5">
+                  {profile.caseStudies.map((cs) => (
+                    <CaseStudyCard key={cs.id} cs={cs} style={pStyle} />
                   ))}
                 </div>
               </motion.section>
@@ -609,8 +842,8 @@ function PublicPortfolioContent() {
 
             {/* Projects */}
             {hasProjects && (
-              <motion.section variants={stagger}>
-                <SectionHeader icon={<FolderOpen className="w-4 h-4" />} title="Projects" style={pStyle} />
+              <motion.section id="projects" variants={stagger}>
+                <SectionHeader icon={<FolderOpen className="w-5 h-5" />} title="Projects" style={pStyle} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {resume.projects.map((p, i) => (
                     <ProjectCard key={p.id || i} project={p} style={pStyle} />
@@ -618,36 +851,54 @@ function PublicPortfolioContent() {
                 </div>
               </motion.section>
             )}
+
+            {/* Services */}
+            {hasServices && (
+              <motion.section variants={stagger}>
+                <SectionHeader icon={<Wrench className="w-5 h-5" />} title="Services" style={pStyle} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {profile.services.map((s) => (
+                    <ServiceCard key={s.id} service={s} style={pStyle} />
+                  ))}
+                </div>
+              </motion.section>
+            )}
           </div>
 
           {/* Right column (two-col) or inline below (single) */}
-          <div className={isTwoCol ? 'md:col-span-2 space-y-8' : 'space-y-8'}>
+          <div className={isTwoCol ? 'md:col-span-2 space-y-10' : 'space-y-10'}>
 
             {/* Skills */}
             {hasSkills && (
               <motion.section variants={fadeUp} className={isTwoCol ? 'md:sticky md:top-8' : ''}>
-                <SectionHeader icon={<Award className="w-4 h-4" />} title="Skills" style={pStyle} />
+                <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
                 <div className="flex flex-wrap gap-2">
-                  {resume.skills.map((skill, i) => {
-                    const label = typeof skill === 'string' ? skill : (skill as Record<string, string>).name || String(skill);
-                    return (
-                      <span key={i} className="text-sm px-3 py-1.5 rounded-full font-medium" style={{
-                        background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)',
-                        color: 'var(--pf-accent)',
-                        border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)',
-                      }}>
-                        {label}
-                      </span>
-                    );
-                  })}
+                  {visibleSkills.map((skill, i) => (
+                    <span key={i} className="text-sm px-3 py-1.5 rounded-full font-medium transition-all" style={{
+                      background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
+                      color: 'var(--pf-accent)',
+                      border: '1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent)',
+                    }}>
+                      {skill}
+                    </span>
+                  ))}
                 </div>
+                {hasMoreSkills && (
+                  <button
+                    onClick={() => setShowMoreSkills(v => !v)}
+                    className="mt-3 text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
+                    style={{ color: 'var(--pf-accent)' }}
+                  >
+                    {showMoreSkills ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</> : <><ChevronDown className="w-3.5 h-3.5" /> +{allSkills.length - SKILL_LIMIT} more</>}
+                  </button>
+                )}
               </motion.section>
             )}
 
             {/* Education */}
             {hasEducation && (
               <motion.section variants={stagger}>
-                <SectionHeader icon={<GraduationCap className="w-4 h-4" />} title="Education" style={pStyle} />
+                <SectionHeader icon={<GraduationCap className="w-5 h-5" />} title="Education" style={pStyle} />
                 <div className="space-y-4">
                   {resume.education.map((edu, i) => (
                     <EducationCard key={edu.id || i} edu={edu} style={pStyle} />
@@ -659,7 +910,7 @@ function PublicPortfolioContent() {
             {/* Certifications */}
             {hasCerts && (
               <motion.section variants={stagger}>
-                <SectionHeader icon={<Award className="w-4 h-4" />} title="Certifications" style={pStyle} />
+                <SectionHeader icon={<Award className="w-5 h-5" />} title="Certifications" style={pStyle} />
                 <div className="space-y-3">
                   {resume.certifications.map((cert, i) => (
                     <motion.div key={cert.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
@@ -677,19 +928,18 @@ function PublicPortfolioContent() {
         </div>
 
         {/* ── Footer ────────────────────────────────────────────────────── */}
-        <motion.div variants={fadeUp} className="text-center py-8 border-t" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>
+        <motion.div variants={fadeUp} className="text-center py-10 border-t" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>
           <a
-            href="https://wiseresume.lovable.app"
+            href={window.location.origin}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
             style={{ color: 'var(--pf-muted, #9ca3af)' }}
           >
-            Built with <span className="font-bold" style={{ color: accentColor || '#e84545' }}>WiseResume</span> · Create your free portfolio →
+            Built with <span className="font-bold" style={{ color: accentColor }}>WiseResume</span> · Create your free portfolio →
           </a>
         </motion.div>
       </motion.div>
-
     </div>
   );
 }

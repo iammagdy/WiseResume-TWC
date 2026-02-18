@@ -29,8 +29,79 @@ Deno.serve(async (req) => {
     }
     const userId = user.id;
 
-    const { action = 'bio', summary, fullName, jobTitle, experience, skills, careerLevel } = await req.json();
+    const body = await req.json();
+    const { action = 'bio', summary, fullName, jobTitle, experience, skills, careerLevel } = body;
 
+    // case-study action has different required fields
+    if (action === 'case-study') {
+      const { projectName, projectDescription, projectTechnologies } = body;
+
+      if (!projectDescription && !projectName) {
+        return new Response(
+          JSON.stringify({ error: 'Please provide a project name or description to generate a case study.' }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      // Increment AI usage
+      const serviceClient = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      );
+      await serviceClient.rpc('increment_ai_usage', { p_user_id: userId });
+
+      const safeDesc = sanitizeInputText(projectDescription || '', 1500);
+      const techList = Array.isArray(projectTechnologies) ? projectTechnologies.slice(0, 10).join(', ') : (projectTechnologies || '');
+
+      const prompt = `You are a UX writer and portfolio expert. Generate a professional case study for a portfolio website based on the following project information.
+
+Project Name: ${projectName || 'Untitled Project'}
+Description: ${safeDesc || 'Not provided'}
+Technologies Used: ${techList || 'Not specified'}
+
+Write two distinct paragraphs:
+
+1. CHALLENGE paragraph (2-3 sentences): Describe the problem that needed solving, the context, and why it mattered. Be specific.
+2. OUTCOME paragraph (2-3 sentences): Describe what was built, the results achieved, and the impact. Include metrics or concrete results if inferrable.
+
+Rules:
+- Write in past tense
+- Be specific and professional, not generic
+- Do not use phrases like "I built" — write in a neutral, portfolio-ready tone
+- Return ONLY valid JSON with keys "challenge" and "outcome", no markdown, no explanation
+
+Example:
+{"challenge":"The team needed a way to reduce onboarding time for new enterprise customers, who were spending up to 3 days getting set up before they could use the product.","outcome":"A streamlined onboarding wizard reduced setup time by 70%, cutting the average from 3 days to under 8 hours, and improved first-week activation rates by 45%."}`;
+
+      const response = await callAI({
+        model: 'google/gemini-2.5-flash',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.7,
+        maxTokens: 400,
+        userId,
+      });
+
+      let challenge = '';
+      let outcome = '';
+      try {
+        const raw = response.content?.trim() || '{}';
+        const cleaned = raw.replace(/```json\n?|\n?```/g, '').trim();
+        const parsed = JSON.parse(cleaned);
+        challenge = parsed.challenge || '';
+        outcome = parsed.outcome || '';
+      } catch {
+        const challengeMatch = response.content?.match(/"challenge"\s*:\s*"([^"]+)"/);
+        const outcomeMatch = response.content?.match(/"outcome"\s*:\s*"([^"]+)"/);
+        challenge = challengeMatch?.[1] || '';
+        outcome = outcomeMatch?.[1] || '';
+      }
+
+      return new Response(JSON.stringify({ challenge, outcome }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // All other actions require resume data
     const hasSummary = summary && summary.trim().length > 0;
     const hasJobTitle = jobTitle && jobTitle.trim().length > 0;
     const hasExperience = Array.isArray(experience) && experience.length > 0;
