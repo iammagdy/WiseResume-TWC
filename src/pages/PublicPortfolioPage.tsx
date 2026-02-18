@@ -1,6 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { usePublicPortfolio, PublicResume, PublicProfile } from '@/hooks/usePublicPortfolio';
+import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,9 @@ import {
   Github, Globe, Mail, X, Download, ExternalLink, Loader2, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useEffect, useRef, useState, Suspense, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { templateComponents } from '@/components/editor/TemplateThumbnail';
-import type { Experience, Education, Project, Certification, ResumeData, TemplateId } from '@/types/resume';
+import type { Experience, Education, Project } from '@/types/resume';
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -266,45 +265,14 @@ function ProjectCard({ project, style }: { project: Project; style: string }) {
   );
 }
 
-/** Maps PublicResume + PublicProfile into a ResumeData for template rendering & PDF generation. */
-function toResumeData(profile: PublicProfile, resume: PublicResume): ResumeData {
-  return {
-    id: resume.id,
-    contactInfo: {
-      fullName: profile.fullName || '',
-      email: '',
-      phone: '',
-      location: profile.location || '',
-      linkedin: profile.linkedinUrl || '',
-    },
-    summary: resume.summary || '',
-    experience: resume.experience || [],
-    education: resume.education || [],
-    skills: resume.skills || [],
-    certifications: resume.certifications || [],
-    awards: resume.awards || [],
-    projects: resume.projects || [],
-    publications: resume.publications || [],
-    volunteering: resume.volunteering || [],
-    hobbies: resume.hobbies || [],
-    templateId: resume.templateId || 'modern',
-  };
-}
+
+
 
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
   const [isDownloading, setIsDownloading] = useState(false);
-  const hiddenTemplateRef = useRef<HTMLDivElement>(null);
-
-  const resumeData = useMemo(() => {
-    if (!portfolio) return null;
-    return toResumeData(portfolio.profile, portfolio.resume);
-  }, [portfolio]);
-
-  const templateId = (portfolio?.resume?.templateId || 'modern') as TemplateId;
-  const TemplateComponent = templateComponents[templateId];
 
   // Increment view count
   useEffect(() => {
@@ -335,6 +303,22 @@ function PublicPortfolioContent() {
         document.head.appendChild(meta);
       }
       meta.setAttribute('content', profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`);
+
+      // OG / Twitter meta
+      const setMeta = (prop: string, val: string, attr = 'property') => {
+        let el = document.querySelector(`meta[${attr}="${prop}"]`);
+        if (!el) { el = document.createElement('meta'); el.setAttribute(attr, prop); document.head.appendChild(el); }
+        el.setAttribute('content', val);
+      };
+      const ogTitle = profile.metaTitle || (profile.jobTitle ? `${name} — ${profile.jobTitle}` : `${name}'s Portfolio`);
+      const ogDesc = profile.metaDescription || profile.portfolioBio || `${name}'s professional portfolio`;
+      setMeta('og:title', ogTitle);
+      setMeta('og:description', ogDesc);
+      setMeta('og:type', 'profile');
+      if (profile.avatarUrl) setMeta('og:image', profile.avatarUrl);
+      setMeta('twitter:card', 'summary', 'name');
+      setMeta('twitter:title', ogTitle, 'name');
+      setMeta('twitter:description', ogDesc, 'name');
     }
     return () => {
       document.title = 'WiseResume';
@@ -343,15 +327,39 @@ function PublicPortfolioContent() {
   }, [portfolio]);
 
   const handleDownload = async () => {
-    if (!resumeData || !hiddenTemplateRef.current) return;
     setIsDownloading(true);
     try {
-      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const portfolioEl = document.getElementById('portfolio-content');
+      if (!portfolioEl) throw new Error('Content not found');
+
+      const [{ default: html2canvas }, { PDFDocument }] = await Promise.all([
+        import('html2canvas'),
+        import('pdf-lib').then(m => ({ PDFDocument: m.PDFDocument })),
+      ]);
+
+      const canvas = await html2canvas(portfolioEl, {
+        scale: 1.5,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+      });
+
+      const pdfDoc = await PDFDocument.create();
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      const imgBytes = await fetch(imgData).then(r => r.arrayBuffer());
+      const img = await pdfDoc.embedJpg(imgBytes);
+
+      const pageWidth = 595; // A4 width in points
+      const pageHeight = Math.round((canvas.height / canvas.width) * pageWidth);
+      const page = pdfDoc.addPage([pageWidth, pageHeight]);
+      page.drawImage(img, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
       const { downloadFile } = await import('@/lib/downloadUtils');
-      const pdfBlob = await generatePDF(resumeData, templateId, hiddenTemplateRef.current, undefined, { showPageNumbers: true });
-      const fileName = `${resumeData.contactInfo.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
-      await downloadFile({ blob: pdfBlob, fileName });
-      toast.success('PDF downloaded!');
+      const name = portfolio?.profile?.fullName?.replace(/\s+/g, '_') || 'Portfolio';
+      await downloadFile({ blob, fileName: `${name}_Portfolio.pdf` });
+      toast.success('Portfolio PDF downloaded!');
     } catch {
       toast.error('Failed to generate PDF');
     } finally {
@@ -425,6 +433,7 @@ function PublicPortfolioContent() {
 
   return (
     <div
+      id="portfolio-content"
       className="min-h-screen"
       style={{ ...rootStyle, backgroundColor: 'var(--pf-bg, #0a0a14)', color: 'var(--pf-fg, #f5f5ff)' }}
       data-portfolio-style={pStyle}
@@ -565,7 +574,7 @@ function PublicPortfolioContent() {
               }}
             >
               {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {isDownloading ? 'Generating…' : 'Download CV'}
+              {isDownloading ? 'Generating…' : 'Download Portfolio PDF'}
             </button>
           </div>
         </motion.div>
@@ -681,25 +690,6 @@ function PublicPortfolioContent() {
         </motion.div>
       </motion.div>
 
-      {/* Hidden off-screen template for PDF generation */}
-      {resumeData && TemplateComponent && (
-        <div
-          ref={hiddenTemplateRef}
-          data-resume-template
-          style={{
-            position: 'fixed',
-            left: '-9999px',
-            top: 0,
-            width: '612px',
-            height: '792px',
-            overflow: 'visible',
-          }}
-        >
-          <Suspense fallback={null}>
-            <TemplateComponent resume={resumeData} />
-          </Suspense>
-        </div>
-      )}
     </div>
   );
 }

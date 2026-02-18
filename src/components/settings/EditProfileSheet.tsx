@@ -114,6 +114,13 @@ export function EditProfileSheet({
     portfolioSections: null,
     portfolioMetaTitle: null,
     portfolioMetaDescription: null,
+    views: 0,
+    portfolioStyle: null,
+    portfolioLayout: null,
+    portfolioAccentColor: null,
+    portfolioFont: null,
+    openToWork: false,
+    availabilityHeadline: null,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 
