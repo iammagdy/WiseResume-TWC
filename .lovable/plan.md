@@ -1,187 +1,256 @@
 
-# Security Audit: API Key Handling, Secret Exposure & Mobile Safety
+# Public Portfolio Redesign: From Utility Screen to Standalone Product
 
-## Audit Scope Covered
+## What's Weak About the Current Portfolio (Honest Audit)
 
-I read every file in the chain: `safeClient.ts`, `AuthContext.tsx`, `settingsStore.ts`, `AISettingsSheet.tsx`, `ElevenLabsKeySheet.tsx`, `useElevenLabsScribe.ts`, `geminiKeyValidator.ts`, `manage-api-keys/index.ts`, `validate-api-key/index.ts`, `elevenlabs-scribe-token/index.ts`, `aiClient.ts` (server-side), `BugReportDialog.tsx`, `FeatureRequestDialog.tsx`, `migrateLocalKeys.ts`, `supabase/config.toml`, and all store/hook files that touch API key state.
+### Visual & Layout Problems
+1. **No identity beyond "app wrapper"**: The public page uses the exact same `bg-background` + `glass-elevated` system as the internal app. A visitor sees what looks like an internal dark-mode app screen, not a personal website.
+2. **No themed pages**: The only "theming" is `dark`, `light`, or `system` — all of which apply the WiseResume app colors (vibrant red primary, cyan accent). A "Corporate" user ends up with a hot-pink-accented portfolio. There is no portfolio-specific color or typography system.
+3. **Hero section is weak**: Small 96px avatar, name, job title, a row of text links, and a plain `Download Resume` button. No visual punch. No sense of the person. No ambient background or personality.
+4. **Section headings are utility labels**: `EXPERIENCE`, `TECH STACK`, `PROJECTS` in uppercase muted text with a small icon — this looks like an internal admin panel, not a showcase.
+5. **Skills rendered as small secondary badges**: Plain `Badge variant="secondary"` chips. No visual weight. On dark mode they're barely readable.
+6. **Bento grid col-span is arbitrary**: The `md:col-span-3 / md:col-span-2` split for Experience vs Skills is not intentional design — it just happens to look like a grid.
+7. **No layout choice**: Every user gets the same single rigid layout regardless of whether they're a designer, a developer, or a student.
+8. **"Portfolio Settings" page** is buried inside Profile → Portfolio Card → /portfolio. There is no top-level nav item or feature positioning. The page is named "Portfolio Settings" (utility naming) rather than "My Portfolio Website" (product naming).
+9. **Theme picker in settings offers only 3 options** that aren't portfolio themes — they're just the app's light/dark mode. This is confusing.
+10. **No layout variant**: One-column vs two-column is not exposed. Everyone gets the same layout.
+11. **"Open to Work" / availability**: Not present at all despite the user asking for it.
+12. **Section headings are a list**: Experience, Projects, Education, Certifications all appear as flat vertical lists. No visual hierarchy separates "featured" content from secondary content.
+
+### Product Positioning Problems
+1. **Feature is called "Public Portfolio"** everywhere but the `/portfolio` route title says "Portfolio Settings" — it feels administrative rather than creative.
+2. **Not discoverable**: The BottomTabBar has 5 tabs (Home, Editor, Studio, Activity, Settings) but no Portfolio tab. The only entry point is buried in Profile.
+3. **No "value moment"**: When a user first goes to `/portfolio`, there's no hero pitch explaining why they should care or what a great portfolio looks like.
 
 ---
 
-## What Is Already Correct (Do Not Touch)
+## Your Discovery Answers → Design Decisions
 
-| Area | Status |
-|------|--------|
-| All network calls use HTTPS | Confirmed — zero `http://` URLs found in `src/` |
-| Anon key in `safeClient.ts` | Safe — it is a **publishable** key, not a secret (JWT with `role: anon`, intentionally client-facing) |
-| Supabase auth JWT session | Stored in `localStorage` by the Supabase SDK (standard practice; no clear-text password) |
-| Gemini key NOT in localStorage | Confirmed — `partialize` in `settingsStore.ts` line 193 strips `geminiApiKey` and `elevenlabsApiKey` before persisting |
-| Server-side encryption of Gemini key | Confirmed — `manage-api-keys` edge function uses AES-GCM (PBKDF2-derived, 100k iterations) |
-| Edge functions authenticate every request | Confirmed — every function validates `Authorization: Bearer <JWT>` via `getClaims()` |
-| Rate limiting on all AI edge functions | Confirmed — shared `checkRateLimit` helper used in all 18 AI functions |
-| `validate-api-key` runs server-side | Confirmed — the `AISettingsSheet` calls the edge function, not `geminiKeyValidator.ts` directly |
-| Bug report `sessionId` is last 8 chars only | Confirmed — `getAuthFromCache` in `BugReportDialog.tsx` line 62 slices `access_token.slice(-8)` |
-| No secrets in `console.log` in `src/` | Confirmed — no key/token values logged in browser-side code |
+| Question | Your Answer | Design Decision |
+|----------|-------------|-----------------|
+| Visual vibe | Both — multiple named themes | Ship 4 named portfolio themes with distinct visual identities |
+| Customization depth | Full controls | Theme + accent color + font + layout toggle (1-col / 2-col) |
+| Target audience | Job seekers + Freelancers + Students | Keep PDF download prominent; add "Hire Me" CTA and "Open to Work" badge |
+| Hero extras | Yes — add availability + short headline | Add `open_to_work` boolean + `availability_status` text field |
 
 ---
 
-## Security Issues Found
+## The 4 Portfolio Themes
 
-### Issue 1 — CRITICAL: `geminiKeyValidator.ts` calls Google's API directly from the browser (BYPASSABLE CLIENT-SIDE VALIDATION PATH)
+Each theme is a named CSS class applied to the root of the public portfolio page. They override only portfolio-specific visual tokens, not the app. They're isolated so they never bleed into the editor or dashboard.
 
-**File:** `src/lib/geminiKeyValidator.ts`
+### Theme 1: `Minimal` (default)
+- White/off-white background in light, deep charcoal in dark
+- System-default font (Inter)
+- Subtle borders, no glass, no backdrop blur (pure CSS — no expensive render)
+- Accent: user-chosen color (defaults to brand red)
+- Layout: 1-column, spacious
 
-The file makes two direct `fetch()` calls from the browser to `https://generativelanguage.googleapis.com` with the raw Gemini API key embedded in the URL as a query parameter:
+### Theme 2: `Bold Dark`
+- Always dark background (#0a0a0f) regardless of system theme
+- Heading font: Space Grotesk (heavy weight)
+- Hero gets a subtle ambient gradient behind the avatar
+- Cards have a glow border in the chosen accent color
+- Layout: 1-column, compact
 
-```ts
-// Line 38
-`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`
-// Line 76
-`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`
+### Theme 3: `Glass Pro`
+- Uses the existing `glass-elevated` system but applied intentionally to the public page
+- Light frosted overlay above a faint radial gradient background
+- Clean typography, no heavy borders
+- Skills rendered as colored chips with the accent color
+- Layout: 2-column optional
+
+### Theme 4: `Classic Clean`
+- Pure white background, no glass
+- Serif-adjacent heading font (Georgia fallback or system serif)
+- Left-border accent lines on section headers instead of uppercase labels
+- Very formal, suitable for legal, finance, academic portfolios
+- Layout: 1-column, generous vertical rhythm
+
+---
+
+## Full Technical Implementation Plan
+
+### Files to Create: 2
+1. `src/components/portfolio/PortfolioTheme.tsx` — the 4 portfolio CSS theme injection component + all sub-components per theme
+2. `src/hooks/usePortfolioSettings.ts` — typed hook for the extended portfolio settings
+
+### Files to Modify: 5
+1. `src/pages/PublicPortfolioPage.tsx` — full redesign of the public page
+2. `src/pages/PortfolioEditorPage.tsx` — redesign with theme picker, accent color, font, layout, open-to-work fields
+3. `src/hooks/usePublicPortfolio.ts` — extend `PublicProfile` type with new fields
+4. `src/index.css` — add 4 portfolio theme CSS classes (`.portfolio-theme-minimal`, `.portfolio-theme-bold-dark`, `.portfolio-theme-glass-pro`, `.portfolio-theme-classic-clean`)
+5. `src/pages/ProfilePage.tsx` — improve the portfolio entry point card with a more compelling description
+
+### Database: 1 migration
+Add 5 new columns to `profiles` table (all nullable, backward-compatible):
+```sql
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS portfolio_layout text DEFAULT 'single',           -- 'single' | 'two-col'
+  ADD COLUMN IF NOT EXISTS portfolio_accent_color text DEFAULT NULL,          -- hex string e.g. '#e84545'
+  ADD COLUMN IF NOT EXISTS portfolio_font text DEFAULT 'inter',               -- 'inter' | 'space-grotesk' | 'serif'
+  ADD COLUMN IF NOT EXISTS portfolio_style text DEFAULT 'minimal',            -- 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean'
+  ADD COLUMN IF NOT EXISTS open_to_work boolean DEFAULT false,
+  ADD COLUMN IF NOT EXISTS availability_headline text DEFAULT NULL;           -- 'Open to remote contracts · Available March 2025'
+```
+The existing `portfolio_theme` column (`dark`/`light`/`system`) is preserved and kept for backward compat. The new `portfolio_style` is the portfolio-level visual theme (separate concept).
+
+### Update `get_public_portfolio` RPC
+Add the 5 new columns to the SELECT and RETURN JSONB in the existing stored function.
+
+---
+
+## Detailed Component Changes
+
+### `PublicPortfolioPage.tsx` — New Structure
+
+**Hero section (completely redesigned):**
+```
+┌─────────────────────────────────────────┐
+│  [Theme-specific ambient background]    │
+│                                         │
+│         ┌──── Avatar ────┐              │
+│         │  120px circle  │              │
+│         │  + ring accent │              │
+│         └────────────────┘              │
+│                                         │
+│    John Smith                           │ ← text-fluid-3xl, bold
+│    Senior Product Designer              │ ← text-fluid-lg, accent color
+│    📍 London · 💼 Open to Work ✓        │ ← inline chips
+│                                         │
+│    "Available for full-time roles       │ ← availability_headline in italic
+│     starting April 2025"               │
+│                                         │
+│  [LinkedIn] [GitHub] [Website] [Email]  │ ← icon-only pill buttons, 44px min
+│                                         │
+│  [Hire Me] [Download Resume PDF]        │ ← primary + outline CTAs
+└─────────────────────────────────────────┘
 ```
 
-**This is a serious exposure risk because:**
-1. The API key appears in full in browser network logs (`DevTools → Network tab`), visible to anyone who opens DevTools on the device
-2. On Android/APK, tools like `mitmproxy` or `Frida` can intercept these requests and read the key from the URL
-3. The key appears as a query parameter (not a header), so it may also appear in server access logs, proxies, and crash reporters
+**Section headers (new look):**
+- Instead of `EXPERIENCE` uppercase gray label → use a left-side colored accent bar + larger heading
+- Theme `classic-clean`: thin left border in accent color
+- Theme `bold-dark`: gradient text heading
+- Theme `minimal` / `glass-pro`: clean medium-weight label with a small decorative line
 
-**Critical finding:** This code file is NOT currently imported anywhere in the application. The import search confirms `validateGeminiKey` is defined but never called — the `AISettingsSheet` already correctly calls the server-side `validate-api-key` edge function instead. **This file is dead code and a liability.**
+**Skills section (new look):**
+- Replace plain secondary badges with colored pill chips that use the user's accent color at 15% opacity with accent-colored text
+- In 2-column layout: skills panel moves to a sticky right sidebar
+- Group skills (if commas or semicolons detected in the raw string, split into skill groups)
 
-**Fix:** Delete `src/lib/geminiKeyValidator.ts`. It is unused and represents a dangerous template that could accidentally be imported in future. The correct validation path — through the `validate-api-key` edge function — is already fully implemented and in use.
+**Projects section (new look):**
+- Project cards get a visual header area: project name large, role smaller, then description
+- Tech badges keep color-coded look
+- Live / GitHub links become actual icon buttons (ExternalLink, Github icons), not text underlines
 
-**Risk:** Zero. The file has no importers.
+**Experience cards (new look):**
+- Company name moved to be more prominent (same size as position on smaller screen)
+- Date range pulled to a styled chip, not raw text
+- Description truncated with a `Show more` expand for long entries (avoids overwhelming mobile)
+- `current` badge ("Now") shown in accent color
 
----
+**New: 2-column layout variant:**
+When `portfolioLayout === 'two-col'`:
+```
+Desktop (≥768px):
+┌──────────────────┬─────────────────┐
+│  Left col (60%)  │  Right col(40%) │
+│  Experience      │  Skills         │
+│  Projects        │  Education      │
+│                  │  Certifications │
+│                  │  Contact CTA    │
+└──────────────────┴─────────────────┘
 
-### Issue 2 — MEDIUM: ElevenLabs custom API key sent in the request body to the edge function
-
-**File:** `src/hooks/useElevenLabsScribe.ts` lines 63–65
-
-```ts
-const { data, error } = await supabase.functions.invoke('elevenlabs-scribe-token', {
-  body: { customApiKey: elevenlabsApiKey || undefined },
-});
+Mobile (always 1-column regardless of setting)
 ```
 
-**Edge function:** `supabase/functions/elevenlabs-scribe-token/index.ts` line 41–42:
-```ts
-const { customApiKey } = await req.json().catch(() => ({}));
-const apiKey = customApiKey || Deno.env.get('ELEVENLABS_API_KEY');
+**"Open to Work" badge:**
+- If `open_to_work === true`: show a green pulsing dot + "Open to Work" pill next to job title in hero
+- If `availability_headline` set: show it as a styled italic line below the social links
+
+### `PortfolioEditorPage.tsx` — Redesigned Editor
+
+**New sections added:**
+1. **Theme Gallery**: Horizontal scroll of 4 theme cards with visual preview thumbnails (colored thumbnail, name, description). Currently selected has a primary border ring. Tap to select.
+2. **Customization Panel** (below theme picker):
+   - Accent Color: 8 preset swatches + custom hex input (color picker)
+   - Font Style: 3 buttons — `Sans` (Inter), `Display` (Space Grotesk), `Serif` (Georgia)
+   - Layout: 2 buttons — `Single Column` / `Two Column` (only active on desktop)
+3. **Availability section** (new card):
+   - Toggle: "Show 'Open to Work' badge"
+   - Input: "Availability headline" (placeholder: "Open to remote full-time · From June 2025")
+4. **Entry point improvements**: Header renamed from "Portfolio Settings" to "My Portfolio Website"
+
+**Moved/renamed:**
+- The old `Portfolio Theme` dropdown (dark/light/system) is kept but demoted to under "SEO & Sharing" → "Page Color Mode" — separate from the visual style.
+
+### `index.css` — 4 New Portfolio Theme Classes
+
+```css
+/* Applied as data-portfolio-style="minimal|bold-dark|glass-pro|classic-clean" on root div */
+
+[data-portfolio-style="minimal"] { ... }
+[data-portfolio-style="bold-dark"] { ... }
+[data-portfolio-style="glass-pro"] { ... }
+[data-portfolio-style="classic-clean"] { ... }
 ```
 
-The ElevenLabs API key is transmitted in the **request body** from the client to the edge function. This is visible in browser DevTools Network tab (the request body is plain JSON). Unlike the Gemini key (which is stored server-side and never returned to the client), the ElevenLabs key is stored in Zustand in-memory state (`elevenlabsApiKey` field) and transmitted on every connection attempt.
+Each class scopes: `--pf-bg`, `--pf-card`, `--pf-border`, `--pf-accent` (overrideable by user's accent color), `--pf-heading-font`, `--pf-body-font`. These are namespaced with `--pf-` prefix so they never collide with the app's CSS variables.
 
-**The ElevenLabs key is NOT persisted to localStorage** (confirmed — `partialize` excludes it) and is **NOT stored server-side in `user_api_keys`** — it lives only in the in-memory Zustand store and is cleared on app restart. This means:
-- The key is visible in DevTools Network tab while the session is active
-- The key is NOT persisted anywhere between sessions — the user must re-enter it each launch
-- The current `ElevenLabsKeySheet` saves to Zustand only (no server-side storage)
+### `ProfilePage.tsx` — Better Entry Point
 
-**Fix:** Mirror the Gemini key architecture for the ElevenLabs key:
-1. In `manage-api-keys` edge function — it already supports any `provider` string, so it can store ElevenLabs keys too with `provider: 'elevenlabs'`
-2. In `elevenlabs-scribe-token` — instead of accepting a `customApiKey` in the body, fetch the user's key from the `user_api_keys` table using `getUserKeyFromDB(userId, 'elevenlabs')` (the same helper already in `aiClient.ts`)
-3. In `ElevenLabsKeySheet` / Settings — call `manage-api-keys` to save/delete the key server-side instead of Zustand (same pattern as Gemini)
-4. Remove `customApiKey` from the request body entirely
-
-**Risk:** Low. The ElevenLabs flow is isolated to the Interview page. The architecture already exists; this is a plumbing change.
-
----
-
-### Issue 3 — LOW: Console logs in `useElevenLabsScribe.ts` include WebSocket URL with the scribe token
-
-**File:** `src/hooks/useElevenLabsScribe.ts` lines 57, 62, 73, 102, 107, 110–112
-
-```ts
-console.log('[ElevenLabs] Opening WebSocket...');
-const ws = new WebSocket(
-  `wss://api.elevenlabs.io/v1/speech-to-text/realtime?...&token=${token}`
-);
+The portfolio card in Profile becomes more compelling:
 ```
-
-The token is not logged directly, but the `console.log('[ElevenLabs] WebSocket connected')` on line 128 fires right after the WebSocket opens — meaning a dev with console access can see the token by correlation if they open DevTools.
-
-More importantly: `console.log('[ElevenLabs] Committed transcript:', msg.text)` at line 183 logs every committed speech transcript to the browser console. On mobile APK builds, `console.log` output can be captured by Android Logcat, which is readable by any app with `READ_LOGS` permission or by a connected debugger.
-
-**Fix:** Wrap all `console.log` calls in `useElevenLabsScribe.ts` in a `DEV` guard: `if (import.meta.env.DEV) console.log(...)`. This eliminates transcript and connection logs from production APK builds where Logcat monitoring is a real threat. The `console.error` calls can stay (they report genuine failures, not data).
-
-**Risk:** Very low — a pure log suppression in production.
-
----
-
-### Issue 4 — LOW: Edge function logs user ID in plaintext in server logs
-
-**Files:** `supabase/functions/elevenlabs-scribe-token/index.ts` line 39, `supabase/functions/enhance-section/index.ts` line 228, `supabase/functions/analyze-resume/index.ts` line 50, `supabase/functions/tailor-resume/index.ts` line 51, others
-
-```ts
-console.log('Authenticated user:', user.id);
+┌────────────────────────────────────────┐
+│ 🌐  My Portfolio Website          Live │
+│     wiseresume.lovable.app/p/john      │
+│     👁 234 views this month            │
+│                                        │
+│  [Preview]  [Share]  [Edit Settings]   │
+└────────────────────────────────────────┘
 ```
-
-Full UUIDs of authenticated users are written to server logs. While server logs are only accessible to project admins (not public), logging full user IDs on every API call is poor hygiene and unnecessary. The `send-bug-report` function correctly truncates user IDs with `truncateUserId()`.
-
-**Fix:** This is a backend-only change with zero user impact. Replace `console.log('Authenticated user:', userId)` with nothing (remove it) — the auth check already ensures the user is valid; the log adds no debugging value beyond what the auth error would surface. Alternatively, truncate to first 8 chars.
-
-**However:** Edge function logs are server-side only and not visible to end users or mobile attackers. This is a code hygiene issue, not an active vulnerability. Given the scope constraint ("smallest possible correction"), this can be deferred.
-
----
-
-## Implementation Plan
-
-### 3 Changes to Implement (Ordered by Risk)
-
-| # | File | Change | Risk |
-|---|------|--------|------|
-| 1 | `src/lib/geminiKeyValidator.ts` | **Delete** the file — it is dead code with a dangerous pattern (API key in browser fetch URL as query param) | Zero |
-| 2 | `src/hooks/useElevenLabsScribe.ts` + `supabase/functions/elevenlabs-scribe-token/index.ts` + `src/components/settings/ElevenLabsKeySheet.tsx` | Move ElevenLabs BYOK key to server-side storage via existing `manage-api-keys` infra; remove `customApiKey` from the request body | Low |
-| 3 | `src/hooks/useElevenLabsScribe.ts` | Wrap all `console.log` statements in `if (import.meta.env.DEV)` guards to prevent transcript data from appearing in Android Logcat in production APK builds | Very low |
-
-### Change 1 — Delete `src/lib/geminiKeyValidator.ts`
-
-The file exports `validateGeminiKey` which calls Google's API directly from the browser with the key as a URL query parameter. It has zero importers (confirmed via search). The correct server-side validation path is already fully implemented in `supabase/functions/validate-api-key/index.ts` and called from `AISettingsSheet.tsx`.
-
-Deleting this file removes the risk of it being accidentally imported in the future and eliminates a misleading alternative implementation.
-
-### Change 2 — Server-side ElevenLabs key storage (3 coordinated edits)
-
-**2a. `src/components/settings/ElevenLabsKeySheet.tsx`**
-
-Change `onSave` to call `manage-api-keys` edge function (POST for save, DELETE for clear) instead of storing in Zustand directly. Show loading state during save. On success, update Zustand with a boolean `elevenlabsKeyConfigured` flag (not the key value) so the Settings page can show "Connected" status.
-
-**2b. `supabase/functions/elevenlabs-scribe-token/index.ts`**
-
-Replace the `customApiKey` body param with a server-side DB lookup using the existing `getUserKeyFromDB(userId, 'elevenlabs')` pattern from `aiClient.ts`. Remove `customApiKey` from the accepted request body. The function already has the user's `userId` from JWT auth — use it to fetch the key.
-
-**2c. `src/hooks/useElevenLabsScribe.ts`**
-
-Remove `{ customApiKey: elevenlabsApiKey || undefined }` from the request body. Send only `{}` (or nothing) in the body — the edge function will retrieve the key from the database using the user's JWT.
-
-**Also:** Add `provider: 'elevenlabs'` support to the `manage-api-keys` function — it already works for any `provider` string, so no structural change needed there.
-
-### Change 3 — Production log suppression in `useElevenLabsScribe.ts`
-
-Wrap all 10+ `console.log` statements in `useElevenLabsScribe.ts` with `if (import.meta.env.DEV)` guards. The `console.error` calls can remain. This prevents speech transcript content and connection state from being captured by Android Logcat in production APK builds.
+Three action buttons instead of a single chevron arrow. View count shown prominently.
 
 ---
 
 ## What Is NOT Changed
 
-- The Supabase anon key in `safeClient.ts` (it is a publishable key by design)
-- The Gemini key storage and validation flow (already correctly server-side)
-- Any auth redirect or session management logic
-- Any edge function authentication patterns
-- The `manage-api-keys` edge function structure (already handles multiple providers)
-- The `BugReportDialog` session handling (already safely truncates the token to 8 chars)
-- The `user_api_keys` database schema (already supports any `provider` string)
-- Any template, UI, or feature behavior
+- The `/p/:username` URL structure — all existing public links continue to work
+- The `get_public_portfolio` RPC signature — new columns added to output JSON but existing keys unchanged
+- All existing `portfolio_sections` visibility toggles
+- All existing `portfolio_meta_title` / `portfolio_meta_description` SEO fields
+- The `portfolio_bio` / AI bio generation feature
+- The `username` validation and uniqueness logic
+- The PDF download from the public page
+- The off-screen template renderer (still uses the same pattern)
+- The `linkedin_url` from the main profile (portfolio social links still pull from the same fields)
+- All RLS policies
 
 ---
 
-## Security Posture Summary
+## Risk Assessment
 
-| Check | Before Fix | After Fix |
-|-------|-----------|-----------|
-| Gemini key visible in browser network tab | No (server-side validation) | No |
-| Dead client-side key validator code exists | Yes (geminiKeyValidator.ts) | No (deleted) |
-| ElevenLabs key visible in request body | Yes | No (server-side lookup) |
-| ElevenLabs key persisted in localStorage | No | No |
-| Speech transcripts in Android Logcat | Yes (production) | No (DEV only) |
-| API keys in console.log | No | No |
-| All calls over HTTPS | Yes | Yes |
-| Auth JWT in browser storage | Yes (Supabase standard) | Yes (unchanged) |
+| Change | Risk | Mitigation |
+|--------|------|-----------|
+| New DB columns (nullable) | Very low | All nullable with defaults; existing rows unaffected |
+| New CSS theme classes scoped to `[data-portfolio-style]` | Very low | Namespace `--pf-` prevents collision |
+| Updated RPC to include new columns | Low | Additive only — new keys added to existing JSON |
+| PublicPortfolioPage redesign | Low | Same route (`/p/:username`), same data model, same PDF render |
+| PortfolioEditorPage new fields | Low | New fields saved alongside existing ones via `updateProfile` |
+| 2-column layout | Very low | Always collapses to 1-column on mobile |
+
+---
+
+## Summary of What This Becomes
+
+**Before**: An internal-looking screen that dumps resume data into glassmorphism cards. Theming means "dark or light". No brand, no personality, no sense of standing out.
+
+**After**: A genuine public profile product with:
+- 4 distinct visual identities (Minimal, Bold Dark, Glass Pro, Classic Clean)
+- Full accent color + font + layout controls
+- A hero section with ambient design, availability status, and a "Hire Me" primary CTA
+- Experience and project cards that feel like a real portfolio, not a settings panel
+- A 2-column layout option for desktop
+- Clear product positioning ("My Portfolio Website" not "Portfolio Settings")
+- Better entry point from Profile with view count and 3 quick actions
+- All changes backward-compatible — zero existing links broken
