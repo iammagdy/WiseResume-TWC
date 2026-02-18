@@ -54,7 +54,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
     },
   });
 
-  const { getNudgeForSection, dismissNudge } = useResumeNudges({
+  const { getNudgeForSection, getNudgesForExperience, dismissNudge } = useResumeNudges({
     resume: currentResume,
   });
 
@@ -348,6 +348,22 @@ export const ExperienceSection = memo(function ExperienceSection() {
                             Move Down
                           </Button>
                         </div>
+
+                        {/* Per-entry AI nudge chips */}
+                        {getNudgesForExperience(exp.id).map((entryNudge) => (
+                          <AIContextualNudge
+                            key={`${entryNudge.trigger}_${exp.id}`}
+                            compact
+                            show
+                            message={entryNudge.message}
+                            actionLabel={entryNudge.actionLabel}
+                            onAction={() => {
+                              handleAIAction(entryNudge.action, exp);
+                              dismissNudge(`${entryNudge.trigger}_${exp.id}`);
+                            }}
+                            onDismiss={() => dismissNudge(`${entryNudge.trigger}_${exp.id}`)}
+                          />
+                        ))}
 
                         <div className="flex justify-end sm:justify-end pt-2">
                           <Button
