@@ -29,9 +29,7 @@ export default defineConfig(({ mode }) => ({
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-      },
-      workbox: {
-        navigateFallbackDenylist: [/^\/~oauth/],
+        dontCacheBustURLsMatching: /~oauth/,
       },
     }),
   ].filter(Boolean),
