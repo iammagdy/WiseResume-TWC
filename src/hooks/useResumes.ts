@@ -202,19 +202,19 @@ export function useResumeMutations() {
 
       const dbUpdates: Record<string, unknown> = {};
       
-      if (updates.contactInfo) dbUpdates.contact_info = updates.contactInfo;
+      if (updates.contactInfo !== undefined) dbUpdates.contact_info = updates.contactInfo;
       if (updates.summary !== undefined) dbUpdates.summary = updates.summary;
-      if (updates.experience) dbUpdates.experience = updates.experience;
-      if (updates.education) dbUpdates.education = updates.education;
-      if (updates.skills) dbUpdates.skills = updates.skills;
-      if (updates.certifications) dbUpdates.certifications = updates.certifications;
-      if (updates.awards) dbUpdates.awards = updates.awards;
-      if (updates.projects) dbUpdates.projects = updates.projects;
-      if (updates.publications) dbUpdates.publications = updates.publications;
-      if (updates.volunteering) dbUpdates.volunteering = updates.volunteering;
-      if (updates.hobbies) dbUpdates.hobbies = updates.hobbies;
-      if (updates.references) dbUpdates.references = updates.references;
-      if (updates.templateId) dbUpdates.template_id = updates.templateId;
+      if (updates.experience !== undefined) dbUpdates.experience = updates.experience;
+      if (updates.education !== undefined) dbUpdates.education = updates.education;
+      if (updates.skills !== undefined) dbUpdates.skills = updates.skills;
+      if (updates.certifications !== undefined) dbUpdates.certifications = updates.certifications;
+      if (updates.awards !== undefined) dbUpdates.awards = updates.awards;
+      if (updates.projects !== undefined) dbUpdates.projects = updates.projects;
+      if (updates.publications !== undefined) dbUpdates.publications = updates.publications;
+      if (updates.volunteering !== undefined) dbUpdates.volunteering = updates.volunteering;
+      if (updates.hobbies !== undefined) dbUpdates.hobbies = updates.hobbies;
+      if (updates.references !== undefined) dbUpdates.references = updates.references;
+      if (updates.templateId !== undefined) dbUpdates.template_id = updates.templateId;
       if (title) dbUpdates.title = title;
 
       const { data, error } = await supabase
@@ -227,16 +227,20 @@ export function useResumeMutations() {
       if (error) throw error;
       return parseDbResume(data);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['resumes'] });
       queryClient.invalidateQueries({ queryKey: ['resume', data.id] });
-      // Auto-save a version snapshot (fire and forget)
+      // Auto-save a version snapshot — awaited so fast navigation doesn't cancel it
       const resumeData = dbToResumeData(data);
-      saveVersion.mutate({
-        resumeId: data.id,
-        snapshot: resumeData,
-        changeSummary: 'Auto-saved',
-      });
+      try {
+        await saveVersion.mutateAsync({
+          resumeId: data.id,
+          snapshot: resumeData,
+          changeSummary: 'Auto-saved',
+        });
+      } catch {
+        // Version save failure is non-critical — silently ignore
+      }
     },
     onError: (error: Error & { code?: string }) => {
       // Check for PGRST116 error (no rows found - stale resume ID)

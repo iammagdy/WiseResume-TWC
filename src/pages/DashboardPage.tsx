@@ -458,6 +458,15 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <AICreditsIndicator />
             <AIHealthBadge />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-11 h-11 rounded-xl touch-manipulation active:scale-95"
+              onClick={() => { haptics.light(); navigate('/settings'); }}
+              aria-label="Settings"
+            >
+              <Settings className="w-5 h-5 text-muted-foreground" />
+            </Button>
             <Popover onOpenChange={(open) => {
               if (open && !localStorage.getItem('wr-profile-pulse-seen')) {
                 localStorage.setItem('wr-profile-pulse-seen', 'true');
