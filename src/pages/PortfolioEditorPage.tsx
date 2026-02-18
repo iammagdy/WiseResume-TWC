@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
   CheckCircle2, XCircle, Search, Palette, Layout, Type, Zap, ChevronDown,
-  User, Link2, Eye, QrCode, Download, Share2, X
+  User, Link2, Eye, QrCode, Download, Share2, X, Plus, Briefcase, Star
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -211,6 +211,9 @@ export default function PortfolioEditorPage() {
   const [openToWork, setOpenToWork] = useState(false);
   const [availabilityHeadline, setAvailabilityHeadline] = useState('');
   const [showQR, setShowQR] = useState(false);
+  const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
+  const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
+  const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -235,6 +238,10 @@ export default function PortfolioEditorPage() {
       setPortfolioFont((profile.portfolioFont || 'inter') as PortfolioFont);
       setOpenToWork(profile.openToWork || false);
       setAvailabilityHeadline(profile.availabilityHeadline || '');
+      setSyncMode((profile.portfolioSyncMode as 'auto' | 'locked') || 'auto');
+      const extras = (profile.portfolioExtras as Record<string, unknown>) || {};
+      setCaseStudies((extras.caseStudies as Array<{id:string;title:string;challenge:string;outcome:string}>) || []);
+      setServices((extras.services as Array<{id:string;title:string;description:string;category:string}>) || []);
     }
   }, [profile]);
 
@@ -406,6 +413,8 @@ export default function PortfolioEditorPage() {
         portfolioFont,
         openToWork,
         availabilityHeadline: availabilityHeadline || null,
+        portfolioSyncMode: syncMode,
+        portfolioExtras: { caseStudies, services },
       };
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
       if (overrides?.portfolioEnabled !== undefined) {
@@ -883,6 +892,110 @@ export default function PortfolioEditorPage() {
                 <Switch checked={sections[key]} onCheckedChange={() => toggleSectionVisibility(key)} />
               </div>
             ))}
+          </div>
+        </CollapsibleCard>
+
+        {/* ── Sync Mode ──────────────────────────────────────────────────── */}
+        <CollapsibleCard
+          id="sync"
+          icon={<Sparkles className="w-4 h-4" />}
+          title="Content Sync Mode"
+          hint={<span className="capitalize">{syncMode}</span>}
+          openSections={openSections}
+          toggleSection={toggleSection}
+        >
+          <p className="text-xs text-muted-foreground mb-3">Control how your portfolio content stays in sync with your resume.</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => setSyncMode('auto')}
+              className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}
+            >
+              <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'auto' ? 'border-primary' : 'border-muted-foreground'}`}>
+                {syncMode === 'auto' && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Auto-sync</p>
+                <p className="text-xs text-muted-foreground">Portfolio always reflects your latest resume changes</p>
+              </div>
+            </button>
+            <button
+              onClick={() => setSyncMode('locked')}
+              className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}
+            >
+              <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'locked' ? 'border-primary' : 'border-muted-foreground'}`}>
+                {syncMode === 'locked' && <div className="w-2 h-2 rounded-full bg-primary" />}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Locked snapshot</p>
+                <p className="text-xs text-muted-foreground">Freeze your portfolio at this version — edits to your resume won't affect it</p>
+              </div>
+            </button>
+          </div>
+        </CollapsibleCard>
+
+        {/* ── Case Studies ───────────────────────────────────────────────── */}
+        <CollapsibleCard
+          id="casestudies"
+          icon={<Briefcase className="w-4 h-4" />}
+          title="Case Studies"
+          hint={caseStudies.length > 0 ? <span>{caseStudies.length} added</span> : undefined}
+          openSections={openSections}
+          toggleSection={toggleSection}
+        >
+          <p className="text-xs text-muted-foreground mb-3">Showcase detailed project stories with challenge, approach, and outcome.</p>
+          <div className="space-y-3">
+            {caseStudies.map((cs, i) => (
+              <div key={cs.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Case Study {i + 1}</span>
+                  <button onClick={() => setCaseStudies(prev => prev.filter(c => c.id !== cs.id))} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <Input placeholder="Title (e.g. Redesigned onboarding flow)" value={cs.title} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, title: e.target.value} : c))} />
+                <Textarea placeholder="Challenge — What problem were you solving?" value={cs.challenge} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, challenge: e.target.value} : c))} className="min-h-[60px] text-sm" />
+                <Textarea placeholder="Outcome — What was the measurable result?" value={cs.outcome} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, outcome: e.target.value} : c))} className="min-h-[60px] text-sm" />
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => setCaseStudies(prev => [...prev, {id: crypto.randomUUID(), title:'', challenge:'', outcome:''}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+              <Plus className="w-4 h-4 mr-2" /> Add Case Study
+            </Button>
+          </div>
+        </CollapsibleCard>
+
+        {/* ── Services ───────────────────────────────────────────────────── */}
+        <CollapsibleCard
+          id="services"
+          icon={<Star className="w-4 h-4" />}
+          title="Services & Offerings"
+          hint={services.length > 0 ? <span>{services.length} added</span> : undefined}
+          openSections={openSections}
+          toggleSection={toggleSection}
+        >
+          <p className="text-xs text-muted-foreground mb-3">List what you offer as a freelancer, consultant, or professional.</p>
+          <div className="space-y-3">
+            {services.map((svc, i) => (
+              <div key={svc.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service {i + 1}</span>
+                  <button onClick={() => setServices(prev => prev.filter(s => s.id !== svc.id))} className="text-muted-foreground hover:text-destructive transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <Input placeholder="Service title (e.g. UX Audit)" value={svc.title} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, title: e.target.value} : s))} />
+                <Textarea placeholder="Brief description of what's included..." value={svc.description} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, description: e.target.value} : s))} className="min-h-[60px] text-sm" />
+                <select value={svc.category} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, category: e.target.value} : s))} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                  <option value="development">Development</option>
+                  <option value="design">Design</option>
+                  <option value="consulting">Consulting</option>
+                  <option value="writing">Writing</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" onClick={() => setServices(prev => [...prev, {id: crypto.randomUUID(), title:'', description:'', category:'development'}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+              <Plus className="w-4 h-4 mr-2" /> Add Service
+            </Button>
           </div>
         </CollapsibleCard>
 

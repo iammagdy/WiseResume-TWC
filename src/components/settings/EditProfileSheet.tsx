@@ -41,6 +41,29 @@ interface Profile {
   location: string | null;
   linkedinUrl: string | null;
   profileCompleted: boolean;
+  // Extended fields needed by calculateProfileCompletion
+  username?: string | null;
+  portfolioBio?: string | null;
+  portfolioEnabled?: boolean;
+  portfolioResumeId?: string | null;
+  githubUrl?: string | null;
+  websiteUrl?: string | null;
+  twitterUrl?: string | null;
+  contactEmail?: string | null;
+  theme?: string | null;
+  phoneNumber?: string | null;
+  portfolioSections?: unknown;
+  portfolioMetaTitle?: string | null;
+  portfolioMetaDescription?: string | null;
+  views?: number;
+  portfolioStyle?: string | null;
+  portfolioLayout?: string | null;
+  portfolioAccentColor?: string | null;
+  portfolioFont?: string | null;
+  openToWork?: boolean;
+  availabilityHeadline?: string | null;
+  portfolioExtras?: unknown;
+  portfolioSyncMode?: 'auto' | 'locked';
 }
 
 interface EditProfileSheetProps {

@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { FileText, Settings, Home, BarChart3, Sparkles } from 'lucide-react';
+import { FileText, Globe, Home, BarChart3, Sparkles } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
@@ -42,10 +42,10 @@ const tabs: TabItem[] = [
   matchPaths: ['/applications']
 },
 {
-  path: '/settings',
-  icon: Settings,
-  label: 'Settings',
-  matchPaths: ['/settings']
+  path: '/portfolio',
+  icon: Globe,
+  label: 'Portfolio',
+  matchPaths: ['/portfolio']
 }];
 
 
