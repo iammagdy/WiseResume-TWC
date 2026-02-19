@@ -1,30 +1,45 @@
 
-# Add Subtle Parallax to Hero Section Content
 
-## What Changes
-Add scroll-based parallax to the hero section's content elements so that as the user scrolls down, the planet logo, title, tagline, and CTA button move at slightly different speeds -- creating a layered depth effect that complements the existing space background parallax.
+# Redesign Footer and Fix Scroll Lag
 
-## How It Works
-- The planet logo (farthest "back") scrolls slightly slower than the page
-- The title and tagline scroll at a medium rate
-- The CTA button and trust text (closest to viewer) scroll at normal speed
-- All parallax is disabled when the user prefers reduced motion
+## 1. Footer Redesign
 
-The effect is subtle (10-30px range) so it adds depth without causing lag or motion sickness.
+The current footer is a flat, centered layout with placeholder text icons ("X", "Li", "Gh") that looks out of place with the polished space theme. The new footer will be a visually rich component matching the landing page aesthetic.
+
+**Changes to `src/components/landing/Footer.tsx`:**
+
+- Replace the Globe icon brand mark with the actual `wise-ai-logo.png` asset for brand consistency
+- Use proper Lucide icons for social links (Twitter/X uses an "X" text styled as icon, LinkedIn and GitHub get their own styled icons)
+- Add a gradient divider line at the top instead of plain border
+- Add a subtle "Built with AI" tagline with a soft glow accent
+- Stack layout vertically on mobile: logo + tagline at top, links in the middle, social icons below, copyright at bottom
+- Add a faint radial glow behind the logo for visual depth
+- Use glass-style background (`bg-card/40 backdrop-blur-sm`) to match landing page cards
+- Update copyright year to 2026
+
+## 2. Fix Scroll Lag
+
+The lag comes from the SpaceBackground component rendering 60 individually animated star elements plus 3 parallax motion layers with `useScroll`/`useTransform`. Combined with `backdrop-blur` on multiple cards throughout the page, this overwhelms mobile GPUs.
+
+**Changes to `src/components/landing/SpaceBackground.tsx`:**
+
+- Reduce star count from 60 to 30 (still looks full but halves DOM nodes and animations)
+- Reduce shooting stars from 3 to 2
+- Add `will-change: transform` to all parallax motion layers so the browser promotes them to GPU-composited layers upfront (avoids expensive repaints)
+- Add `contain: layout style paint` CSS to the star container to limit browser repaint scope
+
+**Changes to `src/pages/Index.tsx`:**
+
+- Remove `backdrop-blur-sm` from comparison strip cards and feature cards (these are the most numerous blurred elements and contribute heavily to lag on mobile)
+- Keep backdrop-blur only on the sticky header and the two "See It in Action" cards where the glass effect is most impactful
 
 ## Technical Details
 
-### File: `src/components/landing/HeroSection.tsx`
+### Files Modified
 
-1. Import `useRef` from React and `motion, useScroll, useTransform, useReducedMotion` from Framer Motion
-2. Add a `ref` on the `<section>` element and set up `useScroll` targeting it
-3. Create three `useTransform` values for different scroll speeds:
-   - `yLogo`: maps scroll 0-1 to 0 to -30px (slowest, feels farthest back)
-   - `yText`: maps scroll 0-1 to 0 to -15px (medium)
-   - `yButton`: maps scroll 0-1 to 0 to -5px (barely moves, feels closest)
-4. Also add a subtle `opacity` transform so the hero fades out slightly as user scrolls past (1 to 0.85)
-5. Wrap the planet logo div in `motion.div` with `style={{ y: yLogo }}`
-6. Wrap the title + tagline in `motion.div` with `style={{ y: yText }}`
-7. CTA + trust text get `motion.div` with `style={{ y: yButton }}`
-8. All transforms fall back to `0` when `prefersReducedMotion` is true
-9. Add a subtle scale transform on the overall content container: scales from 1 to 0.98 as user scrolls, adding to the depth illusion
+| File | Changes |
+|---|---|
+| `src/components/landing/Footer.tsx` | Full redesign with logo import, gradient divider, proper social icons, vertical mobile stack, glow accent |
+| `src/components/landing/SpaceBackground.tsx` | Stars 60 to 30, shooting stars 3 to 2, add `will-change: transform` on parallax layers |
+| `src/pages/Index.tsx` | Remove `backdrop-blur-sm` from comparison and feature cards to reduce composite layer count |
+
