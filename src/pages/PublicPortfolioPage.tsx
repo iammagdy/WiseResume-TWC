@@ -11,7 +11,7 @@ import {
   Wrench, Layers, ArrowUpRight, Code2, Paintbrush, MessageSquare, PenLine, Star, Send, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import type { Experience, Education, Project } from '@/types/resume';
@@ -782,6 +782,119 @@ function StickyHeader({
   );
 }
 
+// ─── Skill Cloud Helpers ──────────────────────────────────────────────────────
+function computeSkillFrequencies(
+  skills: string[],
+  experience: Experience[],
+  projects: Project[]
+): Record<string, number> {
+  const scores: Record<string, number> = {};
+  for (const skill of skills) {
+    const lower = skill.toLowerCase();
+    let score = 0;
+    for (const exp of experience) {
+      const corpus = [
+        exp.description ?? '',
+        ...(exp.achievements ?? []),
+        ...((exp as Experience & { responsibilities?: string[] }).responsibilities ?? []),
+      ].join(' ').toLowerCase();
+      if (corpus.includes(lower)) score += 2;
+    }
+    for (const proj of projects) {
+      if (proj.technologies?.some((t: string) => t.toLowerCase() === lower)) score += 1;
+      if (proj.description?.toLowerCase().includes(lower)) score += 1;
+    }
+    scores[skill] = score;
+  }
+  return scores;
+}
+
+function getSkillTier(score: number): { fontSize: string; fontWeight: number; px: string; py: string; opacity: number } {
+  if (score >= 7) return { fontSize: '17px', fontWeight: 800, px: '20px', py: '10px', opacity: 1 };
+  if (score >= 4) return { fontSize: '15px', fontWeight: 700, px: '16px', py: '9px',  opacity: 1 };
+  if (score >= 2) return { fontSize: '13px', fontWeight: 600, px: '14px', py: '8px',  opacity: 0.85 };
+  if (score >= 1) return { fontSize: '12px', fontWeight: 500, px: '12px', py: '7px',  opacity: 0.70 };
+  return              { fontSize: '11px', fontWeight: 400, px: '10px', py: '6px',  opacity: 0.55 };
+}
+
+interface SkillCloudProps {
+  skills: string[];
+  experience: Experience[];
+  projects: Project[];
+  pStyle: string;
+  showMore: boolean;
+  onToggleMore: () => void;
+  hasMore: boolean;
+  moreCount: number;
+}
+
+const SKILL_CLOUD_LIMIT = 28;
+
+function SkillCloud({ skills, experience, projects, showMore, onToggleMore, hasMore, moreCount }: SkillCloudProps) {
+  const scores = useMemo(
+    () => computeSkillFrequencies(skills, experience, projects),
+    [skills, experience, projects]
+  );
+
+  const sorted = useMemo(
+    () => [...skills].sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0)),
+    [skills, scores]
+  );
+
+  const visible = showMore ? sorted : sorted.slice(0, SKILL_CLOUD_LIMIT);
+
+  return (
+    <>
+      <motion.div
+        variants={skillWave}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true }}
+        className="flex flex-wrap gap-2 items-baseline"
+      >
+        {visible.map((skill, i) => {
+          const tier = getSkillTier(scores[skill] ?? 0);
+          return (
+            <motion.span
+              key={i}
+              variants={skillPill}
+              title={skill}
+              style={{
+                fontSize: tier.fontSize,
+                fontWeight: tier.fontWeight,
+                padding: `${tier.py} ${tier.px}`,
+                opacity: tier.opacity,
+                borderRadius: '9999px',
+                background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
+                color: 'var(--pf-accent)',
+                border: '1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                transition: 'all 0.2s',
+                lineHeight: 1.2,
+                cursor: 'default',
+              }}
+            >
+              {skill}
+            </motion.span>
+          );
+        })}
+      </motion.div>
+      {hasMore && (
+        <button
+          onClick={onToggleMore}
+          className="mt-3 text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
+          style={{ color: 'var(--pf-accent)' }}
+        >
+          {showMore
+            ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</>
+            : <><ChevronDown className="w-3.5 h-3.5" /> +{moreCount} more</>}
+        </button>
+      )}
+    </>
+  );
+}
+
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
@@ -1047,10 +1160,8 @@ function PublicPortfolioContent() {
 
   const isTwoCol = pLayout === 'two-col';
 
-  const SKILL_LIMIT = 28;
   const allSkills = resume.skills.map((s) => typeof s === 'string' ? s : (s as Record<string, string>).name || String(s));
-  const visibleSkills = showMoreSkills ? allSkills : allSkills.slice(0, SKILL_LIMIT);
-  const hasMoreSkills = allSkills.length > SKILL_LIMIT;
+  const hasMoreSkills = allSkills.length > SKILL_CLOUD_LIMIT;
 
   // Tagline: availability headline or first ~80 chars of bio
   const tagline = profile.availabilityHeadline || (profile.portfolioBio ? profile.portfolioBio.slice(0, 90) + (profile.portfolioBio.length > 90 ? '…' : '') : null);
@@ -1340,32 +1451,16 @@ function PublicPortfolioContent() {
                 id="section-skills"
               >
                 <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
-                <motion.div
-                  variants={skillWave}
-                  initial="hidden"
-                  whileInView="visible"
-                  viewport={{ once: true }}
-                  className="flex flex-wrap gap-2"
-                >
-                  {visibleSkills.map((skill, i) => (
-                    <motion.span key={i} variants={skillPill} className="text-sm px-3 py-1.5 rounded-full font-medium transition-all" style={{
-                      background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
-                      color: 'var(--pf-accent)',
-                      border: '1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent)',
-                    }}>
-                      {skill}
-                    </motion.span>
-                  ))}
-                </motion.div>
-                {hasMoreSkills && (
-                  <button
-                    onClick={() => setShowMoreSkills(v => !v)}
-                    className="mt-3 text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
-                    style={{ color: 'var(--pf-accent)' }}
-                  >
-                    {showMoreSkills ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</> : <><ChevronDown className="w-3.5 h-3.5" /> +{allSkills.length - SKILL_LIMIT} more</>}
-                  </button>
-                )}
+                <SkillCloud
+                  skills={allSkills}
+                  experience={resume.experience}
+                  projects={resume.projects}
+                  pStyle={pStyle}
+                  showMore={showMoreSkills}
+                  onToggleMore={() => setShowMoreSkills(v => !v)}
+                  hasMore={hasMoreSkills}
+                  moreCount={allSkills.length - SKILL_CLOUD_LIMIT}
+                />
               </motion.section>
             )}
 
