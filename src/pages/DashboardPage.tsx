@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, BookOpen, TrendingUp, FileSignature, GraduationCap, CheckSquare, X, Trash2, WifiOff, Globe } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff } from 'lucide-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { ActionCard } from '@/components/home/ActionCard';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
-import { DailyTipCard } from '@/components/dashboard/DailyTipCard';
+// DailyTipCard removed - tip merged into DashboardStats
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
 import { PortfolioActivityCard } from '@/components/dashboard/PortfolioActivityCard';
@@ -79,7 +79,7 @@ export default function DashboardPage() {
   const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
   
   const undoTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const [tipVisible, setTipVisible] = useState(true);
+  // tipVisible state removed - tip merged into DashboardStats
   const [isCreating, setIsCreating] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -551,9 +551,6 @@ export default function DashboardPage() {
         {/* All scrollable content inside PullToRefresh */}
         <PullToRefresh onRefresh={handleRefresh} className="flex-1">
           <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
-            {/* Daily Tip - below header, auto-hides */}
-            <DailyTipCard onVisibilityChange={setTipVisible} />
-
             {/* Portfolio Activity Card - shows if portfolio is enabled */}
             <PortfolioActivityCard />
 
@@ -577,7 +574,7 @@ export default function DashboardPage() {
 
             {/* Search pill */}
             {resumes && resumes.length > 0 && (
-              <div className="px-4 pb-3 flex items-center gap-2">
+              <div className="px-4 pb-2 flex items-center gap-2">
                 <div className="relative flex-1">
                   <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
@@ -667,7 +664,7 @@ export default function DashboardPage() {
             ) : !resumes || resumes.length === 0 ? (
               <>
                 {/* Quick Actions Grid */}
-                <div className="grid grid-cols-2 gap-2 px-4 xs:gap-3 xs:px-6 mb-4 [&>*:last-child:nth-child(odd)]:col-span-2">
+                <div className="grid grid-cols-2 gap-2 px-4 xs:gap-3 xs:px-6 mb-4">
                   <ActionCard
                     icon={FileTextIcon}
                     title="New Resume"
@@ -683,13 +680,6 @@ export default function DashboardPage() {
                     aria-label="Import PDF resume"
                   />
                   <ActionCard
-                    icon={Briefcase}
-                    title="Browse Jobs"
-                    description="Find opportunities"
-                    onClick={() => navigate('/applications')}
-                    aria-label="Browse job listings"
-                  />
-                  <ActionCard
                     icon={Linkedin}
                     title="Import LinkedIn"
                     description="Import your profile"
@@ -697,39 +687,11 @@ export default function DashboardPage() {
                     aria-label="Import from LinkedIn"
                   />
                   <ActionCard
-                    icon={BookOpen}
-                    title="Examples"
-                    description="Browse resume samples"
-                    onClick={() => navigate('/examples')}
-                    aria-label="Browse resume examples"
-                  />
-                  <ActionCard
-                    icon={TrendingUp}
-                    title="Career Plan"
-                    description="AI career roadmap"
-                    onClick={() => navigate('/career')}
-                    aria-label="Career planning"
-                  />
-                  <ActionCard
-                    icon={FileSignature}
-                    title="Resign Letter"
-                    description="Professional templates"
-                    onClick={() => navigate('/resignation-letters')}
-                    aria-label="Resignation letters"
-                  />
-                  <ActionCard
-                    icon={GraduationCap}
-                    title="Guides"
-                    description="Career tips & advice"
-                    onClick={() => navigate('/guides')}
-                    aria-label="Career guides"
-                  />
-                  <ActionCard
-                    icon={Globe}
-                    title="My Portfolio"
-                    description="Build your personal site"
-                    onClick={() => navigate('/portfolio')}
-                    aria-label="Portfolio builder"
+                    icon={Briefcase}
+                    title="Browse Jobs"
+                    description="Find opportunities"
+                    onClick={() => navigate('/applications')}
+                    aria-label="Browse job listings"
                   />
                 </div>
                 <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
@@ -862,7 +824,7 @@ export default function DashboardPage() {
           onClick={handleCreateNew}
           onTailor={() => navigate('/ai-studio')}
           onAnalyzeJob={() => setShowAnalyzeJob(true)}
-          pulse={tipVisible}
+          pulse={false}
           isLoading={isCreating || isMigrating}
         />
       )}

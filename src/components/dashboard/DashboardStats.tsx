@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Flame, AlertCircle } from 'lucide-react';
+import { FileText, Flame, AlertCircle, Lightbulb, X } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { Badge } from '@/components/ui/badge';
 import { DatabaseResume } from '@/hooks/useResumes';
@@ -42,6 +42,18 @@ const motivationalSubtitles = [
   "Today is the perfect day to stand out",
 ];
 
+const tips = [
+  'Tailoring your resume to each job increases callbacks by 40%.',
+  'Use numbers and metrics — recruiters spend 6 seconds scanning.',
+  'A strong summary section can boost interview chances by 30%.',
+  'Keep your resume to one page if under 10 years of experience.',
+  'Use action verbs like "led", "built", and "improved" to stand out.',
+  'Adding relevant keywords from the job posting helps beat ATS filters.',
+  'Proofread twice — 77% of hiring managers reject resumes with typos.',
+  'Quantify achievements: "Increased revenue by 25%" beats vague claims.',
+  'Update your resume every 3 months, even if you\'re not job hunting.',
+];
+
 interface DashboardStatsProps {
   totalResumes: number;
   healthScores: Record<string, ResumeHealthScore>;
@@ -55,6 +67,14 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
   const localStreak = useLoginStreak();
   const streak = externalStreak ?? localStreak;
   const [subtitleIndex, setSubtitleIndex] = useState(0);
+  const [tipDismissed, setTipDismissed] = useState(() => !!localStorage.getItem('wr-tip-dismissed'));
+
+  const tip = tips[new Date().getDate() % tips.length];
+
+  const handleDismissTip = () => {
+    setTipDismissed(true);
+    localStorage.setItem('wr-tip-dismissed', 'true');
+  };
 
   // Rotate subtitles every 4 seconds when empty state
   useEffect(() => {
@@ -88,7 +108,7 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="px-4 pt-3 pb-2"
+      className="px-4 pt-2 pb-2"
     >
       {/* Glass Hero Card */}
       <div className="glass-elevated rounded-2xl p-4 relative overflow-hidden">
@@ -127,9 +147,24 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
             )}
           </div>
 
+          {/* Inline daily tip */}
+          {!tipDismissed && (
+            <div className="flex items-center gap-2 mt-1">
+              <Lightbulb className="w-3 h-3 text-warning shrink-0" />
+              <p className="text-[11px] text-muted-foreground truncate flex-1 min-w-0">{tip}</p>
+              <button
+                onClick={handleDismissTip}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground touch-manipulation shrink-0"
+                aria-label="Dismiss tip"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
           {/* Rotating motivational subtitle for empty state only */}
           {totalResumes === 0 && (
-            <div className="h-6 mb-4 overflow-hidden">
+            <div className="h-6 mb-4 overflow-hidden mt-1">
               <AnimatePresence mode="wait">
                 <motion.p
                   key={subtitleIndex}
@@ -152,7 +187,6 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
                 <FileText className="w-3.5 h-3.5" />
                 {totalResumes} {totalResumes === 1 ? 'Resume' : 'Resumes'}
               </Badge>
-              {/* Resume freshness nudge */}
               {resumes && resumes.length > 0 && (() => {
                 const oldest = resumes.reduce((a, b) =>
                   new Date(a.updated_at) < new Date(b.updated_at) ? a : b
