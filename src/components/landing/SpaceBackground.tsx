@@ -40,8 +40,8 @@ function generateStars(count: number): Star[] {
 }
 
 export function SpaceBackground({ children }: { children: React.ReactNode }) {
-  const stars = useMemo(() => generateStars(60), []);
-  const shootingStars = useMemo(() => generateShootingStars(3), []);
+  const stars = useMemo(() => generateStars(30), []);
+  const shootingStars = useMemo(() => generateShootingStars(2), []);
   const containerRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
@@ -58,7 +58,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
       {/* Layer 0: Deep space gradient - farthest */}
       <motion.div
         className="absolute inset-0 bg-gradient-to-b from-[hsl(240_30%_3%)] via-[hsl(270_40%_8%)] to-[hsl(240_30%_3%)]"
-        style={{ y: noMotion ?? yFar }}
+        style={{ y: noMotion ?? yFar, willChange: 'transform' }}
         aria-hidden="true"
       />
 
@@ -66,6 +66,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
       <motion.div
         className="absolute inset-0 opacity-25"
         style={{
+          willChange: 'transform',
           y: noMotion ?? yMid,
           background: `
             radial-gradient(ellipse at 15% 25%, hsl(270 70% 25% / 0.5) 0%, transparent 45%),
@@ -79,7 +80,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
       {/* Layer 2: Floating orbs - nearest parallax layer */}
       <motion.div
         className="absolute inset-0 pointer-events-none"
-        style={{ y: noMotion ?? yNear }}
+        style={{ y: noMotion ?? yNear, willChange: 'transform' }}
         aria-hidden="true"
       >
         <div
@@ -109,7 +110,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
       </motion.div>
 
       {/* Layer 3: Twinkling stars */}
-      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+      <div className="absolute inset-0 pointer-events-none" style={{ contain: 'layout style paint' }} aria-hidden="true">
         {stars.map((star) => (
           <div
             key={star.id}
