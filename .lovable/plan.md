@@ -1,228 +1,135 @@
 
-# Skill Frequency Panel in Portfolio Editor
+# Parsing & OCR Audit — Findings and Improvements
 
-## What Already Exists
+## What Was Audited
 
-`PortfolioEditorPage.tsx` already has:
-- `selectedResume` derived at line 488: `resumes.find(r => r.id === selectedResumeId) || resumes[0]`
-- A `CollapsibleCard` for **Portfolio Strength** (lines 646–671) that shows tips for missing content — this is the perfect sibling for a new "Skills Visibility" card
-- The `computeSkillFrequencies` and `getSkillTier` helpers live in `PublicPortfolioPage.tsx` and are private to that file
+The full parsing pipeline was traced end-to-end across 6 files:
 
-The Editor page imports `Experience` and `Project` types are NOT yet imported there — but `selectedResume` already exposes `.skills`, `.experience`, and `.projects` as the same raw data shape (coming from the same `useResumes()` hook that feeds the public portfolio).
-
----
-
-## Plan
-
-### Step 1 — Extract scoring helpers to a shared module
-
-Move `computeSkillFrequencies` and `getSkillTier` from `PublicPortfolioPage.tsx` into a new file **`src/lib/skillCloud.ts`** so both the public page and the editor can import them cleanly.
-
-```
-src/lib/skillCloud.ts
-  export function computeSkillFrequencies(skills, experience, projects): Record<string, number>
-  export function getSkillTier(score): { fontSize, fontWeight, px, py, opacity }
-  export const TIER_NAMES: Record<string, string>  // for label display
-```
-
-`PublicPortfolioPage.tsx` is updated to import from this new module (removing the inline definitions).
+1. `src/lib/pdf/textExtractor.ts` — PDF text extraction (pdf.js)
+2. `src/lib/pdf/ocrExtractor.ts` — Tesseract.js OCR for scanned PDFs and images
+3. `src/lib/pdf/sectionParsers.ts` — Local regex fallback parser
+4. `src/lib/pdfParser.ts` — Orchestrator / AI gateway
+5. `supabase/functions/parse-resume/index.ts` — AI edge function (Gemini)
+6. `src/pages/UploadPage.tsx` — UI flow and file routing
 
 ---
 
-### Step 2 — Add `SkillVisibilityPanel` collapsible card to Portfolio Editor
+## Bugs and Gaps Found
 
-A new `CollapsibleCard` with id `"skill-cloud"` inserted **between "Portfolio Strength" and "Visual Theme"** — the most logical spot since it's a content quality/strength signal.
+### 1. OCR Canvas Render Mismatch (Critical Bug)
+**File:** `src/lib/pdf/ocrExtractor.ts`, lines 104–118
 
-The card header hint shows the number of "well-covered" skills (score ≥ 2) vs total: e.g. `7 of 18 strong`.
+The canvas is resized to a capped dimension (e.g. 1800×2400) but the PDF page is still rendered using the *original* `scale=2` viewport — not the scaled-down viewport. This means the PDF content is rendered at full 2× resolution but crammed into a smaller canvas, causing clipping of the right/bottom of every OCR page.
 
-**Inside the card, two sections:**
-
-#### A — Skill Score Table
-
-A scrollable list of all skills in the selected resume, sorted highest score first. Each row:
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  React                [████████░░]  ●●  8 pts  [xl]      │
-│  TypeScript           [██████░░░░]  ●●  5 pts  [lg]      │
-│  Jest                 [██░░░░░░░░]  ●   2 pts  [md]      │
-│  Photoshop            [░░░░░░░░░░]  ○   0 pts  [xs] dim  │
-└──────────────────────────────────────────────────────────┘
+```typescript
+// BUG: renders at full 2× viewport into a smaller canvas
+canvas.width = canvasWidth; // e.g. 1800
+canvas.height = canvasHeight; // e.g. 2048
+await page.render({
+  canvasContext: context,
+  viewport: viewport, // still the 2× uncapped viewport — WRONG
+}).promise;
 ```
 
-Concretely:
-- **Skill name** (left, truncated)
-- **Thin progress bar** (0–max score, accent color)
-- **Score number** ("8 mentions")
-- **Tier badge** ("xl" / "lg" / "md" / "sm" / "xs") in matching color
-
-Tier badge colors:
-- xl (≥7): `bg-emerald-400/15 text-emerald-400`
-- lg (≥4): `bg-blue-400/15 text-blue-400`
-- md (≥2): `bg-amber-400/15 text-amber-400`
-- sm (≥1): `bg-muted text-muted-foreground`
-- xs (0): `bg-muted/50 text-muted-foreground/50`
-
-Max 20 rows shown to keep the list compact; a "Show all" toggle for more.
-
-#### B — Improvement Hint Banner
-
-Below the list, a contextual hint card (only shown when `zeroScoreSkills.length > 0`):
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  💡  7 skills aren't mentioned in your experience        │
-│      Add them to your job descriptions to make them      │
-│      appear larger in your Skills word cloud.            │
-│                                          [Go to Resume →]│
-└──────────────────────────────────────────────────────────┘
-```
-
-The "Go to Resume → Skills" button navigates to `/editor` (the resume editor). No backend changes required.
+**Fix:** When the canvas dimensions are capped, compute an adjusted viewport using the actual scale factor so the render matches the canvas size exactly.
 
 ---
 
-### Step 3 — Summary stat in card header hint
+### 2. `isProject` Flag Always Written as `false` (Data Loss Bug)
+**File:** `supabase/functions/parse-resume/index.ts`, line 218
 
-The `CollapsibleCard` hint prop shows: `7 strong · 4 dim` — giving a glanceable quality signal even when collapsed.
+```typescript
+isProject: exp.isProject || false,
+```
+
+The AI correctly sets `isProject: true` for project entries, but the double-check `|| false` short-circuits: if `exp.isProject` is `false`, the expression evaluates `false || false = false` — which is fine. But the problem is the schema tool definition at line 43 does not explicitly require `isProject` in the `required` array. When Gemini omits the field, `exp.isProject` becomes `undefined`, and `undefined || false = false`, so projects always get tagged as regular jobs and never surface in the Projects section.
+
+**Fix:** Add `isProject` to the required fields in the tool schema, and add a rule to the system prompt clarifying when to set it.
+
+---
+
+### 3. Multi-language Name Regex Too Restrictive (International Resumes)
+**File:** `supabase/functions/parse-resume/index.ts`, lines 190–194
+**File:** `src/lib/pdf/sectionParsers.ts`, line 140
+
+The name fallback regex is:
+```
+/^[A-Za-z\u00C0-\u024F\u0600-\u06FF\- ']+$/
+```
+
+This covers Latin extended and Arabic — but misses CJK (Chinese/Japanese/Korean: `\u4E00-\u9FFF`), Devanagari (Hindi: `\u0900-\u097F`), and Cyrillic (`\u0400-\u04FF`). Resumes from Indian, Russian, Korean or Chinese candidates will fail name detection and fall back to an empty string.
+
+**Fix:** Expand the Unicode range in both the edge function and the local fallback parser to cover the full set of common script ranges.
+
+---
+
+### 4. `splitIntoBlocks` Misses Many Block-Start Triggers (Local Parser)
+**File:** `src/lib/pdf/sectionParsers.ts`, lines 312–336
+
+The regex that starts a new block only matches months `Jan/Feb/…` and `•►▪` bullets. But many real resumes use:
+- Full month names (`January`, `February`)
+- 4-digit years alone (`2019`, `2022`)
+- Em-dashes and arrows (`→`, `▸`)
+- Numbered list items (`1.`, `2.`)
+- **BOLD ALL-CAPS lines** (common in many templates)
+
+This causes experience entries from many PDF structures to merge into a single giant block, losing the company/position split.
+
+**Fix:** Extend the block-start regex to include full month names, standalone years, additional bullet glyphs, and lines that are all-uppercase (≤ 5 words).
+
+---
+
+### 5. Skills Capped at 30 (Data Loss)
+**File:** `src/lib/pdf/sectionParsers.ts`, line 273
+
+```typescript
+.slice(0, 30);
+```
+
+The local fallback parser silently truncates all skills beyond 30. Senior engineers with large tech stacks (often 40–60 skills) lose half their skills on fallback.
+
+**Fix:** Raise the cap to 60 in the local parser. The AI path has no such cap.
+
+---
+
+### 6. OCR Text Quality Threshold Too Low
+**File:** `src/lib/pdf/ocrExtractor.ts`, line 72
+
+```typescript
+if (cleanedText.length < 20) { throw new Error(...) }
+```
+
+A 20-character threshold will accept garbage OCR output (e.g. a page that only extracted `"jDHk mLOP vw"`) as successful. This means partially-readable scanned PDFs produce broken resume data with no warning.
+
+**Fix:** Raise the minimum to 100 characters AND require at least 5 words (splitting on whitespace), which is a more robust signal of a real text extraction.
+
+---
+
+### 7. Word Document HTML Extraction Not Attempted
+**File:** `src/pages/UploadPage.tsx`, line 343
+
+`mammoth` is called with `extractRawText` only. Mammoth also supports `convertToHtml` which preserves bold/italic/list structure — especially important because DOCX files often use formatted bullets that `extractRawText` flattens into plain paragraphs, dropping bullet markers. Without bullet markers, the AI loses achievement/responsibility signals.
+
+**Fix:** Try `convertToHtml` first, then strip tags but preserve structure markers (line breaks, list items), fall back to `extractRawText` only if HTML output is empty.
+
+---
+
+### 8. Missing `awards`, `publications`, `volunteering` from AI Schema
+**File:** `supabase/functions/parse-resume/index.ts` (the entire tool schema)
+
+The `parse_resume` tool schema only defines: `contactInfo`, `summary`, `experience`, `education`, `skills`, `certifications`. The AI is given no schema slot for `awards`, `publications`, `volunteering`, or `hobbies` — which are valid resume sections many users have. The edge function then returns those fields as absent, so `regenerateResumeIds` returns empty arrays for them regardless of what the resume actually contains.
+
+**Fix:** Extend the tool schema and the system prompt to capture these 4 additional arrays. The `resumeData` mapping block must also be extended to include them.
 
 ---
 
 ## Files Changed
 
-| File | Action | Detail |
-|---|---|---|
-| `src/lib/skillCloud.ts` | **CREATE** | Extracted `computeSkillFrequencies`, `getSkillTier`, tier label helpers |
-| `src/pages/PublicPortfolioPage.tsx` | **MODIFY** | Import from `@/lib/skillCloud` instead of inline definitions (delete ~35 lines, add 1 import) |
-| `src/pages/PortfolioEditorPage.tsx` | **MODIFY** | Import `computeSkillFrequencies`, `getSkillTier` from skillCloud; add `useMemo` for skill scores; add new `CollapsibleCard` for "Skills Visibility"; add navigate import for the CTA button |
+| File | Changes |
+|---|---|
+| `src/lib/pdf/ocrExtractor.ts` | Fix canvas viewport mismatch; raise OCR quality threshold to 100 chars + 5 words |
+| `src/lib/pdf/sectionParsers.ts` | Extend block-start regex; raise skills cap to 60; expand name Unicode range |
+| `src/pages/UploadPage.tsx` | Use mammoth `convertToHtml` first, fall back to `extractRawText` |
+| `supabase/functions/parse-resume/index.ts` | Add `isProject` to required fields; extend schema with awards/publications/volunteering/hobbies; expand name Unicode; improve system prompt |
 
-No database changes. No edge functions. No new dependencies.
-
----
-
-## Technical Details
-
-### `src/lib/skillCloud.ts`
-
-```typescript
-import type { Experience, Project } from '@/types/resume';
-
-export function computeSkillFrequencies(
-  skills: string[],
-  experience: Experience[],
-  projects: Project[]
-): Record<string, number> { /* ... existing algorithm ... */ }
-
-export function getSkillTier(score: number) {
-  if (score >= 7) return { tier: 'xl', fontSize: '17px', fontWeight: 800, px: '20px', py: '10px', opacity: 1 };
-  if (score >= 4) return { tier: 'lg', fontSize: '15px', fontWeight: 700, px: '16px', py: '9px',  opacity: 1 };
-  if (score >= 2) return { tier: 'md', fontSize: '13px', fontWeight: 600, px: '14px', py: '8px',  opacity: 0.85 };
-  if (score >= 1) return { tier: 'sm', fontSize: '12px', fontWeight: 500, px: '12px', py: '7px',  opacity: 0.70 };
-  return           { tier: 'xs', fontSize: '11px', fontWeight: 400, px: '10px', py: '6px', opacity: 0.55 };
-}
-
-export const TIER_STYLES: Record<string, string> = {
-  xl: 'bg-emerald-400/15 text-emerald-400 border-emerald-400/20',
-  lg: 'bg-blue-400/15 text-blue-400 border-blue-400/20',
-  md: 'bg-amber-400/15 text-amber-400 border-amber-400/20',
-  sm: 'bg-muted text-muted-foreground border-border/30',
-  xs: 'bg-muted/50 text-muted-foreground/50 border-border/20',
-};
-```
-
-### Skill score derivation in `PortfolioEditorPage`
-
-```typescript
-// After selectedResume is derived (line 488)
-const skillScores = useMemo(() => {
-  const skills = (selectedResume?.skills ?? []) as string[];
-  const experience = (selectedResume?.experience ?? []) as Experience[];
-  const projects = (selectedResume?.projects ?? []) as Project[];
-  if (!skills.length) return {};
-  return computeSkillFrequencies(skills, experience, projects);
-}, [selectedResume]);
-
-const sortedSkillScores = useMemo(() =>
-  Object.entries(skillScores).sort(([, a], [, b]) => b - a),
-  [skillScores]
-);
-
-const maxScore = sortedSkillScores[0]?.[1] ?? 1;
-const strongSkillCount = sortedSkillScores.filter(([, s]) => s >= 2).length;
-const dimSkillCount = sortedSkillScores.filter(([, s]) => s === 0).length;
-```
-
-### Skill row JSX (inside the new CollapsibleCard)
-
-```tsx
-{sortedSkillScores.slice(0, showAllSkills ? 999 : 20).map(([skill, score]) => {
-  const { tier } = getSkillTier(score);
-  const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
-  return (
-    <div key={skill} className="flex items-center gap-2 py-1.5">
-      <span className="text-sm text-foreground truncate flex-1 min-w-0">{skill}</span>
-      <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
-        <div
-          className="h-full rounded-full bg-primary transition-all duration-300"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <span className="text-[10px] text-muted-foreground w-14 text-right shrink-0">
-        {score > 0 ? `${score} mention${score !== 1 ? 's' : ''}` : 'not found'}
-      </span>
-      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${TIER_STYLES[tier]}`}>
-        {tier.toUpperCase()}
-      </span>
-    </div>
-  );
-})}
-```
-
-### Improvement hint (when dim skills exist)
-
-```tsx
-{dimSkillCount > 0 && (
-  <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 space-y-1.5">
-    <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
-      <span>💡</span>
-      {dimSkillCount} skill{dimSkillCount !== 1 ? 's' : ''} not found in your experience
-    </p>
-    <p className="text-xs text-muted-foreground">
-      Mention them in your job descriptions to make them appear larger in your public Skills word cloud.
-    </p>
-    <Button
-      variant="ghost"
-      size="sm"
-      className="h-7 text-xs text-primary px-2 gap-1 active:scale-95"
-      onClick={() => { haptics.light(); navigate('/editor'); }}
-    >
-      Go to Resume Editor <ArrowRight className="w-3 h-3" />
-    </Button>
-  </div>
-)}
-```
-
-### CollapsibleCard header hint
-
-```tsx
-hint={
-  sortedSkillScores.length > 0
-    ? <span className="text-[10px] text-muted-foreground">
-        <span className="text-emerald-400 font-medium">{strongSkillCount} strong</span>
-        {dimSkillCount > 0 && <> · <span className="text-muted-foreground/60">{dimSkillCount} dim</span></>}
-      </span>
-    : undefined
-}
-```
-
-### Position in the page
-
-Inserted between **Portfolio Strength** (line 671) and **Visual Theme** (line 673):
-
-```text
-Portfolio Strength card   ← existing
-Skills Visibility card    ← NEW (id="skill-cloud")
-Visual Theme card         ← existing
-```
-
-This ordering makes sense: strength → content quality → visual presentation.
+No database changes. No new dependencies. No new edge functions.
