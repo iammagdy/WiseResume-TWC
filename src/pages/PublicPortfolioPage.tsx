@@ -33,14 +33,11 @@ function useActiveStatus(username: string, initialLastActiveAt: string | null): 
   }, [initialLastActiveAt]);
   useEffect(() => {
     const id = setInterval(async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('last_active_at')
-        .eq('username', username)
-        .eq('portfolio_enabled', true)
-        .maybeSingle();
-      if (data?.last_active_at) {
-        setLastActiveAt(data.last_active_at as string);
+      const { data } = await supabase.rpc('get_portfolio_active_status', {
+        p_username: username.toLowerCase(),
+      });
+      if (data) {
+        setLastActiveAt(data as string);
       }
     }, 60_000);
     return () => clearInterval(id);

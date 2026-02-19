@@ -1117,6 +1117,10 @@ export type Database = {
         Args: { p_user_id: string; p_username: string }
         Returns: boolean
       }
+      get_portfolio_active_status: {
+        Args: { p_username: string }
+        Returns: string
+      }
       get_portfolio_analytics: { Args: { p_username: string }; Returns: Json }
       get_public_portfolio: { Args: { p_username: string }; Returns: Json }
       get_share_comments: { Args: { p_share_token: string }; Returns: Json }
