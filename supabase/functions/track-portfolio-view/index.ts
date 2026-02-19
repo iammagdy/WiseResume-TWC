@@ -130,25 +130,17 @@ serve(async (req) => {
 
     // ── 5. Increment short link click count if ref provided ────────────────
     if (ref) {
-      const { error: clickError } = await supabaseClient
+      const { data: link } = await supabaseClient
         .from("short_links")
-        .update({ click_count: supabaseClient.rpc("increment_short_link_count", { p_link_id: ref }) })
-        .eq("id", ref);
+        .select("click_count")
+        .eq("id", ref)
+        .single();
 
-      // If RPC doesn't exist yet, do a manual read-modify-write
-      if (clickError) {
-        const { data: link } = await supabaseClient
+      if (link) {
+        await supabaseClient
           .from("short_links")
-          .select("click_count")
-          .eq("id", ref)
-          .single();
-
-        if (link) {
-          await supabaseClient
-            .from("short_links")
-            .update({ click_count: (link.click_count || 0) + 1 })
-            .eq("id", ref);
-        }
+          .update({ click_count: (link.click_count || 0) + 1 })
+          .eq("id", ref);
       }
     }
 
