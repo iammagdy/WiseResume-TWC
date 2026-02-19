@@ -226,7 +226,7 @@ const Index = () => {
       : {
           initial: { opacity: 0, y: 20 } as const,
           whileInView: { opacity: 1, y: 0 } as const,
-          viewport: { once: false, amount: 0.2 },
+          viewport: { once: true, amount: 0.2 },
           transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
         };
 
@@ -237,7 +237,7 @@ const Index = () => {
       : {
           initial: { opacity: 0, x: -30, rotate: -1 } as const,
           whileInView: { opacity: 1, x: 0, rotate: 0 } as const,
-          viewport: { once: false, amount: 0.2 },
+          viewport: { once: true, amount: 0.2 },
           transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
         };
 
@@ -248,7 +248,7 @@ const Index = () => {
       : {
           initial: { opacity: 0, scale: 0.92, filter: 'blur(4px)' } as const,
           whileInView: { opacity: 1, scale: 1, filter: 'blur(0px)' } as const,
-          viewport: { once: false, amount: 0.2 },
+          viewport: { once: true, amount: 0.2 },
           transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
         };
 
@@ -259,7 +259,7 @@ const Index = () => {
       : {
           initial: { opacity: 0, scale: 0.8, y: 10 } as const,
           whileInView: { opacity: 1, scale: 1, y: 0 } as const,
-          viewport: { once: false, amount: 0.3 },
+          viewport: { once: true, amount: 0.3 },
           transition: { delay, type: 'spring' as const, stiffness: 300, damping: 20 },
         };
 
