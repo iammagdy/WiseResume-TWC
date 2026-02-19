@@ -1,10 +1,68 @@
-// Global bug report event system
+import type { LucideIcon } from 'lucide-react';
+import { Wifi, Sparkles, Save, FileDown, ShieldAlert, AlertCircle } from 'lucide-react';
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
 export interface BugReportData {
   errorMessage: string;
   errorStack?: string;
   componentStack?: string;
   route: string;
+  action?: string; // e.g. "saving resume", "generating AI content"
 }
+
+export type ErrorCategory = 'network' | 'ai' | 'save' | 'export' | 'auth' | 'general';
+
+export interface ErrorCategoryInfo {
+  category: ErrorCategory;
+  label: string;
+  icon: LucideIcon;
+}
+
+// ── Screen matching ────────────────────────────────────────────────────────
+
+const SCREEN_MAP: { prefix: string; label: string }[] = [
+  { prefix: '/editor', label: 'Resume Editor' },
+  { prefix: '/preview', label: 'Preview' },
+  { prefix: '/upload', label: 'Upload' },
+  { prefix: '/settings', label: 'Settings' },
+  { prefix: '/applications', label: 'Applications' },
+  { prefix: '/cover-letters', label: 'Cover Letters' },
+  { prefix: '/interview', label: 'Interview Prep' },
+  { prefix: '/career', label: 'Career Tools' },
+  { prefix: '/ai-studio', label: 'AI Studio' },
+  { prefix: '/templates', label: 'Templates' },
+  { prefix: '/examples', label: 'Examples' },
+  { prefix: '/guides', label: 'Guides' },
+  { prefix: '/resignation-letters', label: 'Resignation Letters' },
+  { prefix: '/profile', label: 'Profile' },
+  { prefix: '/notifications', label: 'Notifications' },
+  { prefix: '/dashboard', label: 'Dashboard' },
+];
+
+export function detectScreen(pathname: string): string {
+  const match = SCREEN_MAP.find((s) => pathname.startsWith(s.prefix));
+  return match?.label || 'General';
+}
+
+// ── Error categorization ───────────────────────────────────────────────────
+
+export function categorizeError(message: string): ErrorCategoryInfo {
+  const m = message.toLowerCase();
+  if (/fetch|network|timeout|cors|50[234]|load failed|econnrefused/i.test(m))
+    return { category: 'network', label: 'Network Issue', icon: Wifi };
+  if (/\bai\b|generat|gemini|openai|credit|enhance|tailor|llm/i.test(m))
+    return { category: 'ai', label: 'AI Feature', icon: Sparkles };
+  if (/save|update|insert|sync|persist|write/i.test(m))
+    return { category: 'save', label: 'Save / Sync', icon: Save };
+  if (/pdf|export|download|docx/i.test(m))
+    return { category: 'export', label: 'PDF / Export', icon: FileDown };
+  if (/auth|session|token|sign|login|password/i.test(m))
+    return { category: 'auth', label: 'Authentication', icon: ShieldAlert };
+  return { category: 'general', label: 'General Error', icon: AlertCircle };
+}
+
+// ── Event system ───────────────────────────────────────────────────────────
 
 type BugReportListener = (data: BugReportData) => void;
 
@@ -29,5 +87,6 @@ export function reportBug(error: unknown, context?: string) {
     errorMessage: context ? `${context}: ${err.message}` : err.message,
     errorStack: err.stack,
     route: window.location.pathname,
+    action: context,
   });
 }
