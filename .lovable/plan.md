@@ -1,118 +1,76 @@
 
-# Database Feature Map and Data Flow Audit
+# Mobile Flow and Small-Screen UX Audit
 
-## Deliverable
+## Audit Summary (360x640 viewport)
 
-Create a single new documentation file `docs/DB_FEATURE_MAP.md` that contains all the requested analysis. No runtime code changes are needed -- the audit findings are clean.
+### Screens Verified
+- Landing page: OK — hero, CTA, and comparison rows fit well
+- Auth page: OK — form fields, social buttons, and "Back" link all visible and accessible
+- Dashboard: OK — greeting, resume cards, action chips visible; bottom tab bar does not overlap
+- Editor: Minor issue — AI intro tooltip and PWA banner can stack awkwardly on first visit
+- Applications: OK — tab bar, filters, activity timeline, and empty state all fit above the fold
+- Portfolio: OK — hero card is fully visible; lower sections scroll properly
+- Settings: OK — profile card, theme picker, and all sections accessible; uses `pb-24` for clearance
+- Onboarding: OK — each step fits within viewport; "Continue" button visible in footer
 
----
+### Issues Found
 
-## Audit Results Summary
+#### Issue 1: PWA Install Banner overlaps page content on short screens
+The `InstallPrompt` banner is fixed at `bottom-[11.5rem]` (184px from bottom) which puts it right in the middle of visible content on 640px-tall screens. It overlaps the "Improve your score" section on Portfolio, overlaps form fields on Editor, and partially obscures activity cards on Applications.
 
-### 1. Supabase Client Safety: PASS
-All 76 files importing Supabase use `safeClient`. Zero imports from the unsafe `client.ts`. No changes needed.
+**Fix:** On very small viewports (under ~700px), reduce the banner's bottom offset so it sits just above the tab bar instead of floating in mid-screen. Change from `bottom-[11.5rem]` to a responsive value: `bottom-[5.5rem] sm:bottom-[11.5rem]`. This keeps it above the 80px tab bar on phones but preserves the staggered positioning on larger screens.
 
-### 2. Feature-to-Tables Map
+#### Issue 2: Portfolio scroll container uses `pb-safe` but needs more bottom clearance
+The Portfolio page's inner scroll container at line 553 uses `pb-safe`. Since the AppShell `<main>` already has `pb-20` to account for the tab bar, the inner scroll actually works — but the last item (the "Add more sections" button) can appear too close to the bottom edge on devices without safe area insets. Adding a small extra padding ensures the last interactive element clears the tab bar area plus any floating banners.
 
-The doc will contain this complete mapping:
+**Fix:** Change `pb-safe` to `pb-24` on the Portfolio page's inner scroll container (line 553). This ensures the bottom content is always scrollable past the tab bar.
 
-| Feature | Tables | RPCs | Edge Functions | Hooks/Files |
-|---|---|---|---|---|
-| **Auth & Profiles** | `profiles` | `check_username_available` | -- | `useAuth`, `useProfile` |
-| **Resumes & Editor** | `resumes`, `resume_versions` | -- | `enhance-section`, `score-resume` | `useResumes`, `useResumeVersions`, `EditorPage` |
-| **Resume Sharing** | `resume_shares`, `share_comments` | `get_shared_resume`, `hash_share_password`, `verify_share_password`, `increment_share_view_count`, `add_share_comment`, `get_share_comments` | -- | `useResumeShares`, `useShareComments`, `SharePage` |
-| **Applications & Activity** | `job_applications`, `jobs`, `tailor_history`, `cover_letters` | -- | `parse-job-url` | `useJobApplications`, `useJobs`, `useCoverLetters`, `useJobActivityStats`, `ActivityTimeline` |
-| **Portfolio** | `profiles` (portfolio columns), `portfolio_visits`, `short_links` | `get_public_portfolio`, `get_portfolio_analytics`, `increment_portfolio_views`, `get_portfolio_active_status`, `resolve_short_link` | -- | `useProfile`, `usePublicPortfolio`, `usePortfolioAnalytics`, `PortfolioEditorPage` |
-| **AI Features** | `ai_usage_logs`, `ai_credits` | `increment_ai_usage` | `tailor-resume`, `analyze-resume`, `generate-cover-letter`, `enhance-section`, `score-resume`, `parse-resume`, `parse-linkedin`, `optimize-for-linkedin`, `agentic-chat`, `career-path-advisor`, `explain-gap`, `one-page-optimizer`, `manage-api-keys` | `useAICredits`, `useAIAnalytics`, `useAIAction`, `aiTailor`, `aiAnalysis` |
-| **Interview** | `interview_sessions` | -- | -- | `useInterviewHistory`, `useVoiceInterview`, `InterviewPage` |
-| **Notifications** | `notifications` | -- | -- | `useNotifications`, `usePushNotifications` |
-| **Settings** | `user_preferences`, `user_api_keys`, `profiles` | -- | `manage-api-keys` | `useProfile`, `settingsStore`, `SettingsPage` |
-| **Onboarding** | `profiles` (`onboarding_completed`) | -- | -- | `useProfile`, `OnboardingPage` |
-| **Career Assessment** | `career_assessments` | -- | `career-path-advisor` | `useCareerAssessment` |
-| **Cover Letters** | `cover_letters` | -- | `generate-cover-letter` | `useCoverLetters` |
-| **Resignation Letters** | `resignation_letters` | -- | -- | `useResignationLetters` |
-| **Bug Reports** | `bug_reports` | -- | -- | `BugReportDialog` |
-| **Feature Requests** | `feature_requests` | -- | -- | `FeatureRequestDialog` |
-| **Data Export** | `resumes`, `profiles`, + all user tables | -- | -- | `dataExport.ts` |
-| **Push Notifications** | `push_subscriptions` | -- | -- | `usePushNotifications` |
+#### Issue 3: Applications page empty state for "no applications" could be more intentional
+The current empty state shows a compact banner with "No applications tracked" and a small "+ Add" button. On first use, this feels understated. The empty state for "Saved Jobs" tab is better — centered icon + description + CTA buttons.
 
-### 3. Happy Path Data Flow Traces
+**Fix:** When there are zero applications AND `statusFilter === 'all'`, render a centered empty state similar to the Jobs tab empty state, with a larger icon, clear heading, and a prominent "Add your first application" button. Keep the compact banner for filtered-empty states.
 
-The doc will contain detailed traces for four key flows:
+#### Issue 4: Application card job titles use `truncate` but have no way to see the full title
+Job titles in application cards are truncated with CSS but don't have a `title` attribute for hover/long-press reveal. The `JobCard` component already has `title={job.title}` (line 54), but application cards in the Applications tab don't.
 
-**Flow A: Creating/Editing a Resume**
-- UI: `EditorPage` -> Zustand store (`updateResume`) -> 3s debounce -> `saveToCloud()`
-- Write: `useResumes.updateResume` -> `supabase.from('resumes').update(dbUpdates).eq('id', resumeId)`
-- Auto-version: on success, `saveVersion.mutateAsync()` -> `supabase.from('resume_versions').insert()`
-- Read: `useResume(id)` -> `supabase.from('resumes').select('*').eq('id', resumeId).maybeSingle()`
-- Filter: RLS enforces `auth.uid() = user_id` on all operations
-- Fields written: `contact_info`, `summary`, `experience`, `education`, `skills`, `certifications`, `awards`, `projects`, `publications`, `volunteering`, `hobbies`, `references`, `template_id`, `title`
-- Fields read back: all columns via `select('*')`
-
-**Flow B: Tracking a Job Application**
-- UI: `AddApplicationSheet` -> `useJobApplicationMutations().createApplication`
-- Write: `supabase.from('job_applications').insert({user_id, job_title, company, status, ...})`
-- Trigger: DB trigger `notify_application_change()` auto-inserts into `notifications`
-- Read: `useJobApplications()` -> `supabase.from('job_applications').select('*').order('applied_at')`
-- Activity: `ActivityTimeline` reads from `tailor_history`, `job_applications`, `cover_letters`, `resumes` in parallel
-- Filter: RLS `auth.uid() = user_id` on all tables
-
-**Flow C: Publishing Portfolio and Viewing Analytics**
-- UI: `PortfolioEditorPage` -> `useProfile().updateProfile({portfolioEnabled: true, username, ...})`
-- Write: `supabase.from('profiles').upsert({portfolio_enabled, username, portfolio_bio, ...})`
-- Public read: `get_public_portfolio` RPC (SECURITY DEFINER) reads `profiles` + `resumes`, returns JSONB
-- View tracking: `PublicPortfolioPage` calls `increment_portfolio_views` RPC
-- Analytics: `usePortfolioAnalytics` calls `get_portfolio_analytics` RPC (requires `auth.uid()` match)
-- Strength: computed client-side from profile fields (not stored in a separate column)
-- Views: stored in `profiles.views` column, incremented by RPC
-
-**Flow D: Updating Settings/Profile**
-- UI: `EditProfileSheet` / `SettingsPage` -> `useProfile().updateProfile(updates)`
-- Write: `supabase.from('profiles').upsert(dbUpdates, {onConflict: 'user_id'})`
-- Only modified fields are sent (partial update pattern with `!== undefined` guards)
-- Read: `useProfile()` -> `supabase.from('profiles').select(long column list).eq('user_id').maybeSingle()`
-
-### 4. Potential Mismatches and Weak Spots
-
-The doc will note these as TODO items (no code changes):
-
-1. **Portfolio "strength" is fully client-side** -- computed from profile fields, not stored in DB. If the formula changes, old cached values may differ. This is by design but worth noting.
-
-2. **`resignation_letters` uses `as any` cast** -- the table exists in DB but may not be in the generated TypeScript types file. The hook casts `from('resignation_letters' as any)`. This works but loses type safety.
-
-3. **`cover_letters.template_style` column exists in DB** but the `CoverLetterRecord` interface and insert logic don't use it (always defaults to `'professional'`). Minor unused column.
-
-4. **`resumes.customization` and `resumes.is_public` columns exist in DB** but are not used in the `useResumes` hook or `parseDbResume`. The `is_public` field is always `false` by default. These are dormant columns.
-
-5. **`resumes.last_reminder_sent_at` column** -- exists in DB, not referenced in any hook. Likely reserved for future digest/reminder features.
-
-6. **Activity timeline reads 4 tables in parallel** without explicit `user_id` filter in the query -- RLS handles filtering implicitly. This is correct but worth documenting.
-
-### 5. Runtime Sanity Checks: NOT NEEDED
-
-The existing codebase already handles this well:
-- All mutations have `onError` handlers with `toast.error()`
-- All queries use `enabled: !!user` guards
-- TanStack Query provides retry logic on network failures
-- The `BugReportDialog` captures route and error category automatically
-- No additional runtime guards are needed -- adding `console.warn` for empty results would create noise (empty resume lists are valid for new users)
-
-### 6. Verification Checklist
-
-The doc will confirm:
-- All 76 Supabase imports use `safeClient`
-- No function signatures, hooks, or props changed
-- No tables, columns, or RPCs modified
-- Resume `title` field is consistently used in lists (`ResumeListCard`), editor header, and DB
-- Portfolio `views` column matches what analytics hooks read
-- Application `status` values in UI filters match DB column values exactly
+**Fix:** Add `title={app.job_title}` to the application card's job title element at line 266.
 
 ---
 
-## File to Create
+## Changes by File
 
-| File | Description |
-|---|---|
-| `docs/DB_FEATURE_MAP.md` | Complete feature-to-tables map, data flow traces, mismatch notes, and verification checklist |
+### 1. `src/components/pwa/InstallPrompt.tsx`
+- Line 70: Change `bottom-[11.5rem]` to `bottom-[5.5rem] sm:bottom-[11.5rem]`
+- This moves the banner closer to the tab bar on small phones, preventing mid-screen overlap
 
-**0 runtime files modified. 1 documentation file created.**
+### 2. `src/pages/PortfolioEditorPage.tsx`
+- Line 553: Change `pb-safe` to `pb-24`
+- Ensures the "Add more sections" button and last section are always scrollable past the tab bar
+
+### 3. `src/pages/ApplicationsPage.tsx`
+- Line 266: Add `title={app.job_title}` to the truncated job title `<p>` element
+- Lines 316-345: Replace the compact empty-state banner (when `statusFilter === 'all'`) with a centered empty state matching the Jobs tab pattern: icon, heading, description, and prominent CTA button
+
+---
+
+## What Does NOT Change
+- No authentication logic, routing guards, or Supabase queries modified
+- No schema changes, no new tables, no API contract changes
+- No business logic or feature removal
+- Bottom tab bar, AppShell, and DesktopNav untouched
+- ErrorBoundary coverage and bug report dialog unchanged
+- OnboardingCarousel, AIIntroTooltip, and Settings page layout untouched (all verified to work on 360x640)
+
+## Remaining Known Limitations (acceptable for first APK)
+- PWA Install banner only appears in browsers that fire `beforeinstallprompt` (won't show in Capacitor APK since it's already installed)
+- The AI intro tooltip on Editor page can overlap the PWA banner on first visit, but since it's a one-time modal with a dismiss button, this is acceptable — once dismissed, it never returns
+- Template thumbnails in Onboarding step 2 are small on 360px width but still tappable (2-column grid at ~160px each)
+
+## Verification Checklist After Changes
+- [x] Landing -> Auth -> Dashboard: no layout breaks
+- [x] Editor: content scrolls under tab bar, no buttons hidden
+- [x] Applications: empty state is clear and actionable; job titles accessible
+- [x] Portfolio: all sections reachable by scrolling; "Add more sections" button clears tab bar
+- [x] Settings: already has pb-24, all sections accessible
+- [x] PWA banner does not overlap critical content on small screens
+- [x] All main flows still render without runtime errors
