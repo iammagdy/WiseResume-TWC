@@ -14,7 +14,7 @@ interface InterviewSetupProps {
   speechSupported: boolean;
   voiceGender: VoiceGender;
   onVoiceGenderChange: (gender: VoiceGender) => void;
-  onStart: (jobDescription?: string) => void;
+  onStart: (jobDescription?: string, options?: { quickPractice?: boolean }) => void;
 }
 
 export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoiceGenderChange, onStart }: InterviewSetupProps) {
@@ -28,7 +28,7 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
     if (mode === 'job-targeted') {
       onStart(jobDescription);
     } else if (mode === 'quick-practice') {
-      onStart('__QUICK_PRACTICE__');
+      onStart(undefined, { quickPractice: true });
     } else {
       onStart(undefined);
     }

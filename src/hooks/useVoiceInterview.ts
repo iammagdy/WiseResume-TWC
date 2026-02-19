@@ -33,7 +33,7 @@ export interface RoleAnalysis {
   industryInsights: string;
 }
 
-const SILENCE_TIMEOUT_MS = 1500;
+const SILENCE_TIMEOUT_MS = 3000;
 const MAX_TEXT_LENGTH = 2000;
 const COUNTDOWN_SECONDS = 1;
 const NO_SPEECH_TIMEOUT_MS = 10000;
@@ -166,6 +166,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const answerCountRef = useRef(0);
   const noSpeechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const usingFallbackRef = useRef(false);
+  const quickPracticeRef = useRef(false);
 
   // Shared transcript handlers
   const handlePartialTranscript = useCallback((text: string) => {
@@ -248,7 +249,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   });
 
   // Check if speech is actually supported
-  const speechSupported = isWebSpeechSupported() || true; // ElevenLabs works if mic is available
+  const speechSupported = isWebSpeechSupported() || !!navigator.mediaDevices?.getUserMedia;
 
   useEffect(() => {
     // Pre-load voices
@@ -334,6 +335,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
             resumeData,
             jobDescription: jobDescriptionRef.current || undefined,
             endInterview,
+            quickPractice: quickPracticeRef.current || undefined,
           },
         });
 
@@ -484,7 +486,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   }, [resumeData]);
 
   const startInterview = useCallback(
-    async (jobDescription?: string) => {
+    async (jobDescription?: string, quickPractice?: boolean) => {
       setError(null);
       setSummary(null);
       setTranscript([]);
@@ -497,6 +499,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       answerCountRef.current = 0;
       messagesRef.current = [];
       jobDescriptionRef.current = jobDescription || '';
+      quickPracticeRef.current = !!quickPractice;
       setIsStarted(true);
 
       // Pre-fetch token while AI is generating first question
@@ -558,6 +561,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setAudioLevel(0);
     setSttEngine('none');
     usingFallbackRef.current = false;
+    quickPracticeRef.current = false;
     answerCountRef.current = 0;
     messagesRef.current = [];
     jobDescriptionRef.current = '';
