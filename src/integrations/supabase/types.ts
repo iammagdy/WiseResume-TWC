@@ -1130,6 +1130,7 @@ export type Database = {
             Args: { password_attempt?: string; share_token: string }
             Returns: Json
           }
+      hash_share_password: { Args: { raw_password: string }; Returns: string }
       increment_ai_usage: { Args: { p_user_id: string }; Returns: undefined }
       increment_portfolio_views: {
         Args: { p_username: string }
@@ -1140,6 +1141,10 @@ export type Database = {
         Returns: undefined
       }
       resolve_short_link: { Args: { p_link_id: string }; Returns: Json }
+      verify_share_password: {
+        Args: { hashed_password: string; raw_password: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never
