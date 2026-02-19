@@ -1,5 +1,6 @@
 import { ResumeData } from '@/types/resume';
 import { Job } from '@/hooks/useJobs';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 export interface JobMatchResult {
   overall: number;
@@ -9,7 +10,21 @@ export interface JobMatchResult {
     found: string[];
     missing: string[];
   };
+  isAIVerified?: boolean;
 }
+
+// ─── In-memory AI score cache ───
+const aiScoreCache = new Map<string, JobMatchResult>();
+
+function cacheKey(resumeId: string, jobId: string): string {
+  return `${resumeId}:${jobId}`;
+}
+
+export function getCachedAIScore(resumeId: string, jobId: string): JobMatchResult | null {
+  return aiScoreCache.get(cacheKey(resumeId, jobId)) ?? null;
+}
+
+// ─── Client-side heuristic (instant fallback) ───
 
 function extractKeywords(text: string): string[] {
   if (!text) return [];
@@ -37,11 +52,11 @@ function estimateYearsFromResume(resume: ResumeData): number {
   return Math.round(totalMonths / 12);
 }
 
+/** Instant client-side heuristic score (used as fallback while AI loads) */
 export function scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult {
   const jobText = `${job.title} ${job.description} ${job.requirements}`;
   const jobKeywords = extractKeywords(jobText);
 
-  // Build resume keyword pool
   const resumeSkills = (resume.skills || []).map(s => (typeof s === 'string' ? s : (s as any)?.name || '').toLowerCase()).filter(Boolean);
   const resumeText = [
     resume.summary,
@@ -51,7 +66,6 @@ export function scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult {
 
   const resumeKeywords = new Set([...resumeSkills, ...extractKeywords(resumeText)]);
 
-  // Skill match
   const found: string[] = [];
   const missing: string[] = [];
 
@@ -67,7 +81,6 @@ export function scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult {
     ? Math.round((found.length / jobKeywords.length) * 100)
     : 50;
 
-  // Experience match (simple heuristic)
   const years = estimateYearsFromResume(resume);
   const jobTitleLower = job.title.toLowerCase();
   let experienceMatch = 50;
@@ -89,5 +102,57 @@ export function scoreJobMatch(resume: ResumeData, job: Job): JobMatchResult {
       found: found.slice(0, 15),
       missing: missing.slice(0, 10),
     },
+    isAIVerified: false,
   };
+}
+
+// ─── AI-powered scoring via analyze-resume ───
+
+/**
+ * Calls the analyze-resume edge function and maps the result to JobMatchResult.
+ * Caches the result per resume+job pair. Does NOT deduct credits (background use).
+ */
+export async function scoreJobMatchAI(
+  resume: ResumeData,
+  job: Job,
+  resumeId: string,
+): Promise<JobMatchResult | null> {
+  const key = cacheKey(resumeId, job.id);
+
+  // Return cached result if available
+  const cached = aiScoreCache.get(key);
+  if (cached) return cached;
+
+  try {
+    const jobDescription = `${job.title}\n${job.company}\n${job.description}\n${job.requirements}`;
+
+    const { data, error } = await supabase.functions.invoke('analyze-resume', {
+      body: { resume, jobDescription },
+    });
+
+    if (error || data?.error) {
+      console.warn('[scoreJobMatchAI] Failed:', error?.message || data?.error);
+      return null;
+    }
+
+    const score = data?.score;
+    if (!score) return null;
+
+    const result: JobMatchResult = {
+      overall: score.overallScore ?? 0,
+      skillMatch: score.skillsMatch ?? score.keywordAlignment ?? 0,
+      experienceMatch: score.experienceRelevance ?? 0,
+      keywords: {
+        found: score.strengths?.slice(0, 15) ?? [],
+        missing: data?.gaps?.missingKeywords?.slice(0, 10) ?? [],
+      },
+      isAIVerified: true,
+    };
+
+    aiScoreCache.set(key, result);
+    return result;
+  } catch (err) {
+    console.warn('[scoreJobMatchAI] Error:', err);
+    return null;
+  }
 }
