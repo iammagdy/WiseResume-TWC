@@ -1,42 +1,31 @@
 
 
-# Fix Shake Detection Sensitivity and Add Shake Context to Dialog
+# Fix Landing Page Scroll Lag and Broken Fade-Out
 
 ## Problem
-The shake-to-report feature triggers too easily with light movement, causing the bug report dialog to pop up unexpectedly. Additionally, the dialog doesn't explain *why* it appeared, confusing users.
+Every animated section on the landing page uses `viewport: { once: false }`, which means all elements re-trigger their entrance animations every time they enter/exit the viewport during scrolling. This causes:
+- Laggy scrolling due to dozens of simultaneous re-animations
+- Broken fade-out effect (elements snap to their `initial` state instead of staying visible)
 
-## Changes
-
-### 1. Increase shake detection difficulty (`src/hooks/useShakeDetect.ts`)
-
-Current settings are too sensitive:
-- `THRESHOLD = 15` (acceleration magnitude) -- raise to **25**
-- `SHAKE_COUNT = 3` (shakes needed) -- raise to **4**
-- `SHAKE_WINDOW_MS = 1000` -- keep as-is
-- `COOLDOWN_MS = 3000` -- raise to **5000** (5 seconds)
-
-These changes mean the user must shake the device harder and more deliberately before the dialog triggers.
-
-### 2. Mark shake-triggered reports in the bug report data (`src/hooks/useShakeDetect.ts`)
-
-Pass a `source: 'shake'` indicator in the `triggerBugReport` call so the dialog knows this was triggered by shaking.
-
-Update the `BugReportData` type in `src/lib/bugReport.ts` to include an optional `source?: 'shake' | 'error' | 'manual'` field.
-
-### 3. Show shake explanation in the dialog (`src/components/BugReportDialog.tsx`)
-
-When `data.source === 'shake'`, change the dialog messaging:
-- **Title**: "Shake Detected" instead of "We Detected an Issue"
-- **Description**: "You shook your device to report a problem. Describe what went wrong and we'll look into it within **24 hours**."
-- Add a small dismissive note: "Triggered by device shake gesture" below the context card
-
-This way users understand exactly why the dialog appeared and can dismiss it if it was accidental.
+## Solution
+Change all `viewport: { once: false }` to `viewport: { once: true }` in the animation helpers. This means each element animates in once and stays visible permanently -- no re-triggering, no lag, no jarring resets on scroll-up.
 
 ## Technical Details
 
-| File | Change |
-|---|---|
-| `src/hooks/useShakeDetect.ts` | Raise THRESHOLD to 25, SHAKE_COUNT to 4, COOLDOWN_MS to 5000; add `source: 'shake'` to triggerBugReport call |
-| `src/lib/bugReport.ts` | Add optional `source` field to `BugReportData` interface |
-| `src/components/BugReportDialog.tsx` | Conditionally show "Shake Detected" title and explanation when source is 'shake' |
+### File: `src/pages/Index.tsx`
+
+**4 animation helpers to update (lines 223-264):**
+
+| Helper | Line | Change |
+|---|---|---|
+| `inView()` | 229 | `once: false` to `once: true` |
+| `slideIn()` | 240 | `once: false` to `once: true` |
+| `scaleIn()` | 251 | `once: false` to `once: true` |
+| `popIn()` | 262 | `once: false` to `once: true` |
+
+Each helper spreads `viewport: { once: true, amount: 0.2 }` (or `0.3` for `popIn`) so the animation fires once when the element scrolls into view and never re-triggers.
+
+### No other files changed
+- `SpaceBackground.tsx` parallax and star animations are fine (CSS keyframes, not scroll-triggered re-renders)
+- No dependency changes needed
 
