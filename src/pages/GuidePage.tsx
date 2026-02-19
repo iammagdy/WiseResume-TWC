@@ -54,7 +54,7 @@ export default function GuidePage() {
   const related = getGuidesByCategory(guide.category).filter((g) => g.slug !== guide.slug).slice(0, 3);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Progress bar */}
       <div className="h-1 bg-muted">
         <div className="h-full bg-primary transition-all duration-150" style={{ width: `${progress * 100}%` }} />
