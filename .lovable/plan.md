@@ -1,137 +1,154 @@
 
-# Navigation Audit — Fix All Fake & Broken Redirections
+# Full Navigation Audit — All Bugs Found & Fixed
 
-## Findings Summary
+## Complete Findings
 
-After a full audit of every button, card, chip, and nav action across all pages and components, I found **4 real broken/fake redirections** and **1 console warning** that needs fixing.
+After a thorough audit of every page, component, and navigation action across the entire app, here are all the bugs found:
 
 ---
 
-## Bug 1 (Critical) — `QuickActions` component: ALL 4 cards ignore their intended route
+## Bug 1 (Critical) — Dashboard "Edit" button goes to Detail page, not Editor
 
-**File:** `src/components/landing/QuickActions.tsx`
+**File:** `src/pages/DashboardPage.tsx` — `handleEdit` function, line 222–225
 
-**Problem:** The `handleAction` function **hardcodes `navigate('/auth')`** regardless of which card is clicked. The `action.route` and `action.createBlank` properties on each card are defined but **completely ignored**. This means tapping "Create New", "Upload Resume", "AI Tailor", or "Mock Interview" on the landing page all go to `/auth` — there is no conditional logic for authenticated users.
+**Problem:** When the user taps the "Edit" button from the `ResumeListCard` actions sheet, `handleEdit(resumeId)` is called. This function navigates to `/resume/${resumeId}` — the **Resume Detail page** (read-only view), NOT the editor. The user is forced to make an extra tap just to reach the editor.
 
 ```ts
-// CURRENT — always goes to /auth regardless of action
-const handleAction = (action: typeof actions[0]) => {
-  triggerHaptic.light();
-  navigate('/auth');     // ← FAKE: ignores action.route entirely
+// CURRENT — wrong destination for "Edit"
+const handleEdit = (resumeId: string) => {
+  haptics.light();
+  navigate(`/resume/${resumeId}`);  // ← Goes to detail page, not editor
 };
 ```
 
-**Fix:** For authenticated users, each card should navigate to its intended destination. For guests, `/auth` is still correct since they need to sign in. The component has `useResumeStore` already imported but unused — fix the handler to respect auth state and action routes:
+**Fix:** Load the resume into the store and navigate directly to `/editor`:
 
 ```ts
-const handleAction = (action: typeof actions[0]) => {
-  triggerHaptic.light();
-  if (!isAuthenticated) {
-    navigate('/auth');
-    return;
+const handleEdit = (resumeId: string) => {
+  haptics.light();
+  const resume = resumes?.find(r => r.id === resumeId);
+  if (resume) {
+    setCurrentResumeId(resumeId);
+    setCurrentResume(dbToResumeData(resume));
+    navigate('/editor');
   }
-  if (action.createBlank) {
-    setCurrentResumeId(null);
-    setCurrentResume(emptyResume());
-  }
-  navigate(action.route);
 };
 ```
 
-The `QuickActions` component needs to import `useAuth` and properly handle each action.
+Note: The **card tap** (`handleCardClick` in `ResumeListCard`) still correctly goes to `/resume/:id` — that detail page is the right destination for a tap (gives overview before editing). The "Edit" action button in the overflow sheet is what needs to go directly to `/editor`.
 
 ---
 
-## Bug 2 (Critical) — `BottomTabBar`: Editor tab sends users to `/resume/:id` instead of opening their resume in the editor
+## Bug 2 (Critical) — "ATS Improve" button in ResumeListCard navigates to editor without loading resume
 
-**File:** `src/components/layout/BottomTabBar.tsx` lines 79–80
+**File:** `src/components/dashboard/ResumeListCard.tsx` — `ATSScoreBreakdown onImprove` prop, line 316–319
 
-**Problem:** When `tab.guarded && !currentResumeId` and the user has resumes, it navigates to `/resume/${resumes[0].id}` — which is the **Resume Detail page**, not the editor. The Editor tab is supposed to open the most recent resume *in the editor* (`/editor`), not the detail view. The user lands on a read-only detail page when they expected to edit.
+**Problem:** The "Improve" button inside `ATSScoreBreakdown` navigates to `/editor?openTailor=1` without setting the resume in the store. If the current resume in the store is different or null, the editor opens to the wrong or empty resume.
 
-```ts
-// CURRENT — goes to detail page, not editor
-if (resumes && resumes.length > 0) {
-  navigate(`/resume/${resumes[0].id}`);  // ← WRONG: should open editor
-}
-```
-
-**Fix:** Load the most recent resume into the store and navigate directly to `/editor`:
-
-```ts
-if (resumes && resumes.length > 0) {
-  const latest = resumes[0];
-  setCurrentResumeId(latest.id);
-  navigate('/editor');  // ← Correct: puts user directly in editor
-}
-```
-
-This requires importing `dbToResumeData` and calling `setCurrentResume` as well, which `useResumes` already exports.
-
----
-
-## Bug 3 (Console Warning) — `Index.tsx`: `DropdownMenu` ref warning
-
-**File:** `src/pages/Index.tsx` — visible in console logs
-
-**Problem:** The console shows:
-> `Warning: Function components cannot be given refs. Attempts to access this ref will fail. Did you mean to use React.forwardRef()?`
-> `Check the render method of Index.`
-
-The `DropdownMenuTrigger asChild` is wrapping a `<button>` element correctly, but internally `DropdownMenuContent` → `DropdownMenuPortal` is passing a ref to a function component that doesn't use `forwardRef`. This is a Radix UI version compatibility warning. The actual `DropdownMenu` in `Index.tsx` uses a plain `<button>` as trigger (not `asChild` on a custom component), so the fix is to ensure the trigger uses `asChild` correctly.
-
-Looking at the code, the `DropdownMenuTrigger asChild` wraps a `<button>` — that's correct. The warning originates from `DropdownMenuContent`'s internal portal trying to pass a ref to a child. This is a **known Radix UI React 18 warning** that doesn't break functionality. It cannot be fixed without upgrading Radix packages. We will **note this but not block on it**.
-
----
-
-## Bug 4 (Medium) — `InterviewPage`: Navigates guests to `/upload` instead of `/auth`
-
-**File:** `src/pages/InterviewPage.tsx` line 79
-
-**Problem:** When a user has no resume, the guard does:
-```ts
-navigate(user ? '/upload' : '/auth');
-```
-
-If a logged-in user has no resume, they're correctly sent to `/upload`. But the UX is broken: landing on the Upload page without context as to *why* they're there is jarring. More importantly, the `QuickActions` "Mock Interview" card on the landing page sends guests to `/auth` (which is fine), but once authenticated with no resume, clicking Interview from the bottom tabs / AI Studio would silently redirect to `/upload` with no explanation beyond a toast. The toast message says "Create or upload a resume first" — and navigates to `/upload` — which is actually reasonable. **This one is acceptable behavior**, not a bug.
-
----
-
-## Bug 5 (Medium) — `ApplicationsPage`: "Tailor Resume" button in job cards has no resume guard
-
-**File:** `src/pages/ApplicationsPage.tsx` — `JobCard` component, line 77-81
-
-**Problem:** The "Tailor Resume" button calls `onTailor()`. Tracing `onTailor` to its call site — it's passed from the parent where it runs:
-
-```ts
-onTailor={() => {
-  const resume = resumes?.[0];
-  if (!resume) {
-    toast.info('Create a resume first');
-    return;
-  }
-  setCurrentResumeId(resume.id);
-  navigate('/editor?tailor=true&...');
+```tsx
+// CURRENT — no store update before navigating
+onImprove={() => {
+  haptics.medium();
+  navigateToEditor(`/editor?openTailor=1`);  // ← No setCurrentResume call
 }}
 ```
 
-This is already guarded with a toast. **Not a bug.**
+**Fix:** Load the specific resume into the store before navigating:
+
+```tsx
+onImprove={() => {
+  haptics.medium();
+  const { setCurrentResume: setResume, setCurrentResumeId: setId } = useResumeStore.getState();
+  setId(resume.id);
+  setResume(dbToResumeData(resume));
+  navigateToEditor(`/editor?openTailor=1`);
+}}
+```
+
+Since this is inside a `memo` component we can't call hooks conditionally, so we use `useResumeStore.getState()` to access the store imperatively inside the callback.
 
 ---
 
-## Summary of Real Fixes
+## Bug 3 (Medium) — TemplatesPage "Use This Template" navigates to editor with no resume in store
 
-| # | File | Bug | Fix |
-|---|---|---|---|
-| 1 | `src/components/landing/QuickActions.tsx` | All 4 action cards always navigate to `/auth` regardless of card or auth state | Add `useAuth` check; route authenticated users to `action.route`; guests to `/auth` |
-| 2 | `src/components/layout/BottomTabBar.tsx` | Editor tab sends to `/resume/:id` (detail page) instead of loading resume into store and going to `/editor` | Load `resumes[0]` into store via `setCurrentResumeId` + `setCurrentResume`, navigate to `/editor` |
+**File:** `src/pages/TemplatesPage.tsx` — `handleUseTemplate`, line 31–35
+
+**Problem:** When a user taps "Use This Template" from the Templates page, it sets the template in the store and navigates to `/editor`. However, it does **not** check if there's a current resume loaded. If `currentResumeId` is null, the editor opens in a blank/create mode, which is confusing — the user just wanted to apply a template to their existing resume.
+
+```ts
+// CURRENT — goes to editor but may have no resume loaded
+const handleUseTemplate = (id: TemplateId) => {
+  setSelectedTemplate(id);
+  updateResume({ templateId: id });  // updateResume with no currentResume is a no-op
+  navigate('/editor');
+};
+```
+
+**Fix:** Check if a resume is in the store. If yes, apply the template and go to editor. If not, navigate to dashboard with the `?action=create` flow (which opens the Create dialog):
+
+```ts
+const handleUseTemplate = (id: TemplateId) => {
+  const { currentResumeId } = useResumeStore.getState();
+  setSelectedTemplate(id);
+  if (currentResumeId) {
+    updateResume({ templateId: id });
+    navigate('/editor');
+  } else {
+    // No resume selected — go to dashboard to create one with this template
+    navigate('/dashboard?action=create');
+    toast.info('Create a resume first, then apply this template from the editor.');
+  }
+};
+```
+
+Actually, looking at the flow again, `TemplatesPage` is a valid standalone browse page — users browse templates before they have a resume. The right fix is simpler: just navigate to dashboard to trigger resume creation when no resume exists, so the user can pick this template during setup.
 
 ---
 
-## Files Changed
+## Bug 4 (Minor) — Dashboard Sign Out navigates to `/auth` instead of `/`
 
-| File | Change |
+**File:** `src/pages/DashboardPage.tsx` — Profile popover "Sign Out" button, line 544–548
+
+**Problem:** The Sign Out button in the profile popover directly calls `supabase.auth.signOut()` and navigates to `/auth`. The correct destination after sign-out is the landing page `/`, not the auth page. The `SettingsPage` `handleSignOut` correctly goes to `/`, but the Dashboard popover is inconsistent.
+
+```tsx
+// CURRENT — wrong destination after sign out  
+onClick={async () => {
+  haptics.warning();
+  await supabase.auth.signOut();
+  navigate('/auth');  // ← Should be '/'
+}}
+```
+
+**Fix:** Navigate to `/` instead:
+
+```tsx
+onClick={async () => {
+  haptics.warning();
+  await supabase.auth.signOut();
+  navigate('/');  // ← Correct: landing page
+}}
+```
+
+---
+
+## Summary Table
+
+| # | Severity | File | Button/Action | Current Destination | Correct Destination |
+|---|---|---|---|---|---|
+| 1 | Critical | `DashboardPage.tsx` | "Edit" in card actions sheet | `/resume/:id` (detail page) | `/editor` (with resume loaded in store) |
+| 2 | Critical | `ResumeListCard.tsx` | "Improve" in ATS score breakdown | `/editor?openTailor=1` (no store update) | `/editor?openTailor=1` (with this resume loaded) |
+| 3 | Medium | `TemplatesPage.tsx` | "Use This Template" with no resume | `/editor` (empty/wrong resume) | `/dashboard?action=create` with toast |
+| 4 | Minor | `DashboardPage.tsx` | "Sign Out" in profile popover | `/auth` | `/` |
+
+---
+
+## Files to Change
+
+| File | What Changes |
 |---|---|
-| `src/components/landing/QuickActions.tsx` | Add `useAuth`, fix `handleAction` to use `action.route` for authenticated users; `action.createBlank` clears store before navigating to `/editor` |
-| `src/components/layout/BottomTabBar.tsx` | Fix Editor tab guard: import `dbToResumeData`, call `setCurrentResume(dbToResumeData(resumes[0]))` + `setCurrentResumeId(resumes[0].id)` before navigating to `/editor` |
+| `src/pages/DashboardPage.tsx` | Fix `handleEdit` to load resume + navigate to `/editor`; Fix Sign Out to navigate to `/` |
+| `src/components/dashboard/ResumeListCard.tsx` | Fix `onImprove` callback to load resume into store via `useResumeStore.getState()` before navigating |
+| `src/pages/TemplatesPage.tsx` | Fix `handleUseTemplate` to guard against missing resume and redirect appropriately |
 
-No database changes, no new dependencies, no schema migrations required.
+No database changes, no migrations, no new dependencies required.
