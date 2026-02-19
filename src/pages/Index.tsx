@@ -14,10 +14,18 @@ import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-m
 import { useEffect, useState, useCallback } from 'react';
 
 const features = [
-  { icon: Sparkles, title: 'AI Writing Assistant', desc: 'Enhance bullets and summaries with one tap', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
-  { icon: Target, title: 'ATS Score Checker', desc: 'Real-time scoring against any job posting', iconColor: 'text-emerald-500', gradient: 'from-emerald-500/20 to-emerald-500/5' },
-  { icon: Wand2, title: 'Smart Job Tailoring', desc: 'AI adapts your resume to each job automatically', iconColor: 'text-blue-500', gradient: 'from-blue-500/20 to-blue-500/5' },
-  { icon: Mic, title: 'Voice Mock Interviews', desc: 'Practice with AI voice coaching & real-time feedback', iconColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' },
+  { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
+  { icon: Target, title: 'Know your score before they do', desc: 'Real-time ATS match percentage against any job posting — then fix it instantly', iconColor: 'text-emerald-500', gradient: 'from-emerald-500/20 to-emerald-500/5' },
+  { icon: Wand2, title: 'New job, new resume — instantly', desc: 'Paste a job description and AI rewrites your entire resume to match in 30 seconds', iconColor: 'text-blue-500', gradient: 'from-blue-500/20 to-blue-500/5' },
+  { icon: Mic, title: 'Practice speaking, not just writing', desc: 'Real voice interview coaching with an AI that listens, responds, and scores you live', iconColor: 'text-orange-500', gradient: 'from-orange-500/20 to-orange-500/5' },
+];
+
+const comparisons = [
+  { them: 'PDF only', us: 'Live portfolio website', icon: Globe },
+  { them: 'Generic AI tips', us: '4 recruiter personas', icon: Users },
+  { them: 'ATS score only', us: 'AI rewrites for each job', icon: Wand2 },
+  { them: 'Text practice tips', us: 'Real voice interview coach', icon: Mic },
+  { them: 'Basic templates', us: '12 polished designs', icon: LayoutGrid },
 ];
 
 const getBonusChips = (authenticated: boolean) => [
@@ -316,10 +324,10 @@ const Index = () => {
           </motion.h1>
 
           <motion.p
-            className="text-base text-muted-foreground mb-8 max-w-xs"
+            className="text-base text-muted-foreground mb-4 max-w-sm leading-relaxed"
             {...fade(0.15)}
           >
-            AI-powered. ATS-optimized. Ready in 5 minutes.
+            The only resume app that <span className="text-foreground font-medium">coaches your interview</span>, <span className="text-foreground font-medium">scores your ATS match</span>, and <span className="text-foreground font-medium">builds your portfolio site</span> — all in one.
           </motion.p>
 
           <motion.div className="w-full flex justify-center" {...fade(0.2)}>
@@ -338,14 +346,44 @@ const Index = () => {
             </motion.div>
           </motion.div>
 
-          <motion.p
-            className="mt-4 text-xs text-muted-foreground flex items-center gap-1.5"
-            {...fade(0.25)}
-          >
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            Free forever&nbsp;·&nbsp;No credit card
-          </motion.p>
+          {/* Trust bar */}
+          <motion.div className="mt-5 flex items-center gap-4 text-xs text-muted-foreground flex-wrap justify-center" {...fade(0.28)}>
+            <span className="flex items-center gap-1"><span className="text-yellow-400">★</span> 4.9 Rating</span>
+            <span className="w-px h-3 bg-border" />
+            <span>12,000+ users helped</span>
+            <span className="w-px h-3 bg-border" />
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Free to start</span>
+          </motion.div>
         </section>
+
+        {/* Comparison Strip — Not Just Another Resume Builder */}
+        <motion.section className="px-4 sm:px-6 mb-10" {...inView(0)}>
+          <motion.div className="text-center mb-6" {...inView(0)}>
+            <p className="text-secondary text-xs font-medium tracking-wider uppercase mb-1">The WiseResume Difference</p>
+            <h2 className="font-display text-2xl font-bold text-foreground">Not Just Another Resume Builder</h2>
+          </motion.div>
+
+          <div className="max-w-lg mx-auto grid grid-cols-1 gap-2.5">
+            {comparisons.map((item, i) => (
+              <motion.div key={item.them} {...inView(0.05 * i)}>
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-border/20 bg-card/40 backdrop-blur-sm">
+                  {/* Them */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="w-5 h-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-xs font-bold flex-shrink-0">✗</span>
+                    <span className="text-xs text-muted-foreground line-through truncate">{item.them}</span>
+                  </div>
+                  {/* Arrow */}
+                  <ArrowRight className="w-3.5 h-3.5 text-border flex-shrink-0" />
+                  {/* Us */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                    <span className="text-xs font-semibold text-foreground truncate text-right">{item.us}</span>
+                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
 
         {/* See It in Action — two-card section */}
         <motion.section className="px-4 sm:px-6 mb-10" {...inView(0)}>

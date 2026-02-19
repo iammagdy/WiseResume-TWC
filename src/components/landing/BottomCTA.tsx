@@ -1,7 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { Rocket } from 'lucide-react';
+import { Rocket, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import triggerHaptic from '@/lib/haptics';
+
+const bullets = [
+  'AI rewrites your resume for each job in 30 seconds',
+  'Voice interview coaching that actually prepares you',
+  'A portfolio website, not just a PDF',
+];
 
 export function BottomCTA() {
   const navigate = useNavigate();
@@ -23,13 +29,19 @@ export function BottomCTA() {
           <Rocket className="w-7 h-7 sm:w-8 sm:h-8 text-primary-foreground" />
         </div>
 
-        <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-3 sm:mb-4">
-          Ready to Get Started?
+        <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-3 sm:mb-4 leading-tight">
+          Land your next job.<br />
+          <span className="text-primary">Not someday — this week.</span>
         </h2>
 
-        <p className="text-sm sm:text-base text-muted-foreground mb-6 sm:mb-8 leading-relaxed px-2">
-          Join thousands building better resumes with AI
-        </p>
+        <ul className="text-sm text-muted-foreground mb-6 sm:mb-8 space-y-2 text-left inline-block">
+          {bullets.map((b) => (
+            <li key={b} className="flex items-start gap-2">
+              <Check className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+              {b}
+            </li>
+          ))}
+        </ul>
 
         <Button
           size="lg"
@@ -39,6 +51,8 @@ export function BottomCTA() {
           <Rocket className="w-4 h-4 sm:w-5 sm:h-5" />
           Get Started Free
         </Button>
+
+        <p className="mt-3 text-xs text-muted-foreground">Free forever · No credit card required</p>
       </div>
     </section>
   );
