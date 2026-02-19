@@ -206,18 +206,20 @@ export default function ApplicationsPage() {
           </div>
         </div>
       </header>
+      {/* Gradient accent line */}
+      <div className="h-[2px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
 
       {/* All scrollable content inside PullToRefresh */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-        <div className="px-4 py-4 space-y-6 max-w-3xl mx-auto w-full">
-          {/* Tabs */}
-          <div className="flex gap-2 w-full -mt-2">
+        <div className="px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
+          {/* Premium Tab Bar */}
+          <div className="glass-elevated rounded-2xl p-1 flex gap-1 -mt-2">
             {TABS.map(t => (
               <button
                 key={t.key}
                 onClick={() => { haptics.selection(); setActiveTab(t.key); }}
-                className={`px-4 py-2.5 rounded-full text-sm font-medium transition-colors min-h-[48px] flex-1 ${
-                  activeTab === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all min-h-[44px] flex-1 touch-manipulation active:scale-95 ${
+                  activeTab === t.key ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted/50'
                 }`}
               >
                 {t.label}
@@ -229,18 +231,14 @@ export default function ApplicationsPage() {
               {/* Status Filter */}
               <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
 
-              {/* Stats - hide when no data at all */}
-              {(stats.applicationsSubmitted > 0 || stats.originals > 0) && <JobActivityStatsCard
-                stats={stats}
-                onOriginalsTap={() => {
-                  setResumeListFilter('originals');
-                  setResumeListOpen(true);
-                }}
-                onTailoredTap={() => {
-                  setResumeListFilter('tailored');
-                  setResumeListOpen(true);
-                }}
-              />}
+              {/* Recent Activity — primary content, always visible */}
+              <div id="activity-timeline">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-1 h-4 rounded-full bg-primary" />
+                  <h2 className="text-sm font-semibold">Recent Activity</h2>
+                </div>
+                <ActivityTimeline />
+              </div>
 
               {/* Application Cards */}
               {applications.length > 0 ? (
@@ -315,48 +313,50 @@ export default function ApplicationsPage() {
                   })}
                 </div>
               ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                  <FileText className="w-12 h-12 mb-3 opacity-30" />
-                  <p className="font-medium">
-                    {statusFilter !== 'all' ? `No ${statusFilter} applications` : 'No applications yet'}
-                  </p>
-                  <p className="text-sm mt-1 mb-4 text-center px-4">
-                    {statusFilter !== 'all' ? 'Try a different filter or add a new application' : 'Start tracking your job applications to stay organized'}
-                  </p>
-                  <div className="flex gap-3">
+                /* Compact empty state banner */
+                <div className="glass-surface rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">
+                      {statusFilter !== 'all' ? `No ${statusFilter} applications` : 'No applications tracked'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {statusFilter !== 'all' ? 'Try a different filter' : 'Track your job applications here'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
                     {statusFilter !== 'all' && (
                       <button
                         onClick={() => { haptics.light(); setStatusFilter('all'); }}
-                        className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation active:scale-95"
+                        className="px-3 py-2 rounded-full bg-muted text-foreground text-xs font-medium min-h-[44px] touch-manipulation active:scale-95"
                       >
                         Show All
                       </button>
                     )}
                     <button
                       onClick={() => { haptics.light(); setShowAdd(true); }}
-                      className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation active:scale-95"
+                      className="px-3 py-2 rounded-full bg-primary/10 text-primary text-xs font-medium min-h-[44px] touch-manipulation active:scale-95"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add Application
+                      + Add
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Timeline */}
-              <div id="activity-timeline">
-                <h2 className="text-sm font-semibold text-muted-foreground mb-3">Recent Activity</h2>
-                <ActivityTimeline />
-              </div>
-
-              {/* Add manually */}
-              <div className="flex justify-center pt-2 pb-4">
-                <button
-                  onClick={() => { haptics.medium(); setShowAdd(true); }}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-                >
-                  <Plus className="w-3.5 h-3.5" /> Add application manually
-                </button>
-              </div>
+              {/* Stats - only when meaningful data exists */}
+              {(stats.applicationsSubmitted > 0 || stats.originals > 0) && <JobActivityStatsCard
+                stats={stats}
+                onOriginalsTap={() => {
+                  setResumeListFilter('originals');
+                  setResumeListOpen(true);
+                }}
+                onTailoredTap={() => {
+                  setResumeListFilter('tailored');
+                  setResumeListOpen(true);
+                }}
+              />}
             </>
           ) : (
             <>
