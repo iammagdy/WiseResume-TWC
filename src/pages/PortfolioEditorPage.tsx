@@ -556,10 +556,24 @@ export default function PortfolioEditorPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs col-span-2"
+                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
                   onClick={() => { haptics.light(); setShowCareerCard(true); }}
                 >
-                  <Sparkles className="w-4 h-4 mr-1.5" /> Share Career Card
+                  <Sparkles className="w-4 h-4 mr-1.5" /> Career Card
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
+                  onClick={() => {
+                    haptics.light();
+                    window.open(
+                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(username)}`,
+                      '_blank',
+                      'noopener,noreferrer'
+                    );
+                  }}
+                >
+                  <Eye className="w-4 h-4 mr-1.5" /> Social Preview
                 </Button>
               </div>
             </>
