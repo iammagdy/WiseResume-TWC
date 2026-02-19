@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Eye, Link2, Plus, Copy, Trash2, Globe2, Clock, Layers,
   TrendingUp, Check, Loader2, ChevronRight, BarChart2,
+  ChevronDown, ChevronUp, ExternalLink, Search, MapPin,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,13 +19,12 @@ import {
   type ShortLink,
 } from '@/hooks/usePortfolioAnalytics';
 import { haptics } from '@/lib/haptics';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
 
 // ── Country → flag emoji ──────────────────────────────────────────────────────
 function countryToFlag(country: string | null): string {
   if (!country) return '🌍';
-  // Try to convert 2-letter ISO code
   const code = country.length === 2
     ? country.toUpperCase()
     : COUNTRY_TO_CODE[country] ?? null;
@@ -54,56 +55,293 @@ function formatDuration(seconds: number | null): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
+// ── Section label map ─────────────────────────────────────────────────────────
+const SECTION_DISPLAY: Record<string, string> = {
+  'section-hero': 'Hero',
+  'section-about': 'About',
+  'section-experience': 'Experience',
+  'section-education': 'Education',
+  'section-skills': 'Skills',
+  'section-projects': 'Projects',
+  'section-certifications': 'Certs',
+  'section-awards': 'Awards',
+  'section-publications': 'Publications',
+  'section-volunteering': 'Volunteering',
+  'section-contact': 'Contact',
+};
+
+function sectionLabel(s: string): string {
+  return SECTION_DISPLAY[s] ?? s.replace('section-', '').replace(/-/g, ' ');
+}
+
+// ── Referrer parser ───────────────────────────────────────────────────────────
+interface ReferrerInfo {
+  label: string;
+  host: string;
+  color: string;
+  dotColor: string;
+}
+
+function parseReferrer(referrer: string | null): ReferrerInfo {
+  if (!referrer) return { label: 'Direct', host: '', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' };
+  if (/linkedin/i.test(referrer)) return { label: 'LinkedIn', host: 'linkedin.com', color: 'text-blue-400', dotColor: 'bg-blue-400' };
+  if (/google/i.test(referrer)) return { label: 'Google', host: 'google.com', color: 'text-red-400', dotColor: 'bg-red-400' };
+  if (/twitter|x\.com/i.test(referrer)) return { label: 'Twitter/X', host: 'x.com', color: 'text-sky-400', dotColor: 'bg-sky-400' };
+  if (/github/i.test(referrer)) return { label: 'GitHub', host: 'github.com', color: 'text-foreground', dotColor: 'bg-foreground' };
+  try {
+    const h = new URL(referrer).hostname.replace(/^www\./, '');
+    return { label: h, host: h, color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' };
+  } catch {
+    return { label: 'Unknown', host: '', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' };
+  }
+}
+
+// ── Engagement tier ───────────────────────────────────────────────────────────
+interface EngagementTier {
+  label: string;
+  badgeClass: string;
+}
+
+function getEngagementTier(seconds: number | null, sectionCount: number): EngagementTier {
+  const timeScore = !seconds ? 0 : seconds >= 120 ? 2 : seconds >= 30 ? 1 : 0;
+  const sectionScore = sectionCount >= 4 ? 2 : sectionCount >= 2 ? 1 : 0;
+  const total = timeScore + sectionScore;
+  if (total >= 3) return { label: 'High', badgeClass: 'text-emerald-400 bg-emerald-400/10 border-emerald-400/20' };
+  if (total >= 1) return { label: 'Med', badgeClass: 'text-amber-400 bg-amber-400/10 border-amber-400/20' };
+  return { label: 'Low', badgeClass: 'text-muted-foreground bg-muted/50 border-border/30' };
+}
+
 // ── Short link base URL ───────────────────────────────────────────────────────
 const BASE_URL = 'wiseresume.app';
 function shortUrl(id: string) { return `${BASE_URL}/l/${id}`; }
 function fullShortUrl(id: string) { return `https://${BASE_URL}/l/${id}`; }
 
 // ── Visit Card ────────────────────────────────────────────────────────────────
-function VisitCard({ visit, shortLinks }: { visit: PortfolioVisit; shortLinks: ShortLink[] }) {
+function VisitCard({
+  visit,
+  shortLinks,
+  isExpanded,
+  onToggle,
+}: {
+  visit: PortfolioVisit;
+  shortLinks: ShortLink[];
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
   const flag = countryToFlag(visit.country);
   const location = [visit.city, visit.country].filter(Boolean).join(', ') || 'Unknown location';
   const timeAgo = formatDistanceToNow(new Date(visit.visited_at), { addSuffix: true });
-  const sections = Array.isArray(visit.sections_viewed) ? visit.sections_viewed : [];
+  const exactTime = format(new Date(visit.visited_at), 'MMM d, yyyy · h:mm a');
+  const sections = Array.isArray(visit.sections_viewed) ? (visit.sections_viewed as string[]) : [];
   const linkedLink = visit.short_link_id
     ? shortLinks.find(l => l.id === visit.short_link_id)
     : null;
+  const engagement = getEngagementTier(visit.time_spent_seconds, sections.length);
+  const ref = parseReferrer(visit.referrer);
+
+  // Collapsed: show first 3 section labels inline
+  const previewSections = sections.slice(0, 3).map(sectionLabel);
+  const remainingCount = sections.length - 3;
 
   return (
-    <div className="flex flex-col gap-2 py-3 border-b border-border/40 last:border-0">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-2xl shrink-0 leading-none">{flag}</span>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{location}</p>
-            <p className="text-xs text-muted-foreground">{timeAgo}</p>
+    <div className="border-b border-border/40 last:border-0">
+      {/* Collapsed row — always visible */}
+      <button
+        className="w-full text-left py-3 group"
+        onClick={() => { haptics.light(); onToggle(); }}
+      >
+        <div className="flex items-start justify-between gap-2">
+          {/* Left: flag + location */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xl shrink-0 leading-none">{flag}</span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{location}</p>
+              <p className="text-xs text-muted-foreground">{timeAgo}</p>
+            </div>
+          </div>
+          {/* Right: badges + chevron */}
+          <div className="flex items-center gap-1.5 shrink-0">
+            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${engagement.badgeClass}`}>
+              {engagement.label}
+            </span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 flex items-center gap-1 h-5">
+              <Clock className="w-2.5 h-2.5" />
+              {formatDuration(visit.time_spent_seconds)}
+            </Badge>
+            {isExpanded
+              ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            }
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1 shrink-0">
-          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 flex items-center gap-1">
-            <Clock className="w-2.5 h-2.5" />
-            {formatDuration(visit.time_spent_seconds)}
-          </Badge>
-          {linkedLink && (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 flex items-center gap-1 text-primary border-primary/30">
-              <Link2 className="w-2.5 h-2.5" />
-              {linkedLink.label}
-            </Badge>
-          )}
-          {!linkedLink && !visit.short_link_id && (
-            <span className="text-[10px] text-muted-foreground">Direct</span>
-          )}
-        </div>
-      </div>
-      {sections.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {sections.slice(0, 5).map(s => (
-            <span key={s} className="text-[10px] bg-muted px-1.5 py-0.5 rounded-md text-muted-foreground capitalize">
-              {s}
+
+        {/* Sections preview + referrer hint */}
+        {sections.length > 0 && (
+          <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] text-muted-foreground">
+              Scrolled {sections.length} section{sections.length !== 1 ? 's' : ''}:
             </span>
-          ))}
+            {previewSections.map((s, i) => (
+              <span key={i} className="text-[10px] bg-muted/60 px-1.5 py-0.5 rounded-md text-muted-foreground">
+                {s}
+              </span>
+            ))}
+            {remainingCount > 0 && (
+              <span className="text-[10px] text-muted-foreground">+{remainingCount} more</span>
+            )}
+          </div>
+        )}
+
+        {/* Referrer pill (collapsed) */}
+        <div className="mt-1 flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${ref.dotColor}`} />
+          <span className={`text-[10px] ${ref.color}`}>{ref.label}</span>
+          {linkedLink && (
+            <>
+              <span className="text-[10px] text-muted-foreground">·</span>
+              <span className="text-[10px] text-primary">{linkedLink.label}</span>
+            </>
+          )}
         </div>
-      )}
+      </button>
+
+      {/* Expanded detail */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="pb-3 space-y-2.5">
+              {/* Source row */}
+              <div className="glass-elevated rounded-xl p-3 space-y-2">
+                {/* Exact time */}
+                <div className="flex items-center gap-2">
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className="text-xs text-foreground">{exactTime}</span>
+                </div>
+
+                {/* Referrer */}
+                <div className="flex items-center gap-2">
+                  <Search className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <span className={`text-xs font-medium ${ref.color}`}>{ref.label}</span>
+                  {visit.referrer && (
+                    <a
+                      href={visit.referrer}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground transition-colors font-mono"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {ref.host}
+                      <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                    </a>
+                  )}
+                  {!visit.referrer && (
+                    <span className="text-[10px] text-muted-foreground font-mono">no referrer</span>
+                  )}
+                </div>
+
+                {/* Short link attribution */}
+                {linkedLink && (
+                  <div className="flex items-center gap-2">
+                    <Link2 className="w-3.5 h-3.5 text-primary shrink-0" />
+                    <span className="text-xs text-primary font-medium">{linkedLink.label}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">{shortUrl(linkedLink.id)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* All sections */}
+              {sections.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Layers className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-[11px] text-muted-foreground font-medium">
+                      Sections scrolled ({sections.length})
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {sections.map((s, i) => (
+                      <span
+                        key={i}
+                        className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full"
+                      >
+                        {sectionLabel(s)}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+// ── Traffic Source Bar ────────────────────────────────────────────────────────
+const SOURCE_COLORS: Record<string, string> = {
+  LinkedIn: 'bg-blue-400',
+  Google: 'bg-red-400',
+  GitHub: 'bg-foreground',
+  'Twitter/X': 'bg-sky-400',
+  Direct: 'bg-muted-foreground',
+  Other: 'bg-border',
+};
+
+function TrafficSourceBar({ visits }: { visits: PortfolioVisit[] }) {
+  const sources = useMemo(() => {
+    const buckets: Record<string, number> = {
+      LinkedIn: 0, Google: 0, 'Twitter/X': 0, GitHub: 0, Direct: 0, Other: 0,
+    };
+    for (const v of visits) {
+      const r = v.referrer ?? '';
+      if (!r) buckets.Direct++;
+      else if (/linkedin/i.test(r)) buckets.LinkedIn++;
+      else if (/google/i.test(r)) buckets.Google++;
+      else if (/twitter|x\.com/i.test(r)) buckets['Twitter/X']++;
+      else if (/github/i.test(r)) buckets.GitHub++;
+      else buckets.Other++;
+    }
+    return Object.entries(buckets)
+      .filter(([, n]) => n > 0)
+      .sort(([, a], [, b]) => b - a);
+  }, [visits]);
+
+  if (visits.length === 0 || sources.length === 0) return null;
+
+  const total = visits.length;
+
+  return (
+    <div className="glass-elevated rounded-xl p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <Activity className="w-3.5 h-3.5 text-primary" />
+        <span className="text-xs font-semibold text-foreground">Traffic Sources</span>
+      </div>
+      {/* Segmented bar */}
+      <div className="flex h-1.5 rounded-full overflow-hidden gap-px">
+        {sources.map(([label, count]) => (
+          <div
+            key={label}
+            className={`${SOURCE_COLORS[label] ?? 'bg-border'} opacity-80 transition-all`}
+            style={{ width: `${(count / total) * 100}%` }}
+          />
+        ))}
+      </div>
+      {/* Labels */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {sources.map(([label, count]) => (
+          <div key={label} className="flex items-center gap-1">
+            <span className={`w-2 h-2 rounded-full ${SOURCE_COLORS[label] ?? 'bg-border'}`} />
+            <span className="text-[10px] text-muted-foreground">{label}</span>
+            <span className="text-[10px] font-medium text-foreground">{count}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -148,13 +386,7 @@ function ShortLinkRow({
         <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
           {link.click_count} clicks
         </Badge>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={handleCopy}
-          title="Copy link"
-        >
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={handleCopy} title="Copy link">
           {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3" />}
         </Button>
         <Button
@@ -182,6 +414,7 @@ interface VisitorsPanelProps {
 export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPanelProps) {
   const [newLinkLabel, setNewLinkLabel] = useState('');
   const [showCreateLink, setShowCreateLink] = useState(false);
+  const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
 
   const { data: analytics, isLoading: analyticsLoading } = usePortfolioAnalytics(
     portfolioEnabled ? username : undefined
@@ -260,6 +493,9 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
         <div className="flex items-center gap-2 mb-3">
           <TrendingUp className="w-4 h-4 text-primary" />
           <h4 className="text-sm font-semibold text-foreground">Recent Visitors</h4>
+          {visits.length > 0 && (
+            <span className="text-[10px] text-muted-foreground ml-auto">tap to expand</span>
+          )}
         </div>
 
         {analyticsLoading ? (
@@ -274,9 +510,22 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
             <p className="text-xs text-muted-foreground">No visits yet. Share your portfolio to start tracking!</p>
           </div>
         ) : (
-          <div>
+          <div className="space-y-0">
+            {/* Traffic source bar */}
+            <div className="mb-3">
+              <TrafficSourceBar visits={visits} />
+            </div>
+
             {visits.slice(0, 15).map(visit => (
-              <VisitCard key={visit.id} visit={visit} shortLinks={shortLinks} />
+              <VisitCard
+                key={visit.id}
+                visit={visit}
+                shortLinks={shortLinks}
+                isExpanded={expandedVisitId === visit.id}
+                onToggle={() =>
+                  setExpandedVisitId(prev => prev === visit.id ? null : visit.id)
+                }
+              />
             ))}
             {visits.length > 15 && (
               <p className="text-[11px] text-muted-foreground text-center pt-2">
