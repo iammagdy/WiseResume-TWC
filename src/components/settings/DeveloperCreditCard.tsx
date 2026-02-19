@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { Mail, ExternalLink, Github } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { openExternal } from '@/lib/openExternal';
@@ -35,7 +36,13 @@ export function DeveloperCreditCard({
   };
 
   return (
-    <div className="dev-card-wrapper">
+    <motion.div
+      className="dev-card-wrapper"
+      initial={{ opacity: 0, y: 30, scale: 0.97 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: false, amount: 0.3 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
       {/* Animated gradient border */}
       <div className="dev-card-border" />
       
@@ -115,6 +122,6 @@ export function DeveloperCreditCard({
           </div>
         </div>
       </div>
-    </div>);
+    </motion.div>);
 
 }
