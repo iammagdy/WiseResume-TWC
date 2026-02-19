@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useDeferredValue } from 'react';
+import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2 } from 'lucide-react';
@@ -23,7 +23,7 @@ import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { format, isBefore, addDays } from 'date-fns';
-import { scoreJobMatch, JobMatchResult } from '@/lib/jobMatchScorer';
+import { scoreJobMatch, scoreJobMatchAI, getCachedAIScore, JobMatchResult } from '@/lib/jobMatchScorer';
 
 type TabKey = 'applications' | 'jobs';
 
@@ -124,8 +124,8 @@ export default function ApplicationsPage() {
     return primary ? dbToResumeData(primary) : null;
   }, [resumes]);
 
-  // Compute match scores
-  const matchScores = useMemo(() => {
+  // Compute heuristic match scores (instant)
+  const heuristicScores = useMemo(() => {
     if (!primaryResume) return {};
     const scores: Record<string, JobMatchResult> = {};
     for (const job of jobs) {
@@ -133,6 +133,55 @@ export default function ApplicationsPage() {
     }
     return scores;
   }, [primaryResume, jobs]);
+
+  // AI scores state — overlays heuristic when available
+  const [aiScores, setAiScores] = useState<Record<string, JobMatchResult>>({});
+  const aiScoringRan = useRef(false);
+
+  // Fire background AI scoring for visible jobs (once per mount/resume change)
+  useEffect(() => {
+    if (!primaryResume || jobs.length === 0) return;
+    const primaryResumeRaw = resumes?.find(r => r.is_primary) || resumes?.[0];
+    if (!primaryResumeRaw) return;
+
+    // Reset flag when resume changes
+    aiScoringRan.current = false;
+
+    // Pre-fill from cache
+    const fromCache: Record<string, JobMatchResult> = {};
+    for (const job of jobs) {
+      const cached = getCachedAIScore(primaryResumeRaw.id, job.id);
+      if (cached) fromCache[job.id] = cached;
+    }
+    if (Object.keys(fromCache).length > 0) setAiScores(fromCache);
+
+    // Score uncached jobs in background (max 5 concurrent to avoid rate limits)
+    const uncached = jobs.filter(j => !fromCache[j.id]);
+    if (uncached.length === 0 || aiScoringRan.current) return;
+    aiScoringRan.current = true;
+
+    let cancelled = false;
+    (async () => {
+      for (let i = 0; i < uncached.length && !cancelled; i++) {
+        const job = uncached[i];
+        const result = await scoreJobMatchAI(primaryResume, job, primaryResumeRaw.id);
+        if (result && !cancelled) {
+          setAiScores(prev => ({ ...prev, [job.id]: result }));
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [primaryResume, jobs, resumes]);
+
+  // Merged scores: AI overrides heuristic when available
+  const matchScores = useMemo(() => {
+    const merged: Record<string, JobMatchResult> = { ...heuristicScores };
+    for (const [id, score] of Object.entries(aiScores)) {
+      merged[id] = score;
+    }
+    return merged;
+  }, [heuristicScores, aiScores]);
 
   const deferredQuery = useDeferredValue(filters.query);
 
