@@ -330,7 +330,7 @@ export function TemplateGallery() {
           onClick={() => navigate('/auth')}
           className="text-xs text-primary hover:text-primary/80 flex items-center gap-0.5 transition-colors group"
         >
-          See all 12 templates <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+          See all 30 templates <ChevronRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
         </button>
       </div>
     </section>
