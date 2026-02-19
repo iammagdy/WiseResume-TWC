@@ -106,7 +106,7 @@ export function resumeDataToDb(resume: ResumeData, userId: string, title?: strin
   };
 }
 
-export function useResumes() {
+export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data: DatabaseResume[]) => TData }) {
   const { user } = useAuth();
 
   return useQuery({
@@ -124,6 +124,7 @@ export function useResumes() {
     staleTime: 5 * 60 * 1000, // 5 minutes - serve cached data when offline
     gcTime: 30 * 60 * 1000, // 30 minutes - keep cache longer for offline use
     networkMode: 'offlineFirst',
+    select: options?.select,
   });
 }
 
@@ -147,7 +148,7 @@ export function useResume(resumeId: string | null) {
     enabled: !!user && !!resumeId,
     retry: 2,
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 3000),
-    staleTime: 0,
+    staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 

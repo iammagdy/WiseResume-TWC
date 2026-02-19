@@ -73,7 +73,6 @@ export default function DashboardPage() {
   const [duplicateResumeId, setDuplicateResumeId] = useState<string | null>(null);
   const [deletedResume, setDeletedResume] = useState<{ id: string; title: string } | null>(null);
   const [showOnboarding, setShowOnboarding] = useState(false);
-  const [profileLoaded, setProfileLoaded] = useState(false);
   const [showLinkedInImport, setShowLinkedInImport] = useState(false);
   const [showAnalyzeJob, setShowAnalyzeJob] = useState(false);
   
@@ -104,31 +103,24 @@ export default function DashboardPage() {
     setShowCreateDialog(true);
   }, []);
 
-  // Check onboarding status for authenticated users
+  // Check onboarding status for authenticated users — runs in background, does NOT block rendering
   useEffect(() => {
-    const checkOnboardingStatus = async () => {
-      if (!user) {
-        setProfileLoaded(true);
-        return;
-      }
+    if (!user) return;
+    const run = async () => {
       try {
         const { data } = await supabase
           .from('profiles')
           .select('onboarding_completed')
           .eq('user_id', user.id)
           .single();
-        
         if (data && !data.onboarding_completed) {
           setShowOnboarding(true);
         }
       } catch (err) {
         console.error('Failed to check onboarding:', err);
-      } finally {
-        setProfileLoaded(true);
       }
     };
-    
-    checkOnboardingStatus();
+    run();
   }, [user]);
 
   // Keyboard shortcuts for empty state
@@ -435,7 +427,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (authLoading || !profileLoaded) {
+  if (authLoading) {
     return (
       <div className="flex-1 flex flex-col">
         <header className="pt-safe pt-4 pb-3 px-4 flex items-center justify-between border-b border-border">
