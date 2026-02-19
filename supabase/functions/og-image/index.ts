@@ -57,6 +57,131 @@ function wrapText(text: string, maxCharsPerLine: number): string[] {
   return lines.slice(0, 2);
 }
 
+// ── Per-theme decoration layer ──────────────────────────────────────────────
+function styleToDecoLayer(style: string, accent: string): string {
+  switch (style) {
+    case 'bold-dark':
+      return `
+  <defs>
+    <linearGradient id="boldStripe" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="${accent}" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0.05"/>
+    </linearGradient>
+    <radialGradient id="glow1" cx="12%" cy="18%" r="45%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="88%" cy="82%" r="35%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#glow1)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+  <rect x="0" y="0" width="1200" height="220" fill="url(#boldStripe)"/>
+  <rect x="0" y="0" width="1200" height="8" fill="${accent}"/>
+  <polygon points="1200,630 900,630 1200,380" fill="${accent}" fill-opacity="0.06"/>`;
+
+    case 'glass-pro':
+      return `
+  <defs>
+    <radialGradient id="glassGlow1" cx="20%" cy="10%" r="50%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glassGlow2" cx="80%" cy="90%" r="40%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#glassGlow1)"/>
+  <rect width="1200" height="630" fill="url(#glassGlow2)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="${accent}"/>
+  <rect x="48" y="100" width="1104" height="440" rx="24" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+  <rect x="48" y="100" width="1104" height="1" fill="rgba(255,255,255,0.2)"/>`;
+
+    case 'classic-clean':
+      return `
+  <defs>
+    <pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="1" fill="#e5e7eb"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#dots)"/>
+  <rect x="0" y="0" width="6" height="630" fill="${accent}"/>
+  <rect x="0" y="0" width="1200" height="200" fill="${accent}" fill-opacity="0.04"/>`;
+
+    default: // minimal
+      return `
+  <defs>
+    <radialGradient id="glow1" cx="12%" cy="18%" r="45%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="88%" cy="82%" r="35%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#glow1)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+  <rect x="0" y="0" width="1200" height="5" fill="${accent}"/>`;
+  }
+}
+
+// ── Skill pill builder ───────────────────────────────────────────────────────
+function buildSkillPills(
+  skills: string[],
+  style: string,
+  accent: string,
+  fg: string,
+): string {
+  const top3 = skills.slice(0, 3);
+  const pillH = 42;
+  const pillPadX = 20;
+  const fontSize = 22;
+  const pillY = 460;
+  const rx = 21;
+
+  // Per-theme pill appearance
+  let pillFill: string;
+  let pillStroke: string;
+  let textColor: string;
+
+  if (style === 'classic-clean') {
+    pillFill = '#ffffff';
+    pillStroke = accent;
+    textColor = accent;
+  } else if (style === 'bold-dark') {
+    pillFill = accent;
+    pillStroke = accent;
+    textColor = '#ffffff';
+  } else if (style === 'glass-pro') {
+    pillFill = 'rgba(255,255,255,0.12)';
+    pillStroke = 'rgba(255,255,255,0.35)';
+    textColor = '#ffffff';
+  } else {
+    // minimal — accent-tinted
+    pillFill = accent + '28';
+    pillStroke = accent + '66';
+    textColor = accent;
+  }
+
+  const parts: string[] = [];
+  let x = 72;
+  for (const skill of top3) {
+    const charWidth = fontSize * 0.55;
+    const pillW = Math.round(skill.length * charWidth + pillPadX * 2);
+    const textY = pillY + pillH / 2 + fontSize * 0.36;
+    parts.push(`
+    <rect x="${x}" y="${pillY}" width="${pillW}" height="${pillH}" rx="${rx}" fill="${pillFill}" stroke="${pillStroke}" stroke-width="1.5"/>
+    <text x="${x + pillW / 2}" y="${textY}" font-family="system-ui,sans-serif" font-size="${fontSize}" fill="${textColor}" text-anchor="middle" font-weight="700">${escapeXml(skill)}</text>`);
+    x += pillW + 16;
+  }
+  return parts.join('');
+}
+
 function buildSVG(data: {
   name: string;
   role: string;
@@ -72,46 +197,24 @@ function buildSVG(data: {
   const bg = styleToBg(style);
   const fg = styleToFg(style);
   const muted = styleToMuted(style);
-  const cardBg = styleToCardBg(style, accent);
   const monogram = name?.charAt(0)?.toUpperCase() || '?';
-  const top5 = skills.slice(0, 5);
   const isLight = style === 'classic-clean';
 
-  // Truncated strings
   const displayName = truncate(name, 32);
   const displayRole = truncate(role, 48);
   const bioLines = bio ? wrapText(truncate(bio, 120), 60) : [];
 
-  // Skill pill layout
-  const skillPills: string[] = [];
-  let skillX = 72;
-  const skillY = 490;
-  const pillH = 34;
-  const pillPadX = 16;
-  const fontSize = 18;
-  for (const skill of top5) {
-    const charWidth = fontSize * 0.55;
-    const pillW = Math.round(skill.length * charWidth + pillPadX * 2);
-    if (skillX + pillW > 1130) break;
-    skillPills.push(`
-      <rect x="${skillX}" y="${skillY}" width="${pillW}" height="${pillH}" rx="17" fill="${cardBg}" />
-      <text x="${skillX + pillW / 2}" y="${skillY + 22}" font-family="system-ui,sans-serif" font-size="${fontSize}" fill="${accent}" text-anchor="middle" font-weight="600">${escapeXml(skill)}</text>
-    `);
-    skillX += pillW + 12;
-  }
-
   const dividerColor = isLight ? '#d1d5db' : accent + '44';
+
+  // Wordmark badge
+  const wordmarkBg = isLight ? accent : 'rgba(255,255,255,0.10)';
+  const wordmarkFg = isLight ? '#ffffff' : accent;
+
+  const decoLayer = styleToDecoLayer(style, accent);
+  const skillPillsSVG = buildSkillPills(skills, style, accent, fg);
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <radialGradient id="glow1" cx="12%" cy="18%" r="45%">
-      <stop offset="0%" stop-color="${accent}" stop-opacity="0.28"/>
-      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="glow2" cx="88%" cy="82%" r="35%">
-      <stop offset="0%" stop-color="${accent}" stop-opacity="0.12"/>
-      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
-    </radialGradient>
     <clipPath id="avatarClip">
       <circle cx="132" cy="180" r="68"/>
     </clipPath>
@@ -119,11 +222,13 @@ function buildSVG(data: {
 
   <!-- Background -->
   <rect width="1200" height="630" fill="${bg}"/>
-  <rect width="1200" height="630" fill="url(#glow1)"/>
-  <rect width="1200" height="630" fill="url(#glow2)"/>
 
-  <!-- Top accent bar -->
-  <rect x="0" y="0" width="1200" height="5" fill="${accent}"/>
+  <!-- Per-theme decoration -->
+  ${decoLayer}
+
+  <!-- Wordmark badge (top-right) -->
+  <rect x="980" y="28" width="192" height="38" rx="19" fill="${wordmarkBg}"/>
+  <text x="1076" y="52" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="${wordmarkFg}" text-anchor="middle">✦ WiseResume</text>
 
   <!-- Avatar monogram circle -->
   <circle cx="132" cy="180" r="68" fill="${accent}22" stroke="${accent}" stroke-width="2.5"/>
@@ -144,29 +249,25 @@ function buildSVG(data: {
   <text x="318" y="${location ? 271 : 261}" font-family="system-ui,sans-serif" font-size="16" fill="${accent}" text-anchor="middle" font-weight="600">✦ Open to Work</text>
   ` : ''}
 
-  <!-- WiseResume logo wordmark (top-right) -->
-  <text x="1128" y="56" font-family="system-ui,sans-serif" font-size="22" font-weight="700" fill="${accent}" text-anchor="end">✦ WiseResume</text>
-
   <!-- Divider 1 -->
   <rect x="72" y="320" width="1056" height="1.5" fill="${dividerColor}"/>
 
-  <!-- Bio / Skills label -->
-  <text x="72" y="370" font-family="system-ui,sans-serif" font-size="20" font-weight="600" fill="${muted}" letter-spacing="2">TOP SKILLS</text>
+  <!-- TOP SKILLS label -->
+  <text x="72" y="350" font-family="system-ui,sans-serif" font-size="14" font-weight="700" fill="${muted}" letter-spacing="3">TOP SKILLS</text>
+
+  <!-- Bio lines -->
+  ${bioLines.length > 0 ? bioLines.map((line, i) => `
+  <text x="72" y="${390 + i * 32}" font-family="system-ui,sans-serif" font-size="21" fill="${muted}">${escapeXml(line)}</text>`).join('') : ''}
+
+  <!-- Skill pills (top 3, enlarged) -->
+  ${skillPillsSVG}
 
   <!-- Divider 2 -->
-  <rect x="72" y="550" width="1056" height="1.5" fill="${dividerColor}"/>
-
-  <!-- Skill pills -->
-  ${skillPills.join('')}
-
-  <!-- Bio lines (if no bio, skip) -->
-  ${bioLines.length > 0 ? bioLines.map((line, i) => `
-  <text x="72" y="${390 + i * 30}" font-family="system-ui,sans-serif" font-size="21" fill="${muted}">${escapeXml(line)}</text>
-  `).join('') : ''}
+  <rect x="72" y="520" width="1056" height="1.5" fill="${dividerColor}"/>
 
   <!-- Bottom URL -->
-  <text x="72" y="598" font-family="system-ui,sans-serif" font-size="20" fill="${muted}" font-weight="500">wiseresume.app/p/${escapeXml(username)}</text>
-  <text x="1128" y="598" font-family="system-ui,sans-serif" font-size="18" fill="${muted}" text-anchor="end">Made with ✦ WiseResume</text>
+  <text x="72" y="578" font-family="system-ui,sans-serif" font-size="20" fill="${muted}" font-weight="500">wiseresume.app/p/${escapeXml(username)}</text>
+  <text x="1128" y="578" font-family="system-ui,sans-serif" font-size="18" fill="${muted}" text-anchor="end">Made with ✦ WiseResume</text>
 </svg>`;
 }
 
