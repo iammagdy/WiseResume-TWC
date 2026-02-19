@@ -25,11 +25,11 @@ const comparisons = [
   { them: 'Generic AI tips', us: '4 recruiter personas', icon: Users },
   { them: 'ATS score only', us: 'AI rewrites for each job', icon: Wand2 },
   { them: 'Text practice tips', us: 'Real voice interview coach', icon: Mic },
-  { them: 'Basic templates', us: '12 polished designs', icon: LayoutGrid },
+  { them: 'Basic templates', us: '30 polished designs', icon: LayoutGrid },
 ];
 
 const getBonusChips = (authenticated: boolean) => [
-  { icon: LayoutGrid, label: '12 Templates', href: authenticated ? '/templates' : '/auth' },
+  { icon: LayoutGrid, label: '30 Templates', href: authenticated ? '/templates' : '/auth' },
   { icon: Users, label: '4 AI Recruiters', href: authenticated ? '/ai-studio' : '/auth' },
 ];
 
@@ -370,13 +370,13 @@ const Index = () => {
                   {/* Them */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="w-5 h-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-xs font-bold flex-shrink-0">✗</span>
-                    <span className="text-xs text-muted-foreground line-through truncate">{item.them}</span>
+                    <span className="text-[11px] leading-tight text-muted-foreground line-through">{item.them}</span>
                   </div>
                   {/* Arrow */}
                   <ArrowRight className="w-3.5 h-3.5 text-border flex-shrink-0" />
                   {/* Us */}
                   <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                    <span className="text-xs font-semibold text-foreground truncate text-right">{item.us}</span>
+                    <span className="text-[11px] leading-tight font-semibold text-foreground text-right">{item.us}</span>
                     <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
                   </div>
                 </div>
