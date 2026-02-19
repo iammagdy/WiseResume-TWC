@@ -15,6 +15,8 @@ import {
   Database,
   CheckCircle2,
   Fingerprint,
+  ScanFace,
+  Eye,
   Clock,
   Key,
   ArrowLeft,
@@ -175,6 +177,26 @@ export default function SettingsPage() {
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
   const providerLabel = ({ google: 'Google', apple: 'Apple', email: 'Email' } as Record<string, string>)[authProvider] || 'Email';
   const ProviderIcon = authProvider === 'google' ? Chrome : Mail;
+
+  const getBiometryIcon = () => {
+    switch (biometryType) {
+      case 'faceId': return ScanFace;
+      case 'iris': return Eye;
+      case 'fingerprint': return Fingerprint;
+      default: return Fingerprint;
+    }
+  };
+
+  const getBiometryLabel = () => {
+    switch (biometryType) {
+      case 'faceId': return 'Face ID Lock';
+      case 'iris': return 'Iris Lock';
+      case 'fingerprint': return 'Fingerprint Lock';
+      default: return 'Biometric Lock';
+    }
+  };
+
+  const BiometryIcon = getBiometryIcon();
 
   const handleBiometricToggle = async (enabled: boolean) => {
     if (enabled) {
@@ -682,9 +704,9 @@ export default function SettingsPage() {
                 <>
                   <SettingsRow
                     type="toggle"
-                    label="Biometric Lock"
+                    label={getBiometryLabel()}
                     description="Protect your resumes"
-                    icon={<Fingerprint className="w-4 h-4" />}
+                    icon={<BiometryIcon className="w-4 h-4" />}
                     checked={biometricLockEnabled}
                     onCheckedChange={handleBiometricToggle}
                   />

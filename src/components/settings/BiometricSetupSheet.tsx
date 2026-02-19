@@ -108,14 +108,14 @@
              )}
            </motion.div>
  
-           {setupComplete ? (
-             <motion.p
-               initial={{ opacity: 0, y: 10 }}
-               animate={{ opacity: 1, y: 0 }}
-               className="text-lg font-medium text-primary"
-             >
-               Biometric Lock Enabled!
-             </motion.p>
+          {setupComplete ? (
+            <motion.p
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-lg font-medium text-primary"
+            >
+              {getBiometryName()} Enabled!
+            </motion.p>
            ) : (
              <>
                {/* Protection details */}

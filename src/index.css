@@ -11,6 +11,13 @@ body.wr-security-curtain {
   transition: filter 0.15s ease-out;
 }
 
+/* Biometric lock screen must remain crisp even when the security curtain is active */
+body.wr-security-curtain [data-biometric-lock] {
+  filter: none !important;
+  pointer-events: auto !important;
+}
+
+
 /* Android WebView scroll fix - apply to ALL scrollable containers */
 .overflow-y-auto,
 .overflow-y-scroll {
