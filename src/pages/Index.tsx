@@ -424,7 +424,7 @@ const Index = () => {
           <div className="max-w-lg mx-auto grid grid-cols-1 gap-2.5">
             {comparisons.map((item, i) => (
               <motion.div key={item.them} {...slideIn(0.06 * i)}>
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-border/20 bg-card/40 backdrop-blur-sm">
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-border/20 bg-card/40">
                   {/* Them */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <span className="w-5 h-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-xs font-bold flex-shrink-0">✗</span>
@@ -523,7 +523,7 @@ const Index = () => {
           <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto overflow-hidden">
             {features.map((f, i) => (
               <motion.div key={f.title} {...inView(0.1 * i)}>
-                <Card className="p-4 border-border/30 bg-card/50 backdrop-blur-sm h-full hover:border-primary/40 transition-colors">
+                <Card className="p-4 border-border/30 bg-card/50 h-full hover:border-primary/40 transition-colors">
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-3`}>
                     <f.icon className={`w-5 h-5 ${f.iconColor}`} />
                   </div>
@@ -540,7 +540,7 @@ const Index = () => {
               <button
                 key={chip.label}
                 onClick={() => { triggerHaptic.light(); navigate(chip.href); }}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-border/40 bg-card/30 backdrop-blur-sm text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all active:scale-95 touch-manipulation"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-border/40 bg-card/30 text-xs font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all active:scale-95 touch-manipulation"
               >
                 <chip.icon className="w-3.5 h-3.5" />
                 {chip.label}
