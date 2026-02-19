@@ -1,92 +1,118 @@
 
+# Database Feature Map and Data Flow Audit
 
-# Portfolio Page Mobile UX Cleanup
+## Deliverable
 
-## Overview
-
-Restructure the Portfolio Editor page to reduce clutter, surface key information in a compact hero card, and hide empty sections. No backend or navigation changes.
-
-## Changes (all in `src/pages/PortfolioEditorPage.tsx`)
-
-### 1. Remove info banner
-Remove the "New updates available" / tips banner entirely (lines 549-561). It adds noise and isn't tied to real in-page changes.
-
-### 2. Build a Hero Card (replaces current "Portfolio Status" block)
-Replace the existing Status block (lines 563-628) with a single compact "Portfolio Overview" hero card containing:
-- **Status badge** (Live / Draft) — top-right
-- **Public URL** with Copy button and QR Code button — single row
-- **Compact stats row**: Views | Strength (e.g. "60% Good") | Highlighted skills count
-- **Publish toggle** with label "Make portfolio public" and helper text "Anyone with your link can view your portfolio website."
-- **Save button** stays at the bottom of this card
-
-This absorbs the current separate Publish block (lines 1198-1227), moving the toggle and save into the hero.
-
-### 3. Collapse analytics into the hero stats row
-Remove the standalone "Visitors & Analytics" CollapsibleCard (lines 672-686). The view count is already in the hero. The full VisitorsPanel remains accessible via a "View details" link in the stats row that opens the section.
-
-Remove the standalone "Portfolio Strength" CollapsibleCard (lines 688-713). Strength score is shown in the hero stats row. The missing tips remain visible when the user taps the strength stat (expand inline or show as a small list below the stats).
-
-### 4. Rename "Skills Visibility" to "Skills on your portfolio"
-Change title at line 720 from "Skills Visibility" to "Skills on your portfolio". In the collapsed hint (line 721-725), show only the strong count: e.g. "7 highlighted skills" — remove the dim skill count from the hint. Keep full detail inside the expanded section unchanged.
-
-### 5. Conditionally render empty sections
-For these CollapsibleCards, only render if there's at least one configured value:
-- **Customization** (id="customization"): always show (it always has accent color set)
-- **Availability** (id="availability"): show only if `openToWork || availabilityHeadline`
-- **Identity** (id="identity"): always show (username is critical)
-- **Social Links** (id="social"): show only if any of `githubUrl, websiteUrl, twitterUrl, contactEmail` has a value
-- **Case Studies** (id="casestudies"): show only if `caseStudies.length > 0`
-- **Services** (id="services"): show only if `services.length > 0`
-- **SEO & Sharing** (id="seo"): show only if `metaTitle || metaDescription`
-
-For hidden sections, add a single "Add more sections" button at the bottom that reveals all sections when tapped (toggle state). This ensures users can still access empty sections to fill them in.
-
-### 6. Add "Edit" icon to Bio and Social Links headers
-Pass an extra `action` prop to CollapsibleCard for "About Me Bio" and "Social Links" sections — a small pencil/edit icon aligned right in the header that scrolls to / opens the section (same as tapping the header). This is purely visual affordance — the click behavior is identical to the existing toggle.
-
-### 7. Sync Mode description
-Under the "Content Sync Mode" collapsed hint, when `syncMode === 'auto'`, show hint text: "Auto — resumes sync live". Inside the expanded section, the description already exists at line 1075.
-
-### 8. Publish toggle UX refinement
-Move the publish toggle from the bottom "Publish" block into the hero card. Use `Switch` component (already imported) with label "Make portfolio public" and helper "Anyone with your link can view your portfolio website." Remove the old Publish block at lines 1198-1227 since it's now in the hero.
+Create a single new documentation file `docs/DB_FEATURE_MAP.md` that contains all the requested analysis. No runtime code changes are needed -- the audit findings are clean.
 
 ---
 
-## Detailed Hero Card Layout
+## Audit Results Summary
 
-```text
-+------------------------------------------+
-| Portfolio Overview          [Live badge]  |
-|                                           |
-| wiseresume.app/p/magdy  [Copy] [QR]      |
-|                                           |
-| 5 views  |  60% Good  |  7 skills        |
-|                                           |
-| [Switch] Make portfolio public            |
-| Anyone with your link can view it.        |
-|                                           |
-| [====== Save Portfolio ======]            |
-| [Unpublish] (if live)                     |
-+------------------------------------------+
-```
+### 1. Supabase Client Safety: PASS
+All 76 files importing Supabase use `safeClient`. Zero imports from the unsafe `client.ts`. No changes needed.
 
-### 9. Strength tips — show below hero when strength < 100%
-Below the hero card, if there are missing strength items, show a small collapsible "Improve your score" card with the top 3 tips. This replaces the old standalone Strength CollapsibleCard.
+### 2. Feature-to-Tables Map
+
+The doc will contain this complete mapping:
+
+| Feature | Tables | RPCs | Edge Functions | Hooks/Files |
+|---|---|---|---|---|
+| **Auth & Profiles** | `profiles` | `check_username_available` | -- | `useAuth`, `useProfile` |
+| **Resumes & Editor** | `resumes`, `resume_versions` | -- | `enhance-section`, `score-resume` | `useResumes`, `useResumeVersions`, `EditorPage` |
+| **Resume Sharing** | `resume_shares`, `share_comments` | `get_shared_resume`, `hash_share_password`, `verify_share_password`, `increment_share_view_count`, `add_share_comment`, `get_share_comments` | -- | `useResumeShares`, `useShareComments`, `SharePage` |
+| **Applications & Activity** | `job_applications`, `jobs`, `tailor_history`, `cover_letters` | -- | `parse-job-url` | `useJobApplications`, `useJobs`, `useCoverLetters`, `useJobActivityStats`, `ActivityTimeline` |
+| **Portfolio** | `profiles` (portfolio columns), `portfolio_visits`, `short_links` | `get_public_portfolio`, `get_portfolio_analytics`, `increment_portfolio_views`, `get_portfolio_active_status`, `resolve_short_link` | -- | `useProfile`, `usePublicPortfolio`, `usePortfolioAnalytics`, `PortfolioEditorPage` |
+| **AI Features** | `ai_usage_logs`, `ai_credits` | `increment_ai_usage` | `tailor-resume`, `analyze-resume`, `generate-cover-letter`, `enhance-section`, `score-resume`, `parse-resume`, `parse-linkedin`, `optimize-for-linkedin`, `agentic-chat`, `career-path-advisor`, `explain-gap`, `one-page-optimizer`, `manage-api-keys` | `useAICredits`, `useAIAnalytics`, `useAIAction`, `aiTailor`, `aiAnalysis` |
+| **Interview** | `interview_sessions` | -- | -- | `useInterviewHistory`, `useVoiceInterview`, `InterviewPage` |
+| **Notifications** | `notifications` | -- | -- | `useNotifications`, `usePushNotifications` |
+| **Settings** | `user_preferences`, `user_api_keys`, `profiles` | -- | `manage-api-keys` | `useProfile`, `settingsStore`, `SettingsPage` |
+| **Onboarding** | `profiles` (`onboarding_completed`) | -- | -- | `useProfile`, `OnboardingPage` |
+| **Career Assessment** | `career_assessments` | -- | `career-path-advisor` | `useCareerAssessment` |
+| **Cover Letters** | `cover_letters` | -- | `generate-cover-letter` | `useCoverLetters` |
+| **Resignation Letters** | `resignation_letters` | -- | -- | `useResignationLetters` |
+| **Bug Reports** | `bug_reports` | -- | -- | `BugReportDialog` |
+| **Feature Requests** | `feature_requests` | -- | -- | `FeatureRequestDialog` |
+| **Data Export** | `resumes`, `profiles`, + all user tables | -- | -- | `dataExport.ts` |
+| **Push Notifications** | `push_subscriptions` | -- | -- | `usePushNotifications` |
+
+### 3. Happy Path Data Flow Traces
+
+The doc will contain detailed traces for four key flows:
+
+**Flow A: Creating/Editing a Resume**
+- UI: `EditorPage` -> Zustand store (`updateResume`) -> 3s debounce -> `saveToCloud()`
+- Write: `useResumes.updateResume` -> `supabase.from('resumes').update(dbUpdates).eq('id', resumeId)`
+- Auto-version: on success, `saveVersion.mutateAsync()` -> `supabase.from('resume_versions').insert()`
+- Read: `useResume(id)` -> `supabase.from('resumes').select('*').eq('id', resumeId).maybeSingle()`
+- Filter: RLS enforces `auth.uid() = user_id` on all operations
+- Fields written: `contact_info`, `summary`, `experience`, `education`, `skills`, `certifications`, `awards`, `projects`, `publications`, `volunteering`, `hobbies`, `references`, `template_id`, `title`
+- Fields read back: all columns via `select('*')`
+
+**Flow B: Tracking a Job Application**
+- UI: `AddApplicationSheet` -> `useJobApplicationMutations().createApplication`
+- Write: `supabase.from('job_applications').insert({user_id, job_title, company, status, ...})`
+- Trigger: DB trigger `notify_application_change()` auto-inserts into `notifications`
+- Read: `useJobApplications()` -> `supabase.from('job_applications').select('*').order('applied_at')`
+- Activity: `ActivityTimeline` reads from `tailor_history`, `job_applications`, `cover_letters`, `resumes` in parallel
+- Filter: RLS `auth.uid() = user_id` on all tables
+
+**Flow C: Publishing Portfolio and Viewing Analytics**
+- UI: `PortfolioEditorPage` -> `useProfile().updateProfile({portfolioEnabled: true, username, ...})`
+- Write: `supabase.from('profiles').upsert({portfolio_enabled, username, portfolio_bio, ...})`
+- Public read: `get_public_portfolio` RPC (SECURITY DEFINER) reads `profiles` + `resumes`, returns JSONB
+- View tracking: `PublicPortfolioPage` calls `increment_portfolio_views` RPC
+- Analytics: `usePortfolioAnalytics` calls `get_portfolio_analytics` RPC (requires `auth.uid()` match)
+- Strength: computed client-side from profile fields (not stored in a separate column)
+- Views: stored in `profiles.views` column, incremented by RPC
+
+**Flow D: Updating Settings/Profile**
+- UI: `EditProfileSheet` / `SettingsPage` -> `useProfile().updateProfile(updates)`
+- Write: `supabase.from('profiles').upsert(dbUpdates, {onConflict: 'user_id'})`
+- Only modified fields are sent (partial update pattern with `!== undefined` guards)
+- Read: `useProfile()` -> `supabase.from('profiles').select(long column list).eq('user_id').maybeSingle()`
+
+### 4. Potential Mismatches and Weak Spots
+
+The doc will note these as TODO items (no code changes):
+
+1. **Portfolio "strength" is fully client-side** -- computed from profile fields, not stored in DB. If the formula changes, old cached values may differ. This is by design but worth noting.
+
+2. **`resignation_letters` uses `as any` cast** -- the table exists in DB but may not be in the generated TypeScript types file. The hook casts `from('resignation_letters' as any)`. This works but loses type safety.
+
+3. **`cover_letters.template_style` column exists in DB** but the `CoverLetterRecord` interface and insert logic don't use it (always defaults to `'professional'`). Minor unused column.
+
+4. **`resumes.customization` and `resumes.is_public` columns exist in DB** but are not used in the `useResumes` hook or `parseDbResume`. The `is_public` field is always `false` by default. These are dormant columns.
+
+5. **`resumes.last_reminder_sent_at` column** -- exists in DB, not referenced in any hook. Likely reserved for future digest/reminder features.
+
+6. **Activity timeline reads 4 tables in parallel** without explicit `user_id` filter in the query -- RLS handles filtering implicitly. This is correct but worth documenting.
+
+### 5. Runtime Sanity Checks: NOT NEEDED
+
+The existing codebase already handles this well:
+- All mutations have `onError` handlers with `toast.error()`
+- All queries use `enabled: !!user` guards
+- TanStack Query provides retry logic on network failures
+- The `BugReportDialog` captures route and error category automatically
+- No additional runtime guards are needed -- adding `console.warn` for empty results would create noise (empty resume lists are valid for new users)
+
+### 6. Verification Checklist
+
+The doc will confirm:
+- All 76 Supabase imports use `safeClient`
+- No function signatures, hooks, or props changed
+- No tables, columns, or RPCs modified
+- Resume `title` field is consistently used in lists (`ResumeListCard`), editor header, and DB
+- Portfolio `views` column matches what analytics hooks read
+- Application `status` values in UI filters match DB column values exactly
 
 ---
 
-## Files Changed
+## File to Create
 
-| File | What |
+| File | Description |
 |---|---|
-| `src/pages/PortfolioEditorPage.tsx` | All changes above — restructure hero, conditional sections, rename skills, move publish toggle, remove redundant blocks |
+| `docs/DB_FEATURE_MAP.md` | Complete feature-to-tables map, data flow traces, mismatch notes, and verification checklist |
 
-No new files, no backend changes, no route changes.
-
-## What Stays the Same
-- All state variables, save logic, Supabase calls unchanged
-- QR dialog, Career Card sheet, theme picker, section visibility toggles all preserved
-- VisitorsPanel component kept but accessed via link instead of always-visible collapsible
-- All form inputs and their handlers identical
-- Bottom tab bar, navigation, auth — untouched
-
+**0 runtime files modified. 1 documentation file created.**
