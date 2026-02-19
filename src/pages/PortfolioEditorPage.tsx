@@ -188,6 +188,11 @@ export default function PortfolioEditorPage() {
     });
   }, []);
 
+  // Banner dismiss state
+  const [bannerDismissed, setBannerDismissed] = useState(() =>
+    typeof window !== 'undefined' && localStorage.getItem('portfolio_info_dismissed') === '1'
+  );
+
   // Core state
   const [username, setUsername] = useState('');
   const [usernameError, setUsernameError] = useState('');
@@ -542,22 +547,18 @@ export default function PortfolioEditorPage() {
 
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3 pb-safe">
         {/* Info banner for new users */}
-        {(() => {
-          const dismissed = typeof window !== 'undefined' && localStorage.getItem('portfolio_info_dismissed');
-          if (dismissed) return null;
-          return (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-foreground">
-              <span className="flex-1 leading-relaxed">
-                💡 Your portfolio is auto-built from your resume. Customize it below to improve your strength score.
-              </span>
-              <button
-                onClick={() => { localStorage.setItem('portfolio_info_dismissed', '1'); window.location.reload(); }}
-                className="shrink-0 p-1 rounded-full hover:bg-muted active:scale-95 transition-all"
-                aria-label="Dismiss"
-              >✕</button>
-            </div>
-          );
-        })()}
+        {!bannerDismissed && (
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-foreground">
+            <span className="flex-1 leading-relaxed">
+              💡 Your portfolio is auto-built from your resume. Customize it below to improve your strength score.
+            </span>
+            <button
+              onClick={() => { localStorage.setItem('portfolio_info_dismissed', '1'); setBannerDismissed(true); }}
+              className="shrink-0 p-1 rounded-full hover:bg-muted active:scale-95 transition-all"
+              aria-label="Dismiss"
+            >✕</button>
+          </div>
+        )}
 
         {/* ── Status (always open) ──────────────────────────────────────── */}
         <div className="glass-elevated rounded-2xl p-4 space-y-3">
