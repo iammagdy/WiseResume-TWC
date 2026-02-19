@@ -146,7 +146,7 @@ export default function SettingsPage() {
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
   // Dynamic changelog
-  const [changelogData, setChangelogData] = useState<Array<{ version: string; date: string; latest?: boolean; items: Array<{ title: string; description: string }> }>>([]);
+  const [changelogData, setChangelogData] = useState<Array<{ version: string; date: string; latest?: boolean; summary?: string; items: Array<{ title: string; description: string }> }>>([]);
   const [changelogLoading, setChangelogLoading] = useState(false);
   const [changelogError, setChangelogError] = useState(false);
 
@@ -1017,52 +1017,85 @@ export default function SettingsPage() {
       <Dialog open={changelogOpen} onOpenChange={setChangelogOpen}>
         <DialogContent className="max-w-sm" hideCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Changelog</DialogTitle>
-            <DialogDescription>What's new in WiseResume</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <span>What's New</span>
+            </DialogTitle>
+            <DialogDescription>WiseResume release history</DialogDescription>
           </DialogHeader>
-          <div className="max-h-[50vh] overflow-y-auto space-y-4 pt-2">
+          <div className="max-h-[60vh] overflow-y-auto -mx-1 px-1">
             {changelogLoading ? (
-              <div className="space-y-4">
-                {[1, 2].map(i => (
+              <div className="space-y-6 pt-2">
+                {[1, 2, 3].map(i => (
                   <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-5 w-16" />
                     <Skeleton className="h-3 w-full" />
-                    <Skeleton className="h-3 w-3/4" />
+                    <Skeleton className="h-3 w-4/5" />
+                    <Skeleton className="h-3 w-2/3" />
                   </div>
                 ))}
               </div>
             ) : changelogError ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Could not load changelog.</p>
+              <p className="text-sm text-muted-foreground text-center py-8">Could not load changelog.</p>
             ) : (
-              changelogData.map((release, idx) => (
-                <div key={release.version}>
-                  {idx > 0 && <Separator className="mb-4" />}
-                  <div className="flex items-center gap-2 mb-2">
-                    <p className="text-sm font-semibold">{release.version}</p>
-                    {release.latest && (
-                      <span className="text-[10px] font-medium bg-primary/15 text-primary px-1.5 py-0.5 rounded-full">Latest</span>
-                    )}
-                  </div>
-                  {(release as { summary?: string }).summary && (
-                    <p className="text-xs text-muted-foreground mb-3 leading-relaxed italic">
-                      {(release as { summary?: string }).summary}
-                    </p>
-                  )}
-                  {release.items.length === 1 ? (
-                    <p className="text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground">{release.items[0].title}</span> — {release.items[0].description}
-                    </p>
-                  ) : (
-                    <ul className="space-y-2 text-xs text-muted-foreground">
-                      {release.items.map((item, i) => (
-                        <li key={i}>
-                          <span className="font-medium text-foreground">{item.title}</span> — {item.description}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+              <div className="relative pt-2">
+                {/* Timeline line */}
+                <div className="absolute left-[7px] top-4 bottom-4 w-px bg-border" />
+                <div className="space-y-6">
+                  {changelogData.map((release, idx) => (
+                    <div key={release.version} className="relative pl-6">
+                      {/* Timeline dot */}
+                      <div className={cn(
+                        "absolute left-0 top-1 w-[15px] h-[15px] rounded-full border-2 flex items-center justify-center",
+                        idx === 0
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground/40 bg-background"
+                      )}>
+                        {idx === 0 && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary-foreground" />
+                        )}
+                      </div>
+
+                      {/* Version header */}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={cn(
+                          "text-sm font-bold tracking-tight",
+                          idx === 0 ? "text-primary" : "text-foreground"
+                        )}>
+                          {release.version}
+                        </span>
+                        {release.latest && (
+                          <span className="text-[10px] font-semibold bg-primary/15 text-primary px-2 py-0.5 rounded-full uppercase tracking-wide">
+                            Latest
+                          </span>
+                        )}
+                        <span className="text-[11px] text-muted-foreground ml-auto">
+                          {release.date}
+                        </span>
+                      </div>
+
+                      {/* Summary */}
+                      {release.summary && (
+                        <p className="text-xs text-muted-foreground mb-2.5 leading-relaxed">
+                          {release.summary}
+                        </p>
+                      )}
+
+                      {/* Items */}
+                      <ul className="space-y-1.5">
+                        {release.items.map((item, i) => (
+                          <li key={i} className="flex gap-2 text-xs">
+                            <span className="text-muted-foreground/50 mt-0.5 shrink-0">·</span>
+                            <span>
+                              <span className="font-medium text-foreground">{item.title}</span>
+                              <span className="text-muted-foreground"> — {item.description}</span>
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
                 </div>
-              ))
+              </div>
             )}
           </div>
         </DialogContent>

@@ -1,154 +1,273 @@
 [
   {
     "version": "v2.2.0",
-    "date": "2026-02-19",
+    "date": "Feb 19, 2026",
     "latest": true,
-    "summary": "We went through every button, every form, and every tap in WiseResume and fixed what wasn't working the way it should. This release is for everyone who noticed something felt slightly off — we heard you.",
+    "summary": "A precision release — every button, form, and tap audited and fixed. The small things that felt slightly off are now exactly right.",
     "items": [
       {
-        "title": "One Tap to Edit — The Extra Step Is Gone",
-        "description": "Tapping 'Edit' on your resume now takes you straight into the editor. No more landing on a read-only detail screen first. You wanted to edit — we take you there, instantly."
+        "title": "One tap to edit",
+        "description": "Tapping 'Edit' now takes you straight into the editor — no intermediate screen."
       },
       {
-        "title": "ATS Improve Always Opens YOUR Resume",
-        "description": "The 'Improve' shortcut in your ATS score breakdown now correctly loads your specific resume every single time. No more opening to a blank slate or someone else's context."
+        "title": "Tailor & Interview from Resume Detail",
+        "description": "Both actions now appear on the Resume Detail page and correctly load your resume into context before navigating."
       },
       {
-        "title": "Every Shortcut Card Goes Exactly Where It Says",
-        "description": "All quick-action cards on the home screen now take you to the right destination regardless of your sign-in status. No more unexpected redirects to login when you're already in the app."
+        "title": "ATS Improve opens your resume",
+        "description": "The Improve shortcut in your ATS breakdown now always loads the correct resume."
       },
       {
-        "title": "The Editor Tab Opens Your Editor — Instantly",
-        "description": "The Editor button in the bottom navigation now drops you directly into your resume editor. No detours, no intermediate screens — just your resume, ready to work."
+        "title": "Shortcuts go exactly where they say",
+        "description": "All quick-action cards navigate correctly regardless of sign-in status."
       },
       {
-        "title": "Templates Guide You Through the Right Steps",
-        "description": "Applying a template when you don't have a resume yet no longer silently fails. WiseResume now gently walks you through creating your first resume before applying your chosen template."
+        "title": "Smart keyboards everywhere",
+        "description": "Phone, URL, and email fields now trigger the right keyboard layout on mobile."
       },
       {
-        "title": "Signing Out Returns You Home",
-        "description": "Signing out now brings you back to the WiseResume home screen — not the login page. A small detail, but the kind that makes the app feel polished and intentional."
-      },
-      {
-        "title": "Your Keyboard Matches What You're Typing",
-        "description": "Phone fields now show a numeric keypad. URL fields bring up the URL keyboard. Email fields open the email layout. Every input field across the app now triggers the right keyboard for the job."
-      },
-      {
-        "title": "Autocorrect & Word Suggestions Work Everywhere",
-        "description": "Spellcheck, autocorrect, and word suggestions are now properly enabled across all text fields in the app. Your writing is smoother and smarter without you having to think about it."
+        "title": "Signing out returns you home",
+        "description": "Sign-out now lands on the home screen — not the login page."
       }
     ]
   },
   {
     "version": "v2.1.0",
-    "date": "2026-02-18",
+    "date": "Feb 18, 2026",
     "latest": false,
-    "summary": "WiseResume now turns your resume into a full personal website — complete with themes, AI-written content, and a shareable link you can send to anyone.",
+    "summary": "Your resume is now a full personal website — with themes, AI-written content, and a shareable link you can send to anyone.",
     "items": [
       {
-        "title": "Public Portfolio Website — Now Live",
-        "description": "Turn your resume into a beautiful personal website in one click. Share a real link — not just a PDF — with recruiters, clients, or your network."
+        "title": "Public Portfolio Website",
+        "description": "Turn your resume into a beautiful personal site in one tap and share a real link with recruiters or clients."
       },
       {
-        "title": "Premium Portfolio Hero + Themes",
-        "description": "The public portfolio page has been completely redesigned with a bold hero, animated avatar glow, role pill badge, sticky header on scroll, and curated themes (Minimal, Bold Dark, Glass Pro, Classic Clean)."
+        "title": "Portfolio themes & hero redesign",
+        "description": "Bold hero, animated avatar glow, sticky scroll header, and four curated themes: Minimal, Bold Dark, Glass Pro, Classic Clean."
       },
       {
-        "title": "Case Studies + Services Sections",
-        "description": "Add portfolio-only sections — Case Studies (with challenge, outcome, and tech used) and Services (with category, description, and optional pricing) — that live alongside your resume content."
+        "title": "Case Studies & Services sections",
+        "description": "Portfolio-only content blocks with challenge, outcome, tech used, and optional pricing."
       },
       {
-        "title": "Resume ↔ Portfolio Sync Mode",
-        "description": "Choose between Auto-sync (portfolio reflects resume changes in real time) or Locked (snapshot your resume content so your portfolio stays fixed while you keep editing)."
+        "title": "Resume ↔ Portfolio sync mode",
+        "description": "Choose Auto-sync (live) or Locked (snapshot) so your portfolio stays stable while you keep editing."
       },
       {
-        "title": "AI Portfolio Content Helpers",
-        "description": "AI can now generate your About section, write a Case Study from a project description (challenge + outcome), and craft availability headlines — all with preview-then-confirm flows so you stay in control."
-      },
-      {
-        "title": "Portfolio URL Branding",
-        "description": "Your portfolio link now shows your real custom domain everywhere in the app — no more wiseresume.lovable.app references."
+        "title": "AI portfolio content helpers",
+        "description": "AI can write your About section, a Case Study from a project, and availability headlines — with preview before applying."
       }
     ]
   },
   {
     "version": "v2.0.0",
-    "date": "2026-02-17",
-    "latest": false,
+    "date": "Feb 17, 2026",
+    "summary": "Reliability and resilience — your work is safer, your data smarter about conflicts, and the experience tighter on mobile.",
     "items": [
       {
-        "title": "Unsaved Changes Navigation Guard",
-        "description": "Never lose your work again. The editor now detects unsaved changes and prompts you to Save, Discard, or Cancel before navigating away — including Android hardware back button support."
+        "title": "Unsaved changes guard",
+        "description": "The editor detects unsaved changes and prompts Save, Discard, or Cancel before you navigate away — including Android back button."
       },
       {
-        "title": "Offline Sync Conflict Detection",
-        "description": "Smart conflict resolution when syncing offline edits. If a resume was updated on another device, a clear dialog lets you choose between the server version or your local changes."
+        "title": "Offline sync conflict detection",
+        "description": "If a resume changed on another device, a clear dialog lets you pick the server or local version."
       },
       {
-        "title": "Improved Touch Targets",
-        "description": "All interactive elements in the editor and application tracker now meet the 44px accessibility standard, reducing accidental taps on mobile devices."
+        "title": "44px touch targets everywhere",
+        "description": "All interactive elements in the editor and tracker now meet the mobile accessibility standard."
       },
       {
-        "title": "Mobile Delete Confirmation",
-        "description": "Deleting a job application on mobile now opens a thumb-friendly bottom drawer for confirmation instead of triggering immediately."
-      },
-      {
-        "title": "Editor Section Accessibility",
-        "description": "AI action buttons in resume section headers are now properly sized for comfortable one-handed use on all screen sizes."
+        "title": "Mobile delete confirmation",
+        "description": "Deleting an application now opens a thumb-friendly bottom drawer instead of triggering immediately."
       }
     ]
   },
   {
     "version": "v1.6.0",
-    "date": "2026-02-16",
+    "date": "Feb 16, 2026",
+    "summary": "AI status at a glance, 30+ templates, and a settings page rebuilt from scratch.",
     "items": [
       {
-        "title": "Real-Time AI Health Indicator",
-        "description": "Live AI status badge on all AI-powered pages showing real gateway latency and availability. Tap for details including response time and provider info."
+        "title": "Real-time AI health indicator",
+        "description": "Live status badge shows gateway latency and availability on every AI-powered page."
       },
       {
-        "title": "Dynamic Changelog",
-        "description": "Changelog now loads from a JSON file at runtime instead of being hardcoded. Update release notes without any code changes."
+        "title": "30+ resume templates",
+        "description": "Template library expanded to 30+ professional designs across every industry and career level."
       },
       {
-        "title": "Settings Page Overhaul",
-        "description": "Added sign-out confirmation, change password flow, privacy toggles for all platforms, account stats card, and guest user prompt."
+        "title": "Settings page overhaul",
+        "description": "Added sign-out confirmation, change password, privacy toggles, account stats card, and guest user prompt."
+      },
+      {
+        "title": "Dynamic changelog",
+        "description": "Release notes now load from a JSON file at runtime — no code changes needed to update them."
+      },
+      {
+        "title": "Version history, content library & proofread",
+        "description": "Three new editor tools: restore past snapshots, reuse saved content blocks, and run a full AI proofread."
       }
     ]
   },
   {
     "version": "v1.5.0",
-    "date": "2026-02-10",
+    "date": "Feb 10, 2026",
+    "summary": "The tailoring experience got a complete animation and feedback overhaul — and mobile scrolling works the way it should.",
     "items": [
       {
-        "title": "Polished Tailor Loading Screen",
-        "description": "Smooth real-feel progress animation with cubic ease-out curve, animated percentage counter, glowing progress bar, estimated time remaining, and fun facts carousel."
+        "title": "Polished tailor loading screen",
+        "description": "Real-feel progress animation with cubic ease, animated percentage, glowing bar, ETA countdown, and fun facts carousel."
       },
       {
-        "title": "Mobile Scroll Fixes",
-        "description": "Fixed non-scrollable pages on mobile for Job Details, Application Details, Cover Letters, and Notifications pages."
+        "title": "Projected score preview",
+        "description": "Live before/after ATS score comparison and skill gap count shown during the tailoring process."
       },
       {
-        "title": "Enhanced Tailor Step Visualization",
-        "description": "Redesigned step list with vertical connecting lines, spring-animated checkmarks, and highlighted active step with loading spinner."
+        "title": "Mobile scroll fixes",
+        "description": "Fixed non-scrollable pages on Job Details, Application Details, Cover Letters, and Notifications."
+      }
+    ]
+  },
+  {
+    "version": "v1.4.0",
+    "date": "Feb 3, 2026",
+    "summary": "Your career toolkit — plan your path, close your skill gaps, and write your resignation letter with AI.",
+    "items": [
+      {
+        "title": "Career Path Advisor",
+        "description": "AI-powered career roadmap with milestones, timeline, and recommended next roles based on your resume."
       },
       {
-        "title": "Projected Score Preview",
-        "description": "Live projected ATS score comparison (before vs. after) and skill gap count displayed during the tailoring process."
+        "title": "Skill Gap Analyzer",
+        "description": "See exactly which skills you're missing for your target role and get learning recommendations."
       },
       {
-        "title": "Smart Progress Estimation",
-        "description": "Estimated time remaining countdown and percentage-based step transitions that adapt to actual backend response time."
+        "title": "Resignation Letter generator",
+        "description": "AI drafts your resignation letter with tone selection, notice period, and a pre-departure checklist."
+      },
+      {
+        "title": "Career Guides library",
+        "description": "Curated guides on resumes, interviews, and job searching — readable in-app, no browser needed."
+      },
+      {
+        "title": "Command Palette",
+        "description": "Press ⌘K anywhere to instantly jump to any page or action in the app."
+      }
+    ]
+  },
+  {
+    "version": "v1.3.0",
+    "date": "Jan 20, 2026",
+    "summary": "AI Studio launched — five specialized AI tools for the serious job seeker, all in one hub.",
+    "items": [
+      {
+        "title": "AI Studio hub",
+        "description": "Central AI workspace with Wise AI Chat, quick tools, and one-tap access to every AI feature."
+      },
+      {
+        "title": "Recruiter Simulation",
+        "description": "A simulated recruiter reviews your resume and tells you what would make them move forward — or not."
+      },
+      {
+        "title": "LinkedIn Optimizer",
+        "description": "Adapt your resume content for LinkedIn with tailored headline, summary, and bullet rewrites."
+      },
+      {
+        "title": "A/B Resume Compare",
+        "description": "Compare two resume versions side-by-side with score breakdown and section-level diffs."
+      },
+      {
+        "title": "AI Content Detector",
+        "description": "Detect AI-sounding language in your resume and humanize it with one tap."
+      },
+      {
+        "title": "One-Page Wizard",
+        "description": "AI compresses your resume to one page while preserving all the content that matters."
+      }
+    ]
+  },
+  {
+    "version": "v1.2.0",
+    "date": "Jan 5, 2026",
+    "summary": "Track every application, generate cover letters instantly, and stay on top of your job search — all in one place.",
+    "items": [
+      {
+        "title": "Job Application Tracker",
+        "description": "Track every application through Saved → Applied → Interview → Offer with an activity timeline and follow-up reminders."
+      },
+      {
+        "title": "Follow-up email composer",
+        "description": "AI drafts a follow-up email for any application with the right tone for the stage you're at."
+      },
+      {
+        "title": "Cover Letters",
+        "description": "AI generates a tailored cover letter from your resume and a job description — editable, exportable as PDF."
+      },
+      {
+        "title": "Job Match Score",
+        "description": "Every saved job shows a match score against your primary resume before you even apply."
+      },
+      {
+        "title": "Notifications & Profile page",
+        "description": "In-app notification center and a dedicated profile page with career level, open-to-work status, and social links."
+      }
+    ]
+  },
+  {
+    "version": "v1.1.0",
+    "date": "Dec 15, 2025",
+    "summary": "Get your existing resume into WiseResume in seconds — and browse real examples for inspiration.",
+    "items": [
+      {
+        "title": "PDF & DOCX import",
+        "description": "Upload any resume PDF or Word document and WiseResume parses it into a fully editable resume."
+      },
+      {
+        "title": "OCR image import",
+        "description": "Snap a photo of a printed resume and the OCR engine extracts all your content automatically."
+      },
+      {
+        "title": "Resume Examples Gallery",
+        "description": "Browse curated resume examples by industry and experience level for inspiration or to use as a starting point."
+      },
+      {
+        "title": "Public share links",
+        "description": "Share a read-only link to your resume with anyone — no account required to view it."
+      },
+      {
+        "title": "PWA install & offline mode",
+        "description": "Install WiseResume as an app on your home screen and keep working even without a connection."
       }
     ]
   },
   {
     "version": "v1.0.0",
-    "date": "2025-12-01",
+    "date": "Dec 1, 2025",
+    "summary": "WiseResume launches — a professional resume builder with AI writing, ATS scoring, and cloud sync.",
     "items": [
       {
-        "title": "Initial Release",
-        "description": "AI writing assistant, 12 templates, ATS scoring, PDF export, cloud sync, biometric lock, interview prep."
+        "title": "AI-powered resume editor",
+        "description": "Section-by-section editing with AI enhancement on every field — summary, bullets, skills, and more."
+      },
+      {
+        "title": "ATS scoring",
+        "description": "Instant ATS compatibility score with keyword analysis and actionable improvement suggestions."
+      },
+      {
+        "title": "12 professional templates",
+        "description": "Clean, Modern, Classic, Executive, Developer, Creative, and six more — all ATS-safe."
+      },
+      {
+        "title": "PDF & DOCX export",
+        "description": "Export your resume as a print-ready PDF or editable Word document in one tap."
+      },
+      {
+        "title": "AI Interview Prep",
+        "description": "Practice with an AI interviewer that asks role-specific questions and scores your answers."
+      },
+      {
+        "title": "Cloud sync & biometric lock",
+        "description": "Your data syncs across devices and can be secured with Face ID or fingerprint on supported devices."
       }
     ]
   }
