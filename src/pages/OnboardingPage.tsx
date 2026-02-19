@@ -9,7 +9,7 @@ import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { templates, sampleResumeData } from '@/lib/templateData';
 import { TemplateId } from '@/types/resume';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/supabase/safeClient';
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
 const GOAL_KEY = 'wr-onboarding-goal';
