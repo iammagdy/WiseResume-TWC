@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
+import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
@@ -611,6 +612,22 @@ export default function PortfolioEditorPage() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* ── Visitors & Analytics (collapsible) ───────────────────────── */}
+        <CollapsibleCard
+          id="visitors"
+          icon={<Eye className="w-4 h-4" />}
+          title="Visitors & Analytics"
+          hint={profile?.views != null ? <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{profile.views} views</Badge> : undefined}
+          openSections={openSections}
+          toggleSection={toggleSection}
+        >
+          <VisitorsPanel
+            username={profile?.username || undefined}
+            userId={user?.id}
+            portfolioEnabled={portfolioEnabled}
+          />
+        </CollapsibleCard>
 
         {/* ── Portfolio Strength (collapsible) ──────────────────────────── */}
         <CollapsibleCard

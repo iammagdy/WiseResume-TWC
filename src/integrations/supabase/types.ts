@@ -476,6 +476,50 @@ export type Database = {
         }
         Relationships: []
       }
+      portfolio_visits: {
+        Row: {
+          city: string | null
+          country: string | null
+          id: string
+          referrer: string | null
+          sections_viewed: Json
+          short_link_id: string | null
+          time_spent_seconds: number | null
+          username: string
+          visited_at: string
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          id?: string
+          referrer?: string | null
+          sections_viewed?: Json
+          short_link_id?: string | null
+          time_spent_seconds?: number | null
+          username: string
+          visited_at?: string
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          id?: string
+          referrer?: string | null
+          sections_viewed?: Json
+          short_link_id?: string | null
+          time_spent_seconds?: number | null
+          username?: string
+          visited_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "portfolio_visits_short_link_id_fkey"
+            columns: ["short_link_id"]
+            isOneToOne: false
+            referencedRelation: "short_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           availability_headline: string | null
@@ -894,6 +938,33 @@ export type Database = {
           },
         ]
       }
+      short_links: {
+        Row: {
+          click_count: number
+          created_at: string
+          id: string
+          label: string
+          owner_user_id: string
+          portfolio_username: string
+        }
+        Insert: {
+          click_count?: number
+          created_at?: string
+          id: string
+          label?: string
+          owner_user_id: string
+          portfolio_username: string
+        }
+        Update: {
+          click_count?: number
+          created_at?: string
+          id?: string
+          label?: string
+          owner_user_id?: string
+          portfolio_username?: string
+        }
+        Relationships: []
+      }
       tailor_history: {
         Row: {
           applied_sections: Json | null
@@ -1028,6 +1099,7 @@ export type Database = {
         Args: { p_user_id: string; p_username: string }
         Returns: boolean
       }
+      get_portfolio_analytics: { Args: { p_username: string }; Returns: Json }
       get_public_portfolio: { Args: { p_username: string }; Returns: Json }
       get_share_comments: { Args: { p_share_token: string }; Returns: Json }
       get_shared_resume:
@@ -1045,6 +1117,7 @@ export type Database = {
         Args: { share_token: string }
         Returns: undefined
       }
+      resolve_short_link: { Args: { p_link_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

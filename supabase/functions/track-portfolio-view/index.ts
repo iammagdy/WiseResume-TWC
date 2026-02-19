@@ -17,7 +17,13 @@ serve(async (req) => {
   }
 
   try {
-    const { username } = await req.json();
+    const body = await req.json();
+    const { username, ref, sectionsViewed, timeSpentSeconds } = body as {
+      username: string;
+      ref?: string;
+      sectionsViewed?: string[];
+      timeSpentSeconds?: number;
+    };
 
     if (!username || typeof username !== "string") {
       return new Response(JSON.stringify({ error: "Missing username" }), {
@@ -31,17 +37,104 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Use RPC-style raw increment to avoid race conditions
-    const { error } = await supabaseClient.rpc("increment_portfolio_views", {
+    // ── 1. Increment the simple profile view counter (existing behavior) ──
+    const { error: rpcError } = await supabaseClient.rpc("increment_portfolio_views", {
       p_username: username.toLowerCase(),
     });
 
-    if (error) {
-      console.error("Error incrementing view count:", error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
+    if (rpcError) {
+      console.error("Error incrementing view count:", rpcError);
+    }
+
+    // ── 2. Geolocate the visitor via IP ────────────────────────────────────
+    let country: string | null = null;
+    let city: string | null = null;
+
+    try {
+      // Cloudflare injects CF-IPCountry; fallback to x-forwarded-for lookup
+      const cfCountry = req.headers.get("cf-ipcountry");
+      if (cfCountry && cfCountry !== "XX") {
+        country = cfCountry;
+      }
+
+      // Get IP for city lookup
+      const forwarded = req.headers.get("x-forwarded-for");
+      const ip = forwarded ? forwarded.split(",")[0].trim() : null;
+
+      if (ip && ip !== "127.0.0.1" && ip !== "::1") {
+        const geoRes = await Promise.race([
+          fetch(`http://ip-api.com/json/${ip}?fields=country,city,status`),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 1200)),
+        ]);
+
+        if (geoRes && geoRes instanceof Response && geoRes.ok) {
+          const geo = await geoRes.json();
+          if (geo.status === "success") {
+            if (!country) country = geo.country || null;
+            city = geo.city || null;
+          }
+        }
+      }
+    } catch (geoErr) {
+      console.warn("Geolocation failed (non-fatal):", geoErr);
+    }
+
+    // ── 3. Validate the portfolio exists before inserting visit ────────────
+    const { data: profileRow } = await supabaseClient
+      .from("profiles")
+      .select("username")
+      .eq("username", username.toLowerCase())
+      .eq("portfolio_enabled", true)
+      .single();
+
+    if (!profileRow) {
+      // Still succeed — just don't record an invalid visit
+      return new Response(JSON.stringify({ ok: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // ── 4. Insert detailed visit record ────────────────────────────────────
+    const referrer = req.headers.get("referer") || null;
+
+    const { error: insertError } = await supabaseClient
+      .from("portfolio_visits")
+      .insert({
+        username: username.toLowerCase(),
+        short_link_id: ref || null,
+        country,
+        city,
+        time_spent_seconds: timeSpentSeconds ?? null,
+        sections_viewed: sectionsViewed ?? [],
+        referrer,
+      });
+
+    if (insertError) {
+      console.error("Error inserting visit:", insertError);
+    }
+
+    // ── 5. Increment short link click count if ref provided ────────────────
+    if (ref) {
+      const { error: clickError } = await supabaseClient
+        .from("short_links")
+        .update({ click_count: supabaseClient.rpc("increment_short_link_count", { p_link_id: ref }) })
+        .eq("id", ref);
+
+      // If RPC doesn't exist yet, do a manual read-modify-write
+      if (clickError) {
+        const { data: link } = await supabaseClient
+          .from("short_links")
+          .select("click_count")
+          .eq("id", ref)
+          .single();
+
+        if (link) {
+          await supabaseClient
+            .from("short_links")
+            .update({ click_count: (link.click_count || 0) + 1 })
+            .eq("id", ref);
+        }
+      }
     }
 
     return new Response(JSON.stringify({ ok: true }), {

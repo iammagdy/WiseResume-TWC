@@ -1,5 +1,5 @@
-import { useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/safeClient';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -12,7 +12,7 @@ import {
   Wrench, Layers, ArrowUpRight, Code2, Paintbrush, MessageSquare, PenLine, Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
 import type { Experience, Education, Project } from '@/types/resume';
 import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
@@ -441,11 +441,94 @@ function StickyHeader({
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
+  const [searchParams] = useSearchParams();
+  const ref = searchParams.get('ref') || undefined;
+
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
   const [isDownloading, setIsDownloading] = useState(false);
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
+
+  // Track visited sections via IntersectionObserver
+  const sectionsViewedRef = useRef<Set<string>>(new Set());
+  const mountTimeRef = useRef<number>(Date.now());
+  const trackSentRef = useRef(false);
+
+  const sendTrackingBeacon = useCallback(() => {
+    if (trackSentRef.current) return;
+    if (!portfolio?.profile?.username) return;
+    trackSentRef.current = true;
+    const timeSpentSeconds = Math.round((Date.now() - mountTimeRef.current) / 1000);
+    const body = JSON.stringify({
+      username: portfolio.profile.username,
+      ref,
+      sectionsViewed: [...sectionsViewedRef.current],
+      timeSpentSeconds,
+    });
+    const url = `${SUPABASE_URL}/functions/v1/track-portfolio-view`;
+    // sendBeacon works on page close; fetch is a backup
+    if (navigator.sendBeacon) {
+      navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
+    } else {
+      fetch(url, { method: 'POST', body, keepalive: true, headers: { 'Content-Type': 'application/json' } }).catch(() => {});
+    }
+  }, [portfolio, ref]);
+
+  // Send beacon on page hide / visibility change
+  useEffect(() => {
+    const onHide = () => sendTrackingBeacon();
+    document.addEventListener('visibilitychange', onHide);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      document.removeEventListener('visibilitychange', onHide);
+      window.removeEventListener('pagehide', onHide);
+      sendTrackingBeacon();
+    };
+  }, [sendTrackingBeacon]);
+
+  // Also send after 30s for long-staying visitors
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!trackSentRef.current) {
+        // Don't mark as sent so we still send on leave for longer visits
+        if (portfolio?.profile?.username) {
+          const timeSpentSeconds = Math.round((Date.now() - mountTimeRef.current) / 1000);
+          const body = JSON.stringify({
+            username: portfolio.profile.username,
+            ref,
+            sectionsViewed: [...sectionsViewedRef.current],
+            timeSpentSeconds,
+          });
+          fetch(`${SUPABASE_URL}/functions/v1/track-portfolio-view`, {
+            method: 'POST',
+            body,
+            headers: { 'Content-Type': 'application/json' },
+          }).catch(() => {});
+          trackSentRef.current = true;
+        }
+      }
+    }, 30_000);
+    return () => clearTimeout(t);
+  }, [portfolio, ref]);
+
+  // Section scroll tracking via IntersectionObserver
+  useEffect(() => {
+    if (!portfolio) return;
+    const sectionNames = ['experience', 'education', 'skills', 'projects', 'certifications', 'case-studies', 'services'];
+    const observers: IntersectionObserver[] = [];
+    sectionNames.forEach(name => {
+      const el = document.getElementById(`section-${name}`);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) sectionsViewedRef.current.add(name); },
+        { threshold: 0.3 }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach(o => o.disconnect());
+  }, [portfolio]);
 
   // Sticky header observer
   useEffect(() => {
@@ -456,15 +539,6 @@ function PublicPortfolioContent() {
     );
     observer.observe(heroRef.current);
     return () => observer.disconnect();
-  }, [portfolio]);
-
-  // Increment view count
-  useEffect(() => {
-    if (portfolio?.profile?.username) {
-      supabase.functions.invoke("track-portfolio-view", {
-        body: { username: portfolio.profile.username },
-      });
-    }
   }, [portfolio]);
 
   // SEO / theme
@@ -818,7 +892,7 @@ function PublicPortfolioContent() {
 
             {/* Experience */}
             {hasExperience && (
-              <motion.section variants={stagger}>
+              <motion.section variants={stagger} id="section-experience">
                 <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
                 <div className="space-y-4">
                   {resume.experience.map((exp, i) => (
@@ -830,7 +904,7 @@ function PublicPortfolioContent() {
 
             {/* Case Studies */}
             {hasCaseStudies && (
-              <motion.section variants={stagger}>
+              <motion.section variants={stagger} id="section-case-studies">
                 <SectionHeader icon={<Layers className="w-5 h-5" />} title="Case Studies" style={pStyle} />
                 <div className="space-y-5">
                   {profile.caseStudies.map((cs) => (
@@ -842,7 +916,7 @@ function PublicPortfolioContent() {
 
             {/* Projects */}
             {hasProjects && (
-              <motion.section id="projects" variants={stagger}>
+              <motion.section id="section-projects" variants={stagger}>
                 <SectionHeader icon={<FolderOpen className="w-5 h-5" />} title="Projects" style={pStyle} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {resume.projects.map((p, i) => (
@@ -854,7 +928,7 @@ function PublicPortfolioContent() {
 
             {/* Services */}
             {hasServices && (
-              <motion.section variants={stagger}>
+              <motion.section variants={stagger} id="section-services">
                 <SectionHeader icon={<Wrench className="w-5 h-5" />} title="Services" style={pStyle} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {profile.services.map((s) => (
@@ -870,7 +944,7 @@ function PublicPortfolioContent() {
 
             {/* Skills */}
             {hasSkills && (
-              <motion.section variants={fadeUp} className={isTwoCol ? 'md:sticky md:top-8' : ''}>
+              <motion.section variants={fadeUp} className={isTwoCol ? 'md:sticky md:top-8' : ''} id="section-skills">
                 <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
                 <div className="flex flex-wrap gap-2">
                   {visibleSkills.map((skill, i) => (
@@ -897,7 +971,7 @@ function PublicPortfolioContent() {
 
             {/* Education */}
             {hasEducation && (
-              <motion.section variants={stagger}>
+              <motion.section variants={stagger} id="section-education">
                 <SectionHeader icon={<GraduationCap className="w-5 h-5" />} title="Education" style={pStyle} />
                 <div className="space-y-4">
                   {resume.education.map((edu, i) => (

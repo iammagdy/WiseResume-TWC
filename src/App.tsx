@@ -68,6 +68,7 @@ const GuidesPage = lazyWithRetry(() => import("./pages/GuidesPage"));
 const GuidePage = lazyWithRetry(() => import("./pages/GuidePage"));
 const AIStudioPage = lazyWithRetry(() => import("./pages/AIStudioPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
+const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -179,6 +180,7 @@ const queryClient = new QueryClient({
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
         <Route path="/p/:username" element={<Suspense fallback={<PageLoadingSpinner />}><PublicPortfolioPage /></Suspense>} />
+        <Route path="/l/:linkId" element={<Suspense fallback={<PageLoadingSpinner />}><ShortLinkPage /></Suspense>} />
         
         <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
      </Routes>
