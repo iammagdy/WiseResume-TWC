@@ -224,7 +224,7 @@ export default function AIStudioPage() {
         {currentResumeId && resumeData ? (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl glass-surface border border-border/50">
             <FileSearch className="w-4 h-4 text-primary shrink-0" />
-            <span className="text-[15px] sm:text-sm truncate flex-1">
+            <span className="text-[15px] sm:text-sm flex-1 break-words leading-snug" title={resumeData.title}>
               Working on: <span className="font-medium">{resumeData.title}</span>
             </span>
             <Button

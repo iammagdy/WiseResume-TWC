@@ -248,7 +248,7 @@ export const ResumeListCard = memo(function ResumeListCard({
                     }}
                   />
                 ) : (
-                  <h3 className="font-semibold text-foreground truncate text-lg sm:text-base">
+                  <h3 className="font-semibold text-foreground truncate text-lg sm:text-base" title={resume.title}>
                     {resume.title}
                   </h3>
                 )}

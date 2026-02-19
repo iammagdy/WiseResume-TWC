@@ -510,8 +510,8 @@ export default function AuthPage() {
 
           {/* Skip */}
           <motion.div className="mt-6 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-            <Button variant="ghost" onClick={() => navigate('/upload')} className="text-muted-foreground text-sm">
-              Continue without account
+            <Button variant="ghost" onClick={() => navigate('/')} className="text-muted-foreground text-sm">
+              Explore without account
             </Button>
           </motion.div>
         </motion.div>

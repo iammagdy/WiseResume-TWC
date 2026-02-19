@@ -14,14 +14,17 @@ interface State {
   error: Error | null;
   errorInfo: ErrorInfo | null;
   retryCount: number;
+  countdown: number;
 }
  
  export class ErrorBoundary extends Component<Props, State> {
+  private countdownTimer: ReturnType<typeof setInterval> | null = null;
   public state: State = {
       hasError: false,
       error: null,
       errorInfo: null,
       retryCount: 0,
+      countdown: 0,
     };
  
     public static getDerivedStateFromError(error: Error): Partial<State> {
@@ -32,8 +35,8 @@ interface State {
       console.error('ErrorBoundary caught an error:', error, errorInfo);
       this.setState({ errorInfo });
 
-      // Auto-retry once for transient network/chunk errors
-      if (this.state.retryCount < 1) {
+      // Auto-retry up to 2 times for transient network/chunk errors
+      if (this.state.retryCount < 2) {
         const msg = error?.message || '';
         const isTransient = msg.includes('Failed to fetch') ||
           msg.includes('dynamically imported module') ||
@@ -65,7 +68,27 @@ interface State {
    private handleGoHome = () => {
      window.location.href = '/dashboard';
    };
- 
+
+   private startCountdown = () => {
+     this.setState({ countdown: 5 });
+     this.countdownTimer = setInterval(() => {
+       this.setState((prev) => {
+         const next = prev.countdown - 1;
+         if (next <= 0) {
+           if (this.countdownTimer) clearInterval(this.countdownTimer);
+           this.countdownTimer = null;
+           window.location.reload();
+           return { ...prev, countdown: 0 };
+         }
+         return { ...prev, countdown: next };
+       });
+     }, 1000);
+   };
+
+   public componentWillUnmount() {
+     if (this.countdownTimer) clearInterval(this.countdownTimer);
+   }
+
   public render() {
     if (this.state.hasError) {
       if (this.props.fallback) {
@@ -108,6 +131,13 @@ interface State {
                 </pre>
               </details>
             )}
+
+             {/* Auto-retry countdown for chunk errors */}
+             {isChunkError && this.state.countdown > 0 && (
+               <p className="text-sm text-muted-foreground animate-pulse">
+                 Retrying in {this.state.countdown}…
+               </p>
+             )}
 
              {/* Action buttons */}
              <div className="flex flex-col gap-3">

@@ -54,7 +54,13 @@ export function ResumeFilters({
 
   return (
     <div className="px-4 pb-3">
-      <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1">
+      <div
+        className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-1"
+        style={{
+          maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+        }}
+      >
         {/* Sort dropdown */}
         <Popover open={sortOpen} onOpenChange={setSortOpen}>
           <PopoverTrigger asChild>

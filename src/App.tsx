@@ -179,10 +179,10 @@ const queryClient = new QueryClient({
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />
-        <Route path="/p/:username" element={<Suspense fallback={<PageLoadingSpinner />}><PublicPortfolioPage /></Suspense>} />
-        <Route path="/l/:linkId" element={<Suspense fallback={<PageLoadingSpinner />}><ShortLinkPage /></Suspense>} />
+        <Route path="/p/:username" element={<Suspense fallback={<DetailSkeleton />}><PublicPortfolioPage /></Suspense>} />
+        <Route path="/l/:linkId" element={<Suspense fallback={<DetailSkeleton />}><ShortLinkPage /></Suspense>} />
         
-        <Route path="*" element={<Suspense fallback={<PageLoadingSpinner />}><NotFound /></Suspense>} />
+        <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
      </Routes>
    );
  }
