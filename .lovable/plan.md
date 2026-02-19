@@ -1,68 +1,128 @@
 
 
-# Audit: Ensure All Tools Provide Real, Reliable Data
+# Database Logic, Edge Function Wiring, and Social Auth Audit
 
-## Audit Results
+## Issues Found
 
-After a thorough analysis of every scoring tool, AI feature, and content generator in the app, the codebase is in strong shape. All AI-powered tools call real backend functions with actual AI models -- there are zero fake data generators or mocked AI responses anywhere.
+### Issue 1: Missing Edge Functions in `config.toml` (Critical)
 
-## One Issue Found
+Four edge functions exist as code but are NOT registered in `supabase/config.toml`, meaning they will fail to deploy:
 
-### Client-Side Job Match Scorer Uses Rough Heuristics
+| Missing Function | Purpose |
+|---|---|
+| `send-bug-report` | Saves bug reports to DB + emails developer |
+| `send-resume-reminder` | Sends stale-resume notification reminders |
+| `weekly-digest` | Sends weekly career digest notifications |
+| `company-briefing` | AI company research briefing (recently added) |
 
-**File:** `src/lib/jobMatchScorer.ts`
+**Fix:** Add all four entries to `supabase/config.toml` with `verify_jwt = false`.
 
-The `scoreJobMatch` function runs entirely on the client using basic keyword matching and simple rules. It does NOT call AI. This means:
+---
 
-- **Skill matching** is just keyword overlap between job text and resume text. If no job keywords are found, it defaults to 50%.
-- **Experience matching** uses only job title keywords ("senior", "junior") and estimated years. A generic title defaults to 50% or 80% based on a 2-year threshold.
-- **Overall score** is a weighted average (70% skills + 30% experience) that can be misleading for edge cases.
+### Issue 2: Incomplete CORS Headers in Legacy Functions (Medium)
 
-This scorer is used on the **Applications page** to show match scores next to saved jobs. Users may perceive these as AI-generated insights when they are really rough text comparisons.
+Two functions use an **outdated, shorter** CORS `Access-Control-Allow-Headers` list that is missing the `x-supabase-client-*` headers. This can cause preflight failures on newer Supabase client versions:
 
-### Recommended Fix
+| Function | Current Headers |
+|---|---|
+| `send-resume-reminder` | `authorization, x-client-info, apikey, content-type` (missing 4 headers) |
+| `weekly-digest` | `authorization, x-client-info, apikey, content-type` (missing 4 headers) |
 
-Replace the client-side heuristic with real AI analysis by reusing the existing `analyze-resume` edge function (which already produces AI-powered skill/experience/keyword scores). For performance, cache the result per job+resume pair and compute it in the background.
+Both also use the deprecated `serve()` import from `deno.land/std` instead of `Deno.serve()`.
 
-**Changes:**
+**Fix:** Update both functions to use the full CORS header set and `Deno.serve()`.
 
-1. **`src/lib/jobMatchScorer.ts`** -- Add an async `scoreJobMatchAI` function that calls `analyze-resume` and maps the response to the existing `JobMatchResult` shape. Keep the current `scoreJobMatch` as an instant preview fallback while AI loads.
+---
 
-2. **`src/pages/ApplicationsPage.tsx`** -- Update the scoring logic to:
-   - Show the instant heuristic score immediately (with a subtle indicator like a shimmer or "Quick estimate" label)
-   - Fire background AI scoring for each job
-   - Replace the heuristic score with the AI score once it arrives
-   - Cache AI scores in memory keyed by `resumeId:jobId` to avoid redundant calls
+### Issue 3: `track-portfolio-view` Short Link Increment Uses Broken RPC (Low)
 
-3. **`src/components/applications/JobMatchScore.tsx`** -- Add a small visual indicator distinguishing "AI-verified" scores from "quick estimate" scores (e.g., a sparkle icon for AI scores, a tilde prefix for estimates).
+Lines 133-136 in `track-portfolio-view/index.ts` attempt to call `supabase.rpc("increment_short_link_count")` inside an `.update()` call. This RPC does not exist in the database, so it always fails and falls back to a read-modify-write pattern which has a race condition.
 
-## Everything Else Is Clean
+**Fix:** Remove the broken RPC call and use the existing read-modify-write fallback directly, or add a proper SQL `UPDATE short_links SET click_count = click_count + 1 WHERE id = p_link_id` statement.
 
-| Tool | Data Source | Status |
-|---|---|---|
-| ATS Health Score | Deterministic code-based engine (server) | Real -- by design |
-| Resume Completion Score | Deterministic field-presence rules (client) | Real -- by design |
-| AI Job Analysis | `analyze-resume` edge function + Gemini | Real AI |
-| Smart Tailor | `tailor-resume` edge function + Gemini | Real AI |
-| Career Path Advisor | `career-path-advisor` edge function + Gemini | Real AI |
-| Company Briefing | `company-briefing` edge function + Gemini | Real AI |
-| Interview Coach | `interview-chat` edge function + Gemini | Real AI |
-| Recruiter Simulation | `recruiter-simulation` edge function + Gemini | Real AI |
-| LinkedIn Optimizer | `optimize-for-linkedin` edge function + Gemini | Real AI |
-| AI Detector/Humanizer | `detect-and-humanize` edge function + Gemini | Real AI |
-| Cover Letter Generator | `generate-cover-letter` edge function + Gemini | Real AI |
-| Career Assessment | `career-assessment` edge function + Gemini | Real AI |
-| Section AI Enhance | `enhance-section` edge function + Gemini | Real AI |
-| Gap Explainer | `explain-gap` edge function + Gemini | Real AI |
-| Gap Filler | `fill-gap` edge function + Gemini | Real AI |
-| One-Page Optimizer | `one-page-optimizer` edge function + Gemini | Real AI |
-| Agentic Chat | `agentic-chat` edge function + Gemini | Real AI |
-| Resume Parser (PDF/LinkedIn) | `parse-resume` / `parse-linkedin` + Gemini | Real AI |
-| Salary Coach | Not implemented (shows "Soon") | No fake data |
-| Reverse Engineer | Not implemented (shows "Soon") | No fake data |
-| Rejection Analyzer | Not implemented (shows "Soon") | No fake data |
+---
 
-## Summary
+### Issue 4: No `/auth/callback` Route for APK Social Auth (Critical for Mobile)
 
-Only the **Job Match Score on the Applications page** uses a client-side heuristic that could mislead users. The fix adds background AI scoring with the existing `analyze-resume` function, while keeping the heuristic as an instant preview clearly labeled as an estimate.
+`socialAuth.ts` redirects native (non-Lovable) builds to `/auth/callback` after Google/Apple sign-in. However:
+- There is NO `/auth/callback` route defined in `App.tsx`
+- The app has no `AuthCallback` page component
+
+This means on the APK build, after a user signs in with Google or Apple, they will land on a 404 page. The OAuth flow will technically set the session via URL hash tokens, but the user will see a blank/error page instead of being redirected to the dashboard.
+
+**Fix:** Create a lightweight `/auth/callback` route that reads the session from the URL hash and redirects to `/dashboard`.
+
+---
+
+### Issue 5: `og-image` and `portfolio-meta` Use Short CORS Headers (Low)
+
+These two functions use `authorization, x-client-info, apikey, content-type` instead of the full set. While these are primarily consumed by crawlers/browsers (not the Supabase client), updating them for consistency prevents future issues.
+
+**Fix:** Update CORS headers to the full set.
+
+---
+
+## Implementation Steps
+
+### Step 1: Register Missing Functions in config.toml
+
+Add these four entries:
+```text
+[functions.send-bug-report]
+verify_jwt = false
+
+[functions.send-resume-reminder]
+verify_jwt = false
+
+[functions.weekly-digest]
+verify_jwt = false
+
+[functions.company-briefing]
+verify_jwt = false
+```
+
+### Step 2: Fix CORS and Runtime in Legacy Functions
+
+Update `send-resume-reminder/index.ts` and `weekly-digest/index.ts`:
+- Replace `import { serve }` with `Deno.serve()`
+- Add full CORS header set including the four `x-supabase-client-*` headers
+
+### Step 3: Fix Short Link Click Tracking
+
+In `track-portfolio-view/index.ts`, replace the broken RPC + fallback pattern (lines 132-153) with a direct increment:
+```typescript
+await supabaseClient
+  .from("short_links")
+  .update({ click_count: supabaseClient.rpc(...) }) // REMOVE THIS
+```
+Replace with a simple read-increment-write or a raw SQL increment via the service client.
+
+### Step 4: Create Auth Callback Route for APK Builds
+
+Create `src/pages/AuthCallbackPage.tsx`:
+- On mount, call `supabase.auth.getSession()` to pick up tokens from the URL hash
+- Redirect to `/dashboard` on success, `/auth` on failure
+- Show a brief loading spinner during the redirect
+
+Register the route in `App.tsx` as a public route:
+```typescript
+<Route path="/auth/callback" element={<AuthCallbackPage />} />
+```
+
+### Step 5: Update Remaining CORS Headers
+
+Update `og-image/index.ts` and `portfolio-meta/index.ts` to use the full CORS header set for consistency.
+
+---
+
+## Social Auth on APK Summary
+
+| Aspect | Status |
+|---|---|
+| Lovable domain detection | Working -- correctly routes to `lovable.auth.signInWithOAuth` |
+| APK/non-Lovable detection | Working -- correctly routes to `supabase.auth.signInWithOAuth` |
+| `skipBrowserRedirect: true` | Correct for native in-app browser |
+| OAuth URL validation | Correct (checks hostname) |
+| Redirect URL after OAuth | **Broken** -- `/auth/callback` route does not exist |
+| Capacitor deep linking | Not configured for OAuth callback URLs (should add `capacitor://localhost/auth/callback` and `https://localhost/auth/callback` to allowed redirect URLs in backend auth settings) |
 
