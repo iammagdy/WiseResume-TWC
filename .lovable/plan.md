@@ -1,107 +1,66 @@
 
-# Increase Star Count and Add Shooting Stars to SpaceBackground
+
+# Add Glow Trail Effect to Shooting Stars
 
 ## What Changes
 
-1. Increase the twinkling star count from 25 to 60 for a denser starfield.
-2. Add 3 shooting stars that streak diagonally across the background at staggered intervals using CSS keyframe animations.
+Each shooting star will gain a soft, glowing trail behind it -- a wider, blurred gradient element that follows the same animation path, creating a realistic comet-like streak with atmospheric depth.
 
 ## What You'll See
 
-- A richer, more populated starfield with 60 twinkling dots instead of 25.
-- Occasional shooting stars that streak from the upper-right area toward the lower-left, each on a long staggered loop so they feel random and organic.
+Instead of a thin 1px white line, each shooting star will appear as a bright head with a soft, diffused glow trail fading behind it. The effect is subtle and atmospheric, not overpowering.
 
 ## Technical Details
 
 ### File: `src/components/landing/SpaceBackground.tsx`
 
-**1. Increase star count (line 25)**
+**1. Enhance each shooting star element (lines 131-146)**
 
-Change `generateStars(25)` to `generateStars(60)`.
+Replace the single `div` per shooting star with a wrapper containing two elements:
+- **Glow trail**: A wider (80px x 3px), blurred element with reduced opacity and a cyan/white gradient, animated with the same `shootingStar` keyframe.
+- **Core streak**: The existing 80px x 1px bright white line (unchanged animation).
 
-**2. Add a shooting star data generator**
-
-Create a small helper that pre-generates 3 shooting stars with varied start positions, animation delays, and durations:
-
-```tsx
-interface ShootingStar {
-  id: number;
-  top: number;      // % from top (5-35%)
-  left: number;     // % from left (60-95%)
-  delay: number;    // stagger in seconds
-  duration: number; // 1-2s streak duration
-}
-
-function generateShootingStars(count: number): ShootingStar[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    top: 5 + Math.random() * 30,
-    left: 60 + Math.random() * 35,
-    delay: i * 6 + Math.random() * 4,
-    duration: 1 + Math.random() * 1,
-  }));
-}
-```
-
-**3. Memoize the shooting stars alongside the regular stars**
-
-Add `const shootingStars = useMemo(() => generateShootingStars(3), []);` inside the component.
-
-**4. Add a shooting stars layer (after the twinkling stars layer)**
+Both share the same animation timing so they move together as one unit.
 
 ```tsx
-{/* Layer 4: Shooting stars */}
-<div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-  {shootingStars.map((s) => (
+{shootingStars.map((s) => (
+  <div
+    key={s.id}
+    className="absolute"
+    style={{
+      top: `${s.top}%`,
+      left: `${s.left}%`,
+      opacity: 0,
+      animation: prefersReducedMotion
+        ? 'none'
+        : `shootingStar ${s.duration}s ease-in ${s.delay}s infinite`,
+    }}
+  >
+    {/* Glow trail */}
     <div
-      key={s.id}
-      className="absolute w-[80px] h-[1px] rounded-full"
+      className="absolute w-[80px] h-[3px] rounded-full blur-[3px]"
       style={{
-        top: `${s.top}%`,
-        left: `${s.left}%`,
-        background: 'linear-gradient(to left, white 0%, transparent 100%)',
-        opacity: 0,
-        animation: prefersReducedMotion
-          ? 'none'
-          : `shootingStar ${s.duration}s ease-in ${s.delay}s infinite`,
+        background: 'linear-gradient(to left, rgba(200, 220, 255, 0.6) 0%, transparent 100%)',
       }}
     />
-  ))}
-</div>
+    {/* Core streak */}
+    <div
+      className="absolute w-[80px] h-[1px] rounded-full"
+      style={{
+        background: 'linear-gradient(to left, white 0%, transparent 100%)',
+      }}
+    />
+  </div>
+))}
 ```
 
-**5. Add the shooting star CSS keyframe to the existing style tag**
+This moves the animation to the parent wrapper so both children animate together. No keyframe changes needed.
 
-```css
-@keyframes shootingStar {
-  0% {
-    opacity: 0;
-    transform: translate(0, 0) rotate(-35deg);
-  }
-  5% {
-    opacity: 1;
-  }
-  20% {
-    opacity: 0;
-    transform: translate(-200px, 120px) rotate(-35deg);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-200px, 120px) rotate(-35deg);
-  }
-}
-```
-
-The 0-20% active window with a long 20-100% idle tail means each shooting star streaks briefly then waits before repeating, creating a natural sporadic feel.
-
-**6. Reduced motion**
-
-Shooting stars get `animation: 'none'` when `prefersReducedMotion` is true, same as the twinkling stars.
-
-### No changes to:
-- Parallax layers, nebula gradients, or floating orbs
-- Any other files
+**2. No other changes**
+- Star count, parallax layers, and twinkle animation remain untouched.
+- Reduced motion handling stays the same (parent wrapper gets `animation: 'none'`).
 
 | File | Change |
 |---|---|
-| `SpaceBackground.tsx` | Increase star count to 60, add shooting star generator + layer + CSS keyframe |
+| `SpaceBackground.tsx` | Wrap each shooting star in a container with a blurred glow trail element alongside the core streak |
+
