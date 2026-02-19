@@ -81,7 +81,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const setCurrentResumeId = useResumeStore((s) => s.setCurrentResumeId);
   const setCurrentResume = useResumeStore((s) => s.setCurrentResume);
   const { user } = useAuth();
-  const { data: resumes } = useResumes();
+  const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
 
   const isActive = (tab: TabItem) => {

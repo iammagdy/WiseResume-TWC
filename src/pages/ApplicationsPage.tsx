@@ -1,8 +1,7 @@
 import { useState, useCallback, useMemo, useDeferredValue } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
 import { useJobs, Job } from '@/hooks/useJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
@@ -110,20 +109,14 @@ export default function ApplicationsPage() {
   const [resumeListOpen, setResumeListOpen] = useState(false);
   const [resumeListFilter, setResumeListFilter] = useState<'originals' | 'tailored'>('originals');
 
-  // Fetch status counts for filter badges
-  const { data: statusCounts } = useQuery({
-    queryKey: ['job-application-status-counts', user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase.from('job_applications').select('status');
-      if (error) throw error;
-      const counts: Record<string, number> = {};
-      for (const row of data || []) {
-        counts[row.status] = (counts[row.status] || 0) + 1;
-      }
-      return counts;
-    },
-    enabled: !!user,
-  });
+  // Derive status counts from existing applications data — no extra network round-trip
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const app of applications) {
+      counts[app.status] = (counts[app.status] || 0) + 1;
+    }
+    return counts;
+  }, [applications]);
 
   // Get primary resume for match scoring
   const primaryResume = useMemo(() => {

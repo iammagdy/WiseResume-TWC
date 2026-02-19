@@ -77,7 +77,7 @@ export default function TemplatesPage() {
               key={tmpl.id}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
+              transition={{ delay: Math.min(i * 0.03, 0.15) }}
               onClick={() => setPreviewTemplate(tmpl)}
               className="relative p-2.5 rounded-2xl border-2 border-border hover:border-primary/50 hover:scale-[1.02] hover:shadow-xl transition-all text-left touch-manipulation active:scale-[0.98]"
               aria-label={`Preview ${tmpl.name} template`}

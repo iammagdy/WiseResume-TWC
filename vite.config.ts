@@ -15,6 +15,17 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/framer-motion')) return 'framer';
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'charts';
+          if (id.includes('node_modules/pdf-lib') || id.includes('node_modules/pdfjs-dist')) return 'pdf';
+          if (id.includes('node_modules/tesseract') || id.includes('node_modules/mammoth')) return 'ocr';
+          if (id.includes('node_modules/docx')) return 'docx';
+        },
+      },
+    },
   },
   plugins: [
     react(),

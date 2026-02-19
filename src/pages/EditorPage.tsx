@@ -883,6 +883,11 @@ export default function EditorPage() {
   // Auth guard handled by ProtectedRoute
   if (!storeHydrated) return <EditorSkeleton />;
   if (!currentResumeId && !currentResume) return <Navigate to="/dashboard" replace />;
+  // Show skeleton while DB fetch is in flight — but as soon as resumeFromDb arrives,
+  // the hydration effect will fire and populate currentResume in the same micro-task tick.
+  // This reduces perceived wait by one full render cycle vs waiting for the effect.
+  if (!currentResume && isValidating) return <EditorSkeleton />;
+  if (!currentResume && !resumeFromDb) return <EditorSkeleton />;
   if (!currentResume) return <EditorSkeleton />;
   // === Past this point, currentResume is guaranteed non-null ===
 
