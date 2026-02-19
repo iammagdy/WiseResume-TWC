@@ -1,31 +1,30 @@
 
+# Add Subtle Parallax to Hero Section Content
 
-# Fix Landing Page Scroll Lag and Broken Fade-Out
+## What Changes
+Add scroll-based parallax to the hero section's content elements so that as the user scrolls down, the planet logo, title, tagline, and CTA button move at slightly different speeds -- creating a layered depth effect that complements the existing space background parallax.
 
-## Problem
-Every animated section on the landing page uses `viewport: { once: false }`, which means all elements re-trigger their entrance animations every time they enter/exit the viewport during scrolling. This causes:
-- Laggy scrolling due to dozens of simultaneous re-animations
-- Broken fade-out effect (elements snap to their `initial` state instead of staying visible)
+## How It Works
+- The planet logo (farthest "back") scrolls slightly slower than the page
+- The title and tagline scroll at a medium rate
+- The CTA button and trust text (closest to viewer) scroll at normal speed
+- All parallax is disabled when the user prefers reduced motion
 
-## Solution
-Change all `viewport: { once: false }` to `viewport: { once: true }` in the animation helpers. This means each element animates in once and stays visible permanently -- no re-triggering, no lag, no jarring resets on scroll-up.
+The effect is subtle (10-30px range) so it adds depth without causing lag or motion sickness.
 
 ## Technical Details
 
-### File: `src/pages/Index.tsx`
+### File: `src/components/landing/HeroSection.tsx`
 
-**4 animation helpers to update (lines 223-264):**
-
-| Helper | Line | Change |
-|---|---|---|
-| `inView()` | 229 | `once: false` to `once: true` |
-| `slideIn()` | 240 | `once: false` to `once: true` |
-| `scaleIn()` | 251 | `once: false` to `once: true` |
-| `popIn()` | 262 | `once: false` to `once: true` |
-
-Each helper spreads `viewport: { once: true, amount: 0.2 }` (or `0.3` for `popIn`) so the animation fires once when the element scrolls into view and never re-triggers.
-
-### No other files changed
-- `SpaceBackground.tsx` parallax and star animations are fine (CSS keyframes, not scroll-triggered re-renders)
-- No dependency changes needed
-
+1. Import `useRef` from React and `motion, useScroll, useTransform, useReducedMotion` from Framer Motion
+2. Add a `ref` on the `<section>` element and set up `useScroll` targeting it
+3. Create three `useTransform` values for different scroll speeds:
+   - `yLogo`: maps scroll 0-1 to 0 to -30px (slowest, feels farthest back)
+   - `yText`: maps scroll 0-1 to 0 to -15px (medium)
+   - `yButton`: maps scroll 0-1 to 0 to -5px (barely moves, feels closest)
+4. Also add a subtle `opacity` transform so the hero fades out slightly as user scrolls past (1 to 0.85)
+5. Wrap the planet logo div in `motion.div` with `style={{ y: yLogo }}`
+6. Wrap the title + tagline in `motion.div` with `style={{ y: yText }}`
+7. CTA + trust text get `motion.div` with `style={{ y: yButton }}`
+8. All transforms fall back to `0` when `prefersReducedMotion` is true
+9. Add a subtle scale transform on the overall content container: scales from 1 to 0.98 as user scrolls, adding to the depth illusion
