@@ -1,157 +1,215 @@
 
-# Upgrade og-image Edge Function: Top 3 Skill Pills + Wordmark + Per-Theme Backgrounds
+# Weighted Skills Word Cloud on the Public Portfolio
 
-## What Already Exists (Do Not Rebuild)
+## What Already Exists
 
-The `supabase/functions/og-image/index.ts` function already has:
-- A WiseResume wordmark at line 148 (`<text x="1128" y="56"…>✦ WiseResume</text>`)
-- Skill pills — but showing top 5 at a smaller size (font-size 18, height 34)
-- Basic style-to-bg mapping (`styleToBg`, `styleToFg`, etc.)
+The Skills section (lines 1333–1370 of `PublicPortfolioPage.tsx`) currently renders a flat `flex-wrap` grid of uniform pills using the `skillWave` + `skillPill` motion variants. Every skill is displayed at the same size with the same weight regardless of how prominently it appears in the user's actual work history.
 
-## What Is Actually Missing / Needs Upgrading
+The `Experience` interface exposes `description: string`, `achievements: string[]`, and `responsibilities?: string[]` — all rich free-text fields that mention technologies and skills by name. The `Project` interface has `technologies: string[]` which is explicit. This gives us everything needed for a client-side frequency count without any server round-trip.
 
-After reading the full SVG builder:
+## Design Goal
 
-1. **Top 3 skills, not 5** — The current code uses `top5 = skills.slice(0, 5)` with small pills. The request wants 3 **featured** pills that are larger and more prominent (bigger font, taller, better visual weight).
+Replace the flat pill grid with a **bubble-style word cloud** where:
+- Skills mentioned across more job descriptions / projects are rendered **larger and bolder**
+- Skills on the `resume.skills[]` list that are never mentioned in experience text are still shown but at the baseline size
+- The layout is a natural CSS `flex-wrap` cloud (no canvas, no D3, no SVG coordinate maths) — the size is simply driven by `font-size` + `padding` CSS properties, which means the browser handles all wrapping naturally
 
-2. **Wordmark quality** — The existing wordmark is a plain `<text>` element at accent color. It needs to become a proper branded unit: a pill/badge background behind the text so it reads clearly on all four theme backgrounds (especially `classic-clean` where the accent may be a light color on a white background).
+## Frequency Scoring Algorithm
 
-3. **Per-theme visual identity** — All four dark themes (`minimal`, `bold-dark`, `glass-pro`) currently render almost identically — same near-black background with a radial glow. The themes need distinct SVG treatments:
-   - **minimal**: current dark + single subtle glow (keep, refine)
-   - **bold-dark**: add a sharp horizontal gradient stripe at the top third, stronger accent saturation
-   - **glass-pro**: add a frosted-glass panel rectangle (semi-transparent white border) behind the content area, second inner glow
-   - **classic-clean**: white/near-white background, dark text, colored left-edge accent bar replacing the top bar, a subtle horizontal rule in the middle
+A pure client-side `useMemo` computation inside `PublicPortfolioContent`:
 
-## Architecture of Changes — One File Only
+```
+for each skill in resume.skills:
+  count = 0
+  for each experience entry:
+    corpusText = description + achievements.join(' ') + responsibilities?.join(' ')
+    if corpusText.toLowerCase().includes(skill.toLowerCase()):
+      count += 2   // experience mention = 2 pts (cross-role relevance)
+  for each project entry:
+    if project.technologies includes skill (exact match):
+      count += 1   // technology tag = 1 pt
+    if project.description mentions skill:
+      count += 1
 
-Only `supabase/functions/og-image/index.ts` changes. No database, no new functions, no config changes.
-
-The changes are all inside `buildSVG()`:
-
-### 1. Skills: Top 3 with Larger Pill Badges
-
-Change `const top5 = skills.slice(0, 5)` → `const top3 = skills.slice(0, 3)`.
-
-Resize pills: height `34 → 42`, font-size `18 → 22`, padding `16 → 20`. This gives each pill more visual weight. With only 3 pills the horizontal space is comfortable even for long skill names (budget ~350px each).
-
-Add per-theme pill styling:
-- `classic-clean`: white background, border in accent color, text in accent
-- `bold-dark`: solid accent fill, white text (high contrast on dark)
-- `glass-pro`: semi-transparent white fill (`rgba(255,255,255,0.12)`), white border, white text
-- `minimal`: existing accent-tinted fill (keep)
-
-New pill generator function `buildSkillPills(skills, style, accent, fg)` replaces the inline loop.
-
-### 2. WiseResume Wordmark — Badged Treatment
-
-Replace the bare `<text>` wordmark with a pill-shaped badge:
-
-```svg
-<!-- Wordmark pill background -->
-<rect x="980" y="28" width="192" height="38" rx="19" fill="${wordmarkBg}"/>
-<!-- Wordmark text -->
-<text x="1076" y="52" font-family="system-ui,sans-serif" font-size="20" font-weight="700" fill="${wordmarkFg}" text-anchor="middle">✦ WiseResume</text>
+  skillScores[skill] = count
 ```
 
-Where:
-- `classic-clean`: `wordmarkBg = accentColor`, `wordmarkFg = '#ffffff'`
-- dark themes: `wordmarkBg = 'rgba(255,255,255,0.1)'`, `wordmarkFg = accentColor`
+Score ranges map to 5 visual tiers:
 
-This ensures the wordmark is always legible regardless of background theme.
+| Score | Tier | Font size | Font weight | Padding | Opacity |
+|---|---|---|---|---|---|
+| 0 | xs | 11px | 400 | 6px 10px | 0.55 |
+| 1 | sm | 12px | 500 | 7px 12px | 0.70 |
+| 2–3 | md | 13px | 600 | 8px 14px | 0.85 |
+| 4–6 | lg | 15px | 700 | 9px 16px | 1.0 |
+| 7+ | xl | 17px | 800 | 10px 20px | 1.0 |
 
-### 3. Per-Theme SVG Background Treatment
+## Component Design
 
-Add a new helper `styleToDecoLayer(style, accent): string` that returns theme-specific SVG decoration inserted after the base background rect:
+A new `SkillCloud` component function defined inline in `PublicPortfolioPage.tsx` (no new file needed — consistent with the existing pattern of inline helpers like `ExperienceCard`, `SectionHeader`, etc.):
 
-**minimal** (current — keep, minor refinement):
-```svg
-<radialGradient id="glow1" cx="12%" cy="18%" r="45%"> … accent 0.28 opacity … </radialGradient>
-<radialGradient id="glow2" cx="88%" cy="82%" r="35%"> … accent 0.12 … </radialGradient>
-```
-(already exists, no change)
-
-**bold-dark** (new):
-```svg
-<!-- Vivid horizontal gradient band across top 200px -->
-<linearGradient id="boldStripe" x1="0%" y1="0%" x2="100%" y2="0%">
-  <stop offset="0%" stop-color="${accent}" stop-opacity="0.35"/>
-  <stop offset="50%" stop-color="${accent}" stop-opacity="0.15"/>
-  <stop offset="100%" stop-color="${accent}" stop-opacity="0.05"/>
-</linearGradient>
-<rect x="0" y="0" width="1200" height="220" fill="url(#boldStripe)"/>
-<!-- Bright top accent bar (thicker: 8px instead of 5px) -->
-<rect x="0" y="0" width="1200" height="8" fill="${accent}"/>
-<!-- Bottom-right corner accent triangle/shape -->
-<polygon points="1200,630 900,630 1200,380" fill="${accent}" fill-opacity="0.06"/>
+```tsx
+function SkillCloud({ skills, experience, projects, accentColor, pStyle }: SkillCloudProps)
 ```
 
-**glass-pro** (new):
-```svg
-<!-- Frosted glass panel behind content -->
-<rect x="48" y="100" width="1104" height="440" rx="24" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-<!-- Inner shimmer line at top of panel -->
-<rect x="48" y="100" width="1104" height="1" rx="0" fill="rgba(255,255,255,0.2)"/>
-<!-- Two-tone radial glows -->
-<radialGradient id="glassGlow1" cx="20%" cy="10%" r="50%"> … accent 0.22 … </radialGradient>
-<radialGradient id="glassGlow2" cx="80%" cy="90%" r="40%"> … accent 0.10 … </radialGradient>
-```
+It computes scores via `useMemo`, sorts skills by score descending (highest-weight skills cluster in the visual center since `flex-wrap` fills left-to-right), then renders a `flex-wrap gap-2` div of motion-animated pills.
 
-**classic-clean** (updated):
-```svg
-<!-- Pure white background (already done via styleToBg) -->
-<!-- Subtle grid dot pattern (light gray) -->
-<pattern id="dots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-  <circle cx="12" cy="12" r="1" fill="#e5e7eb"/>
-</pattern>
-<rect width="1200" height="630" fill="url(#dots)"/>
-<!-- Left vertical accent stripe (replaces the top bar) -->
-<rect x="0" y="0" width="6" height="630" fill="${accent}"/>
-<!-- Soft tinted hero band at top -->
-<rect x="0" y="0" width="1200" height="200" fill="${accent}" fill-opacity="0.04"/>
-```
+Each pill uses the existing `skillPill` Framer Motion variant (staggered wave via `skillWave`) for the entry animation. Size tier is applied via inline style.
 
-The top accent bar (`<rect x="0" y="0" width="1200" height="5"/>`) is kept for all dark themes but replaced with the left stripe for `classic-clean`.
+A subtle tooltip (`title` attribute) shows the skill name on hover for accessibility — no extra dependency needed.
 
-## Layout Refinements
+## Replacing the Existing Skills Section
 
-After adding the per-theme decoration layers, minor layout adjustments:
+The current block (lines 1334–1370) is replaced in-place with `<SkillCloud>`. The "Show N more" toggle is preserved inside the cloud for skills lists over 28 items.
 
-- **Skills section label** ("TOP SKILLS") moves to y=430 and pills to y=460 (slightly higher to account for larger pill height of 42px)
-- **Bio lines** sit between name/role and the divider (y=370–410), matching existing positions
-- Dividers stay at y=320 (top) and y=520 (bottom) — sufficient space for 3 taller pills between 520 and 460+42=502
+The `showMoreSkills` state and `hasMoreSkills` computed value remain as-is — they now gate how many `SkillCloud` nodes to render.
 
-Final vertical layout from top to bottom:
-```text
-0-8    │ Top accent bar (dark themes) / left stripe (classic-clean)
-28-66  │ Wordmark pill badge (top-right)
-100    │ Avatar circle (cx=132, cy=180)
-132    │ Name text
-182    │ Role text  
-220    │ Location
-250    │ Open-to-Work badge
-320    │ Divider line
-350    │ "TOP SKILLS" label
-390    │ Bio line 1
-420    │ Bio line 2
-460    │ Skills pills (height 42 each) ← enlarged from 490/34
-520    │ Divider line
-580    │ Bottom URL + watermark
-```
+## Visual Result
+
+For a typical resume:
+- "React", "TypeScript", "Node.js" (mentioned in 5 job descriptions each) → render at 17px bold, full opacity
+- "Jest", "Figma" (mentioned in 2 jobs) → 13px semi-bold
+- "Photoshop" (listed as a skill, never in job text) → 11px light, 55% opacity
+
+The resulting cloud immediately signals to a recruiter which skills are **core** vs peripheral, without any interaction — the size differential is the visual signal.
 
 ## Files Changed
 
-| File | Change |
-|---|---|
-| `supabase/functions/og-image/index.ts` | Full rewrite of `buildSVG()` helper only — HTTP handler and `buildFallbackSVG` unchanged |
-
-## Why This Is Better Than the Current State
-
-| Feature | Before | After |
+| File | Action | What |
 |---|---|---|
-| Skills pills | 5 small pills (h=34, fs=18) | 3 featured pills (h=42, fs=22), theme-styled |
-| WiseResume wordmark | Bare `<text>` in accent color | Badged pill, always legible |
-| `bold-dark` bg | Same as `minimal` | Vivid gradient band + corner shape |
-| `glass-pro` bg | Same as `minimal` | Frosted glass panel + dual glow |
-| `classic-clean` bg | Flat `#f8faff` | Dot grid + left accent stripe + tinted header |
-| `minimal` bg | Current — fine | Keep unchanged |
-| Pill color | Same style for all themes | Per-theme: filled/glass/bordered/tinted |
+| `src/pages/PublicPortfolioPage.tsx` | MODIFY | Add `SkillCloud` component + `computeSkillFrequencies` helper + replace skills section |
+
+No new components, no database changes, no edge functions, no new dependencies.
+
+## Technical Details
+
+### `computeSkillFrequencies` helper
+
+```typescript
+function computeSkillFrequencies(
+  skills: string[],
+  experience: Experience[],
+  projects: Project[]
+): Record<string, number> {
+  const scores: Record<string, number> = {};
+  for (const skill of skills) {
+    const lower = skill.toLowerCase();
+    let score = 0;
+    for (const exp of experience) {
+      const corpus = [
+        exp.description,
+        ...(exp.achievements ?? []),
+        ...(exp.responsibilities ?? []),
+      ].join(' ').toLowerCase();
+      if (corpus.includes(lower)) score += 2;
+    }
+    for (const proj of projects) {
+      if (proj.technologies?.some(t => t.toLowerCase() === lower)) score += 1;
+      if (proj.description?.toLowerCase().includes(lower)) score += 1;
+    }
+    scores[skill] = score;
+  }
+  return scores;
+}
+```
+
+### Size tier resolver
+
+```typescript
+function getSkillTier(score: number): {
+  fontSize: string; fontWeight: number; px: string; py: string; opacity: number;
+} {
+  if (score >= 7) return { fontSize: '17px', fontWeight: 800, px: '20px', py: '10px', opacity: 1 };
+  if (score >= 4) return { fontSize: '15px', fontWeight: 700, px: '16px', py: '9px', opacity: 1 };
+  if (score >= 2) return { fontSize: '13px', fontWeight: 600, px: '14px', py: '8px', opacity: 0.85 };
+  if (score >= 1) return { fontSize: '12px', fontWeight: 500, px: '12px', py: '7px', opacity: 0.70 };
+  return { fontSize: '11px', fontWeight: 400, px: '10px', py: '6px', opacity: 0.55 };
+}
+```
+
+### `SkillCloud` component structure
+
+```tsx
+function SkillCloud({ skills, experience, projects, pStyle, showMore, onToggleMore, hasMore, moreCount }) {
+  const scores = useMemo(() =>
+    computeSkillFrequencies(skills, experience, projects),
+    [skills, experience, projects]
+  );
+
+  // Sort: highest score first → big pills cluster at start (left/top of flex-wrap)
+  const sorted = useMemo(() =>
+    [...skills].sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0)),
+    [skills, scores]
+  );
+
+  const visible = showMore ? sorted : sorted.slice(0, SKILL_LIMIT);
+
+  return (
+    <>
+      <motion.div variants={skillWave} initial="hidden" whileInView="visible"
+        viewport={{ once: true }}
+        className="flex flex-wrap gap-2 items-baseline"  // ← items-baseline for natural cloud feel
+      >
+        {visible.map((skill, i) => {
+          const tier = getSkillTier(scores[skill] ?? 0);
+          return (
+            <motion.span
+              key={i}
+              variants={skillPill}
+              title={skill}
+              style={{
+                fontSize: tier.fontSize,
+                fontWeight: tier.fontWeight,
+                padding: `${tier.py} ${tier.px}`,
+                opacity: tier.opacity,
+                borderRadius: '9999px',
+                background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
+                color: 'var(--pf-accent)',
+                border: '1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                transition: 'all 0.2s',
+                lineHeight: 1.2,
+              }}
+            >
+              {skill}
+            </motion.span>
+          );
+        })}
+      </motion.div>
+      {hasMore && (
+        <button onClick={onToggleMore} className="mt-3 text-xs font-medium flex items-center gap-1 ...">
+          {showMore ? <><ChevronUp /> Show less</> : <><ChevronDown /> +{moreCount} more</>}
+        </button>
+      )}
+    </>
+  );
+}
+```
+
+### Placement in the page
+
+`SkillCloud` replaces the `motion.div` + pill mapping block at lines 1343–1368, called like:
+
+```tsx
+<SkillCloud
+  skills={allSkills}
+  experience={resume.experience}
+  projects={resume.projects}
+  pStyle={pStyle}
+  showMore={showMoreSkills}
+  onToggleMore={() => setShowMoreSkills(v => !v)}
+  hasMore={hasMoreSkills}
+  moreCount={allSkills.length - SKILL_LIMIT}
+/>
+```
+
+The wrapping `motion.section` with `id="section-skills"` is unchanged — only the inner content is replaced.
+
+## Why `items-baseline` Matters
+
+Using `items-baseline` (instead of `items-center`) on the flex container means pills of different sizes align along their text baseline. This creates the classic word cloud look — larger pills sit taller, smaller ones sit lower, giving a natural undulation that reads as a visual hierarchy at a glance.
+
+## Performance
+
+`computeSkillFrequencies` runs at most once per portfolio load (wrapped in `useMemo` with `[skills, experience, projects]` deps). For a resume with 30 skills × 8 experience entries each with ~500 char descriptions: 30 × 8 × one `includes()` call = 240 string searches, sub-millisecond.
