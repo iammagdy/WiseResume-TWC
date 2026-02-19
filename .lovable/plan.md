@@ -1,69 +1,67 @@
 
 
-# Interview Tool -- Full Audit and Fix Plan
+# Interview Tool: Deep Fix and Power-Up
 
-## Issues Found
+## Root Cause: "Not Replying"
 
-### 1. CRITICAL BUG: Quick Practice Mode is Completely Broken
+The interview tool fails silently due to multiple compounding issues:
 
-The "Quick Practice" (5 questions) mode does not work at all. Here is the broken flow:
+1. **No retry/fallback**: The edge function uses `callAI()` (single attempt, 30s timeout) instead of `callAIWithRetry()` which has 3 attempts with escalating timeouts and a fallback model. If the first AI call times out or hits a transient 5xx, the interview just dies.
 
-- `InterviewSetup` calls `onStart('__QUICK_PRACTICE__')`, passing the magic string as a "job description"
-- `InterviewPage.handleSetupStart` receives it as `jobDescription`, and since it is truthy, it enters the **preview phase** and calls `analyzeRole('__QUICK_PRACTICE__')` -- sending a nonsensical string to the AI for role analysis
-- The edge function expects a separate `quickPractice: true` boolean field, but the client never sends it
-- Result: Quick Practice acts like a broken job-targeted interview with the literal text "__QUICK_PRACTICE__" as the job description
+2. **No maxTokens cap**: Without a token limit, the AI can generate very long responses that exceed the edge function execution time, causing a silent timeout.
 
-**Fix:** In `InterviewPage.handleSetupStart`, detect the `__QUICK_PRACTICE__` sentinel and call `startInterview` with a `quickPractice` flag instead of routing to preview. In `useVoiceInterview`, add a `quickPractice` ref and pass it to the edge function body. Remove the magic string approach entirely.
+3. **Fragile error surfacing**: When `supabase.functions.invoke` receives a non-2xx HTTP response, the error details are in the `error` object but the `.message` may just say "Edge Function returned a non-2xx status code". The actual error body (rate limit, timeout, etc.) is lost, so the user sees a generic "Failed to get AI response" toast.
 
-### 2. BUG: Session Auto-Save Uses Stale `pendingJobDescription`
+4. **System prompt bloat**: The full system prompt (with resume context and instructions) is sent as the first message on EVERY call. As the conversation grows, this wastes tokens and increases latency, eventually causing timeouts in longer interviews.
 
-In `InterviewPage.tsx` line 162-184, the auto-save `useEffect` references `pendingJobDescription` in its closure but does NOT include it in the dependency array. Furthermore, `handlePreviewReady` clears `pendingJobDescription` to `undefined` before the interview even starts, so by the time the summary arrives, the job description is always lost.
+## Plan
 
-**Fix:** Store the active job description in a ref that persists for the session lifetime, and use that in the auto-save effect. Also add the missing dependencies to the `useEffect`.
+### 1. Edge Function: Use `callAIWithRetry` + Add `maxTokens`
 
-### 3. BUG: Missing `useEffect` Dependencies
+**File: `supabase/functions/interview-chat/index.ts`**
 
-The auto-save `useEffect` (line 184) only depends on `[summary, sessionSaved]` but accesses `user`, `pendingJobDescription`, `transcript`, `elapsedSeconds`, and `saveSession`. This can cause stale closures.
+- Replace `callAI` with `callAIWithRetry` for both the main interview loop AND role analysis
+- Add `maxTokens: 1024` for regular interview turns (keeps responses focused and fast)
+- Add `maxTokens: 512` for role analysis (it only needs structured JSON)
+- Add `maxTokens: 1500` for end-of-interview summaries (needs more space)
 
-**Fix:** Add proper dependencies or use refs for values that should not re-trigger the effect.
+### 2. Edge Function: Improve System Prompt for Better Interviews
 
-### 4. ISSUE: `speechSupported` Always Returns `true`
+Upgrade the interview system prompt to produce higher-quality, more realistic interviews:
 
-In `useVoiceInterview.ts` line 251:
-```typescript
-const speechSupported = isWebSpeechSupported() || true; // always true
+- Add interviewer persona with name and style
+- Add structured STAR method guidance for behavioral questions
+- Add difficulty progression (start easy, increase)
+- Differentiate question types more clearly
+- Make feedback more actionable with specific improvement suggestions
+- For Quick Practice: explicitly track question count and auto-end after 5
+
+### 3. Client: Fix Error Surfacing
+
+**File: `src/hooks/useVoiceInterview.ts`**
+
+The `supabase.functions.invoke` error handling needs to extract the actual error message from the response body. When the function returns 4xx/5xx, the Supabase client puts the parsed body in `error.context` or `error.message` may be generic. Fix:
+
 ```
-The `|| true` makes this always `true`, so the "Microphone not supported" warning never shows. This was likely meant to be `|| scribe !== undefined` or similar.
+// Current (broken):
+if (fnError) throw fnError;
 
-**Fix:** Change to a meaningful check, e.g. `isWebSpeechSupported() || !!navigator.mediaDevices?.getUserMedia` so it only returns true when at least one STT path is actually available.
-
-### 5. ISSUE: Silence Timer Too Aggressive (1.5 seconds)
-
-`SILENCE_TIMEOUT_MS = 1500` means after 1.5 seconds of silence after a committed transcript, the user's turn auto-ends. This is very short -- users who pause to think will get cut off mid-answer.
-
-**Fix:** Increase to 3000ms (3 seconds) for a more natural conversation pace.
-
-### 6. ISSUE: Timer Keeps Running After Interview Ends
-
-In `endInterviewFn`, the timer is cleared, but `callAI(true)` is awaited after -- if the AI call fails, `setIsStarted(false)` still runs but the timer was already cleared. However, if the user navigates away during the AI call, the timer cleanup in the `useEffect` cleanup (line 262) only runs on unmount, not on `endInterview`. This is fine but could lead to a brief moment where the timer is running while "thinking" the summary.
-
-This is minor and the current code handles it acceptably.
-
-### 7. ISSUE: No Error Boundary Wrapping
-
-Per project guidelines, every main view should be wrapped in a React Error Boundary. The `InterviewPage` is a top-level route but has no Error Boundary wrapper.
-
-**Fix:** Wrap the `InterviewPage` export in an `<ErrorBoundary>` component.
-
-### 8. UX: Interview Type Not Saved Correctly for General/Quick Modes
-
-In the auto-save effect (line 175), `interview_type` is set as:
-```typescript
-interview_type: pendingJobDescription ? 'job-targeted' : 'general'
+// Fixed: extract actual message
+if (fnError) {
+  const msg = data?.error || data?.message || fnError.message || 'Interview request failed';
+  throw new Error(msg);
+}
 ```
-Quick practice sessions are never saved as `'quick-practice'` -- they are either saved as `'job-targeted'` (due to the `__QUICK_PRACTICE__` string) or `'general'`.
 
-**Fix:** Track the actual interview mode and pass it through to the save call.
+Note: When `supabase.functions.invoke` returns a non-2xx, `data` still contains the parsed response body (the error JSON), and `error` is an `FunctionsHttpError` with a generic message. So we need to check `data` first.
+
+### 4. Client: Add "Taking longer..." Toast
+
+If the AI call takes more than 8 seconds, show an informational toast so the user knows it's working. This prevents the "is it broken?" feeling.
+
+### 5. Edge Function: Upgrade Model for Role Analysis
+
+Use `google/gemini-2.5-pro` (stronger reasoning) for role analysis since it only happens once per session and quality matters. Keep `google/gemini-2.5-flash` for the conversational turns where speed matters.
 
 ---
 
@@ -71,34 +69,47 @@ Quick practice sessions are never saved as `'quick-practice'` -- they are either
 
 | File | Changes |
 |---|---|
-| `src/components/interview/InterviewSetup.tsx` | Remove `__QUICK_PRACTICE__` magic string; pass mode info cleanly via a new callback signature or separate argument |
-| `src/pages/InterviewPage.tsx` | Handle quick-practice mode properly (skip preview, pass quickPractice flag); fix auto-save to use a persistent ref for job description and interview type; add Error Boundary wrapper; fix `useEffect` dependencies |
-| `src/hooks/useVoiceInterview.ts` | Add `quickPractice` boolean support; send it in edge function body; fix `speechSupported` to not always be `true`; increase `SILENCE_TIMEOUT_MS` to 3000ms |
-| `supabase/functions/interview-chat/index.ts` | No changes needed -- it already supports `quickPractice` field |
-
----
+| `supabase/functions/interview-chat/index.ts` | Switch to `callAIWithRetry`; add `maxTokens`; upgrade system prompts for quality; use pro model for role analysis |
+| `src/hooks/useVoiceInterview.ts` | Fix error extraction from `supabase.functions.invoke`; add "taking longer" toast for slow responses |
 
 ## Technical Details
 
-### Quick Practice Fix Flow
+### Upgraded System Prompt (interview turns)
 
-```text
-InterviewSetup (mode='quick-practice')
-  --> onStart(undefined, { quickPractice: true })
+The new prompt will:
+- Give the AI a name ("Sarah" or "Michael" based on voice gender -- passed as a field)
+- Instruct it to follow STAR method for behavioral questions
+- Progress difficulty: Q1-2 easy warmup, Q3-5 medium, Q6+ challenging
+- Keep feedback to 2-3 sentences max before next question
+- Ensure the SCORE block is always present after user answers
 
-InterviewPage.handleSetupStart
-  --> if quickPractice: startInterview(undefined, true)
-  --> skip preview phase entirely
+### Error Extraction Pattern
 
-useVoiceInterview.startInterview(jobDescription?, quickPractice?)
-  --> quickPracticeRef.current = quickPractice
-  --> sends { quickPractice: true } in edge function body
+```typescript
+const { data, error: fnError } = await Promise.race([aiPromise, timeoutPromise]);
 
-interview-chat edge function
-  --> reads quickPractice from body (already implemented)
-  --> adds "Ask EXACTLY 5 questions" to system prompt
+if (fnError) {
+  // data may still contain the JSON error body even on non-2xx
+  const errorMessage = data?.error || data?.message || fnError?.message || 'Interview request failed';
+  throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Interview request failed');
+}
+if (data?.error) throw new Error(data.error);
 ```
 
-### Auto-Save Fix
+### Slow Response Toast
 
-Store `activeInterviewType` and `activeJobDescription` in refs set at interview start time, so they are available when the summary arrives regardless of state changes during the interview.
+```typescript
+const slowTimer = setTimeout(() => {
+  toast.info('Taking longer than usual...', {
+    description: 'Wise AI is thinking hard. Hang tight!',
+    duration: 3000,
+  });
+}, 8000);
+
+try {
+  // ... await AI call
+} finally {
+  clearTimeout(slowTimer);
+}
+```
+
