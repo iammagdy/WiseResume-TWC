@@ -9,6 +9,7 @@ export interface BugReportData {
   componentStack?: string;
   route: string;
   action?: string; // e.g. "saving resume", "generating AI content"
+  source?: 'shake' | 'error' | 'manual';
 }
 
 export type ErrorCategory = 'network' | 'ai' | 'save' | 'export' | 'auth' | 'general';

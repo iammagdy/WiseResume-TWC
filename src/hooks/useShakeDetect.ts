@@ -3,10 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { triggerBugReport } from '@/lib/bugReport';
 
-const THRESHOLD = 15;
-const SHAKE_COUNT = 3;
+const THRESHOLD = 25;
+const SHAKE_COUNT = 4;
 const SHAKE_WINDOW_MS = 1000;
-const COOLDOWN_MS = 3000;
+const COOLDOWN_MS = 5000;
 
 /**
  * Detects device shake via accelerometer and triggers the bug report dialog.
@@ -66,6 +66,7 @@ export function useShakeDetect(enabled: boolean) {
         triggerBugReport({
           errorMessage: 'Bug report via shake gesture',
           route: location.pathname,
+          source: 'shake',
         });
       }
     };
