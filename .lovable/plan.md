@@ -1,67 +1,59 @@
 
 
-# Interview Tool: Deep Fix and Power-Up
+# Fix Animations and Add Polished Transitions
 
-## Root Cause: "Not Replying"
+## Problems Identified
 
-The interview tool fails silently due to multiple compounding issues:
+1. **PageTransition component exists but is never imported or used by any page** -- it's dead code
+2. **AppShell renders routes without AnimatePresence** -- exit animations are impossible; pages just pop in/out
+3. **The `animate-fade-in` CSS class on the scroll container only fires once on initial mount**, not on each navigation -- so navigating between pages has zero visual feedback
+4. **BottomTabBar uses only basic CSS transitions** -- no sliding active indicator, no icon spring bounce, no visual delight when switching tabs
 
-1. **No retry/fallback**: The edge function uses `callAI()` (single attempt, 30s timeout) instead of `callAIWithRetry()` which has 3 attempts with escalating timeouts and a fallback model. If the first AI call times out or hits a transient 5xx, the interview just dies.
+## Solution
 
-2. **No maxTokens cap**: Without a token limit, the AI can generate very long responses that exceed the edge function execution time, causing a silent timeout.
+### 1. Add AnimatePresence-based Page Transitions to AppShell
 
-3. **Fragile error surfacing**: When `supabase.functions.invoke` receives a non-2xx HTTP response, the error details are in the `error` object but the `.message` may just say "Edge Function returned a non-2xx status code". The actual error body (rate limit, timeout, etc.) is lost, so the user sees a generic "Failed to get AI response" toast.
+**File: `src/components/layout/AppShell.tsx`**
 
-4. **System prompt bloat**: The full system prompt (with resume context and instructions) is sent as the first message on EVERY call. As the conversation grows, this wastes tokens and increases latency, eventually causing timeouts in longer interviews.
+Wrap the outlet in `AnimatePresence mode="wait"` keyed by `location.pathname`. Each page gets a `motion.div` wrapper with fade + subtle vertical slide (no horizontal slide -- it feels jarring on mobile).
 
-## Plan
+- Import `AnimatePresence` and `motion` from `framer-motion`
+- Replace raw `{currentOutlet}` with an `AnimatePresence` block
+- Key the inner `motion.div` by `location.pathname` so React treats each route as a unique element
+- Use `opacity` + `y` (8px) for a subtle, fast enter/exit (200ms) with an ease-out curve
+- The exit animation runs `opacity: 0, y: -8` so the old page fades up while the new one fades in from below
+- Scroll the container to top on route change via a `useEffect` on `location.pathname`
 
-### 1. Edge Function: Use `callAIWithRetry` + Add `maxTokens`
+### 2. Upgrade BottomTabBar with Framer Motion Animations
 
-**File: `supabase/functions/interview-chat/index.ts`**
+**File: `src/components/layout/BottomTabBar.tsx`**
 
-- Replace `callAI` with `callAIWithRetry` for both the main interview loop AND role analysis
-- Add `maxTokens: 1024` for regular interview turns (keeps responses focused and fast)
-- Add `maxTokens: 512` for role analysis (it only needs structured JSON)
-- Add `maxTokens: 1500` for end-of-interview summaries (needs more space)
+Add three visual enhancements:
 
-### 2. Edge Function: Improve System Prompt for Better Interviews
+**a) Sliding active pill indicator** using `motion.div` with `layoutId="tab-pill"`:
+- A shared layout animation that smoothly slides the active background pill from one tab to another
+- Uses `layout` transition with spring physics (`stiffness: 500, damping: 35`) for a snappy feel
+- Replaces the current static pill `div` which just fades in/out
 
-Upgrade the interview system prompt to produce higher-quality, more realistic interviews:
+**b) Icon bounce on selection** using `motion.div` with `animate`:
+- When a tab becomes active, the icon does a quick spring scale (1 -> 1.2 -> 1.0) using `useAnimation`
+- Inactive icons stay at scale 1 with no animation
+- Combined with the existing `haptics.selection()` for a multi-sensory feel
 
-- Add interviewer persona with name and style
-- Add structured STAR method guidance for behavioral questions
-- Add difficulty progression (start easy, increase)
-- Differentiate question types more clearly
-- Make feedback more actionable with specific improvement suggestions
-- For Quick Practice: explicitly track question count and auto-end after 5
+**c) Dot notification pulse**:
+- The "new updates" dot gets a subtle scale pulse animation via `motion.span` with `animate={{ scale: [1, 1.3, 1] }}`
 
-### 3. Client: Fix Error Surfacing
+### 3. Remove Dead Code
 
-**File: `src/hooks/useVoiceInterview.ts`**
+**File: `src/components/layout/PageTransition.tsx`**
 
-The `supabase.functions.invoke` error handling needs to extract the actual error message from the response body. When the function returns 4xx/5xx, the Supabase client puts the parsed body in `error.context` or `error.message` may be generic. Fix:
+Delete this file -- it is unused and the new transition system is built directly into AppShell.
 
-```
-// Current (broken):
-if (fnError) throw fnError;
+### 4. Add Reduced Motion Support
 
-// Fixed: extract actual message
-if (fnError) {
-  const msg = data?.error || data?.message || fnError.message || 'Interview request failed';
-  throw new Error(msg);
-}
-```
-
-Note: When `supabase.functions.invoke` returns a non-2xx, `data` still contains the parsed response body (the error JSON), and `error` is an `FunctionsHttpError` with a generic message. So we need to check `data` first.
-
-### 4. Client: Add "Taking longer..." Toast
-
-If the AI call takes more than 8 seconds, show an informational toast so the user knows it's working. This prevents the "is it broken?" feeling.
-
-### 5. Edge Function: Upgrade Model for Role Analysis
-
-Use `google/gemini-2.5-pro` (stronger reasoning) for role analysis since it only happens once per session and quality matters. Keep `google/gemini-2.5-flash` for the conversational turns where speed matters.
+All new animations will check `useReducedMotion()` from Framer Motion:
+- If the user prefers reduced motion, transitions use `opacity` only (no `y` movement) with 0ms duration
+- BottomTabBar pill slides instantly (no spring) and icon scale is disabled
 
 ---
 
@@ -69,47 +61,53 @@ Use `google/gemini-2.5-pro` (stronger reasoning) for role analysis since it only
 
 | File | Changes |
 |---|---|
-| `supabase/functions/interview-chat/index.ts` | Switch to `callAIWithRetry`; add `maxTokens`; upgrade system prompts for quality; use pro model for role analysis |
-| `src/hooks/useVoiceInterview.ts` | Fix error extraction from `supabase.functions.invoke`; add "taking longer" toast for slow responses |
+| `src/components/layout/AppShell.tsx` | Add AnimatePresence + motion.div for route transitions; scroll-to-top on navigate; reduced motion support |
+| `src/components/layout/BottomTabBar.tsx` | Add Framer Motion sliding pill (layoutId), icon bounce animation, notification dot pulse; reduced motion support |
+| `src/components/layout/PageTransition.tsx` | Delete (unused dead code) |
 
 ## Technical Details
 
-### Upgraded System Prompt (interview turns)
+### AppShell Transition Pattern
 
-The new prompt will:
-- Give the AI a name ("Sarah" or "Michael" based on voice gender -- passed as a field)
-- Instruct it to follow STAR method for behavioral questions
-- Progress difficulty: Q1-2 easy warmup, Q3-5 medium, Q6+ challenging
-- Keep feedback to 2-3 sentences max before next question
-- Ensure the SCORE block is always present after user answers
-
-### Error Extraction Pattern
-
-```typescript
-const { data, error: fnError } = await Promise.race([aiPromise, timeoutPromise]);
-
-if (fnError) {
-  // data may still contain the JSON error body even on non-2xx
-  const errorMessage = data?.error || data?.message || fnError?.message || 'Interview request failed';
-  throw new Error(typeof errorMessage === 'string' ? errorMessage : 'Interview request failed');
-}
-if (data?.error) throw new Error(data.error);
+```text
+<AnimatePresence mode="wait">
+  <motion.div
+    key={location.pathname}
+    initial={{ opacity: 0, y: 8 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -8 }}
+    transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+  >
+    {currentOutlet}
+  </motion.div>
+</AnimatePresence>
 ```
 
-### Slow Response Toast
+The `mode="wait"` ensures the exiting page finishes its animation before the entering page starts, preventing both pages from being visible simultaneously.
 
-```typescript
-const slowTimer = setTimeout(() => {
-  toast.info('Taking longer than usual...', {
-    description: 'Wise AI is thinking hard. Hang tight!',
-    duration: 3000,
-  });
-}, 8000);
+### BottomTabBar Sliding Pill
 
-try {
-  // ... await AI call
-} finally {
-  clearTimeout(slowTimer);
-}
+```text
+{active && (
+  <motion.div
+    layoutId="active-tab-pill"
+    className="absolute inset-x-3 top-1 bottom-1 rounded-2xl bg-primary/10 border border-primary/15"
+    transition={{ type: "spring", stiffness: 500, damping: 35 }}
+  />
+)}
 ```
 
+Framer Motion's `layoutId` automatically animates the pill's position from one tab button to another using the FLIP technique. The spring physics give it a natural, bouncy feel.
+
+### Icon Bounce on Tab Press
+
+```text
+<motion.div
+  animate={active ? { scale: [1, 1.2, 1] } : { scale: 1 }}
+  transition={active ? { duration: 0.3, ease: "easeOut" } : { duration: 0.15 }}
+>
+  <Icon ... />
+</motion.div>
+```
+
+The scale keyframes `[1, 1.2, 1]` create a quick "pop" effect when a tab is selected, making it feel responsive and alive.
