@@ -1,6 +1,7 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef } from 'react';
 import { BottomTabBar } from './BottomTabBar';
+import { DesktopNav } from './DesktopNav';
 import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
@@ -31,9 +32,14 @@ export function AppShell() {
         Skip to content
       </a>
       <OfflineBanner />
+      {/* Desktop horizontal nav — only on lg+ screens */}
+      {showBottomNav && <DesktopNav />}
       <main
         id="main-content"
-        className={cn("flex-1 flex flex-col min-h-0 overflow-hidden", showBottomNav && "pb-20")}
+        className={cn(
+          "flex-1 flex flex-col min-h-0 overflow-hidden",
+          showBottomNav && "pb-20 lg:pb-0"
+        )}
       >
         <div
           ref={scrollRef}
@@ -44,8 +50,10 @@ export function AppShell() {
           {currentOutlet}
         </div>
       </main>
-      {showBottomNav && <BottomTabBar />}
+      {/* Bottom tab bar — mobile/tablet only (hidden on lg+) */}
+      {showBottomNav && <BottomTabBar className="lg:hidden" />}
       <SyncConflictDialog />
     </div>
   );
 }
+
