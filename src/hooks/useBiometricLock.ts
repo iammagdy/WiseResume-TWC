@@ -45,8 +45,11 @@ export function useBiometricLock(enabled: boolean, lockTimeout: number = 30000):
       case BiometryType.TOUCH_ID:
       case BiometryType.FINGERPRINT:
         return 'fingerprint';
+      // Future-proof: newer Android strong biometry APIs
+      case BiometryType.IRIS_AUTHENTICATION:
+        return 'iris';
       default:
-        return 'none';
+        return 'fingerprint'; // Safe fallback for unknown strong biometry
     }
   };
 
@@ -75,7 +78,7 @@ export function useBiometricLock(enabled: boolean, lockTimeout: number = 30000):
     
     try {
       await NativeBiometric.verifyIdentity({
-        reason: 'Unlock WiseResume to access your resumes',
+        reason: 'Verify your identity to open WiseResume',
         title: 'Authenticate',
         subtitle: 'Use biometrics to unlock',
         description: 'Protect your sensitive resume data',
@@ -126,8 +129,9 @@ export function useBiometricLock(enabled: boolean, lockTimeout: number = 30000):
           // App returned to foreground
           const bgTime = backgroundTimeRef.current;
           if (bgTime) {
-            const timeInBackground = Date.now() - bgTime;
+          const timeInBackground = Date.now() - bgTime;
             if (lockTimeout === 0 || timeInBackground >= lockTimeout) {
+              setIsAuthenticating(false); // Reset if stuck during background scan
               setIsLocked(true);
               // Keep curtain on — authenticate() or unlock() will remove it
             } else {
