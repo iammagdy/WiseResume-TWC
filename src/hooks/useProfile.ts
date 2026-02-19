@@ -260,6 +260,10 @@ export function useProfile(userId: string | undefined, user?: User | null) {
       if (updates.availabilityHeadline !== undefined) dbUpdates.availability_headline = updates.availabilityHeadline;
       if (updates.portfolioExtras !== undefined) dbUpdates.portfolio_extras = updates.portfolioExtras;
       if (updates.portfolioSyncMode !== undefined) dbUpdates.portfolio_sync_mode = updates.portfolioSyncMode;
+      if (updates.loginStreak !== undefined) dbUpdates.login_streak = updates.loginStreak;
+      if (updates.lastLoginDate !== undefined) dbUpdates.last_login_date = updates.lastLoginDate;
+      if (updates.digestEnabled !== undefined) dbUpdates.digest_enabled = updates.digestEnabled;
+      if (updates.hiredAt !== undefined) dbUpdates.hired_at = updates.hiredAt;
 
       const { error } = await supabase
         .from('profiles')
