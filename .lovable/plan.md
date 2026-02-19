@@ -1,42 +1,70 @@
 
-# Add v2.2.0 Changelog Entry — Navigation & Mobile Experience Overhaul
+# ResumeDetailPage Navigation Audit — All Buttons Verified + Missing Actions Added
 
-## What We're Doing
+## Audit Results
 
-Adding a new `v2.2.0` entry to `public/changelog.json` that documents the three rounds of navigation fixes and mobile keyboard improvements we just shipped. The entry will be positioned as a **major quality-of-life release** that shows we listen and care deeply about the experience — even when the underlying changes are technical.
+Every button on `ResumeDetailPage` was traced line-by-line.
 
-The tone will be warm, customer-first, and results-focused. Every fix will be framed around what the user *feels*, not what we changed in code.
+### Buttons That Are Correct (No Changes Needed)
+
+| Button | Behavior | Store Loaded? | Verdict |
+|---|---|---|---|
+| Edit (sticky bar + actions) | `setCurrentResume` + `setCurrentResumeId` + `setSelectedTemplate` → `/editor` | Yes | Correct |
+| Preview | Same as Edit → `/preview` | Yes | Correct |
+| Download / PDF | Generates PDF inline using hidden off-screen template, no navigation | N/A | Correct |
+| Share | `createShare.mutate` → copies link to clipboard, no navigation | N/A | Correct |
+| Duplicate | `duplicateResume.mutate` → on success `/dashboard` | N/A | Correct |
+| Delete | `deleteResume.mutate` → on success `/dashboard` | N/A | Correct |
+| Improve Score | Opens `AIEnhanceSheet` inline — sheet's `onOpenChange(open=true)` sets all three store values | Yes (on open) | Correct |
+| Re-score | `clearCachedScore` + `scoreResume` inline, no navigation | N/A | Correct |
+| "View Original Resume" link | Navigates to `/resume/:parentId` — that page self-hydrates via `useResume(id)` | N/A | Correct |
+
+### The Real Problem — Tailor and Interview Are Completely Missing
+
+The user asked specifically about **Tailor** and **Interview** buttons. Neither exists anywhere on `ResumeDetailPage`. Both are available from `ResumeListCard`'s actions sheet on the Dashboard, but a user who lands on the Resume Detail page has no way to:
+
+- Launch the **AI Tailor** flow (opens `TailorSheet` or navigates to `/editor?openTailor=1`)
+- Start a **Practice Interview** session for this specific resume
+
+This is a **missing feature gap**, not a broken navigation — the buttons simply aren't there at all.
 
 ---
 
-## New Entry — `v2.2.0` (dated 2026-02-19)
+## What We'll Fix
 
-The old `v2.1.0` entry will have `"latest": true` removed (set to `false`), and the new entry will carry `"latest": true`.
+Add two new actions to the "More Actions" grid on `ResumeDetailPage`:
 
-### Items to include (framed as customer wins):
+### 1. Tailor Action
+- Label: "Tailor"
+- Icon: `GitBranch`
+- Behavior: Load resume into store (`setCurrentResume`, `setCurrentResumeId`, `setSelectedTemplate`), then navigate to `/editor?openTailor=1`
+- This mirrors what `ResumeListCard`'s actions sheet does for its "Tailor" flow
 
-| What actually changed | How we'll present it |
-|---|---|
-| Dashboard "Edit" button went to read-only detail page | "One tap to edit — we removed the extra step that was getting in your way" |
-| ATS "Improve" button didn't load the right resume | "ATS Improve now always opens YOUR resume, never a blank slate" |
-| All 4 QuickAction cards sent everyone to login regardless of auth | "Every shortcut card now takes you exactly where it says — no more wrong turns" |
-| Bottom tab Editor button went to detail, not editor | "The Editor tab now opens your resume editor instantly — no detours" |
-| Template "Use This" with no resume silently broke | "Applying a template now guides you through the right steps if you don't have a resume yet" |
-| Sign Out went to login page instead of home | "Signing out returns you to the home screen, where you belong" |
-| Mobile keyboards: phone shows numpad, URL shows URL keyboard, etc. | "Your keyboard now matches what you're typing — numeric for phone, URL for links, email for addresses" |
-| Textarea/Input spellcheck & autocomplete fixes | "Word suggestions and autocorrect now work everywhere you type in the app" |
+### 2. Interview Action
+- Label: "Interview"
+- Icon: `Mic`
+- Behavior: Load resume into store (`setCurrentResume`, `setCurrentResumeId`), then navigate to `/interview`
+- This exactly mirrors the `handleInterview` pattern from `DashboardPage` (lines 248–256)
 
-### Summary line for the release:
-> "We went through every button, every form, and every tap in WiseResume and fixed what wasn't working the way it should. This release is for everyone who noticed something felt slightly off — we heard you."
+### Updated "More Actions" Grid
+
+The current grid shows: Share, Duplicate, Delete
+
+After the fix it will show: **Tailor, Interview, Share, Duplicate, Delete** — a 2+3 layout (or 3+2 depending on grid config).
 
 ---
 
-## Technical Change
+## Technical Details
 
-**Only one file changes:** `public/changelog.json`
+**File changed:** `src/pages/ResumeDetailPage.tsx` only
 
-- Set `v2.1.0`'s `"latest": true` → `"latest": false`
-- Insert new `v2.2.0` object at position `[0]` (top of array) with `"latest": true`
-- Date: `"2026-02-19"`
+Changes:
+1. Add `Mic` to the lucide-react import (already has `GitBranch`)
+2. Add `handleTailor` function that sets store and navigates to `/editor?openTailor=1`
+3. Add `handleInterview` function that sets store and navigates to `/interview`
+4. Add both to the `actions` array so they appear in the "More Actions" grid
+5. Update the grid filter to include the new actions (currently filters `['Edit', 'Preview', 'Download']` — the new ones will pass through automatically)
 
-No code changes, no database changes, no edge functions — just the JSON file that the changelog dialog and badge system reads at runtime.
+No new imports needed beyond `Mic` from lucide-react. No database changes. No edge functions.
+
+The `Mic` icon import is the only new addition — `GitBranch` is already imported at line 4.
