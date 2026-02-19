@@ -1,65 +1,64 @@
 
 
-# Parallax Scroll Effect for Hero Section Background
+# Add Star Twinkle Animation to SpaceBackground
 
 ## What Changes
 
-The hero section background will gain a multi-layered parallax depth effect: as you scroll down, different background layers (gradients, nebula glows) move at different speeds, creating an illusion of depth -- closer layers scroll faster, distant layers scroll slower.
-
-## Approach
-
-Use framer-motion's `useScroll` and `useTransform` hooks to track the page scroll position and apply different `translateY` offsets to each background layer in `SpaceBackground`. The content stays at normal scroll speed while background layers drift at slower rates.
+The component already generates 25 stars with positions, sizes, opacity, and delay values -- but never renders them. We'll add a star layer that displays these as tiny glowing dots with a CSS `twinkle` keyframe animation, creating a subtle shimmer effect across the space background.
 
 ## What You'll See
 
-- The deep space gradient barely moves (farthest layer)
-- The nebula glow drifts slightly as you scroll (mid layer)
-- A new set of subtle floating orbs move at a faster parallax rate (near layer)
-- The hero content scrolls normally, creating a sense of depth between foreground and background
+Small dots scattered across the dark background that gently pulse in and out (opacity + slight scale change) at staggered intervals, giving a realistic starfield feel.
 
 ## Technical Details
 
 ### File: `src/components/landing/SpaceBackground.tsx`
 
-**1. Add framer-motion imports and scroll tracking**
+**1. Add a star field layer between the floating orbs and the content (after line 90)**
 
-Import `motion`, `useScroll`, and `useTransform` from framer-motion. Set up scroll progress tracking on the outer container using `useRef`.
+Insert a new `<div>` layer that maps over the pre-generated `stars` array and renders each as a small, absolutely-positioned circle with the CSS `twinkle` animation applied:
 
-**2. Create parallax transform values**
-
-Map `scrollYProgress` (0 to 1) to different Y offsets for each layer:
-- Deep space gradient: `useTransform(scrollYProgress, [0, 1], ['0%', '-5%'])` -- barely moves
-- Nebula overlay: `useTransform(scrollYProgress, [0, 1], ['0%', '-15%'])` -- drifts moderately  
-- New floating orbs layer: `useTransform(scrollYProgress, [0, 1], ['0%', '-25%'])` -- moves more noticeably
-
-**3. Add a new "floating orbs" layer**
-
-Add 3-4 large, soft radial gradient circles (using `motion.div`) positioned at different spots. These use the fastest parallax rate and add visual richness. They will be subtle (low opacity, large blur) so they feel atmospheric, not distracting.
-
-**4. Convert static divs to motion.div**
-
-Replace the existing gradient and nebula `<div>` elements with `<motion.div>` and apply the corresponding `style={{ y: parallaxValue }}` to each.
-
-**5. Respect reduced motion**
-
-Use `useReducedMotion()` to skip all parallax transforms when the user prefers reduced motion -- layers stay static in that case.
-
-### No changes to:
-- `Index.tsx` or any other page
-- Hero section content or animations
-- Any other components
-- Existing nebula colors or gradients (preserved exactly)
-
-### Stacking order (back to front):
-
-```text
-Layer 0: Deep space gradient     -- translateY up to -5%  (barely moves)
-Layer 1: Nebula radial gradients -- translateY up to -15% (moderate drift)
-Layer 2: Floating orbs (new)     -- translateY up to -25% (noticeable drift)
-Layer 3: Content (children)      -- normal scroll (no parallax)
+```tsx
+{/* Layer 3: Twinkling stars */}
+<div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+  {stars.map((star) => (
+    <div
+      key={star.id}
+      className="absolute rounded-full bg-white/80"
+      style={{
+        left: `${star.x}%`,
+        top: `${star.y}%`,
+        width: star.size,
+        height: star.size,
+        opacity: star.opacity,
+        animation: prefersReducedMotion
+          ? 'none'
+          : `twinkle ${3 + star.delay}s ease-in-out ${star.delay}s infinite`,
+      }}
+    />
+  ))}
+</div>
 ```
+
+**2. Add CSS keyframes via an inline `<style>` tag (before closing `</div>`)**
+
+```tsx
+<style>{`
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 0.9; transform: scale(1.4); }
+  }
+`}</style>
+```
+
+This matches the pattern already used in `HomeBackground.tsx`.
+
+**3. No other changes**
+- Parallax layers remain untouched
+- Star generation logic already exists and is reused as-is
+- Reduced motion users see static dots (no animation)
 
 | File | Change |
 |---|---|
-| `SpaceBackground.tsx` | Add framer-motion parallax transforms to background layers, add floating orbs layer |
+| `SpaceBackground.tsx` | Render star elements with CSS twinkle keyframe animation, add inline style tag |
 
