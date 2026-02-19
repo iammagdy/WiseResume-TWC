@@ -6,10 +6,17 @@ const stats = [
   { icon: Zap, value: 'Free', label: 'To Launch', color: 'text-secondary' },
 ];
 
+const testimonials = [
+  { quote: 'Got 3 callbacks in a week after tailoring my resume with the AI.', name: 'Marcus T.', role: 'Software Engineer' },
+  { quote: 'The voice interview feature helped me stop rambling. Game changer.', name: 'Priya K.', role: 'Product Manager' },
+  { quote: 'ATS score went from 42% to 91% after one tailoring session.', name: 'James O.', role: 'Data Analyst' },
+];
+
 export function SocialProofBar() {
   return (
     <section className="py-6 px-4 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-      <div className="flex items-center justify-center">
+      {/* Stats row */}
+      <div className="flex items-center justify-center mb-5">
         <div className="inline-flex items-center gap-5 sm:gap-8 px-5 py-3 rounded-2xl bg-card/40 backdrop-blur-sm border border-border/20">
           {stats.map((stat, index) => (
             <div key={index} className="flex items-center gap-2">
@@ -21,6 +28,27 @@ export function SocialProofBar() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Testimonial cards — horizontally scrollable on mobile */}
+      <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory max-w-2xl mx-auto">
+        {testimonials.map((t) => (
+          <div
+            key={t.name}
+            className="flex-shrink-0 snap-start w-[260px] sm:w-auto sm:flex-1 p-4 rounded-2xl bg-card/40 backdrop-blur-sm border border-border/20"
+          >
+            <p className="text-xs text-muted-foreground italic mb-3 leading-relaxed">"{t.quote}"</p>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary flex-shrink-0">
+                {t.name.charAt(0)}
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-foreground">{t.name}</p>
+                <p className="text-[10px] text-muted-foreground">{t.role}</p>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );

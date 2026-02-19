@@ -20,10 +20,10 @@ export function WhyWiseResume() {
 
         <div className="grid grid-cols-2 gap-3">
           {[
-            { icon: <Users className="w-5 h-5 text-rose-500" />, title: '4 AI Recruiters', description: 'Get feedback from different perspectives', gradient: 'from-rose-500/20 to-rose-500/5' },
-            { icon: <Mic className="w-5 h-5 text-orange-500" />, title: 'Voice Interview', description: 'Practice with real-time AI coaching', gradient: 'from-orange-500/20 to-orange-500/5' },
-            { icon: <FileCheck className="w-5 h-5 text-emerald-500" />, title: 'ATS Optimized', description: 'Pass automated screening systems', gradient: 'from-emerald-500/20 to-emerald-500/5' },
-            { icon: <LayoutGrid className="w-5 h-5 text-blue-500" />, title: '12 Templates', description: 'Professional designs for any role', gradient: 'from-blue-500/20 to-blue-500/5' },
+            { icon: <Users className="w-5 h-5 text-rose-500" />, title: '4 AI Recruiter Personas', description: 'Fortune 500, Startup, Tech & Executive all review your resume', gradient: 'from-rose-500/20 to-rose-500/5' },
+            { icon: <Mic className="w-5 h-5 text-orange-500" />, title: 'Real Voice Coach', description: 'Speak out loud — AI listens, evaluates, and coaches you live', gradient: 'from-orange-500/20 to-orange-500/5' },
+            { icon: <FileCheck className="w-5 h-5 text-emerald-500" />, title: 'Beat the ATS Filter', description: 'See your exact match score, then AI fixes every gap instantly', gradient: 'from-emerald-500/20 to-emerald-500/5' },
+            { icon: <LayoutGrid className="w-5 h-5 text-blue-500" />, title: '12 Pro Templates', description: 'Polished designs built to impress across every industry', gradient: 'from-blue-500/20 to-blue-500/5' },
           ].map((feature, i) => (
             <div key={feature.title} className="animate-fade-in-up" style={{ animationDelay: `${0.15 + i * 0.05}s` }}>
               <FeatureCard {...feature} />
@@ -44,7 +44,7 @@ function BulletTransformCard() {
         </div>
         <div>
           <h3 className="font-semibold text-sm">AI Bullet Transformation</h3>
-          <p className="text-xs text-muted-foreground">From vague to impactful</p>
+          <p className="text-xs text-muted-foreground">From vague to impactful in one tap</p>
         </div>
       </div>
       
