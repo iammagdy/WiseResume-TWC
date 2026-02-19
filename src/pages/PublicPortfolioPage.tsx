@@ -19,6 +19,34 @@ import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 
+// ─── useActiveStatus — polls last_active_at every 60s ─────────────────────────
+function isActiveWithin24h(lastActiveAt: string | null): boolean {
+  if (!lastActiveAt) return false;
+  return Date.now() - new Date(lastActiveAt).getTime() < 24 * 60 * 60 * 1000;
+}
+
+function useActiveStatus(username: string, initialLastActiveAt: string | null): string | null {
+  const [lastActiveAt, setLastActiveAt] = useState(initialLastActiveAt);
+  useEffect(() => {
+    setLastActiveAt(initialLastActiveAt);
+  }, [initialLastActiveAt]);
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('last_active_at')
+        .eq('username', username)
+        .eq('portfolio_enabled', true)
+        .maybeSingle();
+      if (data?.last_active_at) {
+        setLastActiveAt(data.last_active_at as string);
+      }
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [username]);
+  return lastActiveAt;
+}
+
 // ─── Motion variants ───────────────────────────────────────────────────────────
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -767,6 +795,12 @@ function PublicPortfolioContent() {
   const [stickyVisible, setStickyVisible] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
+  // Live active status — polls every 60s
+  const liveLastActiveAt = useActiveStatus(
+    username || '',
+    portfolio?.profile?.lastActiveAt ?? null,
+  );
+
   // Track visited sections via IntersectionObserver
   const sectionsViewedRef = useRef<Set<string>>(new Set());
   const mountTimeRef = useRef<number>(Date.now());
@@ -1097,7 +1131,28 @@ function PublicPortfolioContent() {
             )}
           </div>
 
-          {/* Location + Industry */}
+          {/* Active today badge — only when openToWork + active within 24h */}
+          {profile.openToWork && isActiveWithin24h(liveLastActiveAt) && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3"
+              style={{
+                background: 'rgba(34,197,94,0.10)',
+                color: '#22c55e',
+                border: '1px solid rgba(34,197,94,0.25)',
+              }}
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22c55e]" />
+              </span>
+              Active today — responds within 24h
+            </motion.div>
+          )}
+
+
           <div className="flex items-center justify-center gap-3 mb-3 flex-wrap">
             {profile.location && (
               <span className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
