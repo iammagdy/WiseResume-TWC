@@ -83,13 +83,24 @@ export function useResumeShareMutations() {
     }) => {
       if (!user) throw new Error('Not authenticated');
       const token = generateToken();
+
+      // Hash password server-side before storing
+      let hashedPassword: string | null = null;
+      if (input.password) {
+        const { data: hashed, error: hashError } = await supabase.rpc('hash_share_password', {
+          raw_password: input.password,
+        });
+        if (hashError) throw hashError;
+        hashedPassword = hashed as string;
+      }
+
       const { data, error } = await supabase
         .from('resume_shares')
         .insert({
           resume_id: input.resumeId,
           user_id: user.id,
           token,
-          password: input.password || null,
+          password: hashedPassword,
           expires_at: input.expires_at || null,
         })
         .select()
@@ -107,9 +118,20 @@ export function useResumeShareMutations() {
   const updateShare = useMutation({
     mutationFn: async ({ id, ...updates }: Partial<ResumeShare> & { id: string }) => {
       if (!user) throw new Error('Not authenticated');
+
+      // Hash password if being updated
+      const dbUpdates = { ...updates } as Record<string, unknown>;
+      if (typeof updates.password === 'string' && updates.password) {
+        const { data: hashed, error: hashError } = await supabase.rpc('hash_share_password', {
+          raw_password: updates.password,
+        });
+        if (hashError) throw hashError;
+        dbUpdates.password = hashed;
+      }
+
       const { data, error } = await supabase
         .from('resume_shares')
-        .update(updates)
+        .update(dbUpdates)
         .eq('id', id)
         .select()
         .single();
