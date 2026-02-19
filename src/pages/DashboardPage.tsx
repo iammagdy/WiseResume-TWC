@@ -221,7 +221,12 @@ export default function DashboardPage() {
 
   const handleEdit = (resumeId: string) => {
     haptics.light();
-    navigate(`/resume/${resumeId}`);
+    const resume = resumes?.find(r => r.id === resumeId);
+    if (resume) {
+      setCurrentResumeId(resumeId);
+      setCurrentResume(dbToResumeData(resume));
+      navigate('/editor');
+    }
   };
 
   const handleDuplicate = (resumeId: string) => {
@@ -544,7 +549,7 @@ export default function DashboardPage() {
                       onClick={async () => {
                         haptics.warning();
                         await supabase.auth.signOut();
-                        navigate('/auth');
+                        navigate('/');
                       }}
                     >
                       <LogOut className="w-4 h-4" />

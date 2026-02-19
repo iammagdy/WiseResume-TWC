@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle, Info } from 'lucide-react';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -29,9 +30,15 @@ export default function TemplatesPage() {
   const filtered = filter === 'all' ? templates : templates.filter(t => t.category === filter);
 
   const handleUseTemplate = (id: TemplateId) => {
+    const { currentResumeId } = useResumeStore.getState();
     setSelectedTemplate(id);
-    updateResume({ templateId: id });
-    navigate('/editor');
+    if (currentResumeId) {
+      updateResume({ templateId: id });
+      navigate('/editor');
+    } else {
+      navigate('/dashboard?action=create');
+      toast.info('Create a resume first, then apply this template from the editor.');
+    }
   };
 
   return (

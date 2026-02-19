@@ -315,6 +315,9 @@ export const ResumeListCard = memo(function ResumeListCard({
                     compact
                     onImprove={() => {
                       haptics.medium();
+                      const { setCurrentResume: setResume, setCurrentResumeId: setId } = useResumeStore.getState();
+                      setId(resume.id);
+                      setResume(dbToResumeData(resume));
                       navigateToEditor(`/editor?openTailor=1`);
                     }}
                   />
