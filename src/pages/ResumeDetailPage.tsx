@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -139,10 +139,25 @@ export default function ResumeDetailPage() {
     });
   };
 
+  const handleTailor = () => {
+    setCurrentResume(resumeData);
+    setCurrentResumeId(dbResume.id);
+    setSelectedTemplate(dbResume.template_id as TemplateId);
+    navigate('/editor?openTailor=1');
+  };
+
+  const handleInterview = () => {
+    setCurrentResume(resumeData);
+    setCurrentResumeId(dbResume.id);
+    navigate('/interview');
+  };
+
   const actions = [
     { icon: Edit2, label: 'Edit', onClick: handleEdit },
     { icon: Eye, label: 'Preview', onClick: handlePreview },
     { icon: Download, label: 'Download', onClick: handleDownload, loading: isDownloading },
+    { icon: GitBranch, label: 'Tailor', onClick: handleTailor },
+    { icon: Mic, label: 'Interview', onClick: handleInterview },
     { icon: Share2, label: 'Share', onClick: () => {
       createShare.mutate({ resumeId: dbResume.id }, {
         onSuccess: (data) => {
