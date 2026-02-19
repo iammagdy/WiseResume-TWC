@@ -89,10 +89,37 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         />
       </motion.div>
 
+      {/* Layer 3: Twinkling stars */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+        {stars.map((star) => (
+          <div
+            key={star.id}
+            className="absolute rounded-full bg-white/80"
+            style={{
+              left: `${star.x}%`,
+              top: `${star.y}%`,
+              width: star.size,
+              height: star.size,
+              opacity: star.opacity,
+              animation: prefersReducedMotion
+                ? 'none'
+                : `twinkle ${3 + star.delay}s ease-in-out ${star.delay}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+
       {/* Content */}
       <div className="relative z-10">
         {children}
       </div>
+
+      <style>{`
+        @keyframes twinkle {
+          0%, 100% { opacity: 0.3; transform: scale(1); }
+          50% { opacity: 0.9; transform: scale(1.4); }
+        }
+      `}</style>
     </div>
   );
 }
