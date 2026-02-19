@@ -40,6 +40,7 @@ export interface PublicProfile {
   portfolioFont: 'inter' | 'space-grotesk' | 'serif';
   openToWork: boolean;
   availabilityHeadline: string | null;
+  lastActiveAt: string | null;
   // Portfolio extras
   caseStudies: CaseStudy[];
   services: PortfolioService[];
@@ -111,6 +112,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       portfolioFont: ((profile.portfolioFont as string) || 'inter') as 'inter' | 'space-grotesk' | 'serif',
       openToWork: (profile.openToWork as boolean) || false,
       availabilityHeadline: (profile.availabilityHeadline as string) || null,
+      lastActiveAt: (profile.lastActiveAt as string) || null,
       caseStudies: (extras.caseStudies as CaseStudy[]) || [],
       services: (extras.services as PortfolioService[]) || [],
       portfolioSyncMode: ((profile.portfolioSyncMode as string) || 'auto') as 'auto' | 'locked',

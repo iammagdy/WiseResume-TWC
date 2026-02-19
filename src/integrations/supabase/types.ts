@@ -532,6 +532,7 @@ export type Database = {
           id: string
           industry: string | null
           job_title: string | null
+          last_active_at: string | null
           linkedin_url: string | null
           location: string | null
           onboarding_completed: boolean | null
@@ -569,6 +570,7 @@ export type Database = {
           id?: string
           industry?: string | null
           job_title?: string | null
+          last_active_at?: string | null
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null
@@ -606,6 +608,7 @@ export type Database = {
           id?: string
           industry?: string | null
           job_title?: string | null
+          last_active_at?: string | null
           linkedin_url?: string | null
           location?: string | null
           onboarding_completed?: boolean | null

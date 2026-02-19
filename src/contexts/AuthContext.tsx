@@ -63,6 +63,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         wasAuthenticatedRef.current = true;
         userInitiatedSignOutRef.current = false;
         migrateLocalKeysToServer();
+        // Touch last_active_at — fire-and-forget, no UX impact if it fails
+        supabase
+          .from('profiles')
+          .update({ last_active_at: new Date().toISOString() })
+          .eq('user_id', user.id)
+          .then(() => {});
       }
       setState(prev => {
         if (prev.user?.id === user?.id && !prev.loading) {
