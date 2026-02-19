@@ -15,6 +15,7 @@ import { useVoiceInterview } from '@/hooks/useVoiceInterview';
 import { useSaveInterviewSession } from '@/hooks/useInterviewHistory';
 import { useResumeStore, useResumeStoreHydration } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
@@ -24,7 +25,7 @@ import { haptics } from '@/lib/haptics';
 
 type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
 
-export default function InterviewPage() {
+function InterviewPageContent() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentResume } = useResumeStore();
@@ -36,6 +37,8 @@ export default function InterviewPage() {
   const [showHistory, setShowHistory] = useState(false);
   const [showTips, setShowTips] = useState(false);
   const [sessionSaved, setSessionSaved] = useState(false);
+  const activeJobDescriptionRef = useRef<string | undefined>();
+  const activeInterviewTypeRef = useRef<string>('general');
   const saveSession = useSaveInterviewSession();
 
   // Resume guard - require a resume for interview practice (only after hydration)
@@ -116,13 +119,22 @@ export default function InterviewPage() {
     }
   }, [countdown]);
 
-  const handleSetupStart = useCallback((jobDescription?: string) => {
-    if (jobDescription) {
+  const handleSetupStart = useCallback((jobDescription?: string, options?: { quickPractice?: boolean }) => {
+    if (options?.quickPractice) {
+      // Quick practice — skip preview, start directly with quickPractice flag
+      activeInterviewTypeRef.current = 'quick-practice';
+      activeJobDescriptionRef.current = undefined;
+      startInterview(undefined, true);
+    } else if (jobDescription) {
       // Go to preview phase for job-targeted interviews
+      activeInterviewTypeRef.current = 'job-targeted';
+      activeJobDescriptionRef.current = jobDescription;
       setPendingJobDescription(jobDescription);
       analyzeRole(jobDescription);
     } else {
       // General interview — skip preview, start directly
+      activeInterviewTypeRef.current = 'general';
+      activeJobDescriptionRef.current = undefined;
       startInterview();
     }
   }, [analyzeRole, startInterview]);
@@ -172,8 +184,8 @@ export default function InterviewPage() {
       const improvements = improvementsMatch ? improvementsMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim()) : [];
 
       saveSession.mutate({
-        interview_type: pendingJobDescription ? 'job-targeted' : 'general',
-        job_description: pendingJobDescription,
+        interview_type: activeInterviewTypeRef.current,
+        job_description: activeJobDescriptionRef.current,
         messages: transcript as any,
         overall_score: overallScore,
         strengths,
@@ -181,7 +193,7 @@ export default function InterviewPage() {
         duration_seconds: elapsedSeconds,
       });
     }
-  }, [summary, sessionSaved]);
+  }, [summary, sessionSaved, user, transcript, elapsedSeconds, saveSession]);
 
   // Show loading while store hydrates
   if (!hydrated) {
@@ -422,5 +434,13 @@ export default function InterviewPage() {
       {/* Per-answer score sheet */}
       <AnswerScoreSheet score={latestScore} onDismiss={dismissScore} />
     </div>
+  );
+}
+
+export default function InterviewPage() {
+  return (
+    <ErrorBoundary>
+      <InterviewPageContent />
+    </ErrorBoundary>
   );
 }
