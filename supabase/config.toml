@@ -86,3 +86,15 @@ verify_jwt = false
 
 [functions.validate-api-key]
 verify_jwt = false
+
+[functions.ask-portfolio]
+verify_jwt = false
+
+[functions.og-image]
+verify_jwt = false
+
+[functions.portfolio-meta]
+verify_jwt = false
+
+[functions.resolve-short-link]
+verify_jwt = false
