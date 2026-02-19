@@ -16,7 +16,7 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-in fade-in-0 duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 animate-in fade-in-0 duration-200">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-background/80 backdrop-blur-sm"
@@ -28,13 +28,13 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
         {/* Gradient accent */}
         <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-primary" />
 
-        <div className="p-6 pt-8">
+        <div className="p-5 pt-6">
           {/* Header */}
-          <div className="text-center mb-6">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Sparkles className="w-8 h-8 text-primary" />
+          <div className="text-center mb-3">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-3">
+              <Sparkles className="w-6 h-6 text-primary" />
             </div>
-            <h2 className="font-display font-bold text-xl mb-2">
+            <h2 className="font-display font-bold text-xl mb-1">
               Meet Your AI Assistant
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -42,41 +42,32 @@ export function AIIntroTooltip({ show, onDismiss }: AIIntroTooltipProps) {
             </p>
           </div>
 
-          {/* Features list */}
-          <div className="space-y-3 mb-6">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Target className="w-5 h-5 text-primary" />
+          {/* Features list - compact, no descriptions */}
+          <div className="space-y-2 mb-3">
+            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/50">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Target className="w-4 h-4 text-primary" />
               </div>
-              <div>
-                <p className="text-sm font-medium">Tailor for any job</p>
-                <p className="text-xs text-muted-foreground">Optimize your resume for specific roles</p>
-              </div>
+              <p className="text-sm font-medium">Tailor for any job</p>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-              <div className="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
-                <BarChart3 className="w-5 h-5 text-secondary" />
+            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/50">
+              <div className="w-8 h-8 rounded-lg bg-secondary/10 flex items-center justify-center shrink-0">
+                <BarChart3 className="w-4 h-4 text-secondary" />
               </div>
-              <div>
-                <p className="text-sm font-medium">Score your match</p>
-                <p className="text-xs text-muted-foreground">See how well you fit the job</p>
-              </div>
+              <p className="text-sm font-medium">Score your match</p>
             </div>
 
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
-              <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center shrink-0">
-                <Wand2 className="w-5 h-5 text-accent-foreground" />
+            <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/50">
+              <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center shrink-0">
+                <Wand2 className="w-4 h-4 text-accent-foreground" />
               </div>
-              <div>
-                <p className="text-sm font-medium">Improve sections</p>
-                <p className="text-xs text-muted-foreground">Enhance each part with AI suggestions</p>
-              </div>
+              <p className="text-sm font-medium">Improve sections</p>
             </div>
           </div>
 
           {/* Hint */}
-          <p className="text-xs text-center text-muted-foreground mb-4">
+          <p className="text-xs text-center text-muted-foreground mb-3">
             Look for the <span className="text-primary font-medium">✨ AI</span> buttons in each section!
           </p>
 

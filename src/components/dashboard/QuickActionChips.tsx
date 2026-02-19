@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Upload, FileText, Mic, Mail } from 'lucide-react';
+import { Upload, FileText, Mic } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -22,12 +22,6 @@ const actions = [
     iconColor: 'text-secondary',
   },
   {
-    icon: Mail,
-    label: 'Cover Letter',
-    action: 'cover-letters',
-    iconColor: 'text-accent',
-  },
-  {
     icon: Mic,
     label: 'Interview',
     action: 'interview',
@@ -47,9 +41,6 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
       case 'upload':
         navigate('/upload');
         break;
-      case 'cover-letters':
-        navigate('/cover-letters');
-        break;
       case 'interview':
         navigate('/interview');
         break;
@@ -57,7 +48,7 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
   };
 
   return (
-    <div className="px-4 pb-3">
+    <div className="px-4 pb-2">
       <div className="flex gap-2">
         {actions.map((item, i) => (
           <motion.button
@@ -68,16 +59,14 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
             transition={{ delay: 0.2 + i * 0.06 }}
             onClick={() => handleAction(item.action)}
             className={cn(
-              'flex-1 flex flex-col items-center gap-2 py-3 rounded-2xl',
+              'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full',
               'glass-surface border-glow',
               'touch-manipulation active:scale-95 transition-transform',
-              'min-h-[72px]'
+              'min-h-[44px]'
             )}
             whileTap={{ scale: 0.93 }}
           >
-            <div className="w-11 h-11 rounded-xl glass-elevated flex items-center justify-center">
-              <item.icon className={cn('w-5 h-5', item.iconColor)} />
-            </div>
+            <item.icon className={cn('w-4 h-4', item.iconColor)} />
             <span className="text-xs font-medium text-foreground">{item.label}</span>
           </motion.button>
         ))}
