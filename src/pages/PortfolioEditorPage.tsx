@@ -1,11 +1,12 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
   CheckCircle2, XCircle, Search, Palette, Layout, Type, Zap, ChevronDown,
-  User, Link2, Eye, QrCode, Download, Share2, X, Plus, Briefcase, Star
+  User, Link2, Eye, QrCode, Download, Share2, X, Plus, Briefcase, Star,
+  ArrowRight, BarChart2
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,8 @@ import { useResumes } from '@/hooks/useResumes';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { computeSkillFrequencies, getSkillTier, TIER_STYLES } from '@/lib/skillCloud';
+import type { Experience, Project } from '@/types/resume';
 
 interface PortfolioSections {
   experience: boolean;
@@ -217,6 +220,7 @@ export default function PortfolioEditorPage() {
   const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
   const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
+  const [showAllSkills, setShowAllSkills] = useState(false);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -293,6 +297,22 @@ export default function PortfolioEditorPage() {
     }, 500);
     return () => { if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current); };
   }, [username, usernameError, user, profile?.username]);
+
+  // ── Skill Frequency Scores (must be before early return) ──────────────────
+  const _selectedResumeForSkills = resumes.find(r => r.id === selectedResumeId) || resumes[0];
+  const skillScores = useMemo(() => {
+    const skills = (_selectedResumeForSkills?.skills ?? []) as string[];
+    const experience = (_selectedResumeForSkills?.experience ?? []) as Experience[];
+    const projects = (_selectedResumeForSkills?.projects ?? []) as Project[];
+    if (!skills.length) return {};
+    return computeSkillFrequencies(skills, experience, projects);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [_selectedResumeForSkills]);
+
+  const sortedSkillScores = useMemo(
+    () => Object.entries(skillScores).sort(([, a], [, b]) => b - a),
+    [skillScores]
+  );
 
   if (!user) return null;
 
@@ -503,6 +523,10 @@ export default function PortfolioEditorPage() {
   const strengthColor = strengthScore < 40 ? 'bg-destructive' : strengthScore < 70 ? 'bg-yellow-500' : 'bg-green-500';
   const strengthLabel = strengthScore < 40 ? 'Needs work' : strengthScore < 70 ? 'Good' : 'Strong';
 
+  const maxScore = sortedSkillScores[0]?.[1] ?? 1;
+  const strongSkillCount = sortedSkillScores.filter(([, s]) => s >= 2).length;
+  const dimSkillCount = sortedSkillScores.filter(([, s]) => s === 0).length;
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
@@ -669,6 +693,83 @@ export default function PortfolioEditorPage() {
             </div>
           )}
         </CollapsibleCard>
+
+        {/* ── Skills Visibility (collapsible) ───────────────────────────── */}
+        {sortedSkillScores.length > 0 && (
+          <CollapsibleCard
+            id="skill-cloud"
+            icon={<BarChart2 className="w-4 h-4" />}
+            title="Skills Visibility"
+            hint={
+              <span className="text-[10px] text-muted-foreground">
+                <span className="text-emerald-400 font-medium">{strongSkillCount} strong</span>
+                {dimSkillCount > 0 && <> · <span className="text-muted-foreground/60">{dimSkillCount} dim</span></>}
+              </span>
+            }
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <p className="text-xs text-muted-foreground mb-2">
+              How often each skill appears in your experience &amp; projects — higher scores show larger in your public Skills cloud.
+            </p>
+
+            {/* Skill score rows */}
+            <div className="space-y-0.5">
+              {sortedSkillScores.slice(0, showAllSkills ? 999 : 20).map(([skill, score]) => {
+                const { tier } = getSkillTier(score);
+                const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                return (
+                  <div key={skill} className="flex items-center gap-2 py-1.5">
+                    <span className="text-sm text-foreground truncate flex-1 min-w-0">{skill}</span>
+                    <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-300"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground w-16 text-right shrink-0">
+                      {score > 0 ? `${score} mention${score !== 1 ? 's' : ''}` : 'not found'}
+                    </span>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${TIER_STYLES[tier]}`}>
+                      {tier.toUpperCase()}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Show all toggle */}
+            {sortedSkillScores.length > 20 && (
+              <button
+                className="mt-1 text-xs text-primary underline-offset-2 hover:underline active:scale-95 transition-transform"
+                onClick={() => { haptics.light(); setShowAllSkills(v => !v); }}
+              >
+                {showAllSkills ? 'Show less' : `Show all ${sortedSkillScores.length} skills`}
+              </button>
+            )}
+
+            {/* Improvement hint */}
+            {dimSkillCount > 0 && (
+              <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 space-y-1.5">
+                <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <span>💡</span>
+                  {dimSkillCount} skill{dimSkillCount !== 1 ? 's' : ''} not found in your experience
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Mention them in job descriptions or projects to make them appear larger in your public Skills word cloud.
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs text-primary px-2 gap-1 active:scale-95"
+                  onClick={() => { haptics.light(); navigate('/editor'); }}
+                >
+                  Go to Resume Editor <ArrowRight className="w-3 h-3" />
+                </Button>
+              </div>
+            )}
+          </CollapsibleCard>
+        )}
 
         {/* ── Visual Theme (collapsible) ────────────────────────────────── */}
         <CollapsibleCard

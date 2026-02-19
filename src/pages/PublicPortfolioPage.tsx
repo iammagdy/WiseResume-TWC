@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { computeSkillFrequencies, getSkillTier } from '@/lib/skillCloud';
 import type { Experience, Education, Project } from '@/types/resume';
 import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
@@ -782,40 +783,7 @@ function StickyHeader({
   );
 }
 
-// ─── Skill Cloud Helpers ──────────────────────────────────────────────────────
-function computeSkillFrequencies(
-  skills: string[],
-  experience: Experience[],
-  projects: Project[]
-): Record<string, number> {
-  const scores: Record<string, number> = {};
-  for (const skill of skills) {
-    const lower = skill.toLowerCase();
-    let score = 0;
-    for (const exp of experience) {
-      const corpus = [
-        exp.description ?? '',
-        ...(exp.achievements ?? []),
-        ...((exp as Experience & { responsibilities?: string[] }).responsibilities ?? []),
-      ].join(' ').toLowerCase();
-      if (corpus.includes(lower)) score += 2;
-    }
-    for (const proj of projects) {
-      if (proj.technologies?.some((t: string) => t.toLowerCase() === lower)) score += 1;
-      if (proj.description?.toLowerCase().includes(lower)) score += 1;
-    }
-    scores[skill] = score;
-  }
-  return scores;
-}
-
-function getSkillTier(score: number): { fontSize: string; fontWeight: number; px: string; py: string; opacity: number } {
-  if (score >= 7) return { fontSize: '17px', fontWeight: 800, px: '20px', py: '10px', opacity: 1 };
-  if (score >= 4) return { fontSize: '15px', fontWeight: 700, px: '16px', py: '9px',  opacity: 1 };
-  if (score >= 2) return { fontSize: '13px', fontWeight: 600, px: '14px', py: '8px',  opacity: 0.85 };
-  if (score >= 1) return { fontSize: '12px', fontWeight: 500, px: '12px', py: '7px',  opacity: 0.70 };
-  return              { fontSize: '11px', fontWeight: 400, px: '10px', py: '6px',  opacity: 0.55 };
-}
+// ─── Skill Cloud Helpers (imported from @/lib/skillCloud) ────────────────────
 
 interface SkillCloudProps {
   skills: string[];
