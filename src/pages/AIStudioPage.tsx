@@ -18,6 +18,7 @@ import {
   FileSearch,
   ChevronDown,
   Send,
+  Building2,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
 
 // Lazy-loaded sheets
 const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
@@ -75,6 +77,7 @@ const secondaryTools = [
   { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', desc: 'Profile optimizer', color: 'text-blue-500' },
   { id: 'onepage', icon: FileText, label: '1-Page', desc: 'Condense resume', color: 'text-amber-500' },
   { id: 'recruiter', icon: UserCheck, label: 'Recruiter', desc: 'Simulate review', color: 'text-rose-500' },
+  { id: 'company-briefing', icon: Building2, label: 'Briefing', desc: 'Company research', color: 'text-teal-500' },
 ];
 
 export default function AIStudioPage() {
@@ -107,6 +110,7 @@ export default function AIStudioPage() {
   const [showProofread, setShowProofread] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
   const [showABCompare, setShowABCompare] = useState(false);
+  const [showCompanyBriefing, setShowCompanyBriefing] = useState(false);
   const [moreToolsOpen, setMoreToolsOpen] = useState(true);
   const [stickyInput, setStickyInput] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -132,6 +136,7 @@ export default function AIStudioPage() {
       'ideas': () => setShowContentLibrary(true),
       'customize': () => setShowCustomize(true),
       'chat': () => setShowChat(true),
+      'company-briefing': () => setShowCompanyBriefing(true),
     };
     toolMap[tool]?.();
     setSearchParams({}, { replace: true });
@@ -180,6 +185,7 @@ export default function AIStudioPage() {
         case 'linkedin': setShowLinkedIn(true); break;
         case 'onepage': setShowOnePage(true); break;
         case 'recruiter': setShowRecruiterSim(true); break;
+        case 'company-briefing': setShowCompanyBriefing(true); break;
       }
     };
     if (id === 'interview') {
@@ -451,6 +457,7 @@ export default function AIStudioPage() {
           {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
           {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
           {showABCompare && <ResumeABCompareSheet open={showABCompare} onOpenChange={setShowABCompare} />}
+          {showCompanyBriefing && <CompanyBriefingSheet open={showCompanyBriefing} onOpenChange={setShowCompanyBriefing} jobDescription="" resumeData={resumeData ? { summary: resumeData.summary ?? undefined, experience: (resumeData.experience as any) ?? undefined, skills: (resumeData.skills as any) ?? undefined } : undefined} />}
         </Suspense>
       </ErrorBoundary>
 

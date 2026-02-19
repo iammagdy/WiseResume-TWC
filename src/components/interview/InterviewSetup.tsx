@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle } from 'lucide-react';
+import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import type { VoiceGender } from '@/hooks/useVoiceInterview';
+import { CompanyBriefingSheet } from './CompanyBriefingSheet';
 
 type InterviewMode = 'general' | 'job-targeted' | 'quick-practice';
 
@@ -15,13 +16,19 @@ interface InterviewSetupProps {
   voiceGender: VoiceGender;
   onVoiceGenderChange: (gender: VoiceGender) => void;
   onStart: (jobDescription?: string, options?: { quickPractice?: boolean }) => void;
+  resumeData?: {
+    summary?: string;
+    experience?: Array<{ position?: string; company?: string }>;
+    skills?: Array<{ name?: string; skill?: string } | string>;
+  };
 }
 
-export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoiceGenderChange, onStart }: InterviewSetupProps) {
+export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoiceGenderChange, onStart, resumeData }: InterviewSetupProps) {
   const [mode, setMode] = useState<InterviewMode>('general');
   const [jobDescription, setJobDescription] = useState('');
   const [micTestStatus, setMicTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [micLevel, setMicLevel] = useState(0);
+  const [showBriefing, setShowBriefing] = useState(false);
 
   const handleStart = () => {
     haptics.medium();
@@ -335,6 +342,19 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
             placeholder="Paste the job description here..."
             className="min-h-[120px] resize-none bg-card/60 backdrop-blur-xl border-border/40 rounded-2xl focus:border-primary/50 focus:shadow-[0_0_15px_hsl(var(--primary)/0.1)]"
           />
+          {jobDescription.trim() && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full gap-2 text-muted-foreground hover:text-primary min-h-[44px]"
+                onClick={() => { haptics.light(); setShowBriefing(true); }}
+              >
+                <Building2 className="w-4 h-4" />
+                Research Company
+              </Button>
+            </motion.div>
+          )}
         </motion.div>
       )}
 
@@ -350,6 +370,12 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
           Launch Interview
         </Button>
       </motion.div>
+      <CompanyBriefingSheet
+        open={showBriefing}
+        onOpenChange={setShowBriefing}
+        jobDescription={jobDescription}
+        resumeData={resumeData}
+      />
     </motion.div>
   );
 }
