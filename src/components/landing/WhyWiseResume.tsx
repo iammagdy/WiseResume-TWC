@@ -9,7 +9,7 @@ export function WhyWiseResume() {
         className="text-center mb-10"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: false, amount: 0.2 }}
+        viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
       >
         <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
@@ -24,7 +24,7 @@ export function WhyWiseResume() {
         <motion.div
           initial={{ opacity: 0, scale: 0.92, filter: 'blur(4px)' }}
           whileInView={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-          viewport={{ once: false, amount: 0.2 }}
+          viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <BulletTransformCard />
@@ -41,7 +41,7 @@ export function WhyWiseResume() {
               key={feature.title}
               initial={{ opacity: 0, x: -30, rotate: -1 }}
               whileInView={{ opacity: 1, x: 0, rotate: 0 }}
-              viewport={{ once: false, amount: 0.2 }}
+              viewport={{ once: true, amount: 0.2 }}
               transition={{ delay: i * 0.1, duration: 0.5, ease: 'easeOut' }}
             >
               <FeatureCard {...feature} />
