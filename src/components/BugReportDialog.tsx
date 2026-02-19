@@ -2,39 +2,17 @@ import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { HeartHandshake, Send, CheckCircle2, Loader2 } from 'lucide-react';
+import { HeartHandshake, Send, CheckCircle2, Loader2, MapPin, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { onBugReport, type BugReportData } from '@/lib/bugReport';
+import {
+  onBugReport,
+  detectScreen,
+  categorizeError,
+  type BugReportData,
+  type ErrorCategoryInfo,
+} from '@/lib/bugReport';
 
 const SESSION_CACHE_KEY = 'sb-auth-session-cache';
-
-const SCREEN_OPTIONS = [
-  { value: '/dashboard', label: 'Dashboard' },
-  { value: '/editor', label: 'Resume Editor' },
-  { value: '/preview', label: 'Preview' },
-  { value: '/upload', label: 'Upload' },
-  { value: '/settings', label: 'Settings' },
-  { value: '/applications', label: 'Applications' },
-  { value: '/cover-letters', label: 'Cover Letters' },
-  { value: '/interview', label: 'Interview Prep' },
-  { value: '/career', label: 'Career Tools' },
-  { value: '/ai-studio', label: 'AI Studio' },
-  { value: '/templates', label: 'Templates' },
-  { value: '/examples', label: 'Examples' },
-  { value: '/guides', label: 'Guides' },
-  { value: '/resignation-letters', label: 'Resignation Letters' },
-  { value: '/profile', label: 'Profile' },
-  { value: '/notifications', label: 'Notifications' },
-  { value: 'other', label: 'Other / General' },
-];
-
-function matchRouteToScreen(pathname: string): string {
-  const match = SCREEN_OPTIONS.find(
-    (opt) => opt.value !== 'other' && pathname.startsWith(opt.value)
-  );
-  return match?.value || 'other';
-}
 
 let cachedAppVersion: string | null = null;
 async function getAppVersion(): Promise<string> {
@@ -67,22 +45,57 @@ function getAuthFromCache() {
   return { userId: undefined, userEmail: undefined, sessionId: undefined };
 }
 
+// ── Detected Context Card ──────────────────────────────────────────────────
+
+function DetectedContextCard({
+  screenLabel,
+  categoryInfo,
+  action,
+}: {
+  screenLabel: string;
+  categoryInfo: ErrorCategoryInfo;
+  action?: string;
+}) {
+  const CategoryIcon = categoryInfo.icon;
+  return (
+    <div className="rounded-2xl bg-muted/50 border border-border/50 p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <MapPin className="w-3.5 h-3.5 text-primary shrink-0" />
+        <span className="text-xs font-medium text-foreground">{screenLabel}</span>
+      </div>
+      <div className="flex items-center gap-2">
+        <CategoryIcon className="w-3.5 h-3.5 text-[hsl(var(--warning,45_93%_47%))] shrink-0" />
+        <span className="text-xs text-muted-foreground">{categoryInfo.label}</span>
+      </div>
+      {action && (
+        <div className="flex items-center gap-2">
+          <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <span className="text-xs text-muted-foreground italic truncate">{action}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Dialog ────────────────────────────────────────────────────────────
+
 export function BugReportDialog() {
   const [open, setOpen] = useState(false);
   const [data, setData] = useState<BugReportData | null>(null);
   const [additionalContext, setAdditionalContext] = useState('');
-  const [selectedScreen, setSelectedScreen] = useState('other');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     return onBugReport((reportData) => {
       setData(reportData);
       setAdditionalContext('');
-      setSelectedScreen(matchRouteToScreen(reportData.route));
       setStatus('idle');
       setOpen(true);
     });
   }, []);
+
+  const screenLabel = data ? detectScreen(data.route) : 'General';
+  const categoryInfo = data ? categorizeError(data.errorMessage) : categorizeError('');
 
   const handleSend = useCallback(async () => {
     if (!data) return;
@@ -90,7 +103,6 @@ export function BugReportDialog() {
 
     const auth = getAuthFromCache();
     const appVersion = await getAppVersion();
-    const screenLabel = SCREEN_OPTIONS.find(o => o.value === selectedScreen)?.label || 'Other';
 
     const payload = {
       error_message: data.errorMessage,
@@ -98,6 +110,8 @@ export function BugReportDialog() {
       component_stack: data.componentStack || null,
       route: data.route,
       selected_screen: screenLabel,
+      error_category: categoryInfo.category,
+      action: data.action || null,
       user_id: auth.userId || null,
       user_email: auth.userEmail || 'anonymous',
       session_id: auth.sessionId || null,
@@ -117,7 +131,7 @@ export function BugReportDialog() {
     } catch {
       setStatus('error');
     }
-  }, [data, additionalContext, selectedScreen]);
+  }, [data, additionalContext, screenLabel, categoryInfo.category]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -141,39 +155,20 @@ export function BugReportDialog() {
                 <HeartHandshake className="w-7 h-7 text-primary" />
               </div>
               <DialogTitle className="text-lg font-semibold text-foreground">
-                Help Us Improve
+                We Detected an Issue
               </DialogTitle>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                WiseResume is in its early access phase, and your feedback helps us build a better experience.
-                Our team will investigate and resolve this within <span className="font-medium text-foreground">24 hours</span>.
+                We've captured the details automatically. Our team will investigate within{' '}
+                <span className="font-medium text-foreground">24 hours</span>.
               </p>
             </div>
 
             <div className="space-y-4">
-              <div className="rounded-xl bg-muted/50 border border-border/50 p-3">
-                <p className="text-xs text-muted-foreground font-medium mb-1">Error detected</p>
-                <p className="text-xs text-foreground/70 font-mono line-clamp-2 break-all">
-                  {data?.errorMessage || 'Unknown error'}
-                </p>
-              </div>
-
-              <div>
-                <label htmlFor="bug-screen" className="text-sm font-medium text-foreground mb-1.5 block">
-                  Which screen is affected?
-                </label>
-                <Select value={selectedScreen} onValueChange={setSelectedScreen}>
-                  <SelectTrigger id="bug-screen" className="w-full bg-background">
-                    <SelectValue placeholder="Select a screen" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-popover z-50">
-                    {SCREEN_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <DetectedContextCard
+                screenLabel={screenLabel}
+                categoryInfo={categoryInfo}
+                action={data?.action}
+              />
 
               <div>
                 <label htmlFor="bug-context" className="text-sm font-medium text-foreground mb-1.5 block">
