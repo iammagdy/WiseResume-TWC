@@ -633,8 +633,8 @@ export default function EditorPage() {
   }, []);
 
   const handleBack = useCallback(() => {
-    navigate('/dashboard');
-  }, [navigate]);
+    unsavedGuard.interceptNavigate('/dashboard');
+  }, [unsavedGuard]);
 
   const handleChangeTemplate = useCallback(() => setShowTemplates(true), []);
   const handleTailor = useCallback(() => {

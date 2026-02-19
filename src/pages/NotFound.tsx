@@ -1,16 +1,22 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { Home, AlertCircle } from "lucide-react";
+import { Home, AlertCircle, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     console.error("404 Error: User attempted to access non-existent route:", location.pathname);
   }, [location.pathname]);
+
+  const destination = isAuthenticated ? '/dashboard' : '/';
+  const label = isAuthenticated ? 'Go to Dashboard' : 'Return to Home';
+  const Icon = isAuthenticated ? LayoutDashboard : Home;
 
   return (
     <div className="flex min-h-screen min-h-[100dvh] items-center justify-center bg-background px-4 pb-safe">
@@ -54,10 +60,10 @@ const NotFound = () => {
           <Button
             size="lg"
             className="w-full h-14 text-lg font-semibold gradient-primary"
-            onClick={() => navigate("/")}
+            onClick={() => navigate(destination)}
           >
-            <Home className="w-5 h-5 mr-2" />
-            Return to Home
+            <Icon className="w-5 h-5 mr-2" />
+            {label}
           </Button>
         </motion.div>
       </motion.div>
