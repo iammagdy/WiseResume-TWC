@@ -102,20 +102,19 @@ export function DeveloperCreditCard({
                 </button>
               }
             </div>
+
+            {/* Website link inside card */}
+            {websiteUrl &&
+              <button
+                onClick={handleWebsiteClick}
+                className="dev-website-link">
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>{new URL(websiteUrl).hostname.replace('www.', '')}</span>
+              </button>
+            }
           </div>
         </div>
       </div>
-      
-      {/* Website link below card */}
-      {websiteUrl &&
-      <button
-        onClick={handleWebsiteClick}
-        className="dev-website-link">
-
-          <ExternalLink className="w-3.5 h-3.5" />
-          <span>magdysaber.com</span>
-        </button>
-      }
     </div>);
 
 }

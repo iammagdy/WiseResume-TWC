@@ -6,7 +6,6 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
   perspective: 800px;
 }
 
@@ -477,24 +476,24 @@
 
 /* Both buttons equal width */
 
-/* Website link */
+/* Website link (inside card) */
 .dev-website-link {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+  padding: 0;
   background: transparent;
   border: none;
-  color: hsl(var(--primary));
-  font-size: 0.875rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
 }
 
 .dev-website-link:hover {
-  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
 }
 
 .dev-website-link:active {
