@@ -68,8 +68,10 @@ export async function extractTextWithOCR(
   const fullText = pageTexts.join('\n\n');
   
   // Check if OCR produced meaningful content
+  // Require at least 100 chars AND 5 words to reject garbage OCR output
   const cleanedText = fullText.replace(/\s+/g, ' ').trim();
-  if (cleanedText.length < 20) {
+  const wordCount = cleanedText.split(/\s+/).filter(Boolean).length;
+  if (cleanedText.length < 100 || wordCount < 5) {
     throw new Error(
       'OCR could not extract readable text. The PDF may be too low quality or contain no recognizable text.'
     );
@@ -103,18 +105,24 @@ async function extractPageWithOCR(
   
   let canvasWidth = viewport.width;
   let canvasHeight = viewport.height;
+  let renderViewport = viewport;
+
   if (canvasWidth > maxCanvasDim || canvasHeight > maxCanvasDim) {
-    const scaleFactor = maxCanvasDim / Math.max(canvasWidth, canvasHeight);
-    canvasWidth = Math.round(canvasWidth * scaleFactor);
-    canvasHeight = Math.round(canvasHeight * scaleFactor);
+    // Compute scale factor so the render exactly matches the capped canvas size
+    const capScaleFactor = maxCanvasDim / Math.max(canvasWidth, canvasHeight);
+    canvasWidth = Math.round(canvasWidth * capScaleFactor);
+    canvasHeight = Math.round(canvasHeight * capScaleFactor);
+    // Re-derive a viewport at the adjusted scale so render ↔ canvas sizes match
+    renderViewport = page.getViewport({ scale: scale * capScaleFactor });
   }
+
   canvas.width = canvasWidth;
   canvas.height = canvasHeight;
   
-  // Render PDF page to canvas
+  // Render PDF page to canvas using the correctly-scaled viewport
   await page.render({
     canvasContext: context,
-    viewport: viewport,
+    viewport: renderViewport,
   }).promise;
   
   // Convert canvas to image data for Tesseract

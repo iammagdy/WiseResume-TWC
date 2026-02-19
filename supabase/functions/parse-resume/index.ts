@@ -42,7 +42,8 @@ const parseResumeTool = {
               responsibilities: { type: "array", items: { type: "string" } },
               isProject: { type: "boolean" },
             },
-            required: ["company", "position", "startDate", "endDate", "current", "description", "achievements"],
+            // isProject is now required so the AI never omits it
+            required: ["company", "position", "startDate", "endDate", "current", "description", "achievements", "isProject"],
           },
         },
         education: {
@@ -75,8 +76,54 @@ const parseResumeTool = {
             required: ["name", "issuer", "date"],
           },
         },
+        awards: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              issuer: { type: "string" },
+              date: { type: "string" },
+              description: { type: "string" },
+            },
+            required: ["title", "issuer", "date"],
+          },
+        },
+        publications: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              publisher: { type: "string" },
+              date: { type: "string" },
+              url: { type: "string" },
+              description: { type: "string" },
+            },
+            required: ["title", "publisher", "date"],
+          },
+        },
+        volunteering: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              organization: { type: "string" },
+              role: { type: "string" },
+              startDate: { type: "string" },
+              endDate: { type: "string" },
+              current: { type: "boolean" },
+              description: { type: "string" },
+            },
+            required: ["organization", "role", "startDate", "endDate", "current"],
+          },
+        },
+        hobbies: { type: "array", items: { type: "string" } },
       },
-      required: ["contactInfo", "summary", "experience", "education", "skills", "certifications"],
+      required: [
+        "contactInfo", "summary", "experience", "education",
+        "skills", "certifications", "awards", "publications", "volunteering", "hobbies",
+      ],
     },
   },
 };
@@ -87,14 +134,16 @@ const systemPrompt = `You are an expert resume parser. Extract ALL structured in
 1. Process ALL content from the entire text. Do NOT stop after the first page.
 2. Extract 100% of text in work experience. Do NOT summarize.
 3. Copy each bullet point EXACTLY as written. Never combine or condense.
-4. Extract EVERYTHING - all jobs, education, projects, skills, certifications.
-5. Empty fields: use "" for strings, [] for arrays.
+4. Extract EVERYTHING - all jobs, education, projects, skills, certifications, awards, publications, volunteering, hobbies.
+5. Empty fields: use "" for strings, [] for arrays, false for booleans.
 6. Dates: Accept ANY format. Current roles: endDate="Present", current=true.
 7. Skills: Parse as individual items. Include languages with proficiency.
-8. Projects: Add to experience with isProject=true.
+8. Projects: If a section is labelled "Projects" or an entry is clearly a personal/academic project (not a paid job), set isProject=true. Otherwise ALWAYS set isProject=false. NEVER omit isProject.
+9. Awards / Publications / Volunteering / Hobbies: Extract them into their own arrays even if they appear as bullets inside another section.
 
 === NAME DETECTION ===
 - The name is usually on the VERY FIRST LINE
+- Supported scripts: Latin, Arabic, Hebrew, Cyrillic, Devanagari (Hindi), CJK (Chinese/Japanese/Korean), Hangul (Korean)
 - Never use emails, phone numbers, URLs, or section headers as names
 - If unsure, set fullName to ""`;
 
@@ -175,7 +224,7 @@ serve(async (req) => {
     const parsedData = JSON.parse(toolCall.function.arguments);
     const generateId = () => crypto.randomUUID();
 
-    // Validate name
+    // Validate name — expand Unicode to cover CJK, Devanagari, Cyrillic, Hangul, Hebrew
     let fullName = parsedData.contactInfo.fullName || '';
     const invalidNamePatterns = /^(contact|summary|profile|resume|cv|about|personal|objective|experience|education|skills|hire me|get in touch)/i;
     const looksLikeEmail = fullName.includes('@');
@@ -188,8 +237,9 @@ serve(async (req) => {
       const nameCandidate = firstLines.find((line: string) => {
         const t = line.trim();
         const words = t.split(/\s+/);
-        return words.length >= 2 && words.length <= 5 && 
-               /^[A-Za-z\u00C0-\u024F\u0600-\u06FF\- ']+$/.test(t) &&
+        // Accept names in Latin, CJK, Devanagari, Cyrillic, Arabic, Hebrew, Hangul scripts
+        return words.length >= 2 && words.length <= 5 &&
+               /^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u05D0-\u05FF\s.\-']+$/.test(t) &&
                !invalidNamePatterns.test(t);
       });
       fullName = nameCandidate?.trim() || '';
@@ -215,7 +265,8 @@ serve(async (req) => {
         description: exp.description || '',
         achievements: exp.achievements || [],
         responsibilities: exp.responsibilities || [],
-        isProject: exp.isProject || false,
+        // isProject is now required in schema; explicit boolean cast prevents undefined→false silent bug
+        isProject: exp.isProject === true,
       })),
       education: (parsedData.education || []).map((edu: any) => ({
         id: generateId(),
@@ -235,6 +286,31 @@ serve(async (req) => {
         expiryDate: cert.expiryDate || undefined,
         credentialId: cert.credentialId || undefined,
       })),
+      awards: (parsedData.awards || []).map((award: any) => ({
+        id: generateId(),
+        title: award.title || '',
+        issuer: award.issuer || '',
+        date: award.date || '',
+        description: award.description || '',
+      })),
+      publications: (parsedData.publications || []).map((pub: any) => ({
+        id: generateId(),
+        title: pub.title || '',
+        publisher: pub.publisher || '',
+        date: pub.date || '',
+        url: pub.url || undefined,
+        description: pub.description || '',
+      })),
+      volunteering: (parsedData.volunteering || []).map((vol: any) => ({
+        id: generateId(),
+        organization: vol.organization || '',
+        role: vol.role || '',
+        startDate: vol.startDate || '',
+        endDate: vol.endDate || '',
+        current: vol.current || false,
+        description: vol.description || '',
+      })),
+      hobbies: parsedData.hobbies || [],
     };
 
     // Calculate completeness score
@@ -248,7 +324,12 @@ serve(async (req) => {
     if (resumeData.skills.length > 0) completeness += 10;
     if (resumeData.certifications.length > 0) completeness += 5;
 
-    console.log(`parse-resume: Extracted ${resumeData.experience.length} experiences, ${resumeData.education.length} education, ${resumeData.skills.length} skills. Completeness: ${completeness}%`);
+    console.log(
+      `parse-resume: Extracted ${resumeData.experience.length} experiences, ` +
+      `${resumeData.education.length} education, ${resumeData.skills.length} skills, ` +
+      `${resumeData.awards.length} awards, ${resumeData.publications.length} publications, ` +
+      `${resumeData.volunteering.length} volunteering. Completeness: ${completeness}%`
+    );
 
     await recordUsage(user.id, 'parse_resume');
 
