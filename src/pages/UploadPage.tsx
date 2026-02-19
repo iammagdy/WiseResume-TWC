@@ -340,8 +340,37 @@ export default function UploadPage() {
       
       const arrayBuffer = await file.arrayBuffer();
       const mammoth = await import('mammoth');
-      const result = await mammoth.default.extractRawText({ arrayBuffer });
-      const text = result.value;
+
+      // Try HTML conversion first — preserves bullets, bold, and list structure
+      // which are critical signals for identifying achievements vs. responsibilities
+      let text = '';
+      try {
+        const htmlResult = await mammoth.default.convertToHtml({ arrayBuffer });
+        if (htmlResult.value.trim()) {
+          // Strip HTML tags but preserve line structure from <li>, <p>, <br>
+          text = htmlResult.value
+            .replace(/<li[^>]*>/gi, '\n• ')
+            .replace(/<\/li>/gi, '')
+            .replace(/<p[^>]*>/gi, '\n')
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;/g, "'")
+            .trim();
+        }
+      } catch {
+        // HTML conversion failed, fall through to raw text
+      }
+
+      // Fallback: raw text extraction
+      if (!text) {
+        const rawResult = await mammoth.default.extractRawText({ arrayBuffer });
+        text = rawResult.value;
+      }
 
       if (!text.trim()) {
         setErrorType('NO_TEXT');

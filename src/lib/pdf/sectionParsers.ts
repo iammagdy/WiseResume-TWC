@@ -136,8 +136,8 @@ function extractContactInfo(text: string): ResumeData['contactInfo'] {
       line.length > 2 &&
       line.length < 50
     ) {
-      // Check if it looks like a name (mostly letters and spaces)
-      if (/^[A-Za-z\s.-]+$/.test(line) && line.split(/\s+/).length <= 5) {
+      // Check if it looks like a name (Latin, CJK, Devanagari, Cyrillic, Arabic, Hebrew)
+      if (/^[A-Za-z\u00C0-\u024F\u0400-\u04FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\s.\-']+$/.test(line) && line.split(/\s+/).length <= 5) {
         fullName = line;
         break;
       }
@@ -270,7 +270,7 @@ function parseSkillsSection(lines: string[]): string[] {
              !s.match(/^\d+$/) &&
              !s.match(/^(and|or|the|a|an)$/i);
     })
-    .slice(0, 30);
+    .slice(0, 60);
 
   // Deduplicate (case-insensitive)
   const seen = new Set<string>();
@@ -315,7 +315,16 @@ function splitIntoBlocks(lines: string[]): string[][] {
 
   for (const line of lines) {
     // Start new block on empty line or line that looks like a new entry (starts with date or bullet)
-    if (line === '' || line.match(/^(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|\d{4}|•|►|▪)/i)) {
+    // Block-start triggers: blank line, date prefixes (short + full month names), standalone year,
+    // bullet glyphs (including em-dash, arrows, numbered items), or an ALL-CAPS short header line
+    const isBlockStart = line === '' ||
+      /^(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4}/i.test(line) ||
+      /^\d{4}\s*[-–—]/.test(line) ||
+      /^(?:•|►|▪|▸|→|–|—|\*)\s/.test(line) ||
+      /^\d+[.)]\s/.test(line) ||
+      (/^[A-Z][A-Z0-9 &,./()-]{2,}$/.test(line) && line.split(/\s+/).length <= 5);
+
+    if (isBlockStart) {
       if (currentBlock.length > 0) {
         blocks.push(currentBlock);
         currentBlock = [];
