@@ -98,3 +98,15 @@ verify_jwt = false
 
 [functions.resolve-short-link]
 verify_jwt = false
+
+[functions.send-bug-report]
+verify_jwt = false
+
+[functions.send-resume-reminder]
+verify_jwt = false
+
+[functions.weekly-digest]
+verify_jwt = false
+
+[functions.company-briefing]
+verify_jwt = false

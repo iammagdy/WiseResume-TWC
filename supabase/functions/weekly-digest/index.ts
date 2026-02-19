@@ -1,9 +1,8 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.42.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -17,7 +16,7 @@ const TIPS = [
   "Add a summary section. Recruiters spend only 7 seconds scanning a resume.",
 ];
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -28,7 +27,6 @@ serve(async (req) => {
   );
 
   try {
-    // Find users who haven't been active in 5+ days and have digest enabled
     const fiveDaysAgo = new Date();
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
 
@@ -48,7 +46,6 @@ serve(async (req) => {
 
     for (const profile of (dormantProfiles ?? [])) {
       try {
-        // Get portfolio views this week
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
         let portfolioViews = 0;
@@ -62,14 +59,12 @@ serve(async (req) => {
           portfolioViews = count ?? 0;
         }
 
-        // Get pending applications
         const { count: pendingCount } = await supabase
           .from("job_applications")
           .select("id", { count: "exact", head: true })
           .eq("user_id", profile.user_id)
           .in("status", ["applied", "screening", "interviewing"]);
 
-        // Build digest message
         const parts: string[] = [];
         if (portfolioViews > 0) parts.push(`${portfolioViews} portfolio view${portfolioViews > 1 ? 's' : ''} this week`);
         if ((pendingCount ?? 0) > 0) parts.push(`${pendingCount} application${(pendingCount ?? 0) > 1 ? 's' : ''} awaiting response`);

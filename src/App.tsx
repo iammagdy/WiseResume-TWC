@@ -69,6 +69,7 @@ const GuidePage = lazyWithRetry(() => import("./pages/GuidePage"));
 const AIStudioPage = lazyWithRetry(() => import("./pages/AIStudioPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
+const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -140,9 +141,10 @@ const queryClient = new QueryClient({
        <Routes>
          {/* Public routes - no auth required */}
          <Route path="/" element={<Index />} />
-         <Route element={<AppShell />}>
-           <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
-         </Route>
+          <Route element={<AppShell />}>
+            <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
+            <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
+          </Route>
 
          {/* All protected routes - require authentication */}
          <Route element={<ProtectedRoute />}>
