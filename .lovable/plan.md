@@ -1,135 +1,212 @@
 
-# Parsing & OCR Audit — Findings and Improvements
+# User Journey Audit — Issues Found & Fixes
 
-## What Was Audited
+## Full Journey Traced
 
-The full parsing pipeline was traced end-to-end across 6 files:
+The user journey was traced end-to-end across all major flows:
 
-1. `src/lib/pdf/textExtractor.ts` — PDF text extraction (pdf.js)
-2. `src/lib/pdf/ocrExtractor.ts` — Tesseract.js OCR for scanned PDFs and images
-3. `src/lib/pdf/sectionParsers.ts` — Local regex fallback parser
-4. `src/lib/pdfParser.ts` — Orchestrator / AI gateway
-5. `supabase/functions/parse-resume/index.ts` — AI edge function (Gemini)
-6. `src/pages/UploadPage.tsx` — UI flow and file routing
+1. Landing page (`/`) → Auth (`/auth`) → Onboarding → Dashboard → Editor → Preview/Export
+2. Dashboard → Upload PDF → Import Review → Editor
+3. Editor → AI Studio → Interview
+4. Dashboard → Portfolio Editor → Public Portfolio
+5. Dashboard → AI Studio → Cover Letters / Career / Resignation Letters
+6. App lifecycle: session expiry, hardware back button, offline sync
 
 ---
 
-## Bugs and Gaps Found
+## Issues Found
 
-### 1. OCR Canvas Render Mismatch (Critical Bug)
-**File:** `src/lib/pdf/ocrExtractor.ts`, lines 104–118
+### Issue 1 — Back Navigation Map is Missing Routes (Silent Wrong Navigation)
 
-The canvas is resized to a capped dimension (e.g. 1800×2400) but the PDF page is still rendered using the *original* `scale=2` viewport — not the scaled-down viewport. This means the PDF content is rendered at full 2× resolution but crammed into a smaller canvas, causing clipping of the right/bottom of every OCR page.
+**File:** `src/lib/navigation.ts`
+
+**Problem:** The `BACK_ROUTES` map is missing entries for:
+- `/resignation-letter` (the individual new/edit routes — only `/resignation-letters` list is mapped)
+- `/cover-letter/new` → should go to `/cover-letters`
+- `/cover-letter/edit` → should go to `/cover-letters`
+- `/resignation-letter/new` → should go to `/resignation-letters`
+- `/resignation-letter/edit` → should go to `/resignation-letters`
+- `/portfolio` back route points to `/profile` but the Portfolio is a primary tab — pressing back there should exit like `/dashboard`
+
+When a user presses the Android hardware back button on any of these routes, they fall through to the default `/dashboard` fallback instead of the correct parent screen.
+
+**Fix:** Add the missing sub-routes and fix `/portfolio` in `EXIT_ROUTES`.
+
+---
+
+### Issue 2 — "Undo" Action on Deleted Resume is a Fake No-Op (UX Deception)
+
+**File:** `src/pages/DashboardPage.tsx` lines 275–283
+
+**Problem:** When a resume is deleted, a toast appears with an "Undo" button. Clicking it shows `toast.info('Undo not available - resume permanently deleted')`. This is a broken UX: a button that does nothing except admit it's useless. This erodes user trust — they were shown an option that was never real.
+
+**Fix:** Remove the fake Undo action from the delete toast entirely. Show a simple confirmation toast without an action button. This is honest and cleaner.
+
+---
+
+### Issue 3 — `OnboardingPage` Has Conflicting Redirect Loops (Two Sources of Truth)
+
+**File:** `src/pages/OnboardingPage.tsx` lines 32–36 and `src/pages/DashboardPage.tsx` lines 106–124
+
+**Problem:** Two independent onboarding systems exist in parallel:
+1. `OnboardingPage` checks `localStorage.getItem('wr-onboarding-completed')` and redirects if completed
+2. `DashboardPage` checks `supabase profiles.onboarding_completed` and shows an `OnboardingCarousel` overlay
+
+A new user who signs up on one device, completes onboarding, then opens the app on a second device will:
+- Have `localStorage` empty on device 2
+- Navigate to `/onboarding` (if triggered)
+- `OnboardingPage` will NOT redirect because `localStorage` is empty
+- They'll see onboarding again
+
+Additionally, the `/onboarding` route is protected (behind `ProtectedRoute`) but `OnboardingPage` uses only `localStorage` for its guard, not the DB — so they are two disconnected systems. The `DashboardPage` already correctly uses the DB for this check with `OnboardingCarousel`. The standalone `OnboardingPage` at `/onboarding` becomes a confusing dead-end.
+
+**Fix:** Add a `useEffect` to `OnboardingPage` that also checks `supabase profiles.onboarding_completed` and redirects if already completed in the DB — making both sources consistent.
+
+---
+
+### Issue 4 — `NotFound` Page Sends Users to `/` Landing Page (Wrong for Authenticated Users)
+
+**File:** `src/pages/NotFound.tsx` line 58
+
+**Problem:** The 404 page has a single "Return to Home" button that calls `navigate("/")`. For an authenticated user who typed a wrong URL or followed a broken link, this sends them to the public landing page — which immediately redirects them back to `/dashboard` since they're logged in. This creates an unnecessary double-redirect and a jarring flash of the landing page.
+
+**Fix:** Use `useAuth()` in `NotFound.tsx` to send authenticated users directly to `/dashboard` and unauthenticated users to `/`.
+
+---
+
+### Issue 5 — Editor `handleBack` Always Navigates to `/dashboard` (Ignores Navigation Map)
+
+**File:** `src/pages/EditorPage.tsx` line 635–637
+
+**Problem:**
+```typescript
+const handleBack = useCallback(() => {
+  navigate('/dashboard');
+}, [navigate]);
+```
+
+The header back button in the Editor hardcodes `/dashboard` as the destination, completely bypassing the centralized `getBackRoute()` from `src/lib/navigation.ts`. This means:
+- If a user navigated from `/resume/:id` detail page into the editor, pressing back takes them to `/dashboard` instead of the detail page
+- The unsaved changes guard calls `unsavedGuard.interceptNavigate('/dashboard')` with the same hardcoded path
+
+While `/dashboard` is technically the correct default back route for `/editor`, the problem is that this bypasses the guard's `interceptNavigate` call — meaning the `UnsavedChangesDialog` appears showing the path `/dashboard`, which is correct but accidental rather than intentional.
+
+The actual bug is that the `handleBack` in the header doesn't go through `unsavedGuard.interceptNavigate` — it calls `navigate` directly. So if there are unsaved changes, clicking the back arrow in the header bypasses the dialog entirely and navigates straight to `/dashboard` without warning.
+
+**Fix:** Route the header back button through `unsavedGuard.interceptNavigate('/dashboard')` so the dialog always appears when there are unsaved changes, regardless of whether the user uses the header button or the hardware back button.
+
+---
+
+### Issue 6 — `PreviewPage` Back Button Uses `navigate('/editor')` Without Unsaved Changes Check
+
+**File:** `src/pages/PreviewPage.tsx`
+
+**Problem:** The Preview page uses `navigate('/editor')` for its back button. If a user made changes before entering preview and the auto-save debounce hasn't fired yet, navigating back to the editor from preview and then immediately back to dashboard bypasses any unsaved changes warning.
+
+This is a lower-priority issue since PreviewPage is read-only, but it means going Preview → Editor → Dashboard with dirty state can lose changes in edge cases.
+
+**Fix:** Verify this is safe — PreviewPage is read-only so no new changes happen there. The real fix is ensuring the editor's `saveToCloud` fires when the editor mounts (via the existing `app:save-draft` mechanism). No code change needed here, but noting for completeness.
+
+---
+
+## Summary of Changes
+
+| File | Issue | Change |
+|---|---|---|
+| `src/lib/navigation.ts` | #1 Missing back routes | Add `/cover-letter/new`, `/cover-letter/edit`, `/resignation-letter/new`, `/resignation-letter/edit` routes; add `/portfolio` to `EXIT_ROUTES` |
+| `src/pages/DashboardPage.tsx` | #2 Fake Undo toast | Remove `action` from delete success toast — show plain confirmation |
+| `src/pages/OnboardingPage.tsx` | #3 Conflicting onboarding sources | Add DB check alongside `localStorage` check to prevent re-showing onboarding on second devices |
+| `src/pages/NotFound.tsx` | #4 Wrong destination for authenticated users | Use `useAuth()` to send authenticated users to `/dashboard` |
+| `src/pages/EditorPage.tsx` | #5 Back button bypasses unsaved changes guard | Route header back button through `unsavedGuard.interceptNavigate` |
+
+No database changes. No edge functions. No new dependencies.
+
+---
+
+## Technical Details
+
+### Fix 1 — `src/lib/navigation.ts`
 
 ```typescript
-// BUG: renders at full 2× viewport into a smaller canvas
-canvas.width = canvasWidth; // e.g. 1800
-canvas.height = canvasHeight; // e.g. 2048
-await page.render({
-  canvasContext: context,
-  viewport: viewport, // still the 2× uncapped viewport — WRONG
-}).promise;
+const BACK_ROUTES: Record<string, string> = {
+  // ... existing routes ...
+  '/cover-letter/new': '/cover-letters',
+  '/cover-letter/edit': '/cover-letters',
+  '/resignation-letter/new': '/resignation-letters',
+  '/resignation-letter/edit': '/resignation-letters',
+  // Fix: portfolio back maps to dashboard (it's a primary tab, not a sub-page of /profile)
+  '/portfolio': '/dashboard',
+};
+
+// Fix: portfolio is a primary tab — back should exit, not navigate
+export const EXIT_ROUTES = ['/', '/dashboard', '/portfolio'];
 ```
 
-**Fix:** When the canvas dimensions are capped, compute an adjusted viewport using the actual scale factor so the render matches the canvas size exactly.
+### Fix 2 — `src/pages/DashboardPage.tsx`
 
----
+Remove the fake Undo action:
+```typescript
+// BEFORE (broken UX)
+toast.success(`"${resumeToDelete?.title}" deleted`, {
+  action: { label: 'Undo', onClick: () => toast.info('Undo not available...') },
+  duration: 5000,
+});
 
-### 2. `isProject` Flag Always Written as `false` (Data Loss Bug)
-**File:** `supabase/functions/parse-resume/index.ts`, line 218
+// AFTER (honest)
+toast.success(`"${resumeToDelete?.title}" deleted`, { duration: 3000 });
+```
+
+### Fix 3 — `src/pages/OnboardingPage.tsx`
+
+Add a DB check to sync both systems:
+```typescript
+useEffect(() => {
+  // Check localStorage first (fast path)
+  if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
+    navigate('/dashboard', { replace: true });
+    return;
+  }
+  // Also check DB for cross-device consistency
+  if (!user) return;
+  supabase
+    .from('profiles')
+    .select('onboarding_completed')
+    .eq('user_id', user.id)
+    .single()
+    .then(({ data }) => {
+      if (data?.onboarding_completed) {
+        localStorage.setItem(ONBOARDING_KEY, 'true'); // sync localStorage
+        navigate('/dashboard', { replace: true });
+      }
+    });
+}, [navigate, user]);
+```
+
+This requires adding `useAuth` import.
+
+### Fix 4 — `src/pages/NotFound.tsx`
 
 ```typescript
-isProject: exp.isProject || false,
+const { isAuthenticated } = useAuth();
+// In the button onClick:
+onClick={() => navigate(isAuthenticated ? '/dashboard' : '/')}
+// Button label change:
+{isAuthenticated ? 'Go to Dashboard' : 'Return to Home'}
 ```
 
-The AI correctly sets `isProject: true` for project entries, but the double-check `|| false` short-circuits: if `exp.isProject` is `false`, the expression evaluates `false || false = false` — which is fine. But the problem is the schema tool definition at line 43 does not explicitly require `isProject` in the `required` array. When Gemini omits the field, `exp.isProject` becomes `undefined`, and `undefined || false = false`, so projects always get tagged as regular jobs and never surface in the Projects section.
+### Fix 5 — `src/pages/EditorPage.tsx`
 
-**Fix:** Add `isProject` to the required fields in the tool schema, and add a rule to the system prompt clarifying when to set it.
-
----
-
-### 3. Multi-language Name Regex Too Restrictive (International Resumes)
-**File:** `supabase/functions/parse-resume/index.ts`, lines 190–194
-**File:** `src/lib/pdf/sectionParsers.ts`, line 140
-
-The name fallback regex is:
-```
-/^[A-Za-z\u00C0-\u024F\u0600-\u06FF\- ']+$/
-```
-
-This covers Latin extended and Arabic — but misses CJK (Chinese/Japanese/Korean: `\u4E00-\u9FFF`), Devanagari (Hindi: `\u0900-\u097F`), and Cyrillic (`\u0400-\u04FF`). Resumes from Indian, Russian, Korean or Chinese candidates will fail name detection and fall back to an empty string.
-
-**Fix:** Expand the Unicode range in both the edge function and the local fallback parser to cover the full set of common script ranges.
-
----
-
-### 4. `splitIntoBlocks` Misses Many Block-Start Triggers (Local Parser)
-**File:** `src/lib/pdf/sectionParsers.ts`, lines 312–336
-
-The regex that starts a new block only matches months `Jan/Feb/…` and `•►▪` bullets. But many real resumes use:
-- Full month names (`January`, `February`)
-- 4-digit years alone (`2019`, `2022`)
-- Em-dashes and arrows (`→`, `▸`)
-- Numbered list items (`1.`, `2.`)
-- **BOLD ALL-CAPS lines** (common in many templates)
-
-This causes experience entries from many PDF structures to merge into a single giant block, losing the company/position split.
-
-**Fix:** Extend the block-start regex to include full month names, standalone years, additional bullet glyphs, and lines that are all-uppercase (≤ 5 words).
-
----
-
-### 5. Skills Capped at 30 (Data Loss)
-**File:** `src/lib/pdf/sectionParsers.ts`, line 273
-
+Change the header back button handler:
 ```typescript
-.slice(0, 30);
+// BEFORE — bypasses unsaved changes dialog
+const handleBack = useCallback(() => {
+  navigate('/dashboard');
+}, [navigate]);
+
+// AFTER — routes through the guard so UnsavedChangesDialog appears
+const handleBack = useCallback(() => {
+  unsavedGuard.interceptNavigate('/dashboard');
+}, [unsavedGuard]);
 ```
 
-The local fallback parser silently truncates all skills beyond 30. Senior engineers with large tech stacks (often 40–60 skills) lose half their skills on fallback.
-
-**Fix:** Raise the cap to 60 in the local parser. The AI path has no such cap.
-
----
-
-### 6. OCR Text Quality Threshold Too Low
-**File:** `src/lib/pdf/ocrExtractor.ts`, line 72
-
-```typescript
-if (cleanedText.length < 20) { throw new Error(...) }
-```
-
-A 20-character threshold will accept garbage OCR output (e.g. a page that only extracted `"jDHk mLOP vw"`) as successful. This means partially-readable scanned PDFs produce broken resume data with no warning.
-
-**Fix:** Raise the minimum to 100 characters AND require at least 5 words (splitting on whitespace), which is a more robust signal of a real text extraction.
-
----
-
-### 7. Word Document HTML Extraction Not Attempted
-**File:** `src/pages/UploadPage.tsx`, line 343
-
-`mammoth` is called with `extractRawText` only. Mammoth also supports `convertToHtml` which preserves bold/italic/list structure — especially important because DOCX files often use formatted bullets that `extractRawText` flattens into plain paragraphs, dropping bullet markers. Without bullet markers, the AI loses achievement/responsibility signals.
-
-**Fix:** Try `convertToHtml` first, then strip tags but preserve structure markers (line breaks, list items), fall back to `extractRawText` only if HTML output is empty.
-
----
-
-### 8. Missing `awards`, `publications`, `volunteering` from AI Schema
-**File:** `supabase/functions/parse-resume/index.ts` (the entire tool schema)
-
-The `parse_resume` tool schema only defines: `contactInfo`, `summary`, `experience`, `education`, `skills`, `certifications`. The AI is given no schema slot for `awards`, `publications`, `volunteering`, or `hobbies` — which are valid resume sections many users have. The edge function then returns those fields as absent, so `regenerateResumeIds` returns empty arrays for them regardless of what the resume actually contains.
-
-**Fix:** Extend the tool schema and the system prompt to capture these 4 additional arrays. The `resumeData` mapping block must also be extended to include them.
-
----
-
-## Files Changed
-
-| File | Changes |
-|---|---|
-| `src/lib/pdf/ocrExtractor.ts` | Fix canvas viewport mismatch; raise OCR quality threshold to 100 chars + 5 words |
-| `src/lib/pdf/sectionParsers.ts` | Extend block-start regex; raise skills cap to 60; expand name Unicode range |
-| `src/pages/UploadPage.tsx` | Use mammoth `convertToHtml` first, fall back to `extractRawText` |
-| `supabase/functions/parse-resume/index.ts` | Add `isProject` to required fields; extend schema with awards/publications/volunteering/hobbies; expand name Unicode; improve system prompt |
-
-No database changes. No new dependencies. No new edge functions.
+Note: `unsavedGuard` is already declared later in the file (line 450). The `handleBack` declaration at line 635 occurs after `unsavedGuard` is set up, so this reference is safe. The existing hardware back button guard already correctly uses `unsavedGuard.interceptNavigate` — this just brings the header button into parity.
