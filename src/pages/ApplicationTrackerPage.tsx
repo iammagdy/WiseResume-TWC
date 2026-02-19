@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic, AlertTriangle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -13,6 +13,7 @@ import { useCoverLetter } from '@/hooks/useCoverLetters';
 import { useResumes } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { FollowUpEmailSheet } from '@/components/applications/FollowUpEmailSheet';
+import { HiredCelebrationModal } from '@/components/dashboard/HiredCelebrationModal';
 import { toast } from 'sonner';
 import { DetailSkeleton } from '@/components/layout/PageSkeletons';
 
@@ -39,6 +40,18 @@ export default function ApplicationTrackerPage() {
   const [showReminder, setShowReminder] = useState(false);
   const [reminderDate, setReminderDate] = useState('');
   const [showFollowUp, setShowFollowUp] = useState(false);
+  const [showHiredModal, setShowHiredModal] = useState(false);
+
+  // Detect when status changes to 'offer' — show celebration
+  useEffect(() => {
+    if (app && app.status === 'offer') {
+      const key = `hired_modal_shown_${app.id}`;
+      if (!localStorage.getItem(key)) {
+        setShowHiredModal(true);
+        localStorage.setItem(key, '1');
+      }
+    }
+  }, [app?.status, app?.id]);
 
   // Auth guard handled by ProtectedRoute
   if (isLoading) return <DetailSkeleton />;
@@ -273,6 +286,14 @@ export default function ApplicationTrackerPage() {
         onOpenChange={setShowFollowUp}
         company={app.company}
         jobTitle={app.job_title}
+      />
+
+      <HiredCelebrationModal
+        open={showHiredModal}
+        onClose={() => setShowHiredModal(false)}
+        jobTitle={app.job_title}
+        company={app.company}
+        resumeId={app.resume_id}
       />
     </motion.div>
   );

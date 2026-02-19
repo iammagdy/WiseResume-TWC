@@ -82,7 +82,7 @@ serve(async (req) => {
     // ── 3. Validate the portfolio exists before inserting visit ────────────
     const { data: profileRow } = await supabaseClient
       .from("profiles")
-      .select("username")
+      .select("username, user_id")
       .eq("username", username.toLowerCase())
       .eq("portfolio_enabled", true)
       .single();
@@ -111,6 +111,21 @@ serve(async (req) => {
 
     if (insertError) {
       console.error("Error inserting visit:", insertError);
+    }
+
+    // ── 5. Create in-app notification for portfolio owner ──────────────────
+    try {
+      const locationParts = [city, country].filter(Boolean);
+      const locationStr = locationParts.length > 0 ? ` from ${locationParts.join(", ")}` : "";
+      await supabaseClient.from("notifications").insert({
+        user_id: profileRow.user_id,
+        type: "portfolio_view",
+        title: "👀 Someone viewed your portfolio",
+        message: `A visitor${locationStr} just checked out your portfolio.`,
+        link: "/portfolio?tab=analytics",
+      });
+    } catch (notifErr) {
+      console.warn("Notification creation failed (non-fatal):", notifErr);
     }
 
     // ── 5. Increment short link click count if ref provided ────────────────

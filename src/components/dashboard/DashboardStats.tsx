@@ -1,8 +1,9 @@
 import { useMemo, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Flame } from 'lucide-react';
+import { FileText, Flame, AlertCircle } from 'lucide-react';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { Badge } from '@/components/ui/badge';
+import { DatabaseResume } from '@/hooks/useResumes';
 
 function useLoginStreak() {
   const [streak, setStreak] = useState(1);
@@ -46,10 +47,13 @@ interface DashboardStatsProps {
   healthScores: Record<string, ResumeHealthScore>;
   userName?: string | null;
   isScoring?: boolean;
+  resumes?: DatabaseResume[];
+  loginStreak?: number;
 }
 
-export function DashboardStats({ totalResumes, healthScores, userName, isScoring = false }: DashboardStatsProps) {
-  const streak = useLoginStreak();
+export function DashboardStats({ totalResumes, healthScores, userName, isScoring = false, resumes, loginStreak: externalStreak }: DashboardStatsProps) {
+  const localStreak = useLoginStreak();
+  const streak = externalStreak ?? localStreak;
   const [subtitleIndex, setSubtitleIndex] = useState(0);
 
   // Rotate subtitles every 4 seconds when empty state
@@ -148,6 +152,20 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
                 <FileText className="w-3.5 h-3.5" />
                 {totalResumes} {totalResumes === 1 ? 'Resume' : 'Resumes'}
               </Badge>
+              {/* Resume freshness nudge */}
+              {resumes && resumes.length > 0 && (() => {
+                const oldest = resumes.reduce((a, b) =>
+                  new Date(a.updated_at) < new Date(b.updated_at) ? a : b
+                );
+                const daysSince = Math.floor((Date.now() - new Date(oldest.updated_at).getTime()) / 86_400_000);
+                if (daysSince < 30) return null;
+                return (
+                  <Badge variant="outline" className="gap-1.5 px-3 py-1.5 text-sm font-medium border-warning/40 text-warning">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    Resume {daysSince}d old
+                  </Badge>
+                );
+              })()}
             </div>
           )}
         </div>
