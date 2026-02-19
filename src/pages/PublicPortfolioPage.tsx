@@ -8,14 +8,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen,
   Github, Globe, Mail, X, Download, ExternalLink, Loader2, ChevronDown, ChevronUp,
-  Wrench, Layers, ArrowUpRight, Code2, Paintbrush, MessageSquare, PenLine, Star, Send
+  Wrench, Layers, ArrowUpRight, Code2, Paintbrush, MessageSquare, PenLine, Star, Send, Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { toast } from 'sonner';
+import { haptics } from '@/lib/haptics';
 import type { Experience, Education, Project } from '@/types/resume';
 import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
+import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 
 // ─── Motion variants ───────────────────────────────────────────────────────────
 const fadeUp = {
@@ -760,6 +762,7 @@ function PublicPortfolioContent() {
 
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showCareerCard, setShowCareerCard] = useState(false);
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -1179,6 +1182,17 @@ function PublicPortfolioContent() {
               </a>
             )}
             <button
+              onClick={() => { haptics.light(); setShowCareerCard(true); }}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border"
+              style={{
+                borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`,
+                color: accentColor,
+                background: `color-mix(in srgb, ${accentColor} 8%, transparent)`,
+              }}
+            >
+              <Sparkles className="w-4 h-4" /> Share Card
+            </button>
+            <button
               onClick={handleDownload}
               disabled={isDownloading}
               className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border"
@@ -1350,6 +1364,26 @@ function PublicPortfolioContent() {
         resume={resume}
         accentColor={accentColor}
         pStyle={pStyle}
+      />
+      <CareerCardSheet
+        open={showCareerCard}
+        onOpenChange={setShowCareerCard}
+        profile={{
+          fullName: profile.fullName,
+          avatarUrl: profile.avatarUrl,
+          jobTitle: profile.jobTitle,
+          location: profile.location,
+          openToWork: profile.openToWork,
+          username: profile.username,
+          portfolioAccentColor: profile.portfolioAccentColor,
+        }}
+        selectedResume={{
+          id: resume.id,
+          title: resume.title,
+          skills: resume.skills,
+          experience: resume.experience,
+        }}
+        accentColor={accentColor}
       />
     </div>
   );
