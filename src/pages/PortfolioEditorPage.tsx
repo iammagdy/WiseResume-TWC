@@ -550,7 +550,7 @@ export default function PortfolioEditorPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3 pb-safe">
+      <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3 pb-24">
         {/* Info banner removed — replaced by hero card */}
 
         {/* ── Hero Card: Portfolio Overview ─────────────────────────── */}
