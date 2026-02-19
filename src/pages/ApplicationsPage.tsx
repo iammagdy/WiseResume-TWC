@@ -263,7 +263,7 @@ export default function ApplicationsPage() {
                             <FileText className="w-5 h-5 text-secondary" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold truncate">{app.job_title}</p>
+                            <p className="text-sm font-semibold truncate" title={app.job_title}>{app.job_title}</p>
                             <p className="text-xs text-muted-foreground truncate">{app.company}</p>
                             {app.applied_at && (
                               <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -313,36 +313,49 @@ export default function ApplicationsPage() {
                   })}
                 </div>
               ) : (
-                /* Compact empty state banner */
-                <div className="glass-surface rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <FileText className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">
-                      {statusFilter !== 'all' ? `No ${statusFilter} applications` : 'No applications tracked'}
+                statusFilter === 'all' ? (
+                  /* Centered empty state for first-time users */
+                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+                      <FileText className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-base font-semibold mb-1">Track your job applications</h3>
+                    <p className="text-sm text-muted-foreground mb-6 max-w-[260px]">
+                      Add applications to stay organized and never miss a follow-up
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {statusFilter !== 'all' ? 'Try a different filter' : 'Track your job applications here'}
-                    </p>
+                    <button
+                      onClick={() => { haptics.medium(); setShowAdd(true); }}
+                      className="px-5 py-3 rounded-full gradient-primary text-primary-foreground text-sm font-semibold min-h-[44px] touch-manipulation active:scale-95 shadow-md"
+                    >
+                      Add your first application
+                    </button>
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    {statusFilter !== 'all' && (
+                ) : (
+                  /* Compact empty state for filtered view */
+                  <div className="glass-surface rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">No {statusFilter} applications</p>
+                      <p className="text-xs text-muted-foreground">Try a different filter</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
                       <button
                         onClick={() => { haptics.light(); setStatusFilter('all'); }}
                         className="px-3 py-2 rounded-full bg-muted text-foreground text-xs font-medium min-h-[44px] touch-manipulation active:scale-95"
                       >
                         Show All
                       </button>
-                    )}
-                    <button
-                      onClick={() => { haptics.light(); setShowAdd(true); }}
-                      className="px-3 py-2 rounded-full bg-primary/10 text-primary text-xs font-medium min-h-[44px] touch-manipulation active:scale-95"
-                    >
-                      + Add
-                    </button>
+                      <button
+                        onClick={() => { haptics.light(); setShowAdd(true); }}
+                        className="px-3 py-2 rounded-full bg-primary/10 text-primary text-xs font-medium min-h-[44px] touch-manipulation active:scale-95"
+                      >
+                        + Add
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )
               )}
 
               {/* Stats - only when meaningful data exists */}
