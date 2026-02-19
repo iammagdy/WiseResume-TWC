@@ -1263,19 +1263,31 @@ function PublicPortfolioContent() {
 
             {/* Skills */}
             {hasSkills && (
-              <motion.section variants={fadeUp} className={isTwoCol ? 'md:sticky md:top-8' : ''} id="section-skills">
+              <motion.section
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true, margin: '-60px' }}
+                className={isTwoCol ? 'md:sticky md:top-8' : ''}
+                id="section-skills"
+              >
                 <SectionHeader icon={<Award className="w-5 h-5" />} title="Skills" style={pStyle} />
-                <div className="flex flex-wrap gap-2">
+                <motion.div
+                  variants={skillWave}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ once: true }}
+                  className="flex flex-wrap gap-2"
+                >
                   {visibleSkills.map((skill, i) => (
-                    <span key={i} className="text-sm px-3 py-1.5 rounded-full font-medium transition-all" style={{
+                    <motion.span key={i} variants={skillPill} className="text-sm px-3 py-1.5 rounded-full font-medium transition-all" style={{
                       background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
                       color: 'var(--pf-accent)',
                       border: '1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent)',
                     }}>
                       {skill}
-                    </span>
+                    </motion.span>
                   ))}
-                </div>
+                </motion.div>
                 {hasMoreSkills && (
                   <button
                     onClick={() => setShowMoreSkills(v => !v)}
@@ -1333,6 +1345,12 @@ function PublicPortfolioContent() {
           </a>
         </motion.div>
       </motion.div>
+      <ChatWidget
+        profile={profile}
+        resume={resume}
+        accentColor={accentColor}
+        pStyle={pStyle}
+      />
     </div>
   );
 }
