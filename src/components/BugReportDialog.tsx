@@ -96,6 +96,7 @@ export function BugReportDialog() {
 
   const screenLabel = data ? detectScreen(data.route) : 'General';
   const categoryInfo = data ? categorizeError(data.errorMessage) : categorizeError('');
+  const isShake = data?.source === 'shake';
 
   const handleSend = useCallback(async () => {
     if (!data) return;
@@ -155,11 +156,13 @@ export function BugReportDialog() {
                 <HeartHandshake className="w-7 h-7 text-primary" />
               </div>
               <DialogTitle className="text-lg font-semibold text-foreground">
-                We Detected an Issue
+                {isShake ? 'Shake Detected' : 'We Detected an Issue'}
               </DialogTitle>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                We've captured the details automatically. Our team will investigate within{' '}
-                <span className="font-medium text-foreground">24 hours</span>.
+                {isShake
+                  ? <>You shook your device to report a problem. Describe what went wrong and we'll look into it within{' '}<span className="font-medium text-foreground">24 hours</span>.</>
+                  : <>We've captured the details automatically. Our team will investigate within{' '}<span className="font-medium text-foreground">24 hours</span>.</>
+                }
               </p>
             </div>
 
@@ -169,6 +172,11 @@ export function BugReportDialog() {
                 categoryInfo={categoryInfo}
                 action={data?.action}
               />
+              {isShake && (
+                <p className="text-xs text-muted-foreground/70 text-center italic">
+                  Triggered by device shake gesture
+                </p>
+              )}
 
               <div>
                 <label htmlFor="bug-context" className="text-sm font-medium text-foreground mb-1.5 block">
