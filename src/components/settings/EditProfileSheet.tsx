@@ -146,6 +146,10 @@ export function EditProfileSheet({
     availabilityHeadline: null,
     portfolioExtras: null,
     portfolioSyncMode: 'auto' as const,
+    loginStreak: 1,
+    lastLoginDate: null,
+    digestEnabled: true,
+    hiredAt: null,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 

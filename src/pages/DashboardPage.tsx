@@ -17,6 +17,8 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 import { DailyTipCard } from '@/components/dashboard/DailyTipCard';
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
+import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
+import { PortfolioActivityCard } from '@/components/dashboard/PortfolioActivityCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
@@ -552,13 +554,21 @@ export default function DashboardPage() {
             {/* Daily Tip - below header, auto-hides */}
             <DailyTipCard onVisibilityChange={setTipVisible} />
 
+            {/* Portfolio Activity Card - shows if portfolio is enabled */}
+            <PortfolioActivityCard />
+
             {/* Personalized Stats Header */}
             <DashboardStats
               totalResumes={resumes?.length || 0}
               healthScores={healthScores}
               userName={profile?.fullName}
               isScoring={scoringId !== null || (resumes != null && resumes.length > 0 && Object.keys(healthScores).length < resumes.length)}
+              resumes={resumes ?? undefined}
+              loginStreak={profile?.loginStreak}
             />
+
+            {/* Career Milestones Row */}
+            <CareerMilestonesRow />
 
             {/* Quick Action Chips */}
             {resumes && resumes.length > 0 && (

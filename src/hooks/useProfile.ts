@@ -62,6 +62,11 @@ interface Profile {
   // Portfolio extras (case studies, services, snapshot)
   portfolioExtras: PortfolioExtras;
   portfolioSyncMode: 'auto' | 'locked';
+  // Retention fields
+  loginStreak: number;
+  lastLoginDate: string | null;
+  digestEnabled: boolean;
+  hiredAt: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -103,7 +108,7 @@ export function calculateProfileCompletion(profile: Profile | null): number {
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -146,6 +151,10 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       availabilityHeadline: (d.availability_headline as string) ?? null,
       portfolioExtras: (d.portfolio_extras as PortfolioExtras) ?? {},
       portfolioSyncMode: ((d.portfolio_sync_mode as string) ?? 'auto') as 'auto' | 'locked',
+      loginStreak: (d.login_streak as number) ?? 1,
+      lastLoginDate: (d.last_login_date as string) ?? null,
+      digestEnabled: (d.digest_enabled as boolean) ?? true,
+      hiredAt: (d.hired_at as string) ?? null,
     };
   }
 
@@ -184,6 +193,10 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     availabilityHeadline: null,
     portfolioExtras: {},
     portfolioSyncMode: 'auto',
+    loginStreak: 1,
+    lastLoginDate: null,
+    digestEnabled: true,
+    hiredAt: null,
   };
 
   // Create the row via upsert

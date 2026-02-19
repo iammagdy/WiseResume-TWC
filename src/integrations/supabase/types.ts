@@ -527,14 +527,18 @@ export type Database = {
           career_level: string | null
           contact_email: string | null
           created_at: string | null
+          digest_enabled: boolean | null
           full_name: string | null
           github_url: string | null
+          hired_at: string | null
           id: string
           industry: string | null
           job_title: string | null
           last_active_at: string | null
+          last_login_date: string | null
           linkedin_url: string | null
           location: string | null
+          login_streak: number | null
           onboarding_completed: boolean | null
           open_to_work: boolean | null
           phone_number: string | null
@@ -565,14 +569,18 @@ export type Database = {
           career_level?: string | null
           contact_email?: string | null
           created_at?: string | null
+          digest_enabled?: boolean | null
           full_name?: string | null
           github_url?: string | null
+          hired_at?: string | null
           id?: string
           industry?: string | null
           job_title?: string | null
           last_active_at?: string | null
+          last_login_date?: string | null
           linkedin_url?: string | null
           location?: string | null
+          login_streak?: number | null
           onboarding_completed?: boolean | null
           open_to_work?: boolean | null
           phone_number?: string | null
@@ -603,14 +611,18 @@ export type Database = {
           career_level?: string | null
           contact_email?: string | null
           created_at?: string | null
+          digest_enabled?: boolean | null
           full_name?: string | null
           github_url?: string | null
+          hired_at?: string | null
           id?: string
           industry?: string | null
           job_title?: string | null
           last_active_at?: string | null
+          last_login_date?: string | null
           linkedin_url?: string | null
           location?: string | null
+          login_streak?: number | null
           onboarding_completed?: boolean | null
           open_to_work?: boolean | null
           phone_number?: string | null
@@ -825,6 +837,7 @@ export type Database = {
           is_primary: boolean | null
           is_public: boolean
           job_match_score: number | null
+          last_reminder_sent_at: string | null
           parent_resume_id: string | null
           projects: Json | null
           publications: Json | null
@@ -852,6 +865,7 @@ export type Database = {
           is_primary?: boolean | null
           is_public?: boolean
           job_match_score?: number | null
+          last_reminder_sent_at?: string | null
           parent_resume_id?: string | null
           projects?: Json | null
           publications?: Json | null
@@ -879,6 +893,7 @@ export type Database = {
           is_primary?: boolean | null
           is_public?: boolean
           job_match_score?: number | null
+          last_reminder_sent_at?: string | null
           parent_resume_id?: string | null
           projects?: Json | null
           publications?: Json | null
