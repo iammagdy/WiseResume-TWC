@@ -136,7 +136,7 @@ function ThemePreviewCard({
 
 // ─── Collapsible Section Card ────────────────────────────────────────────────
 function CollapsibleCard({
-  id, icon, title, hint, openSections, toggleSection, children,
+  id, icon, title, hint, openSections, toggleSection, children, action,
 }: {
   id: string;
   icon: React.ReactNode;
@@ -145,6 +145,7 @@ function CollapsibleCard({
   openSections: Set<string>;
   toggleSection: (id: string) => void;
   children: React.ReactNode;
+  action?: React.ReactNode;
 }) {
   const isOpen = openSections.has(id);
   return (
@@ -160,7 +161,10 @@ function CollapsibleCard({
             <span className="text-xs text-muted-foreground truncate ml-1">{hint}</span>
           )}
         </div>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform shrink-0 ml-2 ${isOpen ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          {action && !isOpen && action}
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </div>
       </button>
       {isOpen && (
         <div className="px-4 pb-4 space-y-4">
@@ -226,6 +230,7 @@ export default function PortfolioEditorPage() {
   const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
   const [showAllSkills, setShowAllSkills] = useState(false);
+  const [showAllSections, setShowAllSections] = useState(false);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -546,90 +551,111 @@ export default function PortfolioEditorPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3 pb-safe">
-        {/* Info banner for new users */}
-        {!bannerDismissed && (
-          <div className="flex items-start gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 text-xs text-foreground">
-            <span className="flex-1 leading-relaxed">
-              💡 Your portfolio is auto-built from your resume. Customize it below to improve your strength score.
-            </span>
-            <button
-              onClick={() => { localStorage.setItem('portfolio_info_dismissed', '1'); setBannerDismissed(true); }}
-              className="shrink-0 p-1 rounded-full hover:bg-muted active:scale-95 transition-all"
-              aria-label="Dismiss"
-            >✕</button>
-          </div>
-        )}
+        {/* Info banner removed — replaced by hero card */}
 
-        {/* ── Status (always open) ──────────────────────────────────────── */}
+        {/* ── Hero Card: Portfolio Overview ─────────────────────────── */}
         <div className="glass-elevated rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Globe className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold text-foreground">Portfolio Status</h3>
-            </div>
+            <h3 className="font-semibold text-foreground">Portfolio Overview</h3>
             <Badge variant={portfolioEnabled ? 'default' : 'secondary'} className="text-xs">
               {portfolioEnabled ? '🟢 Live' : 'Draft'}
             </Badge>
           </div>
-          {portfolioEnabled && username && (
-            <>
-              {/* URL display row — shows branded URL, copies actual URL */}
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
-                <Globe className="w-4 h-4 text-primary shrink-0" />
-                <span className="text-xs text-foreground truncate flex-1 font-mono">{portfolioDisplayUrl}</span>
-                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyUrl} title="Copy link">
-                  {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant="outline"
-                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
-                  onClick={() => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer')}
-                >
-                  <ExternalLink className="w-4 h-4 mr-1.5" /> Preview
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
-                  onClick={() => { haptics.light(); setShowQR(true); }}
-                >
-                  <QrCode className="w-4 h-4 mr-1.5" /> Get QR Code
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
-                  onClick={() => { haptics.light(); setShowCareerCard(true); }}
-                >
-                  <Sparkles className="w-4 h-4 mr-1.5" /> Career Card
-                </Button>
-                <Button
-                  variant="outline"
-                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs"
-                  onClick={() => {
-                    haptics.light();
-                    window.open(
-                      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(username)}`,
-                      '_blank',
-                      'noopener,noreferrer'
-                    );
-                  }}
-                >
-                  <Eye className="w-4 h-4 mr-1.5" /> Social Preview
-                </Button>
-              </div>
-            </>
+
+          {/* URL row */}
+          {username && (
+            <div className="flex items-center gap-2 p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+              <Globe className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-xs text-foreground truncate flex-1 font-mono">{portfolioDisplayUrl}</span>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleCopyUrl} title="Copy link">
+                {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4" />}
+              </Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => { haptics.light(); setShowQR(true); }} title="QR Code">
+                <QrCode className="w-4 h-4" />
+              </Button>
+            </div>
           )}
-          {profile?.views != null && (
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              👁 <span className="font-semibold text-foreground">{profile.views || 0}</span> total views
-            </p>
+
+          {/* Compact stats row */}
+          <div className="flex items-center gap-3 text-xs">
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <Eye className="w-3.5 h-3.5" />
+              <span className="font-semibold text-foreground">{profile?.views || 0}</span> views
+            </span>
+            <span className="text-border">·</span>
+            <span className={`font-semibold ${strengthScore < 40 ? 'text-destructive' : strengthScore < 70 ? 'text-yellow-500' : 'text-green-500'}`}>
+              {strengthScore}% · {strengthLabel}
+            </span>
+            <span className="text-border">·</span>
+            <span className="text-muted-foreground">
+              <span className="text-emerald-400 font-medium">{strongSkillCount}</span> skills
+            </span>
+          </div>
+
+          {/* Publish toggle */}
+          <div className="flex items-center justify-between pt-1">
+            <div>
+              <p className="text-sm font-medium text-foreground">Make portfolio public</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Anyone with your link can view your portfolio website.</p>
+            </div>
+            <Switch checked={portfolioEnabled} onCheckedChange={setPortfolioEnabled} />
+          </div>
+
+          {/* Save */}
+          <Button
+            onClick={() => handleSave()}
+            disabled={savingPortfolio || !!usernameError || usernameAvailable === false || checkingUsername}
+            className="w-full h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation"
+          >
+            {savingPortfolio ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+            Save Portfolio
+          </Button>
+
+          {portfolioEnabled && (
+            <Button
+              variant="destructive"
+              className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation"
+              onClick={() => handleSave({ portfolioEnabled: false })}
+            >
+              Unpublish Portfolio
+            </Button>
+          )}
+
+          {/* Quick actions (only when live) */}
+          {portfolioEnabled && username && (
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <Button variant="outline" className="h-10 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs" onClick={() => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer')}>
+                <ExternalLink className="w-4 h-4 mr-1.5" /> Preview
+              </Button>
+              <Button variant="outline" className="h-10 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs" onClick={() => { haptics.light(); setShowCareerCard(true); }}>
+                <Sparkles className="w-4 h-4 mr-1.5" /> Career Card
+              </Button>
+            </div>
           )}
         </div>
 
+        {/* ── Strength Tips (below hero, only when < 100%) ───────────── */}
+        {strengthMissing.length > 0 && (
+          <CollapsibleCard
+            id="strength-tips"
+            icon={<span className="text-base">💪</span>}
+            title="Improve your score"
+            hint={<span className="text-xs text-muted-foreground">{strengthMissing.length} tip{strengthMissing.length !== 1 ? 's' : ''}</span>}
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <div className="space-y-1.5">
+              {strengthMissing.map((m, i) => (
+                <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                  <span className="text-primary shrink-0 mt-0.5">·</span>{m.tip}
+                </p>
+              ))}
+            </div>
+          </CollapsibleCard>
+        )}
+
         {/* ── QR Code Dialog ───────────────────────────────────────────── */}
         <Dialog open={showQR} onOpenChange={setShowQR}>
-
           <DialogContent className="max-w-[320px] p-6">
             <DialogHeader>
               <DialogTitle className="text-center flex items-center justify-center gap-2">
@@ -637,7 +663,6 @@ export default function PortfolioEditorPage() {
               </DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4 pt-2">
-              {/* QR image via free qrserver.com API */}
               <div className="rounded-2xl overflow-hidden border border-border p-3 bg-[#0a0a14]">
                 <img
                   src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(actualPortfolioUrl)}&color=e84545&bgcolor=0a0a14&format=png&margin=1`}
@@ -649,18 +674,10 @@ export default function PortfolioEditorPage() {
               </div>
               <p className="text-xs text-muted-foreground font-mono text-center">{portfolioDisplayUrl}</p>
               <div className="grid grid-cols-2 gap-2 w-full">
-                <Button
-                  variant="outline"
-                  className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs"
-                  onClick={handleDownloadQR}
-                >
+                <Button variant="outline" className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs" onClick={handleDownloadQR}>
                   <Download className="w-4 h-4 mr-1.5" /> Download QR
                 </Button>
-                <Button
-                  variant="outline"
-                  className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs"
-                  onClick={handleShareQR}
-                >
+                <Button variant="outline" className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs" onClick={handleShareQR}>
                   <Share2 className="w-4 h-4 mr-1.5" />
                   {navigator.share ? 'Share' : 'Copy Link'}
                 </Button>
@@ -669,7 +686,7 @@ export default function PortfolioEditorPage() {
           </DialogContent>
         </Dialog>
 
-        {/* ── Visitors & Analytics (collapsible) ───────────────────────── */}
+        {/* ── Visitors & Analytics (detail view) ───────────────────────── */}
         <CollapsibleCard
           id="visitors"
           icon={<Eye className="w-4 h-4" />}
@@ -685,43 +702,15 @@ export default function PortfolioEditorPage() {
           />
         </CollapsibleCard>
 
-        {/* ── Portfolio Strength (collapsible) ──────────────────────────── */}
-        <CollapsibleCard
-          id="strength"
-          icon={<span className="text-base">💪</span>}
-          title="Portfolio Strength"
-          hint={<span className={`font-bold ${strengthScore < 40 ? 'text-destructive' : strengthScore < 70 ? 'text-yellow-500' : 'text-green-500'}`}>{strengthScore}% · {strengthLabel}</span>}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <div className="space-y-1">
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div className={`h-full rounded-full transition-all duration-500 ${strengthColor}`} style={{ width: `${strengthScore}%` }} />
-            </div>
-            <p className="text-xs text-muted-foreground">{strengthLabel}</p>
-          </div>
-          {strengthMissing.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-foreground">Missing:</p>
-              {strengthMissing.map((m, i) => (
-                <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <span className="text-primary shrink-0 mt-0.5">·</span>{m.tip}
-                </p>
-              ))}
-            </div>
-          )}
-        </CollapsibleCard>
-
-        {/* ── Skills Visibility (collapsible) ───────────────────────────── */}
+        {/* ── Skills on your portfolio ───────────────────────────────── */}
         {sortedSkillScores.length > 0 && (
           <CollapsibleCard
             id="skill-cloud"
             icon={<BarChart2 className="w-4 h-4" />}
-            title="Skills Visibility"
+            title="Skills on your portfolio"
             hint={
               <span className="text-[10px] text-muted-foreground">
-                <span className="text-emerald-400 font-medium">{strongSkillCount} strong</span>
-                {dimSkillCount > 0 && <> · <span className="text-muted-foreground/60">{dimSkillCount} dim</span></>}
+                <span className="text-emerald-400 font-medium">{strongSkillCount} highlighted skills</span>
               </span>
             }
             openSections={openSections}
@@ -730,8 +719,6 @@ export default function PortfolioEditorPage() {
             <p className="text-xs text-muted-foreground mb-2">
               How often each skill appears in your experience &amp; projects — higher scores show larger in your public Skills cloud.
             </p>
-
-            {/* Skill score rows */}
             <div className="space-y-0.5">
               {sortedSkillScores.slice(0, showAllSkills ? 999 : 20).map(([skill, score]) => {
                 const { tier } = getSkillTier(score);
@@ -740,10 +727,7 @@ export default function PortfolioEditorPage() {
                   <div key={skill} className="flex items-center gap-2 py-1.5">
                     <span className="text-sm text-foreground truncate flex-1 min-w-0">{skill}</span>
                     <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
-                      <div
-                        className="h-full rounded-full bg-primary transition-all duration-300"
-                        style={{ width: `${pct}%` }}
-                      />
+                      <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="text-[10px] text-muted-foreground w-16 text-right shrink-0">
                       {score > 0 ? `${score} mention${score !== 1 ? 's' : ''}` : 'not found'}
@@ -755,18 +739,11 @@ export default function PortfolioEditorPage() {
                 );
               })}
             </div>
-
-            {/* Show all toggle */}
             {sortedSkillScores.length > 20 && (
-              <button
-                className="mt-1 text-xs text-primary underline-offset-2 hover:underline active:scale-95 transition-transform"
-                onClick={() => { haptics.light(); setShowAllSkills(v => !v); }}
-              >
+              <button className="mt-1 text-xs text-primary underline-offset-2 hover:underline active:scale-95 transition-transform" onClick={() => { haptics.light(); setShowAllSkills(v => !v); }}>
                 {showAllSkills ? 'Show less' : `Show all ${sortedSkillScores.length} skills`}
               </button>
             )}
-
-            {/* Improvement hint */}
             {dimSkillCount > 0 && (
               <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 space-y-1.5">
                 <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
@@ -776,12 +753,7 @@ export default function PortfolioEditorPage() {
                 <p className="text-xs text-muted-foreground">
                   Mention them in job descriptions or projects to make them appear larger in your public Skills word cloud.
                 </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs text-primary px-2 gap-1 active:scale-95"
-                  onClick={() => { haptics.light(); navigate('/editor'); }}
-                >
+                <Button variant="ghost" size="sm" className="h-7 text-xs text-primary px-2 gap-1 active:scale-95" onClick={() => { haptics.light(); navigate('/editor'); }}>
                   Go to Resume Editor <ArrowRight className="w-3 h-3" />
                 </Button>
               </div>
@@ -789,7 +761,7 @@ export default function PortfolioEditorPage() {
           </CollapsibleCard>
         )}
 
-        {/* ── Visual Theme (collapsible) ────────────────────────────────── */}
+        {/* ── Visual Theme (collapsible) ────────────────────────────── */}
         <CollapsibleCard
           id="theme"
           icon={<Palette className="w-4 h-4" />}
@@ -814,7 +786,7 @@ export default function PortfolioEditorPage() {
           </p>
         </CollapsibleCard>
 
-        {/* ── Customization (collapsible) ───────────────────────────────── */}
+        {/* ── Customization (always show) ───────────────────────────── */}
         <CollapsibleCard
           id="customization"
           icon={<Sparkles className="w-4 h-4" />}
@@ -823,7 +795,6 @@ export default function PortfolioEditorPage() {
           openSections={openSections}
           toggleSection={toggleSection}
         >
-          {/* Accent Color */}
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Accent Color</label>
             <div className="flex items-center gap-2 flex-wrap">
@@ -832,34 +803,19 @@ export default function PortfolioEditorPage() {
                   key={color}
                   onClick={() => { haptics.light(); setPortfolioAccentColor(color); }}
                   className="w-8 h-8 rounded-full transition-all active:scale-90"
-                  style={{
-                    background: color,
-                    outline: portfolioAccentColor === color ? `3px solid ${color}` : '3px solid transparent',
-                    outlineOffset: '2px',
-                  }}
+                  style={{ background: color, outline: portfolioAccentColor === color ? `3px solid ${color}` : '3px solid transparent', outlineOffset: '2px' }}
                   title={color}
                 />
               ))}
               <div className="relative">
-                <input
-                  type="color"
-                  value={portfolioAccentColor}
-                  onChange={e => setPortfolioAccentColor(e.target.value)}
-                  className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer"
-                  title="Custom color"
-                />
-                <div
-                  className="w-8 h-8 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground"
-                  style={{ background: ACCENT_PRESETS.includes(portfolioAccentColor) ? 'transparent' : portfolioAccentColor }}
-                >
+                <input type="color" value={portfolioAccentColor} onChange={e => setPortfolioAccentColor(e.target.value)} className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer" title="Custom color" />
+                <div className="w-8 h-8 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground" style={{ background: ACCENT_PRESETS.includes(portfolioAccentColor) ? 'transparent' : portfolioAccentColor }}>
                   {ACCENT_PRESETS.includes(portfolioAccentColor) ? '+' : ''}
                 </div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground font-mono">{portfolioAccentColor}</p>
           </div>
-
-          {/* Font */}
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <Type className="w-3.5 h-3.5 text-muted-foreground" />
@@ -871,19 +827,13 @@ export default function PortfolioEditorPage() {
                 { id: 'space-grotesk', label: 'Display', sample: 'Aa', font: 'Space Grotesk' },
                 { id: 'serif', label: 'Serif', sample: 'Aa', font: 'Georgia' },
               ] as const).map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => { haptics.light(); setPortfolioFont(f.id); }}
-                  className={`py-3 px-2 rounded-xl border text-center transition-all active:scale-95 ${portfolioFont === f.id ? 'border-primary bg-primary/10' : 'border-border'}`}
-                >
+                <button key={f.id} onClick={() => { haptics.light(); setPortfolioFont(f.id); }} className={`py-3 px-2 rounded-xl border text-center transition-all active:scale-95 ${portfolioFont === f.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
                   <p className="text-base" style={{ fontFamily: f.font }}>{f.sample}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{f.label}</p>
                 </button>
               ))}
             </div>
           </div>
-
-          {/* Layout */}
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <Layout className="w-3.5 h-3.5 text-muted-foreground" />
@@ -894,11 +844,7 @@ export default function PortfolioEditorPage() {
                 { id: 'single', label: 'Single Column', icon: '▌' },
                 { id: 'two-col', label: 'Two Column', icon: '▌▌' },
               ] as const).map(l => (
-                <button
-                  key={l.id}
-                  onClick={() => { haptics.light(); setPortfolioLayout(l.id); }}
-                  className={`py-3 px-4 rounded-xl border text-center transition-all active:scale-95 ${portfolioLayout === l.id ? 'border-primary bg-primary/10' : 'border-border'}`}
-                >
+                <button key={l.id} onClick={() => { haptics.light(); setPortfolioLayout(l.id); }} className={`py-3 px-4 rounded-xl border text-center transition-all active:scale-95 ${portfolioLayout === l.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
                   <p className="text-base font-mono">{l.icon}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">{l.label}</p>
                 </button>
@@ -908,42 +854,7 @@ export default function PortfolioEditorPage() {
           </div>
         </CollapsibleCard>
 
-        {/* ── Availability (collapsible) ────────────────────────────────── */}
-        <CollapsibleCard
-          id="availability"
-          icon={<Zap className="w-4 h-4" />}
-          title="Availability"
-          hint={openToWork ? <span className="text-green-500 font-medium">Open to Work ✓</span> : availabilityHeadline ? <span className="truncate max-w-[120px]">{availabilityHeadline}</span> : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Show "Open to Work" badge</p>
-              <p className="text-xs text-muted-foreground">Green pulsing badge on your hero section</p>
-            </div>
-            <Switch checked={openToWork} onCheckedChange={v => { haptics.light(); setOpenToWork(v); }} />
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-foreground">Availability headline</label>
-              <Button variant="ghost" size="sm" onClick={handleGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
-                {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                AI Suggest
-              </Button>
-            </div>
-            <Input
-              value={availabilityHeadline}
-              onChange={e => setAvailabilityHeadline(e.target.value)}
-              placeholder="Open to remote full-time · From June 2025"
-              maxLength={100}
-              autoCapitalize="sentences"
-            />
-            <p className="text-xs text-muted-foreground text-right">{availabilityHeadline.length}/100</p>
-          </div>
-        </CollapsibleCard>
-
-        {/* ── Identity (collapsible) ───────────────────────────────────── */}
+        {/* ── Identity (always show) ────────────────────────────────── */}
         <CollapsibleCard
           id="identity"
           icon={<User className="w-4 h-4" />}
@@ -965,7 +876,6 @@ export default function PortfolioEditorPage() {
               </div>
             )}
           </div>
-
           {resumes.length > 0 && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium text-foreground">Source Resume</label>
@@ -979,7 +889,6 @@ export default function PortfolioEditorPage() {
               </Select>
             </div>
           )}
-
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Page Color Mode</label>
             <p className="text-xs text-muted-foreground">Overrides system dark/light preference for visitors.</p>
@@ -994,7 +903,7 @@ export default function PortfolioEditorPage() {
           </div>
         </CollapsibleCard>
 
-        {/* ── About Me Bio (collapsible) ────────────────────────────────── */}
+        {/* ── About Me Bio (with edit icon) ─────────────────────────── */}
         <CollapsibleCard
           id="bio"
           icon={<User className="w-4 h-4" />}
@@ -1002,6 +911,7 @@ export default function PortfolioEditorPage() {
           hint={bio ? <span className="truncate max-w-[140px]">{bio.slice(0, 40)}{bio.length > 40 ? '…' : ''}</span> : undefined}
           openSections={openSections}
           toggleSection={toggleSection}
+          action={<span className="text-muted-foreground"><Sparkles className="w-3.5 h-3.5" /></span>}
         >
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs text-muted-foreground">Write a friendly bio or let AI generate one.</p>
@@ -1014,36 +924,70 @@ export default function PortfolioEditorPage() {
           <p className="text-xs text-muted-foreground text-right">{bio.length}/500</p>
         </CollapsibleCard>
 
-        {/* ── Social Links (collapsible) ────────────────────────────────── */}
-        <CollapsibleCard
-          id="social"
-          icon={<Link2 className="w-4 h-4" />}
-          title="Social Links & Contact"
-          hint={[githubUrl, websiteUrl, twitterUrl, contactEmail].filter(Boolean).length > 0
-            ? <span>{[githubUrl, websiteUrl, twitterUrl, contactEmail].filter(Boolean).length} linked</span>
-            : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">GitHub URL</label>
-            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Personal Website</label>
-            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
-            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
-          </div>
-        </CollapsibleCard>
+        {/* ── Social Links (conditional + edit icon) ────────────────── */}
+        {(showAllSections || githubUrl || websiteUrl || twitterUrl || contactEmail) && (
+          <CollapsibleCard
+            id="social"
+            icon={<Link2 className="w-4 h-4" />}
+            title="Social Links & Contact"
+            hint={[githubUrl, websiteUrl, twitterUrl, contactEmail].filter(Boolean).length > 0
+              ? <span>{[githubUrl, websiteUrl, twitterUrl, contactEmail].filter(Boolean).length} linked</span>
+              : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
+            action={<span className="text-muted-foreground"><Link2 className="w-3.5 h-3.5" /></span>}
+          >
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">GitHub URL</label>
+              <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">Personal Website</label>
+              <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
+              <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
+              <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
+            </div>
+          </CollapsibleCard>
+        )}
 
-        {/* ── Section Visibility (collapsible) ─────────────────────────── */}
+        {/* ── Availability (conditional) ────────────────────────────── */}
+        {(showAllSections || openToWork || availabilityHeadline) && (
+          <CollapsibleCard
+            id="availability"
+            icon={<Zap className="w-4 h-4" />}
+            title="Availability"
+            hint={openToWork ? <span className="text-green-500 font-medium">Open to Work ✓</span> : availabilityHeadline ? <span className="truncate max-w-[120px]">{availabilityHeadline}</span> : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-foreground">Show "Open to Work" badge</p>
+                <p className="text-xs text-muted-foreground">Green pulsing badge on your hero section</p>
+              </div>
+              <Switch checked={openToWork} onCheckedChange={v => { haptics.light(); setOpenToWork(v); }} />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">Availability headline</label>
+                <Button variant="ghost" size="sm" onClick={handleGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
+                  {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                  AI Suggest
+                </Button>
+              </div>
+              <Input value={availabilityHeadline} onChange={e => setAvailabilityHeadline(e.target.value)} placeholder="Open to remote full-time · From June 2025" maxLength={100} autoCapitalize="sentences" />
+              <p className="text-xs text-muted-foreground text-right">{availabilityHeadline.length}/100</p>
+            </div>
+          </CollapsibleCard>
+        )}
+
+        {/* ── Section Visibility ────────────────────────────────────── */}
         <CollapsibleCard
           id="sections"
           icon={<Eye className="w-4 h-4" />}
@@ -1063,33 +1007,27 @@ export default function PortfolioEditorPage() {
           </div>
         </CollapsibleCard>
 
-        {/* ── Sync Mode ──────────────────────────────────────────────────── */}
+        {/* ── Sync Mode ──────────────────────────────────────────────── */}
         <CollapsibleCard
           id="sync"
           icon={<Sparkles className="w-4 h-4" />}
           title="Content Sync Mode"
-          hint={<span className="capitalize">{syncMode}</span>}
+          hint={<span>{syncMode === 'auto' ? 'Auto — resumes sync live' : 'Locked'}</span>}
           openSections={openSections}
           toggleSection={toggleSection}
         >
           <p className="text-xs text-muted-foreground mb-3">Control how your portfolio content stays in sync with your resume.</p>
           <div className="space-y-2">
-            <button
-              onClick={() => setSyncMode('auto')}
-              className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}
-            >
+            <button onClick={() => setSyncMode('auto')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}>
               <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'auto' ? 'border-primary' : 'border-muted-foreground'}`}>
                 {syncMode === 'auto' && <div className="w-2 h-2 rounded-full bg-primary" />}
               </div>
               <div>
                 <p className="text-sm font-medium text-foreground">Auto-sync</p>
-                <p className="text-xs text-muted-foreground">Portfolio always reflects your latest resume changes</p>
+                <p className="text-xs text-muted-foreground">Changes to your resumes automatically sync to this portfolio.</p>
               </div>
             </button>
-            <button
-              onClick={() => setSyncMode('locked')}
-              className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}
-            >
+            <button onClick={() => setSyncMode('locked')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}>
               <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'locked' ? 'border-primary' : 'border-muted-foreground'}`}>
                 {syncMode === 'locked' && <div className="w-2 h-2 rounded-full bg-primary" />}
               </div>
@@ -1101,130 +1039,112 @@ export default function PortfolioEditorPage() {
           </div>
         </CollapsibleCard>
 
-        {/* ── Case Studies ───────────────────────────────────────────────── */}
-        <CollapsibleCard
-          id="casestudies"
-          icon={<Briefcase className="w-4 h-4" />}
-          title="Case Studies"
-          hint={caseStudies.length > 0 ? <span>{caseStudies.length} added</span> : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <p className="text-xs text-muted-foreground mb-3">Showcase detailed project stories with challenge, approach, and outcome.</p>
-          <div className="space-y-3">
-            {caseStudies.map((cs, i) => (
-              <div key={cs.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Case Study {i + 1}</span>
-                  <button onClick={() => setCaseStudies(prev => prev.filter(c => c.id !== cs.id))} className="text-muted-foreground hover:text-destructive transition-colors">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <Input placeholder="Title (e.g. Redesigned onboarding flow)" value={cs.title} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, title: e.target.value} : c))} />
-                <Textarea placeholder="Challenge — What problem were you solving?" value={cs.challenge} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, challenge: e.target.value} : c))} className="min-h-[60px] text-sm" />
-                <Textarea placeholder="Outcome — What was the measurable result?" value={cs.outcome} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, outcome: e.target.value} : c))} className="min-h-[60px] text-sm" />
-              </div>
-            ))}
-            <Button variant="outline" size="sm" onClick={() => setCaseStudies(prev => [...prev, {id: crypto.randomUUID(), title:'', challenge:'', outcome:''}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
-              <Plus className="w-4 h-4 mr-2" /> Add Case Study
-            </Button>
-          </div>
-        </CollapsibleCard>
-
-        {/* ── Services ───────────────────────────────────────────────────── */}
-        <CollapsibleCard
-          id="services"
-          icon={<Star className="w-4 h-4" />}
-          title="Services & Offerings"
-          hint={services.length > 0 ? <span>{services.length} added</span> : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <p className="text-xs text-muted-foreground mb-3">List what you offer as a freelancer, consultant, or professional.</p>
-          <div className="space-y-3">
-            {services.map((svc, i) => (
-              <div key={svc.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service {i + 1}</span>
-                  <button onClick={() => setServices(prev => prev.filter(s => s.id !== svc.id))} className="text-muted-foreground hover:text-destructive transition-colors">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <Input placeholder="Service title (e.g. UX Audit)" value={svc.title} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, title: e.target.value} : s))} />
-                <Textarea placeholder="Brief description of what's included..." value={svc.description} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, description: e.target.value} : s))} className="min-h-[60px] text-sm" />
-                <select value={svc.category} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, category: e.target.value} : s))} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
-                  <option value="development">Development</option>
-                  <option value="design">Design</option>
-                  <option value="consulting">Consulting</option>
-                  <option value="writing">Writing</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            ))}
-            <Button variant="outline" size="sm" onClick={() => setServices(prev => [...prev, {id: crypto.randomUUID(), title:'', description:'', category:'development'}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
-              <Plus className="w-4 h-4 mr-2" /> Add Service
-            </Button>
-          </div>
-        </CollapsibleCard>
-
-        {/* ── SEO & Sharing (collapsible) ───────────────────────────────── */}
-        <CollapsibleCard
-          id="seo"
-          icon={<Search className="w-4 h-4" />}
-          title="SEO & Sharing"
-          hint={metaTitle ? <span className="truncate max-w-[120px]">{metaTitle}</span> : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground">Customize how your portfolio appears on Google & social media.</p>
-            <Button variant="ghost" size="sm" onClick={handleGenerateSEO} disabled={generatingSEO} className="h-7 text-xs px-2 active:scale-95 shrink-0 ml-2">
-              {generatingSEO ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-              AI Generate
-            </Button>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Custom Page Title</label>
-            <Input placeholder={`${profile?.fullName || 'Name'} — ${profile?.jobTitle || 'Job Title'}`} value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={60} />
-            <p className="text-xs text-muted-foreground text-right">{metaTitle.length}/60</p>
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Custom Meta Description</label>
-            <Textarea placeholder="Defaults to your bio..." value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} className="min-h-[60px]" maxLength={160} />
-            <p className="text-xs text-muted-foreground text-right">{metaDescription.length}/160</p>
-          </div>
-        </CollapsibleCard>
-
-        {/* ── Publish (always open) ─────────────────────────────────────── */}
-        <div className="glass-elevated rounded-2xl p-4 space-y-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Publish</h3>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Make Portfolio Public</p>
-              <p className="text-xs text-muted-foreground">Anyone with the link can view your portfolio website</p>
-            </div>
-            <Switch checked={portfolioEnabled} onCheckedChange={setPortfolioEnabled} />
-          </div>
-
-          <Button
-            onClick={() => handleSave()}
-            disabled={savingPortfolio || !!usernameError || usernameAvailable === false || checkingUsername}
-            className="w-full h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation"
+        {/* ── Case Studies (conditional) ──────────────────────────────── */}
+        {(showAllSections || caseStudies.length > 0) && (
+          <CollapsibleCard
+            id="casestudies"
+            icon={<Briefcase className="w-4 h-4" />}
+            title="Case Studies"
+            hint={caseStudies.length > 0 ? <span>{caseStudies.length} added</span> : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
           >
-            {savingPortfolio ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-            Save Portfolio
-          </Button>
+            <p className="text-xs text-muted-foreground mb-3">Showcase detailed project stories with challenge, approach, and outcome.</p>
+            <div className="space-y-3">
+              {caseStudies.map((cs, i) => (
+                <div key={cs.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Case Study {i + 1}</span>
+                    <button onClick={() => setCaseStudies(prev => prev.filter(c => c.id !== cs.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
+                  </div>
+                  <Input placeholder="Title (e.g. Redesigned onboarding flow)" value={cs.title} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, title: e.target.value} : c))} />
+                  <Textarea placeholder="Challenge — What problem were you solving?" value={cs.challenge} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, challenge: e.target.value} : c))} className="min-h-[60px] text-sm" />
+                  <Textarea placeholder="Outcome — What was the measurable result?" value={cs.outcome} onChange={e => setCaseStudies(prev => prev.map(c => c.id === cs.id ? {...c, outcome: e.target.value} : c))} className="min-h-[60px] text-sm" />
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setCaseStudies(prev => [...prev, {id: crypto.randomUUID(), title:'', challenge:'', outcome:''}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+                <Plus className="w-4 h-4 mr-2" /> Add Case Study
+              </Button>
+            </div>
+          </CollapsibleCard>
+        )}
 
-          {portfolioEnabled && (
-            <Button
-              variant="destructive"
-              className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation"
-              onClick={() => handleSave({ portfolioEnabled: false })}
-            >
-              Unpublish Portfolio
-            </Button>
-          )}
-        </div>
+        {/* ── Services (conditional) ──────────────────────────────────── */}
+        {(showAllSections || services.length > 0) && (
+          <CollapsibleCard
+            id="services"
+            icon={<Star className="w-4 h-4" />}
+            title="Services & Offerings"
+            hint={services.length > 0 ? <span>{services.length} added</span> : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <p className="text-xs text-muted-foreground mb-3">List what you offer as a freelancer, consultant, or professional.</p>
+            <div className="space-y-3">
+              {services.map((svc, i) => (
+                <div key={svc.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Service {i + 1}</span>
+                    <button onClick={() => setServices(prev => prev.filter(s => s.id !== svc.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
+                  </div>
+                  <Input placeholder="Service title (e.g. UX Audit)" value={svc.title} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, title: e.target.value} : s))} />
+                  <Textarea placeholder="Brief description of what's included..." value={svc.description} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, description: e.target.value} : s))} className="min-h-[60px] text-sm" />
+                  <select value={svc.category} onChange={e => setServices(prev => prev.map(s => s.id === svc.id ? {...s, category: e.target.value} : s))} className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+                    <option value="development">Development</option>
+                    <option value="design">Design</option>
+                    <option value="consulting">Consulting</option>
+                    <option value="writing">Writing</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setServices(prev => [...prev, {id: crypto.randomUUID(), title:'', description:'', category:'development'}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+                <Plus className="w-4 h-4 mr-2" /> Add Service
+              </Button>
+            </div>
+          </CollapsibleCard>
+        )}
+
+        {/* ── SEO & Sharing (conditional) ───────────────────────────── */}
+        {(showAllSections || metaTitle || metaDescription) && (
+          <CollapsibleCard
+            id="seo"
+            icon={<Search className="w-4 h-4" />}
+            title="SEO & Sharing"
+            hint={metaTitle ? <span className="truncate max-w-[120px]">{metaTitle}</span> : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs text-muted-foreground">Customize how your portfolio appears on Google & social media.</p>
+              <Button variant="ghost" size="sm" onClick={handleGenerateSEO} disabled={generatingSEO} className="h-7 text-xs px-2 active:scale-95 shrink-0 ml-2">
+                {generatingSEO ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                AI Generate
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">Custom Page Title</label>
+              <Input placeholder={`${profile?.fullName || 'Name'} — ${profile?.jobTitle || 'Job Title'}`} value={metaTitle} onChange={(e) => setMetaTitle(e.target.value)} maxLength={60} />
+              <p className="text-xs text-muted-foreground text-right">{metaTitle.length}/60</p>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-foreground">Custom Meta Description</label>
+              <Textarea placeholder="Defaults to your bio..." value={metaDescription} onChange={(e) => setMetaDescription(e.target.value)} className="min-h-[60px]" maxLength={160} />
+              <p className="text-xs text-muted-foreground text-right">{metaDescription.length}/160</p>
+            </div>
+          </CollapsibleCard>
+        )}
+
+        {/* ── "Add more sections" toggle ─────────────────────────────── */}
+        {!showAllSections && (
+          <Button
+            variant="outline"
+            className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-sm"
+            onClick={() => { haptics.light(); setShowAllSections(true); }}
+          >
+            <Plus className="w-4 h-4 mr-2" /> Add more sections
+          </Button>
+        )}
 
       </div>
 
