@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Navigate, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
@@ -22,7 +22,16 @@ export function ProtectedRoute() {
     if (user) wasLoggedInRef.current = true;
   }, [user]);
 
-  if (loading) return <PageLoadingSpinner />;
+  if (loading) return (
+    <div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
+      <div className="h-10 w-32 rounded-lg bg-muted" />
+      <div className="h-6 w-48 rounded bg-muted" />
+      <div className="space-y-3 mt-6">
+        <div className="h-24 rounded-xl bg-muted" />
+        <div className="h-24 rounded-xl bg-muted" />
+      </div>
+    </div>
+  );
   if (!user) return <Navigate to="/auth" replace />;
   return <Outlet />;
 }
