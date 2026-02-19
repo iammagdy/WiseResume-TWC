@@ -7,6 +7,7 @@ import { Scissors, Mail, CheckCircle2, ExternalLink, Clock, FileText, FilePlus2,
 import { openExternal } from '@/lib/openExternal';
 import { Badge } from '@/components/ui/badge';
 import { haptics } from '@/lib/haptics';
+import { motion } from 'framer-motion';
 
 interface TimelineEntry {
   id: string;
@@ -110,15 +111,18 @@ export function ActivityTimeline() {
 
   return (
     <div className="space-y-2.5">
-      {entries.map(entry => {
+      {entries.map((entry, i) => {
         const config = typeConfig[entry.type];
         const Icon = config.icon;
         const isResume = entry.type === 'resume_created' || entry.type === 'resume_tailored';
 
         return (
-          <div
+          <motion.div
             key={entry.id}
-            className={`glass-surface rounded-2xl p-3.5 border border-border/20 transition-transform active:scale-[0.98] min-h-[80px] cursor-pointer`}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.05, duration: 0.3 }}
+            className="glass-surface rounded-2xl p-3.5 border border-border/20 transition-transform active:scale-[0.98] min-h-[80px] cursor-pointer"
             onClick={isResume && entry.resumeId ? () => navigate(`/resume/${entry.resumeId}`) : undefined}
           >
             <div className="flex items-start gap-3">
@@ -174,7 +178,7 @@ export function ActivityTimeline() {
                 <ExternalLink className="w-4 h-4" />
               </button>
             )}
-          </div>
+          </motion.div>
         );
       })}
     </div>
