@@ -1,22 +1,34 @@
 import { ArrowRight, Mic, Users, FileCheck, LayoutGrid } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { motion } from 'framer-motion';
 
 export function WhyWiseResume() {
   return (
     <section className="py-16 px-4 sm:px-6">
-      <div className="text-center mb-10 animate-fade-in-up">
+      <motion.div
+        className="text-center mb-10"
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, amount: 0.2 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+      >
         <p className="text-secondary text-xs sm:text-sm font-medium tracking-wider uppercase mb-2">
           What Makes Us Different
         </p>
         <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground">
           Why WiseResume?
         </h2>
-      </div>
+      </motion.div>
 
       <div className="max-w-md mx-auto space-y-4">
-        <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.92, filter: 'blur(4px)' }}
+          whileInView={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+          viewport={{ once: false, amount: 0.2 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+        >
           <BulletTransformCard />
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-2 gap-3">
           {[
@@ -25,9 +37,15 @@ export function WhyWiseResume() {
             { icon: <FileCheck className="w-5 h-5 text-emerald-500" />, title: 'Beat the ATS Filter', description: 'See your exact match score, then AI fixes every gap instantly', gradient: 'from-emerald-500/20 to-emerald-500/5' },
             { icon: <LayoutGrid className="w-5 h-5 text-blue-500" />, title: '12 Pro Templates', description: 'Polished designs built to impress across every industry', gradient: 'from-blue-500/20 to-blue-500/5' },
           ].map((feature, i) => (
-            <div key={feature.title} className="animate-fade-in-up" style={{ animationDelay: `${0.15 + i * 0.05}s` }}>
+            <motion.div
+              key={feature.title}
+              initial={{ opacity: 0, x: -30, rotate: -1 }}
+              whileInView={{ opacity: 1, x: 0, rotate: 0 }}
+              viewport={{ once: false, amount: 0.2 }}
+              transition={{ delay: i * 0.1, duration: 0.5, ease: 'easeOut' }}
+            >
               <FeatureCard {...feature} />
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
