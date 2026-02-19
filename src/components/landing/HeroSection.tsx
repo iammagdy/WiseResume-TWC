@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Rocket, LogIn, User, LayoutDashboard, Settings, LogOut } from 'lucide-react';
+import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -11,9 +13,23 @@ import { useProfile } from '@/hooks/useProfile';
 
 export function HeroSection() {
   const navigate = useNavigate();
+  const sectionRef = useRef<HTMLElement>(null);
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { user, isAuthenticated, signOut } = useAuth();
   const { profile } = useProfile(user?.id, user);
+  const prefersReducedMotion = useReducedMotion();
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start start', 'end start'],
+  });
+
+  const none = 0;
+  const yLogo = useTransform(scrollYProgress, [0, 1], [0, prefersReducedMotion ? none : -30]);
+  const yText = useTransform(scrollYProgress, [0, 1], [0, prefersReducedMotion ? none : -15]);
+  const yButton = useTransform(scrollYProgress, [0, 1], [0, prefersReducedMotion ? none : -5]);
+  const opacity = useTransform(scrollYProgress, [0, 0.8], [1, prefersReducedMotion ? 1 : 0.85]);
+  const scale = useTransform(scrollYProgress, [0, 1], [1, prefersReducedMotion ? 1 : 0.98]);
 
   const getInitials = () => {
     if (profile?.fullName) {
@@ -30,7 +46,7 @@ export function HeroSection() {
   };
 
   return (
-    <section className="relative min-h-[85vh] flex flex-col items-center justify-center px-4 sm:px-6 py-16 overflow-hidden">
+    <section ref={sectionRef} className="relative min-h-[85vh] flex flex-col items-center justify-center px-4 sm:px-6 py-16 overflow-hidden">
       {/* Sign in / Avatar */}
       {isAuthenticated ? (
         <DropdownMenu>
@@ -78,50 +94,54 @@ export function HeroSection() {
       )}
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto w-full">
+      <motion.div className="relative z-10 flex flex-col items-center text-center max-w-md mx-auto w-full" style={{ opacity, scale }}>
         {/* Planet logo */}
-        <div className="mb-10 animate-scale-in" style={{ animationFillMode: 'backwards' }}>
+        <motion.div className="mb-10 animate-scale-in" style={{ animationFillMode: 'backwards', y: yLogo }}>
           <PlanetLogo size="md" />
-        </div>
+        </motion.div>
 
-        <h1
-          className="text-h1 mb-4 animate-fade-in"
-          style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}
-        >
-          <span className="text-shimmer">WiseResume</span>
-        </h1>
-
-        <p
-          className="text-muted-foreground text-body mb-10 animate-fade-in max-w-sm"
-          style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}
-        >
-          AI-powered resumes that land interviews
-        </p>
-
-        {/* CTA button */}
-        <div
-          className="w-full animate-fade-in"
-          style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}
-        >
-          <Button
-            size="lg"
-            className="w-full h-14 text-lg font-semibold gap-3 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
-            onClick={handleGetStarted}
+        <motion.div style={{ y: yText }}>
+          <h1
+            className="text-h1 mb-4 animate-fade-in"
+            style={{ animationDelay: '0.1s', animationFillMode: 'backwards' }}
           >
-            <Rocket className="w-5 h-5" />
-            {isAuthenticated ? 'Go to Dashboard' : 'Get Started'}
-          </Button>
-        </div>
+            <span className="text-shimmer">WiseResume</span>
+          </h1>
 
-        {/* Trust text */}
-        <p
-          className="text-sm text-muted-foreground mt-8 flex items-center gap-2 animate-fade-in"
-          style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}
-        >
-          <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-          Free · No credit card · 5 minutes
-        </p>
-      </div>
+          <p
+            className="text-muted-foreground text-body mb-10 animate-fade-in max-w-sm mx-auto"
+            style={{ animationDelay: '0.15s', animationFillMode: 'backwards' }}
+          >
+            AI-powered resumes that land interviews
+          </p>
+        </motion.div>
+
+        <motion.div style={{ y: yButton }}>
+          {/* CTA button */}
+          <div
+            className="w-full animate-fade-in"
+            style={{ animationDelay: '0.2s', animationFillMode: 'backwards' }}
+          >
+            <Button
+              size="lg"
+              className="w-full h-14 text-lg font-semibold gap-3 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all duration-300 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]"
+              onClick={handleGetStarted}
+            >
+              <Rocket className="w-5 h-5" />
+              {isAuthenticated ? 'Go to Dashboard' : 'Get Started'}
+            </Button>
+          </div>
+
+          {/* Trust text */}
+          <p
+            className="text-sm text-muted-foreground mt-8 flex items-center gap-2 animate-fade-in"
+            style={{ animationDelay: '0.3s', animationFillMode: 'backwards' }}
+          >
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+            Free · No credit card · 5 minutes
+          </p>
+        </motion.div>
+      </motion.div>
     </section>
   );
 }
