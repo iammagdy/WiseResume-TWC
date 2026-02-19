@@ -1,44 +1,109 @@
 /**
- * Haptic feedback utilities for native-like interactions
- * Uses Web Vibration API for broad mobile support
+ * Haptic feedback utilities for native-like interactions.
+ * On Capacitor native (iOS/Android), uses @capacitor/haptics for
+ * proper UIImpactFeedbackGenerator / HapticFeedback engine.
+ * Falls back to Web Vibration API on Android Chrome PWA.
+ * Silently no-ops on iOS Safari (no Vibration API support).
  */
+
+import { Capacitor } from '@capacitor/core';
+
+// Lazily import native haptics to avoid bundle cost on web
+let nativeHaptics: typeof import('@capacitor/haptics') | null = null;
+
+async function getNativeHaptics() {
+  if (!Capacitor.isNativePlatform()) return null;
+  if (nativeHaptics) return nativeHaptics;
+  try {
+    nativeHaptics = await import('@capacitor/haptics');
+    return nativeHaptics;
+  } catch {
+    return null;
+  }
+}
 
 const canVibrate = typeof navigator !== 'undefined' && 'vibrate' in navigator;
 
+const webVibrate = (pattern: number | number[]) => {
+  if (canVibrate) navigator.vibrate(pattern);
+};
+
 export const haptics = {
-  /** Light tap - for selections, toggles */
+  /** Light tap — selections, toggles */
   light: () => {
-    if (canVibrate) navigator.vibrate(10);
+    getNativeHaptics().then((h) => {
+      if (h) {
+        h.Haptics.impact({ style: h.ImpactStyle.Light });
+      } else {
+        webVibrate(10);
+      }
+    });
   },
-  
-  /** Medium impact - for button presses */
+
+  /** Medium impact — button presses */
   medium: () => {
-    if (canVibrate) navigator.vibrate(25);
+    getNativeHaptics().then((h) => {
+      if (h) {
+        h.Haptics.impact({ style: h.ImpactStyle.Medium });
+      } else {
+        webVibrate(25);
+      }
+    });
   },
-  
-  /** Heavy impact - for confirmations, deletions */
+
+  /** Heavy impact — confirmations, deletions */
   heavy: () => {
-    if (canVibrate) navigator.vibrate(50);
+    getNativeHaptics().then((h) => {
+      if (h) {
+        h.Haptics.impact({ style: h.ImpactStyle.Heavy });
+      } else {
+        webVibrate(50);
+      }
+    });
   },
-  
-  /** Success pattern - for completed actions */
+
+  /** Success notification */
   success: () => {
-    if (canVibrate) navigator.vibrate([10, 50, 10]);
+    getNativeHaptics().then((h) => {
+      if (h) {
+        h.Haptics.notification({ type: h.NotificationType.Success });
+      } else {
+        webVibrate([10, 50, 10]);
+      }
+    });
   },
-  
-  /** Warning pattern - for alerts */
+
+  /** Warning notification */
   warning: () => {
-    if (canVibrate) navigator.vibrate([30, 50, 30]);
+    getNativeHaptics().then((h) => {
+      if (h) {
+        h.Haptics.notification({ type: h.NotificationType.Warning });
+      } else {
+        webVibrate([30, 50, 30]);
+      }
+    });
   },
-  
-  /** Error pattern - for failures */
+
+  /** Error notification */
   error: () => {
-    if (canVibrate) navigator.vibrate([50, 100, 50, 100, 50]);
+    getNativeHaptics().then((h) => {
+      if (h) {
+        h.Haptics.notification({ type: h.NotificationType.Error });
+      } else {
+        webVibrate([50, 100, 50, 100, 50]);
+      }
+    });
   },
-  
+
   /** Selection changed */
   selection: () => {
-    if (canVibrate) navigator.vibrate(5);
+    getNativeHaptics().then((h) => {
+      if (h) {
+        h.Haptics.selectionChanged();
+      } else {
+        webVibrate(5);
+      }
+    });
   },
 };
 

@@ -4,6 +4,7 @@ import { BottomTabBar } from './BottomTabBar';
 import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
+import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
 
 
@@ -15,6 +16,10 @@ export function AppShell() {
   const currentOutlet = useOutlet();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Global keyboard awareness — sets --keyboard-height CSS var and keyboard-open class
+  // for ALL pages in the app shell (not just those using MobileLayout)
+  useKeyboardAwareScroll();
 
   return (
     <div className="h-[100dvh] overflow-hidden flex flex-col bg-background relative">
