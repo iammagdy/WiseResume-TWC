@@ -1,240 +1,305 @@
 
-# Visitor Intelligence + Smart Short Link System
+# Animated OG Image Endpoint for Portfolio Social Previews
 
-## Clarifying Your Vision First
+## The Core Problem
 
-You asked two things that are deeply connected — here is how they work together:
+When a user shares `wiseresume.app/p/johndoe` on LinkedIn, Twitter/X, WhatsApp, or iMessage, the social platform's crawler fetches the URL and reads the `og:image` meta tag. Right now, that tag is set client-side in `PublicPortfolioPage.tsx` to just the user's `avatarUrl` (an arbitrary photo), which is:
 
-1. **Short links with attribution**: Instead of `wiseresume.app/p/johndoe`, a user creates a short link like `wiseresume.app/l/xK9mR`. That short code carries metadata: who created it (the portfolio owner), what channel it was for (LinkedIn post, email, QR code). When a visitor opens it, they are transparently redirected to the portfolio — but we first log where they came from.
+1. Often blocked by CORS or Supabase Storage headers from being scraped
+2. Just a face photo — no branding, no name, no role, no visual identity
+3. Generated after JavaScript runs — crawlers don't execute JS, so they see the static `index.html` which has the generic `favicon.svg` as the OG image
 
-2. **Visitor intelligence**: Every portfolio visit (whether from a short link OR the direct URL) records: country, approximate city (from IP geolocation), time spent, which sections were scrolled to. The portfolio owner sees a real-time "Visitors" panel inside the Portfolio Editor with cards for each recent visit.
+The fix requires a **server-rendered OG image** — an edge function that dynamically generates a 1200×630 PNG image at request time from the user's profile data, and a corresponding HTML page that serves the correct `og:image` meta tag **in the raw HTML** (not via JavaScript).
 
 ---
 
-## Architecture Overview
+## Why a New Edge Function (Not Server-Side Rendering)
+
+This app is a pure React SPA — there is no Next.js SSR layer. Social crawlers (Twitterbot, LinkedInBot, facebookexternalhit) don't execute JavaScript, so `PublicPortfolioPage.tsx`'s `useEffect` that sets OG meta tags is invisible to them.
+
+The solution is a two-part approach:
+
+**Part 1 — `og-image` edge function**: A Deno edge function at `/functions/v1/og-image?username=johndoe` that:
+- Fetches the user's profile data from the database (name, job title, accent color, skills)
+- Generates a 1200×630 PNG image server-side using pure SVG → PNG conversion via the `resvg-wasm` Deno library (no headless browser needed)
+- Returns the image with `Content-Type: image/png` and long-lived cache headers
+
+**Part 2 — `portfolio-meta` edge function**: A lightweight Deno edge function at `/functions/v1/portfolio-meta?username=johndoe` that returns a minimal HTML document containing only the correct `<meta>` OG tags and an immediate JavaScript redirect to the actual SPA. Crawlers read the meta tags; real users are instantly redirected.
+
+Then we update the app's router to handle `/p/:username` via a meta-redirect HTML response for crawlers, while letting real browser visits pass through normally to the SPA.
+
+**Simpler alternative (chosen):** Update `supabase/config.toml` to point the `/p/:username` path to the `portfolio-meta` edge function only for crawler User-Agents, using a single edge function that detects the User-Agent and either serves meta HTML or returns a 302 redirect to the SPA. This is the pattern used by apps like Vercel OG, Notion, etc.
+
+---
+
+## Architecture
 
 ```text
-User creates short link
-       │
-       ▼
-short_links table
-  ├── id: "xK9mR"  ← 5-char nanoid
-  ├── portfolio_username: "johndoe"
-  ├── label: "LinkedIn Post Jan 2026"
-  ├── owner_user_id: uuid  ← attribution
-  └── click_count: 5
+Crawler (LinkedInBot, Twitterbot) opens:
+  wiseresume.app/p/johndoe
+        │
+        ▼  (via Vite config or edge function routing)
+  portfolio-meta edge function
+        │
+        ├─ fetches profile: name, role, accent, top 3 skills, bio, avatar
+        │
+        ├─ returns HTML: <meta og:image="…/og-image?u=johndoe"> etc.
+        │
+        └─ real browser: 302 → /p/johndoe (SPA handles it normally)
 
-Visitor opens wiseresume.app/l/xK9mR
-       │
-       ▼
-ShortLinkPage resolves → redirects to /p/johndoe?ref=xK9mR
-       │
-       ▼
-PublicPortfolioPage loads
-  └── calls track-portfolio-view edge fn with:
-        { username, ref, country, city, sections, time_spent }
-       │
-       ▼
-portfolio_visits table (NEW)
-  ├── username: "johndoe"
-  ├── short_link_id: "xK9mR" (nullable — direct visits are null)
-  ├── country: "United Arab Emirates"
-  ├── city: "Dubai"
-  ├── sections_viewed: ["experience", "skills"]
-  ├── time_spent_seconds: 47
-  └── visited_at: timestamp
+                     ↓
+
+  og-image edge function ← crawler fetches this URL
+        │
+        ├─ fetches same profile data
+        ├─ generates SVG string (inline, no filesystem)
+        ├─ converts SVG → PNG via resvg-wasm
+        └─ returns image/png with Cache-Control: public, max-age=3600
 ```
 
 ---
 
-## Database Schema (2 new tables + 1 migration)
+## Image Design (1200×630px)
 
-### Table 1: `short_links`
+The image adapts to the user's `portfolioAccentColor` and `portfolioStyle`. Layout:
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | text PK | 5-char nanoid (e.g. `xK9mR`) — this IS the slug |
-| `owner_user_id` | uuid NOT NULL | RLS: only owner can read/delete |
-| `portfolio_username` | text NOT NULL | The portfolio this link points to |
-| `label` | text | User-visible name: "LinkedIn Bio", "Email Signature" |
-| `click_count` | integer DEFAULT 0 | Incremented on each redirect |
-| `created_at` | timestamptz DEFAULT now() |
-
-**RLS:** Owner can INSERT/SELECT/DELETE their own. Anyone can SELECT a single row by `id` (needed for redirect) — scoped to `id` column only via a SECURITY DEFINER function.
-
-### Table 2: `portfolio_visits`
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | uuid PK DEFAULT gen_random_uuid() |
-| `username` | text NOT NULL | Portfolio owner's username |
-| `short_link_id` | text NULLABLE FK → short_links.id | NULL = direct visit |
-| `country` | text NULLABLE | From IP geolocation |
-| `city` | text NULLABLE | From IP geolocation |
-| `time_spent_seconds` | integer NULLABLE | Sent on page unload |
-| `sections_viewed` | jsonb DEFAULT '[]' | Array of section names scrolled into view |
-| `visited_at` | timestamptz DEFAULT now() |
-
-**RLS:** Portfolio owner can SELECT their own visits (`WHERE username = profile.username`). No one can SELECT others' visits. INSERT is allowed to anyone (no auth needed — it's public). No UPDATE/DELETE by users.
-
----
-
-## Edge Functions (2 to upgrade, 1 new)
-
-### 1. Upgrade `track-portfolio-view` → `track-portfolio-visit`
-
-Replaces the current simple counter. Accepts:
-```json
-{
-  "username": "johndoe",
-  "ref": "xK9mR",          // optional short link ID
-  "sectionsViewed": ["experience", "skills"],
-  "timeSpentSeconds": 47
-}
+```
+┌────────────────────────────────────────────────────────────────────┐
+│  [radial glow blob — accent color, top-left]                       │
+│                                                                    │
+│  ┌──────┐   John Doe                    [WiseResume wordmark]      │
+│  │ MONO │   Senior Frontend Engineer                               │
+│  │GRAM  │   📍 Dubai, UAE               ✦ Open to Work            │
+│  └──────┘                                                          │
+│                                                                    │
+│  ────────────────────────────────────────────────────────────────  │
+│                                                                    │
+│  Top Skills                                                        │
+│  [React]  [TypeScript]  [Node.js]  [AWS]  [PostgreSQL]           │
+│                                                                    │
+│  ────────────────────────────────────────────────────────────────  │
+│                                                                    │
+│  wiseresume.app/p/johndoe          Made with ✦ WiseResume         │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-Uses the `CF-IPCountry` / `x-country-code` header (Cloudflare injects this automatically on Supabase Edge Functions) for country. Uses `ip-api.com` (free, no key needed) for city resolution from IP. Writes one row to `portfolio_visits`, increments `profiles.views`, and increments `short_links.click_count` if `ref` is provided.
+The avatar is rendered as a colored monogram circle (first letter of name) if the avatar URL is an external URL (avoids CORS issues in Deno). If the avatar is from Supabase Storage (contains `supabase.co`), it is fetched and embedded as a base64 PNG.
 
-### 2. New `resolve-short-link` edge function
-
-GET `/resolve-short-link?id=xK9mR` — looks up the short link by ID using service role (no RLS), returns `{ username, label }`. The frontend's `ShortLinkPage` calls this, gets the username, then navigates to `/p/{username}?ref=xK9mR`.
-
-### 3. Upgrade `supabase/config.toml`
-
-Add `[functions.resolve-short-link] verify_jwt = false`.
-
----
-
-## Frontend (5 files)
-
-### 1. `src/pages/ShortLinkPage.tsx` (NEW)
-
-Route: `/l/:linkId`. On mount:
-- Calls `resolve-short-link?id=linkId`
-- If found: navigates to `/p/{username}?ref={linkId}`
-- If not found: shows "Link not found" with a "Create your portfolio" CTA
-
-Renders a full-screen loading spinner while resolving (fast, sub-200ms). The redirect is seamless.
-
-### 2. `src/App.tsx` — add route `/l/:linkId`
-
-Add `<Route path="/l/:linkId" element={<ShortLinkPage />} />` to public routes (no auth needed).
-
-### 3. `src/pages/PublicPortfolioPage.tsx` — upgrade visitor tracking
-
-**Section scroll tracking:** Add `IntersectionObserver` to each named section div (experience, education, skills, etc.). When a section becomes visible (>50% in viewport), add its name to a `Set<string>`. This set is sent in the tracking call.
-
-**Time tracking:** Record `Date.now()` on mount. On `visibilitychange` to hidden (tab close / background), send the visit data using `navigator.sendBeacon()` (works even on page unload). Also send after 30 seconds for users who stay long.
-
-**Ref reading:** Read `?ref=` from URL params and pass to the tracking function.
-
-**Updated tracking call:**
-```typescript
-navigator.sendBeacon(
-  `${SUPABASE_URL}/functions/v1/track-portfolio-view`,
-  JSON.stringify({ username, ref, sectionsViewed: [...sectionsSet], timeSpentSeconds })
-);
-```
-
-### 4. `src/components/portfolio/VisitorsPanel.tsx` (NEW)
-
-A collapsible card section inside the Portfolio Editor. Shows:
-- **Summary row**: Total views • Unique countries count • Avg time spent
-- **Recent visits list** (last 20): Each card shows flag emoji + city/country, time ago, time spent badge, sections viewed chips, and a 🔗 tag if from a short link (with the link's label)
-- **Short Links manager**: List of created short links with click counts, a "Copy" button, and a "Delete" button. Plus a "Create New Link" button with a label input.
-
-Uses TanStack Query with `queryKey: ['portfolio-visits', username]`.
-
-### 5. `src/hooks/usePortfolioAnalytics.ts` (NEW)
-
-```typescript
-export function usePortfolioVisits(username: string | undefined)
-export function useShortLinks(userId: string | undefined)
-export function useCreateShortLink()
-export function useDeleteShortLink()
-```
-
-Fetches from `portfolio_visits` and `short_links` tables. `useCreateShortLink` generates a 5-char nanoid client-side and inserts into `short_links`. `useDeleteShortLink` removes by id (RLS ensures only owner can delete).
-
----
-
-## IP Geolocation — Free, No API Key Needed
-
-The `track-portfolio-visit` edge function will use `ip-api.com/json/{ip}` (free tier: 45 req/min, no key). This returns:
-```json
-{ "country": "United Arab Emirates", "city": "Dubai", "status": "success" }
-```
-
-The visitor's IP is extracted from the `x-forwarded-for` header of the edge function request. If geolocation fails or times out (>1s), the visit is still recorded with `country: null` — visitor analytics are best-effort and non-blocking.
-
----
-
-## Short Link ID Generation
-
-5-character alphanumeric IDs from a 62-char alphabet (`a-z`, `A-Z`, `0-9`):
-- 62^5 = 916 million combinations — virtually no collisions for this app
-- Generated client-side using a simple `Math.random()` loop (no nanoid dependency needed)
-- On insert conflict (astronomically rare), retry with a new ID
-
-URL pattern: `wiseresume.app/l/xK9mR` — 22 characters vs. `wiseresume.app/p/johndoe` — clean and short.
+Four accent backgrounds matching the portfolio themes:
+- `minimal`: `#0a0a14` (very dark navy) 
+- `bold-dark`: `#0a0a1f` (deep space purple)
+- `glass-pro`: `#0d1117` (GitHub-dark)
+- `classic-clean`: `#f8faff` (near-white, dark text)
 
 ---
 
 ## Files to Create/Modify
 
-| File | Action | Purpose |
-|---|---|---|
-| `supabase/migrations/…_visitor_intelligence.sql` | CREATE | 2 new tables + RLS + DB functions |
-| `supabase/functions/track-portfolio-view/index.ts` | MODIFY | Add geolocation + sections + time + short link tracking |
-| `supabase/functions/resolve-short-link/index.ts` | CREATE | Short link resolver edge function |
-| `supabase/config.toml` | MODIFY | Add resolve-short-link verify_jwt=false |
-| `src/pages/ShortLinkPage.tsx` | CREATE | /l/:linkId redirect page |
-| `src/App.tsx` | MODIFY | Add /l/:linkId route |
-| `src/pages/PublicPortfolioPage.tsx` | MODIFY | Section tracking + time tracking + sendBeacon |
-| `src/hooks/usePortfolioAnalytics.ts` | CREATE | Query hooks for visits + short links |
-| `src/components/portfolio/VisitorsPanel.tsx` | CREATE | Visitors panel + short links manager UI |
-| `src/pages/PortfolioEditorPage.tsx` | MODIFY | Mount VisitorsPanel as a new collapsible section |
+### 1. `supabase/functions/og-image/index.ts` (NEW)
 
----
+A Deno edge function that:
+- Reads `?username=` from query params
+- Calls `supabase.rpc('get_public_portfolio', { p_username })` using service role to bypass RLS
+- Builds a 1200×630 SVG string with the profile data (name, role, location, skills, accent color, open-to-work badge)
+- Uses `@resvg/resvg-wasm` to convert SVG → PNG in Deno
+- Returns `Response` with `Content-Type: image/png`, `Cache-Control: public, max-age=3600, stale-while-revalidate=86400`
 
-## What the Visitors Panel Looks Like
+**SVG generation approach** — pure string concatenation, no DOM:
+```typescript
+function buildSVG(data: OGImageData): string {
+  const { name, role, location, skills, accent, style, openToWork, username } = data;
+  const bg = styleToBg(style);   // '#0a0a14' etc.
+  const fg = style === 'classic-clean' ? '#111827' : '#f5f5ff';
+  const mutedFg = style === 'classic-clean' ? '#6b7280' : '#9ca3af';
+  const monogram = name?.charAt(0)?.toUpperCase() || '?';
+  const top5 = skills.slice(0, 5);
+  
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+    <!-- Background -->
+    <rect width="1200" height="630" fill="${bg}" />
+    <!-- Glow blob -->
+    <radialGradient id="glow" cx="15%" cy="20%" r="40%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+    <rect width="1200" height="630" fill="url(#glow)" />
+    <!-- ... rest of layout ... -->
+  </svg>`;
+}
+```
 
-```text
-┌─── 👁 Visitors & Analytics ──────────────────────────────── ▼ ┐
-│                                                                │
-│  Total Views    Countries    Avg Time                         │
-│  1,247          23 🌍        1m 12s                           │
-│                                                               │
-│  ── Recent Visitors ─────────────────────────────────────    │
-│  🇦🇪  Dubai, UAE              🔗 LinkedIn Bio     2h ago      │
-│       Skills · Experience                    47s spent        │
-│  ─────────────────────────────────────────────────────────   │
-│  🇺🇸  San Francisco, USA      Direct link        Yesterday    │
-│       Experience · Projects                  2m 3s spent      │
-│  ─────────────────────────────────────────────────────────   │
-│                                                               │
-│  ── Your Short Links ───────────────────────────────────     │
-│  [🔗] LinkedIn Bio   wise.app/l/xK9mR   12 clicks  [Copy][✕] │
-│  [🔗] Email Sig      wise.app/l/pQ3nT   4 clicks   [Copy][✕] │
-│                                                               │
-│  [+ Create Short Link]  Label: ________________  [Create]    │
-└───────────────────────────────────────────────────────────────┘
+**Dependency note**: `@resvg/resvg-wasm` is available as a Deno-compatible WASM module from `https://esm.sh/@resvg/resvg-wasm`. The WASM binary is fetched once and cached in memory.
+
+### 2. `supabase/functions/portfolio-meta/index.ts` (NEW)
+
+Returns crawler-friendly HTML with proper OG meta tags. Detects User-Agent:
+- If it's a known crawler (`LinkedInBot`, `Twitterbot`, `facebookexternalhit`, `Slackbot`, `WhatsApp`, `Discordbot`): returns full HTML with OG tags
+- Otherwise: returns `302 Location: /p/{username}` to the SPA
+
+```typescript
+const CRAWLERS = ['linkedinbot', 'twitterbot', 'facebookexternalhit', 'slackbot', 'whatsapp', 'discordbot', 'telegrambot'];
+
+function isCrawler(ua: string): boolean {
+  const lower = ua.toLowerCase();
+  return CRAWLERS.some(c => lower.includes(c));
+}
+```
+
+The HTML response:
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>John Doe — Senior Frontend Engineer</title>
+  <meta property="og:title" content="John Doe — Senior Frontend Engineer" />
+  <meta property="og:description" content="Senior Frontend Engineer · Dubai, UAE · React, TypeScript, Node.js" />
+  <meta property="og:image" content="https://hjnnamwgztlhzkeuufln.supabase.co/functions/v1/og-image?username=johndoe" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:type" content="profile" />
+  <meta property="og:url" content="https://wiseresume.app/p/johndoe" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://…/og-image?username=johndoe" />
+</head>
+<body>
+  <script>window.location.replace('/p/johndoe');</script>
+</body>
+</html>
+```
+
+### 3. `supabase/config.toml` (MODIFY)
+
+Add two new function entries:
+```toml
+[functions.og-image]
+verify_jwt = false
+
+[functions.portfolio-meta]
+verify_jwt = false
+```
+
+### 4. `src/pages/PublicPortfolioPage.tsx` (MODIFY — lines 565–579)
+
+Upgrade the SEO `useEffect` to set the `og:image` to the dynamic edge function URL instead of the raw avatar URL:
+
+```typescript
+// Replace line 575:
+// BEFORE:
+if (profile.avatarUrl) setMeta('og:image', profile.avatarUrl);
+
+// AFTER (always set OG image to the generated endpoint):
+const ogImageUrl = `${SUPABASE_URL}/functions/v1/og-image?username=${profile.username}`;
+setMeta('og:image', ogImageUrl);
+setMeta('og:image:width', '1200');
+setMeta('og:image:height', '630');
+setMeta('twitter:card', 'summary_large_image', 'name');
+setMeta('twitter:image', ogImageUrl, 'name');
+```
+
+This ensures that when a real user visits the page and then copies the URL to share on social, the pre-populated share dialog in mobile OS shows the correct image. (The OG image endpoint also helps for platforms that do execute light JS.)
+
+### 5. `src/components/portfolio/VisitorsPanel.tsx` or `PortfolioEditorPage.tsx` (MODIFY — low priority)
+
+Add a "Preview OG Card" button inside the Portfolio Editor (in the Status/Share section) that opens the og-image URL in a new tab so the user can see what their social preview will look like:
+
+```tsx
+<Button
+  variant="ghost"
+  size="sm"
+  className="text-xs"
+  onClick={() => window.open(`${SUPABASE_URL}/functions/v1/og-image?username=${profile?.username}`, '_blank')}
+>
+  <Eye className="w-3.5 h-3.5 mr-1" /> Preview Social Card
+</Button>
 ```
 
 ---
 
-## Security Notes
+## Technical Implementation Details
 
-- `portfolio_visits` INSERT is public (no auth) — this is intentional, just like `increment_portfolio_views`. The owner's username is validated against the `profiles` table server-side before inserting.
-- Short link resolution uses a SECURITY DEFINER function — clients cannot enumerate all links, only resolve a specific ID.
-- No personal data (email, name) is stored in visits — only IP-derived geo (country/city) and behaviour (sections, time).
-- The `short_links` table requires auth to read (owner only) — a visitor cannot discover your other short links from one link ID.
+### SVG → PNG conversion in Deno
+
+`@resvg/resvg-wasm` is the standard choice for server-side SVG rendering in Deno edge functions. It works without a headless browser:
+
+```typescript
+import initWasm, { Resvg } from 'https://esm.sh/@resvg/resvg-wasm@2.6.2';
+import wasmModule from 'https://esm.sh/@resvg/resvg-wasm@2.6.2/index_bg.wasm' assert { type: 'wasm' };
+
+// Initialize once
+await initWasm(wasmModule);
+
+// Render
+const resvg = new Resvg(svgString, { font: { loadSystemFonts: false } });
+const pngData = resvg.render().asPng();
+```
+
+This runs entirely in-memory — no temp files, no shell commands.
+
+### Font rendering in the SVG
+
+Since system fonts are not available in Deno edge functions, all text in the SVG will use `font-family="system-ui, sans-serif"` which `resvg` maps to its built-in fallback font. For a premium look, we embed a minimal base64-encoded subset of Inter for just the characters used in the image (name + role, typically 20–60 chars). The font subset is stored as a constant string in the edge function (< 15KB gzipped).
+
+Alternatively, we load Inter from Google Fonts at function startup: `https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800` — but this adds latency. The base64 inline approach is preferred.
+
+### Caching Strategy
+
+The `og-image` response includes:
+```
+Cache-Control: public, max-age=3600, stale-while-revalidate=86400
+```
+
+This means:
+- Supabase's CDN serves the image for up to 1 hour without hitting the function
+- For up to 24h after that, the CDN serves the stale image while revalidating in background
+- After a user changes their profile (name/role/accent), the image updates within 1 hour for all new shares
+
+For immediate invalidation (e.g. after user updates their portfolio), we could add a `?v={updated_at}` cache-busting param. The `PortfolioEditorPage` can append this when generating the share URL. This is optional and can be added as a follow-up.
+
+### Data fetching in the edge function
+
+The `og-image` function uses the existing `get_public_portfolio` RPC with the service role key:
+```typescript
+const { data } = await supabase.rpc('get_public_portfolio', { p_username: username });
+```
+This reuses the exact same data shape already defined — no new DB query needed.
+
+### Error handling
+
+If the profile doesn't exist or `portfolio_enabled = false`:
+- Return a generic branded 1200×630 PNG (hardcoded SVG with just the WiseResume logo + "Build your portfolio at wiseresume.app") instead of a 404. This ensures social shares always look good even for deleted portfolios.
+
+---
+
+## What Each Platform Will Now Show
+
+| Platform | Before | After |
+|---|---|---|
+| LinkedIn | Generic favicon OR avatar photo (no text) | Branded 1200×630 card with name, role, skills, accent color |
+| Twitter/X | `summary` card (small image) | `summary_large_image` card (full-width 1200×630) |
+| WhatsApp | No preview (JS not executed) | Full preview card from OG meta in HTML response |
+| Discord | Generic app image | Full branded card |
+| Slack | Generic app image | Full branded card |
+| iMessage | No preview | Rich link preview with image |
+
+---
+
+## Files Summary
+
+| File | Action |
+|---|---|
+| `supabase/functions/og-image/index.ts` | CREATE — SVG→PNG image generator |
+| `supabase/functions/portfolio-meta/index.ts` | CREATE — crawler-aware meta HTML responder |
+| `supabase/config.toml` | MODIFY — add both functions with `verify_jwt = false` |
+| `src/pages/PublicPortfolioPage.tsx` | MODIFY — upgrade `og:image` to use dynamic endpoint URL + `summary_large_image` |
+| `src/pages/PortfolioEditorPage.tsx` | MODIFY — add "Preview Social Card" button |
 
 ---
 
 ## What Does NOT Change
 
-- The existing `views` counter on `profiles.views` — still incremented alongside the new detailed tracking
-- The `track-portfolio-view` function name (updated in-place, same endpoint)
-- The existing `increment_portfolio_views` RPC — still called from within the upgraded function
-- QR code feature — QR codes can optionally be given a short link label ("QR Code" channel)
+- The `get_public_portfolio` RPC — used as-is, no DB migration needed
+- The `short_links` system — short link URLs also benefit automatically (they redirect to `/p/username` which has the correct meta)
+- The `track-portfolio-view` edge function — no changes needed
+- The React SPA routing — regular browser visits continue to use the SPA normally
+- The Career Card feature — it generates its image client-side (html2canvas) for download, which is separate from the OG image endpoint
