@@ -283,6 +283,7 @@ function InterviewPageContent() {
             voiceGender={voiceGender}
             onVoiceGenderChange={setVoiceGender}
             onStart={handleSetupStart}
+            resumeData={currentResume ? { summary: currentResume.summary ?? undefined, experience: currentResume.experience as any, skills: currentResume.skills as any } : undefined}
           />
         </div>
         <InterviewHistorySheet open={showHistory} onOpenChange={setShowHistory} />

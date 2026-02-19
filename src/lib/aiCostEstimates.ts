@@ -14,6 +14,7 @@ export const AI_COST_MAP: Record<string, number> = {
   'gap-fill': 1,
   'recruiter-sim': 2,
   'agentic-chat': 1,
+  'company_briefing': 1,
 } as const;
 
 export function getAICost(operation: string): number {
