@@ -1,44 +1,63 @@
 
 
-# Add Scroll-Driven Entrance Animation to Developer Credit Card
+# Add Staggered Animation to Developer Card Content
 
 ## What It Does
 
-The developer card will fade in and slide up as you scroll it into view, and reverse (fade out, slide down) when you scroll back up past it. This creates a polished, app-like reveal effect.
+The avatar, name/title, and buttons will animate in one after another with a slight delay between each, creating a cascading reveal effect as the card scrolls into view. When scrolling away, they fade out together.
 
 ## Approach
 
-Use framer-motion's `useInView` or the `whileInView` prop on a `motion.div` wrapper. The card will animate from `opacity: 0, y: 30` to `opacity: 1, y: 0` when it enters the viewport, and reverse when it leaves.
+Use framer-motion's `staggerChildren` on the content container, and wrap each content group (avatar, info text, buttons) in a `motion.div` with shared animation variants.
 
 ## Technical Details
 
 ### File: `src/components/settings/DeveloperCreditCard.tsx`
 
-1. Import `motion` from `framer-motion`
-2. Replace the outer `<div className="dev-card-wrapper">` with `<motion.div>` that uses `whileInView` for scroll-triggered animation:
+Define animation variants at the top of the component:
 
 ```tsx
-<motion.div
-  className="dev-card-wrapper"
-  initial={{ opacity: 0, y: 30, scale: 0.97 }}
-  whileInView={{ opacity: 1, y: 0, scale: 1 }}
-  viewport={{ once: false, amount: 0.3 }}
-  transition={{ duration: 0.5, ease: "easeOut" }}
->
+const containerVariants = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.15 }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4, ease: "easeOut" }
+  }
+};
 ```
 
-- `initial` -- starting state (faded, shifted down, slightly smaller)
-- `whileInView` -- target state when visible
-- `viewport.once: false` -- re-triggers on every scroll in/out (fade out when scrolling up)
-- `viewport.amount: 0.3` -- triggers when 30% of the card is visible
-- `transition` -- smooth 0.5s ease-out
+Then apply them to the content:
+
+1. Change `<div className="dev-card-content">` to a `motion.div` with `variants={containerVariants}`, `initial="hidden"`, and `whileInView="visible"` (with `viewport={{ once: false, amount: 0.3 }}`)
+
+2. Wrap these three groups in `motion.div` with `variants={itemVariants}`:
+   - **Avatar container** (`dev-avatar-container`) -- animates in first
+   - **Name + title** (`dev-name` and `dev-title`) -- animates in second
+   - **Buttons + website link** (`dev-btn-row` and `dev-website-link`) -- animates in third
+
+### Stagger Timeline
+
+```text
+0.0s  --> Avatar fades in + slides up
+0.15s --> Name & title fade in + slide up
+0.30s --> Buttons & website link fade in + slide up
+```
 
 ### No changes to:
-- CSS file (all existing animations stay)
-- Any functionality (haptics, click handlers, links)
-- Component props or internal structure
-- Any existing CSS animations (sparkles, particles, orbit, holographic sweep, 3D tilt)
+- CSS file
+- Any existing animations (sparkles, particles, orbit, holographic sweep, 3D tilt)
+- Component props or functionality (haptics, click handlers, links)
+- The outer `motion.div` wrapper scroll animation (keeps working as the card-level entrance)
 
 | File | Change |
 |---|---|
-| `DeveloperCreditCard.tsx` | Import `motion`, wrap outer div as `motion.div` with `whileInView` scroll animation |
+| `DeveloperCreditCard.tsx` | Add stagger variants, wrap avatar/info/buttons in `motion.div` children |
+
