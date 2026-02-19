@@ -328,6 +328,15 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const callAI = useCallback(
     async (endInterview = false) => {
       setStatus('thinking');
+
+      // Show "taking longer" toast after 8 seconds
+      const slowTimer = setTimeout(() => {
+        toast.info('Taking longer than usual...', {
+          description: 'Wise AI is thinking hard. Hang tight!',
+          duration: 3000,
+        });
+      }, 8000);
+
       try {
         const aiPromise = supabase.functions.invoke('interview-chat', {
           body: {
@@ -339,14 +348,18 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           },
         });
 
-        // 30-second safety timeout
+        // 60-second safety timeout (edge function has its own retry logic)
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI response timed out after 30 seconds')), 30000)
+          setTimeout(() => reject(new Error('AI response timed out. Please try again.')), 60000)
         );
 
         const { data, error: fnError } = await Promise.race([aiPromise, timeoutPromise]);
 
-        if (fnError) throw fnError;
+        // Extract actual error message from response body (supabase client puts parsed body in data even on error)
+        if (fnError) {
+          const msg = data?.error || data?.message || fnError?.message || 'Interview request failed';
+          throw new Error(typeof msg === 'string' ? msg : 'Interview request failed');
+        }
         if (data?.error) throw new Error(data.error);
 
         const rawReply = data.reply as string;
@@ -375,6 +388,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         setError(errorMessage);
         toast.error('Interview error', { description: errorMessage });
         setStatus('idle');
+      } finally {
+        clearTimeout(slowTimer);
       }
     },
     [resumeData, addEntry, speak]
@@ -471,7 +486,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           jobDescription,
         },
       });
-      if (fnError) throw fnError;
+      if (fnError) {
+        const msg = data?.error || data?.message || fnError?.message || 'Role analysis failed';
+        throw new Error(typeof msg === 'string' ? msg : 'Role analysis failed');
+      }
       if (data?.error) throw new Error(data.error);
       if (data?.roleAnalysis) {
         setRoleAnalysis(data.roleAnalysis);
@@ -480,6 +498,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       console.error('Role analysis error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to analyze role';
       setError(errorMessage);
+      toast.error('Role analysis failed', { description: errorMessage });
     } finally {
       setIsAnalyzingRole(false);
     }
