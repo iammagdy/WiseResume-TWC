@@ -1,8 +1,48 @@
 [
   {
+    "version": "v2.2.0",
+    "date": "2026-02-19",
+    "latest": true,
+    "summary": "We went through every button, every form, and every tap in WiseResume and fixed what wasn't working the way it should. This release is for everyone who noticed something felt slightly off — we heard you.",
+    "items": [
+      {
+        "title": "One Tap to Edit — The Extra Step Is Gone",
+        "description": "Tapping 'Edit' on your resume now takes you straight into the editor. No more landing on a read-only detail screen first. You wanted to edit — we take you there, instantly."
+      },
+      {
+        "title": "ATS Improve Always Opens YOUR Resume",
+        "description": "The 'Improve' shortcut in your ATS score breakdown now correctly loads your specific resume every single time. No more opening to a blank slate or someone else's context."
+      },
+      {
+        "title": "Every Shortcut Card Goes Exactly Where It Says",
+        "description": "All quick-action cards on the home screen now take you to the right destination regardless of your sign-in status. No more unexpected redirects to login when you're already in the app."
+      },
+      {
+        "title": "The Editor Tab Opens Your Editor — Instantly",
+        "description": "The Editor button in the bottom navigation now drops you directly into your resume editor. No detours, no intermediate screens — just your resume, ready to work."
+      },
+      {
+        "title": "Templates Guide You Through the Right Steps",
+        "description": "Applying a template when you don't have a resume yet no longer silently fails. WiseResume now gently walks you through creating your first resume before applying your chosen template."
+      },
+      {
+        "title": "Signing Out Returns You Home",
+        "description": "Signing out now brings you back to the WiseResume home screen — not the login page. A small detail, but the kind that makes the app feel polished and intentional."
+      },
+      {
+        "title": "Your Keyboard Matches What You're Typing",
+        "description": "Phone fields now show a numeric keypad. URL fields bring up the URL keyboard. Email fields open the email layout. Every input field across the app now triggers the right keyboard for the job."
+      },
+      {
+        "title": "Autocorrect & Word Suggestions Work Everywhere",
+        "description": "Spellcheck, autocorrect, and word suggestions are now properly enabled across all text fields in the app. Your writing is smoother and smarter without you having to think about it."
+      }
+    ]
+  },
+  {
     "version": "v2.1.0",
     "date": "2026-02-18",
-    "latest": true,
+    "latest": false,
     "summary": "WiseResume now turns your resume into a full personal website — complete with themes, AI-written content, and a shareable link you can send to anyone.",
     "items": [
       {
