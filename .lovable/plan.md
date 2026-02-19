@@ -1,156 +1,154 @@
 
-# Landing Page — "What Makes WiseResume Different" Enhancement
+# Retention Strategy — Keeping Users Coming Back After They Land a Job
 
-## The Problem
+## Understanding the Core Problem
 
-When a user finds the app on the App Store or Play Store and taps through to the website, the current landing page answers **what the app does** but never answers the more important question: **why this one, not the 50 other resume apps?**
+This is a "peak-and-valley" app: users surge when job hunting, disappear when they land a role, then potentially return years later — but by then they've forgotten the app existed. The goal is to convert it from a **one-time job tool** into a **permanent career companion** that users keep opening even when they're happily employed.
 
-The current sections are:
-- Hero: "Build Your Dream Resume" + generic subtitle
-- "See It in Action" (two demo cards)
-- "Why WiseResume?" (4 feature cards — generic titles like "AI Writing Assistant")
-- Two bonus chip buttons
-
-There is no section that makes a clear, emotional, punchy case for what makes WiseResume genuinely unique. The differentiators exist in the product but are invisible on the landing page.
-
----
-
-## The Real Differentiators to Highlight
-
-After analyzing the full feature set, these are the 5 things that genuinely separate WiseResume from every other resume builder:
-
-1. **Voice Mock Interview with AI Coaching** — Most apps only do text feedback. WiseResume lets you practice speaking out loud with a real AI voice that listens and responds. Almost no competitor does this.
-2. **4 AI Recruiter Personas** — You get feedback from 4 different hiring perspectives (Fortune 500, Startup, Tech, Executive). No other resume app has this.
-3. **ATS Match Score + One-Tap Tailoring** — Not just a score, but AI that rewrites your resume specifically for one job posting in seconds.
-4. **AI Bullet Transformation** — The "Before/After" demo of turning "Worked on frontend" into a quantified achievement with metrics. Tangible and visceral.
-5. **Public Portfolio Website** — Your resume becomes a live personal website with a shareable URL. Most resume apps only produce PDFs.
+The app already has a solid foundation to build on:
+- `notifications` table (already in the DB with push notification infrastructure)
+- `career_assessments` table with `completed_milestones`
+- `interview_sessions` table (tracks practice history)
+- `DashboardStats` already tracks a basic **login streak** (stored in localStorage)
+- `DailyTipCard` exists but auto-dismisses after 3 seconds and uses localStorage only
+- `open_to_work` flag on profiles (knows if they're job hunting or not)
+- `portfolio_visits` table (knows when their public portfolio gets viewed)
 
 ---
 
-## What Will Be Added to the Landing Page
+## The 5 Retention Pillars to Implement
 
-### Section 1 — Hero Subtitle Enhancement
-Upgrade the bland subtitle `"AI-powered. ATS-optimized. Ready in 5 minutes."` to a more charged version that leads with the emotional promise:
-> *"The only resume app that coaches you through your interview, scores your ATS match, and builds your personal website — all in one."*
+### Pillar 1 — "I Got the Job!" Mode (Post-Hiring Re-engagement)
 
-Add a trust bar directly below the CTA with 3 real signals:
-- ⭐ 4.9 Rating
-- 12,000+ users helped  
-- Free to start
+**Problem:** When a user marks an application as "Offer Received" or "Accepted", there is zero celebration or next-step prompt. They close the app and never return.
 
-### Section 2 — "The Difference" Comparison Strip (NEW)
-A new section titled **"Not Just Another Resume Builder"** — a scrollable horizontal strip of 5 comparison chips:
+**Fix:** When a job application status changes to `offer` or `accepted`:
+1. Show a full-screen celebration animation (confetti + haptics) with a "Congratulations!" modal
+2. Inside the modal: suggest 3 "Now that you got the job, here's what's next" actions:
+   - "Keep your resume updated with your new role" → opens editor
+   - "Turn off Open to Work on your portfolio" → one-tap toggle
+   - "Set a 3-month reminder to update your resume" → creates a scheduled notification
+3. Store the `hired_at` date on the profile → triggers automated re-engagement at 3 months
 
-| What others do | What WiseResume does |
-|---|---|
-| Static PDF export | + Live portfolio website |
-| Generic feedback | + 4 Recruiter perspectives |
-| ATS score only | + AI rewrites it for each job |
-| Text practice tips | + Real voice interview coaching |
-| One resume template | + 12 professional templates |
-
-These are shown as side-by-side pill rows with a ✗ on the left and a ✓ on the right. Fast to scan, immediately communicates value.
-
-### Section 3 — Upgrade the "Why WiseResume?" Cards
-The current 4 feature cards have weak, generic copy ("AI Writing Assistant"). Replace with emotionally resonant, benefit-led copy:
-
-| Old | New |
-|---|---|
-| AI Writing Assistant | "Weak bullet? Fixed in 1 tap" |
-| ATS Score Checker | "Know your score before they do" |
-| Smart Job Tailoring | "New job, new resume — instantly" |
-| Voice Mock Interviews | "Practice speaking, not just writing" |
-
-Add a concrete Before → After animation card (like `WhyWiseResume.tsx` already has) directly in this section.
-
-### Section 4 — Social Proof Row (ENHANCED)
-The current social proof bar (`SocialProofBar.tsx`) is minimal. Elevate it by:
-- Adding 3 user quote snippets (short, 1-line testimonials)
-- Showing avatar initials + name + role
-- Placing it between the hero and the comparison section
-
-### Section 5 — Bottom CTA Enhancement
-The bottom CTA currently says "Ready to Get Started?" which is generic. Replace with:
-- Headline: **"Land your next job. Not someday — this week."**
-- Subtext listing 3 key differentiators as bullet points
-- A secondary link: "See how it works →" that scrolls to the demo section
+**Files to change:**
+- `src/pages/ApplicationTrackerPage.tsx` — detect status change to `offer`/`accepted`
+- New component: `src/components/dashboard/HiredCelebrationModal.tsx`
+- DB migration: add `hired_at` to `profiles`
 
 ---
 
-## Files to Change
+### Pillar 2 — Resume Health Decay & "Your Resume is Getting Stale" Notifications
 
-| File | Change |
-|---|---|
-| `src/pages/Index.tsx` | New hero subtitle; add `ComparisonStrip` section; upgraded feature cards with benefit-led copy; enhanced social proof with testimonials; enhanced bottom CTA |
-| `src/components/landing/SocialProofBar.tsx` | Add 3 user testimonial snippets |
-| `src/components/landing/BottomCTA.tsx` | New headline, subtext with 3 differentiator bullets |
-| `src/components/landing/WhyWiseResume.tsx` | Keep existing Before/After card; upgrade the 4 feature chip descriptions to benefit-led copy |
+**Problem:** A user lands a job in March, returns in November for a new search, and finds their resume 8 months out of date with no prompting to update it.
 
-A new inline `ComparisonStrip` component will be created directly in `Index.tsx` (small enough not to warrant its own file) as a section between the hero and the demos.
+**Fix:** A **Resume Freshness System**:
+- Track `last_updated_at` on resumes (already stored as `updated_at`)
+- When the user opens the app after 30 days of inactivity, show a warm "Your resume is 30 days old" nudge card on the dashboard
+- At 90 days: push notification (using existing `send-push-notification` edge function): *"Your resume at [Company] is 90 days old. 2 minutes to keep it fresh."*
+- At 180 days: email reminder via a new `send-resume-reminder` edge function
 
----
-
-## Technical Details
-
-### Comparison Strip Component (inline in Index.tsx)
-```tsx
-const comparisons = [
-  { them: 'PDF only', us: 'Live portfolio website', icon: Globe },
-  { them: 'Generic AI tips', us: '4 recruiter personas', icon: Users },
-  { them: 'ATS score only', us: 'AI rewrites for each job', icon: Wand2 },
-  { them: 'Written practice', us: 'Real voice interview coach', icon: Mic },
-  { them: 'Basic templates', us: '12 polished designs', icon: LayoutGrid },
-];
-
-// Renders as:
-// [ ✗ PDF only  →  ✓ Live portfolio website ]
-// horizontally scrollable on mobile, 2-col grid on desktop
-```
-
-### Social Proof Testimonials (in SocialProofBar.tsx)
-Three condensed testimonials below the stats row:
-```tsx
-const testimonials = [
-  { quote: "Got 3 callbacks in a week after tailoring my resume with the AI.", name: "Marcus T.", role: "Software Engineer" },
-  { quote: "The voice interview feature helped me stop rambling. Game changer.", name: "Priya K.", role: "Product Manager" },
-  { quote: "The ATS score went from 42% to 91% after one tailoring session.", name: "James O.", role: "Data Analyst" },
-];
-```
-
-These are shown as small `italic "quote"` cards in a horizontal scroll row.
-
-### Bottom CTA new copy
-```tsx
-// New headline:
-"Land your next job. Not someday — this week."
-
-// New subtext bullets:
-• AI that rewrites your resume for each job in 30 seconds
-• Voice interview coaching that actually prepares you  
-• A portfolio website, not just a PDF
-```
+**Files to change:**
+- `src/components/dashboard/DashboardStats.tsx` — add "resume freshness" nudge card
+- New edge function: `supabase/functions/send-resume-reminder/index.ts`
+- DB migration: add `last_reminder_sent_at` to `resumes` table to prevent spam
 
 ---
 
-## Visual Hierarchy After Changes
+### Pillar 3 — Portfolio View Notifications ("Your Resume Got Seen!")
 
-```text
-HERO
-  └─ New: charged subtitle + trust bar (rating · users · free)
+**Problem:** The `portfolio_visits` table already tracks every person who views the user's public portfolio. This data is currently invisible to the user after they close the app.
 
-NEW: "Not Just Another Resume Builder" comparison strip
-  └─ 5 competitor vs WiseResume rows
+**Fix:** This is the **highest-retention hook possible** — people check Instagram notifications obsessively for the same reason. When someone views their portfolio:
+1. Create a `notifications` row (already exists in DB!) with type `portfolio_view`
+2. Send a push notification: *"Someone in [City] viewed your portfolio today 👀"*
+3. On the dashboard, show a "Portfolio Activity" card that shows the last 7 days of view counts with a mini spark chart
 
-"See It in Action" (unchanged — demos still do the heavy lifting)
+**Files to change:**
+- `supabase/functions/track-portfolio-view/index.ts` — already exists, add notification creation here
+- New component: `src/components/dashboard/PortfolioActivityCard.tsx`
+- `src/pages/DashboardPage.tsx` — embed the activity card
 
-SOCIAL PROOF (upgraded)
-  └─ Stats bar → 3 testimonial cards
+---
 
-"Why WiseResume?" (upgraded copy)
-  └─ Before/After card + 4 benefit-led feature cards
+### Pillar 4 — Career Growth Milestones & Gamification
 
-BOTTOM CTA (upgraded)
-  └─ Emotional headline + 3 bullet differentiators
-```
+**Problem:** The `career_assessments.completed_milestones` field exists but nothing visually tracks user progress or rewards consistency. The login streak in `DashboardStats` is already computed but only shows a flame icon with no payoff.
 
-No database changes. No new dependencies. No edge functions.
+**Fix:** A lightweight **Career Milestone System**:
+
+Milestones triggered automatically (no user action needed):
+| Milestone | Trigger | Badge |
+|---|---|---|
+| First Resume | Creates first resume | 🏆 Resume Builder |
+| Interview Ready | Completes first practice session | 🎤 Interview Ace |
+| ATS Optimizer | Tailors resume to first job | 🎯 ATS Pro |
+| Portfolio Live | Enables portfolio | 🌐 Online Presence |
+| 7-Day Streak | 7 consecutive days | 🔥 Dedicated |
+| 30-Day Streak | 30 days login | 💎 Career Committed |
+| Application Tracker | Logs 5 applications | 📋 Organized |
+
+Show these as a horizontal scrollable badge row on the dashboard — earned badges are colored, unearned are greyed out. Tapping an unearned badge shows a tooltip explaining how to unlock it. This creates clear reasons to return and try features they haven't used.
+
+**Files to change:**
+- New hook: `src/hooks/useCareerMilestones.ts` — computes milestone status from existing data
+- New component: `src/components/dashboard/CareerMilestonesRow.tsx`
+- `src/pages/DashboardPage.tsx` — embed the row
+- Move streak from localStorage to DB: add `login_streak`, `last_login_date` to `profiles`
+
+---
+
+### Pillar 5 — Weekly Career Digest (Smart Re-engagement Email/Notification)
+
+**Problem:** There is no scheduled outreach to dormant users. The push notification system exists (`send-push-notification` edge function) but only fires for manual actions.
+
+**Fix:** A **Weekly Career Digest** — a smart summary sent every Monday to users who haven't opened the app in 5+ days:
+
+Content of the digest:
+- "Your resume score: 87%" (from last scored result in DB)
+- "Your portfolio had 3 views this week"
+- "You have 2 applications awaiting response"
+- "Tip of the week: [rotating tip]"
+- Deep link CTA: "Check your resume →"
+
+**Implementation:**
+- New edge function: `supabase/functions/weekly-digest/index.ts`
+- Triggered by a cron-style scheduled invocation (pg_cron)
+- Uses the existing `notifications` table to store in-app version
+- Uses `send-push-notification` for push version
+
+**DB migration:** Add `digest_enabled` boolean (default `true`) to `profiles` with a Settings toggle to opt out.
+
+---
+
+## What NOT to Build
+
+- No annoying daily "streaks will break!" guilt notifications (Duolingo-style anxiety)
+- No fake urgency ("Only 3 days to apply!")
+- No mandatory check-ins
+- All notifications have one-tap opt-out in Settings
+
+---
+
+## Summary of Changes
+
+| Feature | Files | DB Change? |
+|---|---|---|
+| "I Got the Job!" Celebration + Reminder | `ApplicationTrackerPage.tsx`, new `HiredCelebrationModal.tsx` | `profiles.hired_at` column |
+| Resume Freshness Nudge | `DashboardStats.tsx`, new edge function | `resumes.last_reminder_sent_at` |
+| Portfolio View Notifications | `track-portfolio-view/index.ts` (existing) | None — uses existing `notifications` table |
+| Portfolio Activity Card on Dashboard | New `PortfolioActivityCard.tsx`, `DashboardPage.tsx` | None — queries existing `portfolio_visits` |
+| Career Milestones Row | New `CareerMilestonesRow.tsx`, new `useCareerMilestones.ts` | `profiles.login_streak`, `profiles.last_login_date` |
+| Weekly Digest | New `weekly-digest/index.ts` edge function | `profiles.digest_enabled` |
+
+---
+
+## Implementation Priority Order
+
+1. **Portfolio View Notifications** — highest impact, almost free to build (edge function already exists, just add 3 lines)
+2. **"I Got the Job!" Celebration Modal** — highest emotional moment, creates strongest memory
+3. **Career Milestones Row** — most visible retention loop on the dashboard
+4. **Resume Freshness Nudge** — passive re-engagement for dormant users
+5. **Portfolio Activity Card** — gives users a reason to check the dashboard even when not job hunting
+6. **Weekly Digest Edge Function** — scheduled automation (lowest priority, highest long-term ROI)
+
+No new dependencies required. All features use existing infrastructure.
