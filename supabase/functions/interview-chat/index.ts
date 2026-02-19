@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
@@ -91,18 +91,19 @@ serve(async (req) => {
 
     const jobContext = jobDescription ? `\nTARGET JOB DESCRIPTION:\n${jobDescription}\n` : "";
 
-    // Role analysis mode
+    // Role analysis mode — use stronger model for one-time quality analysis
     if (analyzeRole && jobDescription) {
-      const analyzePrompt = `You are Wise AI, the intelligent interview coach. Analyze the job description and resume.
+      const analyzePrompt = `You are Wise AI, the intelligent interview coach. Analyze the job description and resume to prepare a targeted interview strategy.
 
 ${resumeContext}${jobContext}
 
-Return JSON: {"title":"","keySkills":[""],"questionCategories":[""],"industryInsights":""}`;
+Return JSON with this exact structure: {"title":"exact job title","keySkills":["skill1","skill2","skill3","skill4","skill5"],"questionCategories":["category1","category2","category3"],"industryInsights":"2-3 sentences about what interviewers in this field specifically look for and common pitfalls to avoid"}`;
 
-      const aiResponse = await callAI({
-        model: 'google/gemini-2.5-flash',
+      const aiResponse = await callAIWithRetry({
+        model: 'google/gemini-2.5-pro',
         messages: [{ role: 'user', content: analyzePrompt }],
         userId: user.id,
+        maxTokens: 512,
       });
 
       const roleAnalysis = parseAIJSON(aiResponse.content || '{}') || {
@@ -117,14 +118,48 @@ Return JSON: {"title":"","keySkills":[""],"questionCategories":[""],"industryIns
       });
     }
 
-    const systemPrompt = endInterview
-      ? `You are Wise AI. The mock interview ended. Provide a brief summary:\n\n**Overall Assessment:** [1-2 sentences]\n\n**Strengths:**\n- [strength 1-3]\n\n**Areas to Improve:**\n- [area 1-2]\n\n**Score: [X]/10**\n\n**Tip:** [One actionable tip]\n\nBe encouraging but honest.`
-      : `You are Wise AI, the intelligent interview coach.${quickPractice ? '\n\nQUICK PRACTICE: Ask EXACTLY 5 questions, then auto-summarize.\n' : ''} Ask ONE question at a time. After each answer, give brief feedback then ask the next question. Mix behavioral, technical, and situational. Be warm and professional.\n\nAfter each answer include:\n---SCORE---\n{"score": [1-10], "tip": "[tip]", "improved_answer": "[better answer]"}\n---END_SCORE---\n\n${resumeContext}${jobContext}`;
+    // --- Build system prompt ---
+    const maxTokens = endInterview ? 1500 : 1024;
 
-    const aiResponse = await callAI({
+    const systemPrompt = endInterview
+      ? `You are Wise AI, a professional interview coach. The mock interview has ended. Provide a structured performance summary:
+
+**Overall Assessment:** [2-3 sentences evaluating the candidate's interview performance]
+
+**Strengths:**
+- [Specific strength with example from their answers]
+- [Another strength]
+- [Another strength if applicable]
+
+**Areas to Improve:**
+- [Specific area with actionable advice]
+- [Another area with actionable advice]
+
+**Score: [X]/10**
+
+**Next Steps:** [2-3 specific, actionable things to practice before their real interview]
+
+Be encouraging but honest. Reference specific answers they gave when possible.`
+      : `You are Wise AI, a professional and warm interview coach conducting a realistic mock interview.${resumeContext}${jobContext}
+
+INTERVIEW RULES:
+1. Ask ONE question at a time. Wait for the candidate's answer before proceeding.
+2. After each answer, give brief feedback (2-3 sentences max) highlighting what was good and one specific improvement, then ask the next question.
+3. Mix question types: behavioral (use STAR method prompts), technical, and situational.
+4. Progress difficulty: start with an easy warmup question, then gradually increase complexity.
+5. For behavioral questions, if the candidate's answer lacks structure, gently guide them to use the STAR method (Situation, Task, Action, Result).
+6. Keep your responses concise — no more than 150 words per turn.
+${quickPractice ? '7. QUICK PRACTICE MODE: Ask exactly 5 questions total. After the 5th answer, provide your summary automatically without being asked.\n' : ''}
+After EVERY candidate answer, include this scoring block at the end of your response:
+---SCORE---
+{"score": [1-10], "tip": "[one specific actionable tip]", "improved_answer": "[a stronger version of their answer in 2-3 sentences]"}
+---END_SCORE---`;
+
+    const aiResponse = await callAIWithRetry({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       userId: user.id,
+      maxTokens,
     });
 
     const reply = aiResponse.content || "I couldn't generate a response. Let's try again.";
