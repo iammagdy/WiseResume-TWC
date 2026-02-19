@@ -1,96 +1,92 @@
 
 
-# Stability and Mobile UX Audit — Implementation Plan
+# Portfolio Page Mobile UX Cleanup
 
-## Audit Checklist Summary
+## Overview
 
-### 1. Supabase safeClient Usage
-**Status: CLEAN.** All 39 files that import Supabase now use `safeClient`. No files import from the unsafe `@/integrations/supabase/client`. No changes needed.
+Restructure the Portfolio Editor page to reduce clutter, surface key information in a compact hero card, and hide empty sections. No backend or navigation changes.
 
-### 2. Error Handling Consistency
-**Status: MOSTLY GOOD, 2 issues found.**
+## Changes (all in `src/pages/PortfolioEditorPage.tsx`)
 
-- The global `ErrorBoundary` wraps the entire app in `App.tsx` (line 194), so all routes are covered.
-- Pages with heavy lazy content (Editor, AIStudio, Interview, ResumeDetail, PublicPortfolio) add a second inner `ErrorBoundary` around their Suspense-loaded sheets -- good.
-- The `BugReportDialog` correctly auto-detects screen and error category via `detectScreen()` and `categorizeError()` -- no manual selection required.
-- **Issue A:** The `showErrorToast` utility in `errorToast.ts` (which adds a "Report Bug" action to toasts) is only used in 1 file (`QuickActions.tsx`). Many other places call `toast.error(msg)` directly without a Report Bug action. This is a missed opportunity but not a crash risk -- low priority, skip for now.
-- **Issue B:** The `ProtectedRoute` component uses `PageLoadingSpinner` instead of a skeleton. This should use a more informative skeleton.
+### 1. Remove info banner
+Remove the "New updates available" / tips banner entirely (lines 549-561). It adds noise and isn't tied to real in-page changes.
 
-### 3. Protected vs Public Navigation
-**Status: FIXED in previous round, 1 minor improvement.**
+### 2. Build a Hero Card (replaces current "Portfolio Status" block)
+Replace the existing Status block (lines 563-628) with a single compact "Portfolio Overview" hero card containing:
+- **Status badge** (Live / Draft) — top-right
+- **Public URL** with Copy button and QR Code button — single row
+- **Compact stats row**: Views | Strength (e.g. "60% Good") | Highlighted skills count
+- **Publish toggle** with label "Make portfolio public" and helper text "Anyone with your link can view your portfolio website."
+- **Save button** stays at the bottom of this card
 
-- "Explore without account" on `/auth` now navigates to `/` (landing page) -- correct, this is public.
-- `SignInPromptDialog` has a "Continue as guest" button that calls `onContinueAsGuest` callback -- this is handler-dependent, not a routing issue.
-- **No further fixes needed.**
+This absorbs the current separate Publish block (lines 1198-1227), moving the toggle and save into the hero.
 
-### 4. Mobile Layout Edge Cases
-**Status: 2 issues found.**
+### 3. Collapse analytics into the hero stats row
+Remove the standalone "Visitors & Analytics" CollapsibleCard (lines 672-686). The view count is already in the hero. The full VisitorsPanel remains accessible via a "View details" link in the stats row that opens the section.
 
-- **Issue C:** The Portfolio info banner dismiss button uses `window.location.reload()` which is terrible UX -- it causes a full page reload just to hide a banner. This should use React state instead.
-- **Issue D:** The Portfolio page content area uses `pb-safe` but given the bottom tab bar is present, there should be additional bottom padding (`pb-20`) to ensure content doesn't hide behind the nav bar. Need to verify.
+Remove the standalone "Portfolio Strength" CollapsibleCard (lines 688-713). Strength score is shown in the hero stats row. The missing tips remain visible when the user taps the strength stat (expand inline or show as a small list below the stats).
 
-### 5. Performance and Loading States
-**Status: 1 issue found.**
+### 4. Rename "Skills Visibility" to "Skills on your portfolio"
+Change title at line 720 from "Skills Visibility" to "Skills on your portfolio". In the collapsed hint (line 721-725), show only the strong count: e.g. "7 highlighted skills" — remove the dim skill count from the hint. Keep full detail inside the expanded section unchanged.
 
-- **Issue E:** `ProtectedRoute` uses `PageLoadingSpinner` (generic spinner) while the auth state resolves. Since this guards ALL protected routes, every authenticated page shows a black-screen spinner on initial load. This should use a minimal skeleton instead.
-- All lazy-loaded routes in `App.tsx` already use proper skeleton fallbacks -- good.
-- `InterviewPage` uses `PageLoadingSpinner` for store hydration (line 200) -- acceptable since it's brief.
+### 5. Conditionally render empty sections
+For these CollapsibleCards, only render if there's at least one configured value:
+- **Customization** (id="customization"): always show (it always has accent color set)
+- **Availability** (id="availability"): show only if `openToWork || availabilityHeadline`
+- **Identity** (id="identity"): always show (username is critical)
+- **Social Links** (id="social"): show only if any of `githubUrl, websiteUrl, twitterUrl, contactEmail` has a value
+- **Case Studies** (id="casestudies"): show only if `caseStudies.length > 0`
+- **Services** (id="services"): show only if `services.length > 0`
+- **SEO & Sharing** (id="seo"): show only if `metaTitle || metaDescription`
 
----
+For hidden sections, add a single "Add more sections" button at the bottom that reveals all sections when tapped (toggle state). This ensures users can still access empty sections to fill them in.
 
-## Changes to Make
+### 6. Add "Edit" icon to Bio and Social Links headers
+Pass an extra `action` prop to CollapsibleCard for "About Me Bio" and "Social Links" sections — a small pencil/edit icon aligned right in the header that scrolls to / opens the section (same as tapping the header). This is purely visual affordance — the click behavior is identical to the existing toggle.
 
-### File 1: `src/pages/PortfolioEditorPage.tsx`
-**Fix the info banner dismiss to use React state instead of `window.location.reload()`.**
+### 7. Sync Mode description
+Under the "Content Sync Mode" collapsed hint, when `syncMode === 'auto'`, show hint text: "Auto — resumes sync live". Inside the expanded section, the description already exists at line 1075.
 
-Currently (line 554):
-```
-onClick={() => { localStorage.setItem('portfolio_info_dismissed', '1'); window.location.reload(); }}
-```
-
-Change to use a `useState` hook for `bannerDismissed`, initialized from localStorage. On click, set state + localStorage without reloading.
-
-### File 2: `src/components/layout/ProtectedRoute.tsx`
-**Replace `PageLoadingSpinner` with a lightweight skeleton** that better matches the app layout (header area + content placeholder). Use the existing `DashboardSkeleton` import or create a minimal inline skeleton with `animate-pulse` divs.
+### 8. Publish toggle UX refinement
+Move the publish toggle from the bottom "Publish" block into the hero card. Use `Switch` component (already imported) with label "Make portfolio public" and helper "Anyone with your link can view your portfolio website." Remove the old Publish block at lines 1198-1227 since it's now in the hero.
 
 ---
 
-## What Does NOT Need Changing
+## Detailed Hero Card Layout
 
-- All supabase imports are already using safeClient -- no changes.
-- ErrorBoundary coverage is consistent across all routes -- no changes.
-- Bug report dialog already auto-detects screen and category -- no changes.
-- Auth page "Explore without account" already routes to `/` -- no changes.
-- FAB positioning was already fixed to `bottom-28` -- no changes.
-- Bottom tab label already renamed to "Applications" -- no changes.
-- All Suspense fallbacks already use proper skeletons -- no changes.
-
-## Technical Details
-
-### PortfolioEditorPage banner fix
-Add a `const [bannerDismissed, setBannerDismissed] = useState(() => ...)` initialized from localStorage. Replace the inline IIFE with a conditional render using this state. On dismiss click, call `setBannerDismissed(true)` and `localStorage.setItem(...)` -- no reload.
-
-### ProtectedRoute skeleton
-Replace `<PageLoadingSpinner />` with a simple inline skeleton:
-```
-<div className="min-h-[100dvh] bg-background p-4 space-y-4 animate-pulse">
-  <div className="h-10 w-32 rounded-lg bg-muted" />
-  <div className="h-6 w-48 rounded bg-muted" />
-  <div className="space-y-3 mt-6">
-    <div className="h-24 rounded-xl bg-muted" />
-    <div className="h-24 rounded-xl bg-muted" />
-  </div>
-</div>
+```text
++------------------------------------------+
+| Portfolio Overview          [Live badge]  |
+|                                           |
+| wiseresume.app/p/magdy  [Copy] [QR]      |
+|                                           |
+| 5 views  |  60% Good  |  7 skills        |
+|                                           |
+| [Switch] Make portfolio public            |
+| Anyone with your link can view it.        |
+|                                           |
+| [====== Save Portfolio ======]            |
+| [Unpublish] (if live)                     |
++------------------------------------------+
 ```
 
-This avoids importing heavy skeleton components into the critical auth-check path while still looking better than a black screen with spinner.
+### 9. Strength tips — show below hero when strength < 100%
+Below the hero card, if there are missing strength items, show a small collapsible "Improve your score" card with the top 3 tips. This replaces the old standalone Strength CollapsibleCard.
 
-## Summary
+---
 
-| File | Change |
+## Files Changed
+
+| File | What |
 |---|---|
-| `src/pages/PortfolioEditorPage.tsx` | Replace `window.location.reload()` banner dismiss with React state |
-| `src/components/layout/ProtectedRoute.tsx` | Replace `PageLoadingSpinner` with lightweight inline skeleton |
+| `src/pages/PortfolioEditorPage.tsx` | All changes above — restructure hero, conditional sections, rename skills, move publish toggle, remove redundant blocks |
 
-**Total: 2 files modified, 0 new files.** All other categories pass the audit with no issues found.
+No new files, no backend changes, no route changes.
+
+## What Stays the Same
+- All state variables, save logic, Supabase calls unchanged
+- QR dialog, Career Card sheet, theme picker, section visibility toggles all preserved
+- VisitorsPanel component kept but accessed via link instead of always-visible collapsible
+- All form inputs and their handlers identical
+- Bottom tab bar, navigation, auth — untouched
 
