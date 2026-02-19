@@ -18,6 +18,16 @@ export interface AuthContextType extends AuthState {
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+async function hideSplashScreen() {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    const { SplashScreen } = await import('@capacitor/splash-screen');
+    await SplashScreen.hide({ fadeOutDuration: 300 });
+  } catch {
+    // Plugin unavailable on web builds — ignore
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -38,9 +48,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const resolveInitialLoad = (user: User | null, session: Session | null) => {
       if (!initialResolved) {
         initialResolved = true;
-        // Signal that auth is ready — native splash screen can hide
+        // Signal auth ready — hide native splash screen immediately
         if (Capacitor.isNativePlatform()) {
           window.dispatchEvent(new CustomEvent('app:auth-ready'));
+          hideSplashScreen();
         }
       }
       activeUserIdRef.current = user?.id ?? null;
@@ -61,10 +72,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
-    // Safety timeout: force loading=false after 5s
+    // Safety timeout: force loading=false after 5s, also hide splash
     const timeout = setTimeout(() => {
       if (!initialResolved) {
         console.warn('Auth session fetch timed out after 5s');
+        hideSplashScreen();
         resolveInitialLoad(null, null);
       }
     }, 5000);
@@ -95,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {
         console.warn('Failed to fetch auth session');
+        hideSplashScreen();
         resolveInitialLoad(null, null);
       });
 

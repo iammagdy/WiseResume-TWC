@@ -8,6 +8,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
 import { useShakeDetect } from "@/hooks/useShakeDetect";
+import { useAppLifecycle } from "@/hooks/useAppLifecycle";
 import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -81,12 +82,20 @@ const queryClient = new QueryClient({
 
  // Inner component to use hooks that require Router context
  function AppRoutes() {
-   useBackButton();
-   useStatusBarThemeSync();
-   useDeepLinking();
-   
-   const { shakeToReportEnabled } = useSettingsStore();
-   useShakeDetect(shakeToReportEnabled);
+  useBackButton();
+  useStatusBarThemeSync();
+  useDeepLinking();
+
+  const { shakeToReportEnabled } = useSettingsStore();
+  useShakeDetect(shakeToReportEnabled);
+
+  // Global app lifecycle — flushes pending saves when app goes to background
+  // on both PWA (visibilitychange) and Capacitor native (appStateChange)
+  useAppLifecycle({
+    onBackground: () => {
+      window.dispatchEvent(new CustomEvent('app:save-draft'));
+    },
+  });
 
    // Restore saved theme on mount (safety net for the inline script in index.html)
    useEffect(() => {

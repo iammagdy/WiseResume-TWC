@@ -21,7 +21,18 @@ const tabs: TabItem[] = [
   path: '/dashboard',
   icon: Home,
   label: 'Home',
-  matchPaths: ['/dashboard']
+  // Secondary routes that logically belong to "Home"
+  matchPaths: [
+    '/dashboard',
+    '/settings',
+    '/profile',
+    '/notifications',
+    '/templates',
+    '/examples',
+    '/guides',
+    '/resume',
+    '/onboarding',
+  ]
 },
 {
   path: '/editor',
@@ -34,13 +45,22 @@ const tabs: TabItem[] = [
   path: '/ai-studio',
   icon: Sparkles,
   label: 'Studio',
-  matchPaths: ['/ai-studio']
+  // Career tools and cover letters belong to the Studio ecosystem
+  matchPaths: [
+    '/ai-studio',
+    '/career',
+    '/cover-letter',
+    '/cover-letters',
+    '/resignation-letter',
+    '/resignation-letters',
+  ]
 },
 {
   path: '/applications',
   icon: BarChart3,
   label: 'Activity',
-  matchPaths: ['/applications']
+  // Job and application detail pages belong to Activity
+  matchPaths: ['/applications', '/application', '/job']
 },
 {
   path: '/portfolio',
