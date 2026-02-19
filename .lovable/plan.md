@@ -1,63 +1,102 @@
 
 
-# Add Staggered Animation to Developer Card Content
+# Scroll-Driven Fade In/Out Animations for Landing Page
 
-## What It Does
+## What Changes
 
-The avatar, name/title, and buttons will animate in one after another with a slight delay between each, creating a cascading reveal effect as the card scrolls into view. When scrolling away, they fade out together.
+Currently, all landing page sections use `viewport: { once: true }` which means they animate in once and stay visible forever. You want sections to fade in when scrolling down and fade out when scrolling back up, creating a more dynamic, immersive experience.
 
 ## Approach
 
-Use framer-motion's `staggerChildren` on the content container, and wrap each content group (avatar, info text, buttons) in a `motion.div` with shared animation variants.
+1. **Update the `inView` helper** to use `once: false` so animations reverse when sections leave the viewport
+2. **Add unique animation variants per section** instead of the same fade-up for everything -- each major section gets a distinct entrance style:
+   - **Hero**: stays as-is (always visible at top)
+   - **Comparison Strip**: slides in from the left with a slight rotation
+   - **See It in Action cards**: scale up from center with a blur-to-clear effect
+   - **Why WiseResume features**: staggered cascade from bottom with increasing delay
+   - **Bonus chips**: pop in with a spring bounce
+   - **Footer**: gentle fade up
+
+3. **Use `whileInView` + `initial`** on all `motion.div` wrappers with `viewport: { once: false, amount: 0.2 }` so they re-trigger both ways
 
 ## Technical Details
 
-### File: `src/components/settings/DeveloperCreditCard.tsx`
+### File: `src/pages/Index.tsx`
 
-Define animation variants at the top of the component:
+**1. Update `inView` helper (lines 223-231)**
+
+Change `once: true` to `once: false` and reduce the margin:
 
 ```tsx
-const containerVariants = {
-  hidden: {},
-  visible: {
-    transition: { staggerChildren: 0.15 }
-  }
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 15 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.4, ease: "easeOut" }
-  }
-};
+const inView = (delay: number) =>
+  prefersReducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, y: 20 } as const,
+        whileInView: { opacity: 1, y: 0 } as const,
+        viewport: { once: false, amount: 0.2 },
+        transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
+      };
 ```
 
-Then apply them to the content:
+**2. Add unique section animation factories (after `inView`)**
 
-1. Change `<div className="dev-card-content">` to a `motion.div` with `variants={containerVariants}`, `initial="hidden"`, and `whileInView="visible"` (with `viewport={{ once: false, amount: 0.3 }}`)
+```tsx
+// Slide from left with slight rotate
+const slideIn = (delay: number) =>
+  prefersReducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, x: -30, rotate: -1 },
+        whileInView: { opacity: 1, x: 0, rotate: 0 },
+        viewport: { once: false, amount: 0.2 },
+        transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
+      };
 
-2. Wrap these three groups in `motion.div` with `variants={itemVariants}`:
-   - **Avatar container** (`dev-avatar-container`) -- animates in first
-   - **Name + title** (`dev-name` and `dev-title`) -- animates in second
-   - **Buttons + website link** (`dev-btn-row` and `dev-website-link`) -- animates in third
+// Scale up with blur clear
+const scaleIn = (delay: number) =>
+  prefersReducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, scale: 0.92, filter: 'blur(4px)' },
+        whileInView: { opacity: 1, scale: 1, filter: 'blur(0px)' },
+        viewport: { once: false, amount: 0.2 },
+        transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
+      };
 
-### Stagger Timeline
-
-```text
-0.0s  --> Avatar fades in + slides up
-0.15s --> Name & title fade in + slide up
-0.30s --> Buttons & website link fade in + slide up
+// Spring pop
+const popIn = (delay: number) =>
+  prefersReducedMotion
+    ? {}
+    : {
+        initial: { opacity: 0, scale: 0.8, y: 10 },
+        whileInView: { opacity: 1, scale: 1, y: 0 },
+        viewport: { once: false, amount: 0.3 },
+        transition: { delay, type: 'spring', stiffness: 300, damping: 20 },
+      };
 ```
+
+**3. Apply unique animations to each section**
+
+| Section | Current | New Animation |
+|---|---|---|
+| Comparison Strip (line 385) | `inView(0)` | `inView(0)` (same fade, now reversible) |
+| Each comparison row (line 393) | `inView(0.05 * i)` | `slideIn(0.06 * i)` -- slides from left |
+| "See It in Action" heading (line 415) | `inView(0)` | `inView(0)` |
+| Editor Demo card (line 427) | `inView(0.05)` | `scaleIn(0.05)` -- scales up with blur |
+| Portfolio Demo card (line 452) | `inView(0.1)` | `scaleIn(0.15)` -- scales up with blur |
+| "Why WiseResume" heading (line 480) | `inView(0)` | `inView(0)` |
+| Feature cards (line 492) | `inView(0.08 * i)` | `inView(0.1 * i)` -- staggered fade, now reversible |
+| Bonus chips (line 505) | `inView(0.3)` | `popIn(0.1)` -- spring bounce |
 
 ### No changes to:
-- CSS file
-- Any existing animations (sparkles, particles, orbit, holographic sweep, 3D tilt)
-- Component props or functionality (haptics, click handlers, links)
-- The outer `motion.div` wrapper scroll animation (keeps working as the card-level entrance)
+- Hero section (stays as initial fade-in, always visible)
+- SpaceBackground or any background effects
+- Footer component
+- Any functionality, navigation, or auth logic
+- Any other pages or components
 
 | File | Change |
 |---|---|
-| `DeveloperCreditCard.tsx` | Add stagger variants, wrap avatar/info/buttons in `motion.div` children |
+| `src/pages/Index.tsx` | Update `inView` to `once: false`, add `slideIn`/`scaleIn`/`popIn` helpers, apply unique animations per section |
 
