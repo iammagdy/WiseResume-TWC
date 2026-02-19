@@ -121,9 +121,11 @@ export function useResumes<TData = DatabaseResume[]>(options?: { select?: (data:
       return (data || []).map(parseDbResume);
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes - serve cached data when offline
-    gcTime: 30 * 60 * 1000, // 30 minutes - keep cache longer for offline use
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     networkMode: 'offlineFirst',
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000),
     select: options?.select,
   });
 }

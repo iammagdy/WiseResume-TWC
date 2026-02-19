@@ -12,6 +12,7 @@ import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
 import { useEffect, useState, useCallback } from 'react';
+import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 const features = [
   { icon: Sparkles, title: 'Weak bullet? Fixed in 1 tap', desc: 'AI rewrites vague bullets into quantified achievements that recruiters remember', iconColor: 'text-primary', gradient: 'from-primary/20 to-primary/5' },
@@ -180,6 +181,14 @@ const Index = () => {
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
+
+  // Pre-warm backend connection to avoid cold-start failures on first navigation
+  useEffect(() => {
+    fetch(SUPABASE_URL + '/rest/v1/', {
+      method: 'HEAD',
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const onScroll = () => {
