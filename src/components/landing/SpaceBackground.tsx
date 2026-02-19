@@ -133,17 +133,31 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         {shootingStars.map((s) => (
           <div
             key={s.id}
-            className="absolute w-[80px] h-[1px] rounded-full"
+            className="absolute"
             style={{
               top: `${s.top}%`,
               left: `${s.left}%`,
-              background: 'linear-gradient(to left, white 0%, transparent 100%)',
               opacity: 0,
               animation: prefersReducedMotion
                 ? 'none'
                 : `shootingStar ${s.duration}s ease-in ${s.delay}s infinite`,
             }}
-          />
+          >
+            {/* Glow trail */}
+            <div
+              className="absolute w-[80px] h-[3px] rounded-full blur-[3px]"
+              style={{
+                background: 'linear-gradient(to left, rgba(200, 220, 255, 0.6) 0%, transparent 100%)',
+              }}
+            />
+            {/* Core streak */}
+            <div
+              className="absolute w-[80px] h-[1px] rounded-full"
+              style={{
+                background: 'linear-gradient(to left, white 0%, transparent 100%)',
+              }}
+            />
+          </div>
         ))}
       </div>
 
