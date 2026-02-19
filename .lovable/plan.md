@@ -1,107 +1,68 @@
 
 
-# Company Research Briefing Feature
+# Audit: Ensure All Tools Provide Real, Reliable Data
 
-## Overview
+## Audit Results
 
-Add a "Company Research Briefing" tool that generates a one-page AI briefing before interviews. When a user has a job-targeted interview or a saved job, they can tap "Research Company" to get a structured briefing covering recent context, culture signals, key people, and personalized talking points connecting their resume to the company mission.
+After a thorough analysis of every scoring tool, AI feature, and content generator in the app, the codebase is in strong shape. All AI-powered tools call real backend functions with actual AI models -- there are zero fake data generators or mocked AI responses anywhere.
 
-## Where It Lives
+## One Issue Found
 
-The briefing will be accessible from two entry points:
+### Client-Side Job Match Scorer Uses Rough Heuristics
 
-1. **Interview Setup page** -- When the user selects "Job-Targeted" mode and pastes a job description, a "Research Company" button appears below the textarea. Tapping it generates the briefing in a bottom sheet before launching the interview.
-2. **AI Studio secondary tools** -- A new "Company Briefing" tool tile in the "More AI Tools" collapsible, which opens a sheet where users paste a company name + job description.
+**File:** `src/lib/jobMatchScorer.ts`
 
-## User Flow
+The `scoreJobMatch` function runs entirely on the client using basic keyword matching and simple rules. It does NOT call AI. This means:
 
-1. User pastes a job description (or selects a saved job)
-2. Taps "Research Company"
-3. Loading state with skeleton cards
-4. AI returns structured briefing sections
-5. User reads briefing, then proceeds to interview or closes
+- **Skill matching** is just keyword overlap between job text and resume text. If no job keywords are found, it defaults to 50%.
+- **Experience matching** uses only job title keywords ("senior", "junior") and estimated years. A generic title defaults to 50% or 80% based on a 2-year threshold.
+- **Overall score** is a weighted average (70% skills + 30% experience) that can be misleading for edge cases.
 
-## Briefing Sections (AI-generated)
+This scorer is used on the **Applications page** to show match scores next to saved jobs. Users may perceive these as AI-generated insights when they are really rough text comparisons.
 
-| Section | Content |
-|---|---|
-| Company Snapshot | Name, industry, size, HQ, founding year, mission statement |
-| Recent Highlights | 3-5 recent developments (product launches, funding, partnerships, leadership changes) |
-| Culture Signals | Work style, values, employee sentiment, Glassdoor-style insights inferred from the JD |
-| Key People | Likely hiring manager role, team lead profiles based on department context |
-| Talking Points | 3-5 personalized bullet points connecting the user's resume experience to the company's mission/needs |
-| Questions to Ask | 3 smart questions the user can ask the interviewer |
+### Recommended Fix
 
-## Technical Implementation
+Replace the client-side heuristic with real AI analysis by reusing the existing `analyze-resume` edge function (which already produces AI-powered skill/experience/keyword scores). For performance, cache the result per job+resume pair and compute it in the background.
 
-### 1. New Edge Function: `supabase/functions/company-briefing/index.ts`
+**Changes:**
 
-- Accepts: `{ companyName, jobDescription, resumeData }`
-- Auth: JWT verification via shared helper
-- Rate limit: 10 requests/minute via `checkRateLimit`
-- AI model: `google/gemini-2.5-flash` via shared `callAIWithRetry`
-- Uses tool calling to return structured JSON with the six sections above
-- Records usage via shared `recordUsage(userId, 'company_briefing')`
-- Returns structured JSON matching a `CompanyBriefing` TypeScript type
+1. **`src/lib/jobMatchScorer.ts`** -- Add an async `scoreJobMatchAI` function that calls `analyze-resume` and maps the response to the existing `JobMatchResult` shape. Keep the current `scoreJobMatch` as an instant preview fallback while AI loads.
 
-### 2. New Types: `src/types/companyBriefing.ts`
+2. **`src/pages/ApplicationsPage.tsx`** -- Update the scoring logic to:
+   - Show the instant heuristic score immediately (with a subtle indicator like a shimmer or "Quick estimate" label)
+   - Fire background AI scoring for each job
+   - Replace the heuristic score with the AI score once it arrives
+   - Cache AI scores in memory keyed by `resumeId:jobId` to avoid redundant calls
 
-```text
-CompanyBriefing {
-  companySnapshot: { name, industry, size, hq, founded, mission }
-  recentHighlights: Array<{ title, summary, relevance }>
-  cultureSignals: Array<{ signal, detail }>
-  keyPeople: Array<{ role, context }>
-  talkingPoints: Array<{ point, connection }>
-  questionsToAsk: Array<{ question, why }>
-}
-```
+3. **`src/components/applications/JobMatchScore.tsx`** -- Add a small visual indicator distinguishing "AI-verified" scores from "quick estimate" scores (e.g., a sparkle icon for AI scores, a tilde prefix for estimates).
 
-### 3. New Hook: `src/hooks/useCompanyBriefing.ts`
+## Everything Else Is Clean
 
-- Wraps the edge function call in a TanStack `useMutation`
-- Integrates with `useAIAction` for credit deduction (1 credit)
-- Returns `{ generate, briefing, isLoading, error }`
+| Tool | Data Source | Status |
+|---|---|---|
+| ATS Health Score | Deterministic code-based engine (server) | Real -- by design |
+| Resume Completion Score | Deterministic field-presence rules (client) | Real -- by design |
+| AI Job Analysis | `analyze-resume` edge function + Gemini | Real AI |
+| Smart Tailor | `tailor-resume` edge function + Gemini | Real AI |
+| Career Path Advisor | `career-path-advisor` edge function + Gemini | Real AI |
+| Company Briefing | `company-briefing` edge function + Gemini | Real AI |
+| Interview Coach | `interview-chat` edge function + Gemini | Real AI |
+| Recruiter Simulation | `recruiter-simulation` edge function + Gemini | Real AI |
+| LinkedIn Optimizer | `optimize-for-linkedin` edge function + Gemini | Real AI |
+| AI Detector/Humanizer | `detect-and-humanize` edge function + Gemini | Real AI |
+| Cover Letter Generator | `generate-cover-letter` edge function + Gemini | Real AI |
+| Career Assessment | `career-assessment` edge function + Gemini | Real AI |
+| Section AI Enhance | `enhance-section` edge function + Gemini | Real AI |
+| Gap Explainer | `explain-gap` edge function + Gemini | Real AI |
+| Gap Filler | `fill-gap` edge function + Gemini | Real AI |
+| One-Page Optimizer | `one-page-optimizer` edge function + Gemini | Real AI |
+| Agentic Chat | `agentic-chat` edge function + Gemini | Real AI |
+| Resume Parser (PDF/LinkedIn) | `parse-resume` / `parse-linkedin` + Gemini | Real AI |
+| Salary Coach | Not implemented (shows "Soon") | No fake data |
+| Reverse Engineer | Not implemented (shows "Soon") | No fake data |
+| Rejection Analyzer | Not implemented (shows "Soon") | No fake data |
 
-### 4. New Component: `src/components/interview/CompanyBriefingSheet.tsx`
+## Summary
 
-- Bottom sheet (Vaul drawer on mobile) displaying the briefing
-- Skeleton loading state matching the final layout (6 card skeletons)
-- Each section rendered as a compact card with icon + content
-- "Talking Points" section highlighted with primary accent (most valuable)
-- Scroll area for long content
-- "Close" button and optional "Copy Summary" action
-
-### 5. Integration into InterviewSetup
-
-- In `InterviewSetup.tsx`, when mode is `job-targeted` and `jobDescription` has content, show a secondary ghost button: "Research Company" with a `Building2` icon
-- Tapping opens `CompanyBriefingSheet` and triggers generation
-- Non-blocking: user can still launch the interview without waiting
-
-### 6. Integration into AI Studio
-
-- Add a new entry in the `secondaryTools` array in `AIStudioPage.tsx`
-- Opens a small sheet with company name + JD input, then shows the briefing
-
-### 7. AI Cost Registration
-
-- Add `'company_briefing'` to the `AI_COST_MAP` in `src/lib/aiCostEstimates.ts` with cost of 1 credit
-
-### Files Created
-
-| File | Purpose |
-|---|---|
-| `supabase/functions/company-briefing/index.ts` | Edge function for AI briefing generation |
-| `src/types/companyBriefing.ts` | TypeScript types for briefing data |
-| `src/hooks/useCompanyBriefing.ts` | React hook wrapping the mutation |
-| `src/components/interview/CompanyBriefingSheet.tsx` | Bottom sheet UI for displaying the briefing |
-
-### Files Modified
-
-| File | Changes |
-|---|---|
-| `src/components/interview/InterviewSetup.tsx` | Add "Research Company" button in job-targeted mode |
-| `src/pages/AIStudioPage.tsx` | Add Company Briefing to secondary tools list |
-| `src/lib/aiCostEstimates.ts` | Register `company_briefing` cost |
-| `supabase/config.toml` | Register new edge function with `verify_jwt = false` |
+Only the **Job Match Score on the Applications page** uses a client-side heuristic that could mislead users. The fix adds background AI scoring with the existing `analyze-resume` function, while keeping the heuristic as an instant preview clearly labeled as an estimate.
 
