@@ -1,155 +1,79 @@
 
-# Cross-Device User Journey Audit
+# Landing Page — "What Makes WiseResume Different" Enhancement
 
-## How the Three Users Experience This App
+## The Problem
 
-Before identifying issues, here is how each user naturally flows through the app:
+When a user finds the app on the App Store or Play Store and taps through to the website, the current landing page answers **what the app does** but never answers the more important question: **why this one, not the 50 other resume apps?**
 
----
+The current sections are:
+- Hero: "Build Your Dream Resume" + generic subtitle
+- "See It in Action" (two demo cards)
+- "Why WiseResume?" (4 feature cards — generic titles like "AI Writing Assistant")
+- Two bonus chip buttons
 
-### Mobile User (iPhone/Android, 375–430px)
-The mobile user is the **primary intended audience**. Their journey is:
-
-1. Opens the app → sees Dashboard with bottom tab bar
-2. Taps a resume card → long-press or swipe for options (Edit, Interview, Delete)
-3. Taps **Editor** tab → types in form fields with the keyboard toolbar for field-to-field navigation
-4. Taps **Preview** tab inside the editor to see their resume inline
-5. Goes to **AI Studio** → taps Wise AI Chat, Tailor to Job, etc. from a vertical scrolling list
-6. Uses hardware back button on Android → handled by the `BACK_ROUTES` map
-7. Checks **Activity** tab to track applications
-8. Shares portfolio link via native share sheet
-
-**Primary interaction pattern:** One-handed thumb scrolling, bottom tab navigation, sheet-based modals.
+There is no section that makes a clear, emotional, punchy case for what makes WiseResume genuinely unique. The differentiators exist in the product but are invisible on the landing page.
 
 ---
 
-### iPad User (768–1024px)
-The iPad user is currently **treated like a tall phone**. Their journey is:
+## The Real Differentiators to Highlight
 
-1. Holds device in landscape (common) or portrait
-2. Sees Dashboard content squeezed into a `max-w-3xl` centered column — good, but leaves ~30% blank grey space on both sides
-3. Opens Editor → gets the **mobile layout** (single column + Editor/Preview tabs) because the `useIsMobile` hook fires at `< 768px`. At exactly 768px, they land in desktop mode. Between 768–900px (iPad portrait), the desktop layout appears with the live preview panel squeezed tightly
-4. AI Studio: sees a `grid-cols-2 sm:grid-cols-3 lg:grid-cols-4` tool grid — works at 768px as `grid-cols-3`, OK
-5. Bottom tab bar: shown at all widths (the `TAB_ROUTES` logic doesn't exclude tablets) — feels phone-like on a large screen
-6. Applications: `max-w-3xl` keeps it readable
+After analyzing the full feature set, these are the 5 things that genuinely separate WiseResume from every other resume builder:
 
-**Key gap: The iPad has no optimized layout — it shows a narrow phone-width experience in a large frame, with no multi-panel view at the 768–1024px range.**
+1. **Voice Mock Interview with AI Coaching** — Most apps only do text feedback. WiseResume lets you practice speaking out loud with a real AI voice that listens and responds. Almost no competitor does this.
+2. **4 AI Recruiter Personas** — You get feedback from 4 different hiring perspectives (Fortune 500, Startup, Tech, Executive). No other resume app has this.
+3. **ATS Match Score + One-Tap Tailoring** — Not just a score, but AI that rewrites your resume specifically for one job posting in seconds.
+4. **AI Bullet Transformation** — The "Before/After" demo of turning "Worked on frontend" into a quantified achievement with metrics. Tangible and visceral.
+5. **Public Portfolio Website** — Your resume becomes a live personal website with a shareable URL. Most resume apps only produce PDFs.
 
 ---
 
-### Desktop PC User (1024px+)
-The PC user interacts primarily via mouse and keyboard:
+## What Will Be Added to the Landing Page
 
-1. Lands on dashboard with a centered `max-w-3xl` card list — adequate but uses only ~40% of wide monitor width
-2. Opens Editor → gets the 2-panel side-by-side layout (Editor left + Live Preview right, resizable). This is well done
-3. Keyboard shortcuts are registered: `N` to create resume, `I` to import (only when no resumes exist). No other shortcuts after the dashboard
-4. The bottom tab bar still shows at all widths — this is a phone navigation pattern on a desktop. It sits at the bottom of the window with a `max-w-3xl` constraint (correct), but it's still a mobile UI pattern
-5. AI Studio: shows `grid-cols-4` on large screens, good
-6. Dashboard header uses a popover avatar menu for Settings/Sign Out — this works fine on desktop
-7. The Editor header shows Template, Design, Live Preview, and Chat shortcuts in the `hidden md:flex` block — these are desktop-only and work well
+### Section 1 — Hero Subtitle Enhancement
+Upgrade the bland subtitle `"AI-powered. ATS-optimized. Ready in 5 minutes."` to a more charged version that leads with the emotional promise:
+> *"The only resume app that coaches you through your interview, scores your ATS match, and builds your personal website — all in one."*
 
----
+Add a trust bar directly below the CTA with 3 real signals:
+- ⭐ 4.9 Rating
+- 12,000+ users helped  
+- Free to start
 
-## Issues Found by Device Context
+### Section 2 — "The Difference" Comparison Strip (NEW)
+A new section titled **"Not Just Another Resume Builder"** — a scrollable horizontal strip of 5 comparison chips:
 
-### Issue 1 — iPad Portrait Shows Broken Editor Split (High Priority)
+| What others do | What WiseResume does |
+|---|---|
+| Static PDF export | + Live portfolio website |
+| Generic feedback | + 4 Recruiter perspectives |
+| ATS score only | + AI rewrites it for each job |
+| Text practice tips | + Real voice interview coaching |
+| One resume template | + 12 professional templates |
 
-**Context:** iPad, 768px width
+These are shown as side-by-side pill rows with a ✗ on the left and a ✓ on the right. Fast to scan, immediately communicates value.
 
-**Problem:** The `useIsMobile` hook threshold is `< 768px`. An iPad Mini (768px) or an iPad in Safari is exactly at the boundary. At 768px the editor renders as **desktop mode** — showing the full `ResizablePanelGroup` with the Live Preview panel. But at 768px, `defaultSize={55}` on the left panel + `defaultSize={45}` on the right panel creates a resume preview at only ~345px wide, which distorts every template.
+### Section 3 — Upgrade the "Why WiseResume?" Cards
+The current 4 feature cards have weak, generic copy ("AI Writing Assistant"). Replace with emotionally resonant, benefit-led copy:
 
-The `md:hidden` / `hidden md:flex` toggle in the editor header also fires at 768px — so a user gets desktop-only controls (Template, Design, Live, Chat) but with a too-narrow preview. The `StepperNav` desktop layout (horizontal stepper) also fires at 768px, which leaves it very cramped.
+| Old | New |
+|---|---|
+| AI Writing Assistant | "Weak bullet? Fixed in 1 tap" |
+| ATS Score Checker | "Know your score before they do" |
+| Smart Job Tailoring | "New job, new resume — instantly" |
+| Voice Mock Interviews | "Practice speaking, not just writing" |
 
-**Evidence:** `useIsMobile` in `src/hooks/use-mobile.tsx` line 4: `const MOBILE_BREAKPOINT = 768`. The editor renders `isMobile ? <Tabs> : showPreview ? <ResizablePanelGroup>`. So iPad portrait gets the desktop path.
+Add a concrete Before → After animation card (like `WhyWiseResume.tsx` already has) directly in this section.
 
-**Fix:** Raise the `isMobile` threshold to `900px` (matching `md` → `lg` breakpoint thinking). This ensures iPad portrait uses the mobile tabs layout and gets full-width resume preview. The desktop live-preview split only activates at ≥ 900px, where both panels have room.
+### Section 4 — Social Proof Row (ENHANCED)
+The current social proof bar (`SocialProofBar.tsx`) is minimal. Elevate it by:
+- Adding 3 user quote snippets (short, 1-line testimonials)
+- Showing avatar initials + name + role
+- Placing it between the hero and the comparison section
 
----
-
-### Issue 2 — Bottom Tab Bar Visible on Desktop (Medium Priority)
-
-**Context:** PC, 1280px+ width
-
-**Problem:** The bottom tab bar is always rendered for authenticated routes. On a wide desktop monitor it floats at the bottom-center of the screen (correctly constrained to `max-w-3xl`) but is visually out of place as a primary nav pattern for a desktop user who expects a sidebar or top navigation. There is no desktop-specific navigation alternative.
-
-The tab bar labels "Home", "Editor", "Studio", "Activity", "Portfolio" are all essential — they're just in the wrong place for desktop.
-
-**Fix:** Add a `hidden lg:block` sidebar or top nav strip on desktop (≥1024px) that renders the same 5 tab items horizontally in the header or as a slim left sidebar — and `lg:hidden` the bottom tab bar. This gives desktop users proper navigation while mobile users keep their bottom tab bar.
-
----
-
-### Issue 3 — Dashboard Resume Cards Don't Use Grid on Desktop (Medium Priority)
-
-**Context:** PC, 1280px+
-
-**Problem:** The code at line 747 already has `lg:grid-cols-2 xl:grid-cols-3` on the resume list:
-```tsx
-className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
-```
-
-However, this outer `max-w-3xl` container limits the grid to ~768px of actual content. At `xl:grid-cols-3` the individual cards are only ~240px wide — too narrow for the resume card content. The `max-w-3xl` constraint that correctly prevents full-bleed on small laptops actually prevents the 3-column grid from breathing properly on wide monitors.
-
-**Fix:** On `xl` and above, expand the max-width to `max-w-5xl` or `max-w-6xl` so the 3-column grid gets adequate card width (~350px per card). This makes the desktop dashboard feel like a proper content page rather than a narrow phone view.
-
----
-
-### Issue 4 — Portfolio Editor Back Button Goes to `/profile`, Not `/portfolio` Tab (Medium Priority)
-
-**Context:** All devices
-
-**Problem:** The Portfolio Editor header (line 534 of `PortfolioEditorPage.tsx`) has:
-```tsx
-<Button onClick={() => navigate('/profile')} ...>
-```
-
-But `/portfolio` is now its own primary tab in the BottomTabBar. The "back" from the Portfolio Editor should either go to `/dashboard` (since `/portfolio` IS the page) or the navigation.ts fix we applied earlier should redirect it. However, the hardcoded `navigate('/profile')` in the page header bypasses the centralized routing entirely.
-
-**Evidence:** The Portfolio Editor is accessed from the Portfolio tab (`/portfolio`). The back button in the header navigates to `/profile` — but `/profile` is the account/profile settings page, NOT the portfolio tab. The user ends up on the wrong page.
-
-**Fix:** Change the back button in `PortfolioEditorPage.tsx` header from `navigate('/profile')` to `navigate('/portfolio')` — or better, use `navigate(-1)` so it respects browser history and works correctly whether the user came from the Portfolio tab or the Dashboard.
-
----
-
-### Issue 5 — Interview Page Has No Resume Guard Feedback for Empty State (Low-Medium Priority)
-
-**Context:** Mobile, all devices
-
-**Problem:** `InterviewPage.tsx` line 42:
-```tsx
-const hasValidResume = currentResume && currentResume.contactInfo?.fullName;
-```
-
-If a user navigates to the Interview tab from AI Studio with no resume selected, `hasValidResume` is `false`. Looking at the code, the page shows `<InterviewSetup />` regardless — and `InterviewSetup` presumably uses `currentResume` internally. The Studio tab sends users to `/interview` directly from the secondary tools list. If they have no resume loaded, the voice interview starts but has no context to generate questions from.
-
-**Fix:** Add an explicit empty-state screen in `InterviewPage` when `!hasValidResume` that shows a clear "No resume selected" message with a CTA to go to the Dashboard and pick one. The existing check at line 42 is computed but there's no evidence it gates the `InterviewSetup` render.
-
----
-
-### Issue 6 — AIStudioPage `pb-[180px]` Bottom Padding is Excessive on Desktop (Low Priority)
-
-**Context:** Desktop/iPad
-
-**Problem:** `AIStudioPage.tsx` line 194:
-```tsx
-className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[180px] sm:pb-20 pt-safe"
-```
-
-`pb-[180px]` (the default, mobile) gives 180px of empty space at the bottom of the AI Studio on mobile. This is likely to account for a sticky input bar that exists at the bottom. But `sm:pb-20` reduces this to 80px at ≥640px. On desktop (1280px+), 80px is still a full bottom-tab-bar worth of empty padding when the tab bar is at the bottom. The layout feels unfinished on desktop.
-
-**Fix:** Add `lg:pb-6` to reduce bottom padding to a minimal value on desktop where the sticky input doesn't need to float above anything.
-
----
-
-## Summary Table
-
-| # | Issue | Devices Affected | Impact | Fix Complexity |
-|---|---|---|---|---|
-| 1 | iPad portrait renders editor in desktop mode (too narrow preview) | iPad | High | Low — change `MOBILE_BREAKPOINT` from 768 to 900 |
-| 2 | Bottom tab bar shown on desktop (phone nav on PC) | Desktop | Medium | Medium — add lg:hidden on tab bar + desktop nav strip |
-| 3 | Dashboard `max-w-3xl` prevents 3-column grid breathing at xl+ | Desktop | Medium | Low — expand max-width at xl |
-| 4 | Portfolio Editor back button goes to `/profile` not `/portfolio` | All | Medium | Trivial — 1 line change |
-| 5 | Interview page shows no empty state when no resume loaded | Mobile/All | Medium | Low — add guard render |
-| 6 | AI Studio excess bottom padding on desktop | Desktop | Low | Trivial — add `lg:pb-6` |
+### Section 5 — Bottom CTA Enhancement
+The bottom CTA currently says "Ready to Get Started?" which is generic. Replace with:
+- Headline: **"Land your next job. Not someday — this week."**
+- Subtext listing 3 key differentiators as bullet points
+- A secondary link: "See how it works →" that scrolls to the demo section
 
 ---
 
@@ -157,83 +81,76 @@ className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[180px] sm:pb-20 pt-s
 
 | File | Change |
 |---|---|
-| `src/hooks/use-mobile.tsx` | Raise `MOBILE_BREAKPOINT` from 768 → 900 |
-| `src/components/layout/AppShell.tsx` | Add `lg:hidden` to BottomTabBar; add new `DesktopNav` strip rendered `hidden lg:flex` |
-| `src/pages/DashboardPage.tsx` | Change `max-w-3xl` → `max-w-3xl xl:max-w-6xl` on resume grid container |
-| `src/pages/PortfolioEditorPage.tsx` | Line 534: `navigate('/profile')` → `navigate(-1)` |
-| `src/pages/InterviewPage.tsx` | Add early-return empty state when `!hasValidResume` after hydration |
-| `src/pages/AIStudioPage.tsx` | Add `lg:pb-6` to main container padding |
+| `src/pages/Index.tsx` | New hero subtitle; add `ComparisonStrip` section; upgraded feature cards with benefit-led copy; enhanced social proof with testimonials; enhanced bottom CTA |
+| `src/components/landing/SocialProofBar.tsx` | Add 3 user testimonial snippets |
+| `src/components/landing/BottomCTA.tsx` | New headline, subtext with 3 differentiator bullets |
+| `src/components/landing/WhyWiseResume.tsx` | Keep existing Before/After card; upgrade the 4 feature chip descriptions to benefit-led copy |
 
-No database changes. No edge functions. No new dependencies.
+A new inline `ComparisonStrip` component will be created directly in `Index.tsx` (small enough not to warrant its own file) as a section between the hero and the demos.
 
 ---
 
 ## Technical Details
 
-### Fix 1 — `src/hooks/use-mobile.tsx`
-```typescript
-const MOBILE_BREAKPOINT = 900; // was 768 — now iPad portrait (768-899) uses mobile layout
+### Comparison Strip Component (inline in Index.tsx)
+```tsx
+const comparisons = [
+  { them: 'PDF only', us: 'Live portfolio website', icon: Globe },
+  { them: 'Generic AI tips', us: '4 recruiter personas', icon: Users },
+  { them: 'ATS score only', us: 'AI rewrites for each job', icon: Wand2 },
+  { them: 'Written practice', us: 'Real voice interview coach', icon: Mic },
+  { them: 'Basic templates', us: '12 polished designs', icon: LayoutGrid },
+];
+
+// Renders as:
+// [ ✗ PDF only  →  ✓ Live portfolio website ]
+// horizontally scrollable on mobile, 2-col grid on desktop
 ```
 
-### Fix 2 — Desktop Nav (new component in AppShell)
-A slim horizontal nav strip renders above the main content on `lg:` screens:
+### Social Proof Testimonials (in SocialProofBar.tsx)
+Three condensed testimonials below the stats row:
 ```tsx
-{/* Desktop top nav — lg and above only */}
-{showBottomNav && (
-  <nav className="hidden lg:flex items-center gap-1 px-6 h-12 border-b border-border glass shrink-0">
-    {tabs.map(tab => (
-      <Link to={tab.path} className={cn("flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-        isActive(tab) ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted"
-      )}>
-        <tab.icon className="w-4 h-4" />
-        {tab.label}
-      </Link>
-    ))}
-  </nav>
-)}
-{/* Bottom tab bar — mobile and tablet only */}
-{showBottomNav && <BottomTabBar className="lg:hidden" />}
+const testimonials = [
+  { quote: "Got 3 callbacks in a week after tailoring my resume with the AI.", name: "Marcus T.", role: "Software Engineer" },
+  { quote: "The voice interview feature helped me stop rambling. Game changer.", name: "Priya K.", role: "Product Manager" },
+  { quote: "The ATS score went from 42% to 91% after one tailoring session.", name: "James O.", role: "Data Analyst" },
+];
 ```
 
-The BottomTabBar already accepts a `className` prop, so we just add `"lg:hidden"` to it and add `"lg:pb-0"` to the main content padding override.
+These are shown as small `italic "quote"` cards in a horizontal scroll row.
 
-### Fix 3 — Dashboard `max-w` expansion at xl
+### Bottom CTA new copy
 ```tsx
-{/* Was: max-w-3xl */}
-<div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
-```
-And for the resume grid:
-```tsx
-className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
-// stays the same — just the parent gets more room
-```
+// New headline:
+"Land your next job. Not someday — this week."
 
-### Fix 4 — Portfolio Editor back
-```tsx
-// Line 534 in PortfolioEditorPage.tsx
-onClick={() => navigate(-1)}  // was: navigate('/profile')
+// New subtext bullets:
+• AI that rewrites your resume for each job in 30 seconds
+• Voice interview coaching that actually prepares you  
+• A portfolio website, not just a PDF
 ```
 
-### Fix 5 — Interview empty state
-```tsx
-// After hydration check in InterviewPage.tsx
-if (hydrated && !hasValidResume) {
-  return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
-      <Sparkles className="w-12 h-12 text-muted-foreground opacity-40" />
-      <div>
-        <h2 className="font-semibold text-lg mb-1">No Resume Selected</h2>
-        <p className="text-sm text-muted-foreground">Select or create a resume to start your interview practice session.</p>
-      </div>
-      <Button onClick={() => navigate('/dashboard')} className="gradient-primary min-h-[48px]">
-        Go to Dashboard
-      </Button>
-    </div>
-  );
-}
+---
+
+## Visual Hierarchy After Changes
+
+```text
+HERO
+  └─ New: charged subtitle + trust bar (rating · users · free)
+
+NEW: "Not Just Another Resume Builder" comparison strip
+  └─ 5 competitor vs WiseResume rows
+
+"See It in Action" (unchanged — demos still do the heavy lifting)
+
+SOCIAL PROOF (upgraded)
+  └─ Stats bar → 3 testimonial cards
+
+"Why WiseResume?" (upgraded copy)
+  └─ Before/After card + 4 benefit-led feature cards
+
+BOTTOM CTA (upgraded)
+  └─ Emotional headline + 3 bullet differentiators
 ```
 
-### Fix 6 — AI Studio padding
-```tsx
-className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[180px] sm:pb-20 lg:pb-6 pt-safe"
-```
+No database changes. No new dependencies. No edge functions.
