@@ -1,215 +1,194 @@
 
-# Weighted Skills Word Cloud on the Public Portfolio
+# Visitor Intelligence Panel — Full Upgrade
 
-## What Already Exists
+## What Already Exists (Keep, Don't Break)
 
-The Skills section (lines 1333–1370 of `PublicPortfolioPage.tsx`) currently renders a flat `flex-wrap` grid of uniform pills using the `skillWave` + `skillPill` motion variants. Every skill is displayed at the same size with the same weight regardless of how prominently it appears in the user's actual work history.
+The `VisitorsPanel` component (`src/components/portfolio/VisitorsPanel.tsx`) and its data layer (`src/hooks/usePortfolioAnalytics.ts`) are already wired up and working. The `PortfolioVisit` type already has `referrer`, `sections_viewed`, `time_spent_seconds`, `country`, `city`, and `short_link_id`. The `get_portfolio_analytics` RPC already returns all of this data for the last 50 visits.
 
-The `Experience` interface exposes `description: string`, `achievements: string[]`, and `responsibilities?: string[]` — all rich free-text fields that mention technologies and skills by name. The `Project` interface has `technologies: string[]` which is explicit. This gives us everything needed for a client-side frequency count without any server round-trip.
+**No database changes needed.** All required data is already being fetched. This is a pure UI upgrade.
 
-## Design Goal
+## What's Missing / Needs Building
 
-Replace the flat pill grid with a **bubble-style word cloud** where:
-- Skills mentioned across more job descriptions / projects are rendered **larger and bolder**
-- Skills on the `resume.skills[]` list that are never mentioned in experience text are still shown but at the baseline size
-- The layout is a natural CSS `flex-wrap` cloud (no canvas, no D3, no SVG coordinate maths) — the size is simply driven by `font-size` + `padding` CSS properties, which means the browser handles all wrapping naturally
+| Field | Current State | After |
+|---|---|---|
+| `referrer` | Never shown | Parsed into source label + icon (LinkedIn, Google, Direct, etc.) |
+| `sections_viewed` | Up to 5 tiny chips, all equal | Ordered progress bar showing scroll depth; section names as readable labels |
+| Engagement quality | Nothing | Color-coded engagement badge (High / Medium / Low) based on time + sections |
+| Visit detail | Single-density card, no expand | Tappable → expanded drawer showing full referrer URL, exact timestamp, all sections |
+| Section scroll coverage | Nothing | "Scrolled X of Y sections" summary line |
+| Traffic source breakdown | Nothing | At the top: mini donut/bar showing LinkedIn vs Direct vs Other distribution |
 
-## Frequency Scoring Algorithm
+## Architecture — One File Changed
 
-A pure client-side `useMemo` computation inside `PublicPortfolioContent`:
+Only `src/components/portfolio/VisitorsPanel.tsx` changes. The data hook is unchanged.
 
-```
-for each skill in resume.skills:
-  count = 0
-  for each experience entry:
-    corpusText = description + achievements.join(' ') + responsibilities?.join(' ')
-    if corpusText.toLowerCase().includes(skill.toLowerCase()):
-      count += 2   // experience mention = 2 pts (cross-role relevance)
-  for each project entry:
-    if project.technologies includes skill (exact match):
-      count += 1   // technology tag = 1 pt
-    if project.description mentions skill:
-      count += 1
+---
 
-  skillScores[skill] = count
-```
+## 1. Referrer Parser — `parseReferrer()`
 
-Score ranges map to 5 visual tiers:
-
-| Score | Tier | Font size | Font weight | Padding | Opacity |
-|---|---|---|---|---|---|
-| 0 | xs | 11px | 400 | 6px 10px | 0.55 |
-| 1 | sm | 12px | 500 | 7px 12px | 0.70 |
-| 2–3 | md | 13px | 600 | 8px 14px | 0.85 |
-| 4–6 | lg | 15px | 700 | 9px 16px | 1.0 |
-| 7+ | xl | 17px | 800 | 10px 20px | 1.0 |
-
-## Component Design
-
-A new `SkillCloud` component function defined inline in `PublicPortfolioPage.tsx` (no new file needed — consistent with the existing pattern of inline helpers like `ExperienceCard`, `SectionHeader`, etc.):
-
-```tsx
-function SkillCloud({ skills, experience, projects, accentColor, pStyle }: SkillCloudProps)
+```typescript
+function parseReferrer(referrer: string | null): { label: string; icon: LucideIcon; color: string } {
+  if (!referrer) return { label: 'Direct', icon: Globe2, color: 'text-muted-foreground' };
+  if (/linkedin/i.test(referrer)) return { label: 'LinkedIn', icon: Linkedin, color: 'text-[#0a66c2]' };
+  if (/google/i.test(referrer)) return { label: 'Google', icon: Search, color: 'text-[#ea4335]' };
+  if (/twitter|x\.com/i.test(referrer)) return { label: 'Twitter/X', icon: Twitter, color: 'text-[#1d9bf0]' };
+  if (/github/i.test(referrer)) return { label: 'GitHub', icon: Github, color: 'text-foreground' };
+  // Parse hostname for any other referrer
+  try { return { label: new URL(referrer).hostname, icon: ExternalLink, color: 'text-muted-foreground' }; }
+  catch { return { label: 'Unknown', icon: Globe2, color: 'text-muted-foreground' }; }
+}
 ```
 
-It computes scores via `useMemo`, sorts skills by score descending (highest-weight skills cluster in the visual center since `flex-wrap` fills left-to-right), then renders a `flex-wrap gap-2` div of motion-animated pills.
+Lucide doesn't have brand icons. For LinkedIn/Twitter/GitHub we'll use `ExternalLink` + a colored dot indicator, since importing brand SVGs would require a new dependency. The referrer hostname label is the key information.
 
-Each pill uses the existing `skillPill` Framer Motion variant (staggered wave via `skillWave`) for the entry animation. Size tier is applied via inline style.
+---
 
-A subtle tooltip (`title` attribute) shows the skill name on hover for accessibility — no extra dependency needed.
+## 2. Engagement Badge — `getEngagementTier()`
 
-## Replacing the Existing Skills Section
+Scores time + section coverage to return a tier:
 
-The current block (lines 1334–1370) is replaced in-place with `<SkillCloud>`. The "Show N more" toggle is preserved inside the cloud for skills lists over 28 items.
+```typescript
+function getEngagementTier(seconds: number | null, sectionCount: number): {
+  label: string; className: string;
+} {
+  const timeScore = !seconds ? 0 : seconds >= 120 ? 2 : seconds >= 30 ? 1 : 0;
+  const sectionScore = sectionCount >= 4 ? 2 : sectionCount >= 2 ? 1 : 0;
+  const total = timeScore + sectionScore;
+  if (total >= 3) return { label: 'High', className: 'text-emerald-400 bg-emerald-400/10' };
+  if (total >= 1) return { label: 'Med', className: 'text-amber-400 bg-amber-400/10' };
+  return { label: 'Low', className: 'text-muted-foreground bg-muted' };
+}
+```
 
-The `showMoreSkills` state and `hasMoreSkills` computed value remain as-is — they now gate how many `SkillCloud` nodes to render.
+---
 
-## Visual Result
+## 3. Section Label Map — `SECTION_LABELS`
 
-For a typical resume:
-- "React", "TypeScript", "Node.js" (mentioned in 5 job descriptions each) → render at 17px bold, full opacity
-- "Jest", "Figma" (mentioned in 2 jobs) → 13px semi-bold
-- "Photoshop" (listed as a skill, never in job text) → 11px light, 55% opacity
+```typescript
+const SECTION_DISPLAY: Record<string, string> = {
+  'section-hero': 'Hero', 'section-about': 'About', 'section-experience': 'Experience',
+  'section-education': 'Education', 'section-skills': 'Skills',
+  'section-projects': 'Projects', 'section-certifications': 'Certs',
+  'section-awards': 'Awards', 'section-publications': 'Publications',
+  'section-volunteering': 'Volunteering', 'section-contact': 'Contact',
+};
+function sectionLabel(s: string) { return SECTION_DISPLAY[s] ?? s.replace('section-', ''); }
+```
 
-The resulting cloud immediately signals to a recruiter which skills are **core** vs peripheral, without any interaction — the size differential is the visual signal.
+---
+
+## 4. Upgraded `VisitCard` with Expand/Collapse
+
+The card becomes tappable. On tap, it expands to reveal:
+- Full referrer URL (tappable link)
+- Exact visit timestamp  
+- All sections viewed as a horizontal scroll of chips
+- Engagement tier badge
+
+**Collapsed view** (always visible):
+```
+🇪🇬 Cairo, Egypt           [High] [2m 30s]
+3 hours ago
+[Experience] [Skills] [Projects] +2 more
+```
+
+**Expanded view** (after tap, animated via `AnimatePresence`):
+```
+↳ Source:  LinkedIn  (linkedin.com/feed)
+   Time:   2m 30s  · Feb 19 2026, 10:45 AM
+   Sections scrolled (5/7):
+   [Hero] [About] [Experience] [Skills] [Projects]
+```
+
+The expand toggle uses a `useState<string | null>` in the parent (keyed by `visit.id`) to keep only one expanded at a time — same pattern as `InterviewHistorySheet`.
+
+---
+
+## 5. Traffic Source Summary Bar (Top of Visits Section)
+
+A compact horizontal breakdown above the visit list, showing the split of traffic sources for the last 50 visits. This replaces the bare "Recent Visitors" header:
+
+```
+Traffic Sources:  Direct 12  ·  LinkedIn 8  ·  Google 3  ·  Other 2
+```
+
+Implemented as a single `useMemo` over `visits` that buckets referrers into categories.
+
+A thin proportional bar (like a segmented progress bar) below the labels visualizes the split — green for LinkedIn, blue for Google, gray for Direct.
+
+---
+
+## 6. Sections Scroll Coverage Line
+
+In the collapsed card, instead of showing raw section IDs, show a friendlier summary:
+
+> **Scrolled 4 sections** — Experience, Skills, Projects, Contact
+
+The full section list only appears when expanded.
+
+---
 
 ## Files Changed
 
-| File | Action | What |
-|---|---|---|
-| `src/pages/PublicPortfolioPage.tsx` | MODIFY | Add `SkillCloud` component + `computeSkillFrequencies` helper + replace skills section |
+| File | Change |
+|---|---|
+| `src/components/portfolio/VisitorsPanel.tsx` | Full upgrade: `parseReferrer`, `getEngagementTier`, `sectionLabel`, traffic source bar, expandable `VisitCard` |
 
-No new components, no database changes, no edge functions, no new dependencies.
+No database changes. No new edge functions. No new dependencies.
+
+---
+
+## Layout of the Upgraded `VisitCard`
+
+```text
+┌──────────────────────────────────────────────────────────┐
+│  🇬🇧  London, United Kingdom            [High]  [1m 45s] │
+│       2 hours ago                                        │
+│  Scrolled 5 sections: Experience, Skills, Projects …    │
+│                                              [chevron ↓] │
+├── expanded ──────────────────────────────────────────────┤
+│  📎 Source   linkedin.com/feed                           │
+│  🕐 Time     Feb 19, 2026 at 10:45 AM                   │
+│  📋 All sections: [Hero][Experience][Skills]…            │
+└──────────────────────────────────────────────────────────┘
+```
+
+---
 
 ## Technical Details
 
-### `computeSkillFrequencies` helper
-
+### Traffic Source Bucketing
 ```typescript
-function computeSkillFrequencies(
-  skills: string[],
-  experience: Experience[],
-  projects: Project[]
-): Record<string, number> {
-  const scores: Record<string, number> = {};
-  for (const skill of skills) {
-    const lower = skill.toLowerCase();
-    let score = 0;
-    for (const exp of experience) {
-      const corpus = [
-        exp.description,
-        ...(exp.achievements ?? []),
-        ...(exp.responsibilities ?? []),
-      ].join(' ').toLowerCase();
-      if (corpus.includes(lower)) score += 2;
-    }
-    for (const proj of projects) {
-      if (proj.technologies?.some(t => t.toLowerCase() === lower)) score += 1;
-      if (proj.description?.toLowerCase().includes(lower)) score += 1;
-    }
-    scores[skill] = score;
+const trafficSources = useMemo(() => {
+  const buckets = { LinkedIn: 0, Google: 0, GitHub: 0, Direct: 0, Other: 0 };
+  for (const v of visits) {
+    const r = v.referrer ?? '';
+    if (!r) buckets.Direct++;
+    else if (/linkedin/i.test(r)) buckets.LinkedIn++;
+    else if (/google/i.test(r)) buckets.Google++;
+    else if (/github/i.test(r)) buckets.GitHub++;
+    else buckets.Other++;
   }
-  return scores;
-}
+  return Object.entries(buckets).filter(([, n]) => n > 0)
+    .sort(([, a], [, b]) => b - a);
+}, [visits]);
 ```
 
-### Size tier resolver
-
+### Expand State — Single-Open Pattern
 ```typescript
-function getSkillTier(score: number): {
-  fontSize: string; fontWeight: number; px: string; py: string; opacity: number;
-} {
-  if (score >= 7) return { fontSize: '17px', fontWeight: 800, px: '20px', py: '10px', opacity: 1 };
-  if (score >= 4) return { fontSize: '15px', fontWeight: 700, px: '16px', py: '9px', opacity: 1 };
-  if (score >= 2) return { fontSize: '13px', fontWeight: 600, px: '14px', py: '8px', opacity: 0.85 };
-  if (score >= 1) return { fontSize: '12px', fontWeight: 500, px: '12px', py: '7px', opacity: 0.70 };
-  return { fontSize: '11px', fontWeight: 400, px: '10px', py: '6px', opacity: 0.55 };
-}
+// In VisitorsPanel
+const [expandedVisitId, setExpandedVisitId] = useState<string | null>(null);
+
+// In each VisitCard
+const isExpanded = expandedVisitId === visit.id;
+const toggle = () => setExpandedVisitId(isExpanded ? null : visit.id);
 ```
 
-### `SkillCloud` component structure
+### Referrer Display in Expanded View
+Since the referrer is a full URL (e.g. `https://www.linkedin.com/feed/`), show:
+1. The parsed label ("LinkedIn") as a colored pill
+2. The hostname in monospace (`linkedin.com`) as the secondary line
+3. A small external link icon that opens the referrer URL in a new tab (for debugging)
 
-```tsx
-function SkillCloud({ skills, experience, projects, pStyle, showMore, onToggleMore, hasMore, moreCount }) {
-  const scores = useMemo(() =>
-    computeSkillFrequencies(skills, experience, projects),
-    [skills, experience, projects]
-  );
-
-  // Sort: highest score first → big pills cluster at start (left/top of flex-wrap)
-  const sorted = useMemo(() =>
-    [...skills].sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0)),
-    [skills, scores]
-  );
-
-  const visible = showMore ? sorted : sorted.slice(0, SKILL_LIMIT);
-
-  return (
-    <>
-      <motion.div variants={skillWave} initial="hidden" whileInView="visible"
-        viewport={{ once: true }}
-        className="flex flex-wrap gap-2 items-baseline"  // ← items-baseline for natural cloud feel
-      >
-        {visible.map((skill, i) => {
-          const tier = getSkillTier(scores[skill] ?? 0);
-          return (
-            <motion.span
-              key={i}
-              variants={skillPill}
-              title={skill}
-              style={{
-                fontSize: tier.fontSize,
-                fontWeight: tier.fontWeight,
-                padding: `${tier.py} ${tier.px}`,
-                opacity: tier.opacity,
-                borderRadius: '9999px',
-                background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
-                color: 'var(--pf-accent)',
-                border: '1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                transition: 'all 0.2s',
-                lineHeight: 1.2,
-              }}
-            >
-              {skill}
-            </motion.span>
-          );
-        })}
-      </motion.div>
-      {hasMore && (
-        <button onClick={onToggleMore} className="mt-3 text-xs font-medium flex items-center gap-1 ...">
-          {showMore ? <><ChevronUp /> Show less</> : <><ChevronDown /> +{moreCount} more</>}
-        </button>
-      )}
-    </>
-  );
-}
-```
-
-### Placement in the page
-
-`SkillCloud` replaces the `motion.div` + pill mapping block at lines 1343–1368, called like:
-
-```tsx
-<SkillCloud
-  skills={allSkills}
-  experience={resume.experience}
-  projects={resume.projects}
-  pStyle={pStyle}
-  showMore={showMoreSkills}
-  onToggleMore={() => setShowMoreSkills(v => !v)}
-  hasMore={hasMoreSkills}
-  moreCount={allSkills.length - SKILL_LIMIT}
-/>
-```
-
-The wrapping `motion.section` with `id="section-skills"` is unchanged — only the inner content is replaced.
-
-## Why `items-baseline` Matters
-
-Using `items-baseline` (instead of `items-center`) on the flex container means pills of different sizes align along their text baseline. This creates the classic word cloud look — larger pills sit taller, smaller ones sit lower, giving a natural undulation that reads as a visual hierarchy at a glance.
-
-## Performance
-
-`computeSkillFrequencies` runs at most once per portfolio load (wrapped in `useMemo` with `[skills, experience, projects]` deps). For a resume with 30 skills × 8 experience entries each with ~500 char descriptions: 30 × 8 × one `includes()` call = 240 string searches, sub-millisecond.
+### `VisitorsPanelProps` — No Change
+The props interface is unchanged. The only new internal state is `expandedVisitId`.
