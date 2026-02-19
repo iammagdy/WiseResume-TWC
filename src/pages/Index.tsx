@@ -226,8 +226,41 @@ const Index = () => {
       : {
           initial: { opacity: 0, y: 20 } as const,
           whileInView: { opacity: 1, y: 0 } as const,
-          viewport: { once: true, margin: '-50px' },
+          viewport: { once: false, amount: 0.2 },
           transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
+        };
+
+  // Slide from left with slight rotate
+  const slideIn = (delay: number) =>
+    prefersReducedMotion
+      ? {}
+      : {
+          initial: { opacity: 0, x: -30, rotate: -1 } as const,
+          whileInView: { opacity: 1, x: 0, rotate: 0 } as const,
+          viewport: { once: false, amount: 0.2 },
+          transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
+        };
+
+  // Scale up with blur clear
+  const scaleIn = (delay: number) =>
+    prefersReducedMotion
+      ? {}
+      : {
+          initial: { opacity: 0, scale: 0.92, filter: 'blur(4px)' } as const,
+          whileInView: { opacity: 1, scale: 1, filter: 'blur(0px)' } as const,
+          viewport: { once: false, amount: 0.2 },
+          transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
+        };
+
+  // Spring pop
+  const popIn = (delay: number) =>
+    prefersReducedMotion
+      ? {}
+      : {
+          initial: { opacity: 0, scale: 0.8, y: 10 } as const,
+          whileInView: { opacity: 1, scale: 1, y: 0 } as const,
+          viewport: { once: false, amount: 0.3 },
+          transition: { delay, type: 'spring' as const, stiffness: 300, damping: 20 },
         };
 
   const handleCTA = () => {
@@ -390,7 +423,7 @@ const Index = () => {
 
           <div className="max-w-lg mx-auto grid grid-cols-1 gap-2.5">
             {comparisons.map((item, i) => (
-              <motion.div key={item.them} {...inView(0.05 * i)}>
+              <motion.div key={item.them} {...slideIn(0.06 * i)}>
                 <div className="flex items-center gap-3 p-3 rounded-xl border border-border/20 bg-card/40 backdrop-blur-sm">
                   {/* Them */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -424,7 +457,7 @@ const Index = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto">
             {/* Card A — AI Resume Editor */}
-            <motion.div {...inView(0.05)}>
+            <motion.div {...scaleIn(0.05)}>
               <Card className="p-5 border-t-2 border-border/30 border-t-primary/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-primary/20 transition-shadow duration-300">
                 <div className="text-center">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2">
@@ -449,7 +482,7 @@ const Index = () => {
             </motion.div>
 
             {/* Card B — Public Portfolio */}
-            <motion.div {...inView(0.1)}>
+            <motion.div {...scaleIn(0.15)}>
               <Card className="p-5 border-t-2 border-border/30 border-t-emerald-500/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-emerald-500/20 transition-shadow duration-300">
                 <div className="text-center">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2 shadow-[0_0_12px_-2px_hsl(142_71%_45%/0.4)]">
@@ -489,7 +522,7 @@ const Index = () => {
 
           <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto overflow-hidden">
             {features.map((f, i) => (
-              <motion.div key={f.title} {...inView(0.08 * i)}>
+              <motion.div key={f.title} {...inView(0.1 * i)}>
                 <Card className="p-4 border-border/30 bg-card/50 backdrop-blur-sm h-full hover:border-primary/40 transition-colors">
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-3`}>
                     <f.icon className={`w-5 h-5 ${f.iconColor}`} />
@@ -502,7 +535,7 @@ const Index = () => {
           </div>
 
           {/* Bonus chips */}
-          <motion.div className="flex items-center justify-center gap-3 mt-5" {...inView(0.3)}>
+          <motion.div className="flex items-center justify-center gap-3 mt-5" {...popIn(0.1)}>
             {getBonusChips(isAuthenticated).map((chip) => (
               <button
                 key={chip.label}
