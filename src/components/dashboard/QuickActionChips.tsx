@@ -48,7 +48,7 @@ export function QuickActionChips({ onCreateNew }: QuickActionChipsProps) {
   };
 
   return (
-    <div className="px-4 pb-2">
+    <div className="px-4 pb-4">
       <div className="flex gap-2">
         {actions.map((item, i) => (
           <motion.button

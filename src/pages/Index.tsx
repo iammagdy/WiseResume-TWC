@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight } from 'lucide-react';
+import { Footer } from '@/components/landing/Footer';
 import wiseAiLogo from '@/assets/wise-ai-logo.png';
 import { EditorDemo } from '@/components/landing/EditorDemo';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
@@ -357,11 +358,26 @@ const Index = () => {
 
           {/* Trust bar */}
           <motion.div className="mt-5 flex items-center gap-4 text-xs text-muted-foreground flex-wrap justify-center" {...fade(0.28)}>
-            <span className="flex items-center gap-1"><span className="text-yellow-400">★</span> 4.9 Rating</span>
+            <span className="flex items-center gap-1">
+              {[...Array(5)].map((_, i) => (
+                <svg key={i} className="w-3 h-3 text-yellow-400 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
+              ))}
+              <span className="ml-0.5">4.9</span>
+            </span>
             <span className="w-px h-3 bg-border" />
-            <span>12,000+ users helped</span>
+            <span className="flex items-center gap-1">
+              <span className="flex -space-x-1.5">
+                {[0,1,2].map(i => (
+                  <span key={i} className="w-5 h-5 rounded-full bg-muted border-2 border-background" />
+                ))}
+              </span>
+              12,000+ users
+            </span>
             <span className="w-px h-3 bg-border" />
-            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Free to start</span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_1px_rgba(52,211,153,0.5)]" />
+              Free to start
+            </span>
           </motion.div>
         </section>
 
@@ -471,7 +487,7 @@ const Index = () => {
             Everything you need to land the job
           </p>
 
-          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto overflow-hidden">
             {features.map((f, i) => (
               <motion.div key={f.title} {...inView(0.08 * i)}>
                 <Card className="p-4 border-border/30 bg-card/50 backdrop-blur-sm h-full hover:border-primary/40 transition-colors">
@@ -499,7 +515,7 @@ const Index = () => {
             ))}
           </motion.div>
         </motion.section>
-
+        <Footer />
       </main>
     </SpaceBackground>
   );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Activity, Zap, AlertTriangle, WifiOff, Key } from 'lucide-react';
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAIHealth, AIHealthStatus } from '@/hooks/useAIHealth';
@@ -32,6 +33,7 @@ const STATUS_CONFIG: Record<AIHealthStatus, {
 };
 
 export function AIHealthBadge() {
+  const navigate = useNavigate();
   const { status, latencyMs, provider, errorCode } = useAIHealth();
   const [showSettings, setShowSettings] = useState(false);
 
@@ -90,6 +92,12 @@ export function AIHealthBadge() {
             >
               <Key className="w-3 h-3" />
               Use Your Own API Key
+            </button>
+            <button
+              onClick={() => navigate('/settings')}
+              className="flex items-center gap-1.5 w-full text-xs text-muted-foreground hover:text-foreground hover:underline mt-1"
+            >
+              Open AI Settings
             </button>
           </div>
         </div>

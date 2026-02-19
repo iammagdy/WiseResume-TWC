@@ -57,7 +57,7 @@ const tabs: TabItem[] = [
 {
   path: '/applications',
   icon: BarChart3,
-  label: 'Activity',
+  label: 'Applications',
   matchPaths: ['/applications', '/application', '/job']
 },
 {

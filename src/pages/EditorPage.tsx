@@ -904,7 +904,17 @@ export default function EditorPage() {
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
-              <h1 className="text-h3 truncate">
+              <h1
+                className="text-h3 truncate cursor-pointer hover:text-primary/80 transition-colors active:scale-95"
+                title={resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
+                onClick={() => {
+                  const current = resumeFromDb?.title || '';
+                  const newName = window.prompt('Rename resume', current);
+                  if (newName && newName.trim() && newName.trim() !== current && currentResumeId) {
+                    updateResume.mutate({ resumeId: currentResumeId, updates: {}, title: newName.trim() });
+                  }
+                }}
+              >
                 {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
               </h1>
               <OfflineIndicator isSyncing={isSyncing} />

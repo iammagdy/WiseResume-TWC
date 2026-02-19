@@ -322,8 +322,8 @@ export default function SettingsPage() {
           </div>
         </header>
 
-        {/* Content - no inner scroll container, AppShell handles scrolling */}
-        <div className="px-5 py-4 space-y-8">
+        {/* Content */}
+        <div className="px-5 py-4 space-y-8 overflow-y-auto pb-24">
           {/* Guest CTA */}
           {!user && <GuestCtaCard navigate={navigate} />}
           
