@@ -1,64 +1,107 @@
 
-
-# Add Star Twinkle Animation to SpaceBackground
+# Increase Star Count and Add Shooting Stars to SpaceBackground
 
 ## What Changes
 
-The component already generates 25 stars with positions, sizes, opacity, and delay values -- but never renders them. We'll add a star layer that displays these as tiny glowing dots with a CSS `twinkle` keyframe animation, creating a subtle shimmer effect across the space background.
+1. Increase the twinkling star count from 25 to 60 for a denser starfield.
+2. Add 3 shooting stars that streak diagonally across the background at staggered intervals using CSS keyframe animations.
 
 ## What You'll See
 
-Small dots scattered across the dark background that gently pulse in and out (opacity + slight scale change) at staggered intervals, giving a realistic starfield feel.
+- A richer, more populated starfield with 60 twinkling dots instead of 25.
+- Occasional shooting stars that streak from the upper-right area toward the lower-left, each on a long staggered loop so they feel random and organic.
 
 ## Technical Details
 
 ### File: `src/components/landing/SpaceBackground.tsx`
 
-**1. Add a star field layer between the floating orbs and the content (after line 90)**
+**1. Increase star count (line 25)**
 
-Insert a new `<div>` layer that maps over the pre-generated `stars` array and renders each as a small, absolutely-positioned circle with the CSS `twinkle` animation applied:
+Change `generateStars(25)` to `generateStars(60)`.
+
+**2. Add a shooting star data generator**
+
+Create a small helper that pre-generates 3 shooting stars with varied start positions, animation delays, and durations:
 
 ```tsx
-{/* Layer 3: Twinkling stars */}
-<div className="absolute inset-0 pointer-events-none" aria-hidden="true">
-  {stars.map((star) => (
+interface ShootingStar {
+  id: number;
+  top: number;      // % from top (5-35%)
+  left: number;     // % from left (60-95%)
+  delay: number;    // stagger in seconds
+  duration: number; // 1-2s streak duration
+}
+
+function generateShootingStars(count: number): ShootingStar[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    top: 5 + Math.random() * 30,
+    left: 60 + Math.random() * 35,
+    delay: i * 6 + Math.random() * 4,
+    duration: 1 + Math.random() * 1,
+  }));
+}
+```
+
+**3. Memoize the shooting stars alongside the regular stars**
+
+Add `const shootingStars = useMemo(() => generateShootingStars(3), []);` inside the component.
+
+**4. Add a shooting stars layer (after the twinkling stars layer)**
+
+```tsx
+{/* Layer 4: Shooting stars */}
+<div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+  {shootingStars.map((s) => (
     <div
-      key={star.id}
-      className="absolute rounded-full bg-white/80"
+      key={s.id}
+      className="absolute w-[80px] h-[1px] rounded-full"
       style={{
-        left: `${star.x}%`,
-        top: `${star.y}%`,
-        width: star.size,
-        height: star.size,
-        opacity: star.opacity,
+        top: `${s.top}%`,
+        left: `${s.left}%`,
+        background: 'linear-gradient(to left, white 0%, transparent 100%)',
+        opacity: 0,
         animation: prefersReducedMotion
           ? 'none'
-          : `twinkle ${3 + star.delay}s ease-in-out ${star.delay}s infinite`,
+          : `shootingStar ${s.duration}s ease-in ${s.delay}s infinite`,
       }}
     />
   ))}
 </div>
 ```
 
-**2. Add CSS keyframes via an inline `<style>` tag (before closing `</div>`)**
+**5. Add the shooting star CSS keyframe to the existing style tag**
 
-```tsx
-<style>{`
-  @keyframes twinkle {
-    0%, 100% { opacity: 0.3; transform: scale(1); }
-    50% { opacity: 0.9; transform: scale(1.4); }
+```css
+@keyframes shootingStar {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(-35deg);
   }
-`}</style>
+  5% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0;
+    transform: translate(-200px, 120px) rotate(-35deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-200px, 120px) rotate(-35deg);
+  }
+}
 ```
 
-This matches the pattern already used in `HomeBackground.tsx`.
+The 0-20% active window with a long 20-100% idle tail means each shooting star streaks briefly then waits before repeating, creating a natural sporadic feel.
 
-**3. No other changes**
-- Parallax layers remain untouched
-- Star generation logic already exists and is reused as-is
-- Reduced motion users see static dots (no animation)
+**6. Reduced motion**
+
+Shooting stars get `animation: 'none'` when `prefersReducedMotion` is true, same as the twinkling stars.
+
+### No changes to:
+- Parallax layers, nebula gradients, or floating orbs
+- Any other files
 
 | File | Change |
 |---|---|
-| `SpaceBackground.tsx` | Render star elements with CSS twinkle keyframe animation, add inline style tag |
-
+| `SpaceBackground.tsx` | Increase star count to 60, add shooting star generator + layer + CSS keyframe |
