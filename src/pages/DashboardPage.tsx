@@ -272,15 +272,7 @@ export default function DashboardPage() {
           // Clear score trend history for deleted resume
           useATSScoreHistoryStore.getState().clearHistory(deleteResumeId!);
           // Show toast with undo option
-          toast.success(`"${resumeToDelete?.title}" deleted`, {
-            action: {
-              label: 'Undo',
-              onClick: () => {
-                toast.info('Undo not available - resume permanently deleted');
-              },
-            },
-            duration: 5000,
-          });
+          toast.success(`"${resumeToDelete?.title}" deleted`, { duration: 3000 });
         },
       });
       setDeleteResumeId(null);

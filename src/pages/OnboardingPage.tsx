@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ArrowRight, Sparkles, Target, Palette, Bell, CheckCircle2, FileText, PenTool, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Sparkles, Target, Palette, Bell, CheckCircle2, PenTool, LayoutGrid } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { TemplateThumbnail } from '@/components/editor/TemplateThumbnail';
 import { templates, sampleResumeData } from '@/lib/templateData';
 import { TemplateId } from '@/types/resume';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 
 const ONBOARDING_KEY = 'wr-onboarding-completed';
 const GOAL_KEY = 'wr-onboarding-goal';
@@ -25,15 +27,31 @@ const TOTAL_STEPS = 5;
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [step, setStep] = useState(0);
   const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId | null>(null);
 
   useEffect(() => {
+    // Fast path: localStorage already marked complete
     if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
       navigate('/dashboard', { replace: true });
+      return;
     }
-  }, [navigate]);
+    // DB check for cross-device consistency
+    if (!user) return;
+    supabase
+      .from('profiles')
+      .select('onboarding_completed')
+      .eq('user_id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data?.onboarding_completed) {
+          localStorage.setItem(ONBOARDING_KEY, 'true');
+          navigate('/dashboard', { replace: true });
+        }
+      });
+  }, [navigate, user]);
 
   const handleSkip = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');
