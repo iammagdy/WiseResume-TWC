@@ -219,8 +219,10 @@ export function useProfile(userId: string | undefined, user?: User | null) {
     queryKey: ['profile', userId],
     queryFn: () => fetchProfile(userId!, user),
     enabled: !!userId,
-    staleTime: 0, // Always fetch fresh data after saves
+    staleTime: 0,
     gcTime: 10 * 60 * 1000,
+    retry: 2,
+    retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 5000),
   });
 
   const updateMutation = useMutation({

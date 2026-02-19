@@ -13,23 +13,39 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  retryCount: number;
 }
  
  export class ErrorBoundary extends Component<Props, State> {
-   public state: State = {
-     hasError: false,
-     error: null,
-     errorInfo: null,
-   };
+  public state: State = {
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      retryCount: 0,
+    };
  
-   public static getDerivedStateFromError(error: Error): State {
-     return { hasError: true, error, errorInfo: null };
-   }
+    public static getDerivedStateFromError(error: Error): Partial<State> {
+      return { hasError: true, error, errorInfo: null };
+    }
  
-   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-     console.error('ErrorBoundary caught an error:', error, errorInfo);
-     this.setState({ errorInfo });
-   }
+    public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+      console.error('ErrorBoundary caught an error:', error, errorInfo);
+      this.setState({ errorInfo });
+
+      // Auto-retry once for transient network/chunk errors
+      if (this.state.retryCount < 1) {
+        const msg = error?.message || '';
+        const isTransient = msg.includes('Failed to fetch') ||
+          msg.includes('dynamically imported module') ||
+          msg.includes('Loading chunk') ||
+          msg.includes('Load failed');
+        if (isTransient) {
+          setTimeout(() => {
+            this.setState({ hasError: false, error: null, errorInfo: null, retryCount: this.state.retryCount + 1 });
+          }, 1500);
+        }
+      }
+    }
  
   private handleRetry = () => {
     const isChunkError = this.state.error?.message &&

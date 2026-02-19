@@ -19,6 +19,23 @@ const passwordSchema = z.string().min(6, 'Password must be at least 6 characters
 
 type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
 
+// Retry helper for transient network errors (cold connection)
+async function withNetworkRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const isNetwork = err instanceof Error &&
+      (err.message.includes('Failed to fetch') ||
+       err.message.includes('NetworkError') ||
+       err.message.includes('Load failed'));
+    if (isNetwork && retries > 0) {
+      await new Promise(r => setTimeout(r, 1500));
+      return withNetworkRetry(fn, retries - 1);
+    }
+    throw err;
+  }
+}
+
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -137,7 +154,9 @@ export default function AuthPage() {
 
     try {
       if (mode === 'login') {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await withNetworkRetry(() =>
+          supabase.auth.signInWithPassword({ email, password })
+        );
         if (error) {
           toast.error(error.message.includes('Invalid login credentials') ? 'Invalid credentials' : error.message);
           return;
@@ -145,17 +164,19 @@ export default function AuthPage() {
         toast.success('Welcome back!');
         setTimeout(() => navigate('/dashboard'), 600);
       } else {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
-            data: {
-              full_name: fullName.trim(),
-              phone_number: phoneNumber.trim() || null,
+        const { data, error } = await withNetworkRetry(() =>
+          supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/dashboard`,
+              data: {
+                full_name: fullName.trim(),
+                phone_number: phoneNumber.trim() || null,
+              },
             },
-          },
-        });
+          })
+        );
         if (error) {
           toast.error(error.message.includes('already registered') ? 'Already registered. Please sign in.' : error.message);
           return;
