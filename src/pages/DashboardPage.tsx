@@ -548,7 +548,7 @@ export default function DashboardPage() {
 
         {/* All scrollable content inside PullToRefresh */}
         <PullToRefresh onRefresh={handleRefresh} className="flex-1">
-          <div className="pb-safe max-w-3xl mx-auto w-full">
+          <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
             {/* Daily Tip - below header, auto-hides */}
             <DailyTipCard onVisibilityChange={setTipVisible} />
 

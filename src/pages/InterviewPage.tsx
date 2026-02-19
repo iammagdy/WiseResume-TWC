@@ -70,15 +70,7 @@ export default function InterviewPage() {
     resetInterview,
   } = useVoiceInterview(currentResume);
   
-  useEffect(() => {
-    if (!hydrated) return; // Wait for store to load from localStorage
-    if (!hasValidResume) {
-      toast.info('Resume Required', {
-        description: 'Create or upload a resume first to start interview practice.',
-      });
-      navigate(user ? '/upload' : '/auth');
-    }
-  }, [hydrated, hasValidResume, navigate, user]);
+  // No navigation redirect — show an in-page empty state instead
 
   // Derive phase
   const phase: InterviewPhase = summary
@@ -196,7 +188,24 @@ export default function InterviewPage() {
     return <PageLoadingSpinner />;
   }
 
-  // Summary screen
+  // Empty state — no resume loaded
+  if (!hasValidResume) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-16 gap-4 text-center">
+        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+          <Sparkles className="w-8 h-8 text-muted-foreground opacity-50" />
+        </div>
+        <div>
+          <h2 className="font-semibold text-lg mb-1 text-foreground">No Resume Selected</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">Select or create a resume from your dashboard to start interview practice.</p>
+        </div>
+        <Button onClick={() => navigate('/dashboard')} className="min-h-[48px] px-6">
+          Go to Dashboard
+        </Button>
+      </div>
+    );
+  }
+
   if (phase === 'summary') {
     return (
       <div className="flex-1 flex flex-col overflow-y-auto">

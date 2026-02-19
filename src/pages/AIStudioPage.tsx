@@ -191,7 +191,7 @@ export default function AIStudioPage() {
   }, [navigate, requireResume]);
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[180px] sm:pb-20 pt-safe">
+    <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[180px] sm:pb-20 lg:pb-6 pt-safe">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
