@@ -306,7 +306,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col">
         {/* Header - clean, no hamburger */}
         <header className="pt-safe sticky top-0 z-10 pt-4 pb-3 px-4 glass-header backdrop-blur-xl">

@@ -181,7 +181,7 @@ export default function ResignationLetterNewPage() {
   const steps = ['Info', 'Style', 'Options', 'Result'];
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <header className="sticky top-0 z-10 glass-header px-4 py-3 flex items-center gap-3">
         <button
           onClick={() => step > 0 ? setStep(step - 1) : navigate('/resignation-letters')}
