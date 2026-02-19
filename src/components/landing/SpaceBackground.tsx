@@ -10,6 +10,24 @@ interface Star {
   delay: number;
 }
 
+interface ShootingStar {
+  id: number;
+  top: number;
+  left: number;
+  delay: number;
+  duration: number;
+}
+
+function generateShootingStars(count: number): ShootingStar[] {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    top: 5 + Math.random() * 30,
+    left: 60 + Math.random() * 35,
+    delay: i * 6 + Math.random() * 4,
+    duration: 1 + Math.random() * 1,
+  }));
+}
+
 function generateStars(count: number): Star[] {
   return Array.from({ length: count }, (_, i) => ({
     id: i,
@@ -22,7 +40,8 @@ function generateStars(count: number): Star[] {
 }
 
 export function SpaceBackground({ children }: { children: React.ReactNode }) {
-  const stars = useMemo(() => generateStars(25), []);
+  const stars = useMemo(() => generateStars(60), []);
+  const shootingStars = useMemo(() => generateShootingStars(3), []);
   const containerRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
@@ -109,6 +128,25 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
+      {/* Layer 4: Shooting stars */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+        {shootingStars.map((s) => (
+          <div
+            key={s.id}
+            className="absolute w-[80px] h-[1px] rounded-full"
+            style={{
+              top: `${s.top}%`,
+              left: `${s.left}%`,
+              background: 'linear-gradient(to left, white 0%, transparent 100%)',
+              opacity: 0,
+              animation: prefersReducedMotion
+                ? 'none'
+                : `shootingStar ${s.duration}s ease-in ${s.delay}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+
       {/* Content */}
       <div className="relative z-10">
         {children}
@@ -118,6 +156,11 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         @keyframes twinkle {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50% { opacity: 0.9; transform: scale(1.4); }
+        }
+        @keyframes shootingStar {
+          0% { opacity: 0; transform: translate(0, 0) rotate(-35deg); }
+          5% { opacity: 1; }
+          20%, 100% { opacity: 0; transform: translate(-200px, 120px) rotate(-35deg); }
         }
       `}</style>
     </div>
