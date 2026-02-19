@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
@@ -211,6 +212,7 @@ export default function PortfolioEditorPage() {
   const [openToWork, setOpenToWork] = useState(false);
   const [availabilityHeadline, setAvailabilityHeadline] = useState('');
   const [showQR, setShowQR] = useState(false);
+  const [showCareerCard, setShowCareerCard] = useState(false);
   const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
   const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
@@ -551,6 +553,13 @@ export default function PortfolioEditorPage() {
                 >
                   <QrCode className="w-4 h-4 mr-1.5" /> Get QR Code
                 </Button>
+                <Button
+                  variant="outline"
+                  className="h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs col-span-2"
+                  onClick={() => { haptics.light(); setShowCareerCard(true); }}
+                >
+                  <Sparkles className="w-4 h-4 mr-1.5" /> Share Career Card
+                </Button>
               </div>
             </>
           )}
@@ -563,6 +572,7 @@ export default function PortfolioEditorPage() {
 
         {/* ── QR Code Dialog ───────────────────────────────────────────── */}
         <Dialog open={showQR} onOpenChange={setShowQR}>
+
           <DialogContent className="max-w-[320px] p-6">
             <DialogHeader>
               <DialogTitle className="text-center flex items-center justify-center gap-2">
@@ -1067,6 +1077,14 @@ export default function PortfolioEditorPage() {
         </div>
 
       </div>
+
+      <CareerCardSheet
+        open={showCareerCard}
+        onOpenChange={setShowCareerCard}
+        profile={profile as Parameters<typeof CareerCardSheet>[0]['profile']}
+        selectedResume={selectedResume as Parameters<typeof CareerCardSheet>[0]['selectedResume']}
+        accentColor={portfolioAccentColor}
+      />
     </div>
   );
 }
