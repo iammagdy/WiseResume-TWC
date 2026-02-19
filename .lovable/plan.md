@@ -1,57 +1,127 @@
 
 
-# Update Changelog to v2.2.1
+# Fix Touch Scroll Issues Across All App Screens
 
-## What Changes
+## Problem
 
-Update `public/changelog.json` to add a new `v2.2.1` entry at the top, following the exact same schema as existing entries. Set the current v2.2.0 entry's `latest` to `false`.
+The AppShell provides the primary scroll container (`overflow-y-auto` on line 50). Several pages **also** add `overflow-y-auto` on their content divs, but their root container does **not** have `overflow-hidden`. This creates two competing scroll areas that fight for touch events on mobile, causing:
 
-## New Entry
+- Scroll getting "stuck" or unresponsive
+- Unexpected bounce/rubber-banding between containers
+- Content appearing un-scrollable even though it overflows
 
-```json
-{
-  "version": "v2.2.1",
-  "date": "Feb 19, 2026",
-  "latest": true,
-  "summary": "A focused mobile polish pass -- the portfolio page is cleaner, the install banner stays out of the way, and empty states guide you forward.",
-  "items": [
-    {
-      "title": "Portfolio Overview hero card",
-      "description": "Status, public link, stats, and publish toggle are now combined into one compact card at the top of the Portfolio page."
-    },
-    {
-      "title": "Empty sections hide automatically",
-      "description": "Portfolio sections with no content are hidden by default -- tap 'Add more sections' to reveal them when you're ready."
-    },
-    {
-      "title": "Skills label updated",
-      "description": "'Skills Visibility' is now 'Skills on your portfolio' with a clearer count of highlighted skills."
-    },
-    {
-      "title": "Install banner stays out of the way",
-      "description": "The PWA install prompt now sits just above the tab bar on small phones instead of floating over your content."
-    },
-    {
-      "title": "Better empty state for Applications",
-      "description": "When you have no tracked applications, a clear centered prompt helps you add your first one."
-    },
-    {
-      "title": "Job titles are always readable",
-      "description": "Truncated job titles on application cards now reveal the full name on long-press or hover."
-    }
-  ]
-}
+The fix is simple: add `overflow-hidden` to the root container of each affected page so the AppShell scroll is blocked and only the page's own scroll container handles touch events.
+
+## Pages That Need Fixing (8 total)
+
+| Page | Root Line | What Changes |
+|---|---|---|
+| **SettingsPage** | Line 309 | Add `overflow-hidden` to root `div` |
+| **CoverLetterEditPage** | Line 139 | Add `overflow-hidden` to root `motion.div` |
+| **CoverLetterNewPage** | Line 140 | Add `overflow-hidden` to root `motion.div` |
+| **ResignationLetterEditPage** | Line 193 | Add `overflow-hidden` to root `motion.div` |
+| **ResignationLetterNewPage** | Line 184 | Add `overflow-hidden` to root `motion.div` |
+| **TemplatesPage** | Line 45 | Add `overflow-hidden` to root `div` |
+| **GuidePage** | Line 57 | Add `overflow-hidden` to root `div` |
+| **GuidesPage** | Line 44 | Add `overflow-hidden` to root `div` |
+
+## Pages Already Correct (no changes needed)
+
+- **DashboardPage** -- no inner `overflow-y-auto`, delegates to AppShell scroll
+- **ApplicationsPage** -- uses PullToRefresh, no competing scroll
+- **EditorPage** -- root has `overflow-hidden`
+- **ProfilePage** -- root has `overflow-hidden`
+- **PortfolioEditorPage** -- root has `overflow-hidden`
+- **UploadPage** -- root has `overflow-hidden`
+- **AIStudioPage** -- root IS the scroll container (no nesting conflict)
+- **InterviewPage** -- multiple phases, each handled correctly
+
+## What Changes Per File
+
+Each fix is a single class addition. No logic, props, hooks, or Supabase calls change.
+
+### SettingsPage.tsx
+```
+Before: <div className="flex-1 flex flex-col">
+After:  <div className="flex-1 flex flex-col overflow-hidden">
 ```
 
-## Existing v2.2.0 Entry
+### CoverLetterEditPage.tsx
+```
+Before: className="flex-1 flex flex-col min-h-0"
+After:  className="flex-1 flex flex-col min-h-0 overflow-hidden"
+```
 
-Change `"latest": true` to `"latest": false` on the v2.2.0 entry. No other changes to existing entries.
+### CoverLetterNewPage.tsx
+```
+Before: className="flex-1 flex flex-col min-h-0"
+After:  className="flex-1 flex flex-col min-h-0 overflow-hidden"
+```
 
-## File Changed
+### ResignationLetterEditPage.tsx
+```
+Before: className="flex-1 flex flex-col min-h-0"
+After:  className="flex-1 flex flex-col min-h-0 overflow-hidden"
+```
 
-| File | Change |
-|---|---|
-| `public/changelog.json` | Insert new v2.2.1 object at position [0]; set v2.2.0 `latest` to `false` |
+### ResignationLetterNewPage.tsx
+```
+Before: className="flex-1 flex flex-col min-h-0"
+After:  className="flex-1 flex flex-col min-h-0 overflow-hidden"
+```
 
-No runtime code, logic, or schema changes.
+### TemplatesPage.tsx
+```
+Before: className="flex-1 flex flex-col min-h-0"
+After:  className="flex-1 flex flex-col min-h-0 overflow-hidden"
+```
+
+### GuidePage.tsx
+```
+Before: className="flex-1 flex flex-col min-h-0"
+After:  className="flex-1 flex flex-col min-h-0 overflow-hidden"
+```
+
+### GuidesPage.tsx
+```
+Before: className="flex-1 flex flex-col min-h-0"
+After:  className="flex-1 flex flex-col min-h-0 overflow-hidden"
+```
+
+## Why This Works
+
+The AppShell layout is:
+
+```text
+[100dvh container, overflow-hidden]
+  [DesktopNav (optional)]
+  [main, flex-1, overflow-hidden, pb-20]
+    [scroll div, overflow-y-auto]    <-- AppShell scroll container
+      [AnimatePresence]
+        [motion.div]
+          [Page component]           <-- This is where pages render
+  [BottomTabBar]
+```
+
+When a page has `overflow-hidden` on its root, its content cannot overflow into the AppShell scroll container. Instead, the page's inner `overflow-y-auto` div becomes the sole scroll target. This eliminates the double-scroll conflict on touch devices.
+
+When a page does NOT have `overflow-hidden`, both the AppShell's scroll div and the page's inner scroll div compete for the same touch gestures, causing the scroll to feel broken or sticky.
+
+## What Does NOT Change
+
+- No authentication, routing, or Supabase logic modified
+- No component props, hooks, or API contracts changed
+- No new dependencies or features added
+- All existing scroll behavior preserved -- just de-conflicted
+- Sticky headers inside pages continue to work (they stick within the page's own scroll container)
+
+## Verification
+
+After changes, confirm on a small viewport (360x640):
+- Settings page scrolls smoothly through all sections
+- Cover Letter edit/new forms scroll with keyboard visible
+- Resignation Letter edit/new forms scroll properly
+- Templates grid scrolls past all items
+- Guide content scrolls with progress bar updating
+- Guides list scrolls through all categories
 
