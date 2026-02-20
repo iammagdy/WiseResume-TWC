@@ -103,52 +103,57 @@ function buildTypewriterPhrases(profile: PublicProfile, skills: string[]): strin
 function TypewriterText({ phrases, accentColor }: { phrases: string[]; accentColor: string }) {
   const [displayed, setDisplayed] = useState('');
   const [phraseIdx, setPhraseIdx] = useState(0);
-  const [charIdx, setCharIdx] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [phase, setPhase] = useState<'typing' | 'paused' | 'deleting' | 'waiting'>('typing');
+  const reducedMotion = useRef(false);
+
+  useEffect(() => {
+    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
 
   useEffect(() => {
     if (phrases.length === 0) return;
+    if (reducedMotion.current) {
+      setDisplayed(phrases[0]);
+      return;
+    }
+
     const current = phrases[phraseIdx % phrases.length];
 
-    if (isPaused) {
-      const t = setTimeout(() => { setIsPaused(false); setIsDeleting(true); }, 2500);
+    if (phase === 'typing') {
+      if (displayed.length < current.length) {
+        const t = setTimeout(() => setDisplayed(current.slice(0, displayed.length + 1)), 55);
+        return () => clearTimeout(t);
+      }
+      setPhase('paused');
+    } else if (phase === 'paused') {
+      const t = setTimeout(() => setPhase('deleting'), 2000);
+      return () => clearTimeout(t);
+    } else if (phase === 'deleting') {
+      if (displayed.length > 0) {
+        const t = setTimeout(() => setDisplayed(d => d.slice(0, -1)), 30);
+        return () => clearTimeout(t);
+      }
+      setPhase('waiting');
+    } else if (phase === 'waiting') {
+      const t = setTimeout(() => {
+        setPhraseIdx(i => i + 1);
+        setPhase('typing');
+      }, 400);
       return () => clearTimeout(t);
     }
-
-    if (!isDeleting) {
-      if (charIdx < current.length) {
-        const t = setTimeout(() => {
-          setDisplayed(current.slice(0, charIdx + 1));
-          setCharIdx(c => c + 1);
-        }, 40);
-        return () => clearTimeout(t);
-      } else {
-        setIsPaused(true);
-      }
-    } else {
-      if (charIdx > 0) {
-        const t = setTimeout(() => {
-          setDisplayed(current.slice(0, charIdx - 1));
-          setCharIdx(c => c - 1);
-        }, 18);
-        return () => clearTimeout(t);
-      } else {
-        setIsDeleting(false);
-        setPhraseIdx(i => i + 1);
-      }
-    }
-  }, [phrases, phraseIdx, charIdx, isDeleting, isPaused]);
+  }, [phrases, phraseIdx, phase, displayed]);
 
   if (phrases.length === 0) return null;
 
+  const isMoving = phase === 'typing' || phase === 'deleting';
+
   return (
-    <p className="text-sm italic mb-5 max-w-md leading-relaxed h-6" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+    <p className="text-sm italic mb-5 max-w-md leading-relaxed min-h-[1.5rem]" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
       "{displayed}
       <span
-        className="inline-block w-[2px] h-[1em] align-middle ml-0.5 opacity-80"
-        style={{ background: accentColor, animation: 'pulse 1s step-end infinite' }}
-      />
+        className={`pf-cursor ${isMoving ? 'pf-cursor--typing' : ''}`}
+        style={{ color: accentColor }}
+      >|</span>
       "
     </p>
   );
@@ -1170,6 +1175,11 @@ function PublicPortfolioContent() {
           className="relative flex flex-col items-center text-center pt-16 pb-12 px-4"
           style={heroBg}
         >
+          {/* Ambient gradient background (dark themes only) */}
+          {pStyle !== 'classic-clean' && (
+            <div className="pf-hero-ambient rounded-2xl" aria-hidden="true" />
+          )}
+
           {/* Avatar with animated glow ring */}
           <div className="relative mb-6">
             <div
