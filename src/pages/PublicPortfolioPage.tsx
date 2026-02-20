@@ -1,371 +1,58 @@
 import { useParams, useSearchParams } from 'react-router-dom';
-import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
+import { SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { usePublicPortfolio } from '@/hooks/usePublicPortfolio';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen,
-  Github, Globe, Mail, X, Download, ExternalLink, Loader2, ChevronDown, ChevronUp,
-  Wrench, Layers, ArrowUpRight, Code2, Paintbrush, MessageSquare, PenLine, Star, Send, Sparkles
+  Github, Globe, Mail, X, Download, ExternalLink, Loader2,
+  Wrench, Layers, Sparkles, BookOpen, Heart, Trophy
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import { motion } from 'framer-motion';
+import { useEffect, useState, useRef, useCallback, useMemo, Suspense } from 'react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { computeSkillFrequencies, getSkillTier } from '@/lib/skillCloud';
-import { parseResumeDate } from '@/lib/dateUtils';
-import type { Experience, Education, Project } from '@/types/resume';
-import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
+import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
-// ─── useActiveStatus — polls last_active_at every 60s ─────────────────────────
-function isActiveWithin24h(lastActiveAt: string | null): boolean {
-  if (!lastActiveAt) return false;
-  return Date.now() - new Date(lastActiveAt).getTime() < 24 * 60 * 60 * 1000;
-}
+// Extracted components
+import { TypewriterText, buildTypewriterPhrases } from '@/components/portfolio/public/TypewriterText';
+import { BioReveal } from '@/components/portfolio/public/BioReveal';
+import { StickyHeader } from '@/components/portfolio/public/StickyHeader';
+import { SectionHeader } from '@/components/portfolio/public/SectionHeader';
+import { StatsStrip } from '@/components/portfolio/public/StatsStrip';
+import { SectionNav } from '@/components/portfolio/public/SectionNav';
+import { SkillCloud, SKILL_CLOUD_LIMIT } from '@/components/portfolio/public/SkillCloud';
+import { ExperienceCard } from '@/components/portfolio/public/cards/ExperienceCard';
+import { EducationCard } from '@/components/portfolio/public/cards/EducationCard';
+import { ProjectCard } from '@/components/portfolio/public/cards/ProjectCard';
+import { CaseStudyCard } from '@/components/portfolio/public/cards/CaseStudyCard';
+import { ServiceCard } from '@/components/portfolio/public/cards/ServiceCard';
+import { useActiveStatus, isActiveWithin24h } from '@/hooks/useActiveStatus';
 
-function useActiveStatus(username: string, initialLastActiveAt: string | null): string | null {
-  const [lastActiveAt, setLastActiveAt] = useState(initialLastActiveAt);
-  useEffect(() => {
-    setLastActiveAt(initialLastActiveAt);
-  }, [initialLastActiveAt]);
-  useEffect(() => {
-    const id = setInterval(async () => {
-      const { data } = await supabase.rpc('get_portfolio_active_status', {
-        p_username: username.toLowerCase(),
-      });
-      if (data) {
-        setLastActiveAt(data as string);
-      }
-    }, 60_000);
-    return () => clearInterval(id);
-  }, [username]);
-  return lastActiveAt;
-}
+// Lazy-loaded ChatWidget
+const ChatWidget = lazyWithRetry(() => import('@/components/portfolio/public/ChatWidget').then(m => ({ default: m.ChatWidget })));
 
-// ─── hexToRgb helper ───────────────────────────────────────────────────────────
+// ─── helpers ───────────────────────────────────────────────────────────────────
 function hexToRgb(hex: string): string {
   const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return m ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}` : '239, 68, 68';
 }
 
-// ─── Motion variants ───────────────────────────────────────────────────────────
+// ─── Motion variants (only used ones) ──────────────────────────────────────────
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] as const } },
 };
-
 const stagger = {
   visible: { transition: { staggerChildren: 0.08 } },
-};
-
-// Cinematic per-section variants
-const slideFromLeft = {
-  hidden: { opacity: 0, x: -56, filter: 'blur(4px)' },
-  visible: { opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.55, ease: [0.25, 0, 0, 1] as const } },
-};
-const slideFromRight = {
-  hidden: { opacity: 0, x: 56, filter: 'blur(4px)' },
-  visible: { opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.55, ease: [0.25, 0, 0, 1] as const } },
-};
-const scalePop = {
-  hidden: { opacity: 0, scale: 0.88, rotateX: 6 },
-  visible: { opacity: 1, scale: 1, rotateX: 0, transition: { duration: 0.45, ease: [0, 0, 0.2, 1] as const } },
-};
-const unfold = {
-  hidden: { opacity: 0, scale: 0.92 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0.34, 1.56, 0.64, 1] as const } },
-};
-const skillWave = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.035 } },
-};
-const skillPill = {
-  hidden: { opacity: 0, y: 12, scale: 0.9 },
-  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.3 } },
 };
 const bioFade = {
   hidden: { opacity: 0, filter: 'blur(4px)' },
   visible: { opacity: 1, filter: 'blur(0px)', transition: { duration: 0.6, ease: [0, 0, 0.2, 1] as const } },
 };
-const sectionHeaderSlide = {
-  hidden: { opacity: 0, x: -20 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.25, 0, 0, 1] as const } },
-};
-
-// ─── Typewriter hero text ─────────────────────────────────────────────────────
-function buildTypewriterPhrases(profile: PublicProfile, skills: string[]): string[] {
-  const phrases: string[] = [];
-  if (profile.availabilityHeadline) phrases.push(profile.availabilityHeadline);
-  if (profile.jobTitle && skills[0]) phrases.push(`${profile.jobTitle} specializing in ${skills[0]}`);
-  if (skills.length >= 3) phrases.push(`Expert in ${skills[0]}, ${skills[1]} & ${skills[2]}`);
-  if (profile.location && profile.jobTitle) phrases.push(`${profile.jobTitle} based in ${profile.location}`);
-  if (profile.openToWork) phrases.push('Open to exciting new opportunities');
-  return [...new Set(phrases.filter(Boolean))].slice(0, 5);
-}
-
-function TypewriterText({ phrases, accentColor }: { phrases: string[]; accentColor: string }) {
-  const [displayed, setDisplayed] = useState('');
-  const [phraseIdx, setPhraseIdx] = useState(0);
-  const [phase, setPhase] = useState<'typing' | 'paused' | 'deleting' | 'waiting'>('typing');
-  const reducedMotion = useRef(false);
-
-  useEffect(() => {
-    reducedMotion.current = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  }, []);
-
-  useEffect(() => {
-    if (phrases.length === 0) return;
-    if (reducedMotion.current) {
-      setDisplayed(phrases[0]);
-      return;
-    }
-
-    const current = phrases[phraseIdx % phrases.length];
-
-    if (phase === 'typing') {
-      if (displayed.length < current.length) {
-        const t = setTimeout(() => setDisplayed(current.slice(0, displayed.length + 1)), 55);
-        return () => clearTimeout(t);
-      }
-      setPhase('paused');
-    } else if (phase === 'paused') {
-      const t = setTimeout(() => setPhase('deleting'), 2000);
-      return () => clearTimeout(t);
-    } else if (phase === 'deleting') {
-      if (displayed.length > 0) {
-        const t = setTimeout(() => setDisplayed(d => d.slice(0, -1)), 30);
-        return () => clearTimeout(t);
-      }
-      setPhase('waiting');
-    } else if (phase === 'waiting') {
-      const t = setTimeout(() => {
-        setPhraseIdx(i => i + 1);
-        setPhase('typing');
-      }, 400);
-      return () => clearTimeout(t);
-    }
-  }, [phrases, phraseIdx, phase, displayed]);
-
-  if (phrases.length === 0) return null;
-
-  const isMoving = phase === 'typing' || phase === 'deleting';
-
-  return (
-    <p className="text-sm italic mb-5 max-w-md leading-relaxed min-h-[1.5rem]" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-      "{displayed}
-      <span
-        className={`pf-cursor ${isMoving ? 'pf-cursor--typing' : ''}`}
-        style={{ color: accentColor }}
-      >|</span>
-      "
-    </p>
-  );
-}
-
-// ─── AI Ask-Me-Anything widget ────────────────────────────────────────────────
-interface ChatMessage { role: 'user' | 'assistant'; content: string; }
-
-function ChatWidget({ profile, resume, accentColor, pStyle }: {
-  profile: PublicProfile; resume: PublicResume; accentColor: string; pStyle: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const sessionCountRef = useRef(0);
-  const MAX_QUESTIONS = 10;
-
-  const isLight = pStyle === 'classic-clean';
-  const bgPanel = isLight ? 'rgba(255,255,255,0.98)' : 'rgba(13,13,22,0.95)';
-  const fgColor = isLight ? '#111827' : '#f0f0ff';
-  const mutedColor = isLight ? '#6b7280' : '#9ca3af';
-  const borderColor = isLight ? '#e5e7eb' : 'rgba(255,255,255,0.10)';
-
-  useEffect(() => {
-    if (open && scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, open, loading]);
-
-  const send = async () => {
-    const q = input.trim();
-    if (!q || loading) return;
-    if (sessionCountRef.current >= MAX_QUESTIONS) {
-      toast.error('Session limit reached. Refresh to continue.');
-      return;
-    }
-    sessionCountRef.current += 1;
-    const userMsg: ChatMessage = { role: 'user', content: q };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
-
-    try {
-      const res = await fetch(`${SUPABASE_URL}/functions/v1/ask-portfolio`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: profile.username,
-          question: q,
-          conversationHistory: messages.slice(-6),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Request failed');
-      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
-    } catch (e) {
-      toast.error('Could not get a response. Please try again.');
-      setMessages(prev => prev.slice(0, -1));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
-  };
-
-  return (
-    <>
-      {/* Floating button */}
-      <motion.button
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ delay: 1.5, type: 'spring', stiffness: 300 }}
-        onClick={() => setOpen(o => !o)}
-        className="fixed bottom-6 right-4 z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-        style={{ background: accentColor, color: '#fff', boxShadow: `0 8px 32px -4px ${accentColor}70` }}
-        data-pdf-exclude
-        title={`Ask ${profile.fullName?.split(' ')[0] || 'me'} anything`}
-      >
-        <AnimatePresence mode="wait">
-          {open
-            ? <motion.span key="x" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
-                <X className="w-5 h-5" />
-              </motion.span>
-            : <motion.span key="chat" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
-                <MessageSquare className="w-5 h-5" />
-              </motion.span>
-          }
-        </AnimatePresence>
-      </motion.button>
-
-      {/* Chat panel */}
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 24, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 24, scale: 0.95 }}
-            transition={{ duration: 0.22, ease: [0, 0, 0.2, 1] }}
-            className="fixed bottom-24 right-4 z-40 w-[340px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden flex flex-col"
-            style={{
-              background: bgPanel,
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              border: `1px solid ${borderColor}`,
-              boxShadow: `0 24px 64px -12px ${accentColor}30, 0 8px 24px rgba(0,0,0,0.3)`,
-              maxHeight: '60vh',
-            }}
-            data-pdf-exclude
-          >
-            {/* Header */}
-            <div className="px-4 py-3 flex items-center gap-2.5 shrink-0" style={{ borderBottom: `1px solid ${borderColor}` }}>
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black text-white shrink-0"
-                style={{ background: accentColor }}>
-                {profile.fullName?.charAt(0) || '?'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold leading-tight truncate" style={{ color: fgColor }}>
-                  Ask {profile.fullName?.split(' ')[0] || 'me'} anything
-                </p>
-                <p className="text-[10px]" style={{ color: mutedColor }}>Powered by portfolio data only</p>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3 space-y-2.5 min-h-0">
-              {messages.length === 0 && (
-                <div className="text-center py-4 space-y-2">
-                  <p className="text-xs" style={{ color: mutedColor }}>
-                    Ask me about {profile.fullName?.split(' ')[0] || 'my'}'s experience, skills, or availability!
-                  </p>
-                  {['What are your top skills?', 'Are you open to remote work?', 'Tell me about your projects'].map(q => (
-                    <button
-                      key={q}
-                      onClick={() => { setInput(q); }}
-                      className="block w-full text-left text-xs px-3 py-1.5 rounded-xl transition-all hover:opacity-80"
-                      style={{ background: `color-mix(in srgb, ${accentColor} 10%, transparent)`, color: accentColor, border: `1px solid color-mix(in srgb, ${accentColor} 20%, transparent)` }}
-                    >
-                      {q}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className="text-xs leading-relaxed px-3 py-2 rounded-2xl max-w-[85%]"
-                    style={msg.role === 'user'
-                      ? { background: accentColor, color: '#fff' }
-                      : { background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.07)', color: fgColor, border: `1px solid ${borderColor}` }
-                    }
-                  >
-                    {msg.content}
-                  </div>
-                </div>
-              ))}
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="px-3 py-2 rounded-2xl" style={{ background: isLight ? '#f3f4f6' : 'rgba(255,255,255,0.07)', border: `1px solid ${borderColor}` }}>
-                    <div className="flex gap-1 items-center h-4">
-                      {[0, 1, 2].map(i => (
-                        <span key={i} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ background: accentColor, animationDelay: `${i * 0.15}s` }} />
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Input */}
-            <div className="px-3 pb-3 pt-2 shrink-0" style={{ borderTop: `1px solid ${borderColor}` }}>
-              <div className="flex gap-2 items-end">
-                <textarea
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKey}
-                  placeholder="Ask a question…"
-                  rows={1}
-                  className="flex-1 resize-none rounded-xl px-3 py-2 text-xs outline-none transition-all"
-                  style={{
-                    background: isLight ? '#f9fafb' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${borderColor}`,
-                    color: fgColor,
-                    maxHeight: '80px',
-                  }}
-                />
-                <button
-                  onClick={send}
-                  disabled={!input.trim() || loading}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-all disabled:opacity-40 hover:scale-105 active:scale-95"
-                  style={{ background: accentColor, color: '#fff' }}
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
 
 // ─── Theme CSS injection ───────────────────────────────────────────────────────
 function getThemeVars(style: string, accentColor: string | null, font: string): React.CSSProperties {
@@ -377,13 +64,11 @@ function getThemeVars(style: string, accentColor: string | null, font: string): 
   };
   const headingFont = fontFamilies[font] || fontFamilies['inter'];
 
-  const base: React.CSSProperties = {
+  return {
     '--pf-accent': accent,
     '--pf-heading-font': headingFont,
     '--pf-body-font': font === 'serif' ? headingFont : (fontFamilies['inter']),
   } as React.CSSProperties;
-
-  return base;
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -431,741 +116,6 @@ function NotFound() {
   );
 }
 
-// ─── Section Header ────────────────────────────────────────────────────────────
-function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: string; style: string }) {
-  const wrapperClass = "flex items-center gap-3 mb-6";
-  const motionProps = {
-    variants: sectionHeaderSlide,
-    initial: "hidden" as const,
-    whileInView: "visible" as const,
-    viewport: { once: true, margin: '-40px' },
-  };
-
-  // IntersectionObserver ref callback for underline draw
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const titleRef = useCallback((node: HTMLHeadingElement | null) => {
-    if (observerRef.current) { observerRef.current.disconnect(); observerRef.current = null; }
-    if (!node) return;
-    observerRef.current = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) { node.classList.add('title-revealed'); observerRef.current?.disconnect(); } },
-      { threshold: 0.5 }
-    );
-    observerRef.current.observe(node);
-  }, []);
-  useEffect(() => () => { observerRef.current?.disconnect(); }, []);
-
-  if (style === 'classic-clean') {
-    return (
-      <motion.div {...motionProps} className={wrapperClass}>
-        <div className="w-1.5 h-8 rounded-full" style={{ backgroundColor: 'var(--pf-accent)' }} />
-        <h2 ref={titleRef} className="text-xl font-bold pf-section-title" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{title}</h2>
-        <div className="flex-1 h-px opacity-20" style={{ background: 'var(--pf-fg, #111)' }} />
-      </motion.div>
-    );
-  }
-  if (style === 'bold-dark') {
-    return (
-      <motion.div {...motionProps} className={wrapperClass}>
-        <span className="text-[var(--pf-accent)]">{icon}</span>
-        <h2 ref={titleRef} className="text-2xl font-black tracking-tight pf-section-title" style={{
-          fontFamily: 'var(--pf-heading-font)',
-          background: `linear-gradient(135deg, var(--pf-accent), color-mix(in srgb, var(--pf-accent) 50%, white))`,
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        }}>{title}</h2>
-      </motion.div>
-    );
-  }
-  // minimal & glass-pro
-  return (
-    <motion.div {...motionProps} className={wrapperClass}>
-      <span style={{ color: 'var(--pf-accent)' }}>{icon}</span>
-      <h2 ref={titleRef} className="text-lg font-bold tracking-tight pf-section-title" style={{ color: 'var(--pf-fg, inherit)', fontFamily: 'var(--pf-heading-font)' }}>{title}</h2>
-      <div className="flex-1 h-px" style={{ background: 'var(--pf-border, rgba(255,255,255,0.08))' }} />
-    </motion.div>
-  );
-}
-
-// ─── Bio Reveal ───────────────────────────────────────────────────────────────
-function BioReveal({ bio }: { bio: string }) {
-  const containerRef = useRef<HTMLParagraphElement>(null);
-  const observedRef = useRef(false);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || observedRef.current) return;
-    observedRef.current = true;
-
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const inners = el.querySelectorAll<HTMLElement>('.pf-bio-line-inner');
-
-    if (prefersReduced) {
-      inners.forEach((span) => {
-        span.style.transform = 'none';
-        span.style.opacity = '1';
-      });
-      return;
-    }
-
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        inners.forEach((span, idx) => {
-          span.style.animationDelay = `${idx * 90}ms`;
-          span.classList.add('pf-bio-revealed');
-        });
-        obs.disconnect();
-      }
-    }, { threshold: 0.3, rootMargin: '0px 0px -50px 0px' });
-
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [bio]);
-
-  // Split by sentence (period + space)
-  const sentences = bio.split(/(?<=\.)\s+/).filter(Boolean);
-
-  return (
-    <p ref={containerRef} className="text-sm leading-loose" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-      {sentences.map((sentence, i) => (
-        <span key={i} className="pf-bio-line">
-          <span className="pf-bio-line-inner">{sentence}{i < sentences.length - 1 ? ' ' : ''}</span>
-        </span>
-      ))}
-    </p>
-  );
-}
-
-// ─── Experience Card ──────────────────────────────────────────────────────────
-function ExperienceCard({ exp, style, isLast, index }: { exp: Experience; style: string; isLast: boolean; index: number }) {
-  const [expanded, setExpanded] = useState(false);
-  const hasLongContent = (exp.description?.length ?? 0) > 200 || (exp.achievements?.length ?? 0) > 3;
-
-  const cardClass = style === 'bold-dark'
-    ? 'rounded-2xl p-5 space-y-3 border transition-all hover:border-[var(--pf-accent)]/40'
-    : style === 'glass-pro'
-    ? 'rounded-2xl p-5 space-y-3 backdrop-blur-sm transition-all hover:bg-white/10'
-    : style === 'classic-clean'
-    ? 'pl-5 py-4 space-y-2'
-    : 'rounded-2xl p-5 space-y-3 border transition-all';
-
-  const cardStyle: React.CSSProperties = style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', borderColor: 'color-mix(in srgb, var(--pf-accent) 20%, transparent)' }
-    : style === 'glass-pro'
-    ? { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }
-    : style === 'classic-clean'
-    ? { borderLeft: '2px solid var(--pf-accent)' }
-    : { background: 'var(--pf-card, rgba(255,255,255,0.04))', borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' };
-
-  return (
-    <div className="relative">
-      {/* Timeline dot connector */}
-      {style === 'classic-clean' && !isLast && (
-        <div className="absolute left-[-1px] top-full w-[2px] h-4" style={{ background: 'var(--pf-border, #e5e7eb)' }} />
-      )}
-      <div
-        className={`${cardClass} pf-exp-card`} style={cardStyle}>
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            {/* Company logo placeholder circle */}
-            <div className="w-9 h-9 rounded-xl shrink-0 flex items-center justify-center text-xs font-bold"
-              style={{ background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)', color: 'var(--pf-accent)' }}>
-              {exp.company?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="font-bold text-base leading-tight" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
-                {exp.position}
-              </h4>
-              <p className="text-sm font-semibold mt-0.5" style={{ color: 'var(--pf-accent)' }}>{exp.company}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {exp.current && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'color-mix(in srgb, var(--pf-accent) 20%, transparent)', color: 'var(--pf-accent)' }}>
-                NOW
-              </span>
-            )}
-            <span className="text-xs px-2.5 py-1 rounded-full" style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', color: 'var(--pf-muted, #9ca3af)', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
-              {exp.startDate} – {exp.current ? 'Present' : exp.endDate}
-            </span>
-          </div>
-        </div>
-
-        {exp.description && (
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-            {exp.description.length > 200 ? exp.description.slice(0, 200) : exp.description}
-            {exp.description.length <= 200 ? '' : !expanded ? '…' : ''}
-          </p>
-        )}
-
-        {/* Always-visible achievements (first 3, only when no long content OR not expandable) */}
-        {exp.achievements?.length > 0 && !hasLongContent && (
-          <ul className="space-y-1.5">
-            {exp.achievements.slice(0, 3).map((a, i) => (
-              <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--pf-accent)' }} />
-                {a}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {/* Expandable extra content */}
-        {hasLongContent && (
-          <div className={`pf-exp-expandable ${expanded ? 'pf-exp-expanded' : ''}`}>
-            {/* Rest of description beyond 200 chars */}
-            {exp.description && exp.description.length > 200 && (
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                {exp.description.slice(200)}
-              </p>
-            )}
-            {/* All achievements */}
-            {exp.achievements?.length > 0 && (
-              <ul className="space-y-1.5 mt-3">
-                {exp.achievements.map((a, i) => (
-                  <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--pf-accent)' }} />
-                    {a}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {hasLongContent && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-80"
-            style={{ color: 'var(--pf-accent)' }}
-          >
-            <ChevronDown className={`w-3.5 h-3.5 pf-exp-chevron ${expanded ? 'pf-exp-chevron-open' : ''}`} />
-            <span className="pf-exp-label">{expanded ? 'Show less' : 'Show more'}</span>
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── Education Card ───────────────────────────────────────────────────────────
-function EducationCard({ edu, style }: { edu: Education; style: string }) {
-  const cardStyle: React.CSSProperties = style === 'classic-clean'
-    ? { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem', paddingTop: '0.75rem', paddingBottom: '0.75rem' }
-    : style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 20%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
-    : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
-
-  return (
-    <div style={cardStyle} className="pf-edu-card space-y-1">
-      <h4 className="font-bold text-sm" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
-        {edu.degree}{edu.field ? ` in ${edu.field}` : ''}
-      </h4>
-      <p className="text-sm font-semibold" style={{ color: 'var(--pf-accent)' }}>{edu.institution}</p>
-      <p className="text-xs" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{edu.startDate} – {edu.endDate}</p>
-      {edu.gpa && <p className="text-xs" style={{ color: 'var(--pf-muted, #9ca3af)' }}>GPA: {edu.gpa}</p>}
-    </div>
-  );
-}
-
-// ─── Project Card ─────────────────────────────────────────────────────────────
-function ProjectCard({ project, style }: { project: Project; style: string }) {
-  const cardStyle: React.CSSProperties = style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
-    : style === 'glass-pro'
-    ? { background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.25rem' }
-    : style === 'classic-clean'
-    ? { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem', paddingTop: '0.75rem', paddingBottom: '0.75rem' }
-    : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
-
-  return (
-    <motion.div variants={scalePop} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-3 group">
-      <div>
-        {project.url ? (
-          <a href={project.url} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 font-bold text-base transition-opacity hover:opacity-80"
-            style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
-            {project.name}
-            <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--pf-accent)' }} />
-          </a>
-        ) : (
-          <h4 className="font-bold text-base" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{project.name}</h4>
-        )}
-        {project.role && <p className="text-sm font-medium mt-0.5" style={{ color: 'var(--pf-accent)' }}>{project.role}</p>}
-      </div>
-      {project.description && (
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{project.description}</p>
-      )}
-      {project.technologies?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {project.technologies.map((t, i) => (
-            <span key={i} className="text-xs px-2.5 py-1 rounded-full font-medium" style={{
-              background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
-              color: 'var(--pf-accent)',
-              border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)',
-            }}>{t}</span>
-          ))}
-        </div>
-      )}
-      {(project.url || project.githubUrl) && (
-        <div className="flex gap-2 flex-wrap">
-          {project.url && (
-            <a href={project.url} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full transition-all hover:opacity-85"
-              style={{ background: 'var(--pf-accent)', color: '#fff' }}>
-              <ExternalLink className="w-3 h-3" /> Live Demo
-            </a>
-          )}
-          {project.githubUrl && (
-            <a href={project.githubUrl} target="_blank" rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all hover:opacity-85"
-              style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.15))', color: 'var(--pf-fg, inherit)' }}>
-              <Github className="w-3 h-3" /> GitHub
-            </a>
-          )}
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
-// ─── Case Study Card ──────────────────────────────────────────────────────────
-function CaseStudyCard({ cs, style }: { cs: CaseStudy; style: string }) {
-  const cardStyle: React.CSSProperties = style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 30%, transparent)', borderRadius: '1rem', padding: '1.5rem' }
-    : style === 'glass-pro'
-    ? { background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '1rem', padding: '1.5rem' }
-    : style === 'classic-clean'
-    ? { borderLeft: '3px solid var(--pf-accent)', paddingLeft: '1.5rem', paddingTop: '1rem', paddingBottom: '1rem', borderRadius: '0 0.75rem 0.75rem 0', background: 'var(--pf-card, #f9f9f9)' }
-    : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.5rem' };
-
-  return (
-    <motion.div variants={unfold} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-4 relative">
-      {/* Tag */}
-      <div className="absolute top-4 right-4">
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
-          style={{ background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)', color: 'var(--pf-accent)', border: '1px solid color-mix(in srgb, var(--pf-accent) 30%, transparent)' }}>
-          Case Study
-        </span>
-      </div>
-
-      <div className="pr-20">
-        {cs.url ? (
-          <a href={cs.url} target="_blank" rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 font-bold text-lg transition-opacity hover:opacity-80 group"
-            style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
-            {cs.title}
-            <ArrowUpRight className="w-4 h-4 opacity-50 group-hover:opacity-100" style={{ color: 'var(--pf-accent)' }} />
-          </a>
-        ) : (
-          <h4 className="font-bold text-lg" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{cs.title}</h4>
-        )}
-      </div>
-
-      {cs.challenge && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--pf-accent)' }}>Challenge</p>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cs.challenge}</p>
-        </div>
-      )}
-
-      {cs.outcome && (
-        <div className="space-y-1.5">
-          <p className="text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--pf-accent)' }}>Outcome</p>
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cs.outcome}</p>
-        </div>
-      )}
-
-      {cs.technologies?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {cs.technologies.map((t, i) => (
-            <span key={i} className="text-xs px-2.5 py-1 rounded-full font-medium"
-              style={{ background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)', color: 'var(--pf-accent)', border: '1px solid color-mix(in srgb, var(--pf-accent) 25%, transparent)' }}>
-              {t}
-            </span>
-          ))}
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
-// ─── Service Card ─────────────────────────────────────────────────────────────
-const SERVICE_ICONS: Record<string, React.ReactNode> = {
-  development: <Code2 className="w-5 h-5" />,
-  design: <Paintbrush className="w-5 h-5" />,
-  consulting: <MessageSquare className="w-5 h-5" />,
-  writing: <PenLine className="w-5 h-5" />,
-  other: <Star className="w-5 h-5" />,
-};
-
-function ServiceCard({ service, style }: { service: PortfolioService; style: string }) {
-  const cardStyle: React.CSSProperties = style === 'bold-dark'
-    ? { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 20%, transparent)', borderRadius: '1rem', padding: '1.25rem' }
-    : style === 'glass-pro'
-    ? { background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '1rem', padding: '1.25rem' }
-    : style === 'classic-clean'
-    ? { background: 'var(--pf-card, #f9f9f9)', border: '1px solid var(--pf-border, #e5e7eb)', borderRadius: '1rem', padding: '1.25rem' }
-    : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
-
-  return (
-    <motion.div variants={scalePop} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-3">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)', color: 'var(--pf-accent)' }}>
-        {SERVICE_ICONS[service.category] || SERVICE_ICONS.other}
-      </div>
-      <div>
-        <h4 className="font-bold text-sm" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{service.title}</h4>
-        {service.startingPrice && (
-          <p className="text-xs font-semibold mt-0.5" style={{ color: 'var(--pf-accent)' }}>
-            From {service.startingPrice}
-          </p>
-        )}
-      </div>
-      {service.description && (
-        <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-          {service.description.slice(0, 100)}{service.description.length > 100 ? '…' : ''}
-        </p>
-      )}
-    </motion.div>
-  );
-}
-
-// ─── Sticky Header ────────────────────────────────────────────────────────────
-function StickyHeader({
-  name, avatarUrl, initials, contactEmail, accentColor, visible
-}: {
-  name: string | null; avatarUrl: string | null; initials: string;
-  contactEmail: string | null; accentColor: string; visible: boolean;
-}) {
-  return (
-    <div
-      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 pf-sticky-header ${visible ? 'pf-sticky-visible' : ''}`}
-      data-pdf-exclude
-      style={{
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        background: 'rgba(10,10,20,0.85)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}
-    >
-      <div className="flex items-center gap-2.5">
-        <Avatar className="w-8 h-8 border" style={{ borderColor: accentColor }}>
-          <AvatarImage src={avatarUrl || undefined} />
-          <AvatarFallback className="text-xs font-bold" style={{ background: accentColor, color: '#fff' }}>{initials}</AvatarFallback>
-        </Avatar>
-        <span className="font-semibold text-sm" style={{ color: 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
-          {name || 'Portfolio'}
-        </span>
-      </div>
-      {contactEmail && (
-        <a href={`mailto:${contactEmail}`}
-          className="text-xs font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-85"
-          style={{ background: accentColor, color: '#fff' }}>
-          Get in Touch
-        </a>
-      )}
-    </div>
-  );
-}
-
-// ─── Skill Cloud Helpers (imported from @/lib/skillCloud) ────────────────────
-
-interface SkillCloudProps {
-  skills: string[];
-  experience: Experience[];
-  projects: Project[];
-  pStyle: string;
-  showMore: boolean;
-  onToggleMore: () => void;
-  hasMore: boolean;
-  moreCount: number;
-}
-
-const SKILL_CLOUD_LIMIT = 28;
-
-function SkillCloud({ skills, experience, projects, showMore, onToggleMore, hasMore, moreCount }: SkillCloudProps) {
-  const scores = useMemo(
-    () => computeSkillFrequencies(skills, experience, projects),
-    [skills, experience, projects]
-  );
-
-  const sorted = useMemo(
-    () => [...skills].sort((a, b) => (scores[b] ?? 0) - (scores[a] ?? 0)),
-    [skills, scores]
-  );
-
-  const visible = showMore ? sorted : sorted.slice(0, SKILL_CLOUD_LIMIT);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const observerFired = useRef(false);
-
-  // Initial reveal via IntersectionObserver
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el || observerFired.current) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        observerFired.current = true;
-        const tags = el.querySelectorAll('.pf-skill-tag');
-        const delay = window.innerWidth < 768 ? 25 : 40;
-        tags.forEach((tag, i) => {
-          (tag as HTMLElement).style.animationDelay = `${i * delay}ms`;
-          tag.classList.add('pf-skill-revealed');
-        });
-        observer.disconnect();
-      },
-      { threshold: 0.2, rootMargin: '0px 0px -50px 0px' }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  // Animate newly revealed tags when "Show more" expands
-  useEffect(() => {
-    if (!showMore || !containerRef.current) return;
-    requestAnimationFrame(() => {
-      const el = containerRef.current;
-      if (!el) return;
-      const unrevealed = el.querySelectorAll('.pf-skill-tag:not(.pf-skill-revealed)');
-      if (unrevealed.length === 0) return;
-      const alreadyCount = el.querySelectorAll('.pf-skill-tag.pf-skill-revealed').length;
-      const delay = window.innerWidth < 768 ? 25 : 40;
-      unrevealed.forEach((tag, i) => {
-        (tag as HTMLElement).style.animationDelay = `${(alreadyCount + i) * delay}ms`;
-        tag.classList.add('pf-skill-revealed');
-      });
-    });
-  }, [showMore]);
-
-  return (
-    <>
-      <div ref={containerRef} className="flex flex-wrap gap-2 items-baseline">
-        {visible.map((skill, i) => {
-          const tier = getSkillTier(scores[skill] ?? 0);
-          return (
-            <span
-              key={skill}
-              title={skill}
-              className="pf-skill-tag"
-              style={{
-                fontSize: tier.fontSize,
-                fontWeight: tier.fontWeight,
-                padding: `${tier.py} ${tier.px}`,
-                borderRadius: '9999px',
-                background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
-                color: 'var(--pf-accent)',
-                border: '1px solid color-mix(in srgb, var(--pf-accent) 22%, transparent)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                transition: 'all 0.2s',
-                lineHeight: 1.2,
-                cursor: 'default',
-              }}
-            >
-              {skill}
-            </span>
-          );
-        })}
-      </div>
-      {hasMore && (
-        <button
-          onClick={onToggleMore}
-          className="mt-3 text-xs font-medium flex items-center gap-1 transition-opacity hover:opacity-80"
-          style={{ color: 'var(--pf-accent)' }}
-        >
-          {showMore
-            ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</>
-            : <><ChevronDown className="w-3.5 h-3.5" /> +{moreCount} more</>}
-        </button>
-      )}
-    </>
-  );
-}
-
-// ─── StatsStrip — animated number counters ────────────────────────────────────
-function StatsStrip({ experience, skillCount, accentColor }: {
-  experience: Experience[];
-  skillCount: number;
-  accentColor: string;
-}) {
-  const stripRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [counts, setCounts] = useState<number[]>([]);
-  const animatedRef = useRef(false);
-
-  // Compute stats
-  const stats = useMemo(() => {
-    const result: { value: number; label: string }[] = [];
-    if (experience.length > 0) {
-      const years = experience.map(e => {
-        const parsed = parseResumeDate(e.startDate);
-        return parsed ? parsed.year : NaN;
-      }).filter(y => !isNaN(y));
-      if (years.length > 0) {
-        const earliest = Math.min(...years);
-        const yrs = new Date().getFullYear() - earliest;
-        if (yrs > 0) result.push({ value: yrs, label: 'Years Experience' });
-      }
-    }
-    if (experience.length > 0) result.push({ value: experience.length, label: 'Roles Held' });
-    if (skillCount > 0) result.push({ value: skillCount, label: 'Skills' });
-    return result;
-  }, [experience, skillCount]);
-
-  // Initialize counts to 0
-  useEffect(() => {
-    setCounts(stats.map(() => 0));
-  }, [stats]);
-
-  // IntersectionObserver + count-up
-  useEffect(() => {
-    if (!stripRef.current || stats.length === 0) return;
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const observer = new IntersectionObserver(([entry]) => {
-      if (!entry.isIntersecting || animatedRef.current) return;
-      animatedRef.current = true;
-      setVisible(true);
-      if (prefersReduced) {
-        setCounts(stats.map(s => s.value));
-        observer.disconnect();
-        return;
-      }
-      const duration = 1800;
-      stats.forEach((stat, idx) => {
-        const delay = idx * 200;
-        setTimeout(() => {
-          const start = performance.now();
-          const tick = (now: number) => {
-            const elapsed = now - start;
-            const t = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - t, 3);
-            setCounts(prev => {
-              const next = [...prev];
-              next[idx] = Math.round(eased * stat.value);
-              return next;
-            });
-            if (t < 1) requestAnimationFrame(tick);
-          };
-          requestAnimationFrame(tick);
-        }, delay);
-      });
-      observer.disconnect();
-    }, { threshold: 0.5 });
-    observer.observe(stripRef.current);
-    return () => observer.disconnect();
-  }, [stats]);
-
-  if (stats.length === 0) return null;
-
-  return (
-    <div
-      ref={stripRef}
-      className={`pf-stats-strip mx-2 mt-8 rounded-2xl ${visible ? 'pf-stats-visible' : ''}`}
-      style={{
-        background: 'var(--pf-card, rgba(255,255,255,0.04))',
-        border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-      }}
-    >
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${stats.length}, 1fr)` }}>
-        {stats.map((stat, i) => (
-          <div
-            key={stat.label}
-            className="flex flex-col items-center justify-center py-5 px-2"
-            style={i > 0 ? { borderLeft: '1px solid var(--pf-border, rgba(255,255,255,0.08))' } : undefined}
-          >
-            <span style={{ fontSize: '2rem', fontWeight: 800, color: accentColor, lineHeight: 1.1 }}>
-              {(counts[i] ?? 0)}+
-            </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--pf-muted, #9ca3af)', marginTop: '0.25rem', textAlign: 'center' }}>
-              {stat.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ─── SectionNav — mobile quick-nav pills ──────────────────────────────────────
-function SectionNav({ sections, accentColor }: {
-  sections: { id: string; label: string }[];
-  accentColor: string;
-}) {
-  const [activeId, setActiveId] = useState(sections[0]?.id || '');
-  const pillRowRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observers: IntersectionObserver[] = [];
-    sections.forEach(s => {
-      const el = document.getElementById(s.id);
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) setActiveId(s.id); },
-        { threshold: 0.2, rootMargin: '-30% 0px -70% 0px' }
-      );
-      obs.observe(el);
-      observers.push(obs);
-    });
-    return () => observers.forEach(o => o.disconnect());
-  }, [sections]);
-
-  // Auto-scroll the active pill into view within the row
-  useEffect(() => {
-    if (!pillRowRef.current) return;
-    const activePill = pillRowRef.current.querySelector(`[data-nav-id="${activeId}"]`) as HTMLElement | null;
-    if (activePill) {
-      activePill.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
-    }
-  }, [activeId]);
-
-  const handleTap = (id: string) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
-    haptics.light();
-  };
-
-  if (sections.length === 0) return null;
-
-  return (
-    <div
-      className="md:hidden sticky z-40"
-      style={{
-        top: '48px',
-        background: 'var(--pf-bg-alpha, rgba(10,10,20,0.88))',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}
-    >
-      <div
-        ref={pillRowRef}
-        className="pf-nav-pills flex gap-2 px-4 py-2.5 overflow-x-auto"
-      >
-        {sections.map(s => {
-          const isActive = s.id === activeId;
-          return (
-            <button
-              key={s.id}
-              data-nav-id={s.id}
-              onClick={() => handleTap(s.id)}
-              className="inline-flex items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors active:scale-95"
-              style={{
-                background: isActive ? accentColor : 'var(--pf-card, rgba(255,255,255,0.06))',
-                color: isActive ? '#fff' : 'var(--pf-muted, #9ca3af)',
-                border: isActive ? 'none' : '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-                minHeight: '44px',
-              }}
-            >
-              {s.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
@@ -1178,9 +128,9 @@ function PublicPortfolioContent() {
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
   const [nearFooter, setNearFooter] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
 
-  // Contact CTA logic (hooks must be before early returns)
   const contactHref = useMemo(() => {
     if (portfolio?.profile?.contactEmail) return `mailto:${portfolio.profile.contactEmail}`;
     if (portfolio?.profile?.linkedinUrl) return portfolio.profile.linkedinUrl;
@@ -1197,13 +147,13 @@ function PublicPortfolioContent() {
   }, []);
   const ctaVisible = stickyVisible && !nearFooter && !!contactHref;
 
-  // Live active status — polls every 60s
+  // Live active status — polls every 60s, pauses when tab hidden
   const liveLastActiveAt = useActiveStatus(
     username || '',
     portfolio?.profile?.lastActiveAt ?? null,
   );
 
-  // Track visited sections via IntersectionObserver
+  // Track visited sections via single shared IntersectionObserver
   const sectionsViewedRef = useRef<Set<string>>(new Set());
   const mountTimeRef = useRef<number>(Date.now());
   const trackSentRef = useRef(false);
@@ -1220,7 +170,6 @@ function PublicPortfolioContent() {
       timeSpentSeconds,
     });
     const url = `${SUPABASE_URL}/functions/v1/track-portfolio-view`;
-    // sendBeacon works on page close; fetch is a backup
     if (navigator.sendBeacon) {
       navigator.sendBeacon(url, new Blob([body], { type: 'application/json' }));
     } else {
@@ -1228,7 +177,7 @@ function PublicPortfolioContent() {
     }
   }, [portfolio, ref]);
 
-  // Send beacon on page hide / visibility change
+  // Send beacon on page hide / visibility change (removed 30s timer)
   useEffect(() => {
     const onHide = () => sendTrackingBeacon();
     document.addEventListener('visibilitychange', onHide);
@@ -1240,47 +189,26 @@ function PublicPortfolioContent() {
     };
   }, [sendTrackingBeacon]);
 
-  // Also send after 30s for long-staying visitors
-  useEffect(() => {
-    const t = setTimeout(() => {
-      if (!trackSentRef.current) {
-        // Don't mark as sent so we still send on leave for longer visits
-        if (portfolio?.profile?.username) {
-          const timeSpentSeconds = Math.round((Date.now() - mountTimeRef.current) / 1000);
-          const body = JSON.stringify({
-            username: portfolio.profile.username,
-            ref,
-            sectionsViewed: [...sectionsViewedRef.current],
-            timeSpentSeconds,
-          });
-          fetch(`${SUPABASE_URL}/functions/v1/track-portfolio-view`, {
-            method: 'POST',
-            body,
-            headers: { 'Content-Type': 'application/json' },
-          }).catch(() => {});
-          trackSentRef.current = true;
-        }
-      }
-    }, 30_000);
-    return () => clearTimeout(t);
-  }, [portfolio, ref]);
-
-  // Section scroll tracking via IntersectionObserver
+  // Section scroll tracking via single IntersectionObserver
   useEffect(() => {
     if (!portfolio) return;
-    const sectionNames = ['experience', 'education', 'skills', 'projects', 'certifications', 'case-studies', 'services'];
-    const observers: IntersectionObserver[] = [];
+    const sectionNames = ['experience', 'education', 'skills', 'projects', 'certifications', 'awards', 'publications', 'volunteering', 'case-studies', 'services'];
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const name = entry.target.id.replace('section-', '');
+            sectionsViewedRef.current.add(name);
+          }
+        }
+      },
+      { threshold: 0.3 }
+    );
     sectionNames.forEach(name => {
       const el = document.getElementById(`section-${name}`);
-      if (!el) return;
-      const obs = new IntersectionObserver(
-        ([entry]) => { if (entry.isIntersecting) sectionsViewedRef.current.add(name); },
-        { threshold: 0.3 }
-      );
-      obs.observe(el);
-      observers.push(obs);
+      if (el) observer.observe(el);
     });
-    return () => observers.forEach(o => o.disconnect());
+    return () => observer.disconnect();
   }, [portfolio]);
 
   // Sticky header observer
@@ -1359,7 +287,6 @@ function PublicPortfolioContent() {
         foreignObjectRendering: false,
         ignoreElements: (el) => el.hasAttribute('data-pdf-exclude'),
         onclone: (clonedDoc) => {
-          // Remove cross-origin images that may cause html2canvas to fail
           const imgs = clonedDoc.querySelectorAll('img');
           imgs.forEach((img) => {
             try {
@@ -1415,6 +342,9 @@ function PublicPortfolioContent() {
   const hasSkills = show('skills') && resume.skills?.length > 0;
   const hasProjects = show('projects') && resume.projects?.length > 0;
   const hasCerts = show('certifications') && resume.certifications?.length > 0;
+  const hasAwards = show('awards') && resume.awards?.length > 0;
+  const hasPublications = show('publications') && resume.publications?.length > 0;
+  const hasVolunteering = show('volunteering') && resume.volunteering?.length > 0;
   const hasCaseStudies = profile.caseStudies?.length > 0;
   const hasServices = profile.services?.length > 0;
 
@@ -1444,7 +374,7 @@ function PublicPortfolioContent() {
       '--pf-border': '#e5e7eb',
       '--pf-fg': '#111827',
       '--pf-muted': '#6b7280',
-    } as React.CSSProperties : /* minimal */ {
+    } as React.CSSProperties : {
       '--pf-bg': '#0a0a14',
       '--pf-bg-alpha': 'rgba(10,10,20,0.88)',
       '--pf-card': 'rgba(255,255,255,0.04)',
@@ -1467,8 +397,20 @@ function PublicPortfolioContent() {
   const allSkills = resume.skills.map((s) => typeof s === 'string' ? s : (s as Record<string, string>).name || String(s));
   const hasMoreSkills = allSkills.length > SKILL_CLOUD_LIMIT;
 
-  // Tagline: availability headline or first ~80 chars of bio
-  const tagline = profile.availabilityHeadline || (profile.portfolioBio ? profile.portfolioBio.slice(0, 90) + (profile.portfolioBio.length > 90 ? '…' : '') : null);
+  // Build nav sections including certifications, awards, publications, volunteering
+  const navSections = [
+    ...(profile.portfolioBio ? [{ id: 'section-about', label: 'About' }] : []),
+    ...(hasExperience ? [{ id: 'section-experience', label: 'Experience' }] : []),
+    ...(hasSkills ? [{ id: 'section-skills', label: 'Skills' }] : []),
+    ...(hasEducation ? [{ id: 'section-education', label: 'Education' }] : []),
+    ...(hasProjects ? [{ id: 'section-projects', label: 'Projects' }] : []),
+    ...(hasCaseStudies ? [{ id: 'section-case-studies', label: 'Case Studies' }] : []),
+    ...(hasServices ? [{ id: 'section-services', label: 'Services' }] : []),
+    ...(hasCerts ? [{ id: 'section-certifications', label: 'Certifications' }] : []),
+    ...(hasAwards ? [{ id: 'section-awards', label: 'Awards' }] : []),
+    ...(hasPublications ? [{ id: 'section-publications', label: 'Publications' }] : []),
+    ...(hasVolunteering ? [{ id: 'section-volunteering', label: 'Volunteering' }] : []),
+  ];
 
   return (
     <div
@@ -1477,7 +419,6 @@ function PublicPortfolioContent() {
       style={{ ...rootStyle, backgroundColor: 'var(--pf-bg, #0a0a14)', color: 'var(--pf-fg, #f5f5ff)' }}
       data-portfolio-style={pStyle}
     >
-      {/* Sticky mini-header */}
       <StickyHeader
         name={profile.fullName}
         avatarUrl={profile.avatarUrl}
@@ -1493,19 +434,18 @@ function PublicPortfolioContent() {
         animate="visible"
         variants={stagger}
       >
-        {/* ── Hero ───────────────────────────────────────────────────────── */}
+        {/* ── Hero ─────────────────────────────────────────────────────── */}
         <motion.div
           ref={heroRef}
           variants={fadeUp}
           className="relative flex flex-col items-center text-center pt-16 pb-12 px-4"
           style={heroBg}
         >
-          {/* Ambient gradient background (dark themes only) */}
           {pStyle !== 'classic-clean' && (
             <div className="pf-hero-ambient rounded-2xl" aria-hidden="true" />
           )}
 
-          {/* Avatar with animated glow ring */}
+          {/* Avatar — static gradient border (no infinite spin) */}
           <div className="relative mb-6">
             <div
               className="absolute inset-0 rounded-full scale-125 animate-pulse opacity-20 blur-lg"
@@ -1513,7 +453,7 @@ function PublicPortfolioContent() {
             />
             <div
               className="absolute inset-[-4px] rounded-full opacity-40"
-              style={{ background: `conic-gradient(${accentColor}, transparent, ${accentColor})`, animation: 'spin 6s linear infinite' }}
+              style={{ background: `conic-gradient(${accentColor}, transparent, ${accentColor})` }}
             />
             <Avatar className="h-36 w-36 relative z-10 border-[3px]" style={{ borderColor: accentColor }}>
               <AvatarFallback
@@ -1526,12 +466,10 @@ function PublicPortfolioContent() {
             </Avatar>
           </div>
 
-          {/* Name — dominant */}
           <h1 className="text-5xl md:text-6xl font-black leading-tight mb-3" style={{ fontFamily: 'var(--pf-heading-font)' }}>
             {profile.fullName || 'Anonymous'}
           </h1>
 
-          {/* Role pill + Open to Work badge + location + social + CTAs with entrance animations */}
           {(() => {
             const nameLen = (profile.fullName || 'Anonymous').length;
             const badgeDelay = nameLen * 35 + 200 + 100;
@@ -1558,18 +496,13 @@ function PublicPortfolioContent() {
             )}
           </div>
 
-          {/* Active today badge — only when openToWork + active within 24h */}
           {profile.openToWork && isActiveWithin24h(liveLastActiveAt) && (
             <motion.div
               initial={{ opacity: 0, scale: 0.85 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.4, ease: [0, 0, 0.2, 1] }}
               className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium mb-3"
-              style={{
-                background: 'rgba(34,197,94,0.10)',
-                color: '#22c55e',
-                border: '1px solid rgba(34,197,94,0.25)',
-              }}
+              style={{ background: 'rgba(34,197,94,0.10)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.25)' }}
             >
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22c55e] opacity-75" />
@@ -1579,22 +512,17 @@ function PublicPortfolioContent() {
             </motion.div>
           )}
 
-          {/* Availability headline badge */}
           {profile.availabilityHeadline && (
             <div
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-2.5 pf-availability-entrance"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-4"
               style={{
-                background: 'rgba(34, 197, 94, 0.10)',
-                border: '1px solid rgba(34, 197, 94, 0.25)',
-                animationDelay: `${badgeDelay + 200}ms`,
-                maxWidth: '85vw',
+                background: `color-mix(in srgb, ${accentColor} 8%, transparent)`,
+                border: `1px solid color-mix(in srgb, ${accentColor} 20%, transparent)`,
               }}
             >
-              <span className="pf-availability-dot" />
-              <span style={{
-                color: '#86efac',
-                fontSize: '0.8rem',
-                fontWeight: 500,
+              <Sparkles className="w-3.5 h-3.5 shrink-0" style={{ color: accentColor }} />
+              <span className="text-xs font-medium" style={{
+                color: accentColor,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
@@ -1621,17 +549,13 @@ function PublicPortfolioContent() {
             )}
           </div>
 
-          {/* Typewriter Tagline */}
           <div className="pf-fade-entrance" style={{ animationDelay: `${locationDelay}ms` }}>
             {(() => {
               const phrases = buildTypewriterPhrases(profile, allSkills);
-              return phrases.length > 0 ? (
-                <TypewriterText phrases={phrases} accentColor={accentColor} />
-              ) : null;
+              return phrases.length > 0 ? <TypewriterText phrases={phrases} accentColor={accentColor} /> : null;
             })()}
           </div>
 
-          {/* Social icon buttons */}
           {(profile.linkedinUrl || profile.githubUrl || profile.websiteUrl || profile.twitterUrl) && (
             <div className="flex items-center justify-center gap-2 mb-6">
               {profile.linkedinUrl && (
@@ -1669,7 +593,6 @@ function PublicPortfolioContent() {
             </div>
           )}
 
-          {/* CTAs: primary = Get in Touch, secondary = View Projects, tertiary = Download */}
           <div className="flex items-center justify-center gap-3 flex-wrap">
             {profile.contactEmail && (
               <a
@@ -1715,27 +638,13 @@ function PublicPortfolioContent() {
           })()}
         </motion.div>
 
-        {/* ── Stats Strip ──────────────────────────────────────────────── */}
         <StatsStrip experience={resume.experience} skillCount={allSkills.length} accentColor={accentColor} />
 
-        {/* ── Section Quick-Nav Pills (mobile) ─────────────────────────── */}
-        <SectionNav
-          sections={[
-            ...(profile.portfolioBio ? [{ id: 'section-about', label: 'About' }] : []),
-            ...(hasExperience ? [{ id: 'section-experience', label: 'Experience' }] : []),
-            ...(hasSkills ? [{ id: 'section-skills', label: 'Skills' }] : []),
-            ...(hasEducation ? [{ id: 'section-education', label: 'Education' }] : []),
-            ...(hasProjects ? [{ id: 'section-projects', label: 'Projects' }] : []),
-            ...(hasCaseStudies ? [{ id: 'section-case-studies', label: 'Case Studies' }] : []),
-            ...(hasServices ? [{ id: 'section-services', label: 'Services' }] : []),
-          ]}
-          accentColor={accentColor}
-        />
+        <SectionNav sections={navSections} accentColor={accentColor} />
 
         {/* ── Body content ─────────────────────────────────────────────── */}
         <div className={`px-2 pb-20 pt-10 ${isTwoCol ? 'md:grid md:grid-cols-5 md:gap-10' : 'space-y-10'}`}>
 
-          {/* Left column (or full width in single layout) */}
           <div className={isTwoCol ? 'md:col-span-3 space-y-10' : 'space-y-10'}>
 
             {/* About */}
@@ -1772,14 +681,11 @@ function PublicPortfolioContent() {
                   }, { threshold: 0.15 });
                   obs.observe(node);
                 }}>
-                  {/* Timeline vertical line */}
                   <div className="pf-timeline-line" style={{ background: `linear-gradient(to bottom, ${accentColor}, transparent)` }} />
                   <div className="space-y-4 pl-11 md:pl-14">
                     {resume.experience.map((exp, i) => (
                       <div key={exp.id || i} className="relative">
-                        {/* Timeline dot */}
                         <div className="pf-timeline-dot" style={{ background: accentColor, borderColor: 'var(--pf-bg, #0a0a1a)' }} />
-                        {/* Horizontal connector */}
                         <div className="pf-timeline-connector" style={{ background: accentColor }} />
                         <ExperienceCard exp={exp} style={pStyle} isLast={i === resume.experience.length - 1} index={i} />
                       </div>
@@ -1826,7 +732,6 @@ function PublicPortfolioContent() {
             )}
           </div>
 
-          {/* Right column (two-col) or inline below (single) */}
           <div className={isTwoCol ? 'md:col-span-2 space-y-10' : 'space-y-10'}>
 
             {/* Skills */}
@@ -1882,7 +787,7 @@ function PublicPortfolioContent() {
 
             {/* Certifications */}
             {hasCerts && (
-              <motion.section variants={stagger}>
+              <motion.section variants={stagger} id="section-certifications">
                 <SectionHeader icon={<Award className="w-5 h-5" />} title="Certifications" style={pStyle} />
                 <div className="space-y-3">
                   {resume.certifications.map((cert, i) => (
@@ -1892,6 +797,88 @@ function PublicPortfolioContent() {
                     }}>
                       <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
                       <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cert.issuer} · {cert.date}</p>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {/* Awards */}
+            {hasAwards && (
+              <motion.section variants={stagger} id="section-awards">
+                <SectionHeader icon={<Trophy className="w-5 h-5" />} title="Awards" style={pStyle} />
+                <div className="space-y-3">
+                  {resume.awards.map((award, i) => (
+                    <motion.div key={award.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
+                      background: 'var(--pf-card, rgba(255,255,255,0.04))',
+                      border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
+                    }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{award.title}</h4>
+                        {award.date && <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.date}</span>}
+                      </div>
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-accent)' }}>{award.issuer}</p>
+                      {award.description && (
+                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.description}</p>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {/* Publications */}
+            {hasPublications && (
+              <motion.section variants={stagger} id="section-publications">
+                <SectionHeader icon={<BookOpen className="w-5 h-5" />} title="Publications" style={pStyle} />
+                <div className="space-y-3">
+                  {resume.publications.map((pub, i) => (
+                    <motion.div key={pub.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
+                      background: 'var(--pf-card, rgba(255,255,255,0.04))',
+                      border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
+                    }}>
+                      {pub.url ? (
+                        <a href={pub.url} target="_blank" rel="noopener noreferrer"
+                          className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
+                          style={{ color: 'var(--pf-fg, inherit)' }}>
+                          {pub.title}
+                          <ExternalLink className="w-3 h-3" style={{ color: 'var(--pf-accent)' }} />
+                        </a>
+                      ) : (
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{pub.title}</h4>
+                      )}
+                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                        {pub.publisher}{pub.date ? ` · ${pub.date}` : ''}
+                      </p>
+                      {pub.description && (
+                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{pub.description}</p>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {/* Volunteering */}
+            {hasVolunteering && (
+              <motion.section variants={stagger} id="section-volunteering">
+                <SectionHeader icon={<Heart className="w-5 h-5" />} title="Volunteering" style={pStyle} />
+                <div className="space-y-3">
+                  {resume.volunteering.map((vol, i) => (
+                    <motion.div key={vol.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
+                      background: 'var(--pf-card, rgba(255,255,255,0.04))',
+                      border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
+                    }}>
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{vol.role}</h4>
+                        <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                          {vol.startDate} – {vol.endDate || 'Present'}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--pf-accent)' }}>{vol.organization}</p>
+                      {vol.description && (
+                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{vol.description}</p>
+                      )}
                     </motion.div>
                   ))}
                 </div>
@@ -1913,6 +900,7 @@ function PublicPortfolioContent() {
           </a>
         </motion.div>
       </motion.div>
+
       {contactHref && (
         <div
           className={`pf-contact-cta ${ctaVisible ? 'pf-contact-visible' : 'pf-contact-hidden'}`}
@@ -1932,12 +920,17 @@ function PublicPortfolioContent() {
           </a>
         </div>
       )}
-      <ChatWidget
-        profile={profile}
-        resume={resume}
-        accentColor={accentColor}
-        pStyle={pStyle}
-      />
+
+      {/* Lazy-loaded ChatWidget — only renders when FAB is clicked */}
+      <Suspense fallback={null}>
+        <ChatWidget
+          profile={profile}
+          resume={resume}
+          accentColor={accentColor}
+          pStyle={pStyle}
+        />
+      </Suspense>
+
       <CareerCardSheet
         open={showCareerCard}
         onOpenChange={setShowCareerCard}
