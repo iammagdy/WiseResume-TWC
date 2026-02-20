@@ -1,67 +1,113 @@
 
 
-# 3 UX Improvements
+# UX Improvements: Skills Toggle + Score Tips Deep Links
 
-## IMPROVEMENT 1: Add Mobile Header with Brand Logo
+## IMPROVEMENT 1: Skills "Show More/Less" — Lower Default from 20 to 7
 
-**Current state**: On mobile, the BottomTabBar handles navigation perfectly (already implemented with `lg:hidden`). The DesktopNav shows only on `lg+` screens (already correct with `hidden lg:flex`). However, there is NO mobile header showing the app brand name — the page content starts immediately at the top.
+**Current state** (lines 690-713): The skills list already has a working show/hide toggle with `showAllSkills` state, but the default collapsed view shows 20 items (`.slice(0, showAllSkills ? 999 : 20)`), which is too many on mobile. The toggle button only appears when there are more than 20 skills.
 
-**Change**: Add a slim mobile-only header bar in `AppShell.tsx` that shows "WiseResume" brand text, visible only below `lg` breakpoint.
+**Fix**: Change the default collapsed count from 20 to 7, and update the toggle threshold from 20 to 7.
 
-### File: `src/components/layout/AppShell.tsx`
-- Add a mobile header div before `<main>` (only when `showBottomNav` is true):
-  - Class: `lg:hidden` (hidden on desktop where DesktopNav already shows brand)
-  - Contains: "WiseResume" brand text in top-left, styled with `text-sm font-bold text-primary`
-  - Height: compact (h-10), glass surface with bottom border, respects `pt-safe`
-  - No nav links — just the brand mark
+### File: `src/pages/PortfolioEditorPage.tsx`
 
-No other navigation changes needed — the bottom tab bar and desktop nav already work correctly.
-
----
-
-## IMPROVEMENT 2: Restyle "Unpublish Portfolio" Button
-
-**Current state** (line 604-610 of `PortfolioEditorPage.tsx`):
-```tsx
-<Button variant="destructive" className="w-full h-11 ...">
-  Unpublish Portfolio
-</Button>
+**Line 690** — Change slice limit:
 ```
-This renders as a solid red button identical in weight to "Save Portfolio".
+sortedSkillScores.slice(0, showAllSkills ? 999 : 20)
+```
+becomes:
+```
+sortedSkillScores.slice(0, showAllSkills ? 999 : 7)
+```
 
-**Change**: Switch from `variant="destructive"` to `variant="outline"` and add destructive styling via classes.
+**Line 709** — Change threshold for showing the toggle button:
+```
+{sortedSkillScores.length > 20 && (
+```
+becomes:
+```
+{sortedSkillScores.length > 7 && (
+```
 
-### File: `src/pages/PortfolioEditorPage.tsx` (lines 604-610)
-- Change the Button to:
-  - `variant="outline"`
-  - Add classes: `border-destructive text-destructive hover:bg-destructive/10`
-  - Add `AlertTriangle` icon (from lucide-react, already available) before the label
-- This makes it visually lighter (transparent bg, red border/text) while keeping the same onClick handler
+No other changes needed -- the toggle button text and `showAllSkills` state already work correctly.
 
 ---
 
-## IMPROVEMENT 3: Make Editor Resume Name Tappable for Switching
+## IMPROVEMENT 2: Make "Improve Your Score" Tips Tappable with Deep Links
 
-**Current state** (lines 908-920 of `EditorPage.tsx`):
-The resume title is displayed and tapping it opens a `window.prompt()` to rename. There's no way to switch resumes.
+**Current state** (lines 637-643): Tips render as plain `<p>` tags with a dot bullet. Each tip has a `.tip` string property.
 
-**Change**: Make the resume name tap navigate to `/dashboard` so the user can pick a different resume, and add a small chevron-down indicator to signal interactivity. Move the rename action to a long-press or remove it (the rename is a niche feature; switching resumes is more useful).
+**Fix**: Replace the `<p>` with a `<button>` that, when tapped, opens the target CollapsibleCard section and scrolls to it. Map each tip string to a section ID:
 
-### File: `src/pages/EditorPage.tsx` (lines 908-920)
-- Change the `onClick` handler from `window.prompt` rename to `navigate('/dashboard')`
-- Add a `ChevronDown` icon (already imported) after the title text as a visual affordance
-- Keep the `truncate` class and add `max-w-[45vw]` to ensure proper truncation on small screens
-- The title tooltip (`title` attribute) still shows the full name on hover/long-press
+| Tip text (partial match) | Target section ID | Action |
+|---|---|---|
+| "Write a bio" | `bio` | Open + scroll |
+| "social link or contact email" | `social` | Open + scroll (also set `showAllSections=true` since social is conditional) |
+| "availability headline" | `availability` | Open + scroll (also set `showAllSections=true` since availability is conditional) |
+| "profile photo" | navigate to `/settings` | Router navigate |
+| "portfolio username" | `identity` | Open + scroll |
+| "custom page title" or "meta description" | `seo` (or equivalent section) | Open + scroll |
+| "work experience" or "skills" | navigate to `/editor` | Router navigate |
+| "Publish your portfolio" | Trigger save with `portfolioEnabled: true` or scroll to publish button |
+
+### File: `src/pages/PortfolioEditorPage.tsx`
+
+**Lines 637-643** — Replace the tip rendering block:
+
+```tsx
+<div className="space-y-1">
+  {strengthMissing.map((m, i) => {
+    const handleTipTap = () => {
+      haptics.light();
+      // Map tip to section
+      const tip = m.tip.toLowerCase();
+      if (tip.includes('bio')) {
+        setOpenSections(prev => new Set(prev).add('bio'));
+        setTimeout(() => document.getElementById('section-bio')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      } else if (tip.includes('social link') || tip.includes('contact email')) {
+        setShowAllSections(true);
+        setOpenSections(prev => new Set(prev).add('social'));
+        setTimeout(() => document.getElementById('section-social')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      } else if (tip.includes('availability')) {
+        setShowAllSections(true);
+        setOpenSections(prev => new Set(prev).add('availability'));
+        setTimeout(() => document.getElementById('section-availability')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      } else if (tip.includes('username')) {
+        setOpenSections(prev => new Set(prev).add('identity'));
+        setTimeout(() => document.getElementById('section-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      } else if (tip.includes('page title') || tip.includes('meta description')) {
+        setOpenSections(prev => new Set(prev).add('seo'));
+        setTimeout(() => document.getElementById('section-seo')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+      } else {
+        navigate('/editor');
+      }
+    };
+    return (
+      <button key={i} onClick={handleTipTap} className="w-full flex items-center gap-1.5 text-xs text-muted-foreground py-1.5 rounded-lg hover:bg-muted/30 active:scale-[0.98] transition-all touch-manipulation text-left px-1">
+        <span className="text-primary shrink-0">·</span>
+        <span className="flex-1">{m.tip}</span>
+        <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+      </button>
+    );
+  })}
+</div>
+```
+
+Additionally, each `CollapsibleCard` needs an `id` attribute on its wrapper div so `scrollIntoView` can target it. Add `id={`section-${id}`}` to the outer div in the `CollapsibleCard` component (line 154):
+
+```tsx
+<div id={`section-${id}`} className="glass-elevated rounded-2xl overflow-hidden">
+```
 
 ---
 
 ## Summary
 
-| File | Change |
-|------|--------|
-| `src/components/layout/AppShell.tsx` | Add mobile-only brand header (3-4 lines) |
-| `src/pages/PortfolioEditorPage.tsx` | Restyle Unpublish button (1 line change) |
-| `src/pages/EditorPage.tsx` | Resume name tap navigates to dashboard + chevron indicator (2 line changes) |
+| File | Changes |
+|---|---|
+| `src/pages/PortfolioEditorPage.tsx` | Line 154: add `id` to CollapsibleCard wrapper |
+| `src/pages/PortfolioEditorPage.tsx` | Line 690: change slice from 20 to 7 |
+| `src/pages/PortfolioEditorPage.tsx` | Line 709: change threshold from 20 to 7 |
+| `src/pages/PortfolioEditorPage.tsx` | Lines 637-643: replace tip `<p>` with tappable `<button>` rows with deep-link scroll logic |
 
 No backend, routing, database, or dependency changes.
 
