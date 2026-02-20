@@ -1,43 +1,46 @@
 
+# Fix Portfolio Links to Use Custom Domain
 
-# Update Display URL Format Across the App
+## Problem
+When users copy or share their portfolio link, the URL uses whatever domain the app is currently running on (e.g., `1d3d9943-c1ba-4253-b633-6b1457b9b330.lovableproject.com`). Your custom domain `wiseresume.magdysaber.com` should be used instead.
 
-## Summary
-Replace all visible occurrences of `wiseresume.app/p/username` with the shorter format `WiseResume/username`. The actual functional URLs (QR data, share links, copy-to-clipboard) remain unchanged -- only the cosmetic display text is updated.
+## Solution
+Create a small utility that always returns the correct production base URL for portfolio links, regardless of where the app is running (preview, staging, or production). All places that build a `/p/username` URL will use this utility.
 
 ## Changes
 
-### 1. `src/pages/PortfolioEditorPage.tsx`
-- **Line 473**: Change `portfolioDisplayUrl` from `` `wiseresume.app/p/${username}` `` to `` `WiseResume/${username}` ``
-- **Line 833**: Change the username hint label from `wiseresume.app/p/` to `WiseResume/`
+### 1. Create `src/lib/portfolioUrl.ts` (new file)
+A helper function `getPortfolioBaseUrl()` that:
+- Returns `https://wiseresume.magdysaber.com` as the canonical production domain
+- Used everywhere a shareable portfolio URL is constructed
 
-### 2. `src/components/portfolio/PortfolioQRDialog.tsx`
-- **`formatDisplayUrl` function**: Update to return `WiseResume/slug` instead of `hostname/.../slug`
+Also export a convenience function `getPortfolioUrl(username: string)` that returns the full URL.
 
-### 3. `src/pages/Index.tsx`
-- **Line 82**: Change the demo address bar text from `wiseresume.app/p/you` to `WiseResume/you`
+### 2. Update `src/pages/PortfolioEditorPage.tsx`
+- Replace `${window.location.origin}/p/${username}` on line 475 with `getPortfolioUrl(username)`
+- This fixes: copy link, share, QR code data, and preview button
 
-### 4. `src/pages/ProfilePage.tsx`
-- **Line 137**: Change the profile subtitle from `` `wiseresume.app/p/${profile.username}` `` to `` `WiseResume/${profile.username}` ``
+### 3. Update `src/pages/ProfilePage.tsx`
+- Replace `${window.location.origin}/p/${profile.username}` on lines 52 and 155 with `getPortfolioUrl(profile.username)`
+- This fixes: share profile and preview button on the profile page
 
-### 5. `src/components/portfolio/CareerCardSheet.tsx`
-- **Line 354**: Change the career card URL display from `` `wiseresume.app/p/${username}` `` to `` `WiseResume/${username}` ``
-- **Line 594**: Same change in the exportable career card footer
+### 4. Update `src/components/portfolio/PortfolioQRDialog.tsx`
+- Replace the fallback `'https://wiseresume.lovable.app'` on line 45 with the production domain from the helper
 
-### 6. `supabase/functions/og-image/index.ts`
-- **Line 269**: Change the OG image bottom URL text from `` `wiseresume.app/p/${username}` `` to `` `WiseResume/${username}` ``
+### 5. Update `src/components/portfolio/CareerCardSheet.tsx`
+- Replace `https://wiseresume.app/p/${username}` on line 477 (LinkedIn share) with `getPortfolioUrl(username)`
 
 ## What stays the same
-- All actual URLs used for navigation, QR code data, sharing, and clipboard copy remain using `window.location.origin` or the real domain
-- The LinkedIn share URL in CareerCardSheet (line 477) keeps using the full `https://wiseresume.app/p/` since it must be a real URL for LinkedIn
-- No routing or functional logic changes
+- All display text (`WiseResume/username`) -- unchanged
+- QR code styling and design -- unchanged
+- Navigation within the app (preview button opening in new tab will still work since the portfolio route exists on all domains)
+- The `window.location.origin` usage in auth/OAuth redirects -- unchanged
 
-## Files modified (6 total)
-| File | Lines changed |
-|------|--------------|
-| `src/pages/PortfolioEditorPage.tsx` | 2 lines |
-| `src/components/portfolio/PortfolioQRDialog.tsx` | ~3 lines |
-| `src/pages/Index.tsx` | 1 line |
-| `src/pages/ProfilePage.tsx` | 1 line |
-| `src/components/portfolio/CareerCardSheet.tsx` | 2 lines |
-| `supabase/functions/og-image/index.ts` | 1 line |
+## Files affected (5 total)
+| File | Action |
+|------|--------|
+| `src/lib/portfolioUrl.ts` | Create |
+| `src/pages/PortfolioEditorPage.tsx` | 1 line change |
+| `src/pages/ProfilePage.tsx` | 2 line changes |
+| `src/components/portfolio/PortfolioQRDialog.tsx` | 1 line change |
+| `src/components/portfolio/CareerCardSheet.tsx` | 1 line change |
