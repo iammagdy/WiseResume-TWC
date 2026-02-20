@@ -114,12 +114,12 @@
                <AlertCircle className="w-4 h-4 text-red-500" />
                CRITICAL (mentioned {'>'}3x)
              </h5>
-             <Button
-               variant="outline"
-               size="sm"
-               className="text-xs h-7"
-               onClick={handleAddAllCritical}
-             >
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs min-h-[44px] active:scale-95 transition-transform"
+                onClick={handleAddAllCritical}
+              >
                <Plus className="w-3 h-3 mr-1" />
                Add All Critical
              </Button>

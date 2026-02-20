@@ -205,7 +205,10 @@ export function SectionChangeCard({
 
       <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
         <CollapsibleTrigger asChild>
-          <button className="w-full px-4 py-2 border-t border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <button
+            className="w-full px-4 min-h-[44px] border-t border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors flex items-center justify-center gap-2 text-xs text-muted-foreground active:scale-[0.98]"
+            aria-label={isExpanded ? `Hide ${title} changes` : `Preview ${title} changes`}
+          >
             <Eye className="w-3 h-3" />
             {isExpanded ? 'Hide' : 'Preview'} changes
             <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', isExpanded && 'rotate-180')} />

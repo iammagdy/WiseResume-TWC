@@ -129,7 +129,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
             {/* Manual Toggle */}
             <button
               onClick={() => setShowManual(true)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 min-h-[44px] active:scale-95"
             >
               <FileText className="w-3 h-3" />
               Or paste manually
@@ -188,7 +188,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
                     setShowManual(false);
                     onChange('');
                   }}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-2 flex items-center gap-1"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-2 flex items-center gap-1 min-h-[44px] active:scale-95"
                 >
                   <Link2 className="w-3 h-3" />
                   Use URL instead
