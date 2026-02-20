@@ -50,8 +50,7 @@ jobs:
       - name: Inject deep link intent filters
         run: |
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          # Intent filter for https://localhost/auth/callback
-          INTENT_FILTER='
+          cat > /tmp/intent-filters.xml << 'EOF'
                   <intent-filter android:autoVerify="true">
                       <action android:name="android.intent.action.VIEW" />
                       <category android:name="android.intent.category.DEFAULT" />
@@ -63,9 +62,9 @@ jobs:
                       <category android:name="android.intent.category.DEFAULT" />
                       <category android:name="android.intent.category.BROWSABLE" />
                       <data android:scheme="com.wiseresume.app" android:host="auth" android:pathPrefix="/callback" />
-                  </intent-filter>'
-          # Inject before closing </activity> tag
-          sed -i "/<\/activity>/i\\${INTENT_FILTER}" "$MANIFEST"
+                  </intent-filter>
+          EOF
+          sed -i '/<\/activity>/r /tmp/intent-filters.xml' "$MANIFEST"
           echo "✅ Intent filters injected"
 
       - name: Inject custom icons
