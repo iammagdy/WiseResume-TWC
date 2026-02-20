@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 export function CollapsibleCard({
   id, icon, title, hint, openSections, toggleSection, children, action,
@@ -14,6 +15,10 @@ export function CollapsibleCard({
   action?: React.ReactNode;
 }) {
   const isOpen = openSections.has(id);
+  const prefersReducedMotion = useReducedMotion();
+
+  const duration = prefersReducedMotion ? 0 : 0.25;
+
   return (
     <div id={`section-${id}`} className="glass-elevated rounded-2xl overflow-hidden">
       <button
@@ -29,14 +34,30 @@ export function CollapsibleCard({
         </div>
         <div className="flex items-center gap-1 shrink-0 ml-2">
           {action && !isOpen && action}
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          <motion.div
+            animate={{ rotate: isOpen ? 180 : 0 }}
+            transition={prefersReducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 300, damping: 25 }}
+          >
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          </motion.div>
         </div>
       </button>
-      {isOpen && (
-        <div className="px-4 pb-4 space-y-4">
-          {children}
-        </div>
-      )}
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            key="content"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ height: { duration, ease: 'easeInOut' }, opacity: { duration: duration * 0.8, ease: 'easeInOut' } }}
+            style={{ overflow: 'hidden' }}
+          >
+            <div className="px-4 pb-4 space-y-4">
+              {children}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
