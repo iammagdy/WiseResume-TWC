@@ -1193,7 +1193,7 @@ function FloatingCustomizePill({ onTap, onViewLive, hasLiveUrl }: { onTap: () =>
   const prefersReduced = useReducedMotion();
   return (
     <motion.div
-      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
+      className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-4 right-4 z-40 flex flex-wrap items-center justify-center gap-2 max-w-sm mx-auto"
       initial={prefersReduced ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.5 }}
