@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
 
     if (error) {
       console.error("Error fetching stale resumes:", error);
-      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'Internal server error' }), { status: 500, headers: corsHeaders });
     }
 
     let reminded = 0;

@@ -237,8 +237,8 @@ Requirements:
   } catch (error) {
     console.error('generate-portfolio-bio error:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to generate bio' }),
-      { status: error.status || 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'Something went wrong. Please try again.' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

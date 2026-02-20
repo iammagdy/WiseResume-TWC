@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 // ============= SECURITY: Domain Whitelist =============
@@ -345,9 +345,10 @@ If you can't find certain fields, make reasonable guesses based on context. The 
 
   } catch (error) {
     console.error("parse-job-url error:", error);
+    const userError = toUserError(error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: userError.message }),
+      { status: userError.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
