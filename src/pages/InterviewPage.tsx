@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard, Sparkles, History, Lightbulb, RotateCcw, SkipForward } from 'lucide-react';
+import { ArrowLeft, Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward } from 'lucide-react';
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
 import { TranscriptBubble, TypingBubble } from '@/components/interview/TranscriptBubble';
@@ -36,6 +37,7 @@ function InterviewPageContent() {
   const [pendingJobDescription, setPendingJobDescription] = useState<string | undefined>();
   const [showHistory, setShowHistory] = useState(false);
   const [showTips, setShowTips] = useState(false);
+  const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [sessionSaved, setSessionSaved] = useState(false);
   const activeJobDescriptionRef = useRef<string | undefined>();
   const activeInterviewTypeRef = useRef<string>('general');
@@ -485,17 +487,17 @@ function InterviewPageContent() {
             variant="ghost"
             size="sm"
             onClick={() => setShowTextInput(!showTextInput)}
-            className="text-muted-foreground hover:text-foreground"
+            className="text-muted-foreground hover:text-foreground min-h-[44px]"
           >
-            <Keyboard className="w-4 h-4 mr-1" />
-            {showTextInput ? 'Hide' : 'Type'}
+            {showTextInput ? <KeyboardOff className="w-4 h-4 mr-1" /> : <Keyboard className="w-4 h-4 mr-1" />}
+            {showTextInput ? 'Close' : 'Type'}
           </Button>
           <Button
             variant="destructive"
             size="sm"
-            onClick={endInterview}
+            onClick={() => setShowEndConfirm(true)}
             disabled={status === 'thinking'}
-            className="shadow-[0_0_15px_hsl(var(--destructive)/0.3)]"
+            className="shadow-[0_0_15px_hsl(var(--destructive)/0.3)] min-h-[44px]"
           >
             <Square className="w-4 h-4 mr-1" />
             End Interview
@@ -505,6 +507,32 @@ function InterviewPageContent() {
 
       {/* Per-answer score sheet */}
       <AnswerScoreSheet score={latestScore} onDismiss={dismissScore} />
+
+      {/* End interview confirmation sheet */}
+      <Sheet open={showEndConfirm} onOpenChange={setShowEndConfirm}>
+        <SheetContent side="bottom" hideCloseButton className="px-6 pb-8">
+          <SheetTitle className="text-lg font-bold text-foreground text-center">End Interview?</SheetTitle>
+          <SheetDescription className="text-sm text-muted-foreground text-center mt-1">
+            Your progress will be saved and you'll receive your feedback.
+          </SheetDescription>
+          <div className="flex flex-col gap-3 mt-6">
+            <Button
+              variant="destructive"
+              className="w-full py-3 rounded-xl font-semibold min-h-[48px]"
+              onClick={() => { setShowEndConfirm(false); endInterview(); }}
+            >
+              Yes, End Interview
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full py-3 rounded-xl font-medium bg-muted/50 min-h-[48px]"
+              onClick={() => setShowEndConfirm(false)}
+            >
+              Keep Going
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
