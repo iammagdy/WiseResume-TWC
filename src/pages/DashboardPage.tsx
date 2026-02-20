@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { AppLogo } from '@/components/brand/AppLogo';
@@ -743,8 +744,22 @@ export default function DashboardPage() {
               <div className="px-4 pb-4">
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList className="w-full mb-4">
-                  <TabsTrigger value="my-cvs" className="flex-1">My CVs</TabsTrigger>
-                  <TabsTrigger value="tailored" className="flex-1">Tailored</TabsTrigger>
+                  <TabsTrigger value="my-cvs" className="flex-1 gap-1.5">
+                    My CVs
+                    {resumeHierarchy && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
+                        {resumeHierarchy.masterResumes.length + resumeHierarchy.orphanTailored.length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                  <TabsTrigger value="tailored" className="flex-1 gap-1.5">
+                    Tailored
+                    {filteredResumes && (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[1.25rem] justify-center">
+                        {filteredResumes.filter(r => r.parent_resume_id).length}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="my-cvs">
