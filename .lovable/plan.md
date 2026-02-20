@@ -1,111 +1,119 @@
 
 
-# Hero Section Entrance Animations
+# Typewriter Fix + Ambient Hero Gradient
 
 ## Overview
 
-Add four CSS-only entrance animations to the public portfolio hero: job title badge bounce-in, CTA buttons staggered slide-up, location/tagline fade-in, and corresponding keyframes. All delays are computed dynamically based on the name length to sequence after the existing (or future) name reveal.
+Two changes to the public portfolio page (`/p/[username]`):
+1. Rewrite the `TypewriterText` component to fix the mid-word cut bug and upgrade its visual quality
+2. Add a slow-moving ambient gradient background layer behind the hero section
 
 ---
 
-## CSS Keyframes (src/index.css)
+## ENHANCEMENT 1: Fix and Upgrade Typewriter
 
-Append three new keyframes and utility classes after the existing portfolio animations block:
+### Problem
 
-```css
-/* Hero entrance animations */
-@keyframes pf-badge-in {
-  from { opacity: 0; transform: translateY(16px) scale(0.9); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
-}
-@keyframes pf-cta-in {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-@keyframes pf-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
+The current `TypewriterText` (lines 103-155) has a state machine bug: it can start typing a new phrase before the previous one is fully deleted. The cursor uses a generic `pulse` animation that looks unintentional. The container has a fixed `h-6` which clips longer phrases on mobile.
 
-.pf-badge-entrance {
-  opacity: 0;
-  animation: pf-badge-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-}
-.pf-cta-entrance {
-  opacity: 0;
-  animation: pf-cta-in 450ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-.pf-fade-entrance {
-  opacity: 0;
-  animation: pf-fade-in 500ms ease-out forwards;
-}
-```
+### File: `src/pages/PublicPortfolioPage.tsx` (lines 103-155)
 
-Add reduced-motion overrides in the existing `@media (prefers-reduced-motion: reduce)` block:
+Replace the entire `TypewriterText` component with a clean state-machine implementation:
+
+**State machine** using a single `phase` state: `'typing' | 'paused' | 'deleting' | 'waiting'`
+
+- `typing`: append one character every 55ms until full phrase is shown, then switch to `paused`
+- `paused`: wait 2000ms, then switch to `deleting`
+- `deleting`: remove one character every 30ms until empty, then switch to `waiting`
+- `waiting`: wait 400ms, advance `phraseIdx`, switch to `typing`
+
+This ensures no new phrase starts until deletion is complete.
+
+**Cursor**: Replace the thin `<span>` with a styled `|` pipe character. Use a new CSS class `pf-cursor-blink` with `@keyframes` blinking at 0.7s. While `phase === 'typing'` or `phase === 'deleting'`, add a class that sets `opacity: 1` (solid, no blink). When paused/waiting, the blink animation runs.
+
+**Container**: Remove the fixed `h-6` class. Use `min-h-[1.5rem]` and `max-w-md` with natural text wrapping so long phrases wrap to 2 lines on mobile instead of clipping.
+
+**Reduced motion**: Check `window.matchMedia('(prefers-reduced-motion: reduce)')` in a ref. If true, show the first phrase statically with no animation loop.
+
+### File: `src/index.css`
+
+Add cursor blink keyframes:
 
 ```css
-.pf-badge-entrance,
-.pf-cta-entrance,
-.pf-fade-entrance {
+@keyframes pf-cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.pf-cursor {
+  animation: pf-cursor-blink 0.7s step-end infinite;
+}
+.pf-cursor--typing {
   animation: none;
   opacity: 1;
 }
 ```
 
+Add reduced-motion override:
+```css
+@media (prefers-reduced-motion: reduce) {
+  .pf-cursor { animation: none; opacity: 1; }
+}
+```
+
 ---
 
-## JSX Changes (src/pages/PublicPortfolioPage.tsx)
+## ENHANCEMENT 2: Animated Ambient Hero Gradient
 
-### Compute base delay
+### File: `src/index.css`
 
-Near the hero render (around line 1194), compute `nameLen` from the profile name and derive delays:
+Add a new keyframe for the ambient gradient shift:
 
-```tsx
-const nameLen = (profile.fullName || 'Anonymous').length;
-const badgeDelay = nameLen * 35 + 200 + 100; // ms
-const locationDelay = badgeDelay + 200;
-const ctaBaseDelay = badgeDelay + 150;
+```css
+@keyframes pf-hero-gradient {
+  0%   { background-position: 0% 50%; }
+  25%  { background-position: 50% 0%; }
+  50%  { background-position: 100% 50%; }
+  75%  { background-position: 50% 100%; }
+  100% { background-position: 0% 50%; }
+}
+
+.pf-hero-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    #0a0a1a 0%,
+    #0f1525 25%,
+    #12101e 50%,
+    #0d1520 75%,
+    #0a0a1a 100%
+  );
+  background-size: 400% 400%;
+  animation: pf-hero-gradient 12s linear infinite;
+  will-change: background-position;
+}
 ```
 
-### 1. Role pill row (lines 1200-1217)
-
-Add `pf-badge-entrance` class and computed `animationDelay` to the wrapper `<div>`:
-
-```tsx
-<div className="flex items-center justify-center gap-2.5 flex-wrap mb-3 pf-badge-entrance"
-     style={{ animationDelay: `${badgeDelay}ms` }}>
+Add reduced-motion override:
+```css
+@media (prefers-reduced-motion: reduce) {
+  .pf-hero-ambient { animation: none; background-position: 0% 50%; }
+}
 ```
 
-This animates both the job title pill and the "Open to Work" badge together as one group.
+### File: `src/pages/PublicPortfolioPage.tsx` (line 1170-1172)
 
-### 2. Location + industry line (lines 1241-1256)
-
-Add `pf-fade-entrance` class and delay:
+Inside the hero `<motion.div>` (which already has `className="relative ..."`), insert a new `<div>` as the first child:
 
 ```tsx
-<div className="flex items-center justify-center gap-3 mb-3 flex-wrap pf-fade-entrance"
-     style={{ animationDelay: `${locationDelay}ms` }}>
+<div className="pf-hero-ambient rounded-2xl" aria-hidden="true" />
 ```
 
-### 3. Typewriter tagline (lines 1258-1264)
+This sits behind all hero content because the hero already uses `relative` positioning, and all content elements (avatar, name, buttons) have higher z-index or natural stacking. The ambient div gets `z-index: 0` while content sits above it naturally. Add `z-10` to the hero content wrapper if needed to ensure stacking.
 
-Wrap the typewriter output in a span with the same fade class and delay so it fades in together with the location:
-
-The typewriter component renders conditionally via an IIFE. Add `pf-fade-entrance` with `animationDelay: locationDelay` to the wrapper.
-
-### 4. Social icon buttons (lines 1267-1301)
-
-Each social link (`<a>`) gets `pf-cta-entrance` class with staggered delay. The social icons animate first (index 0, 1, 2, 3), so their base delay is `ctaBaseDelay + index * 120`.
-
-Apply to the container div and each child link individually for proper stagger, or apply at the container level for simplicity. For true per-icon stagger, add the class to each `<a>` with inline `animationDelay`.
-
-### 5. CTA buttons row (lines 1305-1344)
-
-Each button/link gets `pf-cta-entrance` class. Their indices continue after the social icons. Since the number of social icons varies, compute the offset: count the social links rendered, then continue staggering.
-
-For simplicity: assign a counter variable starting from 0 for all social icons + CTA buttons combined. Social icons get indices 0-3 (depending on how many exist), then "Get in Touch" / "View Projects" / "Share Card" / "Download CV" follow.
-
-Implementation approach: use a mutable counter `let ctaIdx = 0` before the social icons render. Each social `<a>` gets `style={{ animationDelay: ctaBaseDelay + (ctaIdx++) * 120 + 'ms' }}` and each CTA button similarly.
+Only render this ambient div for dark themes (`pStyle !== 'classic-clean'`) since the classic-clean theme uses a white/light background where dark gradient tones would look wrong.
 
 ---
 
@@ -113,7 +121,8 @@ Implementation approach: use a mutable counter `let ctaIdx = 0` before the socia
 
 | File | Change |
 |---|---|
-| `src/index.css` | Add 3 keyframes (`pf-badge-in`, `pf-cta-in`, `pf-fade-in`) + 3 utility classes + reduced-motion overrides |
-| `src/pages/PublicPortfolioPage.tsx` | Compute delay vars from name length; add entrance classes + inline `animationDelay` to badge row, location row, typewriter, social icons, and CTA buttons |
+| `src/index.css` | Add `pf-cursor-blink` keyframes + classes, `pf-hero-gradient` keyframes + `.pf-hero-ambient` class, reduced-motion overrides for both |
+| `src/pages/PublicPortfolioPage.tsx` | Rewrite `TypewriterText` with proper state machine (lines 103-155); add ambient gradient div inside hero (line 1172) |
 
-No layout, color, font, or logic changes. All GPU-accelerated (transform + opacity). Reduced-motion safe. Runs once on mount via CSS `forwards` fill mode.
+No backend, data, routing, or dependency changes. CSS-only gradient animation. JS state machine for typewriter is self-contained within the existing component. All reduced-motion safe.
+
