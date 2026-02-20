@@ -479,6 +479,55 @@ function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: s
   );
 }
 
+// ─── Bio Reveal ───────────────────────────────────────────────────────────────
+function BioReveal({ bio }: { bio: string }) {
+  const containerRef = useRef<HTMLParagraphElement>(null);
+  const observedRef = useRef(false);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || observedRef.current) return;
+    observedRef.current = true;
+
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const inners = el.querySelectorAll<HTMLElement>('.pf-bio-line-inner');
+
+    if (prefersReduced) {
+      inners.forEach((span) => {
+        span.style.transform = 'none';
+        span.style.opacity = '1';
+      });
+      return;
+    }
+
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) {
+        inners.forEach((span, idx) => {
+          span.style.animationDelay = `${idx * 90}ms`;
+          span.classList.add('pf-bio-revealed');
+        });
+        obs.disconnect();
+      }
+    }, { threshold: 0.3, rootMargin: '0px 0px -50px 0px' });
+
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [bio]);
+
+  // Split by sentence (period + space)
+  const sentences = bio.split(/(?<=\.)\s+/).filter(Boolean);
+
+  return (
+    <p ref={containerRef} className="text-sm leading-loose" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+      {sentences.map((sentence, i) => (
+        <span key={i} className="pf-bio-line">
+          <span className="pf-bio-line-inner">{sentence}{i < sentences.length - 1 ? ' ' : ''}</span>
+        </span>
+      ))}
+    </p>
+  );
+}
+
 // ─── Experience Card ──────────────────────────────────────────────────────────
 function ExperienceCard({ exp, style, isLast, index }: { exp: Experience; style: string; isLast: boolean; index: number }) {
   const [expanded, setExpanded] = useState(false);
@@ -536,13 +585,15 @@ function ExperienceCard({ exp, style, isLast, index }: { exp: Experience; style:
 
         {exp.description && (
           <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-            {!expanded && exp.description.length > 200 ? exp.description.slice(0, 200) + '…' : exp.description}
+            {exp.description.length > 200 ? exp.description.slice(0, 200) : exp.description}
+            {exp.description.length <= 200 ? '' : !expanded ? '…' : ''}
           </p>
         )}
 
-        {exp.achievements?.length > 0 && (expanded || !hasLongContent) && (
+        {/* Always-visible achievements (first 3, only when no long content OR not expandable) */}
+        {exp.achievements?.length > 0 && !hasLongContent && (
           <ul className="space-y-1.5">
-            {(expanded ? exp.achievements : exp.achievements.slice(0, 3)).map((a, i) => (
+            {exp.achievements.slice(0, 3).map((a, i) => (
               <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
                 <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--pf-accent)' }} />
                 {a}
@@ -551,13 +602,37 @@ function ExperienceCard({ exp, style, isLast, index }: { exp: Experience; style:
           </ul>
         )}
 
+        {/* Expandable extra content */}
+        {hasLongContent && (
+          <div className={`pf-exp-expandable ${expanded ? 'pf-exp-expanded' : ''}`}>
+            {/* Rest of description beyond 200 chars */}
+            {exp.description && exp.description.length > 200 && (
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                {exp.description.slice(200)}
+              </p>
+            )}
+            {/* All achievements */}
+            {exp.achievements?.length > 0 && (
+              <ul className="space-y-1.5 mt-3">
+                {exp.achievements.map((a, i) => (
+                  <li key={i} className="flex gap-2 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                    <span className="mt-1.5 w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--pf-accent)' }} />
+                    {a}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {hasLongContent && (
           <button
             onClick={() => setExpanded(!expanded)}
             className="flex items-center gap-1 text-xs font-medium transition-opacity hover:opacity-80"
             style={{ color: 'var(--pf-accent)' }}
           >
-            {expanded ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</> : <><ChevronDown className="w-3.5 h-3.5" /> Show more</>}
+            <ChevronDown className={`w-3.5 h-3.5 pf-exp-chevron ${expanded ? 'pf-exp-chevron-open' : ''}`} />
+            <span className="pf-exp-label">{expanded ? 'Show less' : 'Show more'}</span>
           </button>
         )}
       </div>
@@ -1412,9 +1487,7 @@ function PublicPortfolioContent() {
                 <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
                 <div className="p-5 rounded-2xl"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
-                  <p className="text-sm leading-loose" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                    {profile.portfolioBio}
-                  </p>
+                  <BioReveal bio={profile.portfolioBio} />
                 </div>
               </motion.section>
             )}
