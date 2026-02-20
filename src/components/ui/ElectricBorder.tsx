@@ -180,7 +180,7 @@ const ElectricBorder: React.FC<ElectricBorderProps> = ({
       const maxRadius = Math.min(borderWidth, borderHeight) / 2;
       const radius = Math.min(borderRadius, maxRadius);
       const approximatePerimeter = 2 * (borderWidth + borderHeight) + 2 * Math.PI * radius;
-      const sampleCount = Math.floor(approximatePerimeter / 2);
+      const sampleCount = Math.min(Math.floor(approximatePerimeter / 2), 200);
 
       ctx.beginPath();
       for (let i = 0; i <= sampleCount; i++) {
