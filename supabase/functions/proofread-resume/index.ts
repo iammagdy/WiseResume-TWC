@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAI, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 Deno.serve(async (req: Request) => {
@@ -180,10 +180,9 @@ ${combinedText}`;
     });
   } catch (error) {
     console.error("proofread-resume error:", error);
-    const status = (error as any)?.status || 500;
-    const message = error instanceof Error ? error.message : "Proofread failed";
-    return new Response(JSON.stringify({ error: message }), {
-      status,
+    const userError = toUserError(error);
+    return new Response(JSON.stringify({ error: userError.message }), {
+      status: userError.status,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }

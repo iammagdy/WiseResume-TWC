@@ -1,6 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAI, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 interface ResumeData {
@@ -154,11 +154,10 @@ Return a JSON object with: currentEstimatedPages, optimizedEstimatedPages, reduc
     );
   } catch (error) {
     console.error('One-page optimizer error:', error);
-    const status = isAIError(error) ? error.status : 500;
-    const message = error instanceof Error ? error.message : 'Internal server error';
+    const userError = toUserError(error);
     return new Response(
-      JSON.stringify({ error: message }),
-      { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: userError.message }),
+      { status: userError.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });

@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 const safeSkillsString = (skills: any[] | undefined): string =>
@@ -171,11 +171,10 @@ After EVERY candidate answer, include this scoring block at the end of your resp
     });
   } catch (error) {
     console.error("interview-chat error:", error);
-    const status = isAIError(error) ? error.status : 500;
-    const message = error instanceof Error ? error.message : "Unknown error";
+    const userError = toUserError(error);
     return new Response(
-      JSON.stringify({ error: message }),
-      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: userError.message }),
+      { status: userError.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

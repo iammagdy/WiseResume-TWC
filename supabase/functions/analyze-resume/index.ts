@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText } from "../_shared/aiClient.ts";
+import { callAIWithRetry, isAIError, parseAIJSON, sanitizeInputText, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
 
 // ============= SECURITY: Input validation limits =============
@@ -171,16 +171,10 @@ Provide analysis in this exact JSON format:
   } catch (error) {
     console.error("analyze-resume error:", error);
 
-    if (isAIError(error)) {
-      return new Response(
-        JSON.stringify({ error: (error as any).message }),
-        { status: (error as any).status, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
-      );
-    }
-
+    const userError = toUserError(error);
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
+      JSON.stringify({ error: userError.message }),
+      { status: userError.status, headers: { ...getCorsHeaders(req.headers.get('origin')), "Content-Type": "application/json" } }
     );
   }
 });
