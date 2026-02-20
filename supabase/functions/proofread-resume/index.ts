@@ -69,6 +69,7 @@ Deno.serve(async (req: Request) => {
 
 Rules:
 - Be lenient with industry jargon, technical terms, company names, and proper nouns
+- Consider the candidate's industry when evaluating terminology. Technical resumes may use standard abbreviations (e.g., "K8s", "CI/CD", "SaaS", "B2B") that are correct in context. Do not flag industry-standard acronyms.
 - For resumes, prefer action verbs at the start of bullets
 - Flag passive voice in achievement bullets as a "style" issue
 - Score professional writing quality (action verbs, quantified achievements, professional tone)

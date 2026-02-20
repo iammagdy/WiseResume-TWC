@@ -106,12 +106,14 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
         maxTokens: 512,
       });
 
-      const roleAnalysis = parseAIJSON(aiResponse.content || '{}') || {
-        title: "Position",
-        keySkills: ["Communication", "Problem Solving", "Teamwork"],
-        questionCategories: ["Behavioral", "Technical", "Situational"],
-        industryInsights: "Interviewers will focus on your practical experience."
-      };
+      const roleAnalysis = parseAIJSON(aiResponse.content || '{}');
+      if (!roleAnalysis) {
+        console.error("Failed to parse role analysis:", aiResponse.content?.slice(0, 500));
+        return new Response(
+          JSON.stringify({ error: "Failed to analyze role. Please try again." }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       return new Response(JSON.stringify({ reply: "Role analyzed", roleAnalysis }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -139,8 +141,16 @@ Return JSON with this exact structure: {"title":"exact job title","keySkills":["
 
 **Next Steps:** [2-3 specific, actionable things to practice before their real interview]
 
-Be encouraging but honest. Reference specific answers they gave when possible.`
+Be encouraging but honest. Reference specific answers they gave when possible.
+
+GROUNDING RULES:
+- Only reference skills, experiences, and achievements actually present in the candidate's resume above. Do not fabricate scenarios or claim the candidate mentioned things they didn't.
+- If no resume is provided, ask general questions without assuming specific background details.`
       : `You are Wise AI, a professional and warm interview coach conducting a realistic mock interview.${resumeContext}${jobContext}
+
+GROUNDING RULES:
+- Only reference skills, experiences, and achievements actually present in the candidate's resume. Do not fabricate scenarios or claim the candidate mentioned things they didn't.
+- Base your questions on the actual resume content and job description provided.
 
 INTERVIEW RULES:
 1. Ask ONE question at a time. Wait for the candidate's answer before proceeding.

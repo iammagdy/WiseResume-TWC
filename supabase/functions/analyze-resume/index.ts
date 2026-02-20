@@ -107,8 +107,11 @@ RESUME:
 Name: ${resume.contactInfo?.fullName || 'Not provided'}
 Summary: ${resume.summary || 'Not provided'}
 Skills: ${safeSkillsString(resume.skills)}
-Experience: ${resume.experience?.map((e: any) => `${e.position} at ${e.company}: ${e.description}`).join('\n') || 'Not provided'}
+Experience: ${resume.experience?.map((e: any) => `${e.position} at ${e.company}: ${e.description}${e.achievements?.length ? '\n  Achievements: ' + e.achievements.join('; ') : ''}`).join('\n') || 'Not provided'}
 Education: ${resume.education?.map((e: any) => `${e.degree} in ${e.field} from ${e.institution}`).join('\n') || 'Not provided'}
+Projects: ${resume.projects?.map((p: any) => `${p.name}: ${p.description}`).join('\n') || 'Not provided'}
+Certifications: ${resume.certifications?.map((c: any) => `${c.name} by ${c.issuer}`).join(', ') || 'Not provided'}
+Awards: ${resume.awards?.map((a: any) => `${a.title} from ${a.issuer}`).join(', ') || 'Not provided'}
 
 JOB DESCRIPTION:
 ${jobDescription}

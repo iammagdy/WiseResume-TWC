@@ -54,7 +54,6 @@ serve(async (req) => {
     const resume = reqBody.resume;
     const rawJobDescription = reqBody.jobDescription;
     const tone = reqBody.tone || 'professional';
-    const userGeminiKey = reqBody.userGeminiKey;
 
     if (!resume || typeof resume !== 'object') {
       return new Response(
@@ -95,7 +94,12 @@ serve(async (req) => {
       conversational: 'friendly, approachable, and natural-sounding',
     };
 
-    const systemPrompt = `You are an expert cover letter writer. Write compelling cover letters that are tailored to the job, highlight relevant experience, are concise (300-400 words), and use the tone: ${toneDescriptions[validTone]}. Do not use generic phrases.`;
+    const systemPrompt = `You are an expert cover letter writer. Write compelling cover letters that are tailored to the job, highlight relevant experience, are concise (300-400 words), and use the tone: ${toneDescriptions[validTone]}. Do not use generic phrases.
+
+CRITICAL RULES:
+- The letter header MUST include the candidate's actual name, email, and phone exactly as provided below. If any contact field is missing, omit that line entirely rather than using a placeholder.
+- Do NOT use placeholder brackets like [Your Name] or [Company Name]. Use the actual values provided.
+- Do NOT invent achievements, metrics, or experiences not present in the candidate's resume.`;
 
     const userPrompt = `Write a cover letter:
 
@@ -128,7 +132,7 @@ Write a ${validTone} cover letter with a professional header containing actual c
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-      userGeminiKey,
+      userId: user.id,
     });
 
     const coverLetter = aiResponse.content;

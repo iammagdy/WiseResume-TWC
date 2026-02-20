@@ -17,7 +17,6 @@ interface OnePageRequest {
   targetRole?: string;
   yearsOfExperience?: number;
   preserveRecent?: number;
-  userGeminiKey?: string;
 }
 
 const MAX_PAYLOAD_SIZE = 100000;
