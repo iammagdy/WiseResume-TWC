@@ -831,41 +831,33 @@ function StickyHeader({
   contactEmail: string | null; accentColor: string; visible: boolean;
 }) {
   return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, y: -12 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -12 }}
-          transition={{ duration: 0.2 }}
-          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2"
-          data-pdf-exclude
-          style={{
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            background: 'var(--pf-bg-alpha, rgba(10,10,20,0.85))',
-            borderBottom: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-          }}
-        >
-          <div className="flex items-center gap-2.5">
-            <Avatar className="w-8 h-8 border" style={{ borderColor: accentColor }}>
-              <AvatarImage src={avatarUrl || undefined} />
-              <AvatarFallback className="text-xs font-bold" style={{ background: accentColor, color: '#fff' }}>{initials}</AvatarFallback>
-            </Avatar>
-            <span className="font-semibold text-sm" style={{ color: 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
-              {name || 'Portfolio'}
-            </span>
-          </div>
-          {contactEmail && (
-            <a href={`mailto:${contactEmail}`}
-              className="text-xs font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-85"
-              style={{ background: accentColor, color: '#fff' }}>
-              Get in Touch
-            </a>
-          )}
-        </motion.div>
+    <div
+      className={`fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-2 pf-sticky-header ${visible ? 'pf-sticky-visible' : ''}`}
+      data-pdf-exclude
+      style={{
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        background: 'rgba(10,10,20,0.85)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
+      }}
+    >
+      <div className="flex items-center gap-2.5">
+        <Avatar className="w-8 h-8 border" style={{ borderColor: accentColor }}>
+          <AvatarImage src={avatarUrl || undefined} />
+          <AvatarFallback className="text-xs font-bold" style={{ background: accentColor, color: '#fff' }}>{initials}</AvatarFallback>
+        </Avatar>
+        <span className="font-semibold text-sm" style={{ color: 'var(--pf-fg, #f5f5ff)', fontFamily: 'var(--pf-heading-font)' }}>
+          {name || 'Portfolio'}
+        </span>
+      </div>
+      {contactEmail && (
+        <a href={`mailto:${contactEmail}`}
+          className="text-xs font-semibold px-3 py-1.5 rounded-full transition-opacity hover:opacity-85"
+          style={{ background: accentColor, color: '#fff' }}>
+          Get in Touch
+        </a>
       )}
-    </AnimatePresence>
+    </div>
   );
 }
 
@@ -1451,7 +1443,7 @@ function PublicPortfolioContent() {
             )}
             <button
               onClick={() => { haptics.light(); setShowCareerCard(true); }}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance pf-cta-shimmer pf-cta-shimmer-subtle pf-cta-shimmer-d1"
               style={{
                 borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`,
                 color: accentColor,
@@ -1464,7 +1456,7 @@ function PublicPortfolioContent() {
             <button
               onClick={handleDownload}
               disabled={isDownloading}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance pf-cta-shimmer pf-cta-shimmer-d2"
               style={{ background: 'transparent', borderColor: 'var(--pf-border, rgba(255,255,255,0.2))', color: 'var(--pf-fg, #f5f5ff)', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
             >
               {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
