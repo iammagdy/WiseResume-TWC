@@ -1187,6 +1187,33 @@ button,
   }
 }
 
+/* Hero entrance animations */
+@keyframes pf-badge-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.9); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes pf-cta-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pf-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.pf-badge-entrance {
+  opacity: 0;
+  animation: pf-badge-in 400ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.pf-cta-entrance {
+  opacity: 0;
+  animation: pf-cta-in 450ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.pf-fade-entrance {
+  opacity: 0;
+  animation: pf-fade-in 500ms ease-out forwards;
+}
+
 /* Reduced motion overrides */
 @media (prefers-reduced-motion: reduce) {
   .pf-section-title::after {
@@ -1197,6 +1224,12 @@ button,
     opacity: 1;
   }
   .pf-exp-card.pf-card-revealed {
+    animation: none;
+    opacity: 1;
+  }
+  .pf-badge-entrance,
+  .pf-cta-entrance,
+  .pf-fade-entrance {
     animation: none;
     opacity: 1;
   }

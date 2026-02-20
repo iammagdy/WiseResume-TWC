@@ -1196,8 +1196,15 @@ function PublicPortfolioContent() {
             {profile.fullName || 'Anonymous'}
           </h1>
 
-          {/* Role pill + Open to Work badge */}
-          <div className="flex items-center justify-center gap-2.5 flex-wrap mb-3">
+          {/* Role pill + Open to Work badge + location + social + CTAs with entrance animations */}
+          {(() => {
+            const nameLen = (profile.fullName || 'Anonymous').length;
+            const badgeDelay = nameLen * 35 + 200 + 100;
+            const locationDelay = badgeDelay + 200;
+            const ctaBaseDelay = badgeDelay + 150;
+            let ctaIdx = 0;
+            return (<>
+          <div className="flex items-center justify-center gap-2.5 flex-wrap mb-3 pf-badge-entrance" style={{ animationDelay: `${badgeDelay}ms` }}>
             {profile.jobTitle && (
               <span className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-1.5 rounded-full"
                 style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, color: accentColor, border: `1px solid color-mix(in srgb, ${accentColor} 35%, transparent)` }}>
@@ -1238,7 +1245,7 @@ function PublicPortfolioContent() {
           )}
 
 
-          <div className="flex items-center justify-center gap-3 mb-3 flex-wrap">
+          <div className="flex items-center justify-center gap-3 mb-3 flex-wrap pf-fade-entrance" style={{ animationDelay: `${locationDelay}ms` }}>
             {profile.location && (
               <span className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
                 <MapPin className="w-3.5 h-3.5" />{profile.location}
@@ -1256,44 +1263,46 @@ function PublicPortfolioContent() {
           </div>
 
           {/* Typewriter Tagline */}
-          {(() => {
-            const phrases = buildTypewriterPhrases(profile, allSkills);
-            return phrases.length > 0 ? (
-              <TypewriterText phrases={phrases} accentColor={accentColor} />
-            ) : null;
-          })()}
+          <div className="pf-fade-entrance" style={{ animationDelay: `${locationDelay}ms` }}>
+            {(() => {
+              const phrases = buildTypewriterPhrases(profile, allSkills);
+              return phrases.length > 0 ? (
+                <TypewriterText phrases={phrases} accentColor={accentColor} />
+              ) : null;
+            })()}
+          </div>
 
           {/* Social icon buttons */}
           {(profile.linkedinUrl || profile.githubUrl || profile.websiteUrl || profile.twitterUrl) && (
             <div className="flex items-center justify-center gap-2 mb-6">
               {profile.linkedinUrl && (
                 <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="LinkedIn">
                   <Linkedin className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
               )}
               {profile.githubUrl && (
                 <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="GitHub">
                   <Github className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
               )}
               {profile.websiteUrl && (
                 <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="Website">
                   <Globe className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
               )}
               {profile.twitterUrl && (
                 <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
-                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))' }}
+                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="X / Twitter">
                   <X className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
@@ -1306,8 +1315,8 @@ function PublicPortfolioContent() {
             {profile.contactEmail && (
               <a
                 href={`mailto:${profile.contactEmail}`}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg"
-                style={{ background: accentColor, color: '#fff', boxShadow: `0 4px 20px -4px ${accentColor}60` }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all hover:scale-105 active:scale-95 shadow-lg pf-cta-entrance"
+                style={{ background: accentColor, color: '#fff', boxShadow: `0 4px 20px -4px ${accentColor}60`, animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
               >
                 <Mail className="w-4 h-4" /> Get in Touch
               </a>
@@ -1315,19 +1324,20 @@ function PublicPortfolioContent() {
             {hasProjects && (
               <a
                 href="#projects"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border"
-                style={{ borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`, color: accentColor, background: `color-mix(in srgb, ${accentColor} 8%, transparent)` }}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance"
+                style={{ borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`, color: accentColor, background: `color-mix(in srgb, ${accentColor} 8%, transparent)`, animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
               >
                 <FolderOpen className="w-4 h-4" /> View Projects
               </a>
             )}
             <button
               onClick={() => { haptics.light(); setShowCareerCard(true); }}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border"
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance"
               style={{
                 borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`,
                 color: accentColor,
                 background: `color-mix(in srgb, ${accentColor} 8%, transparent)`,
+                animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms`,
               }}
             >
               <Sparkles className="w-4 h-4" /> Share Card
@@ -1335,13 +1345,15 @@ function PublicPortfolioContent() {
             <button
               onClick={handleDownload}
               disabled={isDownloading}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border"
-              style={{ background: 'transparent', borderColor: 'var(--pf-border, rgba(255,255,255,0.2))', color: 'var(--pf-fg, #f5f5ff)' }}
+              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance"
+              style={{ background: 'transparent', borderColor: 'var(--pf-border, rgba(255,255,255,0.2))', color: 'var(--pf-fg, #f5f5ff)', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
             >
               {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               {isDownloading ? 'Generating…' : 'Download CV'}
             </button>
           </div>
+            </>);
+          })()}
         </motion.div>
 
         {/* ── Body content ─────────────────────────────────────────────── */}
