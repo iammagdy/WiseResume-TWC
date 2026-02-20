@@ -19,6 +19,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { WhatsNewDialog } from "@/components/WhatsNewDialog";
 import { BugReportDialog } from "@/components/BugReportDialog";
 import {
   DashboardSkeleton,
@@ -157,38 +158,39 @@ const queryClient = new QueryClient({
           </Route>
 
          {/* All protected routes - require authentication */}
-         <Route element={<ProtectedRoute />}>
-           <Route element={<AppShell />}>
-             <Route path="/dashboard" element={<Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense>} />
-             <Route path="/editor" element={<Suspense fallback={<EditorSkeleton />}><EditorPage /></Suspense>} />
-             <Route path="/preview" element={<Suspense fallback={<PreviewSkeleton />}><PreviewPage /></Suspense>} />
-             <Route path="/upload" element={<Suspense fallback={<UploadSkeleton />}><UploadPage /></Suspense>} />
-             <Route path="/settings" element={<Suspense fallback={<SettingsSkeleton />}><SettingsPage /></Suspense>} />
-             <Route path="/interview" element={<Suspense fallback={<InterviewSkeleton />}><InterviewPage /></Suspense>} />
-             <Route path="/applications" element={<Suspense fallback={<DashboardSkeleton />}><ApplicationsPage /></Suspense>} />
-             <Route path="/onboarding" element={<Suspense fallback={<AuthSkeleton />}><OnboardingPage /></Suspense>} />
-             <Route path="/profile" element={<Suspense fallback={<SettingsSkeleton />}><ProfilePage /></Suspense>} />
-             <Route path="/templates" element={<Suspense fallback={<DashboardSkeleton />}><TemplatesPage /></Suspense>} />
-             <Route path="/resume/:id" element={<Suspense fallback={<DetailSkeleton />}><ResumeDetailPage /></Suspense>} />
-             <Route path="/job/:id" element={<Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense>} />
-             <Route path="/application/:id" element={<Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense>} />
-              <Route path="/notifications" element={<Suspense fallback={<DetailSkeleton />}><NotificationsPage /></Suspense>} />
-              <Route path="/portfolio" element={<Suspense fallback={<DetailSkeleton />}><PortfolioEditorPage /></Suspense>} />
-              
-              <Route path="/cover-letters" element={<Suspense fallback={<DashboardSkeleton />}><CoverLettersPage /></Suspense>} />
-             <Route path="/cover-letter/new" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense>} />
-             <Route path="/cover-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense>} />
-             <Route path="/examples" element={<Suspense fallback={<DashboardSkeleton />}><ExamplesPage /></Suspense>} />
-             <Route path="/career" element={<Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense>} />
-             <Route path="/resignation-letters" element={<Suspense fallback={<DashboardSkeleton />}><ResignationLettersPage /></Suspense>} />
-             <Route path="/resignation-letter/new" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterNewPage /></Suspense>} />
-             <Route path="/resignation-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterEditPage /></Suspense>} />
-             <Route path="/guides" element={<Suspense fallback={<DashboardSkeleton />}><GuidesPage /></Suspense>} />
-             <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
-              <Route path="/ai-studio" element={<Suspense fallback={<DashboardSkeleton />}><AIStudioPage /></Suspense>} />
-              <Route path="/activity" element={<Navigate to="/applications" replace />} />
-            </Route>
-         </Route>
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppShell />}>
+              <Route path="/dashboard" element={<Suspense fallback={<DashboardSkeleton />}><DashboardPage /></Suspense>} />
+              <Route path="/editor" element={<Suspense fallback={<EditorSkeleton />}><EditorPage /></Suspense>} />
+              <Route path="/preview" element={<Suspense fallback={<PreviewSkeleton />}><PreviewPage /></Suspense>} />
+              <Route path="/upload" element={<Suspense fallback={<UploadSkeleton />}><UploadPage /></Suspense>} />
+              <Route path="/settings" element={<Suspense fallback={<SettingsSkeleton />}><SettingsPage /></Suspense>} />
+              <Route path="/interview" element={<Suspense fallback={<InterviewSkeleton />}><InterviewPage /></Suspense>} />
+              <Route path="/applications" element={<Suspense fallback={<DashboardSkeleton />}><ApplicationsPage /></Suspense>} />
+              <Route path="/onboarding" element={<Suspense fallback={<AuthSkeleton />}><OnboardingPage /></Suspense>} />
+              <Route path="/profile" element={<Suspense fallback={<SettingsSkeleton />}><ProfilePage /></Suspense>} />
+              <Route path="/templates" element={<Suspense fallback={<DashboardSkeleton />}><TemplatesPage /></Suspense>} />
+              <Route path="/resume/:id" element={<Suspense fallback={<DetailSkeleton />}><ResumeDetailPage /></Suspense>} />
+              <Route path="/job/:id" element={<Suspense fallback={<DetailSkeleton />}><JobDetailPage /></Suspense>} />
+              <Route path="/application/:id" element={<Suspense fallback={<DetailSkeleton />}><ApplicationTrackerPage /></Suspense>} />
+               <Route path="/notifications" element={<Suspense fallback={<DetailSkeleton />}><NotificationsPage /></Suspense>} />
+               <Route path="/portfolio" element={<Suspense fallback={<DetailSkeleton />}><PortfolioEditorPage /></Suspense>} />
+               
+               <Route path="/cover-letters" element={<Suspense fallback={<DashboardSkeleton />}><CoverLettersPage /></Suspense>} />
+              <Route path="/cover-letter/new" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterNewPage /></Suspense>} />
+              <Route path="/cover-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><CoverLetterEditPage /></Suspense>} />
+              <Route path="/examples" element={<Suspense fallback={<DashboardSkeleton />}><ExamplesPage /></Suspense>} />
+              <Route path="/career" element={<Suspense fallback={<DetailSkeleton />}><CareerPage /></Suspense>} />
+              <Route path="/resignation-letters" element={<Suspense fallback={<DashboardSkeleton />}><ResignationLettersPage /></Suspense>} />
+              <Route path="/resignation-letter/new" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterNewPage /></Suspense>} />
+              <Route path="/resignation-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterEditPage /></Suspense>} />
+              <Route path="/guides" element={<Suspense fallback={<DashboardSkeleton />}><GuidesPage /></Suspense>} />
+              <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
+               <Route path="/ai-studio" element={<Suspense fallback={<DashboardSkeleton />}><AIStudioPage /></Suspense>} />
+               <Route path="/activity" element={<Navigate to="/applications" replace />} />
+             </Route>
+             <WhatsNewDialog />
+          </Route>
 
         {/* Public share page - outside AppShell */}
         <Route path="/share/:token" element={<Suspense fallback={<ShareSkeleton />}><SharePage /></Suspense>} />

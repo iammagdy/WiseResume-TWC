@@ -5,7 +5,7 @@ const CHANGELOG_URL = '/changelog.json';
 
 // Module-level cache: fetch once per session, share across all hook instances
 let cachedFetch: Promise<{ version: string }[]> | null = null;
-function getChangelog(): Promise<{ version: string }[]> {
+export function getChangelog(): Promise<{ version: string }[]> {
   if (!cachedFetch) {
     cachedFetch = fetch(CHANGELOG_URL)
       .then(r => r.json())
