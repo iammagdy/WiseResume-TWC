@@ -266,7 +266,7 @@ function buildSVG(data: {
   <rect x="72" y="520" width="1056" height="1.5" fill="${dividerColor}"/>
 
   <!-- Bottom URL -->
-  <text x="72" y="578" font-family="system-ui,sans-serif" font-size="20" fill="${muted}" font-weight="500">wiseresume.app/p/${escapeXml(username)}</text>
+  <text x="72" y="578" font-family="system-ui,sans-serif" font-size="20" fill="${muted}" font-weight="500">WiseResume/${escapeXml(username)}</text>
   <text x="1128" y="578" font-family="system-ui,sans-serif" font-size="18" fill="${muted}" text-anchor="end">Made with ✦ WiseResume</text>
 </svg>`;
 }

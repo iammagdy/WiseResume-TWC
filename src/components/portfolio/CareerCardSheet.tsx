@@ -351,7 +351,7 @@ const CareerCardCanvas = ({
             color: s.textMuted,
             fontFamily: "'Courier New', monospace",
           }}>
-            wiseresume.app/p/{username}
+            WiseResume/{username}
           </div>
         )}
       </div>
@@ -591,7 +591,7 @@ export function CareerCardSheet({
                 {/* Footer */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${s.divider}`, paddingTop: '20px', marginTop: '16px' }}>
                   <div style={{ fontSize: '13px', color: s.textMuted, fontWeight: 500 }}>Made with <span style={{ color: accentColor, fontWeight: 700 }}>WiseResume</span></div>
-                  {username && <div style={{ fontSize: '13px', color: s.textMuted, fontFamily: 'monospace' }}>wiseresume.app/p/{username}</div>}
+                  {username && <div style={{ fontSize: '13px', color: s.textMuted, fontFamily: 'monospace' }}>WiseResume/{username}</div>}
                 </div>
               </div>
             </div>
