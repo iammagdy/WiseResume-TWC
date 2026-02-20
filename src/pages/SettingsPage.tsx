@@ -940,8 +940,7 @@ export default function SettingsPage() {
 
               {/* Tagline */}
               <p className="text-sm text-muted-foreground text-center">
-                Crafted with vision in{" "}
-                <span className="text-foreground font-medium">Egypt 🇪🇬</span>
+                Made with <span className="text-red-500">❤️</span> in Egypt
               </p>
 
               {/* Changelog pill button */}
