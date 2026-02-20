@@ -1,67 +1,66 @@
 
 
-# AI Studio Cleanup & Enhancement
+# Add Performance Indexes on High-Query Tables
 
-## Overview
-Clean up the AI Studio page and AIHubSheet by removing non-AI tools and dead placeholders, then add credit cost badges to every tool card so users know the cost before clicking.
+## Problem
 
-## Changes
+Several frequently queried tables only have basic single-column `user_id` indexes. The app's query patterns include ordering and filtering on additional columns (`applied_at`, `status`, `created_at`), which means Postgres must do in-memory sorts after the index lookup. As the user base grows, these become bottlenecks.
 
-### 1. Remove non-AI tools from AI Studio page
-In `src/pages/AIStudioPage.tsx`:
-- Remove **"Ideas"** (id: `ideas`) from the `toolCategories` "Create" section -- it's static content, not AI
-- Remove **"Customize"** (id: `customize`) from the "Create" section -- it's design/layout, not AI
-- Remove the lazy imports for `ContentLibrarySheet` and `CustomizeSheet`
-- Remove the `showContentLibrary` and `showCustomize` state variables
-- Remove the corresponding sheet renders and deep-link entries
-- Remove the `handleSecondaryAction` cases for `ideas` and `customize`
+## Existing Index Coverage
 
-### 2. Remove "Coming Soon" placeholders from AIHubSheet
-In `src/components/editor/AIHubSheet.tsx`:
-- Remove the entire **"Competitive Edge"** section's **Salary Coach** tile (dead button)
-- Remove the entire **"Learning"** section with **Reverse Engineer** and **Rejection Analyzer** tiles (dead buttons)
-- Remove the unused props: `onSalaryNegotiator`, `onReverseEngineer`, `onRejectionAnalyzer`
-- Remove unused imports: `DollarSign`, `Users`, `MessageCircle`
+| Table | Existing Indexes | Gap |
+|-------|-----------------|-----|
+| `resume_versions` | `(user_id, resume_id, created_at DESC)` | Already well-covered |
+| `job_applications` | `(user_id)` only | Missing `applied_at` ordering, `status` filtering |
+| `cover_letters` | `(user_id)` only | Missing `created_at` ordering |
+| `tailor_history` | None (no dedicated index) | Missing `user_id + created_at` for timeline queries |
+| `notifications` | `(user_id, is_read)` | Missing `created_at` ordering for sorted reads |
 
-### 3. Add credit cost badges to AI Studio tool cards
-In `src/pages/AIStudioPage.tsx`:
-- Add a `cost` field to each tool in `toolCategories` mapping to the operation key from `AI_COST_MAP`
-- Import and render `AICostBadge` inside each tool card (both featured tools and secondary grid tools)
-- Featured tools get the badge next to the description text
-- Secondary grid tools get a small badge below the label
+## Query Patterns Driving Index Design
 
-**Credit mapping per tool:**
-| Tool | Operation Key | Credits |
-|------|--------------|---------|
-| Smart Tailor | `tailor` | 2 |
-| Job Match | `score` | 1 |
-| A/B Compare | `score` x2 | 2 |
-| Proofread | `proofread` | 1 |
-| Enhance | `enhance` | 1 |
-| 1-Page | `one-page` | 1 |
-| Career | `career-assessment` | 2 |
-| Interview | `interview` | 1 |
-| Recruiter | `recruiter-sim` | 2 |
-| LinkedIn | `linkedin` | 1 |
-| Humanize | `detect-humanize` | 1 |
-| Briefing | `company_briefing` | 1 |
+1. **job_applications**: `WHERE user_id = ? ORDER BY applied_at DESC` (main list), `WHERE user_id = ? AND status = ?` (filtered views), `WHERE remind_at <= ? OR status = 'saved'` (pending reminders)
+2. **cover_letters**: `WHERE user_id = ? ORDER BY created_at DESC` (list view)
+3. **tailor_history**: `WHERE user_id = ? ORDER BY created_at DESC LIMIT 50` (activity timeline), `WHERE user_id = ? SELECT count(*)` (milestones)
+4. **notifications**: `WHERE user_id = ? AND is_read = false ORDER BY created_at DESC` (unread badge + list)
 
-### 4. Add credit cost badges to AIHubSheet tiles
-In `src/components/editor/AIHubSheet.tsx`:
-- Import `AICostBadge` and add it to the Essential tiles (Smart Tailor, Job Match, AI Enhance)
-- Add it to the Recruiter Sim tile (keeping the "New" badge, adding cost below)
+## New Indexes
 
-## Files Modified
+```text
+1. idx_job_applications_user_applied
+   ON job_applications (user_id, applied_at DESC)
+   -- Covers the primary list query with sort
 
-| File | Change |
+2. idx_job_applications_user_status
+   ON job_applications (user_id, status)
+   -- Covers filtered views by status
+
+3. idx_cover_letters_user_created
+   ON cover_letters (user_id, created_at DESC)
+   -- Covers the sorted list query
+
+4. idx_tailor_history_user_created
+   ON tailor_history (user_id, created_at DESC)
+   -- Covers timeline + activity streak queries
+
+5. idx_notifications_user_created
+   ON notifications (user_id, created_at DESC)
+   -- Covers the sorted notification list
+```
+
+## Technical Details
+
+| Item | Detail |
 |------|--------|
-| `src/pages/AIStudioPage.tsx` | Remove Ideas/Customize tools, add credit badges to all tool cards |
-| `src/components/editor/AIHubSheet.tsx` | Remove 3 dead placeholder tiles and unused props, add credit badges |
-| `src/lib/aiCostEstimates.ts` | No changes needed -- existing map covers all tools |
+| Tables affected | `job_applications`, `cover_letters`, `tailor_history`, `notifications` |
+| Migration | One SQL file with 5 `CREATE INDEX IF NOT EXISTS` statements |
+| Code changes | None -- queries automatically use the new indexes |
+| Risk | Zero -- additive indexes only, no schema changes |
+| `resume_versions` | Already optimized with existing composite index, skipped |
 
-## What stays unchanged
-- All Tier 1-3 AI tools remain functional
-- The Agentic Chat section is untouched
-- The Featured Tools section keeps Smart Tailor, A/B Compare, and Job Match
-- Deep-link support for remaining tools stays intact
+## What This Does NOT Change
+
+- No application code modified
+- No RLS policies affected
+- No table schemas altered
+- Existing indexes remain untouched
 
