@@ -1,41 +1,40 @@
 
 
-# Add Changelog Entry v2.3.1
+# "What's New" Auto-Popup Dialog
 
-## What Changes
+## Overview
+A dialog that automatically appears once when a returning user opens the app after an update. It shows only the latest changelog entry (not the full history), then marks the version as seen so it never reappears until the next update.
 
-Add a new patch version `v2.3.1` to `public/changelog.json` as the latest entry, covering the two recent enhancements. Mark it as `latest: true` and set the previous `v2.3.0` entry to `latest: false`.
+## How It Works
 
-## Updated File
+1. On app load (for authenticated users only), fetch `/changelog.json`
+2. Compare the latest version against `localStorage` key `lastSeenChangelog`
+3. If they differ, show the "What's New" dialog with just the latest entry
+4. On dismiss, write the version to `localStorage` (reusing the existing `lastSeenChangelog` key so it stays in sync with the Settings badge)
 
-### `public/changelog.json`
+## Files to Create / Modify
 
-Insert a new object at position `[0]` in the array:
+### 1. New: `src/components/WhatsNewDialog.tsx`
+- A standalone dialog component that:
+  - Fetches changelog data on mount
+  - Checks `lastSeenChangelog` in localStorage
+  - If a new version exists, auto-opens a Dialog showing the latest entry's summary and items (same visual style as the Settings changelog but limited to one entry)
+  - On close, calls `markSeen()` from `useChangelogBadge` to update localStorage and clear the badge dot in Settings simultaneously
+  - Includes a "Got it" button and a small "View full changelog" link that navigates to `/settings`
+  - Only renders after a short delay (~1.5s) so it doesn't compete with the splash screen
 
-```json
-{
-  "version": "v2.3.1",
-  "date": "Feb 20, 2026",
-  "latest": true,
-  "summary": "A quick polish pass -- the splash screen now features a twinkling star-field and you can replay it any time from Settings.",
-  "items": [
-    {
-      "title": "Star-field splash background",
-      "description": "Thirty softly twinkling stars drift inward toward the logo during the splash animation, with a faint nebula glow behind them for a cinematic space feel."
-    },
-    {
-      "title": "Replay Splash Screen in Settings",
-      "description": "A new button in Settings > About & Help lets you re-watch the animated intro whenever you want."
-    },
-    {
-      "title": "Reduced-motion compliance",
-      "description": "All new splash animations are fully disabled when the OS-level Reduce Motion preference is active -- stars render as static dots instead."
-    }
-  ]
-}
-```
+### 2. Modified: `src/App.tsx`
+- Import and render `<WhatsNewDialog />` inside `AppRoutes`, after the `<Routes>` block
+- Gate it behind authentication: only render when the user is logged in (check `useAuth()` context or place it inside the `ProtectedRoute` area)
 
-Set the existing `v2.3.0` entry's `"latest"` field from `true` to `false`.
+### 3. Modified: `src/hooks/useChangelogBadge.ts`
+- Export the shared `getChangelog()` helper so `WhatsNewDialog` can reuse it without a duplicate fetch
+- No logic changes, just make the function exportable
 
-No other files change. The app version badge in Settings and the changelog dialog will automatically pick up the new entry since they read from this JSON file at runtime.
+## Technical Details
+
+- **No new localStorage keys** -- reuses `lastSeenChangelog` so the Settings badge and the auto-popup stay perfectly in sync
+- **No duplicate fetches** -- the module-level `cachedFetch` in `useChangelogBadge.ts` ensures only one network request regardless of how many consumers call `getChangelog()`
+- **Splash-safe** -- the dialog waits 1.5 seconds before checking, so it never overlaps the animated splash on first launch
+- **One-shot** -- closing the dialog (via X, "Got it", or overlay click) marks the version seen immediately
 
