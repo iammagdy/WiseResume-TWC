@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight } from 'lucide-react';
+import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight, ShieldCheck, Lock, Brain, Trash2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
 import wiseAiLogo from '@/assets/wise-ai-logo.png';
 import { EditorDemo } from '@/components/landing/EditorDemo';
@@ -548,6 +548,34 @@ const Index = () => {
             ))}
           </motion.div>
         </motion.section>
+
+        {/* Trust & Security Pillars */}
+        <motion.section className="px-4 sm:px-6 mb-10" {...inView(0)}>
+          <motion.div className="text-center mb-5" {...inView(0)}>
+            <p className="text-primary text-xs font-medium tracking-wider uppercase mb-1">Your Data, Your Rules</p>
+            <h2 className="font-display text-xl font-bold text-foreground">Built on Trust</h2>
+          </motion.div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 max-w-3xl mx-auto">
+            {[
+              { icon: ShieldCheck, title: 'Encrypted', desc: 'Data encrypted at rest and in transit' },
+              { icon: Lock, title: 'Private by Default', desc: 'Only you see your resumes — never shared or sold' },
+              { icon: Brain, title: 'AI Transparency', desc: 'AI runs fresh per session — never stored or used to train' },
+              { icon: Trash2, title: 'Delete Anytime', desc: 'Full control — delete your data permanently' },
+            ].map((pillar, i) => (
+              <motion.div key={pillar.title} {...popIn(0.08 * i)}>
+                <Card className="p-3 border-border/20 bg-card/30 backdrop-blur-sm text-center h-full flex flex-col items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <pillar.icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <h3 className="text-xs font-semibold text-foreground">{pillar.title}</h3>
+                  <p className="text-[10px] text-muted-foreground leading-snug">{pillar.desc}</p>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </motion.section>
+
         <Footer />
       </main>
     </SpaceBackground>

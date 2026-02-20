@@ -1,4 +1,5 @@
-import { Sparkles } from 'lucide-react';
+import { Sparkles, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import wiseAiLogo from '@/assets/wise-ai-logo.png';
 
 export function Footer() {
@@ -28,6 +29,22 @@ export function Footer() {
             </span>
           </span>
         </div>
+
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+          <ShieldCheck className="w-3 h-3 text-primary/60" />
+          <span>Your data is encrypted and secure</span>
+        </div>
+
+        <div className="flex items-center gap-3 text-[11px]">
+          <Link to="/privacy" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+            Privacy Policy
+          </Link>
+          <span className="w-px h-3 bg-border/30" />
+          <Link to="/terms" className="text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+            Terms of Service
+          </Link>
+        </div>
+
         <p className="text-[11px] text-muted-foreground/50">
           © 2026 WiseResume
         </p>

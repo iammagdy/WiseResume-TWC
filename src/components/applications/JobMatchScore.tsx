@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { JobMatchResult } from '@/lib/jobMatchScorer';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
-import { Scissors, Info, Sparkles } from 'lucide-react';
+import { Scissors, Info, Sparkles, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 
 interface Props {
   score: JobMatchResult | null;
@@ -99,6 +100,14 @@ export function JobMatchScore({ score, jobTitle }: Props) {
                     <Badge key={i} variant="outline" className="text-[10px] text-destructive">{k}</Badge>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Wise AI badge for verified scores */}
+            {isAI && (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+                <img src={wiseAiLogo} alt="Wise AI" className="w-3.5 h-3.5 object-contain" />
+                <span className="text-[10px] text-muted-foreground">Powered by <span className="text-primary font-medium">Wise AI</span></span>
               </div>
             )}
 

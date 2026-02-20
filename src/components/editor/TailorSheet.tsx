@@ -31,6 +31,7 @@ import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
 
+import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
@@ -435,6 +436,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         </SheetHeader>
 
         <div className="overflow-y-auto h-[calc(92vh-140px)] space-y-4 pb-24">
+          <AITrustBadge className="mx-0" />
           {/* Tailoring Progress */}
           {isTailoring && progress && (
             <TailorProgressComponent

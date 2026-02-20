@@ -70,6 +70,8 @@ const AIStudioPage = lazyWithRetry(() => import("./pages/AIStudioPage"));
 const NotFound = lazyWithRetry(() => import("./pages/NotFound"));
 const ShortLinkPage = lazyWithRetry(() => import("./pages/ShortLinkPage"));
 const AuthCallbackPage = lazyWithRetry(() => import("./pages/AuthCallbackPage"));
+const PrivacyPage = lazyWithRetry(() => import("./pages/PrivacyPage"));
+const TermsPage = lazyWithRetry(() => import("./pages/TermsPage"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -143,7 +145,9 @@ const queryClient = new QueryClient({
          <Route path="/" element={<Index />} />
           <Route element={<AppShell />}>
             <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
-            <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
+             <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
+             <Route path="/privacy" element={<Suspense fallback={<PageLoadingSpinner />}><PrivacyPage /></Suspense>} />
+             <Route path="/terms" element={<Suspense fallback={<PageLoadingSpinner />}><TermsPage /></Suspense>} />
           </Route>
 
          {/* All protected routes - require authentication */}

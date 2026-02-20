@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck } from 'lucide-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -551,6 +551,26 @@ export default function DashboardPage() {
         {/* All scrollable content inside PullToRefresh */}
         <PullToRefresh onRefresh={handleRefresh} className="flex-1">
           <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
+            {/* Trust banner for new users */}
+            {!localStorage.getItem('wr-trust-banner-seen') && (
+              <div className="px-4 pt-3">
+                <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-foreground">Your career data is encrypted, private, and never shared.</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Powered by Wise AI — built for accuracy, not guesswork.</p>
+                  </div>
+                  <button
+                    onClick={() => { localStorage.setItem('wr-trust-banner-seen', 'true'); window.dispatchEvent(new Event('storage')); }}
+                    className="shrink-0 active:scale-95"
+                    aria-label="Dismiss"
+                  >
+                    <X className="w-3.5 h-3.5 text-muted-foreground/50" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Portfolio Activity Card - shows if portfolio is enabled */}
             <PortfolioActivityCard />
 
