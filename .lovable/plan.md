@@ -1,76 +1,80 @@
 
 
-# Increase User Trust in WiseResume
+# Capacitor Deep Link Configuration for OAuth on Native APK
 
 ## Problem
 
-The app lacks visible trust signals beyond a generic "4.9 stars" and "12,000+ users" badge. There is no mention of data privacy, encryption, or AI transparency anywhere. Users interacting with AI features have no reassurance that their personal career data is handled securely. The footer has no privacy or terms links.
+When a user signs in with Google or Apple on the native APK, the OAuth provider redirects back to `https://hjnnamwgztlhzkeuufln.supabase.co/auth/v1/callback`, which then redirects to `{origin}/auth/callback`. On native Capacitor builds, the WebView origin is `http://localhost` -- but there is no Android App Link or intent filter configured to intercept that redirect and route it back into the app. The result: the browser opens outside the app, or the redirect silently fails.
+
+Additionally, the `AuthCallbackPage` currently only calls `getSession()` which won't work if the tokens arrive as URL hash fragments from the OAuth redirect -- it needs to also handle `exchangeCodeForSession` for PKCE flows.
 
 ## Changes
 
-### 1. Landing Page -- Trust & Security Section
+### 1. Update `capacitor.config.ts` -- Add App URL scheme
 
-Add a new section between the "Why WiseResume?" features and the footer on the landing page (`src/pages/Index.tsx`). This section will display 3-4 trust pillars:
+Add a `server` configuration so Capacitor knows the app's localhost origin, and add the `appUrlScheme` for custom deep links:
 
-| Pillar | Icon | Text |
-|---|---|---|
-| Data Encryption | ShieldCheck | Your data is encrypted at rest and in transit |
-| Private by Default | Lock | Only you can see your resumes -- never shared or sold |
-| AI Transparency | Brain | AI suggestions are generated fresh for you, never stored or used to train models |
-| Delete Anytime | Trash2 | Full control -- delete your data permanently at any time |
+```typescript
+const config: CapacitorConfig = {
+  appId: 'com.wiseresume.app',
+  appName: 'Wise Resume',
+  webDir: 'dist',
+  android: {
+    // existing config...
+  },
+  // Add server config for deep link handling
+  server: {
+    androidScheme: 'https',  // Use https scheme instead of http for localhost
+  },
+  // existing plugins...
+};
+```
 
-Styled as a compact horizontal card row with muted backgrounds, matching the existing glass-surface aesthetic.
+Setting `androidScheme: 'https'` ensures the WebView uses `https://localhost` as its origin, which is important for OAuth redirect URL matching and cookie handling.
 
-### 2. Enhanced Footer with Legal Links
+### 2. Update GitHub Actions to inject Android intent filters
 
-Update `src/components/landing/Footer.tsx` to include:
-- "Privacy Policy" and "Terms of Service" text links (pointing to `/privacy` and `/terms`)
-- A small "Your data is encrypted and secure" line with a ShieldCheck icon
-- Create two minimal static pages (`src/pages/PrivacyPage.tsx` and `src/pages/TermsPage.tsx`) with placeholder legal content and register them as routes in `App.tsx`
+Add a step in `.github/workflows/build-apk.yml` (after `cap sync`) to patch the generated `AndroidManifest.xml` with intent filters so the app can intercept OAuth callback redirects:
 
-### 3. AI Processing Trust Indicator
+- Add an intent filter for `https://localhost/auth/callback` 
+- Add an intent filter for `com.wiseresume.app://auth/callback` (custom scheme fallback)
 
-Create a small reusable component `src/components/ui/AITrustBadge.tsx` that displays a subtle "Private and secure -- your data never leaves your session" message. This badge will appear:
-- Inside the AgenticChatSheet header area
-- At the top of TailorSheet results
-- In the CompanyBriefingSheet
+This is done by injecting XML into the `<activity>` block of the generated manifest.
 
-It will be a compact, dismissible inline banner (8-10px text, ShieldCheck icon, muted styling).
+### 3. Harden `AuthCallbackPage` for native OAuth
 
-### 4. Dashboard Welcome Trust Banner
+Update `src/pages/AuthCallbackPage.tsx` to handle both scenarios:
+- **Hash fragment tokens**: Extract `access_token` and `refresh_token` from the URL hash and call `setSession()`
+- **PKCE code exchange**: Extract `code` from query params and call `exchangeCodeForSession()`
+- **Existing session**: Fall back to `getSession()` if tokens are already set
 
-Add a one-time dismissible trust banner to the Dashboard (`src/pages/DashboardPage.tsx`) for new users (shown when `resumes.length === 0` or first visit). Content:
-- "Your career data is encrypted, private, and never shared."
-- "Powered by Wise AI -- built for accuracy, not guesswork."
-- Dismiss stores `wr-trust-banner-seen` in localStorage.
+### 4. Update `useDeepLinking` to handle OAuth redirects
 
-### 5. "Powered by Wise AI" Contextual Badges
+Update `src/hooks/useDeepLinking.ts` to specifically detect `/auth/callback` deep links and ensure the hash/query parameters are preserved when navigating, since these contain the OAuth tokens.
 
-Add small "Powered by Wise AI" text badges (using the existing `AIEngineBadge` component or a lighter variant) to key AI result screens:
-- Job Match Score detail sheet (when AI-verified)
-- Interview feedback cards
-- Tailor results header
+### 5. Update `socialAuth.ts` redirect URL for native
 
-This reinforces that results come from a real, named AI engine -- not generic automation.
+Update `src/lib/socialAuth.ts` to use the correct redirect URL based on platform:
+- On native (Capacitor): use `https://localhost/auth/callback`
+- On web (non-Lovable): use `${window.location.origin}/auth/callback`
 
-## Files Created
-
-| File | Purpose |
-|---|---|
-| `src/pages/PrivacyPage.tsx` | Static privacy policy page |
-| `src/pages/TermsPage.tsx` | Static terms of service page |
-| `src/components/ui/AITrustBadge.tsx` | Reusable trust indicator for AI features |
+This ensures the backend redirect URL matches what is configured in the intent filters.
 
 ## Files Modified
 
 | File | Changes |
 |---|---|
-| `src/pages/Index.tsx` | Add trust pillars section before footer |
-| `src/components/landing/Footer.tsx` | Add privacy/terms links and security line |
-| `src/App.tsx` | Register `/privacy` and `/terms` routes |
-| `src/pages/DashboardPage.tsx` | Add dismissible trust banner for new users |
-| `src/components/editor/AgenticChatSheet.tsx` | Add AITrustBadge in header |
-| `src/components/editor/TailorSheet.tsx` | Add AITrustBadge above results |
-| `src/components/interview/CompanyBriefingSheet.tsx` | Add AITrustBadge in header |
-| `src/components/applications/JobMatchScore.tsx` | Add "Powered by Wise AI" on AI-verified scores |
+| `capacitor.config.ts` | Add `androidScheme: 'https'` in server config |
+| `.github/workflows/build-apk.yml` | Add step to inject intent filters into AndroidManifest.xml |
+| `src/pages/AuthCallbackPage.tsx` | Handle hash tokens, PKCE code exchange, and fallback |
+| `src/hooks/useDeepLinking.ts` | Preserve hash/query on `/auth/callback` deep links |
+| `src/lib/socialAuth.ts` | Use platform-aware redirect URL for native builds |
+
+## Backend Configuration Required
+
+You will also need to add these redirect URLs to your authentication settings (allowed redirect URLs):
+- `https://localhost/auth/callback`
+- `com.wiseresume.app://auth/callback`
+
+This ensures the auth system accepts redirects back to the native app.
 
