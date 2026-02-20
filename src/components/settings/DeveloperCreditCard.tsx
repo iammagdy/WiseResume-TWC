@@ -61,24 +61,16 @@ export function DeveloperCreditCard({
         <span className="dev-sparkle" />
         <span className="dev-sparkle" />
       </div>
-      
-      {/* Electric border replaces old CSS gradient border */}
+
       <ElectricBorder color="#7C3AED" borderRadius={20} speed={1} chaos={0.12}>
-        {/* Glass card with breathing effect */}
         <div className="dev-card">
           {/* Holographic light sweep */}
           <div className="dev-holo-sweep" />
-          {/* Enhanced floating particles */}
+          {/* Floating particles */}
           <div className="dev-particles">
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
-            <span />
+            <span /><span /><span /><span /><span /><span />
           </div>
-          
-          {/* Content layout */}
+
           <motion.div
             className="dev-card-content"
             variants={containerVariants}
@@ -86,63 +78,71 @@ export function DeveloperCreditCard({
             whileInView="visible"
             viewport={{ once: false, amount: 0.3 }}
           >
-            {/* Avatar with glow ring and orbit */}
-            <motion.div variants={itemVariants}>
-              <div className="dev-avatar-container">
-                <div className="dev-avatar-glow" />
-                <div className="dev-orbit-ring">
-                  <span className="dev-orbit-dot" />
-                </div>
-                <img
-                  src={avatarUrl}
-                  alt={name}
-                  className="dev-avatar" />
-              </div>
-            </motion.div>
-            
-            {/* Info section */}
-            <div className="dev-info">
-              <motion.div variants={itemVariants}>
-                <h3 className="dev-name">{name}</h3>
-                <p className="dev-title">{title}</p>
-              </motion.div>
-              
-              <motion.div variants={itemVariants}>
-                {/* Button row: Contact Me + GitHub */}
-                <div className="dev-btn-row">
-                  <button
-                    className="dev-contact-btn text-left px-px"
-                    onClick={handleContactClick}>
-                    <Mail className="dev-mail-icon" />
-                    <span className="mx-0 my-0 font-sans font-bold text-base text-left px-0 py-0">Contact  </span>
-                  </button>
-                  {githubUrl &&
-                  <button
-                    className="dev-contact-btn"
-                    onClick={() => {
-                      haptics.light();
-                      openExternal(githubUrl);
-                    }}>
-                      <Github className="w-4 h-4" />
-                      <span className="font-sans font-bold text-base">GitHub</span>
-                    </button>
-                  }
-                </div>
+            <div className="flex flex-col gap-3 w-full">
+              {/* Top section: avatar + info */}
+              <div className="flex items-start gap-3 w-full">
+                {/* Avatar with gradient ring */}
+                <motion.div variants={itemVariants} className="flex-shrink-0">
+                  <div className="dev-avatar-ring">
+                    <div className="dev-avatar-inner">
+                      <img
+                        src={avatarUrl}
+                        alt={name}
+                        className="dev-avatar"
+                      />
+                    </div>
+                  </div>
+                </motion.div>
 
-                {/* Website link inside card */}
-                {websiteUrl &&
+                {/* Name, title, buttons */}
+                <div className="flex flex-1 flex-col min-w-0">
+                  <motion.div variants={itemVariants} className="mb-2">
+                    <h3 className="dev-name">{name}</h3>
+                    <p className="dev-title">{title}</p>
+                  </motion.div>
+
+                  <motion.div variants={itemVariants}>
+                    <div className="dev-btn-row">
+                      <button
+                        className="dev-contact-btn"
+                        onClick={handleContactClick}
+                      >
+                        <Mail className="w-4 h-4" />
+                        <span>Contact</span>
+                      </button>
+                      {githubUrl && (
+                        <button
+                          className="dev-github-btn"
+                          onClick={() => {
+                            haptics.light();
+                            openExternal(githubUrl);
+                          }}
+                        >
+                          <Github className="w-4 h-4" />
+                          <span>GitHub</span>
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Bottom section: website link */}
+              {websiteUrl && (
+                <motion.div variants={itemVariants}>
                   <button
                     onClick={handleWebsiteClick}
-                    className="dev-website-link">
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>{new URL(websiteUrl).hostname.replace('www.', '')}</span>
+                    className="dev-website-link"
+                  >
+                    <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{new URL(websiteUrl).hostname.replace('www.', '')}</span>
                   </button>
-                }
-              </motion.div>
+                </motion.div>
+              )}
             </div>
           </motion.div>
         </div>
       </ElectricBorder>
-    </motion.div>);
-
+    </motion.div>
+  );
 }
