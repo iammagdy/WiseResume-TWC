@@ -1,104 +1,112 @@
 
 
-# Reorganize Portfolio Editor Sections
+# Extract Portfolio Editor Sections into Separate Components
 
-## Current Problem
+## Overview
 
-The portfolio editor has **14 separate collapsible cards** plus the hero card, making it feel overwhelming. Many of these sections contain only 1-2 fields and could be logically grouped together.
+The `PortfolioEditorPage.tsx` file is 1068 lines. We will extract the three largest section bodies into dedicated components, keeping the page file as the orchestrator for state and layout.
 
-**Current sections (in order):**
-1. Hero Card (Portfolio Overview)
-2. Strength Tips
-3. Visitors & Analytics
-4. Skills on your portfolio
-5. Visual Theme
-6. Customization (accent, font, layout)
-7. Identity (username, source resume, page color mode)
-8. About Me Bio
-9. Social Links & Contact
-10. Availability
-11. Visible Sections
-12. Content Sync Mode
-13. Case Studies
-14. Services & Offerings
-15. SEO & Sharing
+## New Files
 
-## Proposed New Structure (8 items, down from 15)
+### 1. `src/components/portfolio/editor/ProfileSection.tsx`
+Extracts lines 671-760 (the Profile `CollapsibleCard` and all its contents).
 
-### Always visible:
+**Props interface:**
+```typescript
+interface ProfileSectionProps {
+  openSections: Set<string>;
+  toggleSection: (id: string) => void;
+  username: string;
+  onUsernameChange: (val: string) => void;
+  usernameError: string;
+  usernameAvailable: boolean | null;
+  checkingUsername: boolean;
+  resumes: Array<{ id: string; title: string; is_primary?: boolean }>;
+  selectedResumeId: string;
+  onSelectedResumeIdChange: (id: string) => void;
+  bio: string;
+  onBioChange: (val: string) => void;
+  onGenerateBio: () => void;
+  generatingBio: boolean;
+  githubUrl: string;
+  onGithubUrlChange: (val: string) => void;
+  websiteUrl: string;
+  onWebsiteUrlChange: (val: string) => void;
+  twitterUrl: string;
+  onTwitterUrlChange: (val: string) => void;
+  contactEmail: string;
+  onContactEmailChange: (val: string) => void;
+  openToWork: boolean;
+  onOpenToWorkChange: (val: boolean) => void;
+  availabilityHeadline: string;
+  onAvailabilityHeadlineChange: (val: string) => void;
+  onGenerateAvailability: () => void;
+  generatingAvailability: boolean;
+  currentUsername: string | null;
+}
+```
 
-| # | Section | Contents (merged from) |
-|---|---------|----------------------|
-| 1 | **Hero Card** (unchanged) | Overview, publish toggle, save, career card |
-| 2 | **Profile** | Username + Source Resume (from Identity) + Bio with AI (from About Me Bio) + Social Links & Contact + Availability toggle & headline |
-| 3 | **Appearance** | Theme picker (from Visual Theme) + Accent Color + Font + Layout + Page Color Mode (from Identity and Customization) |
-| 4 | **Content & Visibility** | Section on/off toggles (from Visible Sections) + Sync Mode radio (from Content Sync Mode) |
-| 5 | **Visitors & Analytics** | Unchanged |
+Contains: `CollapsibleCard` with id `profile`, username input with availability check, source resume select, bio textarea with AI generate, social link inputs, availability toggle and headline.
 
-### Behind "Add more sections" (conditional):
+### 2. `src/components/portfolio/editor/AppearanceSection.tsx`
+Extracts lines 765-851 (the Appearance `CollapsibleCard` and all its contents).
 
-| # | Section | Status |
-|---|---------|--------|
-| 6 | **Case Studies** | Unchanged |
-| 7 | **Services & Offerings** | Unchanged |
-| 8 | **SEO & Sharing** | Unchanged |
+**Props interface:**
+```typescript
+interface AppearanceSectionProps {
+  openSections: Set<string>;
+  toggleSection: (id: string) => void;
+  portfolioStyle: PortfolioStyle;
+  onPortfolioStyleChange: (val: PortfolioStyle) => void;
+  portfolioAccentColor: string;
+  onPortfolioAccentColorChange: (val: string) => void;
+  portfolioFont: PortfolioFont;
+  onPortfolioFontChange: (val: PortfolioFont) => void;
+  portfolioLayout: PortfolioLayout;
+  onPortfolioLayoutChange: (val: PortfolioLayout) => void;
+  selectedTheme: string;
+  onSelectedThemeChange: (val: string) => void;
+}
+```
 
-### Removed entirely:
+Contains: `CollapsibleCard` with id `appearance`, theme picker (horizontal scroll), accent color presets + custom picker, font style grid, desktop layout grid, page color mode select.
 
-| Section | Reason |
-|---------|--------|
-| **Skills on your portfolio** | Read-only informational display; skills are managed in the Resume Editor. Adds clutter without providing an actionable setting. |
-| **Strength Tips** | Fold the 3 tips inline into the hero card beneath the score, as small tappable hints. No need for a separate collapsible section. |
+Moves `ThemePreviewCard`, `THEMES`, `ACCENT_PRESETS`, and the type aliases (`PortfolioStyle`, `PortfolioLayout`, `PortfolioFont`) into this file and re-exports the types for use by the parent page.
 
-## Technical Changes
+### 3. `src/components/portfolio/editor/ContentVisibilitySection.tsx`
+Extracts lines 856-898 (the Content & Visibility `CollapsibleCard`).
 
-### File: `src/pages/PortfolioEditorPage.tsx`
+**Props interface:**
+```typescript
+interface ContentVisibilitySectionProps {
+  openSections: Set<string>;
+  toggleSection: (id: string) => void;
+  sections: PortfolioSections;
+  onToggleSectionVisibility: (key: keyof PortfolioSections) => void;
+  syncMode: 'auto' | 'locked';
+  onSyncModeChange: (val: 'auto' | 'locked') => void;
+}
+```
 
-**1. Move Strength Tips into the Hero Card**
-- Remove the standalone `CollapsibleCard` for `strength-tips`
-- Add the tip list (max 3) as small tappable rows directly below the stats row inside the hero card, visible only when score < 100%
+Contains: `CollapsibleCard` with id `content`, section visibility toggles, sync mode radio buttons.
 
-**2. Remove "Skills on your portfolio" section**
-- Delete the entire `CollapsibleCard` with `id="skill-cloud"` (lines 700-756)
-- Remove related state: `showAllSkills` and `setShowAllSkills`
-- Keep `skillScores`/`sortedSkillScores` computations since `strongSkillCount` is used in the hero stats row
+Moves `PortfolioSections`, `DEFAULT_SECTIONS`, and `SECTION_LABELS` into this file and re-exports them.
 
-**3. Create merged "Profile" section**
-- New `CollapsibleCard` with `id="profile"` containing:
-  - Username input + availability check (from Identity)
-  - Source Resume selector (from Identity)
-  - Bio textarea + AI generate button (from About Me Bio)
-  - Social links inputs: GitHub, Website, Twitter, Contact Email (from Social Links)
-  - "Open to Work" toggle + Availability headline + AI suggest (from Availability)
-- Remove the individual `identity`, `bio`, `social`, and `availability` CollapsibleCards
+## Changes to `src/pages/PortfolioEditorPage.tsx`
 
-**4. Create merged "Appearance" section**
-- New `CollapsibleCard` with `id="appearance"` containing:
-  - Theme picker (horizontal scroll, from Visual Theme)
-  - Accent color presets + custom picker (from Customization)
-  - Font style selector (from Customization)
-  - Desktop layout selector (from Customization)
-  - Page color mode dropdown (from Identity -- currently misplaced there)
-- Remove the individual `theme` and `customization` CollapsibleCards
+1. **Add imports** for `ProfileSection`, `AppearanceSection`, `ContentVisibilitySection` and the re-exported types/constants.
+2. **Remove** the inline JSX for the three CollapsibleCards (Profile lines 671-760, Appearance lines 765-851, Content lines 856-898) and replace each with a single component tag passing the required props.
+3. **Remove** `ThemePreviewCard`, `THEMES`, `ACCENT_PRESETS`, type aliases, `PortfolioSections`, `DEFAULT_SECTIONS`, `SECTION_LABELS` from the page file (import them from the new components instead).
+4. **Keep** `CollapsibleCard` and `SubSectionHeading` in the page file since they are also used by the remaining sections (Visitors, Case Studies, Services, SEO). Alternatively, move them to a shared file -- but to minimize scope, we keep them in-place for now.
 
-**5. Create merged "Content & Visibility" section**
-- New `CollapsibleCard` with `id="content"` containing:
-  - Section visibility toggles (from Visible Sections)
-  - Sync mode radio buttons (from Content Sync Mode)
-- Remove the individual `sections` and `sync` CollapsibleCards
+## Shared Utilities
 
-**6. Update "Improve your score" tip deep-links**
-- Tips that previously expanded `bio`, `social`, `availability`, `identity` sections should now expand `profile`
-- Tips that previously expanded `theme`/`customization` should now expand `appearance`
-
-**7. Update "Add more sections" conditional logic**
-- Social Links and Availability are now always part of Profile (always visible)
-- Only Case Studies, Services, and SEO remain behind the "Add more" toggle
+`CollapsibleCard` and `SubSectionHeading` are used by both the parent page (for Visitors, Case Studies, Services, SEO) and the new extracted components. To avoid circular imports:
+- Create `src/components/portfolio/editor/shared.tsx` containing `CollapsibleCard` and `SubSectionHeading`.
+- All files import from this shared module.
 
 ## Result
 
-- **Before**: 14 collapsible sections (overwhelming)
-- **After**: 5 always-visible items + 3 conditional items (clean and organized)
-- Users can find everything in logical groups without endless scrolling
-- No functionality is removed (except the read-only skills display)
-
+- `PortfolioEditorPage.tsx` drops from ~1068 lines to ~650 lines
+- Each extracted section is self-contained and independently testable
+- No behavioral changes -- purely a structural refactor
