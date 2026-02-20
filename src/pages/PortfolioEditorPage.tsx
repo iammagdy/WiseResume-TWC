@@ -23,6 +23,7 @@ import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { computeSkillFrequencies, getSkillTier, TIER_STYLES } from '@/lib/skillCloud';
+import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import type { Experience, Project } from '@/types/resume';
 
 interface PortfolioSections {
@@ -471,8 +472,8 @@ export default function PortfolioEditorPage() {
 
   // Display URL (cosmetic — no "lovable" branding shown to user)
   const portfolioDisplayUrl = username ? `WiseResume/${username}` : '';
-  // Actual URL (real domain the app runs on — dynamic, works with custom domains)
-  const actualPortfolioUrl = username ? `${window.location.origin}/p/${username}` : '';
+  // Actual URL — always uses the canonical production domain
+  const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {
     if (!actualPortfolioUrl) return;
