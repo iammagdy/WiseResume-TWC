@@ -13,6 +13,7 @@ import { BiometricLockScreen } from "@/components/BiometricLockScreen";
 import { useBiometricLock } from "@/hooks/useBiometricLock";
 import { useSettingsStore } from "@/store/settingsStore";
 import { toast } from "sonner";
+import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -113,7 +114,7 @@ const queryClient = new QueryClient({
      root.classList.add(resolved);
    }, []);
    
-   const { biometricLockEnabled, biometricLockTimeout } = useSettingsStore();
+   const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
    const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
 
    // Global unhandled rejection handler to prevent black screens from async errors
@@ -128,8 +129,13 @@ const queryClient = new QueryClient({
      return () => window.removeEventListener("unhandledrejection", handleRejection);
    }, []);
    
-   // Show lock screen if biometric lock is enabled and app is locked
-   if (biometricLockEnabled && isLocked && isAvailable) {
+    // Show animated splash on first launch
+    if (!hasSeenSplash) {
+      return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
+    }
+
+    // Show lock screen if biometric lock is enabled and app is locked
+    if (biometricLockEnabled && isLocked && isAvailable) {
      return (
        <BiometricLockScreen
          biometryType={biometryType}
