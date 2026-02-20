@@ -29,8 +29,14 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
   const [micTestStatus, setMicTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [micLevel, setMicLevel] = useState(0);
   const [showBriefing, setShowBriefing] = useState(false);
+  const [showValidation, setShowValidation] = useState(false);
 
   const handleStart = () => {
+    if (mode === 'job-targeted' && !jobDescription.trim()) {
+      setShowValidation(true);
+      haptics.light();
+      return;
+    }
     haptics.medium();
     if (mode === 'job-targeted') {
       onStart(jobDescription);
@@ -338,10 +344,22 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
           <label className="text-sm font-semibold text-foreground">Job Description</label>
           <Textarea
             value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
+            onChange={(e) => { setJobDescription(e.target.value); setShowValidation(false); }}
             placeholder="Paste the job description here..."
             className="min-h-[120px] resize-none bg-card/60 backdrop-blur-xl border-border/40 rounded-2xl focus:border-primary/50 focus:shadow-[0_0_15px_hsl(var(--primary)/0.1)]"
           />
+          <AnimatePresence>
+            {showValidation && !jobDescription.trim() && (
+              <motion.p
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="text-destructive text-xs mt-1"
+              >
+                Please paste a job description to continue
+              </motion.p>
+            )}
+          </AnimatePresence>
           {jobDescription.trim() && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
               <Button
@@ -362,9 +380,8 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
         <Button
           onClick={handleStart}
           size="lg"
-          className="w-full text-base font-bold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-[0_4px_30px_hsl(var(--primary)/0.4)] rounded-2xl h-14"
+          className="w-full text-base font-bold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-[0_4px_30px_hsl(var(--primary)/0.4)] rounded-2xl h-14 transition-opacity duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
           disabled={mode === 'job-targeted' && !jobDescription.trim()}
-
         >
           <Rocket className="w-5 h-5 mr-2" />
           Launch Interview
