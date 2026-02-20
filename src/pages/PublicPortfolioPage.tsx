@@ -46,6 +46,12 @@ function useActiveStatus(username: string, initialLastActiveAt: string | null): 
   return lastActiveAt;
 }
 
+// ─── hexToRgb helper ───────────────────────────────────────────────────────────
+function hexToRgb(hex: string): string {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return m ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}` : '239, 68, 68';
+}
+
 // ─── Motion variants ───────────────────────────────────────────────────────────
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -1171,7 +1177,25 @@ function PublicPortfolioContent() {
   const [showCareerCard, setShowCareerCard] = useState(false);
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
+  const [nearFooter, setNearFooter] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
+
+  // Contact CTA logic (hooks must be before early returns)
+  const contactHref = useMemo(() => {
+    if (portfolio?.profile?.contactEmail) return `mailto:${portfolio.profile.contactEmail}`;
+    if (portfolio?.profile?.linkedinUrl) return portfolio.profile.linkedinUrl;
+    return null;
+  }, [portfolio?.profile?.contactEmail, portfolio?.profile?.linkedinUrl]);
+  const contactIsExternal = !contactHref?.startsWith('mailto:');
+
+  useEffect(() => {
+    const onScroll = () => {
+      setNearFooter(window.scrollY + window.innerHeight >= document.body.scrollHeight - 200);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  const ctaVisible = stickyVisible && !nearFooter && !!contactHref;
 
   // Live active status — polls every 60s
   const liveLastActiveAt = useActiveStatus(
@@ -1714,23 +1738,38 @@ function PublicPortfolioContent() {
             {hasExperience && (
               <motion.section variants={stagger} id="section-experience">
                 <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
-                <div className="space-y-4" ref={(node) => {
+                <div className="pf-timeline-container relative" ref={(node) => {
                   if (!node || node.dataset.observed) return;
                   node.dataset.observed = 'true';
                   const obs = new IntersectionObserver(([entry]) => {
                     if (entry.isIntersecting) {
+                      node.classList.add('pf-timeline-drawn');
                       node.querySelectorAll('.pf-exp-card').forEach((card, idx) => {
                         (card as HTMLElement).style.animationDelay = `${idx * 100}ms`;
                         card.classList.add('pf-card-revealed');
+                      });
+                      node.querySelectorAll('.pf-timeline-dot').forEach((dot, idx) => {
+                        (dot as HTMLElement).style.transitionDelay = `${idx * 100}ms`;
+                        dot.classList.add('pf-dot-visible');
                       });
                       obs.disconnect();
                     }
                   }, { threshold: 0.15 });
                   obs.observe(node);
                 }}>
-                  {resume.experience.map((exp, i) => (
-                    <ExperienceCard key={exp.id || i} exp={exp} style={pStyle} isLast={i === resume.experience.length - 1} index={i} />
-                  ))}
+                  {/* Timeline vertical line */}
+                  <div className="pf-timeline-line" style={{ background: `linear-gradient(to bottom, ${accentColor}, transparent)` }} />
+                  <div className="space-y-4 pl-11 md:pl-14">
+                    {resume.experience.map((exp, i) => (
+                      <div key={exp.id || i} className="relative">
+                        {/* Timeline dot */}
+                        <div className="pf-timeline-dot" style={{ background: accentColor, borderColor: 'var(--pf-bg, #0a0a1a)' }} />
+                        {/* Horizontal connector */}
+                        <div className="pf-timeline-connector" style={{ background: accentColor }} />
+                        <ExperienceCard exp={exp} style={pStyle} isLast={i === resume.experience.length - 1} index={i} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </motion.section>
             )}
@@ -1859,6 +1898,25 @@ function PublicPortfolioContent() {
           </a>
         </motion.div>
       </motion.div>
+      {contactHref && (
+        <div
+          className={`pf-contact-cta ${ctaVisible ? 'pf-contact-visible' : 'pf-contact-hidden'}`}
+          style={{
+            '--pf-cta-accent': accentColor,
+            '--pf-cta-shadow-rgb': hexToRgb(accentColor),
+          } as React.CSSProperties}
+        >
+          <a
+            href={contactHref}
+            target={contactIsExternal ? '_blank' : undefined}
+            rel={contactIsExternal ? 'noopener noreferrer' : undefined}
+            className="pf-contact-cta-inner active:scale-95"
+          >
+            <Mail className="w-4 h-4" />
+            <span>Contact Me</span>
+          </a>
+        </div>
+      )}
       <ChatWidget
         profile={profile}
         resume={resume}
