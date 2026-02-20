@@ -1,107 +1,104 @@
 
 
-# Skill Tags Bubble Pop-In + Education Cards Fade-Up
+# Hover & Interaction Animations for Portfolio Cards and Skill Tags
 
 ## Overview
 
-Add two CSS-only scroll-triggered animations to the public portfolio page, replacing the existing Framer Motion entrance animations on the Skills and Education sections with IntersectionObserver-driven CSS keyframe animations. This follows the same pattern already established for experience cards.
+Add pure CSS hover/active interaction states to Experience cards, Education cards, and Skill tags on the public portfolio page. No JavaScript changes needed -- all additions go into `src/index.css`.
 
 ---
 
-## ANIMATION 1: Skill Tags Bubble Pop-In
+## ANIMATION 1: Experience & Education Card Hover Lift
 
 ### CSS (`src/index.css`)
 
-Add new keyframes and classes after the existing portfolio animation block:
+Add interaction styles for `.pf-exp-card` and `.pf-edu-card` after their existing animation blocks:
 
 ```css
-@keyframes pf-skill-pop {
-  from { opacity: 0; transform: scale(0.5); }
-  to   { opacity: 1; transform: scale(1); }
+/* Card hover lift */
+.pf-exp-card,
+.pf-edu-card {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.pf-skill-tag {
-  opacity: 0;
+@media (hover: hover) {
+  .pf-exp-card:hover,
+  .pf-edu-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5),
+                0 4px 12px rgba(0, 0, 0, 0.3);
+  }
 }
-.pf-skill-tag.pf-skill-revealed {
-  animation: pf-skill-pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+
+.pf-exp-card:active,
+.pf-edu-card:active {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 }
 ```
 
-Add reduced-motion overrides inside the existing `@media (prefers-reduced-motion: reduce)` block:
+The `@media (hover: hover)` scoping ensures hover styles only apply on devices with a real pointer (desktop), preventing sticky hover on mobile. The `:active` state works on both desktop and mobile for press feedback.
 
-```css
-.pf-skill-tag {
-  opacity: 1;
-}
-.pf-skill-tag.pf-skill-revealed {
-  animation: none;
-  opacity: 1;
-}
-```
+The `transition` property is additive -- it handles the return to resting state automatically on mouse-leave. Existing box-shadow values set via inline `style` will be the base, and the hover/active states override with deeper shadows.
 
-### JSX (`src/pages/PublicPortfolioPage.tsx`)
-
-**SkillCloud component (lines 825-874):**
-
-1. Remove Framer Motion entrance from the container: change `<motion.div variants={skillWave} initial="hidden" whileInView="visible" viewport={{ once: true }}>` to a plain `<div>` with a ref for the IntersectionObserver.
-2. Change each `<motion.span variants={skillPill}>` to a plain `<span>` with the `pf-skill-tag` CSS class.
-3. Add an IntersectionObserver ref on the container `<div>` (threshold: 0.2, rootMargin: '0px 0px -50px 0px'). When triggered:
-   - Query all `.pf-skill-tag` children
-   - Add `pf-skill-revealed` class with staggered `animationDelay: index * 40ms` (25ms on mobile via `window.innerWidth < 768` check)
-   - Disconnect observer (once-only)
-4. For the "Show more" expand: when `showMore` toggles from false to true, the newly visible tags (those without `pf-skill-revealed`) get the class added with stagger continuing from the last index. Use a `useEffect` watching `showMore` to handle this.
-
-### Stagger on Expand Logic
-
-When user taps "+N more" and `showMore` becomes true:
-- After React renders the new tags, use a microtask (`requestAnimationFrame`) to find `.pf-skill-tag:not(.pf-skill-revealed)` elements inside the container
-- Apply `pf-skill-revealed` with staggered delay starting from the count of already-revealed tags
-- Use 25ms stagger on mobile, 40ms on desktop
+No JSX changes needed -- the classes `.pf-exp-card` and `.pf-edu-card` are already applied to the cards.
 
 ---
 
-## ANIMATION 2: Education Cards Fade-Up
+## ANIMATION 2: Skill Tags Hover Glow + Tap Bounce
 
 ### CSS (`src/index.css`)
 
-Add new keyframes and class:
+Add a tap-bounce keyframe and interaction styles for `.pf-skill-tag`:
 
 ```css
-@keyframes pf-edu-fade-up {
-  from { opacity: 0; transform: translateY(40px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Skill tag tap bounce */
+@keyframes pf-tag-tap {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.88); }
+  100% { transform: scale(1.05); }
 }
 
-.pf-edu-card {
-  opacity: 0;
+/* Desktop hover glow */
+@media (hover: hover) {
+  .pf-skill-tag:hover {
+    background: var(--pf-accent) !important;
+    color: #fff !important;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--pf-accent) 40%, transparent);
+    transition: all 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
 }
-.pf-edu-card.pf-edu-revealed {
-  animation: pf-edu-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+
+/* Mobile tap bounce */
+@media (hover: none) {
+  .pf-skill-tag:active {
+    animation: pf-tag-tap 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
 }
 ```
 
-Add reduced-motion overrides:
+Notes:
+- Uses `!important` only on hover overrides to beat the inline `style` attributes for `background` and `color` that are set in JSX. This is the cleanest approach without restructuring the component.
+- `@media (hover: none)` scopes the tap bounce to touch-only devices, preventing hover from sticking on mobile.
+- The existing inline `transition: 'all 0.2s'` on the tags provides the base transition; the hover rule adds the specific easing.
+- The `pf-tag-tap` keyframe ends at `scale(1.05)` -- the browser returns to `scale(1)` when `:active` is released because the animation is removed.
+
+### Reduced Motion Overrides
+
+Add to the existing `@media (prefers-reduced-motion: reduce)` block:
 
 ```css
-.pf-edu-card {
-  opacity: 1;
+.pf-exp-card,
+.pf-edu-card,
+.pf-skill-tag {
+  transition: none !important;
 }
-.pf-edu-card.pf-edu-revealed {
+.pf-skill-tag:active {
   animation: none;
-  opacity: 1;
 }
 ```
-
-### JSX (`src/pages/PublicPortfolioPage.tsx`)
-
-**EducationCard component (line 577):**
-- Remove Framer Motion entrance: change `<motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }}>` to a plain `<div>` with the `pf-edu-card` CSS class.
-
-**Education section (lines 1476-1485):**
-- Add an IntersectionObserver ref on the `<div className="space-y-4">` container (threshold: 0.2, rootMargin: '0px 0px -50px 0px')
-- When triggered, query child `.pf-edu-card` elements and add `pf-edu-revealed` with staggered `animationDelay: index * 120ms`
-- Disconnect after triggering (once-only)
 
 ---
 
@@ -109,9 +106,7 @@ Add reduced-motion overrides:
 
 | File | Change |
 |---|---|
-| `src/index.css` | Add `pf-skill-pop` and `pf-edu-fade-up` keyframes, utility classes, reduced-motion overrides |
-| `src/pages/PublicPortfolioPage.tsx` | SkillCloud: replace FM entrance with CSS classes + observer ref; handle expand stagger |
-| `src/pages/PublicPortfolioPage.tsx` | EducationCard: replace FM entrance with `pf-edu-card` class |
-| `src/pages/PublicPortfolioPage.tsx` | Education section container: add observer ref for staggered reveal |
+| `src/index.css` | Add card hover lift transitions, skill tag hover glow + tap bounce keyframe, reduced-motion overrides |
 
-No data, routing, or dependency changes. All GPU-accelerated (transform + opacity). Reduced-motion safe. Observers disconnected on unmount.
+No JSX changes required. All class names (`.pf-exp-card`, `.pf-edu-card`, `.pf-skill-tag`) already exist on the elements. Pure CSS additions only.
+
