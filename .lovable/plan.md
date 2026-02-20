@@ -1,135 +1,177 @@
 
-# Animated Stats Strip + Section Quick-Nav Pills
+
+# "Open to Work" Availability Badge + Career Card Holographic Shimmer/Tilt
 
 ## Overview
 
-Two new UI features inserted between the hero and the body content on the public portfolio page:
-1. A "highlights strip" showing 3 animated stat counters (years experience, roles held, skills count)
-2. A horizontally scrollable row of section navigation pills for mobile quick-jump
+Two visual enhancements for the public portfolio page:
+1. An animated availability badge in the hero showing the user's custom availability text with a pulsing green dot
+2. A holographic shimmer overlay + interactive 3D tilt on the Career Card preview
 
 ---
 
-## FEATURE 1: Animated Number Counter -- Key Stats Strip
+## FEATURE 1: Availability Badge in Hero
 
-### Data Calculation
+### Data Source
 
-Using the existing `resume` and `allSkills` data already computed in `PublicPortfolioContent`:
+The `profile.availabilityHeadline` field is already loaded in `PublicPortfolioContent`. This is distinct from the existing "Active today" badge (which shows when `openToWork && isActiveWithin24h`). The new badge shows the user's custom availability text (e.g., "Available for freelance projects starting March").
 
-- **Years Experience**: `new Date().getFullYear() - Math.min(...resume.experience.map(e => parseInt(e.startDate)))` -- parse year from the `startDate` string (format varies: "Jan 2018", "2018-01", "01/2018"). Use the existing `parseResumeDate` utility from `@/lib/dateUtils` to extract years. If no valid year found or experience is empty, hide this card.
-- **Roles Held**: `resume.experience.length` -- hide if 0.
-- **Skills**: `allSkills.length` -- hide if 0.
+### Placement
 
-### New Component: `StatsStrip`
+Insert directly after the "Active today" badge block (line ~1541) and before the location/industry row (line ~1544). It renders only when `profile.availabilityHeadline` is truthy and non-empty.
 
-A standalone function component defined inside `PublicPortfolioPage.tsx`:
+### Implementation (`src/pages/PublicPortfolioPage.tsx`)
 
 ```typescript
-function StatsStrip({ experience, skillCount, accentColor }: {
-  experience: Experience[];
-  skillCount: number;
-  accentColor: string;
-}) { ... }
+{profile.availabilityHeadline && (
+  <div
+    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-2.5 pf-availability-entrance"
+    style={{
+      background: 'rgba(34, 197, 94, 0.10)',
+      border: '1px solid rgba(34, 197, 94, 0.25)',
+      animationDelay: `${badgeDelay + 200}ms`,
+      maxWidth: '85vw',
+    }}
+  >
+    <span className="pf-availability-dot" />
+    <span style={{
+      color: '#86efac',
+      fontSize: '0.8rem',
+      fontWeight: 500,
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      whiteSpace: 'nowrap',
+    }}>
+      {profile.availabilityHeadline}
+    </span>
+  </div>
+)}
 ```
-
-- Computes the 3 stats, filtering out any that are 0/NaN/invalid.
-- If no valid stats remain, returns `null`.
-- Uses a single `ref` + `IntersectionObserver` (threshold: 0.5, once) to trigger the count-up.
-- Each stat uses `requestAnimationFrame` with ease-out timing (deceleration curve: `1 - (1 - t)^3` where `t = elapsed / 1800`).
-- Stagger: card index * 200ms delay before starting the rAF loop.
-- `prefers-reduced-motion`: skip animation, show final number immediately.
-- Observer disconnects after trigger.
-- Cleanup on unmount via `useEffect` return.
-
-### Visual Styling
-
-- The strip is a full-width container with the same card background (`var(--pf-card)`), rounded corners, and border as experience cards.
-- 3 columns using CSS grid: `grid-template-columns: 1fr 1fr 1fr`.
-- Vertical dividers: each middle column gets `border-left: 1px solid var(--pf-border)`.
-- Number: `font-size: 2rem`, `font-weight: 800`, `color: var(--pf-accent)`.
-- Label: `font-size: 0.75rem`, `color: var(--pf-muted)`, centered below the number.
-- The strip itself fades up: starts at `opacity: 0; transform: translateY(30px)`, transitions to `opacity: 1; transform: translateY(0)` over 500ms, triggered by the same IntersectionObserver.
 
 ### CSS (`src/index.css`)
 
 ```css
-.pf-stats-strip {
-  opacity: 0;
-  transform: translateY(30px);
-  transition: opacity 500ms ease, transform 500ms ease;
+/* Availability pulse dot */
+@keyframes pf-availability-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); transform: scale(1.1); }
 }
-.pf-stats-strip.pf-stats-visible {
-  opacity: 1;
-  transform: translateY(0);
+.pf-availability-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: pf-availability-pulse 1.8s ease-out infinite;
+}
+
+/* Availability badge entrance */
+.pf-availability-entrance {
+  opacity: 0;
+  transform: scale(0.85);
+  animation: pf-availability-enter 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes pf-availability-enter {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
 }
 ```
 
 Reduced-motion override:
 ```css
-.pf-stats-strip {
-  opacity: 1;
-  transform: none;
-  transition: none;
-}
+.pf-availability-dot { animation: none; }
+.pf-availability-entrance { opacity: 1; transform: none; animation: none; }
 ```
-
-### Placement
-
-Inserted between the hero `</motion.div>` (line 1468) and the body content `<div>` (line 1471). This is a new element -- no existing elements are modified.
 
 ---
 
-## FEATURE 2: Section Quick-Nav Pills (Mobile)
+## FEATURE 2: Holographic Shimmer + Tilt on Career Card
 
-### New Component: `SectionNav`
+### Shimmer Overlay (`src/components/portfolio/CareerCardSheet.tsx`)
 
-A standalone function component defined inside `PublicPortfolioPage.tsx`:
+Add a shimmer overlay `<div>` inside the card preview wrapper (the `pf-card-flip-inner` div), after the card content div (line ~608), so it sits on top visually and flips with the card during style transitions.
 
-```typescript
-function SectionNav({ sections, accentColor, stickyHeaderHeight }: {
-  sections: { id: string; label: string }[];
-  accentColor: string;
-  stickyHeaderHeight: number;
-}) { ... }
+```jsx
+{/* Holographic shimmer overlay */}
+<div
+  className={`pf-holo-shimmer ${variant === 'clean' ? 'pf-holo-clean' : ''}`}
+  style={{ borderRadius: 'inherit' }}
+  aria-hidden="true"
+/>
 ```
 
-- **Visible sections**: Receives a pre-filtered list of sections that have data (computed in the parent using the existing `hasExperience`, `hasEducation`, etc. booleans). Each entry has an `id` (matching `section-about`, `section-experience`, etc.) and a `label`.
-- **Layout**: `overflow-x: auto`, horizontal scroll, hidden scrollbar. Each pill is `display: inline-flex`, `border-radius: 9999px`, `white-space: nowrap`.
-- **Active tracking**: A `useEffect` sets up an `IntersectionObserver` on each section element by ID. Threshold: ~0.2, rootMargin: `-30% 0px -70% 0px` (so the section heading must be in the top 30%). When a section enters, its ID is set as the active pill.
-- **Tap behavior**: `scrollIntoView({ behavior: 'smooth', block: 'start' })` on the target section. For reduced-motion: `behavior: 'auto'`.
-- **Offset**: Since there is a sticky header (~48px) and the nav pill row itself is sticky, offset is handled by adding a `scroll-margin-top` CSS property to each section element. This avoids complex JS offset calculation.
-- **Sticky positioning**: `position: sticky; top: 48px; z-index: 40;` (just below the sticky header at z-50). Background matches the page background with blur for depth.
-- **Desktop hidden**: Wrapped in a container with `className` that includes the Tailwind class `md:hidden`.
-- **Pill styling**:
-  - Default: `background: var(--pf-card)`, `color: var(--pf-muted)`, `border: 1px solid var(--pf-border)`
-  - Active: `background: accentColor`, `color: #fff`
-- All observers disconnect on unmount.
+### Tilt Interaction (`src/components/portfolio/CareerCardSheet.tsx`)
+
+Add mouse/touch event handlers to the `previewWrapperRef` container:
+
+```typescript
+const handlePointerMove = useCallback((clientX: number, clientY: number) => {
+  const el = previewWrapperRef.current;
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const rect = el.getBoundingClientRect();
+  const x = (clientX - rect.left) / rect.width - 0.5;
+  const y = (clientY - rect.top) / rect.height - 0.5;
+  el.style.transform = `perspective(800px) rotateX(${-y * 24}deg) rotateY(${x * 24}deg)`;
+  el.style.transition = 'transform 100ms ease-out';
+}, []);
+
+const handlePointerLeave = useCallback(() => {
+  const el = previewWrapperRef.current;
+  if (!el) return;
+  el.style.transform = '';
+  el.style.transition = 'transform 400ms ease-out';
+}, []);
+```
+
+Attach these to the `previewWrapperRef` div:
+- `onMouseMove={(e) => handlePointerMove(e.clientX, e.clientY)}`
+- `onMouseLeave={handlePointerLeave}`
+- `onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}`
+- `onTouchEnd={handlePointerLeave}`
+
+The tilt applies to the outer wrapper, so both card content and shimmer overlay tilt as one unit.
 
 ### CSS (`src/index.css`)
 
 ```css
-.pf-nav-pills {
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+/* Holographic shimmer overlay */
+@keyframes pf-holographic-shift {
+  0%   { background-position: 0% 50%;   opacity: 0.6; }
+  25%  { background-position: 100% 0%;  opacity: 1;   }
+  50%  { background-position: 100% 100%; opacity: 0.7; }
+  75%  { background-position: 0% 100%;  opacity: 1;   }
+  100% { background-position: 0% 50%;   opacity: 0.6; }
 }
-.pf-nav-pills::-webkit-scrollbar {
-  display: none;
+
+.pf-holo-shimmer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  mix-blend-mode: screen;
+  background: linear-gradient(
+    125deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.03) 20%,
+    rgba(120,80,255,0.08) 35%,
+    rgba(0,200,255,0.10) 50%,
+    rgba(120,80,255,0.08) 65%,
+    rgba(255,255,255,0.03) 80%,
+    rgba(255,255,255,0) 100%
+  );
+  background-size: 300% 300%;
+  animation: pf-holographic-shift 6s ease-in-out infinite;
+}
+
+.pf-holo-clean {
+  opacity: 0.6;
 }
 ```
 
-Add `scroll-margin-top` to section elements:
+Reduced-motion override:
 ```css
-[id^="section-"] {
-  scroll-margin-top: 100px; /* sticky header + nav pills height */
-}
+.pf-holo-shimmer { animation: none; opacity: 0; }
 ```
-
-### Placement
-
-Inserted right after `StatsStrip`, before the body content `<div>`. If stats strip has no data and returns null, the nav pills still render in the same position.
-
-### Section ID Setup
-
-The About section currently lacks an `id` attribute. Add `id="section-about"` to it. Other sections already have IDs (`section-experience`, `section-skills`, `section-education`, `section-projects`, `section-case-studies`, `section-services`).
 
 ---
 
@@ -137,7 +179,9 @@ The About section currently lacks an `id` attribute. Add `id="section-about"` to
 
 | File | Change |
 |---|---|
-| `src/index.css` | Add `.pf-stats-strip` fade-up transition, `.pf-nav-pills` scrollbar-hidden, `[id^="section-"]` scroll-margin-top, reduced-motion overrides |
-| `src/pages/PublicPortfolioPage.tsx` | Add `StatsStrip` component (count-up + IntersectionObserver), add `SectionNav` component (sticky pills + active tracking), insert both between hero and body content, add `id="section-about"` to About section |
+| `src/index.css` | Add `pf-availability-pulse`, `pf-availability-enter` keyframes + classes, `pf-holographic-shift` keyframe + `.pf-holo-shimmer` class, reduced-motion overrides |
+| `src/pages/PublicPortfolioPage.tsx` | Insert availability badge after "Active today" block using `profile.availabilityHeadline`, with entrance animation delay based on existing `badgeDelay + 200` |
+| `src/components/portfolio/CareerCardSheet.tsx` | Add holographic shimmer overlay div inside card preview, add tilt event handlers to `previewWrapperRef` container |
 
-No data fetching, routing, or dependency changes. All data is derived from the existing `resume` and `profile` objects already in scope.
+No data fetching, routing, modal logic, or download/share functionality is changed. The shimmer overlay uses `pointer-events: none` and flips with the card during style transitions.
+
