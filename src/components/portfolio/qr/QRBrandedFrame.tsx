@@ -12,12 +12,15 @@ export function QRBrandedFrame({ isCapture = false }: QRBrandedFrameProps) {
         Made with
       </span>
       <span
-        className="text-[11px] font-bold tracking-wide bg-clip-text text-transparent"
-        style={{
-          backgroundImage: 'linear-gradient(135deg, #a855f7, #ec4899)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-        }}
+        className={`text-[11px] font-bold tracking-wide ${!isCapture ? 'bg-clip-text text-transparent' : ''}`}
+        style={isCapture
+          ? { color: '#a855f7' }
+          : {
+              backgroundImage: 'linear-gradient(135deg, #a855f7, #ec4899)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+            }
+        }
       >
         Wise Resume
       </span>
