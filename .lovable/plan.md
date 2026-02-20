@@ -1,49 +1,29 @@
 
 
-# Fix: Customize Button Scrolling Issue
+# Remove Customize Button, Keep Only "View Live"
 
-## Problem
+## Change
 
-When tapping the "Customize" floating button, the page forcefully scrolls down to the `#section-theme` element via `scrollIntoView()`. This is disorienting -- the user loses their current scroll position and gets teleported down the page. A floating action button should not displace the user's viewport.
+The floating pill bar at the bottom currently has two buttons: "Customize" and "View Live". Since the Customize button has no meaningful in-page logic (it just expands accordion sections), it will be removed entirely. Only the "View Live" button will remain.
 
-## Solution
+## Technical Details
 
-Remove the `scrollIntoView` call from the Customize button's tap handler. The button should only expand the collapsed "Theme" and "Customization" accordion sections so they become visible when the user scrolls to them naturally. No forced scrolling.
+### File: `src/pages/PortfolioEditorPage.tsx`
 
-### File: `src/pages/PortfolioEditorPage.tsx` (lines 1159-1172)
+1. **Simplify the `FloatingCustomizePill` component** (lines 1186-1213):
+   - Remove the `onTap` prop and the Customize button element
+   - Keep only the "View Live" button
+   - Rename the component to `FloatingViewLivePill` for clarity
+   - The component will only render when `hasLiveUrl` is true (no pill shown at all if there is no live URL)
 
-**Before:**
-```js
-onTap={() => {
-  haptics.light();
-  setOpenSections(prev => {
-    const next = new Set(prev);
-    next.add('theme');
-    next.add('customization');
-    return next;
-  });
-  setTimeout(() => {
-    document.getElementById('section-theme')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
-}}
-```
+2. **Update the usage** (lines 1158-1172):
+   - Remove the `onTap` handler and the `setOpenSections` logic
+   - Pass only the `onViewLive` and `hasLiveUrl` props
 
-**After:**
-```js
-onTap={() => {
-  haptics.light();
-  setOpenSections(prev => {
-    const next = new Set(prev);
-    next.add('theme');
-    next.add('customization');
-    return next;
-  });
-}}
-```
+3. **Clean up unused import**: Remove `Palette` from the lucide-react import if no longer used elsewhere in the file.
 
-The `setTimeout` + `scrollIntoView` block (lines 1169-1171) will be removed entirely. The sections will still expand so the user can scroll to them at their own pace.
+### Result
+- Only the "View Live" pill button remains at the bottom
+- The floating bar disappears entirely when there is no live URL (cleaner UX)
+- No functionality is lost since the theme/customization sections are already accessible by scrolling
 
-## Result
-- Tapping "Customize" expands the theme/customization sections without moving the viewport
-- User retains their current scroll position
-- The experience feels native and non-disruptive
