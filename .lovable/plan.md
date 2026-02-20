@@ -1,52 +1,62 @@
 
+# Redesign the WiseResume Version/About Card
 
-# Performance and Responsiveness Fixes
+## What changes
+Restyle the "Branded Footer" section (lines 924-947 in `SettingsPage.tsx`) to be a polished, centered card with proper visual hierarchy. No logic or data changes.
 
-## Overview
-Apply targeted code fixes based on the QA checklist and README performance sections, then create `src/perf-audit-results.ts` to track resolution status. No business logic changes.
+## Visual result
+- Centered app icon with purple glow/shadow, larger (48px)
+- App name bold on its own line, version as a purple pill badge below
+- Tagline with Egypt flag emoji inline ("Crafted with vision in **Egypt** flag-emoji"), no awkward floating text
+- Changelog as a styled pill button with ScrollText icon and chevron
+- Card with more padding, vertical spacing, and subtle border
 
-## Changes
+## Technical changes
 
-### 1. ElectricBorder -- Cap sampleCount (Performance)
+### 1. `src/pages/SettingsPage.tsx` -- Add `ScrollText` to lucide-react imports (line 46)
 
-**File:** `src/components/ui/ElectricBorder.tsx`, line 183
+Add `ScrollText` to the existing lucide-react import block.
 
-Change:
-```typescript
-const sampleCount = Math.floor(approximatePerimeter / 2);
+### 2. `src/pages/SettingsPage.tsx` -- Replace the Branded Footer block (lines 924-947)
+
+Replace the current card markup with:
+
+```tsx
+{/* Branded Footer */}
+<div className="pt-2 pb-10">
+  <div className="flex flex-col items-center gap-4 px-6 py-8 rounded-3xl glass-elevated border border-white/[0.08] shadow-xl w-full max-w-xs mx-auto">
+    {/* App icon with glow */}
+    <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-purple-500/30 ring-1 ring-white/10">
+      <AppIcon size={56} showSparkle={false} className="w-full h-full" />
+    </div>
+
+    {/* Name + version badge */}
+    <div className="flex flex-col items-center gap-1.5">
+      <h2 className="text-lg font-bold text-foreground tracking-tight">WiseResume</h2>
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-mono font-medium">
+        {appVersion}
+      </span>
+    </div>
+
+    {/* Tagline */}
+    <p className="text-sm text-muted-foreground text-center">
+      Crafted with vision in{" "}
+      <span className="text-foreground font-medium">Egypt 🇪🇬</span>
+    </p>
+
+    {/* Changelog pill button */}
+    <button
+      type="button"
+      onClick={() => setChangelogOpen(true)}
+      className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px]"
+    >
+      <ScrollText className="w-4 h-4 text-purple-400" />
+      <span>Changelog</span>
+      <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-1" />
+    </button>
+  </div>
+</div>
 ```
-To:
-```typescript
-const sampleCount = Math.min(Math.floor(approximatePerimeter / 2), 200);
-```
 
-Cleanup, DPR cap, and ResizeObserver disconnect are already correctly implemented.
-
-### 2. Create `src/perf-audit-results.ts` (Audit Tracker)
-
-New file that documents the status of every item from the checklist:
-
-- **WHITE FLASH**: FIXED -- `index.html` has inline `background-color:#0a0a14`, CSS sets `html`/`#root`/`body` to dark bg.
-- **WEB VITALS**: FIXED -- `web-vitals` installed, `reportWebVitals()` wired in `main.tsx`.
-- **ELECTRIC BORDER PERF**: FIXED -- sampleCount capped at 200, rAF+ResizeObserver cleaned up, DPR capped at 2.
-- **HARDCODED WIDTHS**: FIXED -- decorative elements use absolute positioning inside overflow-hidden parents; template widths are intentional for print.
-- **TOUCH TARGETS**: FIXED -- all primary interactive elements verified at 44px minimum.
-- **CLS/LAYOUT SHIFTS**: NEEDS REVIEW -- avatar images in profile/photo sheets should be verified for explicit dimensions.
-- **FLEX WRAPPING**: NEEDS REVIEW -- dashboard filter chips at 320px need manual testing.
-- **TEXT OVERFLOW**: NEEDS REVIEW -- long job titles in editor at 320px need manual check.
-- **MODAL OVERFLOW**: NEEDS REVIEW -- AI chat sheet in landscape on short viewports needs manual check.
-
-### 3. No other code changes needed
-
-After thorough review:
-- **White flash**: Already fully fixed (html inline bg + CSS rules).
-- **Web Vitals**: Already wired in `main.tsx`.
-- **`bg-white` in templates**: Intentional for print-ready resume rendering -- not a bug.
-- **HomeBackground `w-[500px]`**: Decorative blurs with absolute positioning inside overflow-hidden -- no horizontal scroll.
-- **floating-panel `sm:w-[400px]`**: Only applies at `sm+` breakpoint -- mobile uses `inset-x-4`.
-- **PageLoadingSpinner**: Already uses `bg-background`.
-
-### Files modified
-- `src/components/ui/ElectricBorder.tsx` -- cap sampleCount to 200
-- `src/perf-audit-results.ts` -- new file tracking audit status
-
+## Files modified
+- `src/pages/SettingsPage.tsx` -- add ScrollText import, restyle footer card
