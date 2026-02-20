@@ -1,124 +1,131 @@
 
 
-# CTA Button Shimmer Sweep + Sticky Header Cinematic Slide
+# Career Card 3D Flip + Skill Tag Tap Bounce
 
 ## Overview
 
-Two ambient animations for the public portfolio page:
-1. Idle shimmer sweep on the hero CTA buttons ("Share Card" and "Download CV")
-2. Replace the Framer Motion sticky header entrance with a CSS transition-based smooth slide-down triggered by IntersectionObserver
+Two interaction animations for the public portfolio page:
+1. A 3D card-flip transition when switching Career Card styles (Cosmic/Aurora/Clean)
+2. An enhanced physical press-bounce on skill tags for mobile touch devices
 
 ---
 
-## ANIMATION 1: CTA Button Idle Shimmer Sweep
+## ANIMATION 1: Career Card 3D Flip Transition
+
+### Approach
+
+The Career Card preview currently swaps styles instantly when a variant button is tapped. We add a JS-driven flip sequence: apply "flipping-out" class (rotateY 0 to 90 deg over 220ms), swap the variant state at the midpoint, then apply "flipping-in" class (rotateY 90 to 0 deg over 220ms). The content swap happens at 90 degrees when the card is edge-on and invisible.
 
 ### CSS (`src/index.css`)
 
-Add a shimmer-sweep keyframe using the "pause within keyframe" technique. The sweep motion occupies 0%-44% of a 5-second cycle, and 44%-100% holds position off-screen:
-
 ```css
-@keyframes pf-cta-shimmer {
-  0%   { transform: translateX(-150%); }
-  44%  { transform: translateX(350%); }
-  100% { transform: translateX(350%); }
-}
-
-/* Shimmer pseudo-element on CTA buttons */
-.pf-cta-shimmer {
-  position: relative;
+/* Career Card 3D flip */
+.pf-card-flip-container {
+  perspective: 1000px;
   overflow: hidden;
 }
-.pf-cta-shimmer::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 60%;
-  height: 100%;
-  background: linear-gradient(105deg,
-    transparent 40%,
-    rgba(255,255,255,0.18) 50%,
-    transparent 60%);
-  pointer-events: none;
-  animation: pf-cta-shimmer 5s linear infinite;
-  z-index: 1;
+.pf-card-flip-inner {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
 }
 
-/* Subtler shimmer for outlined buttons */
-.pf-cta-shimmer-subtle::before {
-  background: linear-gradient(105deg,
-    transparent 40%,
-    rgba(255,255,255,0.10) 50%,
-    transparent 60%);
+@keyframes pf-flip-out {
+  from { transform: rotateY(0deg); opacity: 1; }
+  to   { transform: rotateY(90deg); opacity: 0.6; }
+}
+@keyframes pf-flip-in {
+  from { transform: rotateY(90deg); opacity: 0.6; }
+  to   { transform: rotateY(0deg); opacity: 1; }
+}
+
+.pf-card-flip-inner.pf-flipping-out {
+  animation: pf-flip-out 220ms ease-in forwards;
+}
+.pf-card-flip-inner.pf-flipping-in {
+  animation: pf-flip-in 220ms ease-out forwards;
 }
 ```
 
 Reduced-motion override (add to existing block):
 ```css
-.pf-cta-shimmer::before {
+.pf-card-flip-inner.pf-flipping-out,
+.pf-card-flip-inner.pf-flipping-in {
   animation: none;
-  opacity: 0;
-}
-```
-
-### JSX (`src/pages/PublicPortfolioPage.tsx`)
-
-Add the `pf-cta-shimmer` class to both CTA buttons in the hero section:
-
-- **"Share Card" button** (line ~1452): Add `pf-cta-shimmer pf-cta-shimmer-subtle` to its `className`. Add `animationDelay: '1s'` to the `::before` via a wrapper style or by using a second modifier class `.pf-cta-shimmer-delay-1` with `animation-delay: 1s`.
-  - Since `::before` can't be styled inline, use two CSS modifier classes:
-    - `.pf-cta-shimmer-d1::before { animation-delay: 1s; }` (Share Card)
-    - `.pf-cta-shimmer-d2::before { animation-delay: 2.8s; }` (Download CV)
-- **"Download CV" button** (line ~1464): Add `pf-cta-shimmer pf-cta-shimmer-d2` to its `className`.
-
-The buttons already have `transition-all` and interactive states -- the shimmer `::before` with `pointer-events: none` and `z-index: 1` won't interfere. The buttons already use inline styles for background/border, so `position: relative` and `overflow: hidden` from `.pf-cta-shimmer` are safe additions since the buttons are simple `<button>` elements with `rounded-full` (which implies `overflow` is not set to `visible`).
-
----
-
-## ANIMATION 2: Sticky Header Cinematic Slide-Down
-
-### Current Implementation
-
-The `StickyHeader` component uses Framer Motion's `AnimatePresence` with conditional rendering (`{visible && <motion.div>}`). This mounts/unmounts the DOM element on visibility toggle.
-
-### New Approach
-
-Replace with an always-rendered `<div>` that uses CSS transitions for slide-in/slide-out, controlled by a class toggle. This avoids mount/unmount and gives smoother cinematic transitions.
-
-### CSS (`src/index.css`)
-
-```css
-/* Sticky header slide */
-.pf-sticky-header {
-  transform: translateY(-100%);
-  opacity: 0;
-  transition: transform 350ms cubic-bezier(0.22, 1, 0.36, 1),
-              opacity 350ms ease;
-}
-.pf-sticky-header.pf-sticky-visible {
-  transform: translateY(0);
+  transform: none;
   opacity: 1;
 }
 ```
 
-Reduced-motion override:
+### JSX (`src/components/portfolio/CareerCardSheet.tsx`)
+
+**Changes to CareerCardSheet component:**
+
+1. Add a `ref` to the preview inner container and a `flipClass` state (`'' | 'pf-flipping-out' | 'pf-flipping-in'`).
+
+2. Replace the direct `setVariant(v.id)` in the variant picker buttons with a new `handleVariantChange(newVariant)` function:
+   ```typescript
+   const handleVariantChange = useCallback((newVariant: CardVariant) => {
+     if (newVariant === variant || flipClass) return; // skip if same or mid-flip
+     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+     if (prefersReduced) { setVariant(newVariant); return; }
+     setFlipClass('pf-flipping-out');
+     setTimeout(() => {
+       setVariant(newVariant);
+       setFlipClass('pf-flipping-in');
+       setTimeout(() => setFlipClass(''), 220);
+     }, 220);
+   }, [variant, flipClass]);
+   ```
+
+3. Wrap the existing preview container (the `<div ref={previewWrapperRef} ...>`) with `className="pf-card-flip-container"` on the outer wrapper, and add `pf-card-flip-inner ${flipClass}` to the inner scaled div.
+
+4. Update variant picker button `onClick` from `setVariant(v.id)` to `handleVariantChange(v.id)`.
+
+5. All download/share/LinkedIn buttons remain completely unchanged.
+
+---
+
+## ANIMATION 2: Skill Tag Tap Bounce (Enhanced)
+
+### Approach
+
+Replace the existing `pf-tag-tap` keyframe (which only scales) with the new `tag-press-bounce` keyframe that has a more physical feel, and add a parallel `tag-flash` background animation. The existing `@media (hover: none)` scoping is preserved. The existing desktop hover glow remains untouched.
+
+### CSS (`src/index.css`)
+
+Replace the existing `pf-tag-tap` keyframe and mobile active rule with:
+
 ```css
-.pf-sticky-header {
-  transition: none;
+/* Skill tag press bounce (mobile) */
+@keyframes pf-tag-press-bounce {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(0.87); }
+  70%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pf-tag-flash {
+  0%   { background-color: color-mix(in srgb, var(--pf-accent) 12%, transparent); }
+  40%  { background-color: var(--pf-accent); }
+  100% { background-color: color-mix(in srgb, var(--pf-accent) 12%, transparent); }
+}
+
+@media (hover: none) {
+  .pf-skill-tag:active {
+    animation: pf-tag-press-bounce 320ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards,
+               pf-tag-flash 320ms ease forwards;
+  }
 }
 ```
 
-### JSX (`src/pages/PublicPortfolioPage.tsx`)
+Reduced-motion override (update existing):
+```css
+.pf-skill-tag:active {
+  animation: none;
+}
+```
 
-**StickyHeader component (lines 827-870):**
-
-1. Remove `AnimatePresence` wrapper and `motion.div`. Replace with a plain `<div>`.
-2. The `<div>` is always rendered (no conditional `{visible && ...}`).
-3. Add class `pf-sticky-header` always, and `pf-sticky-visible` when `visible` is true.
-4. Keep existing inline styles for backdrop-filter, background, and border-bottom (they're already correct per the spec).
-5. Keep `position: fixed`, `top: 0`, `z-index: 50` from the existing `className`.
-
-The existing IntersectionObserver for the hero (lines 1085-1094) already handles toggling `stickyVisible` state -- no changes needed there.
+The old `pf-tag-tap` keyframe is removed and replaced by `pf-tag-press-bounce`.
 
 ---
 
@@ -126,7 +133,8 @@ The existing IntersectionObserver for the hero (lines 1085-1094) already handles
 
 | File | Change |
 |---|---|
-| `src/index.css` | Add `pf-cta-shimmer` keyframe + classes, `pf-sticky-header` transition classes, reduced-motion overrides |
-| `src/pages/PublicPortfolioPage.tsx` | Add shimmer classes to Share Card and Download CV buttons; refactor StickyHeader from AnimatePresence/motion.div to plain div with CSS transition class toggle |
+| `src/index.css` | Add 3D flip keyframes (`pf-flip-out`, `pf-flip-in`) + container classes; replace `pf-tag-tap` with `pf-tag-press-bounce` + `pf-tag-flash`; add reduced-motion overrides |
+| `src/components/portfolio/CareerCardSheet.tsx` | Add `flipClass` state + `handleVariantChange` with 220ms sequenced flip; add `pf-card-flip-container` / `pf-card-flip-inner` classes to preview; update variant button onClick |
 
-No data, routing, or dependency changes. Shimmer uses `pointer-events: none` to preserve all click handlers. Sticky header observer already exists and remains unchanged.
+No data, routing, or dependency changes. All existing button handlers (download, share, LinkedIn) remain untouched. The flip is skipped entirely under `prefers-reduced-motion`.
+
