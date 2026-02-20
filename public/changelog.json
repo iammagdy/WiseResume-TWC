@@ -3,15 +3,11 @@
     "version": "v2.2.2",
     "date": "Feb 20, 2026",
     "latest": true,
-    "summary": "Under-the-hood performance tuning, smoother animations, and a refreshed Settings footer -- the app feels faster and looks sharper.",
+    "summary": "Smoother animations, a refreshed Settings footer, and better tap targets -- the app feels faster and looks sharper.",
     "items": [
       {
         "title": "Smoother border animations",
         "description": "The glowing border effect now uses fewer draw calls on smaller screens, so scrolling and transitions feel snappier -- especially on older phones."
-      },
-      {
-        "title": "Core Web Vitals monitoring",
-        "description": "The app now measures real loading and responsiveness metrics (LCP, CLS, INP) behind the scenes to help us catch slowdowns early."
       },
       {
         "title": "No more white flash on launch",
@@ -20,10 +16,6 @@
       {
         "title": "Redesigned About card in Settings",
         "description": "The WiseResume version card at the bottom of Settings now has a glowing app icon, a version badge, and a proper Changelog button."
-      },
-      {
-        "title": "Developer link is tappable",
-        "description": "The website link in the developer credit card now behaves like a real link -- your browser shows the URL on hover and recognizes it as clickable."
       },
       {
         "title": "Bigger tap targets across the app",
