@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,11 @@ interface InterviewSetupProps {
 }
 
 export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoiceGenderChange, onStart, resumeData }: InterviewSetupProps) {
-  const [mode, setMode] = useState<InterviewMode>('general');
+  const [mode, setMode] = useState<InterviewMode>(() => {
+    const saved = localStorage.getItem('wiseresume_interview_mode');
+    return (saved === 'general' || saved === 'job-targeted' || saved === 'quick-practice') ? saved : 'general';
+  });
+  const micResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [jobDescription, setJobDescription] = useState('');
   const [micTestStatus, setMicTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
   const [micLevel, setMicLevel] = useState(0);
@@ -50,12 +54,24 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
   const handleModeChange = (newMode: InterviewMode) => {
     haptics.selection();
     setMode(newMode);
+    localStorage.setItem('wiseresume_interview_mode', newMode);
   };
 
   const handleVoiceChange = (gender: VoiceGender) => {
     haptics.selection();
     onVoiceGenderChange(gender);
+    localStorage.setItem('wiseresume_interview_voice', gender);
   };
+
+  // Auto-reset mic test after success/failure
+  useEffect(() => {
+    if (micTestStatus === 'success' || micTestStatus === 'failed') {
+      micResetTimerRef.current = setTimeout(() => setMicTestStatus('idle'), 3000);
+    }
+    return () => {
+      if (micResetTimerRef.current) clearTimeout(micResetTimerRef.current);
+    };
+  }, [micTestStatus]);
 
   const handleMicTest = useCallback(async () => {
     setMicTestStatus('testing');
@@ -148,16 +164,14 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
             Practice with your intelligent interview coach
           </p>
         </div>
-        <motion.div 
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/15 border border-primary/30 shadow-[0_0_15px_hsl(var(--primary)/0.15)]"
-          animate={{ scale: [1, 1.02, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
+        <div 
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/15 border border-primary/30 cursor-default select-none pointer-events-none"
         >
           <Zap className="w-3 h-3 text-primary" />
           <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
             AI-Powered Feedback
           </span>
-        </motion.div>
+        </div>
       </div>
 
       {!speechSupported && (
