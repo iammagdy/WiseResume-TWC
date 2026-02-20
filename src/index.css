@@ -181,10 +181,17 @@ body.wr-security-curtain [data-biometric-lock] {
   }
 
   html {
+    background-color: hsl(var(--background));
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
+  }
+
+  #root {
+    min-height: 100vh;
+    min-height: 100dvh;
+    background-color: hsl(var(--background));
   }
 
   body {
