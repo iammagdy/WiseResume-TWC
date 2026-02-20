@@ -1155,18 +1155,8 @@ export default function PortfolioEditorPage() {
 
       </div>
 
-      {/* ── Floating "Customize" pill ──────────────────────────────── */}
-      <FloatingCustomizePill
-        onTap={() => {
-          haptics.light();
-          // Expand both theme + customization cards and scroll to theme
-          setOpenSections(prev => {
-            const next = new Set(prev);
-            next.add('theme');
-            next.add('customization');
-            return next;
-          });
-        }}
+      {/* ── Floating "View Live" pill ──────────────────────────────── */}
+      <FloatingViewLivePill
         onViewLive={actualPortfolioUrl ? () => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer') : undefined}
         hasLiveUrl={!!actualPortfolioUrl && portfolioEnabled}
       />
@@ -1182,32 +1172,24 @@ export default function PortfolioEditorPage() {
   );
 }
 
-// ─── Floating Customize Pill ─────────────────────────────────────────────────
-function FloatingCustomizePill({ onTap, onViewLive, hasLiveUrl }: { onTap: () => void; onViewLive?: () => void; hasLiveUrl: boolean }) {
+// ─── Floating View Live Pill ─────────────────────────────────────────────────
+function FloatingViewLivePill({ onViewLive, hasLiveUrl }: { onViewLive?: () => void; hasLiveUrl: boolean }) {
   const prefersReduced = useReducedMotion();
+  if (!hasLiveUrl || !onViewLive) return null;
   return (
     <motion.div
-      className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-4 right-4 z-40 flex flex-wrap items-center justify-center gap-2 max-w-sm mx-auto"
+      className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-4 right-4 z-40 flex items-center justify-center max-w-sm mx-auto"
       initial={prefersReduced ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.5 }}
     >
       <button
-        onClick={onTap}
-        className="flex items-center gap-2 px-4 py-2.5 rounded-full glass-elevated border border-border/50 shadow-lg touch-manipulation active:scale-95 transition-transform min-h-[44px]"
+        onClick={onViewLive}
+        className="flex items-center gap-1.5 px-4 py-2.5 rounded-full glass-elevated border border-primary/30 shadow-lg touch-manipulation active:scale-95 transition-transform min-h-[44px]"
       >
-        <Palette className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">Customize</span>
+        <ExternalLink className="w-4 h-4 text-primary" />
+        <span className="text-sm font-medium text-primary">View Live</span>
       </button>
-      {hasLiveUrl && onViewLive && (
-        <button
-          onClick={onViewLive}
-          className="flex items-center gap-1.5 px-3 py-2.5 rounded-full glass-elevated border border-primary/30 shadow-lg touch-manipulation active:scale-95 transition-transform min-h-[44px]"
-        >
-          <ExternalLink className="w-4 h-4 text-primary" />
-          <span className="text-sm font-medium text-primary">View Live</span>
-        </button>
-      )}
     </motion.div>
   );
 }
