@@ -1,18 +1,54 @@
 
 
-# Fix: Move WhatsNewDialog Outside Routes
+# Fix: What's New Dialog - Empty Items and Auth Redirect
 
-## Problem
-`<WhatsNewDialog />` is currently nested inside the `<Routes>` block in `App.tsx` (around line 157), but React Router requires all direct children of `<Routes>` to be `<Route>` components. This crashes the entire app.
+## Two Bugs Identified
 
-## Solution
-Move `<WhatsNewDialog />` out of the `<Routes>` block and place it as a sibling, right after `</Routes>` but still inside `AppRoutes`. This keeps it within the authenticated context while satisfying React Router's constraints.
+### Bug 1: Empty bullet point text
+The changelog JSON uses `title` and `description` fields for each item, but `WhatsNewDialog` tries to render `item.text` which doesn't exist. This is why the three bullet points show red dots but no text.
 
-## File Change
+**JSON structure:**
+```json
+{ "title": "Star-field splash background", "description": "Thirty softly twinkling stars..." }
+```
 
-### `src/App.tsx`
-- Remove `<WhatsNewDialog />` from inside the `<ProtectedRoute>` route group (line ~157)
-- Place it after the `</Routes>` closing tag (around line 165), so it renders globally for all authenticated users without being constrained by React Router's child rules
+**Component expects:**
+```typescript
+items: { text: string; tag?: string }[]
+```
 
-The component will still function correctly since it internally checks authentication state and fetches changelog data independently.
+### Bug 2: "View full changelog" redirects to login
+The dialog renders globally (outside ProtectedRoute), so unauthenticated users can see it. But clicking "View full changelog" navigates to `/settings`, which is a protected route -- sending unauthenticated users to the auth page.
+
+---
+
+## Fix Plan
+
+### File: `src/components/WhatsNewDialog.tsx`
+
+1. **Fix the interface** to match the actual changelog JSON shape -- items have `title` and `description`, not `text`.
+
+2. **Fix the item rendering** to display `item.title` (or `item.title + description`) instead of `item.text`.
+
+3. **Guard the "View full changelog" link** -- only navigate to `/settings` if the user is authenticated. If not authenticated, simply close the dialog (or hide the link entirely).
+
+### Technical Details
+
+- Update the `ChangelogEntry` interface:
+  ```typescript
+  items: { title: string; description: string; tag?: string }[];
+  ```
+
+- Update the list rendering to show `item.title`:
+  ```typescript
+  <span>{item.title}</span>
+  ```
+
+- Import `useAuth` and conditionally show/route the changelog link:
+  ```typescript
+  const { user } = useAuth();
+  // Only show "View full changelog" if authenticated
+  ```
+
+No other files need changes.
 
