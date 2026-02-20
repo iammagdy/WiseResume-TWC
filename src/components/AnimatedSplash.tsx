@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { haptics } from '@/lib/haptics';
@@ -10,6 +10,18 @@ interface AnimatedSplashProps {
 export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   const [visible, setVisible] = useState(true);
   const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const stars = useMemo(() =>
+    Array.from({ length: 30 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 2 + 0.5,
+      opacity: Math.random() * 0.4 + 0.2,
+      delay: Math.random() * 1.5,
+      duration: 2 + Math.random() * 2,
+    })),
+  []);
 
   const dismiss = useCallback(() => {
     if (!visible) return;
@@ -36,6 +48,62 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
           tabIndex={0}
           aria-label="Tap to skip"
         >
+          {/* Nebula gradient overlays */}
+          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+            <div
+              className="absolute -top-1/4 -left-1/4 w-[500px] h-[500px] rounded-full opacity-[0.08]"
+              style={{
+                background: 'radial-gradient(circle, hsl(var(--primary)) 0%, transparent 70%)',
+              }}
+            />
+            <div
+              className="absolute -bottom-1/4 -right-1/4 w-[400px] h-[400px] rounded-full opacity-[0.08]"
+              style={{
+                background: 'radial-gradient(circle, hsl(var(--accent)) 0%, transparent 70%)',
+              }}
+            />
+          </div>
+
+          {/* Star-field layer */}
+          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+            {stars.map((star) => (
+              <motion.div
+                key={star.id}
+                className="absolute rounded-full bg-white"
+                style={{
+                  left: `${star.x}%`,
+                  top: `${star.y}%`,
+                  width: star.size,
+                  height: star.size,
+                }}
+                initial={{ opacity: star.opacity }}
+                animate={
+                  prefersReduced
+                    ? { opacity: star.opacity }
+                    : {
+                        opacity: [star.opacity, 0.8, star.opacity],
+                        x: `${(50 - star.x) * 0.15}%`,
+                        y: `${(50 - star.y) * 0.15}%`,
+                      }
+                }
+                transition={
+                  prefersReduced
+                    ? { duration: 0 }
+                    : {
+                        opacity: {
+                          duration: star.duration,
+                          repeat: Infinity,
+                          delay: star.delay,
+                          ease: 'easeInOut',
+                        },
+                        x: { duration: 3, ease: 'easeInOut' },
+                        y: { duration: 3, ease: 'easeInOut' },
+                      }
+                }
+              />
+            ))}
+          </div>
+
           {/* Glow ring */}
           <motion.div
             className="absolute rounded-full"
