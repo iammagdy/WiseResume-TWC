@@ -37,6 +37,7 @@ interface SettingsState {
   pdfDefaults: PDFOptions;
   
   // Onboarding
+  hasSeenSplash: boolean;
   hasSeenAIIntro: boolean;
   hasSeenPreviewHint: boolean;
   hasSeenTailorHint: boolean;
@@ -72,6 +73,7 @@ interface SettingsState {
   setBiometricLockTimeout: (timeout: BiometricLockTimeout) => void;
   setDefaultTemplate: (template: TemplateId) => void;
   setPdfDefaults: (defaults: Partial<PDFOptions>) => void;
+  setHasSeenSplash: (value: boolean) => void;
   setHasSeenAIIntro: (value: boolean) => void;
   setHasSeenPreviewHint: (value: boolean) => void;
   setHasSeenTailorHint: (value: boolean) => void;
@@ -111,6 +113,7 @@ const defaultSettings = {
     pageNumberFormat: 'full' as const,
     showBranding: true,
   },
+  hasSeenSplash: false,
   hasSeenAIIntro: false,
   hasSeenPreviewHint: false,
   hasSeenTailorHint: false,
@@ -153,6 +156,7 @@ export const useSettingsStore = create<SettingsState>()(
         set((state) => ({
           pdfDefaults: { ...state.pdfDefaults, ...defaults },
         })),
+      setHasSeenSplash: (value) => set({ hasSeenSplash: value }),
       setHasSeenAIIntro: (value) => set({ hasSeenAIIntro: value }),
       setHasSeenPreviewHint: (value) => set({ hasSeenPreviewHint: value }),
       setHasSeenTailorHint: (value) => set({ hasSeenTailorHint: value }),
