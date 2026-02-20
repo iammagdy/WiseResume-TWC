@@ -307,25 +307,6 @@ export const ResumeListCard = memo(function ResumeListCard({
                   Edited {formatDistanceToNow(new Date(resume.updated_at), { addSuffix: true })}
                 </span>
               </div>
-              {/* ATS Score Breakdown */}
-              {healthScore ? (
-                <div className="mt-2 border-t border-border pt-2">
-                  <ATSScoreBreakdown
-                    healthScore={healthScore}
-                    isScoring={isScoring}
-                    compact
-                    onImprove={() => {
-                      haptics.medium();
-                      const { setCurrentResume: setResume, setCurrentResumeId: setId } = useResumeStore.getState();
-                      setId(resume.id);
-                      setResume(dbToResumeData(resume));
-                      navigateToEditor(`/editor?openTailor=1`);
-                    }}
-                  />
-                </div>
-              ) : !healthScore ? (
-                <div className="mt-1.5 h-4 w-3/4 rounded bg-muted animate-pulse" />
-              ) : null}
             </div>
           </div>
 

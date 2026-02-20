@@ -838,16 +838,6 @@ export default function DashboardPage() {
         )}
       </Suspense>
 
-      {/* Floating Create Button */}
-      {resumes && resumes.length > 0 && (
-        <FloatingCreateButton
-          onClick={handleCreateNew}
-          onTailor={() => navigate('/ai-studio')}
-          onAnalyzeJob={() => setShowAnalyzeJob(true)}
-          pulse={false}
-          isLoading={isCreating || isMigrating}
-        />
-      )}
 
 
       {/* Delete Confirmation Dialog */}
