@@ -1,5 +1,6 @@
 import { memo, useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Trophy, Calendar, Building2, ArrowUp, ArrowDown } from 'lucide-react';
+import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -63,6 +64,7 @@ export const AwardsSection = memo(function AwardsSection() {
                 onClick={() => setExpandedId(expandedId === award.id ? null : award.id)}
                 className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[72px]"
               >
+                <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={e => { e.stopPropagation(); moveUp(index); }} disabled={index === 0} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move up"><ArrowUp className="w-4 h-4" /></button>
                   <button onClick={e => { e.stopPropagation(); moveDown(index); }} disabled={index === awards.length - 1} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move down"><ArrowDown className="w-4 h-4" /></button>

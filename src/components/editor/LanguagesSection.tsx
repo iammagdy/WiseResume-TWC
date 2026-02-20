@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Plus, Trash2, Globe, ArrowUp, ArrowDown } from 'lucide-react';
+import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -66,8 +67,9 @@ export const LanguagesSection = memo(function LanguagesSection() {
       ) : (
         <div className="space-y-3">
           {languages.map((lang, index) => (
-            <div key={lang.id} className="rounded-xl border border-border p-4 space-y-3">
+            <div key={lang.id} className="rounded-xl border border-border p-4 space-y-3 transition-transform duration-200">
               <div className="flex items-center gap-2">
+                <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => moveUp(index)} disabled={index === 0} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move up"><ArrowUp className="w-4 h-4" /></button>
                   <button onClick={() => moveDown(index)} disabled={index === languages.length - 1} className="p-2 rounded hover:bg-muted disabled:opacity-30 min-w-[44px] min-h-[44px] flex items-center justify-center active:scale-95 touch-manipulation" aria-label="Move down"><ArrowDown className="w-4 h-4" /></button>
