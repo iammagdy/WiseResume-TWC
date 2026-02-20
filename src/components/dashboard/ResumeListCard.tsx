@@ -223,7 +223,7 @@ export const ResumeListCard = memo(function ResumeListCard({
             {/* Content */}
             <div className="flex-1 min-w-0">
               {/* Title Row */}
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <div className="flex items-center gap-2 mb-1 overflow-hidden">
                 {resume.is_primary && (
                   <Star className="w-4 h-4 text-warning fill-warning flex-shrink-0" />
                 )}
@@ -254,13 +254,13 @@ export const ResumeListCard = memo(function ResumeListCard({
                   </h3>
                 )}
                 {showMasterBadge && (
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary">
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary shrink-0">
                     <Crown className="w-3 h-3" />
                     Master
                   </Badge>
                 )}
                 {showTailoredBadge && (
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1">
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 gap-1 shrink-0">
                     <GitBranch className="w-3 h-3" />
                     Tailored
                   </Badge>
