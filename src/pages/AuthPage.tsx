@@ -119,6 +119,14 @@ export default function AuthPage() {
     return () => subscription.unsubscribe();
   }, [searchParams]);
 
+  // Read ?mode= param on mount to support direct links to signup/forgot
+  useEffect(() => {
+    const modeParam = searchParams.get('mode');
+    if (modeParam === 'signup') setMode('signup');
+    else if (modeParam === 'forgot') setMode('forgot-password');
+    if (modeParam) window.history.replaceState({}, '', window.location.pathname);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (session && mode !== 'reset-password') navigate('/dashboard', { replace: true });
   }, [session, navigate, mode]);
