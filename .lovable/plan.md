@@ -1,54 +1,39 @@
 
 
-# Fix: What's New Dialog - Empty Items and Auth Redirect
+# Fix: Tailored CVs Showing in "My CVs" Tab + CV Name Overflow
 
-## Two Bugs Identified
+## Problem 1: Tailored CVs appear in "My CVs" tab
+The "My CVs" tab renders `ResumeGroup` components which include both the master resume AND its tailored versions nested underneath. This means tailored CVs show up in both tabs, confusing users.
 
-### Bug 1: Empty bullet point text
-The changelog JSON uses `title` and `description` fields for each item, but `WhatsNewDialog` tries to render `item.text` which doesn't exist. This is why the three bullet points show red dots but no text.
-
-**JSON structure:**
-```json
-{ "title": "Star-field splash background", "description": "Thirty softly twinkling stars..." }
-```
-
-**Component expects:**
-```typescript
-items: { text: string; tag?: string }[]
-```
-
-### Bug 2: "View full changelog" redirects to login
-The dialog renders globally (outside ProtectedRoute), so unauthenticated users can see it. But clicking "View full changelog" navigates to `/settings`, which is a protected route -- sending unauthenticated users to the auth page.
+## Problem 2: CV name overflows its container
+The title row in `ResumeListCard` uses `flex-wrap` (line 226), which allows badges to wrap but also prevents the `truncate` on the title from working properly when the title is long combined with inline badges.
 
 ---
 
 ## Fix Plan
 
-### File: `src/components/WhatsNewDialog.tsx`
+### File: `src/pages/DashboardPage.tsx` (lines 757-799)
 
-1. **Fix the interface** to match the actual changelog JSON shape -- items have `title` and `description`, not `text`.
+**Change the "My CVs" tab to show only master resumes without their nested tailored versions.**
 
-2. **Fix the item rendering** to display `item.title` (or `item.title + description`) instead of `item.text`.
+Currently, when a master has tailored versions, it renders a `ResumeGroup` (which expands to show tailored children). Instead, always render a plain `ResumeListCard` for masters -- no nested tailored versions. The tailored versions belong exclusively in the "Tailored" tab.
 
-3. **Guard the "View full changelog" link** -- only navigate to `/settings` if the user is authenticated. If not authenticated, simply close the dialog (or hide the link entirely).
+- Remove the conditional that checks `tailoredVersions.length > 0` and renders `ResumeGroup`
+- Always render `ResumeListCard` for each master resume
+- Also render orphaned tailored resumes (from `resumeHierarchy.orphanTailored`) in the "My CVs" tab since they have no parent
 
-### Technical Details
+### File: `src/components/dashboard/ResumeListCard.tsx` (line 226)
 
-- Update the `ChangelogEntry` interface:
-  ```typescript
-  items: { title: string; description: string; tag?: string }[];
-  ```
+**Fix the title overflow by removing `flex-wrap` from the title row and ensuring proper truncation.**
 
-- Update the list rendering to show `item.title`:
-  ```typescript
-  <span>{item.title}</span>
-  ```
+- Change the title row from `flex-wrap` to `overflow-hidden` so the title truncates correctly
+- Ensure the title `h3` element has `min-w-0` so `truncate` works within a flex container
+- Keep badges as `shrink-0` so they don't get squished
 
-- Import `useAuth` and conditionally show/route the changelog link:
-  ```typescript
-  const { user } = useAuth();
-  // Only show "View full changelog" if authenticated
-  ```
+### Summary of Changes
 
-No other files need changes.
+| File | Change |
+|---|---|
+| `DashboardPage.tsx` | Replace `ResumeGroup` in "My CVs" tab with plain `ResumeListCard` for all masters; add orphaned tailored resumes |
+| `ResumeListCard.tsx` | Fix title row flex layout to prevent name overflow |
 
