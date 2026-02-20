@@ -1319,8 +1319,65 @@ button,
   }
 }
 
+/* Bio line reveal */
+.pf-bio-line {
+  overflow: hidden;
+  display: block;
+}
+.pf-bio-line-inner {
+  display: block;
+  transform: translateY(100%);
+  opacity: 0;
+}
+.pf-bio-line-inner.pf-bio-revealed {
+  animation: pf-bio-line-up 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes pf-bio-line-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0%); opacity: 1; }
+}
+
+/* Experience card expand/collapse */
+.pf-exp-expandable {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 400ms cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 350ms cubic-bezier(0.22, 1, 0.36, 1) 100ms;
+}
+.pf-exp-expandable.pf-exp-expanded {
+  max-height: 1000px;
+  opacity: 1;
+}
+.pf-exp-chevron {
+  transition: transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.pf-exp-chevron.pf-exp-chevron-open {
+  transform: rotate(180deg);
+}
+.pf-exp-label {
+  transition: opacity 150ms ease;
+}
+
 /* Reduced motion overrides */
 @media (prefers-reduced-motion: reduce) {
+  .pf-bio-line-inner {
+    transform: none;
+    opacity: 1;
+  }
+  .pf-bio-line-inner.pf-bio-revealed {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .pf-exp-expandable {
+    transition: none;
+    max-height: none;
+    opacity: 1;
+  }
+  .pf-exp-chevron {
+    transition: none;
+  }
   .pf-section-title::after {
     width: 100%;
     transition: none;
