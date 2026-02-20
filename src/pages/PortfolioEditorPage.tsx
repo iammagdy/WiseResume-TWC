@@ -1166,9 +1166,6 @@ export default function PortfolioEditorPage() {
             next.add('customization');
             return next;
           });
-          setTimeout(() => {
-            document.getElementById('section-theme')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 100);
         }}
         onViewLive={actualPortfolioUrl ? () => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer') : undefined}
         hasLiveUrl={!!actualPortfolioUrl && portfolioEnabled}
