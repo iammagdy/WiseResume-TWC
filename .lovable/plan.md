@@ -1,62 +1,56 @@
 
-# Redesign the WiseResume Version/About Card
 
-## What changes
-Restyle the "Branded Footer" section (lines 924-947 in `SettingsPage.tsx`) to be a polished, centered card with proper visual hierarchy. No logic or data changes.
+# Update App Version to v2.2.2
 
-## Visual result
-- Centered app icon with purple glow/shadow, larger (48px)
-- App name bold on its own line, version as a purple pill badge below
-- Tagline with Egypt flag emoji inline ("Crafted with vision in **Egypt** flag-emoji"), no awkward floating text
-- Changelog as a styled pill button with ScrollText icon and chevron
-- Card with more padding, vertical spacing, and subtle border
+## Overview
+Add a new changelog entry for v2.2.2 summarizing the performance, accessibility, and visual polish fixes made in this session. Update the existing v2.2.1 entry to no longer be marked as `latest`.
 
-## Technical changes
+## Changes
 
-### 1. `src/pages/SettingsPage.tsx` -- Add `ScrollText` to lucide-react imports (line 46)
+### 1. `public/changelog.json` -- Add v2.2.2 entry and unmark v2.2.1
 
-Add `ScrollText` to the existing lucide-react import block.
+Prepend a new entry at the top of the array and set `"latest": false` on the v2.2.1 entry.
 
-### 2. `src/pages/SettingsPage.tsx` -- Replace the Branded Footer block (lines 924-947)
+New entry:
 
-Replace the current card markup with:
-
-```tsx
-{/* Branded Footer */}
-<div className="pt-2 pb-10">
-  <div className="flex flex-col items-center gap-4 px-6 py-8 rounded-3xl glass-elevated border border-white/[0.08] shadow-xl w-full max-w-xs mx-auto">
-    {/* App icon with glow */}
-    <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-lg shadow-purple-500/30 ring-1 ring-white/10">
-      <AppIcon size={56} showSparkle={false} className="w-full h-full" />
-    </div>
-
-    {/* Name + version badge */}
-    <div className="flex flex-col items-center gap-1.5">
-      <h2 className="text-lg font-bold text-foreground tracking-tight">WiseResume</h2>
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-purple-500/15 border border-purple-500/25 text-purple-300 text-xs font-mono font-medium">
-        {appVersion}
-      </span>
-    </div>
-
-    {/* Tagline */}
-    <p className="text-sm text-muted-foreground text-center">
-      Crafted with vision in{" "}
-      <span className="text-foreground font-medium">Egypt 🇪🇬</span>
-    </p>
-
-    {/* Changelog pill button */}
-    <button
-      type="button"
-      onClick={() => setChangelogOpen(true)}
-      className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 active:scale-95 transition text-sm text-muted-foreground font-medium touch-manipulation min-h-[44px]"
-    >
-      <ScrollText className="w-4 h-4 text-purple-400" />
-      <span>Changelog</span>
-      <ChevronRight className="w-3 h-3 text-muted-foreground/60 ml-1" />
-    </button>
-  </div>
-</div>
+```json
+{
+  "version": "v2.2.2",
+  "date": "Feb 20, 2026",
+  "latest": true,
+  "summary": "Under-the-hood performance tuning, smoother animations, and a refreshed Settings footer -- the app feels faster and looks sharper.",
+  "items": [
+    {
+      "title": "Smoother border animations",
+      "description": "The glowing border effect now uses fewer draw calls on smaller screens, so scrolling and transitions feel snappier -- especially on older phones."
+    },
+    {
+      "title": "Core Web Vitals monitoring",
+      "description": "The app now measures real loading and responsiveness metrics (LCP, CLS, INP) behind the scenes to help us catch slowdowns early."
+    },
+    {
+      "title": "No more white flash on launch",
+      "description": "Opening the app in dark mode no longer briefly flashes a white screen before your content appears."
+    },
+    {
+      "title": "Redesigned About card in Settings",
+      "description": "The WiseResume version card at the bottom of Settings now has a glowing app icon, a version badge, and a proper Changelog button."
+    },
+    {
+      "title": "Developer link is tappable",
+      "description": "The website link in the developer credit card now behaves like a real link -- your browser shows the URL on hover and recognizes it as clickable."
+    },
+    {
+      "title": "Bigger tap targets across the app",
+      "description": "Buttons and icons that were slightly too small for comfortable thumb use now meet the 44x44px accessibility standard."
+    }
+  ]
+}
 ```
 
+### 2. No other files changed
+
+The version string in Settings is already read dynamically from `changelog.json`, so no code change is needed -- the footer will automatically show "v2.2.2".
+
 ## Files modified
-- `src/pages/SettingsPage.tsx` -- add ScrollText import, restyle footer card
+- `public/changelog.json` -- add v2.2.2, set v2.2.1 `latest: false`
