@@ -163,7 +163,7 @@ export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'de
 
 export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'hobbies' | 'references' | 'languages';
 
-export type TailorSectionId = 'summary' | 'skills' | 'experience' | 'education' | 'projects' | 'certifications';
+export type TailorSectionId = 'summary' | 'skills' | 'experience' | 'education' | 'projects' | 'certifications' | 'awards';
 
 export interface PageBreakSettings {
   mode: 'auto' | 'manual';
@@ -334,6 +334,7 @@ export interface CoverLetterContext {
     strengthsAnalysis?: StrengthAnalysis[];
     projects?: Project[];
     certifications?: Certification[];
+    awards?: Award[];
   }
  
  // ===== MULTI-JOB COMPARISON TYPES =====

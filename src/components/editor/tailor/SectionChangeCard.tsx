@@ -30,6 +30,7 @@ const SECTION_ICONS: Record<TailorSectionId, string> = {
   education: '🎓',
   projects: '🚀',
   certifications: '🏅',
+  awards: '🏆',
 };
 
 function InlineDiff({ diffs }: { diffs: TextDiff[] }) {

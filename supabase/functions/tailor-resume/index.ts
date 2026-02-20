@@ -204,6 +204,11 @@ ${resume.certifications?.map((c: any) => `
 - ${c.name} by ${c.issuer} (${c.date})
 `).join('\n') || 'Not provided'}
 
+AWARDS:
+${resume.awards?.map((a: any) => `
+- [ID: ${a.id}] ${a.title} from ${a.issuer} (${a.date})${a.description ? `: ${a.description}` : ''}
+`).join('\n') || 'Not provided'}
+
 ---
 
 ## TARGET JOB DESCRIPTION
@@ -268,11 +273,24 @@ Analyze deeply, then return this exact JSON structure:
     }
   ],
   
+  "awards": [
+    {
+      "id": "<keep original id>",
+      "title": "<award title>",
+      "issuer": "<issuer>",
+      "date": "<date>",
+      "description": "<enhanced description highlighting job relevance>"
+    }
+  ],
+  
   "sectionScores": {
     "summary": { "before": <0-100>, "after": <0-100> },
     "skills": { "before": <0-100>, "after": <0-100> },
     "experience": { "before": <0-100>, "after": <0-100> },
-    "education": { "before": <0-100>, "after": <0-100> }
+    "education": { "before": <0-100>, "after": <0-100> },
+    "projects": { "before": <0-100>, "after": <0-100> },
+    "certifications": { "before": <0-100>, "after": <0-100> },
+    "awards": { "before": <0-100>, "after": <0-100> }
   },
   
   "overallScore": { "before": <0-100>, "after": <0-100> },
@@ -438,6 +456,7 @@ Analyze deeply, then return this exact JSON structure:
       },
       projects: tailoredResult.projects || [],
       certifications: tailoredResult.certifications || [],
+      awards: tailoredResult.awards || [],
       jobIntelligence: tailoredResult.jobIntelligence || {
         experienceLevel: 'mid',
         workMode: 'unknown',
