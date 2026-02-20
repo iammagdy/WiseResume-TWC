@@ -39,6 +39,35 @@ This project is built with:
 - Shadcn UI
 - Supabase
 
+## Lighthouse Baseline
+
+Run Lighthouse in Chrome DevTools → **Lighthouse** tab → select **Mobile**, check **Performance** + **Best Practices** → click **Analyze**.
+
+| Metric      | Before | After |
+|-------------|--------|-------|
+| Performance |        |       |
+| FCP         |        |       |
+| LCP         |        |       |
+| TBT         |        |       |
+| CLS         |        |       |
+
+## React Profiling Steps
+
+1. Install the [React Developer Tools](https://react.dev/learn/react-developer-tools) browser extension.
+2. Open **Profiler** tab → click **Record** → interact with the app (navigate, edit CV, open modals).
+3. Stop recording and inspect components with high **render time** or frequent re-renders.
+4. Apply `React.memo`, `useMemo`, or `useCallback` to identified hot spots.
+
+## Real Device & Throttling Testing
+
+1. Find your machine's local IP (`ipconfig` / `ifconfig`).
+2. Open `http://<your-ip>:8080` on your phone (same Wi-Fi network).
+3. In Chrome DevTools → **Network** tab → enable **Slow 3G**; → **Performance** tab → enable **4× CPU slowdown**.
+4. Verify:
+   - No layout breaks at any width.
+   - No white frames or flickers on refresh.
+   - ElectricBorder and page-transition animations remain smooth.
+
 ## License
 
 Copyright © Wise AI. All rights reserved.
