@@ -143,6 +143,7 @@ export default function EditorPage() {
       );
       // Record the server timestamp we loaded from so we can detect future conflicts
       localLoadedAtRef.current = resumeFromDb.updated_at ?? null;
+      lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
       return;
     }
 
