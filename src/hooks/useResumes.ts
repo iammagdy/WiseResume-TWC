@@ -29,6 +29,7 @@ export interface DatabaseResume {
   job_match_score: number | null;
   is_primary: boolean;
   parent_resume_id: string | null;
+  job_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +59,7 @@ function parseDbResume(dbResume: any): DatabaseResume {
     job_match_score: dbResume.job_match_score,
     is_primary: dbResume.is_primary || false,
     parent_resume_id: dbResume.parent_resume_id,
+    job_url: dbResume.job_url || null,
     created_at: dbResume.created_at,
     updated_at: dbResume.updated_at,
   };
