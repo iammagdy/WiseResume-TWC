@@ -1,4 +1,5 @@
 import { useState, useMemo, memo } from 'react';
+import { getAppUrl } from '@/lib/portfolioUrl';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
 import { 
@@ -396,8 +397,7 @@ export const ResumeListCard = memo(function ResumeListCard({
             <button className="flex items-center gap-3 w-full min-h-[48px] px-3 rounded-lg hover:bg-muted/50 active:scale-95 touch-manipulation transition-colors" onClick={async () => {
               haptics.light(); setShowActionsSheet(false);
               try {
-                const APP_PUBLIC_URL = 'https://wiseresume.lovable.app';
-                await navigator.clipboard.writeText(`${APP_PUBLIC_URL}/resume/${resume.id}`);
+                await navigator.clipboard.writeText(`${getAppUrl()}/resume/${resume.id}`);
                 toast.success('Link copied to clipboard');
               } catch { toast.error('Failed to copy link'); }
             }}>

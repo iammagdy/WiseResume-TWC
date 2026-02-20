@@ -51,7 +51,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const APP_URL = 'https://wiseresume.lovable.app';
+    const APP_URL = 'https://wiseresume.magdysaber.com';
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
     const portfolioUrl = `${APP_URL}/p/${username}`;
     const ogImageUrl = `${SUPABASE_URL}/functions/v1/og-image?username=${encodeURIComponent(username)}`;
