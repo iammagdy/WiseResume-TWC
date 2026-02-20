@@ -1,45 +1,49 @@
 
 
-# Fix Landing Page Scroll Lag
+# Fix Auth Issues for Mobile APK and Custom Domain
 
-## Root Cause
+## Issues Identified
 
-The landing page has three major performance bottlenecks causing scroll jank:
+1. **Settings page password reset uses wrong redirect URL** -- `SettingsPage.tsx` line 230 redirects to `/reset-password` which is not a valid route. The app handles password resets at `/auth?reset=true`.
 
-1. **SpaceBackground parallax**: Three `motion.div` layers (`yFar`, `yMid`, `yNear`) are bound to `useScroll`/`useTransform`, causing Framer Motion to recalculate transforms on every single scroll frame. This is the primary culprit.
-2. **Excessive `whileInView` animations**: Nearly every element on the page (comparisons, features, trust pillars, section headers) has its own `motion.div` with intersection observer-based animations, creating dozens of active observers.
-3. **Large blurred orbs**: Three 260-320px elements with `blur-[70-80px]` are expensive to composite, especially on mobile GPUs.
+2. **Email signup redirect points to `/dashboard` without token processing** -- When users click the email verification link, the `emailRedirectTo` sends them to `/dashboard` which won't exchange the auth token from the URL. It should go through `/auth/callback` instead.
 
-## Solution
+3. **Deep link custom scheme handling** -- The `com.wiseresume.app://auth/callback` scheme in the APK intent filter needs the deep link handler to correctly parse the path. `new URL('com.wiseresume.app://auth/callback')` produces `pathname: '/callback'` (missing `/auth` prefix), which would fail to route to the callback page.
 
-Strip out the expensive parallax system and simplify animations while keeping the visual appeal.
+4. **Redirect URLs not configured in backend** -- The following must be added to the authentication redirect allowlist:
+   - `https://localhost/auth/callback`
+   - `com.wiseresume.app://auth/callback`
+   - `https://wiseresume.magdysaber.com/auth/callback`
 
-### 1. Simplify `SpaceBackground.tsx`
-- **Remove all parallax**: Delete `useScroll`, `useTransform`, and the three `motion.div` parallax layers. Replace with static `div` elements -- the gradients and nebula are barely perceptible during scroll anyway.
-- **Remove Framer Motion import entirely** from this component (it becomes pure CSS).
-- **Reduce blur values**: Drop orb blur from 70-80px to 40-50px.
-- **Reduce star count**: 30 to 15 stars (fewer DOM nodes with CSS animations).
-- **Keep shooting stars** (only 2, lightweight CSS-only).
+## Fixes
 
-### 2. Simplify `Index.tsx` animations
-- **Remove per-item staggered animations** for comparisons, features, and trust pillars. Instead, animate each *section wrapper* once with a single `whileInView` fade-in.
-- **Remove `slideIn` and `popIn` variants** (they use per-item delays creating many observed elements).
-- **Keep hero fade-in** animations (only 4-5 elements, runs once on load).
-- **Keep `scaleIn` for the two demo cards** (only 2 elements, runs once).
+### 1. Fix SettingsPage password reset redirect
+**File:** `src/pages/SettingsPage.tsx`
+- Change `redirectTo: \`\${window.location.origin}/reset-password\`` to `redirectTo: \`\${window.location.origin}/auth?reset=true\``
 
-### 3. Remove `willChange: 'transform'` declarations
-These force GPU layer promotion for elements that no longer animate on scroll.
+### 2. Fix email signup redirect
+**File:** `src/pages/AuthPage.tsx`
+- Change `emailRedirectTo: \`\${window.location.origin}/dashboard\`` to `emailRedirectTo: \`\${window.location.origin}/auth/callback\``
+- This ensures the verification token in the URL is properly exchanged for a session before redirecting to dashboard.
+
+### 3. Fix deep link custom scheme parsing
+**File:** `src/hooks/useDeepLinking.ts`
+- Add a fallback for custom-scheme URLs where `new URL()` may produce an unexpected pathname.
+- If the URL starts with `com.wiseresume.app://`, manually extract the path as `/auth/callback` + query/hash rather than relying on URL parser output.
+
+### 4. Configure redirect URLs (manual step)
+You will need to add these redirect URLs in the authentication settings:
+- `https://wiseresume.magdysaber.com/auth/callback`
+- `https://localhost/auth/callback`
+- `com.wiseresume.app://auth/callback`
 
 ## Files Modified
 
-| File | Changes |
+| File | Change |
 |---|---|
-| `src/components/landing/SpaceBackground.tsx` | Remove Framer Motion, remove parallax layers, use static divs, reduce stars to 15, lower blur values |
-| `src/pages/Index.tsx` | Remove per-item `slideIn`/`popIn`/`inView` from list items; wrap sections in single `whileInView` fade; keep hero and demo card animations |
+| `src/pages/SettingsPage.tsx` | Fix password reset redirect URL |
+| `src/pages/AuthPage.tsx` | Fix email verification redirect URL |
+| `src/hooks/useDeepLinking.ts` | Handle custom scheme deep links correctly |
 
-## Result
-- Scroll handler goes from recalculating 3 transform values per frame to zero
-- Intersection observers drop from ~20+ to ~4 (one per section)
-- Blur compositing cost reduced by ~40%
-- Visual result is nearly identical -- gradients, stars, and shooting stars remain; sections still fade in on scroll but as groups instead of individual items
+## No Database Changes Required
 
