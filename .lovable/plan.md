@@ -1,87 +1,96 @@
 
 
-# Fix 3 Interview Bugs: Markdown Rendering, Score Display, Voice Toggle Color
+# Fix 3 Interview UX Issues: Validation, Progress, Skip/Replay
 
-## Bug 1: Markdown Rendered as Raw Text in Summary
+## Issue 1: Launch Button Validation for Job-Targeted Mode
 
-### Root Cause
-In `InterviewSummary.tsx` line 72, the summary text is rendered as plain text inside a `<p>` tag with `whitespace-pre-wrap`. This displays raw markdown characters like `**bold**` and `- bullets` literally.
+### Current State
+The button is already disabled via `disabled={mode === 'job-targeted' && !jobDescription.trim()}` at line 366 of `InterviewSetup.tsx`. However:
+- The disabled styling may not be visually clear enough (no explicit `opacity-40`)
+- There is no inline validation message when the user taps while empty
 
-The same issue exists in `InterviewHistorySheet.tsx` lines 100-103 and 110-113 where strengths/improvements arrays are rendered as plain `<li>` elements (though these are already split into array items, so markdown within each item string would still show raw).
-
-### Fix
-
-**File: `src/components/interview/InterviewSummary.tsx`**
-- Import `ReactMarkdown` (already installed, used elsewhere in the app)
-- Replace the `<p>` tag on line 72 with a `<ReactMarkdown>` component
-- Apply prose styles matching the dark theme: `prose prose-sm dark:prose-invert max-w-none`
-- Add custom class overrides for the interview context:
-  - Headings: `[&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-primary [&_h1]:mb-1` (same for h2, h3, h4)
-  - Paragraphs: `[&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-foreground/80 [&_p]:mb-3`
-  - Lists: `[&_ul]:ml-4 [&_ul]:list-disc [&_li]:text-sm [&_li]:text-foreground/80 [&_li]:mb-1`
-  - Bold: `[&_strong]:text-foreground [&_strong]:font-semibold`
-- Remove `whitespace-pre-wrap` which conflicts with markdown rendering
-
-**File: `src/components/interview/InterviewHistorySheet.tsx`**
-- Import `ReactMarkdown`
-- For the strengths and improvements lists, wrap each string item in `<ReactMarkdown>` with compact prose styling so any inline markdown (bold, italic) within items renders correctly
-- Use `[&_p]:inline` to prevent extra paragraph spacing within list items
-
----
-
-## Bug 2: Score Display Inconsistency
-
-### Root Cause
-In `InterviewSummary.tsx` lines 35-36, the overall score is parsed from the summary text via regex: `summary.match(/Score:\s*(\d+)\/10/i)`. When the AI doesn't include the exact pattern "Score: X/10" in its response, `overallScore` is `null`, and the component falls back to showing an `<Award>` icon (line 59-61) instead of a score number.
-
-This creates the inconsistency: sometimes a number circle, sometimes a medal icon.
-
-### Fix
-
-**File: `src/components/interview/InterviewSummary.tsx`**
-- Make the score extraction more robust: try multiple regex patterns (`Score:\s*(\d+)`, `(\d+)\s*\/\s*10`, `(\d+)\s*out of\s*10`)
-- If regex still fails, fall back to `avgScore` (computed from per-answer scores) as a secondary source
-- Always render a score circle with the number -- never swap to an Award icon
-- If no score is available at all, show a dash "---" inside the circle (muted color)
-- Redesign the score circle for consistency:
-  - Fixed size: `w-20 h-20` on mobile
-  - Border: `border-2` with color based on score (green 8-10, yellow 5-7, red 0-4)
-  - Score text: `text-2xl font-bold` with matching color
-  - Below: "/ 10" label in `text-muted-foreground text-sm`
-- Add scale-up entrance animation: `initial={{ scale: 0.75, opacity: 0 }}`, `animate={{ scale: 1, opacity: 1 }}` with 300ms ease-out
-- Remove the pulsing glow background animation to keep focus on the number
-
----
-
-## Bug 3: Teal/Cyan Color on AI Voice Toggle
-
-### Root Cause
-In `InterviewSetup.tsx` lines 183-207, the voice gender toggle uses `bg-primary/20 text-primary` for the active state. The `--primary` CSS variable in the "Vibrant Space" theme is correctly set to the brand red. However, the issue is the `shadow-[inset_0_0_20px_hsl(var(--primary)/0.1)]` and the button lacking `transition-colors duration-200`. The teal/cyan appearance could be caused by browser default focus ring styles not being overridden.
-
-### Fix
+### Changes
 
 **File: `src/components/interview/InterviewSetup.tsx`**
-- Replace the active state styling on both voice buttons with explicit brand colors:
-  - Active: `bg-primary text-primary-foreground font-semibold` (solid primary background, white text)
-  - Inactive: `bg-transparent text-muted-foreground hover:text-foreground`
-- Add `transition-colors duration-200 ease-in-out` to both buttons
-- Add `focus:outline-none focus-visible:ring-2 focus-visible:ring-primary` to override any browser default focus rings
-- Remove the `shadow-[inset_0_0_20px...]` which can look teal on some displays
-- Ensure minimum 44px tap target with `min-h-[44px]`
+- Add a `showValidation` state that gets set to `true` when the user taps the Launch button while JD is empty
+- Reset `showValidation` when the user types in the JD field
+- Below the `<Textarea>`, render an inline validation message with `AnimatePresence`:
+  - Text: "Please paste a job description to continue"
+  - Style: `text-red-400 text-xs mt-1`, fade-in animation
+- Wrap the Launch button tap handler to set `showValidation` when JD is empty instead of calling `handleStart`
+- Add explicit disabled styling: `disabled:opacity-40 disabled:cursor-not-allowed` to the button, with a `transition-opacity duration-200`
+
+---
+
+## Issue 2: Question Progress Indicator During Active Interview
+
+### How It Works
+- Count interviewer messages in the `transcript` array to determine the current question number
+- For Quick Practice mode: total = 5, show "Question X of 5" with a determinate progress bar
+- For General and Job-Targeted modes: show an indeterminate pulsing progress bar (no "X of Y" text)
+
+### Changes
+
+**File: `src/pages/InterviewPage.tsx`**
+- Pass `activeInterviewTypeRef.current` as state so we know the mode during the active phase
+- In the active interview section, between the header bar and the transcript area, add:
+  - A thin 3px progress bar spanning full width
+  - For Quick mode: fill = `(currentQuestion / 5) * 100%` with `transition-all duration-500 ease-in-out`
+  - For other modes: a CSS pulsing animation (fill oscillates 0% to 60% and back)
+  - Below the bar: centered text "Question X of 5" (Quick mode only), styled `text-muted-foreground text-xs text-center mt-1`
+- Derive `currentQuestion` by counting `transcript.filter(e => e.role === 'interviewer').length`
+- Use `motion.div` for the progress bar with `initial={{ opacity: 0 }}` fade-in
+
+---
+
+## Issue 3: Replay and Skip Buttons
+
+### Replay Logic
+- Find the last interviewer message from the transcript
+- Call the existing `speak()` function (via window.speechSynthesis) to replay it
+- The `speak` function is inside `useVoiceInterview` but not currently exposed. We need to either:
+  - (a) Expose a `replayLastQuestion` function from the hook, OR
+  - (b) Re-trigger TTS directly from `InterviewPage` using `window.speechSynthesis`
+- Option (b) is simpler and avoids changing the hook's return interface. We'll use `window.speechSynthesis` with the same voice selection logic
+
+### Skip Logic
+- Send a predefined text message like "(skipped)" via the existing `sendTextMessage` function
+- This tells the AI the user skipped, prompting the next question
+
+### Changes
+
+**File: `src/pages/InterviewPage.tsx`**
+- In the controls area, add a flex row around the `InterviewToggle`:
+  - LEFT: Replay button (RotateCcw icon from lucide-react)
+    - 44x44px, `rounded-full`, `text-foreground/70`, `bg-transparent` with `active:bg-white/10`
+    - Label below: "Replay" in `text-muted-foreground text-xs`
+    - Disabled/hidden when `status === 'speaking'` or `status === 'thinking'` or no interviewer messages exist
+    - On tap: use `window.speechSynthesis` to re-speak the last interviewer transcript entry
+  - RIGHT: Skip button (SkipForward icon from lucide-react)
+    - Same styling as Replay
+    - Label below: "Skip" in `text-muted-foreground text-xs`
+    - Disabled when `status === 'thinking'`
+    - On tap: call `sendTextMessage('(skipped)')`, with a `whileTap={{ scale: 1.15 }}` bounce
+- Both buttons use `motion.button` with `initial={{ opacity: 0 }} animate={{ opacity: 1 }}` fade-in
+- Layout: `flex items-center justify-center gap-6` with the toggle in the center
+
+**File: `src/hooks/useVoiceInterview.ts`** -- NO changes needed. We use `sendTextMessage` for skip and `window.speechSynthesis` directly for replay.
 
 ---
 
 ## Files Changed Summary
 
-| File | Bug | Change |
-|---|---|---|
-| `src/components/interview/InterviewSummary.tsx` | 1, 2 | Replace plain text with ReactMarkdown; make score always render as number circle with consistent styling and animation |
-| `src/components/interview/InterviewHistorySheet.tsx` | 1 | Wrap strengths/improvements text in ReactMarkdown for inline formatting |
-| `src/components/interview/InterviewSetup.tsx` | 3 | Fix voice toggle active state to use solid primary color, remove inset shadow, add focus ring override |
+| File | Changes |
+|---|---|
+| `src/components/interview/InterviewSetup.tsx` | Add `showValidation` state; inline validation message below JD textarea; enhanced disabled button styling |
+| `src/pages/InterviewPage.tsx` | Add progress bar + question counter between header and transcript; add Replay and Skip buttons flanking the InterviewToggle |
 
 ## Technical Notes
-- `react-markdown` is already installed (v10.1.0) and used in `AgenticChatSheet.tsx` and `GuidePage.tsx`
-- All animations use Framer Motion (already imported in all 3 files)
-- `useReducedMotion` will be checked for the score circle entrance animation
-- No changes to AI prompts, API calls, scoring logic, voice engine, or data models
-- Minimum 14px font size maintained throughout
+- All animations use Framer Motion (`motion.div`, `motion.button`, `AnimatePresence`)
+- `useReducedMotion` respected for all new animations
+- No changes to AI prompts, API calls, voice engine logic, scoring, or data models
+- Replay uses `window.speechSynthesis` directly with `pickBestVoice` logic (imported or inlined)
+- Skip sends "(skipped)" via existing `sendTextMessage`
+- 44px minimum touch targets on all new buttons
+- Progress bar positioned between header and transcript with no overlap
+
