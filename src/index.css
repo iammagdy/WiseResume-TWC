@@ -1142,3 +1142,62 @@ button,
   content-visibility: auto;
   contain-intrinsic-size: 0 500px;
 }
+
+/* ===== Portfolio scroll-triggered animations ===== */
+
+/* Section title underline draw */
+.pf-section-title {
+  position: relative;
+  display: inline-block;
+}
+.pf-section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: var(--pf-accent, currentColor);
+  transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1) 100ms;
+}
+.pf-section-title.title-revealed::after {
+  width: 100%;
+}
+
+/* Experience card staggered slide-in */
+@keyframes pf-card-slide-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pf-card-slide-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pf-exp-card {
+  opacity: 0;
+}
+.pf-exp-card.pf-card-revealed {
+  animation: pf-card-slide-up 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (min-width: 768px) {
+  .pf-exp-card.pf-card-revealed {
+    animation-name: pf-card-slide-left;
+  }
+}
+
+/* Reduced motion overrides */
+@media (prefers-reduced-motion: reduce) {
+  .pf-section-title::after {
+    width: 100%;
+    transition: none;
+  }
+  .pf-exp-card {
+    opacity: 1;
+  }
+  .pf-exp-card.pf-card-revealed {
+    animation: none;
+    opacity: 1;
+  }
+}

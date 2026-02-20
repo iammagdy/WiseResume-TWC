@@ -429,11 +429,24 @@ function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: s
     viewport: { once: true, margin: '-40px' },
   };
 
+  // IntersectionObserver ref callback for underline draw
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const titleRef = useCallback((node: HTMLHeadingElement | null) => {
+    if (observerRef.current) { observerRef.current.disconnect(); observerRef.current = null; }
+    if (!node) return;
+    observerRef.current = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { node.classList.add('title-revealed'); observerRef.current?.disconnect(); } },
+      { threshold: 0.5 }
+    );
+    observerRef.current.observe(node);
+  }, []);
+  useEffect(() => () => { observerRef.current?.disconnect(); }, []);
+
   if (style === 'classic-clean') {
     return (
       <motion.div {...motionProps} className={wrapperClass}>
         <div className="w-1.5 h-8 rounded-full" style={{ backgroundColor: 'var(--pf-accent)' }} />
-        <h2 className="text-xl font-bold" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{title}</h2>
+        <h2 ref={titleRef} className="text-xl font-bold pf-section-title" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>{title}</h2>
         <div className="flex-1 h-px opacity-20" style={{ background: 'var(--pf-fg, #111)' }} />
       </motion.div>
     );
@@ -442,7 +455,7 @@ function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: s
     return (
       <motion.div {...motionProps} className={wrapperClass}>
         <span className="text-[var(--pf-accent)]">{icon}</span>
-        <h2 className="text-2xl font-black tracking-tight" style={{
+        <h2 ref={titleRef} className="text-2xl font-black tracking-tight pf-section-title" style={{
           fontFamily: 'var(--pf-heading-font)',
           background: `linear-gradient(135deg, var(--pf-accent), color-mix(in srgb, var(--pf-accent) 50%, white))`,
           WebkitBackgroundClip: 'text',
@@ -455,7 +468,7 @@ function SectionHeader({ icon, title, style }: { icon: React.ReactNode; title: s
   return (
     <motion.div {...motionProps} className={wrapperClass}>
       <span style={{ color: 'var(--pf-accent)' }}>{icon}</span>
-      <h2 className="text-lg font-bold tracking-tight" style={{ color: 'var(--pf-fg, inherit)', fontFamily: 'var(--pf-heading-font)' }}>{title}</h2>
+      <h2 ref={titleRef} className="text-lg font-bold tracking-tight pf-section-title" style={{ color: 'var(--pf-fg, inherit)', fontFamily: 'var(--pf-heading-font)' }}>{title}</h2>
       <div className="flex-1 h-px" style={{ background: 'var(--pf-border, rgba(255,255,255,0.08))' }} />
     </motion.div>
   );
@@ -488,12 +501,8 @@ function ExperienceCard({ exp, style, isLast, index }: { exp: Experience; style:
       {style === 'classic-clean' && !isLast && (
         <div className="absolute left-[-1px] top-full w-[2px] h-4" style={{ background: 'var(--pf-border, #e5e7eb)' }} />
       )}
-      <motion.div
-        variants={index % 2 === 0 ? slideFromLeft : slideFromRight}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: '-60px' }}
-        className={cardClass} style={cardStyle}>
+      <div
+        className={`${cardClass} pf-exp-card`} style={cardStyle}>
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="flex items-start gap-3 flex-1 min-w-0">
             {/* Company logo placeholder circle */}
@@ -546,7 +555,7 @@ function ExperienceCard({ exp, style, isLast, index }: { exp: Experience; style:
             {expanded ? <><ChevronUp className="w-3.5 h-3.5" /> Show less</> : <><ChevronDown className="w-3.5 h-3.5" /> Show more</>}
           </button>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -1358,7 +1367,20 @@ function PublicPortfolioContent() {
             {hasExperience && (
               <motion.section variants={stagger} id="section-experience">
                 <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
-                <div className="space-y-4">
+                <div className="space-y-4" ref={(node) => {
+                  if (!node || node.dataset.observed) return;
+                  node.dataset.observed = 'true';
+                  const obs = new IntersectionObserver(([entry]) => {
+                    if (entry.isIntersecting) {
+                      node.querySelectorAll('.pf-exp-card').forEach((card, idx) => {
+                        (card as HTMLElement).style.animationDelay = `${idx * 100}ms`;
+                        card.classList.add('pf-card-revealed');
+                      });
+                      obs.disconnect();
+                    }
+                  }, { threshold: 0.15 });
+                  obs.observe(node);
+                }}>
                   {resume.experience.map((exp, i) => (
                     <ExperienceCard key={exp.id || i} exp={exp} style={pStyle} isLast={i === resume.experience.length - 1} index={i} />
                   ))}
