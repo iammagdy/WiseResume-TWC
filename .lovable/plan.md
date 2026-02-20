@@ -1,88 +1,113 @@
 
+# Scroll-Triggered Animations for Public Portfolio
 
-# Design Panel Preview + Portfolio Dot Tooltip
+## Overview
 
-## IMPROVEMENT 1: Show Real Resume Data in Design Panel Preview
-
-The `CustomizeSheet` component currently hardcodes "John Doe", "Software Engineer", and skills. It needs to accept the current resume data and display the user's actual name, title, and skills.
-
-### File: `src/components/editor/CustomizeSheet.tsx`
-
-**Add a new optional prop** for resume data:
-
-```tsx
-interface CustomizeSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  customization?: TemplateCustomization;
-  onApply: (customization: TemplateCustomization) => void;
-  resumeData?: { name: string; subtitle: string; skills: string[] };
-}
-```
-
-**Replace the hardcoded preview content** (lines 72-93) with computed values:
-
-- `name`: use `resumeData?.name || 'John Doe'`
-- `subtitle`: use `resumeData?.subtitle || 'Software Engineer - San Francisco, CA'`
-- `skills`: use `resumeData?.skills?.slice(0, 3)` or fall back to `['React', 'TypeScript', 'Node.js']`
-
-No loading spinner needed -- the fallback is the existing placeholder.
-
-### File: `src/pages/EditorPage.tsx` (line 1248)
-
-**Compute preview data from the store** and pass it to `CustomizeSheet`:
-
-```tsx
-const designPreview = useMemo(() => {
-  if (!currentResume) return undefined;
-  const name = currentResume.contactInfo?.fullName || '';
-  const latestJob = currentResume.experience?.[0];
-  const subtitle = latestJob
-    ? `${latestJob.position} - ${latestJob.company}`
-    : currentResume.contactInfo?.location || '';
-  const skills = currentResume.skills?.slice(0, 3) || [];
-  return name ? { name, subtitle, skills } : undefined;
-}, [currentResume]);
-```
-
-Then pass `resumeData={designPreview}` to `<CustomizeSheet>`.
+Add two scroll-triggered CSS animations to the public portfolio page: an underline draw effect on section titles and staggered slide-in on experience cards. Both use IntersectionObserver (via a lightweight ref callback) and CSS keyframes only -- no Framer Motion for these new animations (existing Framer Motion usage stays untouched).
 
 ---
 
-## IMPROVEMENT 2: Add Tap Tooltip to Accent Color Dot on Customization Section
+## ANIMATION 1: Section Title Underline Draw
 
-The "dot" on the Customization section header (line 789 of `PortfolioEditorPage.tsx`) is the accent color swatch preview -- a small colored circle showing the user's current accent color. It is not a warning. Users need a tooltip explaining this.
+### File: `src/index.css`
 
-### File: `src/pages/PortfolioEditorPage.tsx` (line 789)
+Add CSS keyframes and utility classes:
 
-**Wrap the dot in a Popover** (tap-to-open, dismiss on outside tap -- mobile-friendly):
+```css
+/* Section title underline draw */
+.pf-section-title {
+  position: relative;
+  display: inline-block;
+}
+.pf-section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: var(--pf-accent, currentColor);
+  transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1) 100ms;
+}
+.pf-section-title.title-revealed::after {
+  width: 100%;
+}
 
-Replace:
-```tsx
-hint={<span className="inline-block w-4 h-4 rounded-full border border-border" style={{ background: portfolioAccentColor }} />}
-```
-
-With a Popover that wraps the dot:
-```tsx
-hint={
-  <Popover>
-    <PopoverTrigger asChild>
-      <span
-        className="inline-block w-4 h-4 rounded-full border border-border cursor-pointer"
-        style={{ background: portfolioAccentColor }}
-        onClick={(e) => e.stopPropagation()}
-      />
-    </PopoverTrigger>
-    <PopoverContent side="top" className="w-auto px-3 py-1.5 text-xs">
-      Your accent color
-    </PopoverContent>
-  </Popover>
+@media (prefers-reduced-motion: reduce) {
+  .pf-section-title::after {
+    width: 100%;
+    transition: none;
+  }
 }
 ```
 
-The `onClick stopPropagation` prevents the tap from toggling the CollapsibleCard open/closed. The Popover uses Radix which auto-dismisses on outside tap -- perfect for mobile.
+### File: `src/pages/PublicPortfolioPage.tsx` (SectionHeader component, lines 423-462)
 
-Import `Popover, PopoverTrigger, PopoverContent` from `@/components/ui/popover` (check if already imported).
+Add a ref callback using IntersectionObserver to each `<h2>` element inside SectionHeader:
+
+- Create a small inline ref callback that observes the h2 element with `threshold: 0.5`
+- When intersecting, add the `title-revealed` class and disconnect
+- Add the `pf-section-title` class to each `<h2>` in all three style branches (minimal, bold-dark, classic-clean)
+- Clean up observer on unmount via useEffect return
+
+This applies consistently to ALL section titles (About, Experience, Skills, Education, Certifications, Case Studies, Services, Projects).
+
+---
+
+## ANIMATION 2: Experience Cards Staggered Slide-In
+
+### File: `src/index.css`
+
+Add keyframes for desktop (slide from left) and mobile (slide from bottom):
+
+```css
+@keyframes pf-card-slide-left {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes pf-card-slide-up {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.pf-exp-card {
+  opacity: 0;
+}
+.pf-exp-card.pf-card-revealed {
+  animation: pf-card-slide-up 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@media (min-width: 768px) {
+  .pf-exp-card.pf-card-revealed {
+    animation-name: pf-card-slide-left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-exp-card {
+    opacity: 1;
+  }
+  .pf-exp-card.pf-card-revealed {
+    animation: none;
+    opacity: 1;
+  }
+}
+```
+
+### File: `src/pages/PublicPortfolioPage.tsx` (Experience section, lines 1358-1365)
+
+Add an IntersectionObserver on the Experience section container (`<div className="space-y-4">`):
+
+- Use a ref on the container div
+- When intersecting (threshold: 0.15), query all child `.pf-exp-card` elements and add `pf-card-revealed` class with staggered `animation-delay: ${index * 100}ms`
+- Disconnect after triggering (once-only)
+- Clean up on unmount
+
+### File: `src/pages/PublicPortfolioPage.tsx` (ExperienceCard, line 491-496)
+
+Add the `pf-exp-card` class to the `<motion.div>` inside ExperienceCard. The existing Framer Motion `whileInView` animation on individual cards already handles per-card reveal -- we add the CSS class on top, so the stagger from the parent observer layers with it. Alternatively, since the existing FM animation conflicts, we can keep FM for the card's existing hover/transition behavior but let the CSS handle the entrance by removing `initial="hidden" whileInView="visible"` from the experience card's motion.div and replacing with the CSS approach.
+
+**Decision**: To avoid double-animating, remove the Framer Motion `initial`/`whileInView`/`viewport` and `variants` props from the ExperienceCard's `<motion.div>` (lines 491-496). Replace with the CSS class approach. The `<motion.div>` can stay as a `<div>` or remain as `<motion.div>` for any existing hover transitions, but entrance animation will be purely CSS-driven via the parent observer.
 
 ---
 
@@ -90,8 +115,9 @@ Import `Popover, PopoverTrigger, PopoverContent` from `@/components/ui/popover` 
 
 | File | Change |
 |---|---|
-| `src/components/editor/CustomizeSheet.tsx` | Add `resumeData` prop, use real name/subtitle/skills with fallback |
-| `src/pages/EditorPage.tsx` | Compute `designPreview` from store, pass to `CustomizeSheet` |
-| `src/pages/PortfolioEditorPage.tsx` | Wrap accent dot in `Popover` with "Your accent color" tooltip |
+| `src/index.css` | Add `pf-section-title` + `::after` underline styles, `pf-card-slide-left/up` keyframes, reduced-motion overrides |
+| `src/pages/PublicPortfolioPage.tsx` | SectionHeader: add `pf-section-title` class + IntersectionObserver ref to h2 elements |
+| `src/pages/PublicPortfolioPage.tsx` | ExperienceCard: add `pf-exp-card` class, remove FM entrance variants |
+| `src/pages/PublicPortfolioPage.tsx` | Experience section container: add observer ref for staggered card reveal |
 
-No backend, database, or dependency changes.
+No backend, data, routing, or dependency changes. All GPU-accelerated (transform + opacity). Reduced-motion safe. Observers properly disconnected.
