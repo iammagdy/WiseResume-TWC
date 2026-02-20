@@ -1,21 +1,28 @@
 
-
-# Fix QR Code Download Branding Text
+# Stop Automatic APK Builds on Push
 
 ## Problem
+The `.github/workflows/build-apk.yml` workflow triggers on both `workflow_dispatch` (manual) and `push` to `main`. Every Lovable commit triggers a new APK build, consuming GitHub Actions minutes.
 
-When downloading the QR code as PNG, the "Wise Resume" gradient text renders as a solid colored rectangle instead of readable text. This happens because `html2canvas` does not support the CSS `background-clip: text` technique used for the gradient text effect.
+## Fix
+Remove the `push` trigger from the workflow, keeping only `workflow_dispatch`. This means builds will only run when you manually click "Run workflow" in GitHub Actions.
 
-## Solution
+## Technical Change
 
-Update `QRBrandedFrame` so that when `isCapture` is true (used during the `html2canvas` capture), the "Wise Resume" text uses a simple solid color (#a855f7) instead of the unsupported gradient-clip technique. The live preview in the sheet continues to show the gradient as before.
+### File: `.github/workflows/build-apk.yml`
 
-## Technical Changes
+Change the `on:` block from:
+```yaml
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+```
 
-### File: `src/components/portfolio/qr/QRBrandedFrame.tsx`
+To:
+```yaml
+on:
+  workflow_dispatch:
+```
 
-- Split the "Wise Resume" span rendering into two paths:
-  - **Default (interactive preview):** Keep the existing `background-clip: text` gradient styling
-  - **Capture mode (`isCapture=true`):** Use a plain `color: '#a855f7'` style with no background-clip or text-fill-color properties
-- This is a ~5-line change in a single file
-
+One line removed, no other changes needed.
