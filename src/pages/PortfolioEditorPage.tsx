@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { computeSkillFrequencies, getSkillTier, TIER_STYLES } from '@/lib/skillCloud';
 import type { Experience, Project } from '@/types/resume';
+import { getPortfolioUrl } from '@/lib/portfolioUrl';
 
 interface PortfolioSections {
   experience: boolean;
@@ -472,7 +473,7 @@ export default function PortfolioEditorPage() {
   // Display URL (cosmetic — no "lovable" branding shown to user)
   const portfolioDisplayUrl = username ? `WiseResume/${username}` : '';
   // Actual URL (real domain the app runs on — dynamic, works with custom domains)
-  const actualPortfolioUrl = username ? `${window.location.origin}/p/${username}` : '';
+  const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {
     if (!actualPortfolioUrl) return;

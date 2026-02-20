@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { getAppUrl } from '@/lib/portfolioUrl';
 import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -252,7 +253,7 @@ export default function SettingsPage() {
     const shareData = {
       title: 'WiseResume',
       text: 'Build professional resumes with AI — try WiseResume!',
-      url: 'https://wiseresume.lovable.app',
+      url: getAppUrl(),
     };
     try {
       if (navigator.share) {
