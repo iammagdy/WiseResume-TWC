@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getChangelog, useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Dialog,
   DialogContent,
@@ -17,13 +18,14 @@ interface ChangelogEntry {
   date: string;
   summary: string;
   latest?: boolean;
-  items: { text: string; tag?: string }[];
+  items: { title: string; description: string; tag?: string }[];
 }
 
 export function WhatsNewDialog() {
   const [open, setOpen] = useState(false);
   const [entry, setEntry] = useState<ChangelogEntry | null>(null);
   const { markSeen } = useChangelogBadge();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,7 +71,7 @@ export function WhatsNewDialog() {
           {entry.items.map((item, i) => (
             <li key={i} className="flex items-start gap-2 text-fluid-sm text-muted-foreground">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-              <span>{item.text}</span>
+              <span>{item.title}</span>
             </li>
           ))}
         </ul>
@@ -81,12 +83,14 @@ export function WhatsNewDialog() {
           >
             Got it
           </Button>
-          <button
-            onClick={() => { handleClose(); navigate('/settings'); }}
-            className="flex items-center justify-center gap-1 text-fluid-xs text-muted-foreground hover:text-foreground transition-colors min-h-[44px] active:scale-95"
-          >
-            View full changelog <ChevronRight className="h-3 w-3" />
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => { handleClose(); navigate('/settings'); }}
+              className="flex items-center justify-center gap-1 text-fluid-xs text-muted-foreground hover:text-foreground transition-colors min-h-[44px] active:scale-95"
+            >
+              View full changelog <ChevronRight className="h-3 w-3" />
+            </button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
