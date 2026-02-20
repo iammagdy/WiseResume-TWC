@@ -1,39 +1,51 @@
 
 
-# Fix: Tailored CVs Showing in "My CVs" Tab + CV Name Overflow
+# UX Improvements for WiseResume
 
-## Problem 1: Tailored CVs appear in "My CVs" tab
-The "My CVs" tab renders `ResumeGroup` components which include both the master resume AND its tailored versions nested underneath. This means tailored CVs show up in both tabs, confusing users.
-
-## Problem 2: CV name overflows its container
-The title row in `ResumeListCard` uses `flex-wrap` (line 226), which allows badges to wrap but also prevents the `truncate` on the title from working properly when the title is long combined with inline badges.
+Here are actionable UX improvements organized by impact, based on the current state of the app.
 
 ---
 
-## Fix Plan
+## 1. Swipe Between "My CVs" and "Tailored" Tabs
+**Problem**: Users must tap tab headers to switch. On mobile, swiping between tabs is a natural gesture that's currently missing.
+**Fix**: Wrap `TabsContent` in a swipeable container (using `embla-carousel-react`, already installed) so users can swipe left/right between "My CVs" and "Tailored" tabs -- syncing the active tab state.
 
-### File: `src/pages/DashboardPage.tsx` (lines 757-799)
+---
 
-**Change the "My CVs" tab to show only master resumes without their nested tailored versions.**
+## 2. "Last Edited" Relative Time on Resume Cards
+**Problem**: Resume cards show timestamps that may not be immediately meaningful.
+**Fix**: Ensure cards show human-friendly relative times like "Edited 2 hours ago" or "Edited yesterday" using `date-fns/formatDistanceToNow` (already installed) and update it if stale.
 
-Currently, when a master has tailored versions, it renders a `ResumeGroup` (which expands to show tailored children). Instead, always render a plain `ResumeListCard` for masters -- no nested tailored versions. The tailored versions belong exclusively in the "Tailored" tab.
+---
 
-- Remove the conditional that checks `tailoredVersions.length > 0` and renders `ResumeGroup`
-- Always render `ResumeListCard` for each master resume
-- Also render orphaned tailored resumes (from `resumeHierarchy.orphanTailored`) in the "My CVs" tab since they have no parent
+## 3. Empty State for "Tailored" Tab -- Add a CTA Button
+**Problem**: The Tailored tab empty state says "Open any CV and use Tailor for Job" but doesn't provide a direct action. Users have to navigate away manually.
+**Fix**: Add a "Tailor a Resume" button that navigates to `/ai-studio?tool=tailor`, giving users a one-tap path.
 
-### File: `src/components/dashboard/ResumeListCard.tsx` (line 226)
+---
 
-**Fix the title overflow by removing `flex-wrap` from the title row and ensuring proper truncation.**
+## 4. Search Applies to Active Tab Only (Visual Clarity)
+**Problem**: The search bar sits above the tabs, but users may not realize it filters the current tab's content. If they search while on "Tailored" and switch to "My CVs", they see unexpected results.
+**Fix**: Move the search bar inside (or just below) the tabs area, and show a small label like "Searching in My CVs" to make it contextual.
 
-- Change the title row from `flex-wrap` to `overflow-hidden` so the title truncates correctly
-- Ensure the title `h3` element has `min-w-0` so `truncate` works within a flex container
-- Keep badges as `shrink-0` so they don't get squished
+---
 
-### Summary of Changes
+## 5. Pull-to-Refresh Feedback Enhancement
+**Problem**: Pull-to-refresh exists but there's no success confirmation afterward.
+**Fix**: Show a brief toast or inline "Updated just now" timestamp after a successful refresh so users know their data is fresh.
+
+---
+
+## Technical Details
+
+### File Changes
 
 | File | Change |
 |---|---|
-| `DashboardPage.tsx` | Replace `ResumeGroup` in "My CVs" tab with plain `ResumeListCard` for all masters; add orphaned tailored resumes |
-| `ResumeListCard.tsx` | Fix title row flex layout to prevent name overflow |
+| `DashboardPage.tsx` | Wrap tab contents in Embla carousel for swipe support; move search bar below tabs; add refresh confirmation toast |
+| `ResumeListCard.tsx` | Verify relative time display uses `formatDistanceToNow` |
+| Tailored tab empty state (in `DashboardPage.tsx`) | Add "Tailor a Resume" CTA button navigating to `/ai-studio?tool=tailor` |
+
+### Dependencies
+All required libraries are already installed: `embla-carousel-react`, `date-fns`, `sonner`.
 
