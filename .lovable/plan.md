@@ -1,66 +1,55 @@
 
 
-# Add Performance Indexes on High-Query Tables
+# Animated Splash Screen on First Launch
 
-## Problem
+## Overview
+Add a fullscreen animated splash screen that plays once -- the very first time a user opens the app. It shows the WiseResume logo with entrance animations (scale, glow, tagline reveal), then auto-dismisses after ~3 seconds. Subsequent visits skip it entirely using a persisted flag in the settings store.
 
-Several frequently queried tables only have basic single-column `user_id` indexes. The app's query patterns include ordering and filtering on additional columns (`applied_at`, `status`, `created_at`), which means Postgres must do in-memory sorts after the index lookup. As the user base grows, these become bottlenecks.
+## How It Works
 
-## Existing Index Coverage
+1. A new `hasSeenSplash` flag in the Zustand settings store (persisted to localStorage) tracks whether the user has seen the splash
+2. The `AppRoutes` component checks this flag before rendering routes
+3. If `hasSeenSplash` is false, it renders the `AnimatedSplash` component instead of routes
+4. After the animation completes (~3s), it sets the flag to true and fades out, revealing the app
 
-| Table | Existing Indexes | Gap |
-|-------|-----------------|-----|
-| `resume_versions` | `(user_id, resume_id, created_at DESC)` | Already well-covered |
-| `job_applications` | `(user_id)` only | Missing `applied_at` ordering, `status` filtering |
-| `cover_letters` | `(user_id)` only | Missing `created_at` ordering |
-| `tailor_history` | None (no dedicated index) | Missing `user_id + created_at` for timeline queries |
-| `notifications` | `(user_id, is_read)` | Missing `created_at` ordering for sorted reads |
+## Animation Sequence (3 seconds total)
 
-## Query Patterns Driving Index Design
+| Time | Animation |
+|------|-----------|
+| 0-0.6s | Logo scales in from 0.5 to 1 with spring physics + glow pulse |
+| 0.6-1.2s | "WiseResume" text fades up with gradient shimmer |
+| 1.2-1.8s | "Your AI Career Partner" tagline fades in |
+| 1.8-2.5s | Hold |
+| 2.5-3.0s | Everything fades out and scales up slightly (exit) |
 
-1. **job_applications**: `WHERE user_id = ? ORDER BY applied_at DESC` (main list), `WHERE user_id = ? AND status = ?` (filtered views), `WHERE remind_at <= ? OR status = 'saved'` (pending reminders)
-2. **cover_letters**: `WHERE user_id = ? ORDER BY created_at DESC` (list view)
-3. **tailor_history**: `WHERE user_id = ? ORDER BY created_at DESC LIMIT 50` (activity timeline), `WHERE user_id = ? SELECT count(*)` (milestones)
-4. **notifications**: `WHERE user_id = ? AND is_read = false ORDER BY created_at DESC` (unread badge + list)
+## Files to Create/Modify
 
-## New Indexes
+### 1. New: `src/components/AnimatedSplash.tsx`
+- Full-screen component with dark background matching `--background`
+- Uses `framer-motion` for all animations (already installed)
+- Renders `AppIcon` (the logo image) with scale + opacity spring animation
+- "WiseResume" gradient text with staggered fade-up
+- Tagline with delayed fade-in
+- Pulsing glow ring behind the logo
+- Calls `onComplete()` callback after animation finishes
+- Respects `prefers-reduced-motion` -- if enabled, shows static splash for 1s then dismisses
 
-```text
-1. idx_job_applications_user_applied
-   ON job_applications (user_id, applied_at DESC)
-   -- Covers the primary list query with sort
+### 2. Modify: `src/store/settingsStore.ts`
+- Add `hasSeenSplash: boolean` to state interface (default: `false`)
+- Add `setHasSeenSplash: (value: boolean) => void` action
+- Add to `defaultSettings`
 
-2. idx_job_applications_user_status
-   ON job_applications (user_id, status)
-   -- Covers filtered views by status
-
-3. idx_cover_letters_user_created
-   ON cover_letters (user_id, created_at DESC)
-   -- Covers the sorted list query
-
-4. idx_tailor_history_user_created
-   ON tailor_history (user_id, created_at DESC)
-   -- Covers timeline + activity streak queries
-
-5. idx_notifications_user_created
-   ON notifications (user_id, created_at DESC)
-   -- Covers the sorted notification list
-```
+### 3. Modify: `src/App.tsx` (AppRoutes component)
+- Import `AnimatedSplash` and `hasSeenSplash` from settings store
+- Before the biometric lock check, add splash check:
+  - If `!hasSeenSplash`, render `AnimatedSplash` with `onComplete` that calls `setHasSeenSplash(true)`
+  - Otherwise render routes as normal
 
 ## Technical Details
 
-| Item | Detail |
-|------|--------|
-| Tables affected | `job_applications`, `cover_letters`, `tailor_history`, `notifications` |
-| Migration | One SQL file with 5 `CREATE INDEX IF NOT EXISTS` statements |
-| Code changes | None -- queries automatically use the new indexes |
-| Risk | Zero -- additive indexes only, no schema changes |
-| `resume_versions` | Already optimized with existing composite index, skipped |
-
-## What This Does NOT Change
-
-- No application code modified
-- No RLS policies affected
-- No table schemas altered
-- Existing indexes remain untouched
+- **No lazy loading** for AnimatedSplash -- it's small and must render instantly on first load
+- **Native Capacitor**: The native splash screen (from `@capacitor/splash-screen`) hides via the existing `hideSplashScreen()` in AuthContext. The animated React splash plays after that, creating a seamless transition from native splash to animated splash to app
+- **Reset**: Users can re-trigger it from Settings via the existing "Replay Onboarding" button (extend it to also reset `hasSeenSplash`)
+- **Performance**: No heavy assets -- just the existing logo PNG + CSS/Framer Motion animations
+- **Touch target**: Tap anywhere to skip (with haptic feedback)
 
