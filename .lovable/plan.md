@@ -1,24 +1,61 @@
 
+# Fix 3 Critical Bugs
 
-# Fix Career Card Preview Size on Desktop
+## BUG 1: Studio Page Crash ("supabaseUrl is required")
 
-## Problem
-The Career Card sheet opens as a full-width bottom panel. On desktop, this creates a massive empty area with a proportionally tiny card preview hugging the left side because the 1200x630 aspect ratio card scales down relative to the full viewport width but sits in an unconstrained container.
+**Root cause**: `src/hooks/useCompanyBriefing.ts` imports from `@/integrations/supabase/client` (the auto-generated one with no fallbacks). When environment variables are unavailable at runtime, `createClient()` throws. Since `CompanyBriefingSheet` is eagerly imported in `AIStudioPage.tsx`, the entire page crashes.
 
-## Solution
-Add a `max-w-2xl mx-auto` constraint to the preview wrapper so the card preview centers and displays at a comfortable size on desktop, while remaining full-width on mobile.
+**Fix**: Change line 2 of `useCompanyBriefing.ts` from:
+```
+import { supabase } from '@/integrations/supabase/client';
+```
+to:
+```
+import { supabase } from '@/integrations/supabase/safeClient';
+```
+This matches the pattern used by every other file in the app.
 
-## Changes
+---
 
-### `src/components/portfolio/CareerCardSheet.tsx` (line 504)
-- Change the preview wrapper div class from `w-full` to `w-full max-w-2xl mx-auto`
-- This caps the preview at ~672px wide on desktop, making the card preview large and centered
-- On mobile the max-width has no effect since the screen is narrower
+## BUG 2: Sync Conflict Modal Blocking "Add Work Experience"
 
-### Same file -- sheet content area (line 499)
-- Add `max-w-3xl mx-auto w-full` to the scrollable content div so the variant picker buttons and action buttons also center on desktop instead of stretching edge-to-edge
+**Root cause**: In `EditorPage.tsx`, the hydration `useEffect` (line 127) includes `currentResume` in its dependency array. Every time the user edits the resume (including clicking "+ Add"), `currentResume` changes and the effect re-runs. The stale-detection logic at line 152 then compares `serverUpdatedAt > localLoadedAt`. Because `lastSavedResumeRef` is initialized to an empty string `''`, the `isClean` check always returns `false`, which triggers `setConflict()` -- showing the modal on any edit, not just real conflicts.
 
-## Files modified
+**Fix** (2 changes in `EditorPage.tsx`):
+
+1. During initial hydration (around line 145), also initialize `lastSavedResumeRef` so future dirty-checks have a valid baseline:
+```
+localLoadedAtRef.current = resumeFromDb.updated_at ?? null;
+lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
+```
+
+2. In the stale-detection block (line 152), add a guard to skip when `localLoadedAt` is null (meaning we haven't finished initial hydration yet):
+```
+if (serverUpdatedAt && localLoadedAt && serverUpdatedAt > localLoadedAt) {
+```
+This is already present in the code, but the issue is that `localLoadedAt` gets set during hydration on the same render cycle, and on the next `currentResume` change the comparison fires. The real missing piece is point 1 above -- `lastSavedResumeRef` not being initialized.
+
+---
+
+## BUG 3: `/activity` Returns 404
+
+**Root cause**: No route for `/activity` exists in `App.tsx`. The nav links work because they route to `/applications` internally, but direct URL access to `/activity` hits the catch-all 404.
+
+**Fix**: Add a redirect route inside the protected routes block in `App.tsx`:
+```tsx
+import { Navigate } from 'react-router-dom';
+// Inside the protected Routes:
+<Route path="/activity" element={<Navigate to="/applications" replace />} />
+```
+
+---
+
+## Summary of file changes
+
 | File | Change |
 |------|--------|
-| `src/components/portfolio/CareerCardSheet.tsx` | 2 class changes |
+| `src/hooks/useCompanyBriefing.ts` | Line 2: change import to `safeClient` |
+| `src/pages/EditorPage.tsx` | Line 145: add `lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));` after `localLoadedAtRef` initialization |
+| `src/App.tsx` | Add `<Route path="/activity" element={<Navigate to="/applications" replace />} />` inside protected routes |
+
+No UI, layout, styling, database, or dependency changes.
