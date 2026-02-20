@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard, Sparkles, History, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Square, Keyboard, Sparkles, History, Lightbulb, RotateCcw, SkipForward } from 'lucide-react';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
 import { TranscriptBubble, TypingBubble } from '@/components/interview/TranscriptBubble';
@@ -323,6 +323,38 @@ function InterviewPageContent() {
         </div>
       </div>
 
+      {/* Progress indicator */}
+      {(() => {
+        const interviewType = activeInterviewTypeRef.current;
+        const currentQuestion = transcript.filter(e => e.role === 'interviewer').length;
+        const isQuick = interviewType === 'quick-practice';
+        const totalQuestions = 5;
+        const progress = isQuick ? Math.min((currentQuestion / totalQuestions) * 100, 100) : 0;
+        return (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="px-0">
+            <div className="w-full h-[3px] bg-muted/30">
+              {isQuick ? (
+                <div
+                  className="h-full bg-primary rounded-r-full"
+                  style={{ width: `${progress}%`, transition: 'width 500ms ease-in-out' }}
+                />
+              ) : (
+                <motion.div
+                  className="h-full bg-primary/70 rounded-r-full"
+                  animate={{ width: ['0%', '60%', '0%'] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                />
+              )}
+            </div>
+            {isQuick && currentQuestion > 0 && (
+              <p className="text-muted-foreground text-xs text-center mt-1">
+                Question {Math.min(currentQuestion, totalQuestions)} of {totalQuestions}
+              </p>
+            )}
+          </motion.div>
+        );
+      })()}
+
       {/* Transcript area */}
       <div
         ref={scrollRef}
@@ -352,7 +384,30 @@ function InterviewPageContent() {
 
       {/* Controls */}
       <div className="shrink-0 border-t border-border/20 bg-card/50 backdrop-blur-xl px-4 py-4 space-y-3 pb-safe">
-        <div className="flex flex-col items-center gap-2">
+        <div className="flex items-center justify-center gap-6">
+          {/* Replay button */}
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            whileTap={{ scale: 1.15 }}
+            onClick={() => {
+              const lastQ = [...transcript].reverse().find(e => e.role === 'interviewer');
+              if (!lastQ) return;
+              haptics.light();
+              window.speechSynthesis?.cancel();
+              const utter = new SpeechSynthesisUtterance(lastQ.text);
+              const voices = window.speechSynthesis?.getVoices() ?? [];
+              const preferred = voices.find(v => voiceGender === 'female' ? /female|zira|samantha/i.test(v.name) : /male|david|daniel/i.test(v.name));
+              if (preferred) utter.voice = preferred;
+              window.speechSynthesis?.speak(utter);
+            }}
+            disabled={status === 'speaking' || status === 'thinking' || !transcript.some(e => e.role === 'interviewer')}
+            className="flex flex-col items-center gap-1 min-w-[44px] min-h-[44px] rounded-full text-foreground/70 disabled:opacity-30 active:bg-foreground/10 touch-manipulation transition-opacity"
+          >
+            <RotateCcw className="w-5 h-5" />
+            <span className="text-muted-foreground text-[10px]">Replay</span>
+          </motion.button>
+
           <InterviewToggle 
             status={status} 
             onPress={handleToggle} 
@@ -360,6 +415,22 @@ function InterviewPageContent() {
             audioLevel={audioLevel}
             sttEngine={sttEngine}
           />
+
+          {/* Skip button */}
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            whileTap={{ scale: 1.15 }}
+            onClick={() => {
+              haptics.light();
+              sendTextMessage('(skipped)');
+            }}
+            disabled={status === 'thinking'}
+            className="flex flex-col items-center gap-1 min-w-[44px] min-h-[44px] rounded-full text-foreground/70 disabled:opacity-30 active:bg-foreground/10 touch-manipulation transition-opacity"
+          >
+            <SkipForward className="w-5 h-5" />
+            <span className="text-muted-foreground text-[10px]">Skip</span>
+          </motion.button>
           
           {/* Premium countdown overlay */}
           <AnimatePresence>
