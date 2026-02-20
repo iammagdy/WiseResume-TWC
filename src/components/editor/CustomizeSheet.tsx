@@ -14,6 +14,7 @@ interface CustomizeSheetProps {
   onOpenChange: (open: boolean) => void;
   customization?: TemplateCustomization;
   onApply: (customization: TemplateCustomization) => void;
+  resumeData?: { name: string; subtitle: string; skills: string[] };
 }
 
 export const CustomizeSheet = memo(function CustomizeSheet({
@@ -21,6 +22,7 @@ export const CustomizeSheet = memo(function CustomizeSheet({
   onOpenChange,
   customization,
   onApply,
+  resumeData,
 }: CustomizeSheetProps) {
   const [draft, setDraft] = useState<TemplateCustomization>(() => customization ?? getDefaultCustomization());
 
@@ -74,13 +76,13 @@ export const CustomizeSheet = memo(function CustomizeSheet({
                 className="text-base font-bold"
                 style={{ fontFamily: draft.fontHeading, color: draft.accentColor }}
               >
-                John Doe
+                {resumeData?.name || 'John Doe'}
               </h3>
               <p className="text-xs text-muted-foreground" style={{ fontFamily: draft.fontBody }}>
-                Software Engineer • San Francisco, CA
+                {resumeData?.subtitle || 'Software Engineer • San Francisco, CA'}
               </p>
               <div className="flex gap-1 justify-center mt-2">
-                {['React', 'TypeScript', 'Node.js'].map((s) => (
+                {(resumeData?.skills?.length ? resumeData.skills.slice(0, 3) : ['React', 'TypeScript', 'Node.js']).map((s) => (
                   <span
                     key={s}
                     className="px-2 py-0.5 rounded text-[10px] font-medium"

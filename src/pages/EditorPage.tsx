@@ -1245,7 +1245,16 @@ export default function EditorPage() {
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
           {showVersionHistory && <VersionHistorySheet open={showVersionHistory} onOpenChange={setShowVersionHistory} resumeId={currentResumeId} />}
           {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={handleContentInsert} />}
-          {showCustomize && <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} customization={currentResume?.customization} onApply={handleCustomizeApply} />}
+          {showCustomize && (() => {
+            const rd = currentResume ? (() => {
+              const name = currentResume.contactInfo?.fullName || '';
+              const latestJob = currentResume.experience?.[0];
+              const subtitle = latestJob ? `${latestJob.position} – ${latestJob.company}` : currentResume.contactInfo?.location || '';
+              const skills = currentResume.skills?.slice(0, 3) || [];
+              return name ? { name, subtitle, skills } : undefined;
+            })() : undefined;
+            return <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} customization={currentResume?.customization} onApply={handleCustomizeApply} resumeData={rd} />;
+          })()}
           {showProofread && (
             <ProofreadSheet
               open={showProofread}

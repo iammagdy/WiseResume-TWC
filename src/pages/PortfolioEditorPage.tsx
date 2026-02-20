@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
@@ -786,7 +787,20 @@ export default function PortfolioEditorPage() {
           id="customization"
           icon={<Sparkles className="w-4 h-4" />}
           title="Customization"
-          hint={<span className="inline-block w-4 h-4 rounded-full border border-border" style={{ background: portfolioAccentColor }} />}
+          hint={
+            <Popover>
+              <PopoverTrigger asChild>
+                <span
+                  className="inline-block w-4 h-4 rounded-full border border-border cursor-pointer"
+                  style={{ background: portfolioAccentColor }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </PopoverTrigger>
+              <PopoverContent side="top" className="w-auto px-3 py-1.5 text-xs">
+                Your accent color
+              </PopoverContent>
+            </Popover>
+          }
           openSections={openSections}
           toggleSection={toggleSection}
         >
