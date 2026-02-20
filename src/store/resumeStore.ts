@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { ResumeData, JobMatchScore, GapAnalysis, TemplateId, PageBreakSettings, TailorHistory, TailorSectionId, EnhancedTailorResult, CoverLetterContext, MultiJobComparison, JobComparisonEntry, SuperTailorResult, CoverLetterHistory } from '@/types/resume';
+import { TailorIntensity } from '@/lib/aiTailor';
 import { v4 as uuidv4 } from 'uuid';
 
 let hasHydrated = false;
@@ -34,6 +35,13 @@ interface ResumeState {
   // Multi-job comparison
   currentComparison: MultiJobComparison | null;
   
+  // Pending tailor results (persisted so sheet close doesn't lose data)
+  pendingTailorResult: SuperTailorResult | null;
+  pendingTailorOriginal: ResumeData | null;
+  pendingTailorJobInfo: { title: string; company: string } | null;
+  pendingTailorSections: TailorSectionId[];
+  pendingTailorIntensity: TailorIntensity;
+  pendingTailorJobUrl: string | null;
   setCurrentResume: (resume: ResumeData | null) => void;
   setCurrentResumeId: (id: string | null) => void;
   setIsSaving: (saving: boolean) => void;
@@ -61,6 +69,17 @@ interface ResumeState {
   selectBestJob: (jobId: string) => void;
   applySelectedJob: () => void;
   clearComparison: () => void;
+  
+  // Pending tailor actions
+  setPendingTailor: (data: {
+    result: SuperTailorResult;
+    original: ResumeData;
+    jobInfo: { title: string; company: string } | null;
+    sections: TailorSectionId[];
+    intensity: TailorIntensity;
+    jobUrl: string | null;
+  }) => void;
+  clearPendingTailor: () => void;
   
   clearAll: () => void;
 }
@@ -107,6 +126,12 @@ export const useResumeStore = create<ResumeState>()(
       coverLetterJobContext: null,
       coverLetterHistory: [],
       currentComparison: null,
+      pendingTailorResult: null,
+      pendingTailorOriginal: null,
+      pendingTailorJobInfo: null,
+      pendingTailorSections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications'],
+      pendingTailorIntensity: 'moderate' as TailorIntensity,
+      pendingTailorJobUrl: null,
 
       setCurrentResume: (resume) => set({ currentResume: resume }),
       setCurrentResumeId: (id) => set({ currentResumeId: id }),
@@ -294,6 +319,24 @@ export const useResumeStore = create<ResumeState>()(
       
       clearComparison: () => set({ currentComparison: null }),
       
+      setPendingTailor: (data) => set({
+        pendingTailorResult: data.result,
+        pendingTailorOriginal: data.original,
+        pendingTailorJobInfo: data.jobInfo,
+        pendingTailorSections: data.sections,
+        pendingTailorIntensity: data.intensity,
+        pendingTailorJobUrl: data.jobUrl,
+      }),
+      
+      clearPendingTailor: () => set({
+        pendingTailorResult: null,
+        pendingTailorOriginal: null,
+        pendingTailorJobInfo: null,
+        pendingTailorSections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications'],
+        pendingTailorIntensity: 'moderate' as TailorIntensity,
+        pendingTailorJobUrl: null,
+      }),
+      
       clearAll: () => set({
         currentResume: null,
         currentResumeId: null,
@@ -311,6 +354,12 @@ export const useResumeStore = create<ResumeState>()(
         coverLetterJobContext: null,
         coverLetterHistory: [],
         currentComparison: null,
+        pendingTailorResult: null,
+        pendingTailorOriginal: null,
+        pendingTailorJobInfo: null,
+        pendingTailorSections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications'],
+        pendingTailorIntensity: 'moderate' as TailorIntensity,
+        pendingTailorJobUrl: null,
       }),
     }),
     {

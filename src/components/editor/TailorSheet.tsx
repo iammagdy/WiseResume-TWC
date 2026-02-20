@@ -58,6 +58,8 @@ const SECTION_LABELS: Record<TailorSectionId, string> = {
   skills: 'Skills',
   experience: 'Experience',
   education: 'Education',
+  projects: 'Projects',
+  certifications: 'Certifications',
 };
 
 const TAB_CONFIG = [
@@ -66,6 +68,45 @@ const TAB_CONFIG = [
   { id: 'skills', label: 'Skills', icon: Target },
   { id: 'interview', label: 'Prep', icon: Sparkles },
 ] as const;
+
+const TAILOR_CACHE_KEY = (id: string) => `wr-tailor-cache-${id}`;
+const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+interface TailorCache {
+  tailorResult: SuperTailorResult;
+  originalResume: ResumeData;
+  jobDescription: string;
+  parsedJobInfo: { title: string; company: string } | null;
+  intensity: TailorIntensity;
+  jobUrl: string | null;
+  timestamp: number;
+}
+
+function loadCache(resumeId: string | null): TailorCache | null {
+  if (!resumeId) return null;
+  try {
+    const raw = localStorage.getItem(TAILOR_CACHE_KEY(resumeId));
+    if (!raw) return null;
+    const cache: TailorCache = JSON.parse(raw);
+    if (Date.now() - cache.timestamp > CACHE_TTL_MS) {
+      localStorage.removeItem(TAILOR_CACHE_KEY(resumeId));
+      return null;
+    }
+    return cache;
+  } catch { return null; }
+}
+
+function saveCache(resumeId: string | null, data: Omit<TailorCache, 'timestamp'>) {
+  if (!resumeId) return;
+  try {
+    localStorage.setItem(TAILOR_CACHE_KEY(resumeId), JSON.stringify({ ...data, timestamp: Date.now() }));
+  } catch { /* quota exceeded – ignore */ }
+}
+
+function clearCache(resumeId: string | null) {
+  if (!resumeId) return;
+  localStorage.removeItem(TAILOR_CACHE_KEY(resumeId));
+}
 
 export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApplied }: TailorSheetProps) {
   const { user } = useAuth();
@@ -84,6 +125,14 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     addJobToComparison,
     setCurrentResumeId,
     setCurrentResume,
+    pendingTailorResult,
+    pendingTailorOriginal,
+    pendingTailorJobInfo,
+    pendingTailorSections,
+    pendingTailorIntensity,
+    pendingTailorJobUrl,
+    setPendingTailor,
+    clearPendingTailor,
   } = useResumeStore(useShallow(state => ({
     currentResume: state.currentResume,
     currentResumeId: state.currentResumeId,
@@ -99,6 +148,14 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     addJobToComparison: state.addJobToComparison,
     setCurrentResumeId: state.setCurrentResumeId,
     setCurrentResume: state.setCurrentResume,
+    pendingTailorResult: state.pendingTailorResult,
+    pendingTailorOriginal: state.pendingTailorOriginal,
+    pendingTailorJobInfo: state.pendingTailorJobInfo,
+    pendingTailorSections: state.pendingTailorSections,
+    pendingTailorIntensity: state.pendingTailorIntensity,
+    pendingTailorJobUrl: state.pendingTailorJobUrl,
+    setPendingTailor: state.setPendingTailor,
+    clearPendingTailor: state.clearPendingTailor,
   })));
 
   const [isTailoring, setIsTailoring] = useState(false);
@@ -119,10 +176,12 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const abortRef = useRef<AbortController | null>(null);
   const [tailorError, setTailorError] = useState<{ message: string; code?: string } | null>(null);
   const [showAISettings, setShowAISettings] = useState(false);
+  const [showCacheRestore, setShowCacheRestore] = useState(false);
+  const cachedDataRef = useRef<TailorCache | null>(null);
 
   // Section toggles
   const [enabledSections, setEnabledSections] = useState<TailorSectionId[]>([
-    'summary', 'skills', 'experience', 'education'
+    'summary', 'skills', 'experience', 'education', 'projects', 'certifications'
   ]);
 
   const toggleSection = (sectionId: TailorSectionId) => {
@@ -134,6 +193,42 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   };
 
   const { execute: executeAI } = useAIAction({ operation: 'tailor' });
+
+  // Hydrate from Zustand or localStorage on open
+  useEffect(() => {
+    if (!open) return;
+    
+    // Priority 1: Zustand pending state
+    if (pendingTailorResult && pendingTailorOriginal) {
+      setTailorResult(pendingTailorResult);
+      setOriginalResume(pendingTailorOriginal);
+      setParsedJobInfo(pendingTailorJobInfo);
+      setEnabledSections(pendingTailorSections);
+      setIntensity(pendingTailorIntensity);
+      if (pendingTailorJobUrl) setJobUrl(pendingTailorJobUrl);
+      return;
+    }
+    
+    // Priority 2: localStorage cache
+    const cache = loadCache(currentResumeId);
+    if (cache) {
+      cachedDataRef.current = cache;
+      setShowCacheRestore(true);
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleRestoreCache = useCallback(() => {
+    const cache = cachedDataRef.current;
+    if (!cache) return;
+    setTailorResult(cache.tailorResult);
+    setOriginalResume(cache.originalResume);
+    setJobDescription(cache.jobDescription);
+    setParsedJobInfo(cache.parsedJobInfo);
+    setIntensity(cache.intensity);
+    if (cache.jobUrl) setJobUrl(cache.jobUrl);
+    setShowCacheRestore(false);
+    cachedDataRef.current = null;
+  }, [setJobDescription]);
 
   const handleTailor = useCallback(async () => {
     if (!jobDescription.trim()) {
@@ -150,7 +245,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setIsTailoring(true);
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
-    setEnabledSections(['summary', 'skills', 'experience', 'education']);
+    setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications']);
     setActiveTab('changes');
 
     abortRef.current = new AbortController();
@@ -166,19 +261,37 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         );
       });
 
-      if (!result) {
-        // Credit check failed
-        return;
-      }
+      if (!result) return;
 
-      setTailorResult(result as SuperTailorResult);
+      const superResult = result as SuperTailorResult;
+      setTailorResult(superResult);
       
-      if (result.jobParsed) {
-        setParsedJobInfo({
-          title: result.jobParsed.title,
-          company: result.jobParsed.company,
-        });
-      }
+      const jobInfo = superResult.jobParsed ? {
+        title: superResult.jobParsed.title,
+        company: superResult.jobParsed.company,
+      } : null;
+      
+      if (jobInfo) setParsedJobInfo(jobInfo);
+
+      // Persist to Zustand
+      setPendingTailor({
+        result: superResult,
+        original: currentResume,
+        jobInfo,
+        sections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications'],
+        intensity,
+        jobUrl: jobUrl || null,
+      });
+
+      // Auto-save to localStorage
+      saveCache(currentResumeId, {
+        tailorResult: superResult,
+        originalResume: currentResume,
+        jobDescription,
+        parsedJobInfo: jobInfo,
+        intensity,
+        jobUrl: jobUrl || null,
+      });
     } catch (error) {
       console.error('Tailor error:', error);
       const err = error as TailorError;
@@ -192,7 +305,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       setIsTailoring(false);
       setProgress(null);
     }
-  }, [jobDescription, currentResume, intensity, executeAI]);
+  }, [jobDescription, currentResume, intensity, executeAI, setPendingTailor, currentResumeId, jobUrl]);
 
   // Auto-tailor when a URL is parsed
   const handleParsedJobInfo = useCallback((info: { title: string; company: string; url?: string } | null) => {
@@ -223,8 +336,40 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   }, [currentResume]);
 
   const handleUpdateTailorResult = useCallback((updated: Partial<SuperTailorResult>) => {
-    setTailorResult(prev => prev ? { ...prev, ...updated } : null);
-  }, []);
+    setTailorResult(prev => {
+      if (!prev) return null;
+      const next = { ...prev, ...updated };
+      // Sync to Zustand + cache
+      if (originalResume) {
+        setPendingTailor({
+          result: next,
+          original: originalResume,
+          jobInfo: parsedJobInfo,
+          sections: enabledSections,
+          intensity,
+          jobUrl: jobUrl || null,
+        });
+        saveCache(currentResumeId, {
+          tailorResult: next,
+          originalResume,
+          jobDescription,
+          parsedJobInfo,
+          intensity,
+          jobUrl: jobUrl || null,
+        });
+      }
+      return next;
+    });
+  }, [originalResume, parsedJobInfo, enabledSections, intensity, jobUrl, currentResumeId, jobDescription, setPendingTailor]);
+
+  const handleEditSection = useCallback((sectionId: TailorSectionId, newValue: string | string[]) => {
+    if (!tailorResult) return;
+    if (sectionId === 'summary' && typeof newValue === 'string') {
+      handleUpdateTailorResult({ summary: newValue });
+    } else if (sectionId === 'skills' && Array.isArray(newValue)) {
+      handleUpdateTailorResult({ skills: newValue });
+    }
+  }, [tailorResult, handleUpdateTailorResult]);
 
   // Auto-create tailored CV as new resume in DB
   const handleApplyChanges = useCallback(async () => {
@@ -233,7 +378,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setIsApplying(true);
 
     try {
-      // Build merged resume data
       const mergedResume: ResumeData = { ...currentResume };
       
       if (enabledSections.includes('summary')) {
@@ -254,13 +398,18 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           ...edu,
         }));
       }
+      if (enabledSections.includes('projects') && tailorResult.projects) {
+        mergedResume.projects = tailorResult.projects;
+      }
+      if (enabledSections.includes('certifications') && tailorResult.certifications) {
+        mergedResume.certifications = tailorResult.certifications;
+      }
 
       const jobTitle = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const company = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
       const originalTitle = currentResume.contactInfo.fullName || 'Resume';
       const newTitle = `${originalTitle} - Tailored for ${jobTitle} @ ${company}`;
 
-      // Create new resume in database
       const { data: newResume, error } = await supabase
         .from('resumes')
         .insert({
@@ -284,7 +433,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
       if (error) throw error;
 
-      // Save to tailor history
       addTailorHistory({
         jobTitle,
         company,
@@ -296,12 +444,13 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
       toast.success('🎉 Tailored resume created! Original preserved.', { duration: 4000 });
 
-      // Notify parent to show apply prompt
       const jt = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const co = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
       onApplied?.({ title: jt, company: co, resumeId: newResume?.id, jobUrl });
 
       setTailorResult(null);
+      clearPendingTailor();
+      clearCache(currentResumeId);
       onOpenChange(false);
     } catch (error) {
       console.error('Apply error:', error);
@@ -309,7 +458,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     } finally {
       setIsApplying(false);
     }
-  }, [tailorResult, currentResume, user, enabledSections, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, onOpenChange]);
+  }, [tailorResult, currentResume, user, enabledSections, parsedJobInfo, currentResumeId, jobDescription, addTailorHistory, onOpenChange, clearPendingTailor, jobUrl, onApplied]);
 
   const handleStartComparison = () => {
     if (!tailorResult || !currentResume?.id) return;
@@ -364,6 +513,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     }
     setTailorResult(null);
     setProgress(null);
+    clearPendingTailor();
+    clearCache(currentResumeId);
   };
 
   const handleAddSkill = (skill: string) => {
@@ -399,14 +550,15 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     if (!tailorResult || !tailorResult.overallScore) return null;
     const before = tailorResult.overallScore.before;
     const maxImprovement = tailorResult.overallScore.after - before;
-    const sectionWeight = enabledSections.length / 4;
+    const totalSections = 6;
+    const sectionWeight = enabledSections.length / totalSections;
     return Math.round(before + (maxImprovement * sectionWeight));
   }, [tailorResult, enabledSections]);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl">
-        <SheetHeader className="pb-4">
+      <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl flex flex-col">
+        <SheetHeader className="pb-4 shrink-0">
           <div className="flex items-center justify-between">
             <SheetTitle className="flex items-center gap-2">
               <Wand2 className="w-5 h-5 text-primary" />
@@ -436,8 +588,26 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           </div>
         </SheetHeader>
 
-        <div className="overflow-y-auto h-[calc(92vh-140px)] space-y-4 pb-24">
+        <div className="overflow-y-auto flex-1 space-y-4 pb-4">
           <AITrustBadge className="mx-0" />
+
+          {/* Cache restore banner */}
+          {showCacheRestore && !tailorResult && !isTailoring && (
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between gap-3 animate-fade-in">
+              <p className="text-sm text-foreground">
+                ✨ You have unsaved tailor results. Restore?
+              </p>
+              <div className="flex gap-2 shrink-0">
+                <Button size="sm" variant="ghost" onClick={() => setShowCacheRestore(false)} className="min-h-[44px] active:scale-95 transition-transform">
+                  Dismiss
+                </Button>
+                <Button size="sm" onClick={handleRestoreCache} className="min-h-[44px] active:scale-95 transition-transform">
+                  Restore
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* Tailoring Progress */}
           {isTailoring && progress && (
             <TailorProgressComponent
@@ -513,19 +683,49 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           {/* Results */}
           {tailorResult && !isTailoring && (
             <div className="space-y-4 animate-fade-in">
-              {/* Success Header with celebration */}
+              {/* Success Header with Re-tailor */}
               <div className="p-4 rounded-xl bg-success/10 border border-success/30 relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-r from-success/5 via-transparent to-success/5 animate-[shimmer_3s_infinite]" />
-                <div className="relative flex items-center gap-2 mb-2">
-                  <Sparkles className="w-5 h-5 text-success animate-pulse" />
-                  <h4 className="font-semibold">🎉 Resume Tailored!</h4>
+                <div className="relative flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-success animate-pulse" />
+                    <h4 className="font-semibold">🎉 Resume Tailored!</h4>
+                  </div>
+                  {/* Quick Re-tailor */}
+                  <div className="flex items-center gap-1.5">
+                    <ToggleGroup
+                      type="single"
+                      value={intensity}
+                      onValueChange={(val) => val && setIntensity(val as TailorIntensity)}
+                      className="h-7"
+                    >
+                      <ToggleGroupItem value="light" className="text-[10px] h-7 px-1.5">
+                        <Zap className="w-3 h-3" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="moderate" className="text-[10px] h-7 px-1.5">
+                        <Gauge className="w-3 h-3" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem value="aggressive" className="text-[10px] h-7 px-1.5">
+                        <Flame className="w-3 h-3" />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs px-2 min-h-0 active:scale-95 transition-transform"
+                      onClick={() => handleTailor()}
+                    >
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      Re-tailor
+                    </Button>
+                  </div>
                 </div>
                 <p className="relative text-sm text-muted-foreground">
                   Review changes below. A new tailored copy will be created — your original stays safe.
                 </p>
               </div>
 
-              {/* Manual Tabs (replacing Radix Tabs to avoid crash) */}
+              {/* Manual Tabs */}
               <div className="flex rounded-lg bg-muted/50 p-1 gap-1">
                 {TAB_CONFIG.map(({ id, label, icon: Icon }) => (
                   <button
@@ -593,6 +793,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       onToggle={() => toggleSection('summary')}
                       impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.summary.after - tailorResult.sectionScores.summary.before : 0}
                       changesSummary="Professional summary rewritten"
+                      originalText={originalResume?.summary || ''}
+                      tailoredText={tailorResult.summary}
+                      onEdit={handleEditSection}
                       preview={
                         <p className="text-muted-foreground leading-relaxed">
                           {tailorResult.summary}
@@ -607,6 +810,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                       onToggle={() => toggleSection('skills')}
                       impactScore={tailorResult.sectionScores ? tailorResult.sectionScores.skills.after - tailorResult.sectionScores.skills.before : 0}
                       changesSummary={`${tailorResult.skills.length} skills optimized`}
+                      originalSkills={originalResume?.skills || []}
+                      tailoredSkills={tailorResult.skills}
+                      onEdit={handleEditSection}
                       preview={
                         <div className="flex flex-wrap gap-2">
                           {tailorResult.skills.slice(0, 10).map((skill, i) => (
@@ -659,6 +865,49 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         </ul>
                       }
                     />
+
+                    {/* Projects section */}
+                    {tailorResult.projects && tailorResult.projects.length > 0 && (
+                      <SectionChangeCard
+                        sectionId="projects"
+                        title={SECTION_LABELS.projects}
+                        enabled={enabledSections.includes('projects')}
+                        onToggle={() => toggleSection('projects')}
+                        impactScore={5}
+                        changesSummary={`${tailorResult.projects.length} projects optimized`}
+                        preview={
+                          <ul className="space-y-1">
+                            {tailorResult.projects.map((p, i) => (
+                              <li key={i} className="text-muted-foreground text-sm">
+                                <span className="font-medium text-foreground">{p.name}</span>
+                                <span className="text-xs"> — {p.role}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        }
+                      />
+                    )}
+
+                    {/* Certifications section */}
+                    {tailorResult.certifications && tailorResult.certifications.length > 0 && (
+                      <SectionChangeCard
+                        sectionId="certifications"
+                        title={SECTION_LABELS.certifications}
+                        enabled={enabledSections.includes('certifications')}
+                        onToggle={() => toggleSection('certifications')}
+                        impactScore={3}
+                        changesSummary={`${tailorResult.certifications.length} certifications refined`}
+                        preview={
+                          <ul className="space-y-1">
+                            {tailorResult.certifications.map((c, i) => (
+                              <li key={i} className="text-muted-foreground text-sm">
+                                {c.name} — {c.issuer}
+                              </li>
+                            ))}
+                          </ul>
+                        }
+                      />
+                    )}
                   </div>
 
                   {/* Bullet Transformations */}
@@ -733,7 +982,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                 />
               )}
 
-              {/* Action Buttons */}
+              {/* Action Buttons (non-sticky secondary actions) */}
               <div className="space-y-3 pt-2">
                 <Button
                   variant="outline"
@@ -785,35 +1034,6 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                   <FileText className="w-4 h-4 mr-2 text-purple-500" />
                   Generate Matching Cover Letter
                 </Button>
-
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={handleRevert}
-                  >
-                    <Undo2 className="w-4 h-4 mr-2" />
-                    Discard
-                  </Button>
-                  <Button
-                    className="flex-1 gradient-primary"
-                    onClick={handleApplyChanges}
-                    disabled={enabledSections.length === 0 || isApplying}
-                  >
-                    {isApplying ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                    )}
-                    {isApplying ? 'Creating...' : `Apply (${enabledSections.length})`}
-                  </Button>
-                </div>
-
-                {effectiveScore && (
-                  <p className="text-xs text-center text-muted-foreground">
-                    Applying {enabledSections.length} sections → Score: {effectiveScore}% • New tailored copy will be created
-                  </p>
-                )}
               </div>
             </div>
           )}
@@ -892,29 +1112,62 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                 <ul className="text-sm text-muted-foreground space-y-2">
                   <li className="flex items-start gap-2">
                     <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Auto-save</strong> - Tailored copies are saved separately</span>
+                    <span><strong>Inline diffs</strong> - See exactly what changed word-by-word</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Original preserved</strong> - Your base resume stays untouched</span>
+                    <span><strong>Edit before applying</strong> - Tweak AI output to your voice</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Match scores</strong> - See before/after improvement</span>
+                    <span><strong>Projects & Certs</strong> - Now tailored alongside your resume</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Job intelligence</strong> - Deep analysis of requirements</span>
+                    <span><strong>Quick re-tailor</strong> - Adjust intensity and retry instantly</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Interview prep</strong> - Tailored talking points</span>
+                    <span><strong>Auto-saved</strong> - Results persist even if you close the sheet</span>
                   </li>
                 </ul>
               </div>
             </>
           )}
         </div>
+
+        {/* Sticky CTA Footer */}
+        {tailorResult && !isTailoring && (
+          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 py-3 pb-safe">
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 min-h-[44px] active:scale-95 transition-transform"
+                onClick={handleRevert}
+              >
+                <Undo2 className="w-4 h-4 mr-2" />
+                Discard
+              </Button>
+              <Button
+                className="flex-1 gradient-primary min-h-[44px] active:scale-95 transition-transform"
+                onClick={handleApplyChanges}
+                disabled={enabledSections.length === 0 || isApplying}
+              >
+                {isApplying ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                )}
+                {isApplying ? 'Creating...' : `Apply (${enabledSections.length})`}
+              </Button>
+            </div>
+            {effectiveScore && (
+              <p className="text-xs text-center text-muted-foreground mt-2">
+                Applying {enabledSections.length} sections → Score: {effectiveScore}% • New tailored copy will be created
+              </p>
+            )}
+          </div>
+        )}
       </SheetContent>
 
       {/* Compare Sheet */}

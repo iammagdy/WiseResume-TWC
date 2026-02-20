@@ -193,6 +193,17 @@ ${resume.education?.map((e: any) => `
 - ${e.degree} in ${e.field} from ${e.institution} (${e.startDate} - ${e.endDate})${e.gpa ? `, GPA: ${e.gpa}` : ''}
 `).join('\n') || 'Not provided'}
 
+PROJECTS:
+${resume.projects?.map((p: any) => `
+- ${p.name} (${p.role}): ${p.description}
+  Technologies: ${p.technologies?.join(', ') || 'N/A'}
+`).join('\n') || 'Not provided'}
+
+CERTIFICATIONS:
+${resume.certifications?.map((c: any) => `
+- ${c.name} by ${c.issuer} (${c.date})
+`).join('\n') || 'Not provided'}
+
 ---
 
 ## TARGET JOB DESCRIPTION
@@ -235,6 +246,27 @@ Analyze deeply, then return this exact JSON structure:
   ],
   
   "keyChanges": ["<specific improvement made>", "..."],
+  
+  "projects": [
+    {
+      "id": "<keep original id>",
+      "name": "<project name>",
+      "role": "<role - align with job terminology>",
+      "startDate": "<keep original>",
+      "endDate": "<keep original>",
+      "technologies": ["<tech1>", "..."],
+      "description": "<ENHANCED description with relevant keywords>"
+    }
+  ],
+  
+  "certifications": [
+    {
+      "id": "<keep original id>",
+      "name": "<certification name - emphasize relevance>",
+      "issuer": "<issuer>",
+      "date": "<date>"
+    }
+  ],
   
   "sectionScores": {
     "summary": { "before": <0-100>, "after": <0-100> },
@@ -404,6 +436,8 @@ Analyze deeply, then return this exact JSON structure:
         keyRequirements: [],
         niceToHaves: [],
       },
+      projects: tailoredResult.projects || [],
+      certifications: tailoredResult.certifications || [],
       jobIntelligence: tailoredResult.jobIntelligence || {
         experienceLevel: 'mid',
         workMode: 'unknown',
