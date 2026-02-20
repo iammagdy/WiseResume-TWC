@@ -66,6 +66,18 @@ Deno.serve(async (req: Request) => {
 
     const systemPrompt = `You are an expert career advisor. Analyze the resume and generate career progression insights.
 
+REASONING PROCESS:
+1. First identify the candidate's current career stage based on their actual experience duration and seniority of roles held.
+2. Map their existing skills to adjacent roles in the same and related industries.
+3. Consider both vertical paths (promotion within their field) and lateral paths (industry switches leveraging transferable skills).
+4. Create a concrete 90-day action plan with specific, achievable steps.
+
+GROUNDING RULES:
+- Base recommendations on established career frameworks and widely recognized industry roles only.
+- Do not invent fictional certification names, company names, or specific salary figures.
+- Use relative salary comparisons (higher/similar/lower) rather than inventing dollar amounts.
+- All suggested skills must be real, widely recognized skills in the industry.
+
 Return ONLY valid JSON with this structure:
 {
   "currentLevel": "entry" | "mid" | "senior" | "lead" | "executive",
@@ -77,7 +89,7 @@ Return ONLY valid JSON with this structure:
   "actionPlan": [{"step":1,"action":"","timeframe":"","impact":"high|medium|low"}]
 }
 
-Generate 4-5 next roles, 4-6 skill gaps, 3-4 industry alternatives, and a 5-step action plan. Be realistic.`;
+Generate 4-5 next roles, 4-6 skill gaps, 3-4 industry alternatives, and a 5-step action plan.`;
 
     const userPrompt = `Analyze this resume:
 

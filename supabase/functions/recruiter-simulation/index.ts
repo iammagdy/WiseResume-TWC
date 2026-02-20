@@ -48,7 +48,6 @@ interface RecruiterSimulationRequest {
   persona: RecruiterPersona;
   targetRole?: string;
   targetIndustry?: string;
-  userGeminiKey?: string;
 }
 
 const PERSONA_PROMPTS: Record<RecruiterPersona, { name: string; style: string; priorities: string }> = {
@@ -193,13 +192,13 @@ ${resumeText}
 Analyze this resume from your unique perspective as ${personaConfig.name}. Be specific and reference actual content from the resume.`;
 
     const aiResponse = await callAI({
-      model: 'google/gemini-2.5-flash',
+      model: 'google/gemini-2.5-pro',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.7,
-      maxTokens: 2000,
+      maxTokens: 3000,
       userId: user.id,
     });
 

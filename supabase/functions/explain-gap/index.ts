@@ -10,7 +10,6 @@ interface GapRequest {
   previousJob?: { position: string; company: string };
   nextJob?: { position: string; company: string };
   additionalContext?: string;
-  userGeminiKey?: string;
 }
 
 const reasonLabels: Record<string, string> = {
@@ -66,7 +65,7 @@ serve(async (req) => {
       );
     }
 
-    const { gap, reason, previousJob, nextJob, additionalContext, userGeminiKey }: GapRequest = await req.json();
+    const { gap, reason, previousJob, nextJob, additionalContext }: GapRequest = await req.json();
 
     if (!gap || !reason) {
       return new Response(
@@ -119,7 +118,7 @@ serve(async (req) => {
         },
       ],
       toolChoice: { type: "function", function: { name: "provide_gap_explanation" } },
-      userGeminiKey,
+      userId: user.id,
     });
 
     const toolCall = aiResponse.toolCalls?.[0];

@@ -19,7 +19,6 @@ interface EnhanceRequest {
     resume: unknown;
     jobDescription?: string;
   };
-  userGeminiKey?: string;
 }
 
 function getSchemaInstructions(section: string, currentContent: unknown): string {

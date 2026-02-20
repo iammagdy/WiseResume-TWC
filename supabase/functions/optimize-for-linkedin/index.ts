@@ -49,7 +49,6 @@ interface LinkedInOptimizeRequest {
   resume: ResumeData;
   targetRole?: string;
   region?: 'global' | 'gcc' | 'emea' | 'apac' | 'americas';
-  userGeminiKey?: string;
 }
 
 /** Safely extract skills as a comma-separated string */
@@ -131,37 +130,65 @@ ${regionContext[region]}
 Based on this resume data:
 ${resumeContext}
 
-Generate a comprehensive LinkedIn optimization package. Return a JSON object with this structure:
-
-{
-  "headlines": ["<5 compelling LinkedIn headline options, 120 chars max each>"],
-  "aboutSections": {
-    "short": "<150 words>",
-    "medium": "<300 words>",
-    "long": "<500 words>"
-  },
-  "experienceRewrites": [
-    {
-      "original": "<original>",
-      "linkedin": "<rewritten>",
-      "position": "<job title>",
-      "company": "<company>"
-    }
-  ],
-  "suggestedSkills": ["<15-20 skills>"],
-  "keywords": ["<10-15 keywords>"],
-  "tips": ["<3-5 tips>"]
-}`;
+Generate a comprehensive LinkedIn optimization package.`;
 
     const aiResponse = await callAI({
       model: 'google/gemini-2.5-flash',
       messages: [{ role: 'user', content: prompt }],
       temperature: 0.7,
       userId: user.id,
+      tools: [{
+        type: 'function',
+        function: {
+          name: 'generate_linkedin_package',
+          description: 'Generate a structured LinkedIn optimization package',
+          parameters: {
+            type: 'object',
+            properties: {
+              headlines: { type: 'array', items: { type: 'string' }, description: '5 compelling LinkedIn headline options, 120 chars max each' },
+              aboutSections: {
+                type: 'object',
+                properties: {
+                  short: { type: 'string', description: '150 word about section' },
+                  medium: { type: 'string', description: '300 word about section' },
+                  long: { type: 'string', description: '500 word about section' },
+                },
+                required: ['short', 'medium', 'long'],
+                additionalProperties: false,
+              },
+              experienceRewrites: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    original: { type: 'string' },
+                    linkedin: { type: 'string' },
+                    position: { type: 'string' },
+                    company: { type: 'string' },
+                  },
+                  required: ['original', 'linkedin', 'position', 'company'],
+                  additionalProperties: false,
+                },
+              },
+              suggestedSkills: { type: 'array', items: { type: 'string' }, description: '15-20 skills' },
+              keywords: { type: 'array', items: { type: 'string' }, description: '10-15 keywords' },
+              tips: { type: 'array', items: { type: 'string' }, description: '3-5 tips' },
+            },
+            required: ['headlines', 'aboutSections', 'experienceRewrites', 'suggestedSkills', 'keywords', 'tips'],
+            additionalProperties: false,
+          },
+        },
+      }],
+      toolChoice: { type: 'function', function: { name: 'generate_linkedin_package' } },
     });
 
-    const result = parseAIJSON(aiResponse.content || '{}');
-
+    let result: any = null;
+    if (aiResponse.toolCalls?.length) {
+      try { result = JSON.parse(aiResponse.toolCalls[0].function.arguments); } catch { /* fall through */ }
+    }
+    if (!result && aiResponse.content) {
+      result = parseAIJSON(aiResponse.content);
+    }
     if (!result) {
       return new Response(
         JSON.stringify({ error: 'Failed to parse AI response' }),

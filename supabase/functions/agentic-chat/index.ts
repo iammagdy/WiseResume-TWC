@@ -17,7 +17,6 @@ interface ChatRequest {
   message: string;
   conversationHistory: ChatMessage[];
   currentResume: unknown;
-  userGeminiKey?: string;
   functionResponse?: {
     name: string;
     result: Record<string, unknown>;

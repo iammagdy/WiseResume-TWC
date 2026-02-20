@@ -7,7 +7,6 @@ interface DetectAndHumanizeRequest {
   text: string;
   action: 'detect' | 'humanize' | 'both';
   tone?: 'professional' | 'confident' | 'friendly';
-  userGeminiKey?: string;
 }
 
 const MAX_TEXT_LENGTH = 50000;
@@ -51,7 +50,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { text, action, tone = 'professional', userGeminiKey }: DetectAndHumanizeRequest = await req.json();
+    const { text, action, tone = 'professional' }: DetectAndHumanizeRequest = await req.json();
 
     if (!text || !action) {
       return new Response(
@@ -98,7 +97,7 @@ ${text}
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: detectPrompt }],
         temperature: 0.3,
-        userGeminiKey,
+        userId: user.id,
       });
 
       result.detection = parseAIJSON(detectResponse.content || '{}');
@@ -136,7 +135,7 @@ Return a JSON object:
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: humanizePrompt }],
         temperature: 0.7,
-        userGeminiKey,
+        userId: user.id,
       });
 
       result.humanized = parseAIJSON(humanizeResponse.content || '{}');

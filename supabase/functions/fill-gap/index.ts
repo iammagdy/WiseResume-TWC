@@ -10,7 +10,6 @@ interface FillGapRequest {
   userDescription: string;
   previousJob?: { position: string; company: string };
   nextJob?: { position: string; company: string };
-  userGeminiKey?: string;
 }
 
 const categoryLabels: Record<string, string> = {
@@ -86,7 +85,12 @@ serve(async (req) => {
     if (previousJob) contextText += `\nJob before gap: ${previousJob.position} at ${previousJob.company}`;
     if (nextJob) contextText += `\nJob after gap: ${nextJob.position} at ${nextJob.company}`;
 
-    const systemPrompt = `You are a professional resume writer helping users fill employment gaps with realistic experience entries. Generate exactly 3 distinct, plausible professional title suggestions. Each should fit naturally between the previous and next jobs.`;
+    const systemPrompt = `You are a professional resume writer helping users fill employment gaps with realistic experience entries. Generate exactly 3 distinct, plausible professional title suggestions. Each should fit naturally between the previous and next jobs.
+
+FACTUAL CONSTRAINTS:
+- All suggested titles and companies must be generic/descriptive (e.g., "Freelance Web Developer", "Self-Employed Consultant", "Independent Contractor"), not invented real-company names.
+- Achievements must be plausible templates the user can customize with their own metrics, not fabricated statistics.
+- Do not invent specific revenue figures, client counts, or company names the user didn't provide.`;
 
     const userPrompt = `Fill this employment gap with realistic experience entries.\n\n${contextText}\n\nGenerate 3 distinct professional experience suggestions.`;
 
