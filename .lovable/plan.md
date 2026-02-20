@@ -1,37 +1,30 @@
 
-# Database & Wiring Cleanup: Remove Unnecessary Type Casts
 
-## Findings
+# Fix: Portfolio Floating Buttons Layout on Mobile
 
-After auditing all routes, edge function calls, Supabase table references, deleted file imports, and lazy-loaded pages:
+## Problem
 
-- All 38 edge functions have matching client-side invocations -- no orphaned or missing functions
-- All 35+ route definitions in App.tsx resolve to existing lazy-loaded page files
-- All previously deleted files (PortfolioQRDialog, useAIAnalytics, useSheetKeyboard, NavLink, dead UI components) have zero remaining imports -- no broken references
-- All 78 Supabase-importing files use the safe client (`safeClient.ts`) -- zero raw `client.ts` imports
+The "Customize" and "View Live" floating buttons at the bottom of the Portfolio Editor page overflow the viewport on small screens (375px). They use `left-1/2 -translate-x-1/2` centering with `flex gap-2`, causing the "View Live" button to get clipped off the right edge. Additionally, both the floating pill and the PWA Install banner sit at `z-40` at roughly the same vertical position, causing visual overlap.
 
-## Issues Found
+## Solution
 
-The only wiring issues are **unnecessary `as any` type casts** on tables that exist in the generated `types.ts`. These casts suppress TypeScript's type checking, making bugs harder to catch at compile time.
+### File: `src/pages/PortfolioEditorPage.tsx` (FloatingCustomizePill component, lines 1191-1219)
 
-| File | Table | Lines | Issue |
-|---|---|---|---|
-| `src/hooks/useResignationLetters.ts` | `resignation_letters` | 32, 49, 80, 111, 129 | 5 occurrences of `as any` cast -- table exists in types |
-| `src/hooks/usePushNotifications.ts` | `push_subscriptions` | 98, 124 | 2 occurrences of `as any` cast -- table exists in types |
-| `src/pages/AuthPage.tsx` | `profiles` | 194 | `(supabase.from('profiles') as any)` -- table exists in types |
+**Change 1: Constrain width and add horizontal padding**
+- Replace `left-1/2 -translate-x-1/2` with `left-4 right-4` so the container respects viewport edges
+- Add `justify-center` to keep buttons centered within the safe area
+- Add `max-w-sm mx-auto` to prevent excessive width on tablets
 
-## Plan
+**Change 2: Stack buttons vertically on very narrow screens (below 375px)**
+- Use `flex-wrap justify-center` so buttons wrap gracefully if space is tight
 
-### File 1: `src/hooks/useResignationLetters.ts`
-Remove all 5 `as any` casts from `.from('resignation_letters' as any)` to `.from('resignation_letters')`.
+**Change 3: Raise the floating pill above the PWA install banner**
+- Change `bottom-[calc(5rem+env(safe-area-inset-bottom))]` to `bottom-[calc(7rem+env(safe-area-inset-bottom))]` to clear both the tab bar and the install banner
+- This matches the staggering hierarchy: tab bar (base) -> install banner (5.5rem) -> floating pill (7rem)
 
-### File 2: `src/hooks/usePushNotifications.ts`
-Remove both `as any` casts from `.from('push_subscriptions' as any)` to `.from('push_subscriptions')`.
+### Result
+- Buttons stay within viewport bounds on all screen sizes
+- No overlap with PWA Install banner
+- Touch targets remain at 44px minimum height
+- Visual centering is preserved
 
-### File 3: `src/pages/AuthPage.tsx`
-Change `(supabase.from('profiles') as any).upsert(...)` to `supabase.from('profiles').upsert(...)`.
-
-## Impact
-- Zero functional changes -- only removes unnecessary type suppression
-- Restores full TypeScript type safety on these 3 tables
-- No new dependencies, no schema changes, no route changes
