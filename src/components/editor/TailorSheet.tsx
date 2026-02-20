@@ -277,6 +277,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           target_job_title: jobTitle,
           target_company: company,
           job_match_score: tailorResult.overallScore?.after ?? 0,
+          job_url: jobUrl || null,
         })
         .select()
         .single();

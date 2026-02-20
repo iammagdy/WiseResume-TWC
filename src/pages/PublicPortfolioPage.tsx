@@ -1356,7 +1356,22 @@ function PublicPortfolioContent() {
         useCORS: true,
         logging: false,
         allowTaint: true,
+        foreignObjectRendering: false,
         ignoreElements: (el) => el.hasAttribute('data-pdf-exclude'),
+        onclone: (clonedDoc) => {
+          // Remove cross-origin images that may cause html2canvas to fail
+          const imgs = clonedDoc.querySelectorAll('img');
+          imgs.forEach((img) => {
+            try {
+              const src = img.getAttribute('src') || '';
+              if (src && !src.startsWith('data:') && !src.startsWith(window.location.origin)) {
+                img.style.display = 'none';
+              }
+            } catch {
+              img.style.display = 'none';
+            }
+          });
+        },
       });
 
       const pdfDoc = await PDFDocument.create();
@@ -1374,7 +1389,7 @@ function PublicPortfolioContent() {
       const { downloadFile } = await import('@/lib/downloadUtils');
       const name = portfolio?.profile?.fullName?.replace(/\s+/g, '_') || 'Portfolio';
       await downloadFile({ blob, fileName: `${name}_Portfolio.pdf` });
-      toast.success('Portfolio PDF downloaded!');
+      toast.success('Portfolio saved as PDF!');
     } catch {
       toast.error('Failed to generate PDF');
     } finally {
@@ -1693,7 +1708,7 @@ function PublicPortfolioContent() {
               style={{ background: 'transparent', borderColor: 'var(--pf-border, rgba(255,255,255,0.2))', color: 'var(--pf-fg, #f5f5ff)', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
             >
               {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {isDownloading ? 'Generating…' : 'Download CV'}
+              {isDownloading ? 'Saving…' : 'Save as PDF'}
             </button>
           </div>
             </>);
