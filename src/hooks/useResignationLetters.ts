@@ -29,7 +29,7 @@ export function useResignationLetters() {
     queryKey: ['resignation-letters', user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('resignation_letters' as any)
+        .from('resignation_letters')
         .select('*')
         .order('created_at', { ascending: false });
       if (error) throw error;
@@ -46,7 +46,7 @@ export function useResignationLetter(id: string | null) {
     queryKey: ['resignation-letters', id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('resignation_letters' as any)
+        .from('resignation_letters')
         .select('*')
         .eq('id', id!)
         .maybeSingle();
@@ -77,7 +77,7 @@ export function useResignationLetterMutations() {
     }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
-        .from('resignation_letters' as any)
+        .from('resignation_letters')
         .insert({
           user_id: user.id,
           title: input.title || null,
@@ -108,7 +108,7 @@ export function useResignationLetterMutations() {
     mutationFn: async ({ id, ...updates }: Partial<ResignationLetterRecord> & { id: string }) => {
       if (!user) throw new Error('Not authenticated');
       const { data, error } = await supabase
-        .from('resignation_letters' as any)
+        .from('resignation_letters')
         .update(updates)
         .eq('id', id)
         .select()
@@ -126,7 +126,7 @@ export function useResignationLetterMutations() {
     mutationFn: async (id: string) => {
       if (!user) throw new Error('Not authenticated');
       const { error } = await supabase
-        .from('resignation_letters' as any)
+        .from('resignation_letters')
         .delete()
         .eq('id', id);
       if (error) throw error;

@@ -95,7 +95,7 @@ export function usePushNotifications() {
       const p256dh = arrayBufferToBase64(p256dhKey);
       const auth = arrayBufferToBase64(authKey);
 
-      const { error } = await supabase.from('push_subscriptions' as any).upsert(
+      const { error } = await supabase.from('push_subscriptions').upsert(
         {
           user_id: user.id,
           endpoint: subscription.endpoint,
@@ -121,7 +121,7 @@ export function usePushNotifications() {
         await subscription.unsubscribe();
         if (user) {
           await supabase
-            .from('push_subscriptions' as any)
+            .from('push_subscriptions')
             .delete()
             .eq('user_id', user.id)
             .eq('endpoint', subscription.endpoint);

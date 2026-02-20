@@ -191,7 +191,7 @@ export default function AuthPage() {
         }
         // Save name/phone to profile
         if (data.user) {
-          await (supabase.from('profiles') as any).upsert(
+          await supabase.from('profiles').upsert(
             {
               user_id: data.user.id,
               full_name: fullName.trim(),
