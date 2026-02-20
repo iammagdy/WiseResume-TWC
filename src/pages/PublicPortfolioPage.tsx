@@ -15,6 +15,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { computeSkillFrequencies, getSkillTier } from '@/lib/skillCloud';
+import { parseResumeDate } from '@/lib/dateUtils';
 import type { Experience, Education, Project } from '@/types/resume';
 import type { CaseStudy, PortfolioService } from '@/hooks/useProfile';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
@@ -975,6 +976,190 @@ function SkillCloud({ skills, experience, projects, showMore, onToggleMore, hasM
   );
 }
 
+// ─── StatsStrip — animated number counters ────────────────────────────────────
+function StatsStrip({ experience, skillCount, accentColor }: {
+  experience: Experience[];
+  skillCount: number;
+  accentColor: string;
+}) {
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  const [counts, setCounts] = useState<number[]>([]);
+  const animatedRef = useRef(false);
+
+  // Compute stats
+  const stats = useMemo(() => {
+    const result: { value: number; label: string }[] = [];
+    if (experience.length > 0) {
+      const years = experience.map(e => {
+        const parsed = parseResumeDate(e.startDate);
+        return parsed ? parsed.year : NaN;
+      }).filter(y => !isNaN(y));
+      if (years.length > 0) {
+        const earliest = Math.min(...years);
+        const yrs = new Date().getFullYear() - earliest;
+        if (yrs > 0) result.push({ value: yrs, label: 'Years Experience' });
+      }
+    }
+    if (experience.length > 0) result.push({ value: experience.length, label: 'Roles Held' });
+    if (skillCount > 0) result.push({ value: skillCount, label: 'Skills' });
+    return result;
+  }, [experience, skillCount]);
+
+  // Initialize counts to 0
+  useEffect(() => {
+    setCounts(stats.map(() => 0));
+  }, [stats]);
+
+  // IntersectionObserver + count-up
+  useEffect(() => {
+    if (!stripRef.current || stats.length === 0) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || animatedRef.current) return;
+      animatedRef.current = true;
+      setVisible(true);
+      if (prefersReduced) {
+        setCounts(stats.map(s => s.value));
+        observer.disconnect();
+        return;
+      }
+      const duration = 1800;
+      stats.forEach((stat, idx) => {
+        const delay = idx * 200;
+        setTimeout(() => {
+          const start = performance.now();
+          const tick = (now: number) => {
+            const elapsed = now - start;
+            const t = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - t, 3);
+            setCounts(prev => {
+              const next = [...prev];
+              next[idx] = Math.round(eased * stat.value);
+              return next;
+            });
+            if (t < 1) requestAnimationFrame(tick);
+          };
+          requestAnimationFrame(tick);
+        }, delay);
+      });
+      observer.disconnect();
+    }, { threshold: 0.5 });
+    observer.observe(stripRef.current);
+    return () => observer.disconnect();
+  }, [stats]);
+
+  if (stats.length === 0) return null;
+
+  return (
+    <div
+      ref={stripRef}
+      className={`pf-stats-strip mx-2 mt-8 rounded-2xl ${visible ? 'pf-stats-visible' : ''}`}
+      style={{
+        background: 'var(--pf-card, rgba(255,255,255,0.04))',
+        border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
+      }}
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${stats.length}, 1fr)` }}>
+        {stats.map((stat, i) => (
+          <div
+            key={stat.label}
+            className="flex flex-col items-center justify-center py-5 px-2"
+            style={i > 0 ? { borderLeft: '1px solid var(--pf-border, rgba(255,255,255,0.08))' } : undefined}
+          >
+            <span style={{ fontSize: '2rem', fontWeight: 800, color: accentColor, lineHeight: 1.1 }}>
+              {(counts[i] ?? 0)}+
+            </span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--pf-muted, #9ca3af)', marginTop: '0.25rem', textAlign: 'center' }}>
+              {stat.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── SectionNav — mobile quick-nav pills ──────────────────────────────────────
+function SectionNav({ sections, accentColor }: {
+  sections: { id: string; label: string }[];
+  accentColor: string;
+}) {
+  const [activeId, setActiveId] = useState(sections[0]?.id || '');
+  const pillRowRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    sections.forEach(s => {
+      const el = document.getElementById(s.id);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => { if (entry.isIntersecting) setActiveId(s.id); },
+        { threshold: 0.2, rootMargin: '-30% 0px -70% 0px' }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+    return () => observers.forEach(o => o.disconnect());
+  }, [sections]);
+
+  // Auto-scroll the active pill into view within the row
+  useEffect(() => {
+    if (!pillRowRef.current) return;
+    const activePill = pillRowRef.current.querySelector(`[data-nav-id="${activeId}"]`) as HTMLElement | null;
+    if (activePill) {
+      activePill.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    }
+  }, [activeId]);
+
+  const handleTap = (id: string) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
+    haptics.light();
+  };
+
+  if (sections.length === 0) return null;
+
+  return (
+    <div
+      className="md:hidden sticky z-40"
+      style={{
+        top: '48px',
+        background: 'var(--pf-bg-alpha, rgba(10,10,20,0.88))',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
+      <div
+        ref={pillRowRef}
+        className="pf-nav-pills flex gap-2 px-4 py-2.5 overflow-x-auto"
+      >
+        {sections.map(s => {
+          const isActive = s.id === activeId;
+          return (
+            <button
+              key={s.id}
+              data-nav-id={s.id}
+              onClick={() => handleTap(s.id)}
+              className="inline-flex items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors active:scale-95"
+              style={{
+                background: isActive ? accentColor : 'var(--pf-card, rgba(255,255,255,0.06))',
+                color: isActive ? '#fff' : 'var(--pf-muted, #9ca3af)',
+                border: isActive ? 'none' : '1px solid var(--pf-border, rgba(255,255,255,0.08))',
+                minHeight: '44px',
+              }}
+            >
+              {s.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Content ─────────────────────────────────────────────────────────────
 function PublicPortfolioContent() {
   const { username } = useParams<{ username: string }>();
@@ -1467,6 +1652,23 @@ function PublicPortfolioContent() {
           })()}
         </motion.div>
 
+        {/* ── Stats Strip ──────────────────────────────────────────────── */}
+        <StatsStrip experience={resume.experience} skillCount={allSkills.length} accentColor={accentColor} />
+
+        {/* ── Section Quick-Nav Pills (mobile) ─────────────────────────── */}
+        <SectionNav
+          sections={[
+            ...(profile.portfolioBio ? [{ id: 'section-about', label: 'About' }] : []),
+            ...(hasExperience ? [{ id: 'section-experience', label: 'Experience' }] : []),
+            ...(hasSkills ? [{ id: 'section-skills', label: 'Skills' }] : []),
+            ...(hasEducation ? [{ id: 'section-education', label: 'Education' }] : []),
+            ...(hasProjects ? [{ id: 'section-projects', label: 'Projects' }] : []),
+            ...(hasCaseStudies ? [{ id: 'section-case-studies', label: 'Case Studies' }] : []),
+            ...(hasServices ? [{ id: 'section-services', label: 'Services' }] : []),
+          ]}
+          accentColor={accentColor}
+        />
+
         {/* ── Body content ─────────────────────────────────────────────── */}
         <div className={`px-2 pb-20 pt-10 ${isTwoCol ? 'md:grid md:grid-cols-5 md:gap-10' : 'space-y-10'}`}>
 
@@ -1475,7 +1677,7 @@ function PublicPortfolioContent() {
 
             {/* About */}
             {profile.portfolioBio && (
-              <motion.section variants={bioFade} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}>
+              <motion.section id="section-about" variants={bioFade} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}>
                 <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
                 <div className="p-5 rounded-2xl"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
