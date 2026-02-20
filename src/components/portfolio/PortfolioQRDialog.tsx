@@ -6,7 +6,6 @@ import { QrCode, Download, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import wiseAiLogo from '@/assets/wise-ai-logo.png';
-import { getPortfolioBaseUrl } from '@/lib/portfolioUrl';
 
 interface PortfolioQRDialogProps {
   open: boolean;
@@ -43,7 +42,7 @@ export function PortfolioQRDialog({ open, onOpenChange, portfolioUrl, displayUrl
           width: size,
           height: size,
           type: 'svg',
-          data: portfolioUrl || getPortfolioBaseUrl(),
+          data: portfolioUrl || 'https://wiseresume.lovable.app',
           image: wiseAiLogo,
           margin: 6,
           qrOptions: {

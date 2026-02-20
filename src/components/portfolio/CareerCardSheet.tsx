@@ -8,7 +8,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { downloadFile } from '@/lib/downloadUtils';
 import { haptics } from '@/lib/haptics';
-import { getPortfolioUrl, getPortfolioBaseUrl } from '@/lib/portfolioUrl';
 // Profile shape (mirrors useProfile internal type)
 interface Profile {
   fullName?: string | null;
@@ -475,8 +474,8 @@ export function CareerCardSheet({
   const handleShareLinkedIn = useCallback(() => {
     haptics.light();
     const portfolioUrl = username
-      ? getPortfolioUrl(username)
-      : getPortfolioBaseUrl();
+      ? `https://wiseresume.app/p/${username}`
+      : 'https://wiseresume.app';
     const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(portfolioUrl)}`;
     window.open(shareUrl, '_blank', 'noopener,noreferrer');
   }, [username]);
