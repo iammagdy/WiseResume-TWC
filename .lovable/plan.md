@@ -1,53 +1,35 @@
 
 
-# Fix APK Build: Deep Link Intent Filter Injection
+# Fix Intent Filter Placement in APK Build
 
 ## Problem
 
-The "Inject deep link intent filters" step fails with `sed: -e expression #1, char 80: unknown command: '<'`. This happens because `sed`'s insert (`i\`) command doesn't handle multiline strings containing `<` and `/` characters well -- they conflict with sed's syntax.
+The `sed` command using `r` (read) inserts the intent-filter XML **after** the `</activity>` closing tag, placing the filters directly inside `<application>` instead of inside `<activity>`. This causes the AAPT error: `unexpected element <intent-filter> found in <manifest><application>`.
+
+## Root Cause
+
+`sed`'s `r` command always appends content **after** the matched line. So matching `</activity>` and reading the file puts the XML outside the activity element.
 
 ## Fix
 
-Replace the `sed` approach with a Python one-liner (or `sed` with a temp file approach). The simplest reliable fix is to use `sed` with a separate file:
-
-1. Write the intent filters XML to a temporary file
-2. Use `sed` to read that file into the manifest at the correct location (using `r` command instead of `i`)
-
-Alternatively, use `awk` which handles multiline insertions cleanly.
+Replace the `sed` approach with an `awk` script that inserts the temp file content **before** the `</activity>` line, keeping the intent filters inside the `<activity>` element.
 
 ## Technical Change
 
-### File: `.github/workflows/build-apk.yml` (lines 50-69)
+### File: `.github/workflows/build-apk.yml`
 
-Replace the current "Inject deep link intent filters" step with one that:
-1. Writes the intent filter XML block to a temp file (`/tmp/intent-filters.xml`)
-2. Uses `sed` with the `r` (read file) command to insert before `</activity>`, which avoids all escaping issues
-
-The new step will look like:
+Replace the final `sed` line in the "Inject deep link intent filters" step:
 
 ```yaml
-- name: Inject deep link intent filters
-  run: |
-    MANIFEST="android/app/src/main/AndroidManifest.xml"
-    cat > /tmp/intent-filters.xml << 'EOF'
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="localhost" android:pathPrefix="/auth/callback" />
-            </intent-filter>
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="com.wiseresume.app" android:host="auth" android:pathPrefix="/callback" />
-            </intent-filter>
-    EOF
-    sed -i '/<\/activity>/r /tmp/intent-filters.xml' "$MANIFEST"
-    echo "Intent filters injected"
+# FROM:
+sed -i '/<\/activity>/r /tmp/intent-filters.xml' "$MANIFEST"
+
+# TO:
+awk '/<\/activity>/{while((getline line < "/tmp/intent-filters.xml")>0) print line} 1' "$MANIFEST" > /tmp/manifest_patched.xml
+mv /tmp/manifest_patched.xml "$MANIFEST"
 ```
 
-This approach avoids all escaping issues because the XML content is in a separate file, never parsed by `sed` as a command.
+This `awk` command reads each line of the manifest; when it encounters `</activity>`, it first prints all lines from the intent-filters file, then prints the `</activity>` line -- placing the filters correctly inside the activity element.
 
 No other files change.
 
