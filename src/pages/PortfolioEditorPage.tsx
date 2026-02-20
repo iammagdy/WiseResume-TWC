@@ -615,11 +615,8 @@ export default function PortfolioEditorPage() {
 
           {/* Quick actions (only when live) */}
           {portfolioEnabled && username && (
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <Button variant="outline" className="h-10 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs" onClick={() => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer')}>
-                <ExternalLink className="w-4 h-4 mr-1.5" /> Preview
-              </Button>
-              <Button variant="outline" className="h-10 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs" onClick={() => { haptics.light(); setShowCareerCard(true); }}>
+            <div className="pt-1">
+              <Button variant="outline" className="w-full h-10 min-h-[44px] rounded-xl active:scale-95 touch-manipulation text-xs" onClick={() => { haptics.light(); setShowCareerCard(true); }}>
                 <Sparkles className="w-4 h-4 mr-1.5" /> Career Card
               </Button>
             </div>
