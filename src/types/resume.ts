@@ -163,7 +163,7 @@ export type TemplateId = 'modern' | 'classic' | 'minimal' | 'professional' | 'de
 
 export type SectionId = 'summary' | 'experience' | 'education' | 'skills' | 'certifications' | 'awards' | 'projects' | 'publications' | 'volunteering' | 'hobbies' | 'references' | 'languages';
 
-export type TailorSectionId = 'summary' | 'skills' | 'experience' | 'education';
+export type TailorSectionId = 'summary' | 'skills' | 'experience' | 'education' | 'projects' | 'certifications';
 
 export interface PageBreakSettings {
   mode: 'auto' | 'manual';
@@ -326,13 +326,15 @@ export interface CoverLetterContext {
  }
  
  // Extended tailor result with all new fields
- export interface SuperTailorResult extends EnhancedTailorResult {
-   jobIntelligence?: JobIntelligence;
-   interviewTalkingPoints?: InterviewTalkingPoint[];
-   atsAnalysis?: ATSAnalysis;
-   bulletTransformations?: BulletTransformation[];
-   strengthsAnalysis?: StrengthAnalysis[];
- }
+  export interface SuperTailorResult extends EnhancedTailorResult {
+    jobIntelligence?: JobIntelligence;
+    interviewTalkingPoints?: InterviewTalkingPoint[];
+    atsAnalysis?: ATSAnalysis;
+    bulletTransformations?: BulletTransformation[];
+    strengthsAnalysis?: StrengthAnalysis[];
+    projects?: Project[];
+    certifications?: Certification[];
+  }
  
  // ===== MULTI-JOB COMPARISON TYPES =====
  
