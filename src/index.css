@@ -1272,6 +1272,53 @@ button,
   animation: pf-edu-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* Card hover lift */
+.pf-exp-card,
+.pf-edu-card {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (hover: hover) {
+  .pf-exp-card:hover,
+  .pf-edu-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5),
+                0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.pf-exp-card:active,
+.pf-edu-card:active {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Skill tag tap bounce */
+@keyframes pf-tag-tap {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.88); }
+  100% { transform: scale(1.05); }
+}
+
+/* Desktop hover glow */
+@media (hover: hover) {
+  .pf-skill-tag:hover {
+    background: var(--pf-accent) !important;
+    color: #fff !important;
+    transform: scale(1.08);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--pf-accent) 40%, transparent);
+    transition: all 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+/* Mobile tap bounce */
+@media (hover: none) {
+  .pf-skill-tag:active {
+    animation: pf-tag-tap 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
 /* Reduced motion overrides */
 @media (prefers-reduced-motion: reduce) {
   .pf-section-title::after {
@@ -1312,5 +1359,13 @@ button,
   .pf-edu-card.pf-edu-revealed {
     animation: none;
     opacity: 1;
+  }
+  .pf-exp-card,
+  .pf-edu-card,
+  .pf-skill-tag {
+    transition: none !important;
+  }
+  .pf-skill-tag:active {
+    animation: none;
   }
 }
