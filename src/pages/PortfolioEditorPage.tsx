@@ -470,7 +470,7 @@ export default function PortfolioEditorPage() {
   };
 
   // Display URL (cosmetic — no "lovable" branding shown to user)
-  const portfolioDisplayUrl = username ? `wiseresume.app/p/${username}` : '';
+  const portfolioDisplayUrl = username ? `WiseResume/${username}` : '';
   // Actual URL (real domain the app runs on — dynamic, works with custom domains)
   const actualPortfolioUrl = username ? `${window.location.origin}/p/${username}` : '';
 
@@ -830,7 +830,7 @@ export default function PortfolioEditorPage() {
         >
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-foreground">Username</label>
-            <p className="text-xs text-muted-foreground">wiseresume.app/p/</p>
+            <p className="text-xs text-muted-foreground">WiseResume/</p>
             <Input value={username} onChange={(e) => handleUsernameChange(e.target.value)} placeholder="your-name" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url" />
             {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
             {!usernameError && username.length >= 3 && (

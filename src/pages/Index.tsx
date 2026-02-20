@@ -79,7 +79,7 @@ function PortfolioDemo() {
 
         <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border/20">
           <Globe className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
-          <span className="text-[10px] text-muted-foreground/70 font-mono truncate">wiseresume.app/p/you</span>
+          <span className="text-[10px] text-muted-foreground/70 font-mono truncate">WiseResume/you</span>
         </div>
 
         <div className="px-4 py-3 min-h-[190px] space-y-2.5">

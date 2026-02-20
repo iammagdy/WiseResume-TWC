@@ -20,7 +20,7 @@ const formatDisplayUrl = (url: string): string => {
     const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
     const parts = urlObj.pathname.split('/').filter(Boolean);
     const slug = parts[parts.length - 1];
-    return `${urlObj.hostname}/.../${slug}`;
+    return `WiseResume/${slug}`;
   } catch {
     return url;
   }

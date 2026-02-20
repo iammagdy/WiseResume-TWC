@@ -134,7 +134,7 @@ export default function ProfilePage() {
                   </Badge>
                 </div>
                 {profile?.username ? (
-                  <p className="text-xs text-muted-foreground truncate">wiseresume.app/p/{profile.username}</p>
+                  <p className="text-xs text-muted-foreground truncate">WiseResume/{profile.username}</p>
                 ) : (
                   <p className="text-xs text-muted-foreground">Create your personal portfolio site</p>
                 )}
