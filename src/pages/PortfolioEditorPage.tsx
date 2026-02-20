@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
+import { PortfolioQRDialog } from '@/components/portfolio/PortfolioQRDialog';
 import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -482,20 +483,7 @@ export default function PortfolioEditorPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownloadQR = async () => {
-    if (!actualPortfolioUrl) return;
-    haptics.light();
-    try {
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(actualPortfolioUrl)}&color=e84545&bgcolor=0a0a14&format=png&margin=2`;
-      const res = await fetch(qrUrl);
-      const blob = await res.blob();
-      const { downloadFile } = await import('@/lib/downloadUtils');
-      await downloadFile({ blob, fileName: `${username || 'portfolio'}-qr.png`, mimeType: 'image/png' });
-      toast.success('QR code downloaded!');
-    } catch {
-      toast.error('Failed to download QR code');
-    }
-  };
+  // QR download is now handled inside PortfolioQRDialog
 
   const handleShareQR = async () => {
     if (!actualPortfolioUrl) return;
@@ -655,36 +643,13 @@ export default function PortfolioEditorPage() {
         )}
 
         {/* ── QR Code Dialog ───────────────────────────────────────────── */}
-        <Dialog open={showQR} onOpenChange={setShowQR}>
-          <DialogContent className="max-w-[320px] p-6">
-            <DialogHeader>
-              <DialogTitle className="text-center flex items-center justify-center gap-2">
-                <QrCode className="w-5 h-5 text-primary" /> Your Portfolio QR
-              </DialogTitle>
-            </DialogHeader>
-            <div className="flex flex-col items-center gap-4 pt-2">
-              <div className="rounded-2xl overflow-hidden border border-border p-3 bg-[#0a0a14]">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(actualPortfolioUrl)}&color=e84545&bgcolor=0a0a14&format=png&margin=1`}
-                  alt="Portfolio QR Code"
-                  width={220}
-                  height={220}
-                  className="rounded-lg"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground font-mono text-center">{portfolioDisplayUrl}</p>
-              <div className="grid grid-cols-2 gap-2 w-full">
-                <Button variant="outline" className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs" onClick={handleDownloadQR}>
-                  <Download className="w-4 h-4 mr-1.5" /> Download QR
-                </Button>
-                <Button variant="outline" className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs" onClick={handleShareQR}>
-                  <Share2 className="w-4 h-4 mr-1.5" />
-                  {navigator.share ? 'Share' : 'Copy Link'}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <PortfolioQRDialog
+          open={showQR}
+          onOpenChange={setShowQR}
+          portfolioUrl={actualPortfolioUrl}
+          displayUrl={portfolioDisplayUrl}
+          onShare={handleShareQR}
+        />
 
         {/* ── Visitors & Analytics (detail view) ───────────────────────── */}
         <CollapsibleCard
