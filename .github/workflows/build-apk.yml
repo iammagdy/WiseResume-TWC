@@ -64,7 +64,8 @@ jobs:
                       <data android:scheme="com.wiseresume.app" android:host="auth" android:pathPrefix="/callback" />
                   </intent-filter>
           EOF
-          sed -i '/<\/activity>/r /tmp/intent-filters.xml' "$MANIFEST"
+          awk '/<\/activity>/{while((getline line < "/tmp/intent-filters.xml")>0) print line} 1' "$MANIFEST" > /tmp/manifest_patched.xml
+          mv /tmp/manifest_patched.xml "$MANIFEST"
           echo "✅ Intent filters injected"
 
       - name: Inject custom icons
