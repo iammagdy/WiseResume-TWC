@@ -227,7 +227,7 @@ export default function SettingsPage() {
     if (!user?.email) return;
     haptics.light();
     const { error } = await supabase.auth.resetPasswordForEmail(user.email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: `${window.location.origin}/auth?reset=true`,
     });
     if (error) {
       toast.error('Failed to send password reset email');
