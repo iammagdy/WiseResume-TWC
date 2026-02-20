@@ -1,10 +1,18 @@
 import { supabase } from '@/integrations/supabase/safeClient';
 import { lovable } from '@/integrations/lovable/index';
 import { toast } from 'sonner';
+import { Capacitor } from '@capacitor/core';
 
 const isLovableDomain =
   window.location.hostname.includes('lovable.app') ||
   window.location.hostname.includes('lovableproject.com');
+
+function getOAuthRedirectUrl(): string {
+  if (Capacitor.isNativePlatform()) {
+    return 'https://localhost/auth/callback';
+  }
+  return `${window.location.origin}/auth/callback`;
+}
 
 export async function signInWithGoogle(): Promise<void> {
   try {
@@ -17,7 +25,7 @@ export async function signInWithGoogle(): Promise<void> {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: getOAuthRedirectUrl(),
           skipBrowserRedirect: true,
         },
       });
@@ -47,7 +55,7 @@ export async function signInWithApple(): Promise<void> {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'apple',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: getOAuthRedirectUrl(),
           skipBrowserRedirect: true,
         },
       });

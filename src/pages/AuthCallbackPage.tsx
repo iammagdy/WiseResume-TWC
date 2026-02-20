@@ -9,7 +9,36 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Supabase automatically picks up tokens from the URL hash
+        // 1. Check for PKCE code in query params
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (!error) {
+            navigate('/dashboard', { replace: true });
+            return;
+          }
+          console.error('PKCE exchange failed:', error);
+        }
+
+        // 2. Check for hash fragment tokens (implicit flow)
+        const hash = window.location.hash.substring(1);
+        const hashParams = new URLSearchParams(hash);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (!error) {
+            navigate('/dashboard', { replace: true });
+            return;
+          }
+          console.error('setSession failed:', error);
+        }
+
+        // 3. Fallback — check if session already exists
         const { data, error } = await supabase.auth.getSession();
         if (error) throw error;
 
