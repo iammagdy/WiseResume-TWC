@@ -469,6 +469,13 @@ export default function EditorPage() {
   // Auto-hide "Saved" indicator after 2s
   const [showSavedCheck, setShowSavedCheck] = useState(false);
   const prevIsSaving = useRef(false);
+
+  // Derived: unsaved changes exist (between edits and save debounce)
+  const hasUnsavedChanges = useMemo(() => {
+    if (!currentResume || !lastSavedResumeRef.current) return false;
+    if (isSaving || showSavedCheck) return false;
+    return JSON.stringify(currentResume) !== lastSavedResumeRef.current;
+  }, [currentResume, isSaving, showSavedCheck]);
   useEffect(() => {
     if (prevIsSaving.current && !isSaving) {
       setShowSavedCheck(true);
@@ -1050,30 +1057,45 @@ export default function EditorPage() {
           <div className="flex flex-row flex-wrap items-center justify-between gap-1 mb-1">
             <ProgressBar resume={currentResume} compact />
             {user && currentResumeId && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2" aria-live="polite" aria-atomic="true">
-                {!isOnline ? (
-                  <>
-                    <CloudOff className="w-3.5 h-3.5 text-warning" />
-                    <span className="text-warning">Offline</span>
-                  </>
-                ) : isSaving ? (
-                  <>
-                    <Cloud className="w-3.5 h-3.5 animate-pulse" />
-                    <span>Saving...</span>
-                  </>
-                ) : showSavedCheck ? (
-                  <>
-                    <Check className="w-3.5 h-3.5 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
-                    <span>Saved</span>
-                  </>
-                ) : lastSavedAt ? (
-                  <>
-                    <Cloud className="w-3.5 h-3.5 opacity-50" />
-                    {/* Fix 1: "Last saved · X ago" — passive multi-device staleness awareness */}
-                    <span className="opacity-70">Last saved · {formatDistanceToNow(lastSavedAt, { addSuffix: false })} ago</span>
-                  </>
-                ) : null}
-              </div>
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={!isOnline ? 'offline' : isSaving ? 'saving' : showSavedCheck ? 'saved' : hasUnsavedChanges ? 'unsaved' : 'idle'}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {!isOnline ? (
+                    <>
+                      <CloudOff className="w-3.5 h-3.5 text-warning" />
+                      <span className="text-warning">Offline</span>
+                    </>
+                  ) : isSaving ? (
+                    <>
+                      <Cloud className="w-3.5 h-3.5 animate-pulse" />
+                      <span>Saving...</span>
+                    </>
+                  ) : showSavedCheck ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
+                      <span>Saved</span>
+                    </>
+                  ) : hasUnsavedChanges ? (
+                    <>
+                      <span className="w-2 h-2 rounded-full bg-warning inline-block" />
+                      <span className="text-warning">Unsaved</span>
+                    </>
+                  ) : lastSavedAt ? (
+                    <>
+                      <Cloud className="w-3.5 h-3.5 opacity-50" />
+                      <span className="opacity-70">Last saved · {formatDistanceToNow(lastSavedAt, { addSuffix: false })} ago</span>
+                    </>
+                  ) : null}
+                </motion.div>
+              </AnimatePresence>
             )}
             {user && !currentResumeId && (
               <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2">

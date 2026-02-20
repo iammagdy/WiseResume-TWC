@@ -645,7 +645,7 @@ export default function UploadPage() {
           >
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-lg font-display font-semibold truncate">Upload Resume</h1>
+          <h1 className="text-page-title truncate">Upload Resume</h1>
         </div>
       </header>
       <div className="flex-1 flex flex-col px-4 py-6 overflow-y-auto">
