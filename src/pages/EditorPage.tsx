@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors } from 'lucide-react';
@@ -1291,6 +1292,80 @@ export default function EditorPage() {
         onDiscard={unsavedGuard.proceed}
         onCancel={unsavedGuard.cancel}
       />
+
+      {/* Add Section FAB (mobile only, hidden on "more" tab) */}
+      {isMobile && activeTab !== 'more' && (
+        <AddSectionFAB
+          onSelectSection={(sectionId) => {
+            handleMoreSectionSelect(sectionId);
+          }}
+        />
+      )}
     </main>
+  );
+}
+
+// ─── Add Section FAB ─────────────────────────────────────────────────────────
+function AddSectionFAB({ onSelectSection }: { onSelectSection: (id: string) => void }) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [hasSeen, setHasSeen] = useState(() => localStorage.getItem('wr-add-section-seen') === '1');
+  const prefersReduced = useReducedMotion();
+
+  const handleFabTap = () => {
+    haptics.medium();
+    if (!hasSeen) {
+      localStorage.setItem('wr-add-section-seen', '1');
+      setHasSeen(true);
+    }
+    setSheetOpen(true);
+  };
+
+  return (
+    <>
+      <motion.button
+        onClick={handleFabTap}
+        className="fixed z-40 md:hidden w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center touch-manipulation active:scale-95"
+        style={{
+          bottom: 'calc(5rem + env(safe-area-inset-bottom))',
+          right: '1rem',
+          boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
+        }}
+        initial={prefersReduced ? { opacity: 1 } : { opacity: 0, scale: 0 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 20, delay: 0.3 }}
+        aria-label="Add section"
+      >
+        <motion.div
+          animate={{ rotate: sheetOpen ? 45 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <Plus className="w-6 h-6 text-primary-foreground" />
+        </motion.div>
+        {/* First-visit pulse */}
+        {!hasSeen && !sheetOpen && (
+          <motion.span
+            className="absolute inset-0 rounded-full gradient-primary"
+            animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        )}
+      </motion.button>
+
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Add Section</SheetTitle>
+          </SheetHeader>
+          <div className="pt-2">
+            <AddSectionSheet
+              onSelectSection={(id) => {
+                onSelectSection(id);
+                setSheetOpen(false);
+              }}
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
