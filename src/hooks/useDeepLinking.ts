@@ -11,11 +11,13 @@ export function useDeepLinking() {
 
     const listener = App.addListener('appUrlOpen', (event) => {
       try {
-        // Robust URL parse — works for both https:// and custom schemes
         const url = new URL(event.url);
         const pathname = url.pathname;
         if (pathname && pathname !== '/') {
-          navigate(pathname + url.search + url.hash);
+          // Preserve query + hash — critical for OAuth callback tokens
+          navigate(pathname + url.search + url.hash, {
+            replace: pathname.startsWith('/auth/callback'),
+          });
         }
       } catch {
         // Malformed URL — ignore

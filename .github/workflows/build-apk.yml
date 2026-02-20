@@ -49,6 +49,27 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Inject deep link intent filters
+        run: |
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          # Intent filter for https://localhost/auth/callback
+          INTENT_FILTER='
+                  <intent-filter android:autoVerify="true">
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="https" android:host="localhost" android:pathPrefix="/auth/callback" />
+                  </intent-filter>
+                  <intent-filter>
+                      <action android:name="android.intent.action.VIEW" />
+                      <category android:name="android.intent.category.DEFAULT" />
+                      <category android:name="android.intent.category.BROWSABLE" />
+                      <data android:scheme="com.wiseresume.app" android:host="auth" android:pathPrefix="/callback" />
+                  </intent-filter>'
+          # Inject before closing </activity> tag
+          sed -i "/<\/activity>/i\\${INTENT_FILTER}" "$MANIFEST"
+          echo "✅ Intent filters injected"
+
       - name: Inject custom icons
         run: |
           RES_DIR="android/app/src/main/res"

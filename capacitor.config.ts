@@ -3,8 +3,11 @@ import type { CapacitorConfig } from '@capacitor/cli';
  const config: CapacitorConfig = {
    appId: 'com.wiseresume.app',
    appName: 'Wise Resume',
-   webDir: 'dist',
-   android: {
+  webDir: 'dist',
+  server: {
+    androidScheme: 'https',
+  },
+  android: {
      backgroundColor: '#0a0a14',
      allowMixedContent: true,
      captureInput: true,
