@@ -494,7 +494,7 @@ export default function PreviewPage() {
 
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-base font-display font-semibold truncate">Preview</h1>
+          <h1 className="text-page-title truncate">Preview</h1>
         </div>
       </header>
 

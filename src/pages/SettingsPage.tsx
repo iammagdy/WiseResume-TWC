@@ -258,12 +258,21 @@ export default function SettingsPage() {
     try {
       if (navigator.share) {
         await navigator.share(shareData);
+        toast.success('Shared successfully! 🎉');
       } else {
         await navigator.clipboard.writeText(shareData.url);
-        toast.success('Link copied to clipboard!');
+        toast.success('Link copied! Share it with a friend 🎉');
       }
-    } catch {
-      // user cancelled share
+    } catch (err: unknown) {
+      // If user cancelled share, do nothing
+      if (err instanceof Error && err.name === 'AbortError') return;
+      // Fallback: try clipboard, then show link as toast
+      try {
+        await navigator.clipboard.writeText(shareData.url);
+        toast.success('Link copied! Share it with a friend 🎉');
+      } catch {
+        toast(shareData.url, { duration: 8000, icon: '🔗' });
+      }
     }
   };
 
@@ -320,7 +329,7 @@ export default function SettingsPage() {
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            <h1 className="text-xl font-bold">Settings</h1>
+            <h1 className="text-page-title">Settings</h1>
           </div>
         </header>
 
@@ -359,8 +368,8 @@ export default function SettingsPage() {
           <Separator className="opacity-10" />
 
           {/* 2. Appearance & Language */}
-          <div id="section-appearance" className="glass-surface-alt">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+          <div id="section-appearance">
+            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
               <Palette className="w-4 h-4 text-primary/60" />
               Appearance
             </h2>
@@ -384,7 +393,7 @@ export default function SettingsPage() {
 
           {/* 3. AI & Voice */}
           <div id="section-ai-voice">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
               <Brain className="w-4 h-4 text-primary/60" />
               AI & Voice
             </h2>
@@ -451,8 +460,8 @@ export default function SettingsPage() {
           <Separator className="opacity-10" />
 
           {/* 4. Editor & Export */}
-          <div id="section-editor-export" className="glass-surface-alt">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+          <div id="section-editor-export">
+            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
               <Download className="w-4 h-4 text-primary/60" />
               Editor & Export
             </h2>
@@ -586,7 +595,7 @@ export default function SettingsPage() {
 
           {/* 5. Notifications */}
           <div id="section-notifications">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
               <Bell className="w-4 h-4 text-primary/60" />
               Notifications
             </h2>
@@ -693,8 +702,8 @@ export default function SettingsPage() {
           </div>
 
           <Separator className="opacity-10" />
-          <div id="section-privacy" className="glass-surface-alt">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+          <div id="section-privacy">
+            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
               <Shield className="w-4 h-4 text-primary/60" />
               Privacy & Security
             </h2>
@@ -763,7 +772,7 @@ export default function SettingsPage() {
           {user && (
             <>
               <div id="section-account">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+                <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
                   <LogOut className="w-4 h-4 text-primary/60" />
                   Account
                 </h2>
@@ -828,8 +837,8 @@ export default function SettingsPage() {
           )}
 
           {/* 8. About & Help */}
-          <div id="section-about" className="glass-surface-alt">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3 px-1 flex items-center gap-2">
+          <div id="section-about">
+            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
               <Info className="w-4 h-4 text-primary/60" />
               About & Help
             </h2>
@@ -912,16 +921,22 @@ export default function SettingsPage() {
           </div>
 
           {/* Developer Credit Card */}
-          <Suspense fallback={null}>
-            <DeveloperCreditCard
-              name="Magdy Saber"
-              title="Creator & Developer"
-              avatarUrl={developerPhoto}
-              websiteUrl="https://magdysaber.com"
-              githubUrl="https://github.com/iammagdy"
-              onContactClick={() => window.open('mailto:contact@magdysaber.com')}
-            />
-          </Suspense>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+          >
+            <Suspense fallback={null}>
+              <DeveloperCreditCard
+                name="Magdy Saber"
+                title="Creator & Developer"
+                avatarUrl={developerPhoto}
+                websiteUrl="https://magdysaber.com"
+                githubUrl="https://github.com/iammagdy"
+                onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+              />
+            </Suspense>
+          </motion.div>
 
           {/* Branded Footer */}
           <div className="pt-2 pb-10">
