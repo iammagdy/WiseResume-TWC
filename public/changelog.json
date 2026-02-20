@@ -1,8 +1,104 @@
 [
   {
-    "version": "v2.2.2",
+    "version": "v2.3.0",
     "date": "Feb 20, 2026",
     "latest": true,
+    "summary": "The portfolio just became a jaw-dropping experience — cinematic animations, a live career timeline, a Contact Me button, and a full UX audit pass across the editor and dashboard.",
+    "items": [
+      {
+        "title": "Portfolio hero cinematic entrance",
+        "description": "The name now reveals letter by letter, the profile photo scales in with a breathing glow ring, the job title badge bounces in, and the CTA buttons stagger up in sequence on every page load."
+      },
+      {
+        "title": "Typewriter tagline fixed & upgraded",
+        "description": "The hero tagline no longer cuts off mid-word. Phrases cycle cleanly with a properly blinking cursor, configurable from portfolio settings, falling back to the user's top skills automatically."
+      },
+      {
+        "title": "Ambient hero background",
+        "description": "A slow aurora gradient breathes behind the hero section, cycling through deep dark tones for a cinematic atmosphere without distracting from content."
+      },
+      {
+        "title": "Scroll-triggered animations",
+        "description": "Every section title draws an underline as it enters view, experience cards slide in staggered, skill tags bubble-pop in one by one, and education cards fade up from below — all powered by IntersectionObserver, never layout-blocking."
+      },
+      {
+        "title": "Card hover lift & skill tag interactions",
+        "description": "Experience and education cards lift off the page on hover with a deepening shadow. Skill tags glow to accent color on desktop hover and bounce with a physical press feel on mobile tap."
+      },
+      {
+        "title": "Line-by-line bio reveal",
+        "description": "The About section bio uncovers itself line by line like a curtain lifting, and the \"Show more\" accordion in experience cards unfolds smoothly with a chevron rotation."
+      },
+      {
+        "title": "Button shimmer sweep",
+        "description": "The \"Share Card\" and \"Download CV\" buttons in the hero emit a periodic diagonal light shimmer when idle — alive without being distracting."
+      },
+      {
+        "title": "Sticky header slide-in",
+        "description": "When scrolling past the hero, the sticky name/avatar bar now slides down cinematically with a backdrop blur instead of snapping into view abruptly."
+      },
+      {
+        "title": "Career Card 3D flip & holographic shimmer",
+        "description": "Switching between Cosmic, Aurora, and Clean card styles triggers a 3D flip transition. The card preview gains a continuous iridescent shimmer and tilts toward the cursor or touch point."
+      },
+      {
+        "title": "Career timeline with scroll-draw",
+        "description": "A vertical accent-colored timeline line draws downward through the experience section as you scroll, with dots that pop in alongside each card, giving visitors an instant feel for career progression."
+      },
+      {
+        "title": "\"Open to Work\" availability badge",
+        "description": "If the user has set their availability in portfolio settings, a pulsing green dot badge now appears in the hero automatically, visible to every recruiter who visits the portfolio."
+      },
+      {
+        "title": "Animated stats strip",
+        "description": "A new \"Years Experience / Roles Held / Skills\" strip between the hero and About section counts up from zero when it enters the viewport, with staggered timing per stat."
+      },
+      {
+        "title": "Section quick-nav pills",
+        "description": "A sticky horizontally scrollable pill row on mobile lets visitors jump directly to any section with one tap. The active pill updates automatically as you scroll."
+      },
+      {
+        "title": "\"Contact Me\" sticky CTA",
+        "description": "A floating pill button appears after the hero scrolls out of view, resolving the best contact method automatically (email → WhatsApp → LinkedIn). Pulses subtly every 5 seconds to catch attention without being intrusive."
+      },
+      {
+        "title": "Editor sync conflict fixed",
+        "description": "The \"Sync Conflict Detected\" modal no longer appears when clicking \"+ Add\" in any section. Conflict detection now only triggers on genuine server/local timestamp mismatches, and the dismiss button works on the first tap."
+      },
+      {
+        "title": "Studio page crash resolved",
+        "description": "The AI Studio page no longer throws \"supabaseUrl is required\" on load. Supabase client initialization is now properly guarded before the page mounts."
+      },
+      {
+        "title": "Activity URL redirect",
+        "description": "Navigating directly to /activity now correctly redirects to /applications instead of showing a 404 error page."
+      },
+      {
+        "title": "Bottom tab navigation",
+        "description": "The top navigation links have been replaced with a mobile-native fixed bottom tab bar on screens below 1024px, matching standard mobile app conventions. Desktop retains the existing top nav layout."
+      },
+      {
+        "title": "Duplicate FAB removed",
+        "description": "The floating \"+\" button on the Home dashboard has been removed. The \"New Resume\" button in the action row is the single clear entry point for resume creation."
+      },
+      {
+        "title": "Resume name in editor header",
+        "description": "The active resume name is now visible and tappable in the Editor header, making it immediately clear which resume is being edited and allowing quick navigation back to the dashboard."
+      },
+      {
+        "title": "Save vs. Unpublish button differentiation",
+        "description": "On the Portfolio page, \"Save Portfolio\" remains the bold primary action while \"Unpublish Portfolio\" is now styled as a bordered destructive button with a warning icon — the two actions are no longer visually identical."
+      },
+      {
+        "title": "All animations respect reduced motion",
+        "description": "Every animation introduced in this release is fully disabled when the user has \"Reduce Motion\" enabled at the OS level, ensuring full accessibility compliance."
+      }
+    ]
+  },
+  {
+    "version": "v2.2.2",
+    "date": "Feb 20, 2026",
+    "latest": false,
     "summary": "Smoother animations, a refreshed Settings footer, and better tap targets -- the app feels faster and looks sharper.",
     "items": [
       {
