@@ -107,13 +107,11 @@ export async function tailorResumeWithProgress(
     }
   }, 25_000);
 
-  try {
+  const invokeOnce = async () => {
     const { data, error } = await supabase.functions.invoke('tailor-resume', {
       body: { resume, jobDescription, intensity },
       ...(signal ? { options: { signal } } : {}),
     } as any);
-    clearInterval(progressInterval);
-    clearTimeout(slowTimer);
 
     if (error) {
       console.error('Tailor resume error:', error);
@@ -131,16 +129,40 @@ export async function tailorResumeWithProgress(
         (e as TailorError).code = 'credits_exhausted';
         throw e;
       }
-      // Check for timeout errors
-      if (msg.toLowerCase().includes('timed out') || msg.toLowerCase().includes('abort') || msg.toLowerCase().includes('timeout') || msg.includes('408')) {
-        const e = new Error('The request timed out. Please try again — or try a shorter job description.');
-        (e as TailorError).code = 'generic';
-        throw e;
-      }
+      // Transient errors — eligible for retry
       const e = new Error(msg || 'Failed to tailor resume');
       (e as TailorError).code = 'generic';
       throw e;
     }
+
+    return data;
+  };
+
+  try {
+    let data: any;
+    try {
+      data = await invokeOnce();
+    } catch (firstError: any) {
+      // Only retry transient errors (not auth/credits/rate-limit)
+      const code = (firstError as TailorError).code;
+      if (code === 'rate_limit' || code === 'credits_exhausted' || !code) throw firstError;
+      if (firstError.message?.includes('Unauthorized')) throw firstError;
+
+      // Auto-retry once after 2s
+      onProgress({
+        step: 'finalizing',
+        progress: 70,
+        message: '🔄 Retrying — hang tight...',
+        funFact: FUN_FACTS[0],
+      } as EnhancedTailorProgress);
+
+      await new Promise(r => setTimeout(r, 2000));
+      if (signal?.aborted) throw firstError;
+      data = await invokeOnce();
+    }
+
+    clearInterval(progressInterval);
+    clearTimeout(slowTimer);
 
     // Track usage for Gemini free tier
     trackGeminiUsage();
