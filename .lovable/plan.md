@@ -1,96 +1,86 @@
 
 
-# Fix 3 Interview UX Issues: Validation, Progress, Skip/Replay
+# Fix 3 Interview UX Issues (Issue 1 Already Resolved)
 
-## Issue 1: Launch Button Validation for Job-Targeted Mode
+## Issue 1 -- Chat Thread: ALREADY IMPLEMENTED
+
+After reviewing the codebase, the chat thread is already fully functional:
+- `TranscriptBubble` component renders both user (right-aligned, primary gradient bg) and interviewer (left-aligned, card bg) messages
+- Each message has role labels ("You" / "Wise AI"), timestamps, and slide-up + fade animations
+- The transcript area (lines 358-383 of InterviewPage) maps over all transcript entries and auto-scrolls
+- A typing indicator shows when the AI is thinking
+- Interim speech text shows as a translucent right-aligned bubble
+
+No changes needed for this issue.
+
+---
+
+## Issue 2 -- "Type"/"Hide" Toggle Label Fix
 
 ### Current State
-The button is already disabled via `disabled={mode === 'job-targeted' && !jobDescription.trim()}` at line 366 of `InterviewSetup.tsx`. However:
-- The disabled styling may not be visually clear enough (no explicit `opacity-40`)
-- There is no inline validation message when the user taps while empty
-
-### Changes
-
-**File: `src/components/interview/InterviewSetup.tsx`**
-- Add a `showValidation` state that gets set to `true` when the user taps the Launch button while JD is empty
-- Reset `showValidation` when the user types in the JD field
-- Below the `<Textarea>`, render an inline validation message with `AnimatePresence`:
-  - Text: "Please paste a job description to continue"
-  - Style: `text-red-400 text-xs mt-1`, fade-in animation
-- Wrap the Launch button tap handler to set `showValidation` when JD is empty instead of calling `handleStart`
-- Add explicit disabled styling: `disabled:opacity-40 disabled:cursor-not-allowed` to the button, with a `transition-opacity duration-200`
-
----
-
-## Issue 2: Question Progress Indicator During Active Interview
-
-### How It Works
-- Count interviewer messages in the `transcript` array to determine the current question number
-- For Quick Practice mode: total = 5, show "Question X of 5" with a determinate progress bar
-- For General and Job-Targeted modes: show an indeterminate pulsing progress bar (no "X of Y" text)
+Line 484-492 of `InterviewPage.tsx`: a `Button` with `Keyboard` icon and text that toggles between "Hide" and "Type".
 
 ### Changes
 
 **File: `src/pages/InterviewPage.tsx`**
-- Pass `activeInterviewTypeRef.current` as state so we know the mode during the active phase
-- In the active interview section, between the header bar and the transcript area, add:
-  - A thin 3px progress bar spanning full width
-  - For Quick mode: fill = `(currentQuestion / 5) * 100%` with `transition-all duration-500 ease-in-out`
-  - For other modes: a CSS pulsing animation (fill oscillates 0% to 60% and back)
-  - Below the bar: centered text "Question X of 5" (Quick mode only), styled `text-muted-foreground text-xs text-center mt-1`
-- Derive `currentQuestion` by counting `transcript.filter(e => e.role === 'interviewer').length`
-- Use `motion.div` for the progress bar with `initial={{ opacity: 0 }}` fade-in
+- Import `KeyboardOff` from lucide-react (in addition to existing `Keyboard`)
+- When `showTextInput` is false: show `Keyboard` icon + "Type" label
+- When `showTextInput` is true: show `KeyboardOff` icon + "Close" label
+- Add slide-up animation to the text input container (already partially done with `motion.div` but improve with `translateY`)
+- Keep minimum 44x44px tap target
 
 ---
 
-## Issue 3: Replay and Skip Buttons
+## Issue 3 -- End Interview Confirmation Dialog
 
-### Replay Logic
-- Find the last interviewer message from the transcript
-- Call the existing `speak()` function (via window.speechSynthesis) to replay it
-- The `speak` function is inside `useVoiceInterview` but not currently exposed. We need to either:
-  - (a) Expose a `replayLastQuestion` function from the hook, OR
-  - (b) Re-trigger TTS directly from `InterviewPage` using `window.speechSynthesis`
-- Option (b) is simpler and avoids changing the hook's return interface. We'll use `window.speechSynthesis` with the same voice selection logic
-
-### Skip Logic
-- Send a predefined text message like "(skipped)" via the existing `sendTextMessage` function
-- This tells the AI the user skipped, prompting the next question
+### Current State
+Line 493-502: the "End Interview" button directly calls `endInterview()`.
 
 ### Changes
 
 **File: `src/pages/InterviewPage.tsx`**
-- In the controls area, add a flex row around the `InterviewToggle`:
-  - LEFT: Replay button (RotateCcw icon from lucide-react)
-    - 44x44px, `rounded-full`, `text-foreground/70`, `bg-transparent` with `active:bg-white/10`
-    - Label below: "Replay" in `text-muted-foreground text-xs`
-    - Disabled/hidden when `status === 'speaking'` or `status === 'thinking'` or no interviewer messages exist
-    - On tap: use `window.speechSynthesis` to re-speak the last interviewer transcript entry
-  - RIGHT: Skip button (SkipForward icon from lucide-react)
-    - Same styling as Replay
-    - Label below: "Skip" in `text-muted-foreground text-xs`
-    - Disabled when `status === 'thinking'`
-    - On tap: call `sendTextMessage('(skipped)')`, with a `whileTap={{ scale: 1.15 }}` bounce
-- Both buttons use `motion.button` with `initial={{ opacity: 0 }} animate={{ opacity: 1 }}` fade-in
-- Layout: `flex items-center justify-center gap-6` with the toggle in the center
+- Add `showEndConfirm` state (boolean, default false)
+- Change the "End Interview" button's `onClick` from `endInterview` to `setShowEndConfirm(true)`
+- Add a confirmation bottom sheet using the existing `Sheet` component (from `@/components/ui/sheet`) with `side="bottom"`:
+  - Drag handle bar at top
+  - Title: "End Interview?" in bold
+  - Subtitle explaining progress will be saved
+  - Two stacked buttons: "Yes, End Interview" (destructive, calls `endInterview` + closes sheet) and "Keep Going" (ghost, closes sheet)
+- Sheet dismisses on backdrop tap or swipe-down (built into the Sheet component)
 
-**File: `src/hooks/useVoiceInterview.ts`** -- NO changes needed. We use `sendTextMessage` for skip and `window.speechSynthesis` directly for replay.
+---
+
+## Issue 4 -- Performance Sparkline Chart
+
+### Current State
+`InterviewStatsCard` shows Sessions, Avg Score, Best in a 3-column grid. No chart.
+
+### Changes
+
+**File: `src/components/interview/InterviewStatsCard.tsx`**
+- Import `LineChart`, `Line`, `ResponsiveContainer`, `Tooltip` from `recharts` (already installed)
+- Below the stats grid, if `scoredSessions.length >= 1`, render a sparkline chart:
+  - Data: scored sessions mapped to `{ session: index+1, score: overall_score, date: created_at }`
+  - Container: `w-full h-16 mt-3`
+  - Line: `stroke` = `hsl(var(--primary))`, strokeWidth 2, dot radius 3
+  - Custom tooltip showing "Session N: X/10 -- date"
+  - If only 1 session: show the single dot with a "Keep practicing to see your trend!" message below in `text-muted-foreground text-xs`
+  - If 0 sessions: chart hidden (the entire card already returns null for 0 sessions)
+- Add a simple SVG stroke-dashoffset animation on mount for the line (via a custom `animationBegin`/`animationDuration` on the recharts `Line` component, which supports this natively)
 
 ---
 
 ## Files Changed Summary
 
-| File | Changes |
-|---|---|
-| `src/components/interview/InterviewSetup.tsx` | Add `showValidation` state; inline validation message below JD textarea; enhanced disabled button styling |
-| `src/pages/InterviewPage.tsx` | Add progress bar + question counter between header and transcript; add Replay and Skip buttons flanking the InterviewToggle |
+| File | Issue | Change |
+|---|---|---|
+| `src/pages/InterviewPage.tsx` | 2, 3 | Swap "Hide" for "Close" with `KeyboardOff` icon; add `showEndConfirm` state + bottom Sheet confirmation dialog |
+| `src/components/interview/InterviewStatsCard.tsx` | 4 | Add recharts sparkline below stats grid with score trend and custom tooltip |
 
 ## Technical Notes
-- All animations use Framer Motion (`motion.div`, `motion.button`, `AnimatePresence`)
-- `useReducedMotion` respected for all new animations
-- No changes to AI prompts, API calls, voice engine logic, scoring, or data models
-- Replay uses `window.speechSynthesis` directly with `pickBestVoice` logic (imported or inlined)
-- Skip sends "(skipped)" via existing `sendTextMessage`
-- 44px minimum touch targets on all new buttons
-- Progress bar positioned between header and transcript with no overlap
-
+- Issue 1 requires no changes (already implemented)
+- Recharts is already installed (v2.15.4) and used elsewhere in the app (ATSScoreTrendChart)
+- Sheet component is already imported/used throughout the app
+- All animations use Framer Motion or recharts built-in animation props
+- No changes to API calls, voice logic, session state, or data models
+- 44px minimum touch targets maintained on all new/modified interactive elements
