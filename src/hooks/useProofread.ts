@@ -6,6 +6,7 @@ import { useResumeStore } from '@/store/resumeStore';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAIHealthStore } from '@/store/aiHealthStore';
 import { showErrorToast } from '@/lib/errorToast';
+import { activityTracker } from '@/lib/activityTracker';
 
 import type { ResumeData } from '@/types/resume';
 import type { ProofreadIssue } from '@/types/proofread';
@@ -74,6 +75,7 @@ export function useProofread(resume: ResumeData | null) {
 
   const runCheck = useCallback(
     async (resume: ResumeData) => {
+      activityTracker.setActiveFeature('Proofread');
       const sections = extractSections(resume);
       if (!sections.length) return;
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   UserCheck, 
@@ -34,6 +34,7 @@ import {
 import { findTargetContent } from '@/lib/ai/fixHelpers';
 import { Experience, Education } from '@/types/resume';
 import { useAIAction } from '@/hooks/useAIAction';
+import { activityTracker } from '@/lib/activityTracker';
 
 
 interface RecruiterSimSheetProps {
@@ -50,6 +51,11 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
   const [analysis, setAnalysis] = useState<RecruiterAnalysis | null>(null);
   const [isApplyingFix, setIsApplyingFix] = useState<string | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'recruiter-sim' });
+
+  useEffect(() => {
+    if (open) { activityTracker.setActiveFeature('Recruiter Simulator'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [open]);
 
   const handleSelectPersona = async (persona: RecruiterPersonaInfo) => {
     if (!currentResume) return;

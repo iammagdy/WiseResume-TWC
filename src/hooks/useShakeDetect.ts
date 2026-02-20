@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
 import { triggerBugReport } from '@/lib/bugReport';
+import { activityTracker } from '@/lib/activityTracker';
 
 const THRESHOLD = 25;
 const SHAKE_COUNT = 4;
@@ -63,10 +64,17 @@ export function useShakeDetect(enabled: boolean) {
         shakeTimestamps.current = [];
 
         haptics.heavy();
+        const snapshot = activityTracker.getSnapshot();
         triggerBugReport({
-          errorMessage: 'Bug report via shake gesture',
+          errorMessage: snapshot.recentErrors[0]?.message || 'Bug report via shake gesture',
+          errorStack: snapshot.recentErrors[0]?.stack,
           route: location.pathname,
+          action: snapshot.activeFeature || undefined,
           source: 'shake',
+          detectedContext: {
+            activeFeature: snapshot.activeFeature,
+            recentErrors: snapshot.recentErrors,
+          },
         });
       }
     };

@@ -84,6 +84,7 @@ export type Database = {
       }
       bug_reports: {
         Row: {
+          active_feature: string | null
           additional_context: string | null
           app_version: string | null
           component_stack: string | null
@@ -91,6 +92,7 @@ export type Database = {
           error_message: string
           error_stack: string | null
           id: string
+          recent_errors: Json | null
           route: string | null
           session_id: string | null
           status: string | null
@@ -99,6 +101,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          active_feature?: string | null
           additional_context?: string | null
           app_version?: string | null
           component_stack?: string | null
@@ -106,6 +109,7 @@ export type Database = {
           error_message: string
           error_stack?: string | null
           id?: string
+          recent_errors?: Json | null
           route?: string | null
           session_id?: string | null
           status?: string | null
@@ -114,6 +118,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          active_feature?: string | null
           additional_context?: string | null
           app_version?: string | null
           component_stack?: string | null
@@ -121,6 +126,7 @@ export type Database = {
           error_message?: string
           error_stack?: string | null
           id?: string
+          recent_errors?: Json | null
           route?: string | null
           session_id?: string | null
           status?: string | null

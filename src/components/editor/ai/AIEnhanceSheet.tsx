@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Sparkles, Loader2, Check, X, ArrowRight, ChevronDown, ChevronUp, CheckCircle2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { sanitizeAIContent } from '@/lib/ai/sanitizeContent';
 import { AICostBadge } from '@/components/ai/AICostBadge';
+import { activityTracker } from '@/lib/activityTracker';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import type { ActionType, SectionType } from '@/hooks/useAIEnhance';
 
@@ -83,6 +84,11 @@ export function AIEnhanceSheet({ open, onOpenChange, onEnhanced, atsMode = false
   const currentResume = useResumeStore(s => s.currentResume);
   const updateResume = useResumeStore(s => s.updateResume);
   const { incrementUsage, checkCredits } = useAICreditsMutations();
+
+  useEffect(() => {
+    if (open) { activityTracker.setActiveFeature('AI Enhance'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [open]);
 
   const toggleSection = useCallback((id: SectionType) => {
     haptics.light();
