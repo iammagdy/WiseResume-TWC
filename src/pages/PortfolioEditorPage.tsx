@@ -486,7 +486,7 @@ export default function PortfolioEditorPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // QR download is now handled inside PortfolioQRDialog
+  // QR download is handled inside QRGeneratorSheet
 
   const handleShareQR = async () => {
     if (!actualPortfolioUrl) return;
