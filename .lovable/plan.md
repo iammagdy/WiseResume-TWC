@@ -1,50 +1,40 @@
 
-# Add Star-Field Background to Splash Screen
+# Add "Replay Splash Screen" to Settings
 
-## Overview
-Add a subtle animated star-field behind the splash screen content, with stars that drift slowly inward toward the logo and twinkle, creating a "vibrant space" feel consistent with the app's theme.
+## What Changes
 
-## Implementation
+Add a new button row in the **About & Help** section of Settings, right after the existing "Take Tour Again" row, that resets the `hasSeenSplash` flag and navigates the user back to the root so the animated splash replays.
 
-### Modify `src/components/AnimatedSplash.tsx`
+## File Modified
 
-**Add a star-field layer** between the background and the existing glow/logo content:
+### `src/pages/SettingsPage.tsx`
 
-- Generate ~30 small star particles using `useMemo`, each with random position, size (1-3px), opacity, and animation delay
-- Render them as small `motion.div` circles with two animation effects:
-  1. **Twinkle**: Opacity oscillates between 0.2 and 0.8 over 2-4s (using Framer Motion `animate` with `repeat: Infinity`)
-  2. **Drift inward**: Stars slowly translate toward center (the logo) over the 3-second splash duration, creating a subtle convergence effect
-- Add a faint nebula gradient overlay (similar to `HomeBackground.tsx` style) with two radial gradients using primary/accent colors at very low opacity (~0.08)
-- All particle animations are skipped when `prefersReduced` is true -- stars render as static dots instead
+Insert a new `SettingsRow` + `Separator` after the "Take Tour Again" row (after line 863):
 
-**Star generation:**
-```typescript
-const stars = useMemo(() => 
-  Array.from({ length: 30 }, (_, i) => ({
-    id: i,
-    x: Math.random() * 100,
-    y: Math.random() * 100,
-    size: Math.random() * 2 + 0.5,
-    opacity: Math.random() * 0.4 + 0.2,
-    delay: Math.random() * 1.5,
-    duration: 2 + Math.random() * 2,
-  })),
-[]);
+```tsx
+<Separator className="bg-border/30" />
+<SettingsRow
+  type="button"
+  label="Replay Splash Screen"
+  description="Re-watch the animated intro"
+  icon={<Sparkles className="w-4 h-4" />}
+  onClick={() => {
+    haptics.light();
+    setHasSeenSplash(false);
+    toast.success('Replaying splash…');
+    navigate('/');
+  }}
+/>
 ```
 
-**Each star rendered as:**
-- A `motion.div` with `position: absolute`, placed by percentage
-- `animate` with opacity keyframes `[star.opacity, 0.8, star.opacity]` repeating infinitely
-- A secondary subtle `x`/`y` drift toward `50%, 50%` (center) over the splash duration
+This requires destructuring `setHasSeenSplash` from the existing `useSettingsStore()` call (already imports `hasSeenSplash`-related setters from the store).
 
-**Nebula overlay:** Two fixed radial gradients (primary at top-left, accent at bottom-right) at ~8% opacity, purely decorative.
+## How It Works
 
-### No other files changed
-This is a visual-only enhancement to the existing `AnimatedSplash.tsx` component.
+1. User taps "Replay Splash Screen" in Settings > About & Help
+2. `hasSeenSplash` is set to `false` in the persisted Zustand store
+3. App navigates to `/` which triggers `AppRoutes` to check the flag
+4. Since `hasSeenSplash` is now `false`, the `AnimatedSplash` component renders
+5. After the animation completes, `hasSeenSplash` is set back to `true`
 
-## Technical Notes
-- No new dependencies -- uses existing Framer Motion
-- 30 particles is lightweight; each is a tiny div with CSS animations
-- `useMemo` prevents regeneration on re-render
-- Respects `prefers-reduced-motion` by showing static dots only
-- Stars render behind the logo/text via lower z-index ordering in the JSX (rendered before the glow/logo elements)
+No new files, no new dependencies, no database changes.
