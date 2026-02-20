@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
-import { PortfolioQRDialog } from '@/components/portfolio/PortfolioQRDialog';
+import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
 import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -674,8 +674,8 @@ export default function PortfolioEditorPage() {
           </CollapsibleCard>
         )}
 
-        {/* ── QR Code Dialog ───────────────────────────────────────────── */}
-        <PortfolioQRDialog
+        {/* ── QR Code Studio ──────────────────────────────────────────── */}
+        <QRGeneratorSheet
           open={showQR}
           onOpenChange={setShowQR}
           portfolioUrl={actualPortfolioUrl}
