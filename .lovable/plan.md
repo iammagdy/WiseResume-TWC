@@ -1,55 +1,50 @@
 
-
-# Animated Splash Screen on First Launch
+# Add Star-Field Background to Splash Screen
 
 ## Overview
-Add a fullscreen animated splash screen that plays once -- the very first time a user opens the app. It shows the WiseResume logo with entrance animations (scale, glow, tagline reveal), then auto-dismisses after ~3 seconds. Subsequent visits skip it entirely using a persisted flag in the settings store.
+Add a subtle animated star-field behind the splash screen content, with stars that drift slowly inward toward the logo and twinkle, creating a "vibrant space" feel consistent with the app's theme.
 
-## How It Works
+## Implementation
 
-1. A new `hasSeenSplash` flag in the Zustand settings store (persisted to localStorage) tracks whether the user has seen the splash
-2. The `AppRoutes` component checks this flag before rendering routes
-3. If `hasSeenSplash` is false, it renders the `AnimatedSplash` component instead of routes
-4. After the animation completes (~3s), it sets the flag to true and fades out, revealing the app
+### Modify `src/components/AnimatedSplash.tsx`
 
-## Animation Sequence (3 seconds total)
+**Add a star-field layer** between the background and the existing glow/logo content:
 
-| Time | Animation |
-|------|-----------|
-| 0-0.6s | Logo scales in from 0.5 to 1 with spring physics + glow pulse |
-| 0.6-1.2s | "WiseResume" text fades up with gradient shimmer |
-| 1.2-1.8s | "Your AI Career Partner" tagline fades in |
-| 1.8-2.5s | Hold |
-| 2.5-3.0s | Everything fades out and scales up slightly (exit) |
+- Generate ~30 small star particles using `useMemo`, each with random position, size (1-3px), opacity, and animation delay
+- Render them as small `motion.div` circles with two animation effects:
+  1. **Twinkle**: Opacity oscillates between 0.2 and 0.8 over 2-4s (using Framer Motion `animate` with `repeat: Infinity`)
+  2. **Drift inward**: Stars slowly translate toward center (the logo) over the 3-second splash duration, creating a subtle convergence effect
+- Add a faint nebula gradient overlay (similar to `HomeBackground.tsx` style) with two radial gradients using primary/accent colors at very low opacity (~0.08)
+- All particle animations are skipped when `prefersReduced` is true -- stars render as static dots instead
 
-## Files to Create/Modify
+**Star generation:**
+```typescript
+const stars = useMemo(() => 
+  Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    size: Math.random() * 2 + 0.5,
+    opacity: Math.random() * 0.4 + 0.2,
+    delay: Math.random() * 1.5,
+    duration: 2 + Math.random() * 2,
+  })),
+[]);
+```
 
-### 1. New: `src/components/AnimatedSplash.tsx`
-- Full-screen component with dark background matching `--background`
-- Uses `framer-motion` for all animations (already installed)
-- Renders `AppIcon` (the logo image) with scale + opacity spring animation
-- "WiseResume" gradient text with staggered fade-up
-- Tagline with delayed fade-in
-- Pulsing glow ring behind the logo
-- Calls `onComplete()` callback after animation finishes
-- Respects `prefers-reduced-motion` -- if enabled, shows static splash for 1s then dismisses
+**Each star rendered as:**
+- A `motion.div` with `position: absolute`, placed by percentage
+- `animate` with opacity keyframes `[star.opacity, 0.8, star.opacity]` repeating infinitely
+- A secondary subtle `x`/`y` drift toward `50%, 50%` (center) over the splash duration
 
-### 2. Modify: `src/store/settingsStore.ts`
-- Add `hasSeenSplash: boolean` to state interface (default: `false`)
-- Add `setHasSeenSplash: (value: boolean) => void` action
-- Add to `defaultSettings`
+**Nebula overlay:** Two fixed radial gradients (primary at top-left, accent at bottom-right) at ~8% opacity, purely decorative.
 
-### 3. Modify: `src/App.tsx` (AppRoutes component)
-- Import `AnimatedSplash` and `hasSeenSplash` from settings store
-- Before the biometric lock check, add splash check:
-  - If `!hasSeenSplash`, render `AnimatedSplash` with `onComplete` that calls `setHasSeenSplash(true)`
-  - Otherwise render routes as normal
+### No other files changed
+This is a visual-only enhancement to the existing `AnimatedSplash.tsx` component.
 
-## Technical Details
-
-- **No lazy loading** for AnimatedSplash -- it's small and must render instantly on first load
-- **Native Capacitor**: The native splash screen (from `@capacitor/splash-screen`) hides via the existing `hideSplashScreen()` in AuthContext. The animated React splash plays after that, creating a seamless transition from native splash to animated splash to app
-- **Reset**: Users can re-trigger it from Settings via the existing "Replay Onboarding" button (extend it to also reset `hasSeenSplash`)
-- **Performance**: No heavy assets -- just the existing logo PNG + CSS/Framer Motion animations
-- **Touch target**: Tap anywhere to skip (with haptic feedback)
-
+## Technical Notes
+- No new dependencies -- uses existing Framer Motion
+- 30 particles is lightweight; each is a tiny div with CSS animations
+- `useMemo` prevents regeneration on re-render
+- Respects `prefers-reduced-motion` by showing static dots only
+- Stars render behind the logo/text via lower z-index ordering in the JSX (rendered before the glow/logo elements)
