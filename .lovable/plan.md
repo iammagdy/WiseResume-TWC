@@ -1,42 +1,68 @@
 
-# Electric Border for Developer Credit Card
+# Improve Developer Credit Card Visual Design
 
 ## Overview
-Replace the current CSS rotating-gradient border on the Developer Credit Card with a canvas-based ElectricBorder component from React Bits. All internal card animations (particles, holo sweep, sparkles, 3D tilt, orbit, avatar glow) remain unchanged.
+Refine the DeveloperCreditCard component to match the dark, focused magdysaber.com style while preserving all existing functionality, animations, and the ElectricBorder wrapper.
 
 ## Changes
 
-### 1. Create `src/components/ui/ElectricBorder.tsx`
-- New component using a canvas element to draw a procedurally animated "electric" border around its children
-- Uses ResizeObserver for responsive sizing, requestAnimationFrame for smooth animation
-- Canvas has `pointer-events: none` so touch/click events pass through
-- Props: `color`, `speed`, `chaos`, `borderRadius`, `className`, `style`, `children`
-- Capped `devicePixelRatio` at 2 for mobile performance
+### 1. Update `src/components/settings/DeveloperCreditCard.tsx` -- Layout restructure
 
-### 2. Create `src/components/ui/ElectricBorder.css`
-- Styles for the electric border wrapper, canvas positioning, glow layers, and content container
-- Uses `oklch()` color function for glow effects derived from the provided color prop
-- All overlay layers use `pointer-events: none` to preserve interactivity
+Reorganize the card content into a two-section flex column layout:
 
-### 3. Update `src/components/settings/DeveloperCreditCard.tsx`
-- Import `ElectricBorder`
-- Wrap the outer `motion.div` (`.dev-card-wrapper`) content inside `<ElectricBorder>` with theme-appropriate color (`hsl(var(--primary))` mapped to a hex value like `#7C3AED`), `borderRadius={20}` to match the card's `1.25rem` radius
-- The ElectricBorder wraps around the `.dev-card` element, replacing the old `.dev-card-border` div
+- **Top section**: Avatar (left) + name/title/buttons (right) in a horizontal flex row
+- **Bottom section**: Website link, left-aligned, visually separated with a subtle top border
 
-### 4. Update `src/components/settings/DeveloperCreditCard.css`
-- Remove or hide the `.dev-card-border` styles (the old CSS gradient border), since ElectricBorder now handles the border effect
-- Keep all other styles (sparkles, particles, holo sweep, 3D tilt, avatar, buttons) exactly as they are
+Key changes to JSX structure:
+- Wrap everything inside `dev-card-content` in a `flex flex-col` container
+- Move the website link out of `.dev-info` into its own bottom row after the top section
+- Replace the old avatar glow/orbit with a cleaner gradient-ring avatar (gradient border ring from pink to orange with outer box-shadow glow)
+- Keep all motion variants, handlers, and ElectricBorder wrapper untouched
 
-## What stays the same
-- All internal card animations (holographic sweep, floating particles, sparkles, 3D tilt, orbit ring, avatar glow, button shine, name shimmer)
-- All interactivity (Contact button, GitHub button, website link, haptic feedback)
-- Responsive behavior at 360px breakpoint
-- Component props and API
+### 2. Update `src/components/settings/DeveloperCreditCard.css` -- Styling refinements
 
-## Technical Details
+**Avatar area**:
+- Replace `.dev-avatar-glow` multi-color blur with a tighter, warmer gradient ring (`from-pink-500 via-red-500 to-orange-400` equivalent)
+- Add a warm outer glow via `box-shadow: 0 0 24px rgba(248,113,113,0.45)`
+- Reduce avatar size slightly to `w-16 h-16` (64px) on mobile, scaling up on larger screens
+- Remove the orbit ring and orbit dot elements (and their CSS) to declutter the avatar area
 
-- The ElectricBorder canvas is positioned absolutely around the card with a configurable `borderOffset` (60px default) so the electric line can extend slightly beyond the card edges
-- The noise-based displacement creates the "electric" jagged line effect; `chaos` controls intensity, `speed` controls animation rate
-- `overflow: visible` on the wrapper ensures the electric effect is not clipped
-- The component cleans up its `requestAnimationFrame` and `ResizeObserver` on unmount
-- DPR capped at 2 to avoid excessive canvas sizes on high-density mobile screens
+**Buttons**:
+- Restyle Contact button: `bg-red-500/20` background, `text-red-300` color, `border-red-500/40` border -- warmer tone to match the example
+- Restyle GitHub button: `bg-zinc-900/60` background, `text-zinc-100` color, `border-zinc-700` border -- neutral dark pill
+- Remove the `::before` shine animation and `dev-btn-glow` animation from buttons for a cleaner look
+- Keep `active:scale-[0.98]` for haptic feel, keep `min-height: 44px` for touch targets
+- Increase gap between buttons from `0.5rem` to `0.75rem`
+
+**Name/Title**:
+- Keep the shimmer gradient on the name but make it slightly warmer (add pink/red tones)
+- Keep `dev-title` style as-is
+
+**Website link (bottom)**:
+- Move from inline under buttons to a separate bottom row
+- Add a subtle top border separator (`border-t border-white/5 pt-3 mt-1`)
+- Style: `text-xs text-zinc-400`, with `ExternalLink` icon at `w-3 h-3`
+- Apply `truncate` to the hostname text to prevent overflow on narrow screens
+
+**Card background**:
+- Darken the glass card background slightly for better contrast: use `rgba(0,0,0,0.6)` base instead of `hsl(var(--background) / 0.8)`
+
+### 3. What stays the same
+- ElectricBorder wrapper with `color="#7C3AED"`, `borderRadius={20}`
+- Sparkle elements outside the border
+- Holographic sweep animation inside the card
+- Floating particles animation
+- 3D tilt animation on `.dev-card`
+- All event handlers (haptics, openExternal, onContactClick)
+- Component props interface (`DeveloperCreditCardProps`)
+- Framer Motion entry/stagger animations
+
+### 4. What gets removed
+- `.dev-orbit-ring`, `.dev-orbit-dot`, and related `@keyframes dev-orbit` CSS (cleaner avatar)
+- `.dev-avatar-glow` replaced with a tighter gradient ring approach
+- `dev-btn-glow`, `dev-btn-shine`, `dev-icon-bounce` keyframe animations (cleaner buttons)
+- The `::before` pseudo-element on `.dev-contact-btn`
+
+### 5. Files modified
+- `src/components/settings/DeveloperCreditCard.tsx` -- JSX restructure (layout, avatar, button classes, website link position)
+- `src/components/settings/DeveloperCreditCard.css` -- Remove orbit/glow animations, update button styles, darken card, add bottom link separator
