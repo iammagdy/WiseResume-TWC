@@ -131,6 +131,7 @@ export default function SettingsPage() {
     setLocalOnlyMode,
     analyticsEnabled,
     setAnalyticsEnabled,
+    setHasSeenSplash,
   } = useSettingsStore();
  
   const { isAvailable: biometricAvailable, biometryType, authenticate } = useBiometricLock(biometricLockEnabled);
@@ -859,6 +860,19 @@ export default function SettingsPage() {
                   }
                   toast.success('Onboarding reset — redirecting…');
                   navigate('/onboarding');
+                }}
+              />
+              <Separator className="bg-border/30" />
+              <SettingsRow
+                type="button"
+                label="Replay Splash Screen"
+                description="Re-watch the animated intro"
+                icon={<Sparkles className="w-4 h-4" />}
+                onClick={() => {
+                  haptics.light();
+                  setHasSeenSplash(false);
+                  toast.success('Replaying splash…');
+                  navigate('/');
                 }}
               />
               <Separator className="bg-border/30" />
