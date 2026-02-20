@@ -130,13 +130,17 @@ export function DeveloperCreditCard({
               {/* Bottom section: website link */}
               {websiteUrl && (
                 <motion.div variants={itemVariants}>
-                  <button
-                    onClick={handleWebsiteClick}
+                  <a
+                    href={websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => { e.preventDefault(); handleWebsiteClick(); }}
                     className="dev-website-link"
+                    aria-label={`Visit ${new URL(websiteUrl).hostname.replace('www.', '')}`}
                   >
                     <ExternalLink className="w-3 h-3 flex-shrink-0" />
                     <span className="truncate">{new URL(websiteUrl).hostname.replace('www.', '')}</span>
-                  </button>
+                  </a>
                 </motion.div>
               )}
             </div>
