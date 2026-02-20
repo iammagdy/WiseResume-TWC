@@ -1,5 +1,4 @@
-import { useRef, useMemo } from 'react';
-import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
+import { useMemo } from 'react';
 
 interface Star {
   id: number;
@@ -39,35 +38,26 @@ function generateStars(count: number): Star[] {
   }));
 }
 
+const prefersReducedMotion =
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 export function SpaceBackground({ children }: { children: React.ReactNode }) {
-  const stars = useMemo(() => generateStars(30), []);
+  const stars = useMemo(() => generateStars(15), []);
   const shootingStars = useMemo(() => generateShootingStars(2), []);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const prefersReducedMotion = useReducedMotion();
-
-  const { scrollYProgress } = useScroll({ target: containerRef, offset: ['start start', 'end start'] });
-
-  const yFar = useTransform(scrollYProgress, [0, 1], ['0%', '-5%']);
-  const yMid = useTransform(scrollYProgress, [0, 1], ['0%', '-15%']);
-  const yNear = useTransform(scrollYProgress, [0, 1], ['0%', '-25%']);
-
-  const noMotion = prefersReducedMotion ? '0%' : undefined;
 
   return (
-    <div ref={containerRef} className="relative min-h-screen overflow-x-hidden bg-[hsl(240_30%_3%)]">
-      {/* Layer 0: Deep space gradient - farthest */}
-      <motion.div
+    <div className="relative min-h-screen overflow-x-hidden bg-[hsl(240_30%_3%)]">
+      {/* Layer 0: Deep space gradient */}
+      <div
         className="absolute inset-0 bg-gradient-to-b from-[hsl(240_30%_3%)] via-[hsl(270_40%_8%)] to-[hsl(240_30%_3%)]"
-        style={{ y: noMotion ?? yFar, willChange: 'transform' }}
         aria-hidden="true"
       />
 
-      {/* Layer 1: Nebula overlay - mid */}
-      <motion.div
+      {/* Layer 1: Nebula overlay */}
+      <div
         className="absolute inset-0 opacity-25"
         style={{
-          willChange: 'transform',
-          y: noMotion ?? yMid,
           background: `
             radial-gradient(ellipse at 15% 25%, hsl(270 70% 25% / 0.5) 0%, transparent 45%),
             radial-gradient(ellipse at 85% 55%, hsl(185 70% 25% / 0.4) 0%, transparent 40%),
@@ -77,14 +67,10 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         aria-hidden="true"
       />
 
-      {/* Layer 2: Floating orbs - nearest parallax layer */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{ y: noMotion ?? yNear, willChange: 'transform' }}
-        aria-hidden="true"
-      >
+      {/* Layer 2: Floating orbs (reduced blur) */}
+      <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div
-          className="absolute w-[320px] h-[320px] rounded-full opacity-[0.08] blur-[80px]"
+          className="absolute w-[320px] h-[320px] rounded-full opacity-[0.08] blur-[40px]"
           style={{
             top: '10%',
             left: '20%',
@@ -92,7 +78,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
           }}
         />
         <div
-          className="absolute w-[260px] h-[260px] rounded-full opacity-[0.06] blur-[70px]"
+          className="absolute w-[260px] h-[260px] rounded-full opacity-[0.06] blur-[35px]"
           style={{
             top: '45%',
             right: '10%',
@@ -100,14 +86,14 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
           }}
         />
         <div
-          className="absolute w-[280px] h-[280px] rounded-full opacity-[0.07] blur-[75px]"
+          className="absolute w-[280px] h-[280px] rounded-full opacity-[0.07] blur-[40px]"
           style={{
             bottom: '15%',
             left: '55%',
             background: 'radial-gradient(circle, hsl(330 50% 45%) 0%, transparent 70%)',
           }}
         />
-      </motion.div>
+      </div>
 
       {/* Layer 3: Twinkling stars */}
       <div className="absolute inset-0 pointer-events-none" style={{ contain: 'layout style paint' }} aria-hidden="true">
@@ -144,14 +130,12 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
                 : `shootingStar ${s.duration}s ease-in ${s.delay}s infinite`,
             }}
           >
-            {/* Glow trail */}
             <div
               className="absolute w-[80px] h-[3px] rounded-full blur-[3px]"
               style={{
                 background: 'linear-gradient(to left, rgba(200, 220, 255, 0.6) 0%, transparent 100%)',
               }}
             />
-            {/* Core streak */}
             <div
               className="absolute w-[80px] h-[1px] rounded-full"
               style={{

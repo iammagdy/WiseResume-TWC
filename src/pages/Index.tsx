@@ -47,7 +47,6 @@ function PortfolioDemo() {
   const [animStep, setAnimStep] = useState(prefersReducedMotion ? 5 : 0);
   const [themeIdx, setThemeIdx] = useState(0);
 
-  // Animation sequence: 0=blank → 1=avatar → 2=name → 3=badge → 4=sections → 5=hold → reset
   useEffect(() => {
     if (prefersReducedMotion) return;
     const delays: Record<number, number> = { 0: 300, 1: 500, 2: 500, 3: 600, 4: 3000 };
@@ -58,7 +57,6 @@ function PortfolioDemo() {
     return () => clearTimeout(t);
   }, [animStep, prefersReducedMotion]);
 
-  // Cycle theme dots
   useEffect(() => {
     const t = setInterval(() => setThemeIdx((i) => (i + 1) % 3), 2000);
     return () => clearInterval(t);
@@ -69,9 +67,7 @@ function PortfolioDemo() {
 
   return (
     <div className="flex flex-col items-center">
-      {/* Browser-style frame */}
       <div className="w-[260px] rounded-[28px] border-2 border-border/40 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
-        {/* Status bar */}
         <div className="flex items-center justify-between px-5 pt-2 pb-1">
           <span className="text-[10px] text-muted-foreground font-medium">9:41</span>
           <div className="flex items-center gap-1">
@@ -81,15 +77,12 @@ function PortfolioDemo() {
           </div>
         </div>
 
-        {/* URL bar */}
         <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border/20">
           <Globe className="w-3 h-3 text-muted-foreground/50 flex-shrink-0" />
           <span className="text-[10px] text-muted-foreground/70 font-mono truncate">wiseresume.app/p/you</span>
         </div>
 
-        {/* Portfolio content */}
         <div className="px-4 py-3 min-h-[190px] space-y-2.5">
-          {/* Hero — avatar + name + badge */}
           <div className="flex items-center gap-2.5">
             <AnimatePresence>
               {show(1) && (
@@ -135,7 +128,6 @@ function PortfolioDemo() {
             </div>
           </div>
 
-          {/* Section rows */}
           <div className="space-y-1.5">
             {['Experience', 'Skills', 'Projects'].map((label, i) => (
               <AnimatePresence key={label}>
@@ -156,7 +148,6 @@ function PortfolioDemo() {
             ))}
           </div>
 
-          {/* Theme switcher dots */}
           <div className="flex items-center justify-end gap-1.5 pt-1">
             <span className="text-[8px] text-muted-foreground/50 mr-0.5">Theme</span>
             {THEME_ACCENTS.map((color, i) => (
@@ -211,6 +202,7 @@ const Index = () => {
     return null;
   };
 
+  // Hero-only fade (runs once on load)
   const fade = (delay: number) =>
     prefersReducedMotion
       ? {}
@@ -220,28 +212,7 @@ const Index = () => {
           transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
         };
 
-  const inView = (delay: number) =>
-    prefersReducedMotion
-      ? {}
-      : {
-          initial: { opacity: 0, y: 20 } as const,
-          whileInView: { opacity: 1, y: 0 } as const,
-          viewport: { once: true, amount: 0.2 },
-          transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
-        };
-
-  // Slide from left with slight rotate
-  const slideIn = (delay: number) =>
-    prefersReducedMotion
-      ? {}
-      : {
-          initial: { opacity: 0, x: -30, rotate: -1 } as const,
-          whileInView: { opacity: 1, x: 0, rotate: 0 } as const,
-          viewport: { once: true, amount: 0.2 },
-          transition: { delay, duration: 0.5, ease: 'easeOut' as Easing },
-        };
-
-  // Scale up with blur clear
+  // Scale up with blur clear — kept for the two demo cards only
   const scaleIn = (delay: number) =>
     prefersReducedMotion
       ? {}
@@ -250,17 +221,6 @@ const Index = () => {
           whileInView: { opacity: 1, scale: 1, filter: 'blur(0px)' } as const,
           viewport: { once: true, amount: 0.2 },
           transition: { delay, duration: 0.6, ease: 'easeOut' as Easing },
-        };
-
-  // Spring pop
-  const popIn = (delay: number) =>
-    prefersReducedMotion
-      ? {}
-      : {
-          initial: { opacity: 0, scale: 0.8, y: 10 } as const,
-          whileInView: { opacity: 1, scale: 1, y: 0 } as const,
-          viewport: { once: true, amount: 0.3 },
-          transition: { delay, type: 'spring' as const, stiffness: 300, damping: 20 },
         };
 
   const handleCTA = () => {
@@ -414,43 +374,35 @@ const Index = () => {
           </motion.div>
         </section>
 
-        {/* Comparison Strip — Not Just Another Resume Builder */}
-        <motion.section className="px-4 sm:px-6 mb-10" {...inView(0)}>
-          <motion.div className="text-center mb-6" {...inView(0)}>
+        {/* Comparison Strip — simple CSS fade-in for the whole section */}
+        <section className="px-4 sm:px-6 mb-10 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <div className="text-center mb-6">
             <p className="text-secondary text-xs font-medium tracking-wider uppercase mb-1">The WiseResume Difference</p>
             <h2 className="font-display text-2xl font-bold text-foreground">Not Just Another Resume Builder</h2>
-          </motion.div>
+          </div>
 
           <div className="max-w-lg mx-auto grid grid-cols-1 gap-2.5">
-            {comparisons.map((item, i) => (
-              <motion.div key={item.them} {...slideIn(0.06 * i)}>
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-border/20 bg-card/40">
-                  {/* Them */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="w-5 h-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-xs font-bold flex-shrink-0">✗</span>
-                    <span className="text-[11px] leading-tight text-muted-foreground line-through">{item.them}</span>
-                  </div>
-                  {/* Arrow */}
-                  <ArrowRight className="w-3.5 h-3.5 text-border flex-shrink-0" />
-                  {/* Us */}
-                  <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                    <span className="text-[11px] leading-tight font-semibold text-foreground text-right">{item.us}</span>
-                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
-                  </div>
+            {comparisons.map((item) => (
+              <div key={item.them} className="flex items-center gap-3 p-3 rounded-xl border border-border/20 bg-card/40">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="w-5 h-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center text-xs font-bold flex-shrink-0">✗</span>
+                  <span className="text-[11px] leading-tight text-muted-foreground line-through">{item.them}</span>
                 </div>
-              </motion.div>
+                <ArrowRight className="w-3.5 h-3.5 text-border flex-shrink-0" />
+                <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                  <span className="text-[11px] leading-tight font-semibold text-foreground text-right">{item.us}</span>
+                  <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0">✓</span>
+                </div>
+              </div>
             ))}
           </div>
-        </motion.section>
+        </section>
 
-        {/* See It in Action — two-card section */}
-        <motion.section className="px-4 sm:px-6 mb-10" {...inView(0)}>
-          <motion.h2
-            className="text-2xl font-bold text-foreground text-center mb-2"
-            {...inView(0)}
-          >
+        {/* See It in Action — two-card section (keep scaleIn for these 2 cards only) */}
+        <section className="px-4 sm:px-6 mb-10 animate-fade-in-up" style={{ animationDelay: '0.15s' }}>
+          <h2 className="text-2xl font-bold text-foreground text-center mb-2">
             See It in Action
-          </motion.h2>
+          </h2>
           <p className="text-sm text-muted-foreground text-center mb-6">
             From AI resume writing to a shareable personal website — all in one place
           </p>
@@ -506,36 +458,31 @@ const Index = () => {
               </Card>
             </motion.div>
           </div>
-        </motion.section>
+        </section>
 
-        {/* Features */}
-        <motion.section className="px-4 sm:px-6 mb-10" {...inView(0)}>
-          <motion.h2
-            className="text-2xl font-bold text-foreground text-center mb-2"
-            {...inView(0)}
-          >
+        {/* Features — single CSS fade-in for entire section */}
+        <section className="px-4 sm:px-6 mb-10 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+          <h2 className="text-2xl font-bold text-foreground text-center mb-2">
             Why WiseResume?
-          </motion.h2>
+          </h2>
           <p className="text-sm text-muted-foreground text-center mb-6">
             Everything you need to land the job
           </p>
 
           <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto overflow-hidden">
-            {features.map((f, i) => (
-              <motion.div key={f.title} {...inView(0.1 * i)}>
-                <Card className="p-4 border-border/30 bg-card/50 h-full hover:border-primary/40 transition-colors">
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-3`}>
-                    <f.icon className={`w-5 h-5 ${f.iconColor}`} />
-                  </div>
-                  <h3 className="font-semibold text-sm mb-1">{f.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
-                </Card>
-              </motion.div>
+            {features.map((f) => (
+              <Card key={f.title} className="p-4 border-border/30 bg-card/50 h-full hover:border-primary/40 transition-colors">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-3`}>
+                  <f.icon className={`w-5 h-5 ${f.iconColor}`} />
+                </div>
+                <h3 className="font-semibold text-sm mb-1">{f.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+              </Card>
             ))}
           </div>
 
           {/* Bonus chips */}
-          <motion.div className="flex items-center justify-center gap-3 mt-5" {...popIn(0.1)}>
+          <div className="flex items-center justify-center gap-3 mt-5">
             {getBonusChips(isAuthenticated).map((chip) => (
               <button
                 key={chip.label}
@@ -546,15 +493,15 @@ const Index = () => {
                 {chip.label}
               </button>
             ))}
-          </motion.div>
-        </motion.section>
+          </div>
+        </section>
 
-        {/* Trust & Security Pillars */}
-        <motion.section className="px-4 sm:px-6 mb-10" {...inView(0)}>
-          <motion.div className="text-center mb-5" {...inView(0)}>
+        {/* Trust & Security Pillars — single CSS fade-in */}
+        <section className="px-4 sm:px-6 mb-10 animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
+          <div className="text-center mb-5">
             <p className="text-primary text-xs font-medium tracking-wider uppercase mb-1">Your Data, Your Rules</p>
             <h2 className="font-display text-xl font-bold text-foreground">Built on Trust</h2>
-          </motion.div>
+          </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 max-w-3xl mx-auto">
             {[
@@ -562,19 +509,17 @@ const Index = () => {
               { icon: Lock, title: 'Private by Default', desc: 'Only you see your resumes — never shared or sold' },
               { icon: Brain, title: 'AI Transparency', desc: 'AI runs fresh per session — never stored or used to train' },
               { icon: Trash2, title: 'Delete Anytime', desc: 'Full control — delete your data permanently' },
-            ].map((pillar, i) => (
-              <motion.div key={pillar.title} {...popIn(0.08 * i)}>
-                <Card className="p-3 border-border/20 bg-card/30 backdrop-blur-sm text-center h-full flex flex-col items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <pillar.icon className="w-4 h-4 text-primary" />
-                  </div>
-                  <h3 className="text-xs font-semibold text-foreground">{pillar.title}</h3>
-                  <p className="text-[10px] text-muted-foreground leading-snug">{pillar.desc}</p>
-                </Card>
-              </motion.div>
+            ].map((pillar) => (
+              <Card key={pillar.title} className="p-3 border-border/20 bg-card/30 backdrop-blur-sm text-center h-full flex flex-col items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <pillar.icon className="w-4 h-4 text-primary" />
+                </div>
+                <h3 className="text-xs font-semibold text-foreground">{pillar.title}</h3>
+                <p className="text-[10px] text-muted-foreground leading-snug">{pillar.desc}</p>
+              </Card>
             ))}
           </div>
-        </motion.section>
+        </section>
 
         <Footer />
       </main>
