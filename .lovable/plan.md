@@ -1,38 +1,41 @@
 
 
-# Fix Auth Issues for Mobile APK and Custom Domain
+# Auth Flow Test Results and Fix
 
-## Issues Identified
+## Test Results
 
-1. **Settings page password reset uses wrong redirect URL** -- `SettingsPage.tsx` line 230 redirects to `/reset-password` which is not a valid route. The app handles password resets at `/auth?reset=true`.
+### Working Correctly
+- Sign out flow: Confirmation dialog appears, signs out, redirects to landing page
+- Sign in form: Email/password fields, validation, error handling
+- Forgot password: Form renders, redirects to `/auth?reset=true` (fixed in previous update)
+- Password reset from Settings: Correctly points to `/auth?reset=true`
+- Auth callback page: Handles PKCE, hash fragments, and session fallback
+- Social auth on custom domain: Correctly uses `supabase.auth.signInWithOAuth` with `skipBrowserRedirect: true`
+- Email signup redirect: Correctly points to `/auth/callback`
 
-2. **Email signup redirect points to `/dashboard` without token processing** -- When users click the email verification link, the `emailRedirectTo` sends them to `/dashboard` which won't exchange the auth token from the URL. It should go through `/auth/callback` instead.
+### Issue Found: `?mode=signup` URL Parameter Ignored
 
-3. **Deep link custom scheme handling** -- The `com.wiseresume.app://auth/callback` scheme in the APK intent filter needs the deep link handler to correctly parse the path. `new URL('com.wiseresume.app://auth/callback')` produces `pathname: '/callback'` (missing `/auth` prefix), which would fail to route to the callback page.
+When navigating to `/auth?mode=signup` (used by `SignInPromptDialog` when user clicks "Email" button), the page always shows the "Sign In" form instead of "Sign Up". The `AuthPage` initializes mode as `'login'` on line 44 and never reads the `mode` query parameter.
 
-4. **Redirect URLs not configured in backend** -- The following must be added to the authentication redirect allowlist:
-   - `https://localhost/auth/callback`
-   - `com.wiseresume.app://auth/callback`
-   - `https://wiseresume.magdysaber.com/auth/callback`
+**Impact:** Users clicking "Sign up" from the sign-in prompt dialog are shown the sign-in form instead of the sign-up form, creating a confusing experience.
 
-## Fixes
+## Fix
 
-### 1. Fix SettingsPage password reset redirect
-**File:** `src/pages/SettingsPage.tsx`
-- Change `redirectTo: \`\${window.location.origin}/reset-password\`` to `redirectTo: \`\${window.location.origin}/auth?reset=true\``
+### File: `src/pages/AuthPage.tsx`
 
-### 2. Fix email signup redirect
-**File:** `src/pages/AuthPage.tsx`
-- Change `emailRedirectTo: \`\${window.location.origin}/dashboard\`` to `emailRedirectTo: \`\${window.location.origin}/auth/callback\``
-- This ensures the verification token in the URL is properly exchanged for a session before redirecting to dashboard.
+Add a `useEffect` to read the `mode` search parameter on mount and switch to signup mode when `?mode=signup` is present:
 
-### 3. Fix deep link custom scheme parsing
-**File:** `src/hooks/useDeepLinking.ts`
-- Add a fallback for custom-scheme URLs where `new URL()` may produce an unexpected pathname.
-- If the URL starts with `com.wiseresume.app://`, manually extract the path as `/auth/callback` + query/hash rather than relying on URL parser output.
+- After the existing `useEffect` blocks (around line 121), add logic to check `searchParams.get('mode')` and set the auth mode accordingly
+- Support values: `signup` maps to `'signup'` mode, `forgot` maps to `'forgot-password'` mode
+- Clean the URL after reading the parameter to avoid stale state on refresh
 
-### 4. Configure redirect URLs (manual step)
-You will need to add these redirect URLs in the authentication settings:
+### No Other Code Changes Needed
+
+The remaining auth flows (sign-in, sign-out, password reset, social login, deep linking, email verification callback) are all working correctly based on code analysis and live testing.
+
+### Manual Action Still Required
+
+You still need to add these redirect URLs to your authentication settings:
 - `https://wiseresume.magdysaber.com/auth/callback`
 - `https://localhost/auth/callback`
 - `com.wiseresume.app://auth/callback`
@@ -41,9 +44,5 @@ You will need to add these redirect URLs in the authentication settings:
 
 | File | Change |
 |---|---|
-| `src/pages/SettingsPage.tsx` | Fix password reset redirect URL |
-| `src/pages/AuthPage.tsx` | Fix email verification redirect URL |
-| `src/hooks/useDeepLinking.ts` | Handle custom scheme deep links correctly |
-
-## No Database Changes Required
+| `src/pages/AuthPage.tsx` | Read `mode` from URL search params to initialize correct auth mode (login vs signup) |
 
