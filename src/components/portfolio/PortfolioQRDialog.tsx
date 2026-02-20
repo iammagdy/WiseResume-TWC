@@ -32,52 +32,58 @@ export function PortfolioQRDialog({ open, onOpenChange, portfolioUrl, displayUrl
   const [size] = useState(() => (typeof window !== 'undefined' && window.innerWidth < 360 ? 240 : 280));
 
   useEffect(() => {
-    if (!open || !qrRef.current) return;
+    if (!open) return;
 
-    if (!qrCodeRef.current) {
-      qrCodeRef.current = new QRCodeStyling({
-        width: size,
-        height: size,
-        type: 'svg',
-        data: portfolioUrl || 'https://wiseresume.lovable.app',
-        image: wiseAiLogo,
-        margin: 6,
-        qrOptions: {
-          errorCorrectionLevel: 'H',
-        },
-        imageOptions: {
-          hideBackgroundDots: true,
-          imageSize: 0.35,
+    const frameId = requestAnimationFrame(() => {
+      if (!qrRef.current) return;
+
+      if (!qrCodeRef.current) {
+        qrCodeRef.current = new QRCodeStyling({
+          width: size,
+          height: size,
+          type: 'svg',
+          data: portfolioUrl || 'https://wiseresume.lovable.app',
+          image: wiseAiLogo,
           margin: 6,
-          crossOrigin: 'anonymous',
-        },
-        dotsOptions: {
-          type: 'rounded',
-          gradient: {
-            type: 'radial',
-            rotation: 0,
-            colorStops: [
-              { offset: 0, color: '#a855f7' },
-              { offset: 1, color: '#ec4899' },
-            ],
+          qrOptions: {
+            errorCorrectionLevel: 'H',
           },
-        },
-        cornersSquareOptions: {
-          type: 'extra-rounded',
-          color: '#a855f7',
-        },
-        cornersDotOptions: {
-          type: 'dot',
-          color: '#ec4899',
-        },
-        backgroundOptions: {
-          color: '#18181b',
-        },
-      });
-    }
+          imageOptions: {
+            hideBackgroundDots: true,
+            imageSize: 0.35,
+            margin: 6,
+            crossOrigin: 'anonymous',
+          },
+          dotsOptions: {
+            type: 'rounded',
+            gradient: {
+              type: 'radial',
+              rotation: 0,
+              colorStops: [
+                { offset: 0, color: '#a855f7' },
+                { offset: 1, color: '#ec4899' },
+              ],
+            },
+          },
+          cornersSquareOptions: {
+            type: 'extra-rounded',
+            color: '#a855f7',
+          },
+          cornersDotOptions: {
+            type: 'dot',
+            color: '#ec4899',
+          },
+          backgroundOptions: {
+            color: '#18181b',
+          },
+        });
+      }
 
-    qrRef.current.innerHTML = '';
-    qrCodeRef.current.append(qrRef.current);
+      qrRef.current.innerHTML = '';
+      qrCodeRef.current.append(qrRef.current);
+    });
+
+    return () => cancelAnimationFrame(frameId);
   }, [open, size, portfolioUrl]);
 
   useEffect(() => {
