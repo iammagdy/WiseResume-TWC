@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, Target, Zap, FileSearch, Award } from 'lucide-react';
+import { TrendingUp, Target, Zap, FileSearch, Award, FolderOpen, BadgeCheck, Trophy } from 'lucide-react';
 import { SectionScores } from '@/types/resume';
 import { cn } from '@/lib/utils';
 
@@ -23,7 +23,6 @@ function AnimatedNumber({ value }: { value: number }) {
       if (!startTimeRef.current) startTimeRef.current = timestamp;
       const elapsed = timestamp - startTimeRef.current;
       const progress = Math.min(elapsed / duration, 1);
-      // ease-out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
       setDisplayValue(Math.round(eased * value));
       if (progress < 1) {
@@ -105,11 +104,14 @@ function ScoreCircle({ score, label, size = 'lg' }: { score: number; label: stri
   );
 }
 
-const SCORE_BREAKDOWN = [
+const ALL_SCORE_SECTIONS = [
   { id: 'skills', label: 'Skills Match', icon: Target },
   { id: 'experience', label: 'Experience', icon: Award },
-  { id: 'summary', label: 'Keywords', icon: FileSearch },
-  { id: 'education', label: 'ATS Ready', icon: Zap },
+  { id: 'summary', label: 'Summary', icon: FileSearch },
+  { id: 'education', label: 'Education', icon: Zap },
+  { id: 'projects', label: 'Projects', icon: FolderOpen },
+  { id: 'certifications', label: 'Certifications', icon: BadgeCheck },
+  { id: 'awards', label: 'Awards', icon: Trophy },
 ];
 
 export function ScoreComparison({
@@ -119,8 +121,15 @@ export function ScoreComparison({
   selectedSections,
 }: ScoreComparisonProps) {
   const improvement = afterScore - beforeScore;
+
+  const scoresRecord = sectionScores as unknown as Record<string, { before: number; after: number }>;
+  const visibleBreakdown = ALL_SCORE_SECTIONS.filter(
+    (s) => scoresRecord[s.id] !== undefined
+  );
+
+  const totalSectionCount = visibleBreakdown.length || 1;
   const effectiveAfterScore = Math.round(
-    beforeScore + (improvement * selectedSections.length / 4)
+    beforeScore + (improvement * selectedSections.length / totalSectionCount)
   );
 
   const [mounted, setMounted] = useState(false);
@@ -161,8 +170,9 @@ export function ScoreComparison({
       {/* Score Breakdown */}
       <div className="space-y-3">
         <p className="text-xs text-muted-foreground font-medium">Improvements:</p>
-        {SCORE_BREAKDOWN.map(({ id, label, icon: Icon }, index) => {
-          const scores = sectionScores[id as keyof SectionScores];
+        {visibleBreakdown.map(({ id, label, icon: Icon }, index) => {
+          const scores = scoresRecord[id];
+          if (!scores) return null;
           const change = scores.after - scores.before;
           const isSelected = selectedSections.includes(id);
 

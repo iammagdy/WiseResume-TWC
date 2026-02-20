@@ -31,6 +31,7 @@ import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
 import { activityTracker } from '@/lib/activityTracker';
+import haptics from '@/lib/haptics';
 
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
@@ -564,7 +565,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     if (!tailorResult || !tailorResult.overallScore) return null;
     const before = tailorResult.overallScore.before;
     const maxImprovement = tailorResult.overallScore.after - before;
-    const totalSections = 6;
+    const totalSections = 7;
     const sectionWeight = enabledSections.length / totalSections;
     return Math.round(before + (maxImprovement * sectionWeight));
   }, [tailorResult, enabledSections]);
@@ -710,24 +711,24 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                     <ToggleGroup
                       type="single"
                       value={intensity}
-                      onValueChange={(val) => val && setIntensity(val as TailorIntensity)}
-                      className="h-7"
+                      onValueChange={(val) => { if (val) { setIntensity(val as TailorIntensity); haptics.selection(); } }}
+                      className="min-h-[44px]"
                     >
-                      <ToggleGroupItem value="light" className="text-[10px] h-7 px-1.5">
+                      <ToggleGroupItem value="light" className="text-[10px] min-h-[44px] px-2.5">
                         <Zap className="w-3 h-3" />
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="moderate" className="text-[10px] h-7 px-1.5">
+                      <ToggleGroupItem value="moderate" className="text-[10px] min-h-[44px] px-2.5">
                         <Gauge className="w-3 h-3" />
                       </ToggleGroupItem>
-                      <ToggleGroupItem value="aggressive" className="text-[10px] h-7 px-1.5">
+                      <ToggleGroupItem value="aggressive" className="text-[10px] min-h-[44px] px-2.5">
                         <Flame className="w-3 h-3" />
                       </ToggleGroupItem>
                     </ToggleGroup>
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-7 text-xs px-2 min-h-0 active:scale-95 transition-transform"
-                      onClick={() => handleTailor()}
+                      className="min-h-[44px] text-xs px-2 active:scale-95 transition-transform"
+                      onClick={() => { haptics.light(); handleTailor(); }}
                     >
                       <RefreshCw className="w-3 h-3 mr-1" />
                       Re-tailor
@@ -781,11 +782,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="text-xs h-8" onClick={handleTailor}>
+                        <Button size="sm" variant="outline" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={handleTailor}>
                           <RefreshCw className="w-3 h-3 mr-1" />
                           Retry Score
                         </Button>
-                        <Button size="sm" variant="ghost" className="text-xs h-8" onClick={() => setShowAISettings(true)}>
+                        <Button size="sm" variant="ghost" className="text-xs min-h-[44px] active:scale-95 transition-transform" onClick={() => setShowAISettings(true)}>
                           <Key className="w-3 h-3 mr-1" />
                           Use Your Own Key
                         </Button>
@@ -1179,14 +1180,14 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
               <Button
                 variant="outline"
                 className="flex-1 min-h-[44px] active:scale-95 transition-transform"
-                onClick={handleRevert}
+                onClick={() => { haptics.warning(); handleRevert(); }}
               >
                 <Undo2 className="w-4 h-4 mr-2" />
                 Discard
               </Button>
               <Button
                 className="flex-1 gradient-primary min-h-[44px] active:scale-95 transition-transform"
-                onClick={handleApplyChanges}
+                onClick={() => { haptics.success(); handleApplyChanges(); }}
                 disabled={enabledSections.length === 0 || isApplying}
               >
                 {isApplying ? (
