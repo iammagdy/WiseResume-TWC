@@ -1468,6 +1468,9 @@ button,
   .pf-exp-chevron {
     transition: none;
   }
+  .pf-availability-dot { animation: none; }
+  .pf-availability-entrance { opacity: 1; transform: none; animation: none; }
+  .pf-holo-shimmer { animation: none; opacity: 0; }
 }
 
 /* ─── CTA Shimmer Sweep ──────────────────────────────────────────────────── */
@@ -1557,4 +1560,58 @@ button,
 
 [id^="section-"] {
   scroll-margin-top: 100px;
+}
+
+/* ─── Availability Badge ─────────────────────────────────────────────────── */
+@keyframes pf-availability-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); transform: scale(1.1); }
+}
+.pf-availability-dot {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: pf-availability-pulse 1.8s ease-out infinite;
+}
+.pf-availability-entrance {
+  opacity: 0;
+  transform: scale(0.85);
+  animation: pf-availability-enter 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes pf-availability-enter {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ─── Holographic Shimmer Overlay ────────────────────────────────────────── */
+@keyframes pf-holographic-shift {
+  0%   { background-position: 0% 50%;   opacity: 0.6; }
+  25%  { background-position: 100% 0%;  opacity: 1;   }
+  50%  { background-position: 100% 100%; opacity: 0.7; }
+  75%  { background-position: 0% 100%;  opacity: 1;   }
+  100% { background-position: 0% 50%;   opacity: 0.6; }
+}
+.pf-holo-shimmer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  mix-blend-mode: screen;
+  background: linear-gradient(
+    125deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.03) 20%,
+    rgba(120,80,255,0.08) 35%,
+    rgba(0,200,255,0.10) 50%,
+    rgba(120,80,255,0.08) 65%,
+    rgba(255,255,255,0.03) 80%,
+    rgba(255,255,255,0) 100%
+  );
+  background-size: 300% 300%;
+  animation: pf-holographic-shift 6s ease-in-out infinite;
+}
+.pf-holo-clean {
+  opacity: 0.6;
 }

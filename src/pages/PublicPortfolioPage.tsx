@@ -1540,6 +1540,30 @@ function PublicPortfolioContent() {
             </motion.div>
           )}
 
+          {/* Availability headline badge */}
+          {profile.availabilityHeadline && (
+            <div
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-2.5 pf-availability-entrance"
+              style={{
+                background: 'rgba(34, 197, 94, 0.10)',
+                border: '1px solid rgba(34, 197, 94, 0.25)',
+                animationDelay: `${badgeDelay + 200}ms`,
+                maxWidth: '85vw',
+              }}
+            >
+              <span className="pf-availability-dot" />
+              <span style={{
+                color: '#86efac',
+                fontSize: '0.8rem',
+                fontWeight: 500,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {profile.availabilityHeadline}
+              </span>
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-3 mb-3 flex-wrap pf-fade-entrance" style={{ animationDelay: `${locationDelay}ms` }}>
             {profile.location && (
