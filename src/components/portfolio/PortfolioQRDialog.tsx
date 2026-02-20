@@ -15,6 +15,17 @@ interface PortfolioQRDialogProps {
   onShare: () => void;
 }
 
+const formatDisplayUrl = (url: string): string => {
+  try {
+    const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
+    const parts = urlObj.pathname.split('/').filter(Boolean);
+    const slug = parts[parts.length - 1];
+    return `${urlObj.hostname}/.../${slug}`;
+  } catch {
+    return url;
+  }
+};
+
 export function PortfolioQRDialog({ open, onOpenChange, portfolioUrl, displayUrl, onShare }: PortfolioQRDialogProps) {
   const qrRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
@@ -101,7 +112,7 @@ export function PortfolioQRDialog({ open, onOpenChange, portfolioUrl, displayUrl
               className="rounded-2xl overflow-hidden shadow-lg shadow-purple-500/20"
             />
           </div>
-          <p className="text-xs text-muted-foreground font-mono text-center">{displayUrl}</p>
+          <p className="text-xs text-muted-foreground font-mono text-center truncate max-w-[200px] mx-auto">{formatDisplayUrl(displayUrl)}</p>
           <div className="grid grid-cols-2 gap-2 w-full">
             <Button variant="outline" className="h-11 rounded-xl active:scale-95 touch-manipulation text-xs" onClick={handleDownload}>
               <Download className="w-4 h-4 mr-1.5" /> Download QR
