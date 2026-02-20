@@ -1,96 +1,133 @@
 
-# Fix Download Issues, Portfolio Privacy, and Dashboard Tailored CV Tabs
+# UX and Feature Discoverability Improvement Plan
 
-## Overview
+## Analysis Summary
 
-This plan addresses four interconnected issues: APK downloads silently failing, portfolio page download errors and privacy concerns, and making tailored CVs easier to find on the dashboard.
-
----
-
-## Issue 1: APK Downloads Don't Actually Save (Android Capacitor)
-
-**Root Cause:** In a Capacitor WebView, the `<a download>` trick silently fails -- the browser reports success but no file is saved. The current `downloadMobile()` function only uses the anchor approach.
-
-**Fix:** Update `src/lib/downloadUtils.ts` to detect Capacitor native platform and use `navigator.share()` as the primary download method on Android (just like iOS already does). The Web Share API works reliably in Capacitor WebViews and presents the native Android share sheet where the user can choose "Save to Files".
-
-### File: `src/lib/downloadUtils.ts`
-- Import `Capacitor` from `@capacitor/core`
-- Add a `isCapacitorNative()` check
-- In `downloadFile()`, route Capacitor Android through the iOS-style `navigator.share` flow (which supports file sharing)
-- Keep the anchor fallback for regular Android browsers (Chrome, Firefox) where `<a download>` works fine
+After a thorough review of every major screen and navigation path in the app, I identified several areas where users are likely to miss features, feel overwhelmed, or get lost. The app has ~15+ AI tools, 5 tabs, and dozens of actions spread across multiple pages -- many of which a new user would never naturally discover.
 
 ---
 
-## Issue 2: Portfolio "Download CV" Button -- Privacy and Errors
+## Problem Areas Identified
 
-**Root Cause:** The button is labeled "Download CV" but actually captures a screenshot of the portfolio page as PDF. The label is misleading and raises privacy concerns since visitors think they're getting the actual CV. The download error likely stems from `html2canvas` failing on cross-origin avatar images.
+### 1. Feature Overload on AI Studio
+The AI Studio page lists 14 tools in a flat grid with minimal hierarchy. A new user opening this tab sees Proofread, Ideas, Customize, Enhance, Interview, Career, Humanize, LinkedIn, 1-Page, Recruiter, Briefing -- all at once. This creates decision paralysis and makes the most valuable tools (Tailor, Job Match) blend in with niche ones.
 
-**Fix (3 changes):**
+### 2. Dashboard is Dense for Returning Users
+The dashboard shows a trust banner, portfolio activity card, stats card, career milestones row, quick action chips, search bar, filter bar, and then the resume list -- all stacked vertically. On a small screen, the user must scroll past 4-5 sections before seeing their resumes.
 
-### A. Rename button: "Download CV" to "Save as PDF"
-### File: `src/pages/PublicPortfolioPage.tsx` (line ~1696)
-- Change label from `'Download CV'` to `'Save as PDF'`
-- Change generating label from `'Generating...'` to `'Saving...'`
+### 3. No Guided "What Should I Do Next?" System
+The app has `NextStepBanner` hints (preview, tailor, interview) but they only appear deep inside the Editor after completing sections. There is no dashboard-level guidance telling users "Your resume is 60% done -- finish your Skills section" or "You haven't tailored for a job yet."
 
-### B. Fix html2canvas error on cross-origin images
-### File: `src/pages/PublicPortfolioPage.tsx` (handleDownload function, line ~1354)
-- Add `foreignObjectRendering: false` to html2canvas options for better cross-origin handling
-- Wrap the entire flow in a more graceful try/catch that still produces a PDF even if some images fail to load
-- Add `onclone` callback to remove problematic cross-origin images from the cloned DOM before capture
+### 4. Settings Page Buries Useful Features
+Features like "AI Provider", "ElevenLabs Voice", "PDF Defaults", and "Data Export" are buried in Settings. Users who want to change their AI engine or export data would need to scroll through 8+ sections in Settings to find them.
 
-### C. Use navigator.share on mobile for the portfolio PDF
-- After generating the blob, use `navigator.share` on mobile devices instead of the anchor download, which is more reliable
+### 5. Bottom Tab Labels Are Vague
+"Studio" means nothing to a first-time user. "Applications" is the longest word in the tab bar and gets truncated on small screens. "Portfolio" is unclear for someone who just wants to build a resume.
 
 ---
 
-## Issue 3: Dashboard -- Add "My CVs" and "Tailored" Tabs
+## Proposed Improvements
 
-**Root Cause:** After tailoring a CV, the user has difficulty finding it because all resumes are shown in a single list. The tailored versions are nested under master resumes, which can be confusing.
+### Change 1: Add a "What's Next" Action Card to Dashboard
+Add a smart, contextual banner below the stats section that suggests the single most impactful next action based on the user's state:
 
-**Fix:** Add a tab bar at the top of the resume list on the Dashboard with two tabs:
+- No resumes: "Create your first resume"
+- Resume incomplete: "Finish your [Contact/Experience/Skills] section"
+- Resume complete but never tailored: "Tailor your resume for a job posting"
+- Resume tailored but never downloaded: "Download your resume as PDF"
+- All done: "Practice with a mock interview"
 
-### File: `src/pages/DashboardPage.tsx`
-- Add a `Tabs` component (already exists in the project) with two tabs: **"My CVs"** and **"Tailored"**
-- **"My CVs" tab:** Shows only original/master resumes (resumes without a `parent_resume_id`)
-- **"Tailored" tab:** Shows only tailored resumes (resumes with a `parent_resume_id`), each displaying:
-  - The tailored resume title
-  - A brief showing the target job title and company
-  - The job URL as a clickable LinkedIn/link chip (if available from the `target_job_title` and `target_company` fields)
-  - Quick actions (edit, download, delete)
-- Default tab is "My CVs"
-- Tab state persists during the session but resets on page reload
+This replaces the need for users to discover features themselves -- the app tells them what to do next.
 
-### Database field needed:
-- Check if `job_url` is stored on tailored resumes. Currently the tailor flow stores `target_job_title` and `target_company` but the job URL from `JobUrlParser` is not persisted to the database.
+**File:** `src/components/dashboard/WhatsNextCard.tsx` (new)
+**File:** `src/pages/DashboardPage.tsx` (add component between stats and quick actions)
 
-### File: `src/components/editor/TailorSheet.tsx`
-- When creating the tailored resume in `handleApplyChanges`, also save the `jobUrl` to the resume record (will need a new column or use existing metadata)
+### Change 2: Simplify AI Studio with Categories
+Group the 14 AI tools into 3 clear categories instead of a flat grid:
+
+- **Optimize** (Tailor, Job Match, A/B Compare, Proofread, Enhance)
+- **Create** (Ideas, Customize, 1-Page, Career Path)
+- **Prepare** (Interview, Recruiter Sim, LinkedIn, Humanize, Company Briefing)
+
+Each category gets a header and a brief description so users understand the purpose before scanning tools.
+
+**File:** `src/pages/AIStudioPage.tsx` (restructure the secondary tools grid into categorized sections)
+
+### Change 3: Rename Bottom Tab Labels for Clarity
+Change labels to be more intuitive:
+
+- "Home" stays "Home"
+- "Editor" stays "Editor"
+- "Studio" becomes "AI Tools" (clearer purpose)
+- "Applications" becomes "Jobs" (shorter, fits on small screens)
+- "Portfolio" stays "Portfolio"
+
+**File:** `src/components/layout/BottomTabBar.tsx` (update labels)
+**File:** `src/components/layout/DesktopNav.tsx` (update labels)
+
+### Change 4: Add Feature Discovery Tooltips on First Visit
+When a user visits the Dashboard for the first time (after onboarding), show small pulsing dots on the bottom tab icons for "AI Tools" and "Portfolio" with a tooltip that appears on tap:
+
+- AI Tools dot: "Use AI to tailor, proofread, and optimize your resume"
+- Portfolio dot: "Create a public portfolio page to share with employers"
+
+These dots dismiss after the user visits each tab once.
+
+**File:** `src/components/layout/BottomTabBar.tsx` (add first-visit indicators using localStorage flags)
+
+### Change 5: Reduce Dashboard Visual Clutter
+- Move `CareerMilestonesRow` into the Profile page instead of the dashboard (it's nice-to-have, not primary)
+- Make `PortfolioActivityCard` only show if the user has actually set up a portfolio (currently it always renders)
+- Collapse the trust banner after 3 visits instead of requiring manual dismissal
+
+**File:** `src/pages/DashboardPage.tsx` (conditional rendering changes)
+**File:** `src/components/dashboard/PortfolioActivityCard.tsx` (check for portfolio setup)
 
 ---
 
-## Issue 4: Persist Job URL for Tailored Resumes
+## Technical Details
 
-**Fix:** Add a `job_url` column to the `resumes` table so tailored resumes can link back to the original job posting.
-
-### Database Migration:
-```sql
-ALTER TABLE public.resumes ADD COLUMN IF NOT EXISTS job_url text;
+### WhatsNextCard Component Logic
+```text
+Priority order for "What's Next" suggestion:
+1. No resumes -> "Create your first resume" (CTA: navigate to create dialog)
+2. Has resume, score < 40 -> "Your resume needs work -- edit [weakest section]"
+3. Has resume, score >= 40, no tailored versions -> "Tailor for a specific job"
+4. Has tailored version, never downloaded -> "Download your resume"
+5. Has downloaded, never interviewed -> "Try a mock interview"
+6. All complete -> "You're all set! Keep your resume updated"
 ```
 
-### File: `src/components/editor/TailorSheet.tsx`
-- In `handleApplyChanges`, include `job_url: jobUrl || null` in the insert
+### AI Studio Category Structure
+```text
+Optimize (improve what you have)
+  - Smart Tailor [featured]
+  - Job Match Analysis [featured]
+  - A/B Compare [featured]
+  - Proofread
+  - Enhance
 
-### File: `src/pages/DashboardPage.tsx` (Tailored tab)
-- Display `job_url` as a clickable link chip when available
+Create (generate new content)
+  - Ideas / Content Library
+  - Customize / Design
+  - 1-Page Condenser
+  - Career Path Advisor
 
----
+Prepare (get ready for jobs)
+  - Mock Interview
+  - Recruiter Simulator
+  - LinkedIn Optimizer
+  - AI Humanizer
+  - Company Briefing
+```
 
-## Technical Summary of File Changes
+### Files Changed Summary
 
 | File | Change |
 |------|--------|
-| `src/lib/downloadUtils.ts` | Add Capacitor-aware share-first download for Android |
-| `src/pages/PublicPortfolioPage.tsx` | Rename "Download CV" to "Save as PDF", fix html2canvas error handling |
-| `src/pages/DashboardPage.tsx` | Add "My CVs" / "Tailored" tabs with job brief display |
-| `src/components/editor/TailorSheet.tsx` | Save job_url when creating tailored resume |
-| Database migration | Add `job_url` column to `resumes` table |
+| `src/components/dashboard/WhatsNextCard.tsx` | New component -- contextual next-action suggestion |
+| `src/pages/DashboardPage.tsx` | Add WhatsNextCard, move CareerMilestonesRow, conditional PortfolioActivityCard |
+| `src/pages/AIStudioPage.tsx` | Restructure tools into 3 categorized sections |
+| `src/components/layout/BottomTabBar.tsx` | Rename "Studio" to "AI Tools", "Applications" to "Jobs", add first-visit discovery dots |
+| `src/components/layout/DesktopNav.tsx` | Match renamed tab labels |
+| `src/components/dashboard/PortfolioActivityCard.tsx` | Only render if portfolio is configured |
