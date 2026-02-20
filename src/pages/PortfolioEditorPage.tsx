@@ -8,7 +8,7 @@ import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
   CheckCircle2, XCircle, Search, Palette, Layout, Type, Zap, ChevronDown,
   User, Link2, Eye, QrCode, Download, Share2, X, Plus, Briefcase, Star,
-  ArrowRight, BarChart2, AlertTriangle
+  ArrowRight, AlertTriangle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -24,7 +24,7 @@ import { useResumes } from '@/hooks/useResumes';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
-import { computeSkillFrequencies, getSkillTier, TIER_STYLES } from '@/lib/skillCloud';
+import { computeSkillFrequencies } from '@/lib/skillCloud';
 import type { Experience, Project } from '@/types/resume';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 
@@ -179,6 +179,16 @@ function CollapsibleCard({
   );
 }
 
+// ─── Sub-section divider ─────────────────────────────────────────────────────
+function SubSectionHeading({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="flex items-center gap-2 pt-2 pb-1 border-t border-border/30 mt-2 first:mt-0 first:border-t-0 first:pt-0">
+      <span className="text-muted-foreground">{icon}</span>
+      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
+    </div>
+  );
+}
+
 export default function PortfolioEditorPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -233,7 +243,6 @@ export default function PortfolioEditorPage() {
   const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
   const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
-  const [showAllSkills, setShowAllSkills] = useState(false);
   const [showAllSections, setShowAllSections] = useState(false);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -312,7 +321,7 @@ export default function PortfolioEditorPage() {
     return () => { if (usernameCheckRef.current) clearTimeout(usernameCheckRef.current); };
   }, [username, usernameError, user, profile?.username]);
 
-  // ── Skill Frequency Scores (must be before early return) ──────────────────
+  // ── Skill Frequency Scores (for hero stats row) ──────────────────
   const _selectedResumeForSkills = resumes.find(r => r.id === selectedResumeId) || resumes[0];
   const skillScores = useMemo(() => {
     const skills = (_selectedResumeForSkills?.skills ?? []) as string[];
@@ -472,9 +481,8 @@ export default function PortfolioEditorPage() {
     }
   };
 
-  // Display URL (cosmetic — no "lovable" branding shown to user)
+  // Display URL
   const portfolioDisplayUrl = username ? `WiseResume/${username}` : '';
-  // Actual URL (real domain the app runs on — dynamic, works with custom domains)
   const actualPortfolioUrl = username ? getPortfolioUrl(username) : '';
 
   const handleCopyUrl = async () => {
@@ -485,8 +493,6 @@ export default function PortfolioEditorPage() {
     toast.success('Link copied!');
     setTimeout(() => setCopied(false), 2000);
   };
-
-  // QR download is handled inside QRGeneratorSheet
 
   const handleShareQR = async () => {
     if (!actualPortfolioUrl) return;
@@ -521,12 +527,9 @@ export default function PortfolioEditorPage() {
   ];
   const strengthScore = Math.round((strengthChecks.filter(c => c.ok).length / strengthChecks.length) * 100);
   const strengthMissing = strengthChecks.filter(c => !c.ok).slice(0, 3);
-  const strengthColor = strengthScore < 40 ? 'bg-destructive' : strengthScore < 70 ? 'bg-yellow-500' : 'bg-green-500';
   const strengthLabel = strengthScore < 40 ? 'Needs work' : strengthScore < 70 ? 'Good' : 'Strong';
 
-  const maxScore = sortedSkillScores[0]?.[1] ?? 1;
   const strongSkillCount = sortedSkillScores.filter(([, s]) => s >= 2).length;
-  const dimSkillCount = sortedSkillScores.filter(([, s]) => s === 0).length;
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -542,9 +545,10 @@ export default function PortfolioEditorPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3 pb-24">
-        {/* Info banner removed — replaced by hero card */}
 
-        {/* ── Hero Card: Portfolio Overview ─────────────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════
+            1. HERO CARD — Portfolio Overview + inline strength tips
+           ══════════════════════════════════════════════════════════════ */}
         <div className="glass-elevated rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-foreground">Portfolio Overview</h3>
@@ -582,6 +586,35 @@ export default function PortfolioEditorPage() {
               <span className="text-emerald-400 font-medium">{strongSkillCount}</span> skills
             </span>
           </div>
+
+          {/* Inline strength tips (replaces the separate collapsible card) */}
+          {strengthMissing.length > 0 && (
+            <div className="space-y-0.5 pt-1">
+              {strengthMissing.map((m, i) => {
+                const handleTipTap = () => {
+                  haptics.light();
+                  const tip = m.tip.toLowerCase();
+                  if (tip.includes('bio') || tip.includes('social link') || tip.includes('contact email') || tip.includes('availability') || tip.includes('username')) {
+                    setOpenSections(prev => new Set(prev).add('profile'));
+                    setTimeout(() => document.getElementById('section-profile')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                  } else if (tip.includes('page title') || tip.includes('meta description')) {
+                    setShowAllSections(true);
+                    setOpenSections(prev => new Set(prev).add('seo'));
+                    setTimeout(() => document.getElementById('section-seo')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                  } else {
+                    navigate('/editor');
+                  }
+                };
+                return (
+                  <button key={i} onClick={handleTipTap} className="w-full flex items-center gap-1.5 text-xs text-muted-foreground py-1 rounded-lg hover:bg-muted/30 active:scale-[0.98] transition-all touch-manipulation text-left px-1">
+                    <span className="text-primary shrink-0">·</span>
+                    <span className="flex-1">{m.tip}</span>
+                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Publish toggle */}
           <div className="flex items-center justify-between pt-1">
@@ -623,55 +656,7 @@ export default function PortfolioEditorPage() {
           )}
         </div>
 
-        {/* ── Strength Tips (below hero, only when < 100%) ───────────── */}
-        {strengthMissing.length > 0 && (
-          <CollapsibleCard
-            id="strength-tips"
-            icon={<span className="text-base">💪</span>}
-            title="Improve your score"
-            hint={<span className="text-xs text-muted-foreground">{strengthMissing.length} tip{strengthMissing.length !== 1 ? 's' : ''}</span>}
-            openSections={openSections}
-            toggleSection={toggleSection}
-          >
-            <div className="space-y-1">
-              {strengthMissing.map((m, i) => {
-                const handleTipTap = () => {
-                  haptics.light();
-                  const tip = m.tip.toLowerCase();
-                  if (tip.includes('bio')) {
-                    setOpenSections(prev => new Set(prev).add('bio'));
-                    setTimeout(() => document.getElementById('section-bio')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-                  } else if (tip.includes('social link') || tip.includes('contact email')) {
-                    setShowAllSections(true);
-                    setOpenSections(prev => new Set(prev).add('social'));
-                    setTimeout(() => document.getElementById('section-social')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-                  } else if (tip.includes('availability')) {
-                    setShowAllSections(true);
-                    setOpenSections(prev => new Set(prev).add('availability'));
-                    setTimeout(() => document.getElementById('section-availability')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-                  } else if (tip.includes('username')) {
-                    setOpenSections(prev => new Set(prev).add('identity'));
-                    setTimeout(() => document.getElementById('section-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-                  } else if (tip.includes('page title') || tip.includes('meta description')) {
-                    setOpenSections(prev => new Set(prev).add('seo'));
-                    setTimeout(() => document.getElementById('section-seo')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
-                  } else {
-                    navigate('/editor');
-                  }
-                };
-                return (
-                  <button key={i} onClick={handleTipTap} className="w-full flex items-center gap-1.5 text-xs text-muted-foreground py-1.5 rounded-lg hover:bg-muted/30 active:scale-[0.98] transition-all touch-manipulation text-left px-1">
-                    <span className="text-primary shrink-0">·</span>
-                    <span className="flex-1">{m.tip}</span>
-                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                  </button>
-                );
-              })}
-            </div>
-          </CollapsibleCard>
-        )}
-
-        {/* ── QR Code Studio ──────────────────────────────────────────── */}
+        {/* QR Code Studio */}
         <QRGeneratorSheet
           open={showQR}
           onOpenChange={setShowQR}
@@ -680,90 +665,112 @@ export default function PortfolioEditorPage() {
           onShare={handleShareQR}
         />
 
-        {/* ── Visitors & Analytics (detail view) ───────────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════
+            2. PROFILE — Username, Resume, Bio, Social, Availability
+           ══════════════════════════════════════════════════════════════ */}
         <CollapsibleCard
-          id="visitors"
-          icon={<Eye className="w-4 h-4" />}
-          title="Visitors & Analytics"
-          hint={profile?.views != null ? <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{profile.views} views</Badge> : undefined}
+          id="profile"
+          icon={<User className="w-4 h-4" />}
+          title="Profile"
+          hint={username ? <span className="font-mono text-muted-foreground">/p/{username}</span> : undefined}
           openSections={openSections}
           toggleSection={toggleSection}
         >
-          <VisitorsPanel
-            username={profile?.username || undefined}
-            userId={user?.id}
-            portfolioEnabled={portfolioEnabled}
-          />
-        </CollapsibleCard>
-
-        {/* ── Skills on your portfolio ───────────────────────────────── */}
-        {sortedSkillScores.length > 0 && (
-          <CollapsibleCard
-            id="skill-cloud"
-            icon={<BarChart2 className="w-4 h-4" />}
-            title="Skills on your portfolio"
-            hint={
-              <span className="text-[10px] text-muted-foreground">
-                <span className="text-emerald-400 font-medium">{strongSkillCount} highlighted skills</span>
-              </span>
-            }
-            openSections={openSections}
-            toggleSection={toggleSection}
-          >
-            <p className="text-xs text-muted-foreground mb-2">
-              How often each skill appears in your experience &amp; projects — higher scores show larger in your public Skills cloud.
-            </p>
-            <div className="space-y-0.5">
-              {sortedSkillScores.slice(0, showAllSkills ? 999 : 7).map(([skill, score]) => {
-                const { tier } = getSkillTier(score);
-                const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
-                return (
-                  <div key={skill} className="flex items-center gap-2 py-1.5">
-                    <span className="text-sm text-foreground truncate flex-1 min-w-0">{skill}</span>
-                    <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
-                      <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${pct}%` }} />
-                    </div>
-                    <span className="text-[10px] text-muted-foreground w-16 text-right shrink-0">
-                      {score > 0 ? `${score} mention${score !== 1 ? 's' : ''}` : 'not found'}
-                    </span>
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full border shrink-0 ${TIER_STYLES[tier]}`}>
-                      {tier.toUpperCase()}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-            {sortedSkillScores.length > 7 && (
-              <button className="mt-1 text-xs text-primary underline-offset-2 hover:underline active:scale-95 transition-transform" onClick={() => { haptics.light(); setShowAllSkills(v => !v); }}>
-                {showAllSkills ? 'Show less' : `Show all ${sortedSkillScores.length} skills`}
-              </button>
-            )}
-            {dimSkillCount > 0 && (
-              <div className="mt-3 rounded-xl border border-amber-400/20 bg-amber-400/5 p-3 space-y-1.5">
-                <p className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                  <span>💡</span>
-                  {dimSkillCount} skill{dimSkillCount !== 1 ? 's' : ''} not found in your experience
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Mention them in job descriptions or projects to make them appear larger in your public Skills word cloud.
-                </p>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-primary px-2 gap-1 active:scale-95" onClick={() => { haptics.light(); navigate('/editor'); }}>
-                  Go to Resume Editor <ArrowRight className="w-3 h-3" />
-                </Button>
+          {/* Username */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Username</label>
+            <p className="text-xs text-muted-foreground">WiseResume/</p>
+            <Input value={username} onChange={(e) => handleUsernameChange(e.target.value)} placeholder="your-name" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url" />
+            {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
+            {!usernameError && username.length >= 3 && (
+              <div className="flex items-center gap-1.5">
+                {checkingUsername && <><Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Checking...</span></>}
+                {!checkingUsername && usernameAvailable === true && <><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-500">Available</span></>}
+                {!checkingUsername && usernameAvailable === false && <><XCircle className="w-3.5 h-3.5 text-destructive" /><span className="text-xs text-destructive">Taken</span></>}
               </div>
             )}
-          </CollapsibleCard>
-        )}
+          </div>
 
-        {/* ── Visual Theme (collapsible) ────────────────────────────── */}
+          {/* Source Resume */}
+          {resumes.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-foreground">Source Resume</label>
+              <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
+                <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
+                <SelectContent>
+                  {resumes.map(r => (
+                    <SelectItem key={r.id} value={r.id}>{r.title}{r.is_primary ? ' ★' : ''}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {/* Bio */}
+          <SubSectionHeading icon={<Sparkles className="w-3.5 h-3.5" />} label="About Me Bio" />
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-muted-foreground">Write a friendly bio or let AI generate one.</p>
+            <Button variant="ghost" size="sm" onClick={handleGenerateBio} disabled={generatingBio} className="h-8 text-xs active:scale-95 shrink-0">
+              {generatingBio ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+              {generatingBio ? 'Generating...' : 'AI Generate'}
+            </Button>
+          </div>
+          <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Write a friendly bio or let AI generate one..." className="min-h-[100px]" maxLength={500} />
+          <p className="text-xs text-muted-foreground text-right">{bio.length}/500</p>
+
+          {/* Social Links */}
+          <SubSectionHeading icon={<Link2 className="w-3.5 h-3.5" />} label="Social Links & Contact" />
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">GitHub URL</label>
+            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">Personal Website</label>
+            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
+            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
+            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
+          </div>
+
+          {/* Availability */}
+          <SubSectionHeading icon={<Zap className="w-3.5 h-3.5" />} label="Availability" />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-foreground">Show "Open to Work" badge</p>
+              <p className="text-xs text-muted-foreground">Green pulsing badge on your hero section</p>
+            </div>
+            <Switch checked={openToWork} onCheckedChange={v => { haptics.light(); setOpenToWork(v); }} />
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">Availability headline</label>
+              <Button variant="ghost" size="sm" onClick={handleGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
+                {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
+                AI Suggest
+              </Button>
+            </div>
+            <Input value={availabilityHeadline} onChange={e => setAvailabilityHeadline(e.target.value)} placeholder="Open to remote full-time · From June 2025" maxLength={100} autoCapitalize="sentences" />
+            <p className="text-xs text-muted-foreground text-right">{availabilityHeadline.length}/100</p>
+          </div>
+        </CollapsibleCard>
+
+        {/* ══════════════════════════════════════════════════════════════
+            3. APPEARANCE — Theme, Accent, Font, Layout, Color Mode
+           ══════════════════════════════════════════════════════════════ */}
         <CollapsibleCard
-          id="theme"
+          id="appearance"
           icon={<Palette className="w-4 h-4" />}
-          title="Visual Theme"
+          title="Appearance"
           hint={<Badge variant="outline" className="text-[10px] py-0 px-1.5">{THEMES.find(t => t.id === portfolioStyle)?.name || 'Minimal'}</Badge>}
           openSections={openSections}
           toggleSection={toggleSection}
         >
+          {/* Theme picker */}
           <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
             {THEMES.map(theme => (
               <ThemePreviewCard
@@ -778,231 +785,83 @@ export default function PortfolioEditorPage() {
           <p className="text-xs text-muted-foreground">
             {THEMES.find(t => t.id === portfolioStyle)?.desc}
           </p>
-        </CollapsibleCard>
 
-        {/* ── Customization (always show) ───────────────────────────── */}
-        <CollapsibleCard
-          id="customization"
-          icon={<Sparkles className="w-4 h-4" />}
-          title="Customization"
-          hint={
-            <Popover>
-              <PopoverTrigger asChild>
-                <span
-                  className="inline-block w-4 h-4 rounded-full border border-border cursor-pointer"
-                  style={{ background: portfolioAccentColor }}
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </PopoverTrigger>
-              <PopoverContent side="top" className="w-auto px-3 py-1.5 text-xs">
-                Your accent color
-              </PopoverContent>
-            </Popover>
-          }
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Accent Color</label>
-            <div className="flex items-center gap-2 flex-wrap">
-              {ACCENT_PRESETS.map(color => (
-                <button
-                  key={color}
-                  onClick={() => { haptics.light(); setPortfolioAccentColor(color); }}
-                  className="w-8 h-8 rounded-full transition-all active:scale-90"
-                  style={{ background: color, outline: portfolioAccentColor === color ? `3px solid ${color}` : '3px solid transparent', outlineOffset: '2px' }}
-                  title={color}
-                />
-              ))}
-              <div className="relative">
-                <input type="color" value={portfolioAccentColor} onChange={e => setPortfolioAccentColor(e.target.value)} className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer" title="Custom color" />
-                <div className="w-8 h-8 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground" style={{ background: ACCENT_PRESETS.includes(portfolioAccentColor) ? 'transparent' : portfolioAccentColor }}>
-                  {ACCENT_PRESETS.includes(portfolioAccentColor) ? '+' : ''}
-                </div>
+          {/* Accent Color */}
+          <SubSectionHeading icon={<Palette className="w-3.5 h-3.5" />} label="Accent Color" />
+          <div className="flex items-center gap-2 flex-wrap">
+            {ACCENT_PRESETS.map(color => (
+              <button
+                key={color}
+                onClick={() => { haptics.light(); setPortfolioAccentColor(color); }}
+                className="w-8 h-8 rounded-full transition-all active:scale-90"
+                style={{ background: color, outline: portfolioAccentColor === color ? `3px solid ${color}` : '3px solid transparent', outlineOffset: '2px' }}
+                title={color}
+              />
+            ))}
+            <div className="relative">
+              <input type="color" value={portfolioAccentColor} onChange={e => setPortfolioAccentColor(e.target.value)} className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer" title="Custom color" />
+              <div className="w-8 h-8 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground" style={{ background: ACCENT_PRESETS.includes(portfolioAccentColor) ? 'transparent' : portfolioAccentColor }}>
+                {ACCENT_PRESETS.includes(portfolioAccentColor) ? '+' : ''}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground font-mono">{portfolioAccentColor}</p>
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Type className="w-3.5 h-3.5 text-muted-foreground" />
-              <label className="text-sm font-medium text-foreground">Font Style</label>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { id: 'inter', label: 'Sans', sample: 'Aa', font: 'Inter' },
-                { id: 'space-grotesk', label: 'Display', sample: 'Aa', font: 'Space Grotesk' },
-                { id: 'serif', label: 'Serif', sample: 'Aa', font: 'Georgia' },
-              ] as const).map(f => (
-                <button key={f.id} onClick={() => { haptics.light(); setPortfolioFont(f.id); }} className={`py-3 px-2 rounded-xl border text-center transition-all active:scale-95 ${portfolioFont === f.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
-                  <p className="text-base" style={{ fontFamily: f.font }}>{f.sample}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{f.label}</p>
-                </button>
-              ))}
-            </div>
+          <p className="text-xs text-muted-foreground font-mono">{portfolioAccentColor}</p>
+
+          {/* Font Style */}
+          <SubSectionHeading icon={<Type className="w-3.5 h-3.5" />} label="Font Style" />
+          <div className="grid grid-cols-3 gap-2">
+            {([
+              { id: 'inter', label: 'Sans', sample: 'Aa', font: 'Inter' },
+              { id: 'space-grotesk', label: 'Display', sample: 'Aa', font: 'Space Grotesk' },
+              { id: 'serif', label: 'Serif', sample: 'Aa', font: 'Georgia' },
+            ] as const).map(f => (
+              <button key={f.id} onClick={() => { haptics.light(); setPortfolioFont(f.id); }} className={`py-3 px-2 rounded-xl border text-center transition-all active:scale-95 ${portfolioFont === f.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
+                <p className="text-base" style={{ fontFamily: f.font }}>{f.sample}</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">{f.label}</p>
+              </button>
+            ))}
           </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <Layout className="w-3.5 h-3.5 text-muted-foreground" />
-              <label className="text-sm font-medium text-foreground">Desktop Layout</label>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {([
-                { id: 'single', label: 'Single Column', icon: '▌' },
-                { id: 'two-col', label: 'Two Column', icon: '▌▌' },
-              ] as const).map(l => (
-                <button key={l.id} onClick={() => { haptics.light(); setPortfolioLayout(l.id); }} className={`py-3 px-4 rounded-xl border text-center transition-all active:scale-95 ${portfolioLayout === l.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
-                  <p className="text-base font-mono">{l.icon}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{l.label}</p>
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground">Mobile is always single column.</p>
+
+          {/* Desktop Layout */}
+          <SubSectionHeading icon={<Layout className="w-3.5 h-3.5" />} label="Desktop Layout" />
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              { id: 'single', label: 'Single Column', icon: '▌' },
+              { id: 'two-col', label: 'Two Column', icon: '▌▌' },
+            ] as const).map(l => (
+              <button key={l.id} onClick={() => { haptics.light(); setPortfolioLayout(l.id); }} className={`py-3 px-4 rounded-xl border text-center transition-all active:scale-95 ${portfolioLayout === l.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
+                <p className="text-base font-mono">{l.icon}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{l.label}</p>
+              </button>
+            ))}
           </div>
+          <p className="text-xs text-muted-foreground">Mobile is always single column.</p>
+
+          {/* Page Color Mode */}
+          <SubSectionHeading icon={<Eye className="w-3.5 h-3.5" />} label="Page Color Mode" />
+          <p className="text-xs text-muted-foreground">Overrides system dark/light preference for visitors.</p>
+          <Select value={selectedTheme} onValueChange={setSelectedTheme}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="system">Follow Visitor's System</SelectItem>
+              <SelectItem value="dark">Always Dark</SelectItem>
+              <SelectItem value="light">Always Light</SelectItem>
+            </SelectContent>
+          </Select>
         </CollapsibleCard>
 
-        {/* ── Identity (always show) ────────────────────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════
+            4. CONTENT & VISIBILITY — Sections + Sync Mode
+           ══════════════════════════════════════════════════════════════ */}
         <CollapsibleCard
-          id="identity"
-          icon={<User className="w-4 h-4" />}
-          title="Identity"
-          hint={username ? <span className="font-mono text-muted-foreground">/p/{username}</span> : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Username</label>
-            <p className="text-xs text-muted-foreground">WiseResume/</p>
-            <Input value={username} onChange={(e) => handleUsernameChange(e.target.value)} placeholder="your-name" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url" />
-            {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
-            {!usernameError && username.length >= 3 && (
-              <div className="flex items-center gap-1.5">
-                {checkingUsername && <><Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Checking...</span></>}
-                {!checkingUsername && usernameAvailable === true && <><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-500">Available</span></>}
-                {!checkingUsername && usernameAvailable === false && <><XCircle className="w-3.5 h-3.5 text-destructive" /><span className="text-xs text-destructive">Taken</span></>}
-              </div>
-            )}
-          </div>
-          {resumes.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Source Resume</label>
-              <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
-                <SelectContent>
-                  {resumes.map(r => (
-                    <SelectItem key={r.id} value={r.id}>{r.title}{r.is_primary ? ' ★' : ''}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Page Color Mode</label>
-            <p className="text-xs text-muted-foreground">Overrides system dark/light preference for visitors.</p>
-            <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="system">Follow Visitor's System</SelectItem>
-                <SelectItem value="dark">Always Dark</SelectItem>
-                <SelectItem value="light">Always Light</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CollapsibleCard>
-
-        {/* ── About Me Bio (with edit icon) ─────────────────────────── */}
-        <CollapsibleCard
-          id="bio"
-          icon={<User className="w-4 h-4" />}
-          title="About Me Bio"
-          hint={bio ? <span className="truncate max-w-[140px]">{bio.slice(0, 40)}{bio.length > 40 ? '…' : ''}</span> : undefined}
-          openSections={openSections}
-          toggleSection={toggleSection}
-          action={<span className="text-muted-foreground"><Sparkles className="w-3.5 h-3.5" /></span>}
-        >
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-muted-foreground">Write a friendly bio or let AI generate one.</p>
-            <Button variant="ghost" size="sm" onClick={handleGenerateBio} disabled={generatingBio} className="h-8 text-xs active:scale-95 shrink-0">
-              {generatingBio ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
-              {generatingBio ? 'Generating...' : 'AI Generate'}
-            </Button>
-          </div>
-          <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Write a friendly bio or let AI generate one..." className="min-h-[100px]" maxLength={500} />
-          <p className="text-xs text-muted-foreground text-right">{bio.length}/500</p>
-        </CollapsibleCard>
-
-        {/* ── Social Links (conditional + edit icon) ────────────────── */}
-        {(showAllSections || githubUrl || websiteUrl || twitterUrl || contactEmail) && (
-          <CollapsibleCard
-            id="social"
-            icon={<Link2 className="w-4 h-4" />}
-            title="Social Links & Contact"
-            hint={[githubUrl, websiteUrl, twitterUrl, contactEmail].filter(Boolean).length > 0
-              ? <span>{[githubUrl, websiteUrl, twitterUrl, contactEmail].filter(Boolean).length} linked</span>
-              : undefined}
-            openSections={openSections}
-            toggleSection={toggleSection}
-            action={<span className="text-muted-foreground"><Link2 className="w-3.5 h-3.5" /></span>}
-          >
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">GitHub URL</label>
-              <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">Personal Website</label>
-              <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-              <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
-              <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
-            </div>
-          </CollapsibleCard>
-        )}
-
-        {/* ── Availability (conditional) ────────────────────────────── */}
-        {(showAllSections || openToWork || availabilityHeadline) && (
-          <CollapsibleCard
-            id="availability"
-            icon={<Zap className="w-4 h-4" />}
-            title="Availability"
-            hint={openToWork ? <span className="text-green-500 font-medium">Open to Work ✓</span> : availabilityHeadline ? <span className="truncate max-w-[120px]">{availabilityHeadline}</span> : undefined}
-            openSections={openSections}
-            toggleSection={toggleSection}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-foreground">Show "Open to Work" badge</p>
-                <p className="text-xs text-muted-foreground">Green pulsing badge on your hero section</p>
-              </div>
-              <Switch checked={openToWork} onCheckedChange={v => { haptics.light(); setOpenToWork(v); }} />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-foreground">Availability headline</label>
-                <Button variant="ghost" size="sm" onClick={handleGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
-                  {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                  AI Suggest
-                </Button>
-              </div>
-              <Input value={availabilityHeadline} onChange={e => setAvailabilityHeadline(e.target.value)} placeholder="Open to remote full-time · From June 2025" maxLength={100} autoCapitalize="sentences" />
-              <p className="text-xs text-muted-foreground text-right">{availabilityHeadline.length}/100</p>
-            </div>
-          </CollapsibleCard>
-        )}
-
-        {/* ── Section Visibility ────────────────────────────────────── */}
-        <CollapsibleCard
-          id="sections"
+          id="content"
           icon={<Eye className="w-4 h-4" />}
-          title="Visible Sections"
+          title="Content & Visibility"
           hint={<span>{Object.values(sections).filter(Boolean).length} of {Object.keys(sections).length} shown</span>}
           openSections={openSections}
           toggleSection={toggleSection}
         >
+          {/* Section toggles */}
           <p className="text-xs text-muted-foreground">Choose which sections appear on your public portfolio.</p>
           <div className="space-y-2">
             {(Object.keys(SECTION_LABELS) as (keyof PortfolioSections)[]).map(key => (
@@ -1012,18 +871,10 @@ export default function PortfolioEditorPage() {
               </div>
             ))}
           </div>
-        </CollapsibleCard>
 
-        {/* ── Sync Mode ──────────────────────────────────────────────── */}
-        <CollapsibleCard
-          id="sync"
-          icon={<Sparkles className="w-4 h-4" />}
-          title="Content Sync Mode"
-          hint={<span>{syncMode === 'auto' ? 'Auto — resumes sync live' : 'Locked'}</span>}
-          openSections={openSections}
-          toggleSection={toggleSection}
-        >
-          <p className="text-xs text-muted-foreground mb-3">Control how your portfolio content stays in sync with your resume.</p>
+          {/* Sync Mode */}
+          <SubSectionHeading icon={<Sparkles className="w-3.5 h-3.5" />} label="Content Sync Mode" />
+          <p className="text-xs text-muted-foreground mb-2">Control how your portfolio content stays in sync with your resume.</p>
           <div className="space-y-2">
             <button onClick={() => setSyncMode('auto')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}>
               <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'auto' ? 'border-primary' : 'border-muted-foreground'}`}>
@@ -1046,7 +897,29 @@ export default function PortfolioEditorPage() {
           </div>
         </CollapsibleCard>
 
-        {/* ── Case Studies (conditional) ──────────────────────────────── */}
+        {/* ══════════════════════════════════════════════════════════════
+            5. VISITORS & ANALYTICS — unchanged
+           ══════════════════════════════════════════════════════════════ */}
+        <CollapsibleCard
+          id="visitors"
+          icon={<Eye className="w-4 h-4" />}
+          title="Visitors & Analytics"
+          hint={profile?.views != null ? <Badge variant="secondary" className="text-[10px] py-0 px-1.5">{profile.views} views</Badge> : undefined}
+          openSections={openSections}
+          toggleSection={toggleSection}
+        >
+          <VisitorsPanel
+            username={profile?.username || undefined}
+            userId={user?.id}
+            portfolioEnabled={portfolioEnabled}
+          />
+        </CollapsibleCard>
+
+        {/* ══════════════════════════════════════════════════════════════
+            CONDITIONAL SECTIONS — behind "Add more sections"
+           ══════════════════════════════════════════════════════════════ */}
+
+        {/* ── Case Studies ──────────────────────────────────────────── */}
         {(showAllSections || caseStudies.length > 0) && (
           <CollapsibleCard
             id="casestudies"
@@ -1076,7 +949,7 @@ export default function PortfolioEditorPage() {
           </CollapsibleCard>
         )}
 
-        {/* ── Services (conditional) ──────────────────────────────────── */}
+        {/* ── Services ──────────────────────────────────────────────── */}
         {(showAllSections || services.length > 0) && (
           <CollapsibleCard
             id="services"
@@ -1112,7 +985,7 @@ export default function PortfolioEditorPage() {
           </CollapsibleCard>
         )}
 
-        {/* ── SEO & Sharing (conditional) ───────────────────────────── */}
+        {/* ── SEO & Sharing ─────────────────────────────────────────── */}
         {(showAllSections || metaTitle || metaDescription) && (
           <CollapsibleCard
             id="seo"
