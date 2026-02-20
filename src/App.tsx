@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDeepLinking } from "./hooks/useDeepLinking";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
@@ -179,8 +179,9 @@ const queryClient = new QueryClient({
              <Route path="/resignation-letter/edit/:id" element={<Suspense fallback={<DetailSkeleton />}><ResignationLetterEditPage /></Suspense>} />
              <Route path="/guides" element={<Suspense fallback={<DashboardSkeleton />}><GuidesPage /></Suspense>} />
              <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
-             <Route path="/ai-studio" element={<Suspense fallback={<DashboardSkeleton />}><AIStudioPage /></Suspense>} />
-           </Route>
+              <Route path="/ai-studio" element={<Suspense fallback={<DashboardSkeleton />}><AIStudioPage /></Suspense>} />
+              <Route path="/activity" element={<Navigate to="/applications" replace />} />
+            </Route>
          </Route>
 
         {/* Public share page - outside AppShell */}
