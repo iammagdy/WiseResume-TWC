@@ -222,7 +222,8 @@ function InterviewPageContent() {
 
   if (phase === 'summary') {
     return (
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-y-auto">
         <InterviewSummary
           summary={summary!}
           duration={elapsedSeconds}
@@ -232,6 +233,7 @@ function InterviewPageContent() {
           onShowTips={() => setShowTips(true)}
         />
         <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
+        </div>
       </div>
     );
   }
@@ -239,7 +241,7 @@ function InterviewPageContent() {
   // Preview screen (job-targeted only)
   if (phase === 'preview') {
     return (
-      <div className="flex-1 flex flex-col overflow-y-auto">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button onClick={() => { setPendingJobDescription(undefined); }} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -249,11 +251,13 @@ function InterviewPageContent() {
             <h1 className="text-lg font-bold text-foreground">Interview Preview</h1>
           </div>
         </div>
-        <InterviewPreview
-          roleAnalysis={roleAnalysis}
-          isLoading={isAnalyzingRole}
-          onReady={handlePreviewReady}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <InterviewPreview
+            roleAnalysis={roleAnalysis}
+            isLoading={isAnalyzingRole}
+            onReady={handlePreviewReady}
+          />
+        </div>
       </div>
     );
   }
@@ -261,7 +265,7 @@ function InterviewPageContent() {
   // Setup screen
   if (phase === 'setup') {
     return (
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
           <button onClick={() => navigate('/dashboard')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
@@ -296,7 +300,7 @@ function InterviewPageContent() {
 
   // Active interview
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col overflow-hidden">
       {/* Premium glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
