@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import QRCodeStyling from 'qr-code-styling';
+import html2canvas from 'html2canvas';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -12,13 +13,11 @@ import wiseAiLogo from '@/assets/wise-ai-logo.png';
 import type { QRCustomizationState } from './qr-types';
 import { DEFAULT_QR_STATE } from './qr-types';
 import { getScannabilityWarnings } from './qr-utils';
+import { QRBrandedFrame } from './QRBrandedFrame';
 
 import { TemplatesTab } from './tabs/TemplatesTab';
-import { ColoursTab } from './tabs/ColoursTab';
-import { StyleTab } from './tabs/StyleTab';
-import { LogoTab } from './tabs/LogoTab';
-import { EyesTab } from './tabs/EyesTab';
-import { OptionsTab } from './tabs/OptionsTab';
+import { CustomizeTab } from './tabs/CustomizeTab';
+import { ExportTab } from './tabs/ExportTab';
 
 interface QRGeneratorSheetProps {
   open: boolean;
@@ -87,6 +86,7 @@ function buildQROptions(state: QRCustomizationState, size: number) {
 export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: QRGeneratorSheetProps) {
   const prefersReduced = useReducedMotion();
   const qrRef = useRef<HTMLDivElement>(null);
+  const captureRef = useRef<HTMLDivElement>(null);
   const qrCodeRef = useRef<QRCodeStyling | null>(null);
   const [previewBg, setPreviewBg] = useState<'light' | 'dark'>('dark');
   const [activeTab, setActiveTab] = useState('templates');
@@ -94,7 +94,6 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
   const [state, setState] = useState<QRCustomizationState>(() => ({
     ...DEFAULT_QR_STATE,
     data: portfolioUrl || '',
-    // Start with WiseResume template defaults
     templateId: 'wiseresume',
     foregroundColor: '#a855f7',
     backgroundColor: '#18181b',
@@ -105,24 +104,25 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
     options: { errorCorrection: 'H', sizePx: 1024, quietZone: 6, format: 'png' },
   }));
 
-  // Update data when portfolioUrl changes
   useEffect(() => {
     if (portfolioUrl) setState((prev) => ({ ...prev, data: portfolioUrl }));
   }, [portfolioUrl]);
 
   const handleChange = useCallback((partial: Partial<QRCustomizationState>) => {
-    setState((prev) => ({ ...prev, ...partial }));
+    setState((prev) => {
+      const next = { ...prev, ...partial };
+      // Always enforce logo + error correction
+      next.logo = { ...next.logo, src: wiseAiLogo, enabled: true };
+      next.options = { ...next.options, errorCorrection: 'H' };
+      return next;
+    });
   }, []);
 
-  // Initialize and update QR code
   useEffect(() => {
     if (!open) return;
-
     const frameId = requestAnimationFrame(() => {
       if (!qrRef.current) return;
-
       const options = buildQROptions(state, PREVIEW_SIZE);
-
       if (!qrCodeRef.current) {
         qrCodeRef.current = new QRCodeStyling(options);
         qrRef.current.innerHTML = '';
@@ -131,40 +131,46 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
         qrCodeRef.current.update(options);
       }
     });
-
     return () => cancelAnimationFrame(frameId);
   }, [open, state]);
 
-  // Reset QR instance when sheet closes so it re-appends cleanly
   useEffect(() => {
-    if (!open) {
-      qrCodeRef.current = null;
-    }
+    if (!open) qrCodeRef.current = null;
   }, [open]);
 
   const warnings = getScannabilityWarnings(state);
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     haptics.light();
-    if (!qrCodeRef.current) return;
+    if (!captureRef.current) return;
 
-    // For download, create a high-res instance
-    const downloadOptions = buildQROptions(state, state.options.sizePx);
-    const downloadQR = new QRCodeStyling(downloadOptions);
-    downloadQR.download({
-      name: 'wiseresume-qr',
-      extension: state.options.format,
-    });
-    toast.success(`QR code downloaded as ${state.options.format.toUpperCase()}!`);
+    if (state.options.format === 'png') {
+      try {
+        const canvas = await html2canvas(captureRef.current, {
+          backgroundColor: null,
+          scale: state.options.sizePx / PREVIEW_SIZE,
+        });
+        const link = document.createElement('a');
+        link.download = 'wiseresume-qr.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast.success('QR code downloaded as PNG!');
+      } catch {
+        toast.error('Download failed. Please try again.');
+      }
+    } else {
+      // SVG fallback — download QR only
+      if (qrCodeRef.current) {
+        qrCodeRef.current.download({ name: 'wiseresume-qr', extension: 'svg' });
+        toast.success('QR code downloaded as SVG!');
+      }
+    }
   };
 
   const TABS = [
     { id: 'templates', label: '🎨', title: 'Templates' },
-    { id: 'colours', label: '🌈', title: 'Colours' },
-    { id: 'style', label: '✨', title: 'Style' },
-    { id: 'logo', label: '🖼️', title: 'Logo' },
-    { id: 'eyes', label: '👁️', title: 'Eyes' },
-    { id: 'options', label: '⚙️', title: 'Options' },
+    { id: 'customize', label: '🎛️', title: 'Customize' },
+    { id: 'export', label: '📥', title: 'Export' },
   ];
 
   return (
@@ -174,7 +180,6 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
         className="h-[90vh] flex flex-col p-0 rounded-t-3xl"
         hideCloseButton={false}
       >
-        {/* Header */}
         <SheetHeader className="px-4 pt-6 pb-2">
           <SheetTitle className="text-center flex items-center justify-center gap-2 text-base">
             <QrCode className="w-5 h-5 text-primary" />
@@ -182,20 +187,20 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
           </SheetTitle>
         </SheetHeader>
 
-        {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          {/* Live Preview */}
-          <div className="flex flex-col items-center gap-2 px-4 py-3">
+          {/* Live Preview + Branded Frame */}
+          <div className="flex flex-col items-center gap-1 px-4 py-3">
             <div
-              className={`flex items-center justify-center rounded-2xl p-3 transition-colors ${
+              ref={captureRef}
+              className={`flex flex-col items-center rounded-2xl p-3 transition-colors ${
                 previewBg === 'dark' ? 'bg-zinc-900' : 'bg-white'
               }`}
-              style={{ minWidth: PREVIEW_SIZE + 24, minHeight: PREVIEW_SIZE + 24 }}
+              style={{ minWidth: PREVIEW_SIZE + 24 }}
             >
               <div ref={qrRef} className="rounded-xl overflow-hidden" />
+              <QRBrandedFrame />
             </div>
 
-            {/* Scannability warnings */}
             <AnimatePresence>
               {warnings.length > 0 && (
                 <motion.div
@@ -218,12 +223,12 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="px-4">
-            <TabsList className="w-full overflow-x-auto scrollbar-hide flex justify-start gap-0 bg-transparent p-0 h-auto mb-3">
+            <TabsList className="w-full flex justify-center gap-0 bg-transparent p-0 h-auto mb-3">
               {TABS.map((t) => (
                 <TabsTrigger
                   key={t.id}
                   value={t.id}
-                  className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary min-w-[52px] shrink-0"
+                  className="flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl text-xs data-[state=active]:bg-primary/10 data-[state=active]:text-primary min-w-[60px]"
                 >
                   <span className="text-base">{t.label}</span>
                   <span className="text-[10px] font-medium">{t.title}</span>
@@ -233,22 +238,13 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
 
             <div className="pb-4">
               <TabsContent value="templates" className="mt-0">
-                <TemplatesTab state={state} onChange={handleChange} defaultLogoSrc={wiseAiLogo} />
+                <TemplatesTab state={state} onChange={handleChange} />
               </TabsContent>
-              <TabsContent value="colours" className="mt-0">
-                <ColoursTab state={state} onChange={handleChange} />
+              <TabsContent value="customize" className="mt-0">
+                <CustomizeTab state={state} onChange={handleChange} />
               </TabsContent>
-              <TabsContent value="style" className="mt-0">
-                <StyleTab state={state} onChange={handleChange} />
-              </TabsContent>
-              <TabsContent value="logo" className="mt-0">
-                <LogoTab state={state} onChange={handleChange} defaultLogoSrc={wiseAiLogo} />
-              </TabsContent>
-              <TabsContent value="eyes" className="mt-0">
-                <EyesTab state={state} onChange={handleChange} />
-              </TabsContent>
-              <TabsContent value="options" className="mt-0">
-                <OptionsTab
+              <TabsContent value="export" className="mt-0">
+                <ExportTab
                   state={state}
                   onChange={handleChange}
                   previewBg={previewBg}

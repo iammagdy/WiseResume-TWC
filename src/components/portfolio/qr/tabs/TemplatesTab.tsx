@@ -5,10 +5,9 @@ import { haptics } from '@/lib/haptics';
 interface TemplatesTabProps {
   state: QRCustomizationState;
   onChange: (partial: Partial<QRCustomizationState>) => void;
-  defaultLogoSrc?: string;
 }
 
-export function TemplatesTab({ state, onChange, defaultLogoSrc }: TemplatesTabProps) {
+export function TemplatesTab({ state, onChange }: TemplatesTabProps) {
   const applyTemplate = (template: QRTemplate) => {
     haptics.light();
     const update: Partial<QRCustomizationState> = {
@@ -32,21 +31,8 @@ export function TemplatesTab({ state, onChange, defaultLogoSrc }: TemplatesTabPr
       },
     };
 
-    // Handle logo for templates
-    if (template.logo) {
-      update.logo = {
-        src: defaultLogoSrc,
-        enabled: template.logo.enabled ?? false,
-        sizePercent: template.logo.sizePercent ?? 25,
-        safeZone: template.logo.safeZone ?? true,
-      };
-      // Auto-bump error correction when logo is on
-      if (template.logo.enabled) {
-        update.options = { ...state.options, errorCorrection: 'H' };
-      }
-    } else {
-      update.logo = { ...state.logo, enabled: false };
-    }
+    // Logo is always enabled — no user control
+    // (handleChange in parent enforces this too)
 
     onChange(update);
   };
