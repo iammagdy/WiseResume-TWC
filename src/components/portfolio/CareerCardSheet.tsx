@@ -485,6 +485,23 @@ export function CareerCardSheet({
   const canWebShare = typeof navigator !== 'undefined' && !!navigator.share;
   const s = getVariantStyles(variant, accentColor);
 
+  const handlePointerMove = useCallback((clientX: number, clientY: number) => {
+    const el = previewWrapperRef.current;
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = el.getBoundingClientRect();
+    const x = (clientX - rect.left) / rect.width - 0.5;
+    const y = (clientY - rect.top) / rect.height - 0.5;
+    el.style.transform = `perspective(800px) rotateX(${-y * 24}deg) rotateY(${x * 24}deg)`;
+    el.style.transition = 'transform 100ms ease-out';
+  }, []);
+
+  const handlePointerLeave = useCallback(() => {
+    const el = previewWrapperRef.current;
+    if (!el) return;
+    el.style.transform = '';
+    el.style.transition = 'transform 400ms ease-out';
+  }, []);
+
   const handleVariantChange = useCallback((newVariant: CardVariant) => {
     if (newVariant === variant || flipClass) return;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -514,6 +531,10 @@ export function CareerCardSheet({
           {/* Live preview */}
           <div ref={previewWrapperRef} className="pf-card-flip-container w-full max-w-2xl mx-auto rounded-2xl border border-border/40 relative"
             style={{ aspectRatio: '1200/630' }}
+            onMouseMove={(e) => handlePointerMove(e.clientX, e.clientY)}
+            onMouseLeave={handlePointerLeave}
+            onTouchMove={(e) => handlePointerMove(e.touches[0].clientX, e.touches[0].clientY)}
+            onTouchEnd={handlePointerLeave}
           >
             <div
               className={`pf-card-flip-inner ${flipClass}`}
@@ -606,6 +627,12 @@ export function CareerCardSheet({
                   {username && <div style={{ fontSize: '13px', color: s.textMuted, fontFamily: 'monospace' }}>WiseResume/{username}</div>}
                 </div>
               </div>
+              {/* Holographic shimmer overlay */}
+              <div
+                className={`pf-holo-shimmer ${variant === 'clean' ? 'pf-holo-clean' : ''}`}
+                style={{ borderRadius: 'inherit' }}
+                aria-hidden="true"
+              />
             </div>
           </div>
 
