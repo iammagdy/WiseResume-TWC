@@ -6,18 +6,14 @@ import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
-  CheckCircle2, XCircle, Search, Palette, Layout, Type, Zap, ChevronDown,
-  User, Link2, Eye, QrCode, Download, Share2, X, Plus, Briefcase, Star,
-  ArrowRight, AlertTriangle
+  Eye, QrCode, Plus, Briefcase, Star, Search,
+  ArrowRight, AlertTriangle, X,
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
@@ -28,166 +24,10 @@ import { computeSkillFrequencies } from '@/lib/skillCloud';
 import type { Experience, Project } from '@/types/resume';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 
-interface PortfolioSections {
-  experience: boolean;
-  education: boolean;
-  skills: boolean;
-  projects: boolean;
-  certifications: boolean;
-  awards: boolean;
-  publications: boolean;
-  volunteering: boolean;
-}
-
-const DEFAULT_SECTIONS: PortfolioSections = {
-  experience: true, education: true, skills: true, projects: true,
-  certifications: true, awards: true, publications: true, volunteering: true,
-};
-
-const SECTION_LABELS: Record<keyof PortfolioSections, string> = {
-  experience: 'Experience', education: 'Education', skills: 'Skills',
-  projects: 'Projects', certifications: 'Certifications', awards: 'Awards',
-  publications: 'Publications', volunteering: 'Volunteering',
-};
-
-type PortfolioStyle = 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean';
-type PortfolioLayout = 'single' | 'two-col';
-type PortfolioFont = 'inter' | 'space-grotesk' | 'serif';
-
-const THEMES: { id: PortfolioStyle; name: string; desc: string; preview: { bg: string; accent: string; card: string; text: string } }[] = [
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    desc: 'Clean & spacious. Works for everyone.',
-    preview: { bg: '#0a0a14', accent: '#e84545', card: 'rgba(255,255,255,0.05)', text: '#f5f5ff' },
-  },
-  {
-    id: 'bold-dark',
-    name: 'Bold Dark',
-    desc: 'High contrast with glow cards.',
-    preview: { bg: '#0a0a0f', accent: '#e84545', card: 'rgba(255,255,255,0.03)', text: '#f8f8ff' },
-  },
-  {
-    id: 'glass-pro',
-    name: 'Glass Pro',
-    desc: 'Frosted glass. Modern & polished.',
-    preview: { bg: '#0d1117', accent: '#e84545', card: 'rgba(255,255,255,0.08)', text: '#f0f4ff' },
-  },
-  {
-    id: 'classic-clean',
-    name: 'Classic Clean',
-    desc: 'White, serif-accented. Formal & timeless.',
-    preview: { bg: '#ffffff', accent: '#e84545', card: '#f9f9f9', text: '#111827' },
-  },
-];
-
-const ACCENT_PRESETS = [
-  '#e84545', '#6366f1', '#0ea5e9', '#10b981',
-  '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6',
-];
-
-// ─── Theme Preview Card ───────────────────────────────────────────────────────
-function ThemePreviewCard({
-  theme, selected, accent, onSelect,
-}: {
-  theme: typeof THEMES[0];
-  selected: boolean;
-  accent: string;
-  onSelect: () => void;
-}) {
-  const displayAccent = accent || theme.preview.accent;
-  return (
-    <button
-      onClick={onSelect}
-      className={`relative rounded-2xl overflow-hidden transition-all shrink-0 w-36 active:scale-[0.97] ${selected ? 'ring-2 ring-offset-2' : 'ring-1 opacity-75 hover:opacity-100'}`}
-      style={{
-        '--tw-ring-color': selected ? displayAccent : 'rgba(255,255,255,0.1)',
-      } as React.CSSProperties}
-    >
-      <div className="h-20 p-2 space-y-1.5" style={{ background: theme.preview.bg }}>
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-full" style={{ background: displayAccent }} />
-          <div className="flex-1 space-y-0.5">
-            <div className="h-1.5 rounded-full w-3/4" style={{ background: theme.preview.text, opacity: 0.8 }} />
-            <div className="h-1 rounded-full w-1/2" style={{ background: displayAccent, opacity: 0.8 }} />
-          </div>
-        </div>
-        <div className="h-6 rounded-lg p-1 space-y-0.5" style={{ background: theme.preview.card }}>
-          <div className="h-1 rounded-full w-4/5" style={{ background: theme.preview.text, opacity: 0.5 }} />
-          <div className="h-1 rounded-full w-3/5" style={{ background: theme.preview.text, opacity: 0.3 }} />
-        </div>
-        <div className="flex gap-1">
-          {[0, 1, 2].map(i => (
-            <div key={i} className="h-2 rounded-full px-1 text-[4px]" style={{
-              background: `color-mix(in srgb, ${displayAccent} 20%, transparent)`,
-              border: `1px solid color-mix(in srgb, ${displayAccent} 35%, transparent)`,
-              width: i === 0 ? '28%' : i === 1 ? '22%' : '20%',
-            }} />
-          ))}
-        </div>
-      </div>
-      <div className="p-2 text-left" style={{ background: 'var(--card)' }}>
-        <p className="text-xs font-bold text-foreground truncate">{theme.name}</p>
-      </div>
-      {selected && (
-        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: displayAccent }}>
-          <Check className="w-2.5 h-2.5 text-white" />
-        </div>
-      )}
-    </button>
-  );
-}
-
-// ─── Collapsible Section Card ────────────────────────────────────────────────
-function CollapsibleCard({
-  id, icon, title, hint, openSections, toggleSection, children, action,
-}: {
-  id: string;
-  icon: React.ReactNode;
-  title: string;
-  hint?: React.ReactNode;
-  openSections: Set<string>;
-  toggleSection: (id: string) => void;
-  children: React.ReactNode;
-  action?: React.ReactNode;
-}) {
-  const isOpen = openSections.has(id);
-  return (
-    <div id={`section-${id}`} className="glass-elevated rounded-2xl overflow-hidden">
-      <button
-        onClick={() => toggleSection(id)}
-        className="w-full flex items-center justify-between p-4 text-left active:bg-muted/30 transition-colors"
-      >
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className="text-primary shrink-0">{icon}</span>
-          <h3 className="font-semibold text-foreground">{title}</h3>
-          {!isOpen && hint && (
-            <span className="text-xs text-muted-foreground truncate ml-1">{hint}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1 shrink-0 ml-2">
-          {action && !isOpen && action}
-          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-        </div>
-      </button>
-      {isOpen && (
-        <div className="px-4 pb-4 space-y-4">
-          {children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Sub-section divider ─────────────────────────────────────────────────────
-function SubSectionHeading({ icon, label }: { icon: React.ReactNode; label: string }) {
-  return (
-    <div className="flex items-center gap-2 pt-2 pb-1 border-t border-border/30 mt-2 first:mt-0 first:border-t-0 first:pt-0">
-      <span className="text-muted-foreground">{icon}</span>
-      <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>
-    </div>
-  );
-}
+import { CollapsibleCard } from '@/components/portfolio/editor/shared';
+import { ProfileSection } from '@/components/portfolio/editor/ProfileSection';
+import { AppearanceSection, type PortfolioStyle, type PortfolioLayout, type PortfolioFont, THEMES } from '@/components/portfolio/editor/AppearanceSection';
+import { ContentVisibilitySection, type PortfolioSections, DEFAULT_SECTIONS } from '@/components/portfolio/editor/ContentVisibilitySection';
 
 export default function PortfolioEditorPage() {
   const navigate = useNavigate();
@@ -587,7 +427,7 @@ export default function PortfolioEditorPage() {
             </span>
           </div>
 
-          {/* Inline strength tips (replaces the separate collapsible card) */}
+          {/* Inline strength tips */}
           {strengthMissing.length > 0 && (
             <div className="space-y-0.5 pt-1">
               {strengthMissing.map((m, i) => {
@@ -668,234 +508,67 @@ export default function PortfolioEditorPage() {
         {/* ══════════════════════════════════════════════════════════════
             2. PROFILE — Username, Resume, Bio, Social, Availability
            ══════════════════════════════════════════════════════════════ */}
-        <CollapsibleCard
-          id="profile"
-          icon={<User className="w-4 h-4" />}
-          title="Profile"
-          hint={username ? <span className="font-mono text-muted-foreground">/p/{username}</span> : undefined}
+        <ProfileSection
           openSections={openSections}
           toggleSection={toggleSection}
-        >
-          {/* Username */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-foreground">Username</label>
-            <p className="text-xs text-muted-foreground">WiseResume/</p>
-            <Input value={username} onChange={(e) => handleUsernameChange(e.target.value)} placeholder="your-name" autoCapitalize="none" autoCorrect="off" spellCheck={false} inputMode="url" />
-            {usernameError && <p className="text-xs text-destructive">{usernameError}</p>}
-            {!usernameError && username.length >= 3 && (
-              <div className="flex items-center gap-1.5">
-                {checkingUsername && <><Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" /><span className="text-xs text-muted-foreground">Checking...</span></>}
-                {!checkingUsername && usernameAvailable === true && <><CheckCircle2 className="w-3.5 h-3.5 text-green-500" /><span className="text-xs text-green-500">Available</span></>}
-                {!checkingUsername && usernameAvailable === false && <><XCircle className="w-3.5 h-3.5 text-destructive" /><span className="text-xs text-destructive">Taken</span></>}
-              </div>
-            )}
-          </div>
-
-          {/* Source Resume */}
-          {resumes.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-foreground">Source Resume</label>
-              <Select value={selectedResumeId} onValueChange={setSelectedResumeId}>
-                <SelectTrigger><SelectValue placeholder="Select a resume" /></SelectTrigger>
-                <SelectContent>
-                  {resumes.map(r => (
-                    <SelectItem key={r.id} value={r.id}>{r.title}{r.is_primary ? ' ★' : ''}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {/* Bio */}
-          <SubSectionHeading icon={<Sparkles className="w-3.5 h-3.5" />} label="About Me Bio" />
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground">Write a friendly bio or let AI generate one.</p>
-            <Button variant="ghost" size="sm" onClick={handleGenerateBio} disabled={generatingBio} className="h-8 text-xs active:scale-95 shrink-0">
-              {generatingBio ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
-              {generatingBio ? 'Generating...' : 'AI Generate'}
-            </Button>
-          </div>
-          <Textarea value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Write a friendly bio or let AI generate one..." className="min-h-[100px]" maxLength={500} />
-          <p className="text-xs text-muted-foreground text-right">{bio.length}/500</p>
-
-          {/* Social Links */}
-          <SubSectionHeading icon={<Link2 className="w-3.5 h-3.5" />} label="Social Links & Contact" />
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">GitHub URL</label>
-            <Input placeholder="https://github.com/yourusername" value={githubUrl} onChange={(e) => setGithubUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Personal Website</label>
-            <Input placeholder="https://yourwebsite.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">X (Twitter) URL</label>
-            <Input placeholder="https://x.com/yourusername" value={twitterUrl} onChange={(e) => setTwitterUrl(e.target.value)} type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
-          </div>
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-foreground">Contact Email (for "Hire Me" button)</label>
-            <Input type="email" placeholder="your@email.com" value={contactEmail} onChange={(e) => setContactEmail(e.target.value)} autoComplete="email" autoCapitalize="none" inputMode="email" />
-          </div>
-
-          {/* Availability */}
-          <SubSectionHeading icon={<Zap className="w-3.5 h-3.5" />} label="Availability" />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-foreground">Show "Open to Work" badge</p>
-              <p className="text-xs text-muted-foreground">Green pulsing badge on your hero section</p>
-            </div>
-            <Switch checked={openToWork} onCheckedChange={v => { haptics.light(); setOpenToWork(v); }} />
-          </div>
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-foreground">Availability headline</label>
-              <Button variant="ghost" size="sm" onClick={handleGenerateAvailability} disabled={generatingAvailability} className="h-7 text-xs px-2 active:scale-95">
-                {generatingAvailability ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
-                AI Suggest
-              </Button>
-            </div>
-            <Input value={availabilityHeadline} onChange={e => setAvailabilityHeadline(e.target.value)} placeholder="Open to remote full-time · From June 2025" maxLength={100} autoCapitalize="sentences" />
-            <p className="text-xs text-muted-foreground text-right">{availabilityHeadline.length}/100</p>
-          </div>
-        </CollapsibleCard>
+          username={username}
+          onUsernameChange={handleUsernameChange}
+          usernameError={usernameError}
+          usernameAvailable={usernameAvailable}
+          checkingUsername={checkingUsername}
+          resumes={resumes}
+          selectedResumeId={selectedResumeId}
+          onSelectedResumeIdChange={setSelectedResumeId}
+          bio={bio}
+          onBioChange={setBio}
+          onGenerateBio={handleGenerateBio}
+          generatingBio={generatingBio}
+          githubUrl={githubUrl}
+          onGithubUrlChange={setGithubUrl}
+          websiteUrl={websiteUrl}
+          onWebsiteUrlChange={setWebsiteUrl}
+          twitterUrl={twitterUrl}
+          onTwitterUrlChange={setTwitterUrl}
+          contactEmail={contactEmail}
+          onContactEmailChange={setContactEmail}
+          openToWork={openToWork}
+          onOpenToWorkChange={setOpenToWork}
+          availabilityHeadline={availabilityHeadline}
+          onAvailabilityHeadlineChange={setAvailabilityHeadline}
+          onGenerateAvailability={handleGenerateAvailability}
+          generatingAvailability={generatingAvailability}
+          currentUsername={profile?.username || null}
+        />
 
         {/* ══════════════════════════════════════════════════════════════
             3. APPEARANCE — Theme, Accent, Font, Layout, Color Mode
            ══════════════════════════════════════════════════════════════ */}
-        <CollapsibleCard
-          id="appearance"
-          icon={<Palette className="w-4 h-4" />}
-          title="Appearance"
-          hint={<Badge variant="outline" className="text-[10px] py-0 px-1.5">{THEMES.find(t => t.id === portfolioStyle)?.name || 'Minimal'}</Badge>}
+        <AppearanceSection
           openSections={openSections}
           toggleSection={toggleSection}
-        >
-          {/* Theme picker */}
-          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-            {THEMES.map(theme => (
-              <ThemePreviewCard
-                key={theme.id}
-                theme={theme}
-                selected={portfolioStyle === theme.id}
-                accent={portfolioAccentColor}
-                onSelect={() => { haptics.light(); setPortfolioStyle(theme.id); }}
-              />
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {THEMES.find(t => t.id === portfolioStyle)?.desc}
-          </p>
-
-          {/* Accent Color */}
-          <SubSectionHeading icon={<Palette className="w-3.5 h-3.5" />} label="Accent Color" />
-          <div className="flex items-center gap-2 flex-wrap">
-            {ACCENT_PRESETS.map(color => (
-              <button
-                key={color}
-                onClick={() => { haptics.light(); setPortfolioAccentColor(color); }}
-                className="w-8 h-8 rounded-full transition-all active:scale-90"
-                style={{ background: color, outline: portfolioAccentColor === color ? `3px solid ${color}` : '3px solid transparent', outlineOffset: '2px' }}
-                title={color}
-              />
-            ))}
-            <div className="relative">
-              <input type="color" value={portfolioAccentColor} onChange={e => setPortfolioAccentColor(e.target.value)} className="absolute inset-0 w-8 h-8 opacity-0 cursor-pointer" title="Custom color" />
-              <div className="w-8 h-8 rounded-full border-2 border-dashed border-border flex items-center justify-center text-[10px] font-bold text-muted-foreground" style={{ background: ACCENT_PRESETS.includes(portfolioAccentColor) ? 'transparent' : portfolioAccentColor }}>
-                {ACCENT_PRESETS.includes(portfolioAccentColor) ? '+' : ''}
-              </div>
-            </div>
-          </div>
-          <p className="text-xs text-muted-foreground font-mono">{portfolioAccentColor}</p>
-
-          {/* Font Style */}
-          <SubSectionHeading icon={<Type className="w-3.5 h-3.5" />} label="Font Style" />
-          <div className="grid grid-cols-3 gap-2">
-            {([
-              { id: 'inter', label: 'Sans', sample: 'Aa', font: 'Inter' },
-              { id: 'space-grotesk', label: 'Display', sample: 'Aa', font: 'Space Grotesk' },
-              { id: 'serif', label: 'Serif', sample: 'Aa', font: 'Georgia' },
-            ] as const).map(f => (
-              <button key={f.id} onClick={() => { haptics.light(); setPortfolioFont(f.id); }} className={`py-3 px-2 rounded-xl border text-center transition-all active:scale-95 ${portfolioFont === f.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
-                <p className="text-base" style={{ fontFamily: f.font }}>{f.sample}</p>
-                <p className="text-[10px] text-muted-foreground mt-0.5">{f.label}</p>
-              </button>
-            ))}
-          </div>
-
-          {/* Desktop Layout */}
-          <SubSectionHeading icon={<Layout className="w-3.5 h-3.5" />} label="Desktop Layout" />
-          <div className="grid grid-cols-2 gap-2">
-            {([
-              { id: 'single', label: 'Single Column', icon: '▌' },
-              { id: 'two-col', label: 'Two Column', icon: '▌▌' },
-            ] as const).map(l => (
-              <button key={l.id} onClick={() => { haptics.light(); setPortfolioLayout(l.id); }} className={`py-3 px-4 rounded-xl border text-center transition-all active:scale-95 ${portfolioLayout === l.id ? 'border-primary bg-primary/10' : 'border-border'}`}>
-                <p className="text-base font-mono">{l.icon}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{l.label}</p>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">Mobile is always single column.</p>
-
-          {/* Page Color Mode */}
-          <SubSectionHeading icon={<Eye className="w-3.5 h-3.5" />} label="Page Color Mode" />
-          <p className="text-xs text-muted-foreground">Overrides system dark/light preference for visitors.</p>
-          <Select value={selectedTheme} onValueChange={setSelectedTheme}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="system">Follow Visitor's System</SelectItem>
-              <SelectItem value="dark">Always Dark</SelectItem>
-              <SelectItem value="light">Always Light</SelectItem>
-            </SelectContent>
-          </Select>
-        </CollapsibleCard>
+          portfolioStyle={portfolioStyle}
+          onPortfolioStyleChange={setPortfolioStyle}
+          portfolioAccentColor={portfolioAccentColor}
+          onPortfolioAccentColorChange={setPortfolioAccentColor}
+          portfolioFont={portfolioFont}
+          onPortfolioFontChange={setPortfolioFont}
+          portfolioLayout={portfolioLayout}
+          onPortfolioLayoutChange={setPortfolioLayout}
+          selectedTheme={selectedTheme}
+          onSelectedThemeChange={setSelectedTheme}
+        />
 
         {/* ══════════════════════════════════════════════════════════════
             4. CONTENT & VISIBILITY — Sections + Sync Mode
            ══════════════════════════════════════════════════════════════ */}
-        <CollapsibleCard
-          id="content"
-          icon={<Eye className="w-4 h-4" />}
-          title="Content & Visibility"
-          hint={<span>{Object.values(sections).filter(Boolean).length} of {Object.keys(sections).length} shown</span>}
+        <ContentVisibilitySection
           openSections={openSections}
           toggleSection={toggleSection}
-        >
-          {/* Section toggles */}
-          <p className="text-xs text-muted-foreground">Choose which sections appear on your public portfolio.</p>
-          <div className="space-y-2">
-            {(Object.keys(SECTION_LABELS) as (keyof PortfolioSections)[]).map(key => (
-              <div key={key} className="flex items-center justify-between py-1.5">
-                <span className="text-sm text-foreground">{SECTION_LABELS[key]}</span>
-                <Switch checked={sections[key]} onCheckedChange={() => toggleSectionVisibility(key)} />
-              </div>
-            ))}
-          </div>
-
-          {/* Sync Mode */}
-          <SubSectionHeading icon={<Sparkles className="w-3.5 h-3.5" />} label="Content Sync Mode" />
-          <p className="text-xs text-muted-foreground mb-2">Control how your portfolio content stays in sync with your resume.</p>
-          <div className="space-y-2">
-            <button onClick={() => setSyncMode('auto')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'auto' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}>
-              <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'auto' ? 'border-primary' : 'border-muted-foreground'}`}>
-                {syncMode === 'auto' && <div className="w-2 h-2 rounded-full bg-primary" />}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Auto-sync</p>
-                <p className="text-xs text-muted-foreground">Changes to your resumes automatically sync to this portfolio.</p>
-              </div>
-            </button>
-            <button onClick={() => setSyncMode('locked')} className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${syncMode === 'locked' ? 'border-primary bg-primary/5' : 'border-border bg-card/50'}`}>
-              <div className={`mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${syncMode === 'locked' ? 'border-primary' : 'border-muted-foreground'}`}>
-                {syncMode === 'locked' && <div className="w-2 h-2 rounded-full bg-primary" />}
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">Locked snapshot</p>
-                <p className="text-xs text-muted-foreground">Freeze your portfolio at this version — edits to your resume won't affect it</p>
-              </div>
-            </button>
-          </div>
-        </CollapsibleCard>
+          sections={sections}
+          onToggleSectionVisibility={toggleSectionVisibility}
+          syncMode={syncMode}
+          onSyncModeChange={setSyncMode}
+        />
 
         {/* ══════════════════════════════════════════════════════════════
             5. VISITORS & ANALYTICS — unchanged
