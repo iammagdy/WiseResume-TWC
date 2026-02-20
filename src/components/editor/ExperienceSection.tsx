@@ -1,6 +1,7 @@
 import { useState, memo, useCallback } from 'react';
 
 import { Plus, Trash2, ChevronDown, ChevronUp, Building2, Briefcase, Calendar, Linkedin, ArrowUp, ArrowDown } from 'lucide-react';
+import { DragHandle } from './DragHandle';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -201,6 +202,7 @@ export const ExperienceSection = memo(function ExperienceSection() {
                   onClick={() => setExpandedId(expandedId === exp.id ? null : exp.id)}
                   className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[80px] sm:min-h-[72px]"
                 >
+                  <DragHandle />
                   <div className="text-left flex-1 min-w-0 pr-3">
                     <p className="font-semibold text-base sm:text-sm truncate">
                       {exp.position || `Position ${index + 1}`}

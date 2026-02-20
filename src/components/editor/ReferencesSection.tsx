@@ -1,5 +1,6 @@
 import { memo, useState } from 'react';
 import { Plus, Trash2, ChevronDown, ChevronUp, Users, Mail, Phone, Building2, ArrowUp, ArrowDown } from 'lucide-react';
+import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +32,7 @@ export const ReferencesSection = memo(function ReferencesSection() {
           {references.map((ref, i) => (
             <div key={ref.id} className="rounded-xl border border-border overflow-hidden">
               <button onClick={() => setExpandedId(expandedId === ref.id ? null : ref.id)} className="w-full p-4 flex items-center justify-between hover:bg-muted/50 touch-manipulation active:bg-muted/70 min-h-[72px]">
+                <DragHandle />
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={e => { e.stopPropagation(); moveUp(i); }} disabled={i === 0} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move up"><ArrowUp className="w-3.5 h-3.5" /></button>
                   <button onClick={e => { e.stopPropagation(); moveDown(i); }} disabled={i === references.length - 1} className="p-1.5 rounded hover:bg-muted disabled:opacity-30 min-w-[32px] min-h-[32px] flex items-center justify-center" aria-label="Move down"><ArrowDown className="w-3.5 h-3.5" /></button>

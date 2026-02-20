@@ -100,12 +100,31 @@ export function ActivityTimeline() {
 
   if (entries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <Clock className="w-10 h-10 text-muted-foreground/40 mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Your activity will appear here as you create resumes and tailor them for jobs
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.4 }}
+        className="flex flex-col items-center justify-center py-12 text-center px-6"
+      >
+        <div className="relative mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-primary" />
+          </div>
+          <div className="absolute -top-2 -right-3 w-8 h-8 rounded-xl bg-accent/15 flex items-center justify-center rotate-12">
+            <Scissors className="w-4 h-4 text-accent-foreground" />
+          </div>
+        </div>
+        <h3 className="text-base font-semibold mb-1">Your career journey starts here</h3>
+        <p className="text-sm text-muted-foreground mb-5 max-w-[280px]">
+          Create a resume, tailor it for jobs, and track your applications — all in one place
         </p>
-      </div>
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90 rounded-xl px-5 py-3 min-h-[44px] transition-colors active:scale-95 touch-manipulation shadow-sm"
+        >
+          Start building your resume
+        </button>
+      </motion.div>
     );
   }
 

@@ -10,6 +10,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { JobActivityStatsCard } from '@/components/applications/JobActivityStats';
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
+import { ActivityStreak } from '@/components/applications/ActivityStreak';
+import { ResumeCompletionCard } from '@/components/applications/ResumeCompletionCard';
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
 import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
 import { JobSearchSheet, JobFilters } from '@/components/applications/JobSearchSheet';
@@ -279,6 +281,10 @@ export default function ApplicationsPage() {
             <>
               {/* Status Filter */}
               <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
+
+              {/* Streak & Completion Cards */}
+              <ActivityStreak />
+              <ResumeCompletionCard />
 
               {/* Recent Activity — primary content, always visible */}
               <div id="activity-timeline">

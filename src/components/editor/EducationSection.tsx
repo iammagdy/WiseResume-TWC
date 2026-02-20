@@ -1,6 +1,7 @@
 import { useState, memo } from 'react';
 
 import { Plus, Trash2, ChevronDown, ChevronUp, GraduationCap, Calendar } from 'lucide-react';
+import { DragHandle } from './DragHandle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -153,6 +154,7 @@ export const EducationSection = memo(function EducationSection() {
                   onClick={() => setExpandedId(expandedId === edu.id ? null : edu.id)}
                   className="w-full p-4 flex items-center justify-between hover:bg-muted/50 transition-colors touch-manipulation active:bg-muted/70 min-h-[56px]"
                 >
+                  <DragHandle />
                   <div className="text-left flex-1 min-w-0 pr-3">
                     <p className="font-semibold text-sm truncate">
                       {edu.degree || `Degree ${index + 1}`}
