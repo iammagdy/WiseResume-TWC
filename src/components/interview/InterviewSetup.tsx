@@ -183,10 +183,10 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
           <button
             onClick={() => handleVoiceChange('female')}
             className={cn(
-              'flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all touch-manipulation',
+              'flex-1 flex items-center justify-center gap-2 min-h-[44px] py-3 text-sm transition-colors duration-200 ease-in-out touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               voiceGender === 'female'
-                ? 'bg-primary/20 text-primary border-r border-primary/30 shadow-[inset_0_0_20px_hsl(var(--primary)/0.1)]'
-                : 'text-muted-foreground hover:text-foreground border-r border-border/30'
+                ? 'bg-primary text-primary-foreground font-semibold'
+                : 'bg-transparent text-muted-foreground hover:text-foreground'
             )}
           >
             <UserRound className="w-4 h-4" />
@@ -195,10 +195,10 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
           <button
             onClick={() => handleVoiceChange('male')}
             className={cn(
-              'flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold transition-all touch-manipulation',
+              'flex-1 flex items-center justify-center gap-2 min-h-[44px] py-3 text-sm transition-colors duration-200 ease-in-out touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               voiceGender === 'male'
-                ? 'bg-primary/20 text-primary shadow-[inset_0_0_20px_hsl(var(--primary)/0.1)]'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-primary text-primary-foreground font-semibold'
+                : 'bg-transparent text-muted-foreground hover:text-foreground'
             )}
           >
             <User className="w-4 h-4" />

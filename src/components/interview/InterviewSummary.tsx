@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Award, RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { AnswerScore } from '@/hooks/useVoiceInterview';
@@ -27,17 +28,45 @@ function ScoreBadge({ score }: { score: number }) {
   );
 }
 
+function extractScore(summary: string): number | null {
+  const patterns = [
+    /Score:\s*(\d+)\s*\/\s*10/i,
+    /(\d+)\s*\/\s*10/,
+    /(\d+)\s*out\s*of\s*10/i,
+    /overall[^:]*:\s*(\d+)/i,
+  ];
+  for (const p of patterns) {
+    const m = summary.match(p);
+    if (m) {
+      const n = parseInt(m[1]);
+      if (n >= 0 && n <= 10) return n;
+    }
+  }
+  return null;
+}
+
 export function InterviewSummary({ summary, duration, scores, onRestart, onGoHome, onShowTips }: InterviewSummaryProps) {
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const reducedMotion = useReducedMotion();
 
-  const scoreMatch = summary.match(/Score:\s*(\d+)\/10/i);
-  const overallScore = scoreMatch ? parseInt(scoreMatch[1]) : null;
+  const overallScore = useMemo(() => {
+    const parsed = extractScore(summary);
+    if (parsed !== null) return parsed;
+    if (scores.length > 0) return Math.round(scores.reduce((sum, s) => sum + s.score, 0) / scores.length);
+    return null;
+  }, [summary, scores]);
 
   const avgScore = scores.length > 0
     ? Math.round((scores.reduce((sum, s) => sum + s.score, 0) / scores.length) * 10) / 10
     : null;
+
+  const scoreColor = overallScore !== null
+    ? overallScore >= 8 ? 'text-green-400 border-green-500/60'
+      : overallScore >= 5 ? 'text-yellow-400 border-yellow-500/60'
+      : 'text-red-400 border-red-500/60'
+    : 'text-muted-foreground border-border';
 
   return (
     <motion.div
@@ -46,21 +75,21 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
       className="flex flex-col gap-5 px-4 py-6 max-w-lg mx-auto overflow-y-auto"
     >
       <div className="text-center space-y-3">
-        <div className="relative w-24 h-24 mx-auto">
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4) 0%, transparent 70%)' }}
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.8, 0.5] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          <div className="absolute inset-2 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 backdrop-blur-sm border border-primary/30 flex items-center justify-center">
-            {overallScore !== null ? (
-              <span className="text-2xl font-bold text-primary">{overallScore}/10</span>
-            ) : (
-              <Award className="w-10 h-10 text-primary" />
-            )}
-          </div>
-        </div>
+        <motion.div
+          className={cn('w-20 h-20 mx-auto rounded-full border-2 flex flex-col items-center justify-center', scoreColor)}
+          initial={reducedMotion ? false : { scale: 0.75, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+        >
+          {overallScore !== null ? (
+            <>
+              <span className={cn('text-2xl font-bold', scoreColor.split(' ')[0])}>{overallScore}</span>
+              <span className="text-xs text-muted-foreground">/ 10</span>
+            </>
+          ) : (
+            <span className="text-xl text-muted-foreground">—</span>
+          )}
+        </motion.div>
         <h2 className="text-xl font-bold text-foreground">Wise AI Summary</h2>
         <p className="text-sm text-muted-foreground">
           Duration: {mins}m {secs.toString().padStart(2, '0')}s
@@ -68,8 +97,10 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
         </p>
       </div>
 
-      <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4 space-y-2 shadow-[0_0_20px_hsl(var(--primary)/0.05)]">
-        <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">{summary}</p>
+      <div className="bg-card/60 backdrop-blur-sm border border-border/50 rounded-xl p-4 shadow-[0_0_20px_hsl(var(--primary)/0.05)]">
+        <div className="prose prose-sm dark:prose-invert max-w-none [&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-primary [&_h1]:mb-1 [&_h2]:text-base [&_h2]:font-semibold [&_h2]:text-primary [&_h2]:mb-1 [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:text-primary [&_h3]:mb-1 [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-primary [&_h4]:mb-1 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-foreground/80 [&_p]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_ol]:ml-4 [&_ol]:list-decimal [&_li]:text-sm [&_li]:text-foreground/80 [&_li]:mb-1 [&_strong]:text-foreground [&_strong]:font-semibold">
+          <ReactMarkdown>{summary}</ReactMarkdown>
+        </div>
       </div>
 
       {/* Per-answer score breakdown */}

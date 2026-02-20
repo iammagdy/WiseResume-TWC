@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Trophy, Trash2, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { useInterviewHistory, useDeleteInterviewSession } from '@/hooks/useInterviewHistory';
@@ -99,7 +100,10 @@ export function InterviewHistorySheet({ open, onOpenChange }: InterviewHistorySh
                               <p className="text-xs font-semibold text-green-500 mb-1">Strengths</p>
                               <ul className="text-xs text-muted-foreground space-y-0.5">
                                 {(session.strengths as string[]).map((s, i) => (
-                                  <li key={i}>• {s}</li>
+                                  <li key={i} className="flex gap-1">
+                                    <span>•</span>
+                                    <span className="prose prose-xs dark:prose-invert max-w-none [&_p]:inline [&_strong]:text-foreground [&_strong]:font-semibold"><ReactMarkdown>{s}</ReactMarkdown></span>
+                                  </li>
                                 ))}
                               </ul>
                             </div>
@@ -109,7 +113,10 @@ export function InterviewHistorySheet({ open, onOpenChange }: InterviewHistorySh
                               <p className="text-xs font-semibold text-yellow-500 mb-1">Areas to Improve</p>
                               <ul className="text-xs text-muted-foreground space-y-0.5">
                                 {(session.improvements as string[]).map((s, i) => (
-                                  <li key={i}>• {s}</li>
+                                  <li key={i} className="flex gap-1">
+                                    <span>•</span>
+                                    <span className="prose prose-xs dark:prose-invert max-w-none [&_p]:inline [&_strong]:text-foreground [&_strong]:font-semibold"><ReactMarkdown>{s}</ReactMarkdown></span>
+                                  </li>
                                 ))}
                               </ul>
                             </div>
