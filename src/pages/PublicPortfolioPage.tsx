@@ -574,14 +574,14 @@ function EducationCard({ edu, style }: { edu: Education; style: string }) {
     : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
 
   return (
-    <motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-1">
+    <div style={cardStyle} className="pf-edu-card space-y-1">
       <h4 className="font-bold text-sm" style={{ fontFamily: 'var(--pf-heading-font)', color: 'var(--pf-fg, inherit)' }}>
         {edu.degree}{edu.field ? ` in ${edu.field}` : ''}
       </h4>
       <p className="text-sm font-semibold" style={{ color: 'var(--pf-accent)' }}>{edu.institution}</p>
       <p className="text-xs" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{edu.startDate} – {edu.endDate}</p>
       {edu.gpa && <p className="text-xs" style={{ color: 'var(--pf-muted, #9ca3af)' }}>GPA: {edu.gpa}</p>}
-    </motion.div>
+    </div>
   );
 }
 
@@ -821,28 +821,62 @@ function SkillCloud({ skills, experience, projects, showMore, onToggleMore, hasM
   );
 
   const visible = showMore ? sorted : sorted.slice(0, SKILL_CLOUD_LIMIT);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const observerFired = useRef(false);
+
+  // Initial reveal via IntersectionObserver
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || observerFired.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting) return;
+        observerFired.current = true;
+        const tags = el.querySelectorAll('.pf-skill-tag');
+        const delay = window.innerWidth < 768 ? 25 : 40;
+        tags.forEach((tag, i) => {
+          (tag as HTMLElement).style.animationDelay = `${i * delay}ms`;
+          tag.classList.add('pf-skill-revealed');
+        });
+        observer.disconnect();
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -50px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Animate newly revealed tags when "Show more" expands
+  useEffect(() => {
+    if (!showMore || !containerRef.current) return;
+    requestAnimationFrame(() => {
+      const el = containerRef.current;
+      if (!el) return;
+      const unrevealed = el.querySelectorAll('.pf-skill-tag:not(.pf-skill-revealed)');
+      if (unrevealed.length === 0) return;
+      const alreadyCount = el.querySelectorAll('.pf-skill-tag.pf-skill-revealed').length;
+      const delay = window.innerWidth < 768 ? 25 : 40;
+      unrevealed.forEach((tag, i) => {
+        (tag as HTMLElement).style.animationDelay = `${(alreadyCount + i) * delay}ms`;
+        tag.classList.add('pf-skill-revealed');
+      });
+    });
+  }, [showMore]);
 
   return (
     <>
-      <motion.div
-        variants={skillWave}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true }}
-        className="flex flex-wrap gap-2 items-baseline"
-      >
+      <div ref={containerRef} className="flex flex-wrap gap-2 items-baseline">
         {visible.map((skill, i) => {
           const tier = getSkillTier(scores[skill] ?? 0);
           return (
-            <motion.span
-              key={i}
-              variants={skillPill}
+            <span
+              key={skill}
               title={skill}
+              className="pf-skill-tag"
               style={{
                 fontSize: tier.fontSize,
                 fontWeight: tier.fontWeight,
                 padding: `${tier.py} ${tier.px}`,
-                opacity: tier.opacity,
                 borderRadius: '9999px',
                 background: 'color-mix(in srgb, var(--pf-accent) 12%, transparent)',
                 color: 'var(--pf-accent)',
@@ -855,10 +889,10 @@ function SkillCloud({ skills, experience, projects, showMore, onToggleMore, hasM
               }}
             >
               {skill}
-            </motion.span>
+            </span>
           );
         })}
-      </motion.div>
+      </div>
       {hasMore && (
         <button
           onClick={onToggleMore}
@@ -1477,7 +1511,23 @@ function PublicPortfolioContent() {
             {hasEducation && (
               <motion.section variants={stagger} id="section-education">
                 <SectionHeader icon={<GraduationCap className="w-5 h-5" />} title="Education" style={pStyle} />
-                <div className="space-y-4">
+                <div className="space-y-4" ref={(el) => {
+                  if (!el || (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved) return;
+                  (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved = true;
+                  const observer = new IntersectionObserver(
+                    ([entry]) => {
+                      if (!entry.isIntersecting) return;
+                      const cards = el.querySelectorAll('.pf-edu-card');
+                      cards.forEach((card, i) => {
+                        (card as HTMLElement).style.animationDelay = `${i * 120}ms`;
+                        card.classList.add('pf-edu-revealed');
+                      });
+                      observer.disconnect();
+                    },
+                    { threshold: 0.2, rootMargin: '0px 0px -50px 0px' }
+                  );
+                  observer.observe(el);
+                }}>
                   {resume.education.map((edu, i) => (
                     <EducationCard key={edu.id || i} edu={edu} style={pStyle} />
                   ))}
