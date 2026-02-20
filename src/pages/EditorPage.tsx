@@ -905,19 +905,17 @@ export default function EditorPage() {
               >
                 <ArrowLeft className="w-6 h-6" />
               </button>
-              <h1
-                className="text-h3 truncate cursor-pointer hover:text-primary/80 transition-colors active:scale-95"
+              <button
+                className="flex items-center gap-1 min-w-0 max-w-[45vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
                 title={resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
-                onClick={() => {
-                  const current = resumeFromDb?.title || '';
-                  const newName = window.prompt('Rename resume', current);
-                  if (newName && newName.trim() && newName.trim() !== current && currentResumeId) {
-                    updateResume.mutate({ resumeId: currentResumeId, updates: {}, title: newName.trim() });
-                  }
-                }}
+                onClick={() => navigate('/dashboard')}
+                aria-label="Switch resume"
               >
-                {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
-              </h1>
+                <span className="text-h3 truncate">
+                  {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
+                </span>
+                <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
+              </button>
               <OfflineIndicator isSyncing={isSyncing} />
               {/* Undo/Redo buttons */}
               <div className="hidden xs:flex items-center gap-0.5">

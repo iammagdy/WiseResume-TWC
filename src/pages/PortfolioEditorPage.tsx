@@ -7,7 +7,7 @@ import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
   CheckCircle2, XCircle, Search, Palette, Layout, Type, Zap, ChevronDown,
   User, Link2, Eye, QrCode, Download, Share2, X, Plus, Briefcase, Star,
-  ArrowRight, BarChart2
+  ArrowRight, BarChart2, AlertTriangle
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -602,10 +602,11 @@ export default function PortfolioEditorPage() {
 
           {portfolioEnabled && (
             <Button
-              variant="destructive"
-              className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation"
+              variant="outline"
+              className="w-full h-11 min-h-[44px] rounded-xl active:scale-95 touch-manipulation border-destructive text-destructive hover:bg-destructive/10"
               onClick={() => handleSave({ portfolioEnabled: false })}
             >
+              <AlertTriangle className="w-4 h-4 mr-1.5" />
               Unpublish Portfolio
             </Button>
           )}
