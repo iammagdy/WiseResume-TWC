@@ -141,11 +141,11 @@
   {
     "version": "v1.6.0",
     "date": "Feb 16, 2026",
-    "summary": "AI status at a glance, 30+ templates, and a settings page rebuilt from scratch.",
+    "summary": "AI status at a glance, 30+ templates, new editor tools, and a settings page rebuilt from scratch.",
     "items": [
       {
         "title": "Real-time AI health indicator",
-        "description": "Live status badge shows gateway latency and availability on every AI-powered page."
+        "description": "A live status badge on AI-powered pages lets you know if the AI is ready or experiencing slowdowns."
       },
       {
         "title": "30+ resume templates",
@@ -154,10 +154,6 @@
       {
         "title": "Settings page overhaul",
         "description": "Added sign-out confirmation, change password, privacy toggles, account stats card, and guest user prompt."
-      },
-      {
-        "title": "Dynamic changelog",
-        "description": "Release notes now load from a JSON file at runtime — no code changes needed to update them."
       },
       {
         "title": "Version history, content library & proofread",
