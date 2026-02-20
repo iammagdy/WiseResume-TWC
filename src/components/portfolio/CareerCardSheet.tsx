@@ -372,6 +372,7 @@ export function CareerCardSheet({
   const cardRef = useRef<HTMLDivElement>(null);
   const previewWrapperRef = useRef<HTMLDivElement>(null);
   const [variant, setVariant] = useState<CardVariant>('cosmic');
+  const [flipClass, setFlipClass] = useState<'' | 'pf-flipping-out' | 'pf-flipping-in'>('');
   const [generating, setGenerating] = useState(false);
   const [previewScale, setPreviewScale] = useState(0.285);
 
@@ -484,6 +485,18 @@ export function CareerCardSheet({
   const canWebShare = typeof navigator !== 'undefined' && !!navigator.share;
   const s = getVariantStyles(variant, accentColor);
 
+  const handleVariantChange = useCallback((newVariant: CardVariant) => {
+    if (newVariant === variant || flipClass) return;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) { setVariant(newVariant); return; }
+    setFlipClass('pf-flipping-out');
+    setTimeout(() => {
+      setVariant(newVariant);
+      setFlipClass('pf-flipping-in');
+      setTimeout(() => setFlipClass(''), 220);
+    }, 220);
+  }, [variant, flipClass]);
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="max-h-[94vh] flex flex-col">
@@ -499,13 +512,11 @@ export function CareerCardSheet({
         <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pt-2 pb-4 max-w-3xl mx-auto w-full">
 
           {/* Live preview */}
-          <div
-            ref={previewWrapperRef}
-            className="w-full max-w-2xl mx-auto rounded-2xl overflow-hidden border border-border/40 relative"
+          <div ref={previewWrapperRef} className="pf-card-flip-container w-full max-w-2xl mx-auto rounded-2xl border border-border/40 relative"
             style={{ aspectRatio: '1200/630' }}
           >
-            {/* Scaled preview of the actual card */}
             <div
+              className={`pf-card-flip-inner ${flipClass}`}
               style={{
                 width: '1200px',
                 height: '630px',
@@ -605,7 +616,7 @@ export function CareerCardSheet({
               {VARIANTS.map(v => (
                 <button
                   key={v.id}
-                  onClick={() => { haptics.light(); setVariant(v.id); }}
+                  onClick={() => { haptics.light(); handleVariantChange(v.id); }}
                   className={`h-12 rounded-xl border text-sm font-semibold flex items-center justify-center gap-2 transition-all active:scale-95 touch-manipulation ${
                     variant === v.id
                       ? 'border-primary bg-primary/10 text-primary'
