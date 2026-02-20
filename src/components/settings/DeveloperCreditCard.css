@@ -276,6 +276,7 @@
 
 .dev-website-link:hover {
   color: hsl(var(--primary));
+  text-decoration: underline;
 }
 
 .dev-website-link:active {
