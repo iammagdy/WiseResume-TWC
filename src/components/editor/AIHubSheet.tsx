@@ -6,9 +6,6 @@ import {
   TrendingUp, 
   BarChart3,
   UserCheck,
-  DollarSign,
-  Users,
-  MessageCircle,
 } from 'lucide-react';
 import {
   Sheet,
@@ -21,11 +18,12 @@ import { Button } from '@/components/ui/button';
 import { JobMatchScore } from '@/types/resume';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { AICostBadge } from '@/components/ai/AICostBadge';
 
 interface AIActionTileProps {
   icon: React.ReactNode;
   title: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   onClick: () => void;
   badge?: string;
   badgeVariant?: 'default' | 'secondary' | 'destructive' | 'outline';
@@ -88,9 +86,6 @@ interface AIHubSheetProps {
   onChangeTemplate: () => void;
   onViewComparison?: () => void;
   onRecruiterSim?: () => void;
-  onSalaryNegotiator?: () => void;
-  onReverseEngineer?: () => void;
-  onRejectionAnalyzer?: () => void;
 }
 
 export function AIHubSheet({
@@ -105,9 +100,6 @@ export function AIHubSheet({
   onChangeTemplate,
   onViewComparison,
   onRecruiterSim,
-  onSalaryNegotiator,
-  onReverseEngineer,
-  onRejectionAnalyzer,
 }: AIHubSheetProps) {
   const { currentComparison } = useResumeStore();
 
@@ -164,7 +156,7 @@ export function AIHubSheet({
             <AIActionTile
               icon={<Wand2 className="w-5 h-5 text-primary" />}
               title="Smart Tailor"
-              subtitle="For a job"
+              subtitle={<AICostBadge operation="tailor" />}
               onClick={() => {
                 onOpenChange(false);
                 onTailor();
@@ -173,7 +165,7 @@ export function AIHubSheet({
             <AIActionTile
               icon={<Target className="w-5 h-5 text-primary" />}
               title="Job Match"
-              subtitle="Score fit"
+              subtitle={<AICostBadge operation="score" />}
               onClick={() => {
                 onOpenChange(false);
                 onAnalyze();
@@ -182,7 +174,7 @@ export function AIHubSheet({
             <AIActionTile
               icon={<Sparkles className="w-5 h-5 text-primary" />}
               title="AI Enhance"
-              subtitle={activeTab || 'Any section'}
+              subtitle={<AICostBadge operation="enhance" />}
               onClick={() => {
                 onOpenChange(false);
                 onImproveSection();
@@ -196,46 +188,11 @@ export function AIHubSheet({
             <AIActionTile
               icon={<UserCheck className="w-5 h-5 text-primary" />}
               title="Recruiter Sim"
-              subtitle="Brutal honesty"
+              subtitle={<AICostBadge operation="recruiter-sim" />}
               badge="New"
               onClick={() => {
                 onOpenChange(false);
                 onRecruiterSim?.();
-              }}
-            />
-            <AIActionTile
-              icon={<DollarSign className="w-5 h-5 text-primary" />}
-              title="Salary Coach"
-              subtitle="Negotiation prep"
-              badge="Soon"
-              badgeVariant="outline"
-              onClick={() => {
-                // Coming soon
-              }}
-            />
-          </div>
-
-          {/* Learning */}
-          <SectionHeader title="Learning" subtitle="Improve from experience" />
-          <div className="grid grid-cols-2 gap-3 mb-6">
-            <AIActionTile
-              icon={<Users className="w-5 h-5 text-primary" />}
-              title="Reverse Engineer"
-              subtitle="Learn from winners"
-              badge="Soon"
-              badgeVariant="outline"
-              onClick={() => {
-                // Coming soon
-              }}
-            />
-            <AIActionTile
-              icon={<MessageCircle className="w-5 h-5 text-primary" />}
-              title="Rejection Analyzer"
-              subtitle="Find patterns"
-              badge="Soon"
-              badgeVariant="outline"
-              onClick={() => {
-                // Coming soon
               }}
             />
           </div>
