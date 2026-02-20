@@ -7,7 +7,6 @@ import {
   Target,
   SpellCheck,
   Lightbulb,
-  Palette,
   TrendingUp,
   Mic,
   Shield,
@@ -35,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
+import { AICostBadge } from '@/components/ai/AICostBadge';
 
 // Lazy-loaded sheets
 const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
@@ -45,8 +45,6 @@ const LinkedInOptimizerSheet = lazy(() => import('@/components/editor/ai/LinkedI
 const OnePageWizardSheet = lazy(() => import('@/components/editor/ai/OnePageWizardSheet').then(m => ({ default: m.OnePageWizardSheet })));
 const AgenticChatSheet = lazy(() => import('@/components/editor/AgenticChatSheet').then(m => ({ default: m.AgenticChatSheet })));
 const CareerPathSheet = lazy(() => import('@/components/editor/CareerPathSheet').then(m => ({ default: m.CareerPathSheet })));
-const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
-const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 const AIEnhanceSheet = lazy(() => import('@/components/editor/ai/AIEnhanceSheet').then(m => ({ default: m.AIEnhanceSheet })));
 const ResumeABCompareSheet = lazy(() => import('@/components/ai-studio/ResumeABCompareSheet'));
@@ -71,29 +69,27 @@ const toolCategories = [
     title: 'Optimize',
     description: 'Improve what you have',
     tools: [
-      { id: 'proofread', icon: SpellCheck, label: 'Proofread', desc: 'Fix grammar & typos', color: 'text-red-500' },
-      { id: 'enhance', icon: Sparkles, label: 'Enhance', desc: 'Improve writing', color: 'text-cyan-500' },
+      { id: 'proofread', icon: SpellCheck, label: 'Proofread', desc: 'Fix grammar & typos', color: 'text-red-500', cost: 'proofread' },
+      { id: 'enhance', icon: Sparkles, label: 'Enhance', desc: 'Improve writing', color: 'text-cyan-500', cost: 'enhance' },
     ],
   },
   {
     title: 'Create',
     description: 'Generate new content',
     tools: [
-      { id: 'ideas', icon: Lightbulb, label: 'Ideas', desc: 'Content suggestions', color: 'text-yellow-500' },
-      { id: 'customize', icon: Palette, label: 'Customize', desc: 'Design & layout', color: 'text-pink-500' },
-      { id: 'onepage', icon: FileText, label: '1-Page', desc: 'Condense resume', color: 'text-amber-500' },
-      { id: 'career', icon: TrendingUp, label: 'Career', desc: 'Path advisor', color: 'text-emerald-500' },
+      { id: 'onepage', icon: FileText, label: '1-Page', desc: 'Condense resume', color: 'text-amber-500', cost: 'one-page' },
+      { id: 'career', icon: TrendingUp, label: 'Career', desc: 'Path advisor', color: 'text-emerald-500', cost: 'career-assessment' },
     ],
   },
   {
     title: 'Prepare',
     description: 'Get ready for jobs',
     tools: [
-      { id: 'interview', icon: Mic, label: 'Interview', desc: 'Practice Q&A', color: 'text-orange-500' },
-      { id: 'recruiter', icon: UserCheck, label: 'Recruiter', desc: 'Simulate review', color: 'text-rose-500' },
-      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', desc: 'Profile optimizer', color: 'text-blue-500' },
-      { id: 'humanizer', icon: Shield, label: 'Humanize', desc: 'AI detection fix', color: 'text-violet-500' },
-      { id: 'company-briefing', icon: Building2, label: 'Briefing', desc: 'Company research', color: 'text-teal-500' },
+      { id: 'interview', icon: Mic, label: 'Interview', desc: 'Practice Q&A', color: 'text-orange-500', cost: 'interview' },
+      { id: 'recruiter', icon: UserCheck, label: 'Recruiter', desc: 'Simulate review', color: 'text-rose-500', cost: 'recruiter-sim' },
+      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', desc: 'Profile optimizer', color: 'text-blue-500', cost: 'linkedin' },
+      { id: 'humanizer', icon: Shield, label: 'Humanize', desc: 'AI detection fix', color: 'text-violet-500', cost: 'detect-humanize' },
+      { id: 'company-briefing', icon: Building2, label: 'Briefing', desc: 'Company research', color: 'text-teal-500', cost: 'company_briefing' },
     ],
   },
 ];
@@ -125,8 +121,6 @@ export default function AIStudioPage() {
   const [showLinkedIn, setShowLinkedIn] = useState(false);
   const [showOnePage, setShowOnePage] = useState(false);
   const [showCareerPath, setShowCareerPath] = useState(false);
-  const [showContentLibrary, setShowContentLibrary] = useState(false);
-  const [showCustomize, setShowCustomize] = useState(false);
   const [showProofread, setShowProofread] = useState(false);
   const [showEnhance, setShowEnhance] = useState(false);
   const [showABCompare, setShowABCompare] = useState(false);
@@ -153,8 +147,6 @@ export default function AIStudioPage() {
       'onepage': () => setShowOnePage(true),
       'recruiter': () => setShowRecruiterSim(true),
       'career': () => setShowCareerPath(true),
-      'ideas': () => setShowContentLibrary(true),
-      'customize': () => setShowCustomize(true),
       'chat': () => setShowChat(true),
       'company-briefing': () => setShowCompanyBriefing(true),
     };
@@ -196,8 +188,6 @@ export default function AIStudioPage() {
     const action = () => {
       switch (id) {
         case 'proofread': setShowProofread(true); break;
-        case 'ideas': setShowContentLibrary(true); break;
-        case 'customize': setShowCustomize(true); break;
         case 'enhance': setShowEnhance(true); break;
         case 'interview': navigate('/interview'); break;
         case 'career': setShowCareerPath(true); break;
@@ -347,7 +337,10 @@ export default function AIStudioPage() {
           </div>
           <div className="text-left flex-1 min-w-0">
             <p className="font-semibold text-base sm:text-sm">Smart Tailor</p>
-            <p className="text-sm sm:text-xs text-muted-foreground">Adapt your resume to any job description</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm sm:text-xs text-muted-foreground">Adapt your resume to any job description</p>
+              <AICostBadge operation="tailor" />
+            </div>
           </div>
         </button>
         <button
@@ -359,7 +352,10 @@ export default function AIStudioPage() {
           </div>
           <div className="text-left flex-1 min-w-0">
             <p className="font-semibold text-base sm:text-sm">A/B Compare</p>
-            <p className="text-sm sm:text-xs text-muted-foreground">Score two resumes against a job description</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm sm:text-xs text-muted-foreground">Score two resumes against a job description</p>
+              <AICostBadge operation="score" className="whitespace-nowrap" />
+            </div>
           </div>
         </button>
         <button
@@ -371,7 +367,10 @@ export default function AIStudioPage() {
           </div>
           <div className="text-left flex-1 min-w-0">
             <p className="font-semibold text-base sm:text-sm">Job Match Analysis</p>
-            <p className="text-sm sm:text-xs text-muted-foreground">Check ATS compatibility and match score</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm sm:text-xs text-muted-foreground">Check ATS compatibility and match score</p>
+              <AICostBadge operation="score" className="whitespace-nowrap" />
+            </div>
           </div>
         </button>
       </motion.div>
@@ -422,6 +421,7 @@ export default function AIStudioPage() {
                         <div className="text-center">
                           <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
                           <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
+                          <AICostBadge operation={tool.cost} className="mt-1" />
                         </div>
                       </button>
                     ))}
@@ -482,8 +482,7 @@ export default function AIStudioPage() {
           {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
           {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
-          {showContentLibrary && <ContentLibrarySheet open={showContentLibrary} onOpenChange={setShowContentLibrary} onInsert={() => {}} />}
-          {showCustomize && <CustomizeSheet open={showCustomize} onOpenChange={setShowCustomize} onApply={() => {}} />}
+          {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
           {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
           {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
           {showABCompare && <ResumeABCompareSheet open={showABCompare} onOpenChange={setShowABCompare} />}
