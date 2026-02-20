@@ -151,7 +151,7 @@ function CollapsibleCard({
 }) {
   const isOpen = openSections.has(id);
   return (
-    <div className="glass-elevated rounded-2xl overflow-hidden">
+    <div id={`section-${id}`} className="glass-elevated rounded-2xl overflow-hidden">
       <button
         onClick={() => toggleSection(id)}
         className="w-full flex items-center justify-between p-4 text-left active:bg-muted/30 transition-colors"
@@ -634,12 +634,40 @@ export default function PortfolioEditorPage() {
             openSections={openSections}
             toggleSection={toggleSection}
           >
-            <div className="space-y-1.5">
-              {strengthMissing.map((m, i) => (
-                <p key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
-                  <span className="text-primary shrink-0 mt-0.5">·</span>{m.tip}
-                </p>
-              ))}
+            <div className="space-y-1">
+              {strengthMissing.map((m, i) => {
+                const handleTipTap = () => {
+                  haptics.light();
+                  const tip = m.tip.toLowerCase();
+                  if (tip.includes('bio')) {
+                    setOpenSections(prev => new Set(prev).add('bio'));
+                    setTimeout(() => document.getElementById('section-bio')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                  } else if (tip.includes('social link') || tip.includes('contact email')) {
+                    setShowAllSections(true);
+                    setOpenSections(prev => new Set(prev).add('social'));
+                    setTimeout(() => document.getElementById('section-social')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                  } else if (tip.includes('availability')) {
+                    setShowAllSections(true);
+                    setOpenSections(prev => new Set(prev).add('availability'));
+                    setTimeout(() => document.getElementById('section-availability')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                  } else if (tip.includes('username')) {
+                    setOpenSections(prev => new Set(prev).add('identity'));
+                    setTimeout(() => document.getElementById('section-identity')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                  } else if (tip.includes('page title') || tip.includes('meta description')) {
+                    setOpenSections(prev => new Set(prev).add('seo'));
+                    setTimeout(() => document.getElementById('section-seo')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                  } else {
+                    navigate('/editor');
+                  }
+                };
+                return (
+                  <button key={i} onClick={handleTipTap} className="w-full flex items-center gap-1.5 text-xs text-muted-foreground py-1.5 rounded-lg hover:bg-muted/30 active:scale-[0.98] transition-all touch-manipulation text-left px-1">
+                    <span className="text-primary shrink-0">·</span>
+                    <span className="flex-1">{m.tip}</span>
+                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                  </button>
+                );
+              })}
             </div>
           </CollapsibleCard>
         )}
@@ -687,7 +715,7 @@ export default function PortfolioEditorPage() {
               How often each skill appears in your experience &amp; projects — higher scores show larger in your public Skills cloud.
             </p>
             <div className="space-y-0.5">
-              {sortedSkillScores.slice(0, showAllSkills ? 999 : 20).map(([skill, score]) => {
+              {sortedSkillScores.slice(0, showAllSkills ? 999 : 7).map(([skill, score]) => {
                 const { tier } = getSkillTier(score);
                 const pct = maxScore > 0 ? (score / maxScore) * 100 : 0;
                 return (
@@ -706,7 +734,7 @@ export default function PortfolioEditorPage() {
                 );
               })}
             </div>
-            {sortedSkillScores.length > 20 && (
+            {sortedSkillScores.length > 7 && (
               <button className="mt-1 text-xs text-primary underline-offset-2 hover:underline active:scale-95 transition-transform" onClick={() => { haptics.light(); setShowAllSkills(v => !v); }}>
                 {showAllSkills ? 'Show less' : `Show all ${sortedSkillScores.length} skills`}
               </button>
