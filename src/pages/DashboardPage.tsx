@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import useEmblaCarousel from 'embla-carousel-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
 import { templates } from '@/lib/templateData';
 import { Button } from '@/components/ui/button';
@@ -86,6 +87,29 @@ export default function DashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('my-cvs');
+
+  // Embla carousel for swipeable tabs
+  const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: false, containScroll: false });
+
+  // Sync tab → carousel
+  useEffect(() => {
+    if (!emblaApi) return;
+    const index = activeTab === 'my-cvs' ? 0 : 1;
+    if (emblaApi.selectedScrollSnap() !== index) {
+      emblaApi.scrollTo(index);
+    }
+  }, [activeTab, emblaApi]);
+
+  // Sync carousel → tab
+  useEffect(() => {
+    if (!emblaApi) return;
+    const onSelect = () => {
+      const index = emblaApi.selectedScrollSnap();
+      setActiveTab(index === 0 ? 'my-cvs' : 'tailored');
+    };
+    emblaApi.on('select', onSelect);
+    return () => { emblaApi.off('select', onSelect); };
+  }, [emblaApi]);
 
   // Reset loading state when dialog opens
   useEffect(() => {
@@ -599,28 +623,35 @@ export default function DashboardPage() {
               <QuickActionChips onCreateNew={handleCreateNew} />
             )}
 
-            {/* Search pill */}
+            {/* Search pill — moved below tabs area conceptually, but above filter bar */}
             {resumes && resumes.length > 0 && (
-              <div className="px-4 pb-2 flex items-center gap-2">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search resumes..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 rounded-full h-12 sm:h-11 text-base glass-input"
-                  />
+              <div className="px-4 pb-2 flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 rounded-full h-12 sm:h-11 text-base glass-input"
+                    />
+                  </div>
+                  {!selectionMode && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="min-w-[44px] min-h-[44px] flex-shrink-0"
+                      onClick={() => { haptics.light(); setSelectionMode(true); }}
+                      aria-label="Select resumes"
+                    >
+                      <CheckSquare className="w-5 h-5" />
+                    </Button>
+                  )}
                 </div>
-                {!selectionMode && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="min-w-[44px] min-h-[44px] flex-shrink-0"
-                    onClick={() => { haptics.light(); setSelectionMode(true); }}
-                    aria-label="Select resumes"
-                  >
-                    <CheckSquare className="w-5 h-5" />
-                  </Button>
+                {searchQuery && (
+                  <p className="text-[11px] text-muted-foreground px-1">
+                    Searching in <span className="font-medium text-foreground">{activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}</span>
+                  </p>
                 )}
               </div>
             )}
@@ -762,120 +793,134 @@ export default function DashboardPage() {
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="my-cvs">
-                  <motion.div 
-                    className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
-                    initial="hidden"
-                    animate="visible"
-                    variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-                  >
-                    {resumeHierarchy && (
-                      <>
-                        {resumeHierarchy.masterResumes.map((masterResume) => (
-                          <motion.div key={masterResume.id} variants={itemVariants}>
-                            <ResumeListCard
-                              resume={masterResume}
-                              onEdit={handleEdit}
-                              onDuplicate={handleDuplicate}
-                              onDelete={handleDelete}
-                              onRename={handleRename}
-                              onInterview={handleInterview}
-                              showMasterBadge={!!resumeHierarchy.tailoredByParent[masterResume.id]?.length}
-                              healthScore={healthScores[masterResume.id]}
-                              isScoring={scoringId === masterResume.id}
-                              selectionMode={selectionMode}
-                              selected={selectedIds.has(masterResume.id)}
-                              onToggleSelect={toggleSelection}
-                            />
-                          </motion.div>
-                        ))}
-                        {resumeHierarchy.orphanTailored.map((resume) => (
-                          <motion.div key={resume.id} variants={itemVariants}>
-                            <ResumeListCard
-                              resume={resume}
-                              onEdit={handleEdit}
-                              onDuplicate={handleDuplicate}
-                              onDelete={handleDelete}
-                              onRename={handleRename}
-                              onInterview={handleInterview}
-                              showTailoredBadge
-                              healthScore={healthScores[resume.id]}
-                              isScoring={scoringId === resume.id}
-                              selectionMode={selectionMode}
-                              selected={selectedIds.has(resume.id)}
-                              onToggleSelect={toggleSelection}
-                            />
-                          </motion.div>
-                        ))}
-                      </>
-                    )}
-                  </motion.div>
-                </TabsContent>
-
-                <TabsContent value="tailored">
-                  {(() => {
-                    const allTailored = filteredResumes?.filter(r => r.parent_resume_id) || [];
-                    if (allTailored.length === 0) {
-                      return (
-                        <div className="flex flex-col items-center justify-center py-12 text-center">
-                          <Sparkles className="w-10 h-10 text-muted-foreground/40 mb-3" />
-                          <p className="text-sm text-muted-foreground">No tailored CVs yet</p>
-                          <p className="text-xs text-muted-foreground/70 mt-1">Open any CV and use "Tailor for Job" to create one</p>
-                        </div>
-                      );
-                    }
-                    return (
-                      <motion.div
-                        className="space-y-3"
+                {/* Swipeable tab panels via Embla */}
+                <div className="overflow-hidden" ref={emblaRef}>
+                  <div className="flex">
+                    {/* Slide 0: My CVs */}
+                    <div className="flex-[0_0_100%] min-w-0">
+                      <motion.div 
+                        className="space-y-4 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4 lg:space-y-0"
                         initial="hidden"
                         animate="visible"
                         variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                       >
-                        {allTailored.map((resume) => (
-                          <motion.div key={resume.id} variants={itemVariants}>
-                            <div className="rounded-xl glass-elevated p-3 space-y-2">
-                              {/* Job brief header */}
-                              {(resume.target_job_title || resume.target_company) && (
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                                    {[resume.target_job_title, resume.target_company].filter(Boolean).join(' @ ')}
-                                  </span>
-                                  {resume.job_url && (
-                                    <a
-                                      href={resume.job_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary transition-colors"
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <ExternalLink className="w-3 h-3" />
-                                      View Job
-                                    </a>
-                                  )}
-                                </div>
-                              )}
-                              {/* Resume card */}
-                              <ResumeListCard
-                                resume={resume}
-                                onEdit={handleEdit}
-                                onDuplicate={handleDuplicate}
-                                onDelete={handleDelete}
-                                onRename={handleRename}
-                                onInterview={handleInterview}
-                                showTailoredBadge
-                                healthScore={healthScores[resume.id]}
-                                isScoring={scoringId === resume.id}
-                                selectionMode={selectionMode}
-                                selected={selectedIds.has(resume.id)}
-                                onToggleSelect={toggleSelection}
-                              />
-                            </div>
-                          </motion.div>
-                        ))}
+                        {resumeHierarchy && (
+                          <>
+                            {resumeHierarchy.masterResumes.map((masterResume) => (
+                              <motion.div key={masterResume.id} variants={itemVariants}>
+                                <ResumeListCard
+                                  resume={masterResume}
+                                  onEdit={handleEdit}
+                                  onDuplicate={handleDuplicate}
+                                  onDelete={handleDelete}
+                                  onRename={handleRename}
+                                  onInterview={handleInterview}
+                                  showMasterBadge={!!resumeHierarchy.tailoredByParent[masterResume.id]?.length}
+                                  healthScore={healthScores[masterResume.id]}
+                                  isScoring={scoringId === masterResume.id}
+                                  selectionMode={selectionMode}
+                                  selected={selectedIds.has(masterResume.id)}
+                                  onToggleSelect={toggleSelection}
+                                />
+                              </motion.div>
+                            ))}
+                            {resumeHierarchy.orphanTailored.map((resume) => (
+                              <motion.div key={resume.id} variants={itemVariants}>
+                                <ResumeListCard
+                                  resume={resume}
+                                  onEdit={handleEdit}
+                                  onDuplicate={handleDuplicate}
+                                  onDelete={handleDelete}
+                                  onRename={handleRename}
+                                  onInterview={handleInterview}
+                                  showTailoredBadge
+                                  healthScore={healthScores[resume.id]}
+                                  isScoring={scoringId === resume.id}
+                                  selectionMode={selectionMode}
+                                  selected={selectedIds.has(resume.id)}
+                                  onToggleSelect={toggleSelection}
+                                />
+                              </motion.div>
+                            ))}
+                          </>
+                        )}
                       </motion.div>
-                    );
-                  })()}
-                </TabsContent>
+                    </div>
+
+                    {/* Slide 1: Tailored */}
+                    <div className="flex-[0_0_100%] min-w-0">
+                      {(() => {
+                        const allTailored = filteredResumes?.filter(r => r.parent_resume_id) || [];
+                        if (allTailored.length === 0) {
+                          return (
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                              <Sparkles className="w-10 h-10 text-muted-foreground/40 mb-3" />
+                              <p className="text-sm text-muted-foreground">No tailored CVs yet</p>
+                              <p className="text-xs text-muted-foreground/70 mt-1 mb-3">Open any CV and use "Tailor for Job" to create one</p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 active:scale-95 touch-manipulation"
+                                onClick={() => { haptics.light(); navigate('/ai-studio?tool=tailor'); }}
+                              >
+                                <Sparkles className="w-4 h-4" />
+                                Tailor a Resume
+                              </Button>
+                            </div>
+                          );
+                        }
+                        return (
+                          <motion.div
+                            className="space-y-3"
+                            initial="hidden"
+                            animate="visible"
+                            variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
+                          >
+                            {allTailored.map((resume) => (
+                              <motion.div key={resume.id} variants={itemVariants}>
+                                <div className="rounded-xl glass-elevated p-3 space-y-2">
+                                  {(resume.target_job_title || resume.target_company) && (
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                        {[resume.target_job_title, resume.target_company].filter(Boolean).join(' @ ')}
+                                      </span>
+                                      {resume.job_url && (
+                                        <a
+                                          href={resume.job_url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary transition-colors"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <ExternalLink className="w-3 h-3" />
+                                          View Job
+                                        </a>
+                                      )}
+                                    </div>
+                                  )}
+                                  <ResumeListCard
+                                    resume={resume}
+                                    onEdit={handleEdit}
+                                    onDuplicate={handleDuplicate}
+                                    onDelete={handleDelete}
+                                    onRename={handleRename}
+                                    onInterview={handleInterview}
+                                    showTailoredBadge
+                                    healthScore={healthScores[resume.id]}
+                                    isScoring={scoringId === resume.id}
+                                    selectionMode={selectionMode}
+                                    selected={selectedIds.has(resume.id)}
+                                    onToggleSelect={toggleSelection}
+                                  />
+                                </div>
+                              </motion.div>
+                            ))}
+                          </motion.div>
+                        );
+                      })()}
+                    </div>
+                  </div>
+                </div>
               </Tabs>
               </div>
             )}
