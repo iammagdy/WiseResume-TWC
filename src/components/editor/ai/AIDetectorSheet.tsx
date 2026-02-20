@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Shield, 
@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { activityTracker } from '@/lib/activityTracker';
 import type { ResumeData, Experience, Project, Volunteering, Award, Publication } from '@/types/resume';
 
 
@@ -241,6 +242,11 @@ export function AIDetectorSheet({ open, onOpenChange }: AIDetectorSheetProps) {
   const [humanized, setHumanized] = useState<HumanizeResult | null>(null);
   const [isHumanizing, setIsHumanizing] = useState(false);
   const { execute: executeAI } = useAIAction({ operation: 'detect-humanize' });
+
+  useEffect(() => {
+    if (open) { activityTracker.setActiveFeature('AI Humanizer'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [open]);
 
   const sectionLabel = SECTION_OPTIONS.find(s => s.id === selectedSection)?.label || 'Summary';
 

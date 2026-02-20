@@ -30,6 +30,7 @@ import { QuickActions } from './tailor/QuickActions';
 import { AISettingsSheet } from '@/components/settings/AISettingsSheet';
 import { reportBug } from '@/lib/bugReport';
 import { useAIAction } from '@/hooks/useAIAction';
+import { activityTracker } from '@/lib/activityTracker';
 
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
@@ -173,6 +174,11 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
   const [isApplying, setIsApplying] = useState(false);
   const [jobUrl, setJobUrl] = useState<string | undefined>(undefined);
   const autoTailorTriggered = useRef(false);
+
+  useEffect(() => {
+    if (open) { activityTracker.setActiveFeature('Smart Tailor'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [open]);
   const abortRef = useRef<AbortController | null>(null);
   const [tailorError, setTailorError] = useState<{ message: string; code?: string } | null>(null);
   const [showAISettings, setShowAISettings] = useState(false);

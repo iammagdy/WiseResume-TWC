@@ -45,6 +45,8 @@ Deno.serve(async (req) => {
       user_agent,
       app_version,
       additional_context,
+      active_feature,
+      recent_errors,
     } = body;
 
     if (!error_message) {
@@ -92,6 +94,8 @@ Deno.serve(async (req) => {
         user_agent: user_agent?.slice(0, 500) || null,
         additional_context: additional_context?.slice(0, 1000) || null,
         app_version: app_version || "1.0.0",
+        active_feature: active_feature || null,
+        recent_errors: recent_errors || null,
       });
 
     if (dbError) {
@@ -112,7 +116,8 @@ Deno.serve(async (req) => {
         const userIdDisplay = truncateUserId(resolvedUserId);
         const sessionIdDisplay = session_id || "N/A";
         const screenDisplay = selected_screen || "Not specified";
-
+        const featureDisplay = active_feature || null;
+        const recentErrorsDisplay = Array.isArray(recent_errors) ? recent_errors : [];
         const emailHtml = `
           <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb">
             <!-- Header -->
@@ -142,6 +147,23 @@ Deno.serve(async (req) => {
               <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Reported Screen</p>
               <p style="margin:4px 0 0;font-size:15px;color:#111827;font-weight:600">${screenDisplay}</p>
             </div>
+
+            ${featureDisplay ? `
+            <!-- Active Feature -->
+            <div style="padding:16px 28px;border-bottom:1px solid #f3f4f6;background:#fffbeb">
+              <p style="margin:0;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Active Feature / Tool</p>
+              <p style="margin:4px 0 0;font-size:15px;color:#92400e;font-weight:600">🔧 ${featureDisplay}</p>
+            </div>` : ""}
+
+            ${recentErrorsDisplay.length > 0 ? `
+            <!-- Recent Errors -->
+            <div style="padding:16px 28px;border-bottom:1px solid #f3f4f6">
+              <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;color:#9ca3af;font-weight:600">Recent Errors (last 60s)</p>
+              ${recentErrorsDisplay.slice(0, 5).map((e: { message?: string; timestamp?: number }) => `
+              <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin-bottom:6px">
+                <p style="margin:0;font-size:12px;color:#991b1b;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all">${(e.message || '').slice(0, 200)}</p>
+              </div>`).join("")}
+            </div>` : ""}
 
             <!-- Error Message -->
             <div style="padding:20px 28px">

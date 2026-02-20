@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { activityTracker } from '@/lib/activityTracker';
 import { cn } from '@/lib/utils';
 import { Trophy, ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -44,6 +45,11 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function ResumeABCompareSheet({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const { data: resumes } = useResumes();
+
+  useEffect(() => {
+    if (open) { activityTracker.setActiveFeature('A/B Compare'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [open]);
 
   const [resumeAId, setResumeAId] = useState('');
   const [resumeBId, setResumeBId] = useState('');

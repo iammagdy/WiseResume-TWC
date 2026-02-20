@@ -23,10 +23,15 @@ import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
+import { activityTracker } from '@/lib/activityTracker';
 
 type InterviewPhase = 'setup' | 'preview' | 'active' | 'summary';
 
 function InterviewPageContent() {
+  useEffect(() => {
+    activityTracker.setActiveFeature('Mock Interview');
+    return () => { activityTracker.setActiveFeature(null); };
+  }, []);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { currentResume } = useResumeStore();

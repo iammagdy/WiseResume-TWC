@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { activityTracker } from '@/lib/activityTracker';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -53,6 +54,11 @@ export function GapFillerSheet({ isOpen, onClose, gap, experiences, onAddExperie
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [editedSuggestion, setEditedSuggestion] = useState<Suggestion | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) { activityTracker.setActiveFeature('Gap Filler'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [isOpen]);
   const { execute: executeAI } = useAIAction({ operation: 'gap-fill' });
 
   // Sync editedSuggestion when selection changes

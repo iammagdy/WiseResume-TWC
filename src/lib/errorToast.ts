@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import { reportBug } from './bugReport';
 import { haptics } from './haptics';
+import { activityTracker } from './activityTracker';
 
 /**
  * Shows an error toast with an optional "Report Bug" action button.
@@ -8,6 +9,8 @@ import { haptics } from './haptics';
  */
 export function showErrorToast(message: string, error?: unknown) {
   haptics.error();
+  const errObj = error instanceof Error ? error : undefined;
+  activityTracker.pushRecentError(message, errObj?.stack);
   toast.error(message, {
     duration: 5000,
     action: {

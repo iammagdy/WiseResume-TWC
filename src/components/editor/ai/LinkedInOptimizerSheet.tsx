@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Linkedin, 
@@ -29,6 +29,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { useAIAction } from '@/hooks/useAIAction';
+import { activityTracker } from '@/lib/activityTracker';
 import { downloadFile } from '@/lib/downloadUtils';
 
 
@@ -113,6 +114,11 @@ export function LinkedInOptimizerSheet({ open, onOpenChange }: LinkedInOptimizer
   const [result, setResult] = useState<LinkedInResult | null>(null);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
   const { execute: executeAI } = useAIAction({ operation: 'linkedin' });
+
+  useEffect(() => {
+    if (open) { activityTracker.setActiveFeature('LinkedIn Optimizer'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [open]);
 
   const userName = currentResume?.contactInfo?.fullName || 'User';
 

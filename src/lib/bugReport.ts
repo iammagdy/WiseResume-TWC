@@ -10,6 +10,10 @@ export interface BugReportData {
   route: string;
   action?: string; // e.g. "saving resume", "generating AI content"
   source?: 'shake' | 'error' | 'manual';
+  detectedContext?: {
+    activeFeature: string | null;
+    recentErrors: Array<{ message: string; stack?: string; timestamp: number }>;
+  };
 }
 
 export type ErrorCategory = 'network' | 'ai' | 'save' | 'export' | 'auth' | 'general';
@@ -48,7 +52,21 @@ export function detectScreen(pathname: string): string {
 
 // ── Error categorization ───────────────────────────────────────────────────
 
-export function categorizeError(message: string): ErrorCategoryInfo {
+/** Feature-name-to-category hints for better auto-detection */
+const FEATURE_CATEGORY_HINTS: Record<string, ErrorCategory> = {
+  'Smart Tailor': 'ai',
+  'AI Enhance': 'ai',
+  'AI Humanizer': 'ai',
+  'Recruiter Simulator': 'ai',
+  'LinkedIn Optimizer': 'ai',
+  'Mock Interview': 'ai',
+  'Proofread': 'ai',
+  'A/B Compare': 'ai',
+  'Gap Filler': 'ai',
+  'Job Match Analysis': 'ai',
+};
+
+export function categorizeError(message: string, activeFeature?: string | null): ErrorCategoryInfo {
   const m = message.toLowerCase();
   if (/fetch|network|timeout|cors|50[234]|load failed|econnrefused/i.test(m))
     return { category: 'network', label: 'Network Issue', icon: Wifi };
@@ -60,6 +78,19 @@ export function categorizeError(message: string): ErrorCategoryInfo {
     return { category: 'export', label: 'PDF / Export', icon: FileDown };
   if (/auth|session|token|sign|login|password/i.test(m))
     return { category: 'auth', label: 'Authentication', icon: ShieldAlert };
+  // Fall back to feature hint if no keyword match
+  if (activeFeature && FEATURE_CATEGORY_HINTS[activeFeature]) {
+    const cat = FEATURE_CATEGORY_HINTS[activeFeature];
+    const info = {
+      network: { label: 'Network Issue', icon: Wifi },
+      ai: { label: 'AI Feature', icon: Sparkles },
+      save: { label: 'Save / Sync', icon: Save },
+      export: { label: 'PDF / Export', icon: FileDown },
+      auth: { label: 'Authentication', icon: ShieldAlert },
+      general: { label: 'General Error', icon: AlertCircle },
+    }[cat];
+    return { category: cat, ...info };
+  }
   return { category: 'general', label: 'General Error', icon: AlertCircle };
 }
 

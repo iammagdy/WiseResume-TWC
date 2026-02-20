@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Target, Sparkles, Loader2, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
 import { analyzeResume } from '@/lib/aiAnalysis';
 import { toast } from 'sonner';
+import { activityTracker } from '@/lib/activityTracker';
 
 interface JobAnalysisSheetProps {
   open: boolean;
@@ -16,6 +17,11 @@ interface JobAnalysisSheetProps {
 }
 
 export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) {
+  useEffect(() => {
+    if (open) { activityTracker.setActiveFeature('Job Match Analysis'); }
+    return () => { activityTracker.setActiveFeature(null); };
+  }, [open]);
+
   const { 
     currentResume, 
     jobDescription, 
