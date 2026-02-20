@@ -1,35 +1,29 @@
 
 
-# Fix Intent Filter Placement in APK Build
+# Fix Non-Functional Back Button on Portfolio Page
 
 ## Problem
 
-The `sed` command using `r` (read) inserts the intent-filter XML **after** the `</activity>` closing tag, placing the filters directly inside `<application>` instead of inside `<activity>`. This causes the AAPT error: `unexpected element <intent-filter> found in <manifest><application>`.
+The portfolio editor page (`/portfolio`) uses `navigate(-1)` for its back button, which is unreliable in Capacitor WebViews and deep-linked sessions where browser history may be empty. When there's no history entry to go back to, the button does nothing.
 
-## Root Cause
+Every other page in the app uses explicit route navigation (e.g., `navigate('/dashboard')`), making this the only instance of the broken pattern.
 
-`sed`'s `r` command always appends content **after** the matched line. So matching `</activity>` and reading the file puts the XML outside the activity element.
+## Scope of Issue
+
+After a full audit of all pages with back buttons:
+- **Only `/portfolio` uses `navigate(-1)`** -- this is the sole broken instance
+- All other pages (Settings, Editor, Preview, Upload, Interview, Cover Letters, Resignation Letters, Guides, Career, etc.) already use explicit routes like `navigate('/dashboard')` or `navigate('/applications')`
 
 ## Fix
 
-Replace the `sed` approach with an `awk` script that inserts the temp file content **before** the `</activity>` line, keeping the intent filters inside the `<activity>` element.
+### File: `src/pages/PortfolioEditorPage.tsx` (line 378)
 
-## Technical Change
+Replace `navigate(-1)` with `navigate('/dashboard')` to match the `BACK_ROUTES` mapping and the pattern used by every other page.
 
-### File: `.github/workflows/build-apk.yml`
-
-Replace the final `sed` line in the "Inject deep link intent filters" step:
-
-```yaml
-# FROM:
-sed -i '/<\/activity>/r /tmp/intent-filters.xml' "$MANIFEST"
-
-# TO:
-awk '/<\/activity>/{while((getline line < "/tmp/intent-filters.xml")>0) print line} 1' "$MANIFEST" > /tmp/manifest_patched.xml
-mv /tmp/manifest_patched.xml "$MANIFEST"
+```text
+Before: onClick={() => navigate(-1)}
+After:  onClick={() => navigate('/dashboard')}
 ```
 
-This `awk` command reads each line of the manifest; when it encounters `</activity>`, it first prints all lines from the intent-filters file, then prints the `</activity>` line -- placing the filters correctly inside the activity element.
-
-No other files change.
+One line change, consistent with the rest of the app.
 
