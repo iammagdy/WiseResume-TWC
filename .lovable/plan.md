@@ -1,98 +1,136 @@
 
 
-# Fix 5 Low-Priority Interview UX Issues
+# Advanced QR Code Generator for Portfolio
 
-## Issue 1: "AI-POWERED FEEDBACK" Badge -- Make Non-Interactive
+## Overview
 
-The badge at lines 151-160 of `InterviewSetup.tsx` is a `motion.div` with a pulsing scale animation that looks tappable but does nothing.
+Replace the simple `PortfolioQRDialog` (a small dialog with a fixed-style QR + download/share buttons) with a full-featured, tabbed QR code customization experience using the already-installed `qr-code-styling` library. The new UI will be a full-height bottom Sheet instead of a small dialog, with 6 tabs for deep customization.
 
-**Approach:** Use the simpler fallback -- restyle as a purely decorative, non-interactive chip. Remove the pulsing `animate` and add `cursor-default pointer-events-none` to prevent any tap impression.
+## Architecture
 
-**File: `src/components/interview/InterviewSetup.tsx`**
-- Remove `animate={{ scale: [1, 1.02, 1] }}` and `transition` from the badge
-- Add `cursor-default select-none` classes
-- Keep the existing styling (bg-primary/15, border, etc.) since it already matches the brand
+### New Files
+- **`src/components/portfolio/qr/QRGeneratorSheet.tsx`** -- Main sheet component with tabs, live preview, and state management
+- **`src/components/portfolio/qr/qr-types.ts`** -- TypeScript types for the customization state
+- **`src/components/portfolio/qr/qr-templates.ts`** -- Template presets (Classic, LinkedIn, Instagram, YouTube, etc.)
+- **`src/components/portfolio/qr/qr-utils.ts`** -- Contrast checking, scannability warnings, helper functions
+- **`src/components/portfolio/qr/tabs/TemplatesTab.tsx`** -- Template selection grid
+- **`src/components/portfolio/qr/tabs/ColoursTab.tsx`** -- Foreground/background color pickers + gradient support
+- **`src/components/portfolio/qr/tabs/StyleTab.tsx`** -- Module shape presets (square, rounded, dots, classy, extra-rounded) + roundness
+- **`src/components/portfolio/qr/tabs/LogoTab.tsx`** -- Logo upload, size slider, safe zone toggle
+- **`src/components/portfolio/qr/tabs/EyesTab.tsx`** -- Finder pattern shape + separate inner/outer color pickers
+- **`src/components/portfolio/qr/tabs/OptionsTab.tsx`** -- Export format, size, error correction, quiet zone, download
 
----
+### Modified Files
+- **`src/pages/PortfolioEditorPage.tsx`** -- Replace `<PortfolioQRDialog>` with `<QRGeneratorSheet>`
+- **`src/components/portfolio/PortfolioQRDialog.tsx`** -- Keep as-is (not deleted, but no longer imported from the editor page)
 
-## Issue 2: Mic Test Auto-Reset After Success/Failure
+## Technical Details
 
-Currently the mic test button at lines 216-260 stays stuck in `success` or `failed` state permanently.
+### State Model (`qr-types.ts`)
 
-**File: `src/components/interview/InterviewSetup.tsx`**
-- After `setMicTestStatus('success')` or `setMicTestStatus('failed')` in `handleMicTest`, add a `setTimeout(() => setMicTestStatus('idle'), 3000)` to auto-reset
-- Add a `useEffect` cleanup to clear the timeout on unmount
-- Add a subtle scale animation on the success/failed state transition using existing `motion` support (wrap the button content in `AnimatePresence` with key based on `micTestStatus`)
+```text
+QRCustomizationState
+  +-- data: string (portfolio URL)
+  +-- templateId?: string
+  +-- foregroundColor: string
+  +-- backgroundColor: string
+  +-- gradient?: { enabled, type, from, to, angle }
+  +-- moduleStyle: { shape, roundness }
+  +-- logo: { src, enabled, sizePercent, safeZone }
+  +-- eyes: { shape, outerColor, innerColor, syncWithForeground }
+  +-- options: { errorCorrection, sizePx, quietZone, format }
+```
 
----
+### `qr-code-styling` Library Capabilities
+The already-installed library (v1.9.2) natively supports all planned features:
+- **Dot types**: `'square' | 'dots' | 'rounded' | 'extra-rounded' | 'classy' | 'classy-rounded'`
+- **Corner square types**: `'square' | 'dot' | 'extra-rounded'` (+ undefined for default)
+- **Corner dot types**: `'square' | 'dot'` (+ undefined for default)
+- **Gradients**: linear and radial with color stops on dots, corners, and background
+- **Image/logo**: with `imageOptions` for size, margin, hideBackgroundDots
+- **Error correction**: L, M, Q, H
+- **Export**: PNG and SVG via `.download()` and `.getRawData()`
 
-## Issue 3: Persist Voice and Mode Preferences via localStorage
+No new dependencies are needed.
 
-Currently `mode` defaults to `'general'` and voice is controlled by the parent.
+### Templates (`qr-templates.ts`)
+12 pre-built templates, each setting all customization fields in one tap:
+- **Classic** -- black on white, square dots, square eyes
+- **WiseResume** -- current purple/pink gradient (the existing style)
+- **LinkedIn** -- #0A66C2 blue, rounded dots, LinkedIn icon placeholder
+- **Instagram** -- gradient pink/orange/purple, rounded dots
+- **YouTube** -- #FF0000, rounded dots
+- **Twitter/X** -- #000000, classy-rounded dots
+- **Facebook** -- #1877F2, rounded dots
+- **GitHub** -- #333333, square dots
+- **Pinterest** -- #E60023, dots shape
+- **Google Maps** -- #34A853 green, extra-rounded
+- **WiFi** -- #00BCD4 teal, dots
+- **Minimal** -- dark gray on light, thin square style
 
-**File: `src/components/interview/InterviewSetup.tsx`**
-- Initialize `mode` state from `localStorage.getItem('wiseresume_interview_mode')` or `'general'`
-- In `handleModeChange`, add `localStorage.setItem('wiseresume_interview_mode', newMode)`
+### Tab UI Layout
+- The Sheet opens from the bottom at 90vh height
+- Live QR preview at the top (240-280px depending on screen width), updates instantly on any change
+- Below the preview: a horizontally scrollable tab bar using the existing `Tabs` component
+- Below tabs: the active tab's controls in a scrollable area
+- Sticky bottom bar with Download + Share buttons
 
-**File: `src/pages/InterviewPage.tsx`** (or `src/hooks/useVoiceInterview.ts`)
-- The `voiceGender` state lives in `useVoiceInterview` hook. Initialize it from `localStorage.getItem('wiseresume_interview_voice')` or `'female'`
-- In `setVoiceGender` (or a wrapper), persist to `localStorage.setItem('wiseresume_interview_voice', gender)`
-- Since `InterviewSetup` calls `onVoiceGenderChange` which maps to `setVoiceGender`, we also need to persist inside `handleVoiceChange` in `InterviewSetup.tsx`
+### Scannability Warnings (`qr-utils.ts`)
+- Compute relative luminance contrast ratio between foreground and background
+- Warn if contrast ratio < 3:1
+- Warn if logo size > 30%
+- Warn if error correction is L with a logo enabled
+- Display as a non-blocking amber banner below the preview
 
-**File: `src/hooks/useVoiceInterview.ts`**
-- Change the initial `voiceGender` state from `'female'` to reading from localStorage
+### Logo Tab
+- Upload via `<input type="file" accept="image/*">` storing as a data URL in state
+- Default logo: the existing `wise-ai-logo.png`
+- Size slider: 10-35% (clamped at 35% max for scannability)
+- Safe zone toggle: maps to `imageOptions.hideBackgroundDots`
+- Auto-bumps error correction to H when logo is enabled
 
----
+### Eyes Tab
+- Shape presets as tappable chips: square, rounded (extra-rounded), circle (dot)
+- Maps to `cornersSquareOptions.type` and `cornersDotOptions.type`
+- Separate color pickers for outer border and inner dot
+- "Sync with foreground" toggle that overrides both colors with the main foreground color
 
-## Issue 4: "Save as PDF" via window.print()
+### Options Tab
+- Format toggle: PNG / SVG
+- Size presets: 512, 1024, 2048 as segmented control
+- Error correction: L / M / Q / H segmented control
+- Quiet zone slider: 0-40px
+- Background preview toggle: light / dark surface behind the QR to test visibility
+- Download button triggers `qrCode.download()`
+- Global warning text when customization deviates from safe defaults
 
-**File: `src/components/interview/InterviewSummary.tsx`**
-- Add a `Download` icon import from lucide-react
-- Reorganize the bottom buttons into a 2x2 grid:
-  - Row 1: Try Again | Home
-  - Row 2: Share Results | Save as PDF
-- Move "Practice Tips" to a subtle text link below the grid
-- "Save as PDF" button calls `window.print()` with a toast "Opening print dialog..."
-- Add a `@media print` stylesheet block (in the component or in `index.css`) that:
-  - Hides all buttons, nav, app chrome
-  - Shows only the summary content with black-on-white styling
-  - Adds "WiseResume" header and "wiseresume.magdysaber.com" footer
+### Animations
+- Tab transitions: fade in/out (200ms)
+- QR preview updates instantly (qr-code-styling handles re-render)
+- Template selection: scale bounce on tap (active:scale-95)
+- Warning banners: fade-in (150ms)
+- All respect `useReducedMotion`
 
-**File: `src/index.css`** (add print styles)
-- Add `@media print` block targeting the interview summary content
+### Mobile UX
+- All interactive elements have min 44x44px touch targets
+- Color pickers use native `<input type="color">` (44x44px)
+- Sliders use the existing `Slider` component (from Radix)
+- Tab bar scrolls horizontally with `overflow-x-auto` and `scrollbar-hide`
+- Preview + tabs + controls layout fills the sheet without overflow issues
 
----
+## Files Summary
 
-## Issue 5: Sticky Header on Summary Screen
-
-**File: `src/components/interview/InterviewSummary.tsx`**
-- Add a new `onGoBack` prop (maps to same handler as `onGoHome` or a dedicated back handler)
-- At the top of the component, render a sticky header bar:
-  - `position: sticky`, `top: 0`, `z-50`
-  - Left: ArrowLeft back button (44x44px tap target) calling `onGoHome`
-  - Center: "Interview Summary" text
-  - Right: compact score pill (reuse `ScoreBadge` with `overallScore`)
-  - Background: `bg-background/80 backdrop-blur-md border-b border-border/20`
-- Fade-in animation on mount
-- Score pill scales in with `initial={{ scale: 0.8 }}` to `scale: 1`
-
-**File: `src/pages/InterviewPage.tsx`**
-- No changes needed for the prop since `onGoHome` already exists and navigates to dashboard
-
----
-
-## Files Changed Summary
-
-| File | Issues | Changes |
+| File | Action | Purpose |
 |---|---|---|
-| `src/components/interview/InterviewSetup.tsx` | 1, 2, 3 | Make badge non-interactive; add mic test auto-reset timer; persist mode to localStorage |
-| `src/components/interview/InterviewSummary.tsx` | 4, 5 | Add sticky header with back button + score pill; reorganize buttons into 2x2 grid; add Save as PDF button |
-| `src/hooks/useVoiceInterview.ts` | 3 | Initialize voiceGender from localStorage; persist on change |
-| `src/index.css` | 4 | Add @media print styles for summary content |
-
-## Technical Notes
-- No new dependencies needed (window.print, localStorage are browser APIs)
-- All animations use Framer Motion (already imported) with `useReducedMotion` checks
-- 44px minimum touch targets on all new interactive elements
-- No changes to API calls, voice engine logic, scoring, session state, or data models
+| `src/components/portfolio/qr/qr-types.ts` | Create | TypeScript types for QR customization state |
+| `src/components/portfolio/qr/qr-templates.ts` | Create | 12 template presets |
+| `src/components/portfolio/qr/qr-utils.ts` | Create | Contrast checking + scannability warnings |
+| `src/components/portfolio/qr/QRGeneratorSheet.tsx` | Create | Main sheet with preview + tab bar + state |
+| `src/components/portfolio/qr/tabs/TemplatesTab.tsx` | Create | Template grid |
+| `src/components/portfolio/qr/tabs/ColoursTab.tsx` | Create | FG/BG colors + gradient |
+| `src/components/portfolio/qr/tabs/StyleTab.tsx` | Create | Module shape + roundness |
+| `src/components/portfolio/qr/tabs/LogoTab.tsx` | Create | Logo upload + size + safe zone |
+| `src/components/portfolio/qr/tabs/EyesTab.tsx` | Create | Finder pattern customization |
+| `src/components/portfolio/qr/tabs/OptionsTab.tsx` | Create | Export format, size, EC, quiet zone, download |
+| `src/pages/PortfolioEditorPage.tsx` | Edit | Replace PortfolioQRDialog import with QRGeneratorSheet |
 
