@@ -1,80 +1,51 @@
 
 
-# Capacitor Deep Link Configuration for OAuth on Native APK
+# Real Privacy Policy and Terms of Service
 
-## Problem
-
-When a user signs in with Google or Apple on the native APK, the OAuth provider redirects back to `https://hjnnamwgztlhzkeuufln.supabase.co/auth/v1/callback`, which then redirects to `{origin}/auth/callback`. On native Capacitor builds, the WebView origin is `http://localhost` -- but there is no Android App Link or intent filter configured to intercept that redirect and route it back into the app. The result: the browser opens outside the app, or the redirect silently fails.
-
-Additionally, the `AuthCallbackPage` currently only calls `getSession()` which won't work if the tokens arrive as URL hash fragments from the OAuth redirect -- it needs to also handle `exchangeCodeForSession` for PKCE flows.
+## Overview
+Replace the placeholder legal content in `PrivacyPage.tsx` and `TermsPage.tsx` with comprehensive, professional legal documents covering data handling, AI usage, GDPR compliance, and user rights.
 
 ## Changes
 
-### 1. Update `capacitor.config.ts` -- Add App URL scheme
+### 1. Privacy Policy (`src/pages/PrivacyPage.tsx`)
+Expand from 7 short sections to a full privacy policy covering:
 
-Add a `server` configuration so Capacitor knows the app's localhost origin, and add the `appUrlScheme` for custom deep links:
+- **Information We Collect**: Account data (email, name), resume content, usage analytics, device info
+- **How We Use Your Data**: Powering features, AI processing, service improvement (aggregated only)
+- **AI Data Processing**: Content processed per-session, not used to train models, no third-party AI training
+- **Data Storage and Security**: AES-256 encryption at rest, TLS 1.3 in transit, hosted infrastructure details
+- **Data Sharing**: No selling/licensing; limited to essential service providers (hosting, auth) under strict agreements
+- **Your Rights (GDPR/CCPA)**: Right to access, rectify, delete, export, restrict processing, data portability, withdraw consent
+- **Cookies and Tracking**: Essential cookies only, no advertising trackers
+- **Data Retention**: Active account data retained while account exists; deleted data purged within 30 days
+- **International Transfers**: Data processing locations and safeguards
+- **Children's Privacy**: Service not directed at under-16s
+- **Changes to Policy**: Notification process for material changes
+- **Contact**: Privacy contact email
 
-```typescript
-const config: CapacitorConfig = {
-  appId: 'com.wiseresume.app',
-  appName: 'Wise Resume',
-  webDir: 'dist',
-  android: {
-    // existing config...
-  },
-  // Add server config for deep link handling
-  server: {
-    androidScheme: 'https',  // Use https scheme instead of http for localhost
-  },
-  // existing plugins...
-};
-```
+### 2. Terms of Service (`src/pages/TermsPage.tsx`)
+Expand from 7 short sections to full terms covering:
 
-Setting `androidScheme: 'https'` ensures the WebView uses `https://localhost` as its origin, which is important for OAuth redirect URL matching and cookie handling.
-
-### 2. Update GitHub Actions to inject Android intent filters
-
-Add a step in `.github/workflows/build-apk.yml` (after `cap sync`) to patch the generated `AndroidManifest.xml` with intent filters so the app can intercept OAuth callback redirects:
-
-- Add an intent filter for `https://localhost/auth/callback` 
-- Add an intent filter for `com.wiseresume.app://auth/callback` (custom scheme fallback)
-
-This is done by injecting XML into the `<activity>` block of the generated manifest.
-
-### 3. Harden `AuthCallbackPage` for native OAuth
-
-Update `src/pages/AuthCallbackPage.tsx` to handle both scenarios:
-- **Hash fragment tokens**: Extract `access_token` and `refresh_token` from the URL hash and call `setSession()`
-- **PKCE code exchange**: Extract `code` from query params and call `exchangeCodeForSession()`
-- **Existing session**: Fall back to `getSession()` if tokens are already set
-
-### 4. Update `useDeepLinking` to handle OAuth redirects
-
-Update `src/hooks/useDeepLinking.ts` to specifically detect `/auth/callback` deep links and ensure the hash/query parameters are preserved when navigating, since these contain the OAuth tokens.
-
-### 5. Update `socialAuth.ts` redirect URL for native
-
-Update `src/lib/socialAuth.ts` to use the correct redirect URL based on platform:
-- On native (Capacitor): use `https://localhost/auth/callback`
-- On web (non-Lovable): use `${window.location.origin}/auth/callback`
-
-This ensures the backend redirect URL matches what is configured in the intent filters.
+- **Acceptance and Eligibility**: Must be 16+, agreement to terms
+- **Account Registration**: Accurate information, security responsibility
+- **Your Content and Ownership**: User retains all IP rights to their resumes and content
+- **AI-Generated Content**: Provided as suggestions only; user responsible for review and accuracy; no guarantees
+- **License to Use Service**: Limited, non-exclusive, revocable license
+- **Acceptable Use**: Prohibited activities (fraud, misleading content, reverse engineering, abuse)
+- **Subscription and Payments**: Free tier, premium features, billing terms, cancellation
+- **Service Availability**: Best-effort uptime, maintenance windows, no SLA guarantees
+- **Limitation of Liability**: Cap on damages, exclusion of consequential damages
+- **Indemnification**: User indemnifies against misuse
+- **Termination**: Either party can terminate; data deletion on account closure
+- **Governing Law**: Jurisdiction and dispute resolution
+- **Changes to Terms**: 30-day notice for material changes
+- **Contact**: Support email
 
 ## Files Modified
 
 | File | Changes |
 |---|---|
-| `capacitor.config.ts` | Add `androidScheme: 'https'` in server config |
-| `.github/workflows/build-apk.yml` | Add step to inject intent filters into AndroidManifest.xml |
-| `src/pages/AuthCallbackPage.tsx` | Handle hash tokens, PKCE code exchange, and fallback |
-| `src/hooks/useDeepLinking.ts` | Preserve hash/query on `/auth/callback` deep links |
-| `src/lib/socialAuth.ts` | Use platform-aware redirect URL for native builds |
+| `src/pages/PrivacyPage.tsx` | Replace placeholder with comprehensive privacy policy (12+ sections) |
+| `src/pages/TermsPage.tsx` | Replace placeholder with comprehensive terms of service (13+ sections) |
 
-## Backend Configuration Required
-
-You will also need to add these redirect URLs to your authentication settings (allowed redirect URLs):
-- `https://localhost/auth/callback`
-- `com.wiseresume.app://auth/callback`
-
-This ensures the auth system accepts redirects back to the native app.
-
+No database changes, no new files, no new dependencies needed.
