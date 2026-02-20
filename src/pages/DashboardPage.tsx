@@ -756,46 +756,42 @@ export default function DashboardPage() {
                   >
                     {resumeHierarchy && (
                       <>
-                        {resumeHierarchy.masterResumes.map((masterResume) => {
-                          const tailoredVersions = resumeHierarchy.tailoredByParent[masterResume.id] || [];
-                          
-                          if (tailoredVersions.length > 0) {
-                            return (
-                              <motion.div key={masterResume.id} variants={itemVariants}>
-                                <ResumeGroup
-                                  masterResume={masterResume}
-                                  tailoredVersions={tailoredVersions}
-                                  onEdit={handleEdit}
-                                  onDuplicate={handleDuplicate}
-                                  onDelete={handleDelete}
-                                  onRename={handleRename}
-                                  onInterview={handleInterview}
-                                  onCreateTailored={handleCreateTailored}
-                                  healthScores={healthScores}
-                                  scoringId={scoringId}
-                                />
-                              </motion.div>
-                            );
-                          }
-
-                          return (
-                            <motion.div key={masterResume.id} variants={itemVariants}>
-                              <ResumeListCard
-                                resume={masterResume}
-                                onEdit={handleEdit}
-                                onDuplicate={handleDuplicate}
-                                onDelete={handleDelete}
-                                onRename={handleRename}
-                                onInterview={handleInterview}
-                                healthScore={healthScores[masterResume.id]}
-                                isScoring={scoringId === masterResume.id}
-                                selectionMode={selectionMode}
-                                selected={selectedIds.has(masterResume.id)}
-                                onToggleSelect={toggleSelection}
-                              />
-                            </motion.div>
-                          );
-                        })}
+                        {resumeHierarchy.masterResumes.map((masterResume) => (
+                          <motion.div key={masterResume.id} variants={itemVariants}>
+                            <ResumeListCard
+                              resume={masterResume}
+                              onEdit={handleEdit}
+                              onDuplicate={handleDuplicate}
+                              onDelete={handleDelete}
+                              onRename={handleRename}
+                              onInterview={handleInterview}
+                              showMasterBadge={!!resumeHierarchy.tailoredByParent[masterResume.id]?.length}
+                              healthScore={healthScores[masterResume.id]}
+                              isScoring={scoringId === masterResume.id}
+                              selectionMode={selectionMode}
+                              selected={selectedIds.has(masterResume.id)}
+                              onToggleSelect={toggleSelection}
+                            />
+                          </motion.div>
+                        ))}
+                        {resumeHierarchy.orphanTailored.map((resume) => (
+                          <motion.div key={resume.id} variants={itemVariants}>
+                            <ResumeListCard
+                              resume={resume}
+                              onEdit={handleEdit}
+                              onDuplicate={handleDuplicate}
+                              onDelete={handleDelete}
+                              onRename={handleRename}
+                              onInterview={handleInterview}
+                              showTailoredBadge
+                              healthScore={healthScores[resume.id]}
+                              isScoring={scoringId === resume.id}
+                              selectionMode={selectionMode}
+                              selected={selectedIds.has(resume.id)}
+                              onToggleSelect={toggleSelection}
+                            />
+                          </motion.div>
+                        ))}
                       </>
                     )}
                   </motion.div>
