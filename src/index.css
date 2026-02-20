@@ -1446,6 +1446,11 @@ button,
     transform: none;
     opacity: 1;
   }
+  .pf-stats-strip {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
   .pf-bio-line-inner {
     transform: none;
     opacity: 1;
@@ -1528,4 +1533,28 @@ button,
 }
 .pf-card-flip-inner.pf-flipping-in {
   animation: pf-flip-in 220ms ease-out forwards;
+}
+
+/* ─── Stats Strip fade-up ────────────────────────────────────────────────── */
+.pf-stats-strip {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+.pf-stats-strip.pf-stats-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ─── Section Quick-Nav Pills ────────────────────────────────────────────── */
+.pf-nav-pills {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.pf-nav-pills::-webkit-scrollbar {
+  display: none;
+}
+
+[id^="section-"] {
+  scroll-margin-top: 100px;
 }
