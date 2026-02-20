@@ -2,6 +2,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { lovable } from '@/integrations/lovable/index';
 import { toast } from 'sonner';
 import { Capacitor } from '@capacitor/core';
+import { Browser } from '@capacitor/browser';
 
 const isLovableDomain =
   window.location.hostname.includes('lovable.app') ||
@@ -14,9 +15,17 @@ function getOAuthRedirectUrl(): string {
   return `${window.location.origin}/auth/callback`;
 }
 
+async function openOAuthUrl(url: string): Promise<void> {
+  if (Capacitor.isNativePlatform()) {
+    await Browser.open({ url });
+  } else {
+    window.location.href = url;
+  }
+}
+
 export async function signInWithGoogle(): Promise<void> {
   try {
-    if (isLovableDomain) {
+    if (isLovableDomain && !Capacitor.isNativePlatform()) {
       const { error } = await lovable.auth.signInWithOAuth('google', {
         redirect_uri: window.location.origin,
       });
@@ -35,7 +44,7 @@ export async function signInWithGoogle(): Promise<void> {
         if (oauthUrl.hostname !== 'accounts.google.com') {
           throw new Error('Invalid OAuth redirect URL');
         }
-        window.location.href = data.url;
+        await openOAuthUrl(data.url);
       }
     }
   } catch (err) {
@@ -46,7 +55,7 @@ export async function signInWithGoogle(): Promise<void> {
 
 export async function signInWithApple(): Promise<void> {
   try {
-    if (isLovableDomain) {
+    if (isLovableDomain && !Capacitor.isNativePlatform()) {
       const { error } = await lovable.auth.signInWithOAuth('apple', {
         redirect_uri: window.location.origin,
       });
@@ -65,7 +74,7 @@ export async function signInWithApple(): Promise<void> {
         if (oauthUrl.hostname !== 'appleid.apple.com') {
           throw new Error('Invalid OAuth redirect URL');
         }
-        window.location.href = data.url;
+        await openOAuthUrl(data.url);
       }
     }
   } catch (err) {

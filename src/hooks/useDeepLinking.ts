@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { App } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
 import { useNavigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 
@@ -34,6 +35,10 @@ export function useDeepLinking() {
         }
 
         if (pathname && pathname !== '/') {
+          // Close the Chrome Custom Tab / SFSafariViewController used for OAuth
+          if (pathname.startsWith('/auth/callback')) {
+            Browser.close().catch(() => {});
+          }
           navigate(pathname + search + hash, {
             replace: pathname.startsWith('/auth/callback'),
           });
