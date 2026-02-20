@@ -1,8 +1,28 @@
 [
   {
-    "version": "v2.3.0",
+    "version": "v2.3.1",
     "date": "Feb 20, 2026",
     "latest": true,
+    "summary": "A quick polish pass -- the splash screen now features a twinkling star-field and you can replay it any time from Settings.",
+    "items": [
+      {
+        "title": "Star-field splash background",
+        "description": "Thirty softly twinkling stars drift inward toward the logo during the splash animation, with a faint nebula glow behind them for a cinematic space feel."
+      },
+      {
+        "title": "Replay Splash Screen in Settings",
+        "description": "A new button in Settings > About & Help lets you re-watch the animated intro whenever you want."
+      },
+      {
+        "title": "Reduced-motion compliance",
+        "description": "All new splash animations are fully disabled when the OS-level Reduce Motion preference is active -- stars render as static dots instead."
+      }
+    ]
+  },
+  {
+    "version": "v2.3.0",
+    "date": "Feb 20, 2026",
+    "latest": false,
     "summary": "The portfolio just became a jaw-dropping experience — cinematic animations, a live career timeline, a Contact Me button, and a full UX audit pass across the editor and dashboard.",
     "items": [
       {
