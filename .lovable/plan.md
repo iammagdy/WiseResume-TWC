@@ -1,40 +1,41 @@
 
-# Add "Replay Splash Screen" to Settings
+
+# Add Changelog Entry v2.3.1
 
 ## What Changes
 
-Add a new button row in the **About & Help** section of Settings, right after the existing "Take Tour Again" row, that resets the `hasSeenSplash` flag and navigates the user back to the root so the animated splash replays.
+Add a new patch version `v2.3.1` to `public/changelog.json` as the latest entry, covering the two recent enhancements. Mark it as `latest: true` and set the previous `v2.3.0` entry to `latest: false`.
 
-## File Modified
+## Updated File
 
-### `src/pages/SettingsPage.tsx`
+### `public/changelog.json`
 
-Insert a new `SettingsRow` + `Separator` after the "Take Tour Again" row (after line 863):
+Insert a new object at position `[0]` in the array:
 
-```tsx
-<Separator className="bg-border/30" />
-<SettingsRow
-  type="button"
-  label="Replay Splash Screen"
-  description="Re-watch the animated intro"
-  icon={<Sparkles className="w-4 h-4" />}
-  onClick={() => {
-    haptics.light();
-    setHasSeenSplash(false);
-    toast.success('Replaying splash…');
-    navigate('/');
-  }}
-/>
+```json
+{
+  "version": "v2.3.1",
+  "date": "Feb 20, 2026",
+  "latest": true,
+  "summary": "A quick polish pass -- the splash screen now features a twinkling star-field and you can replay it any time from Settings.",
+  "items": [
+    {
+      "title": "Star-field splash background",
+      "description": "Thirty softly twinkling stars drift inward toward the logo during the splash animation, with a faint nebula glow behind them for a cinematic space feel."
+    },
+    {
+      "title": "Replay Splash Screen in Settings",
+      "description": "A new button in Settings > About & Help lets you re-watch the animated intro whenever you want."
+    },
+    {
+      "title": "Reduced-motion compliance",
+      "description": "All new splash animations are fully disabled when the OS-level Reduce Motion preference is active -- stars render as static dots instead."
+    }
+  ]
+}
 ```
 
-This requires destructuring `setHasSeenSplash` from the existing `useSettingsStore()` call (already imports `hasSeenSplash`-related setters from the store).
+Set the existing `v2.3.0` entry's `"latest"` field from `true` to `false`.
 
-## How It Works
+No other files change. The app version badge in Settings and the changelog dialog will automatically pick up the new entry since they read from this JSON file at runtime.
 
-1. User taps "Replay Splash Screen" in Settings > About & Help
-2. `hasSeenSplash` is set to `false` in the persisted Zustand store
-3. App navigates to `/` which triggers `AppRoutes` to check the flag
-4. Since `hasSeenSplash` is now `false`, the `AnimatedSplash` component renders
-5. After the animation completes, `hasSeenSplash` is set back to `true`
-
-No new files, no new dependencies, no database changes.
