@@ -145,7 +145,14 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const [interimText, setInterimText] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [silenceDetected, setSilenceDetected] = useState(false);
-  const [voiceGender, setVoiceGender] = useState<VoiceGender>('female');
+  const [voiceGender, setVoiceGenderState] = useState<VoiceGender>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('wiseresume_interview_voice') : null;
+    return (saved === 'male' || saved === 'female') ? saved : 'female';
+  });
+  const setVoiceGender = useCallback((gender: VoiceGender) => {
+    setVoiceGenderState(gender);
+    localStorage.setItem('wiseresume_interview_voice', gender);
+  }, []);
   const [scores, setScores] = useState<AnswerScore[]>([]);
   const [latestScore, setLatestScore] = useState<AnswerScore | null>(null);
   const [roleAnalysis, setRoleAnalysis] = useState<RoleAnalysis | null>(null);
