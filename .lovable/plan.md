@@ -1,51 +1,45 @@
 
 
-# Real Privacy Policy and Terms of Service
+# Fix Landing Page Scroll Lag
 
-## Overview
-Replace the placeholder legal content in `PrivacyPage.tsx` and `TermsPage.tsx` with comprehensive, professional legal documents covering data handling, AI usage, GDPR compliance, and user rights.
+## Root Cause
 
-## Changes
+The landing page has three major performance bottlenecks causing scroll jank:
 
-### 1. Privacy Policy (`src/pages/PrivacyPage.tsx`)
-Expand from 7 short sections to a full privacy policy covering:
+1. **SpaceBackground parallax**: Three `motion.div` layers (`yFar`, `yMid`, `yNear`) are bound to `useScroll`/`useTransform`, causing Framer Motion to recalculate transforms on every single scroll frame. This is the primary culprit.
+2. **Excessive `whileInView` animations**: Nearly every element on the page (comparisons, features, trust pillars, section headers) has its own `motion.div` with intersection observer-based animations, creating dozens of active observers.
+3. **Large blurred orbs**: Three 260-320px elements with `blur-[70-80px]` are expensive to composite, especially on mobile GPUs.
 
-- **Information We Collect**: Account data (email, name), resume content, usage analytics, device info
-- **How We Use Your Data**: Powering features, AI processing, service improvement (aggregated only)
-- **AI Data Processing**: Content processed per-session, not used to train models, no third-party AI training
-- **Data Storage and Security**: AES-256 encryption at rest, TLS 1.3 in transit, hosted infrastructure details
-- **Data Sharing**: No selling/licensing; limited to essential service providers (hosting, auth) under strict agreements
-- **Your Rights (GDPR/CCPA)**: Right to access, rectify, delete, export, restrict processing, data portability, withdraw consent
-- **Cookies and Tracking**: Essential cookies only, no advertising trackers
-- **Data Retention**: Active account data retained while account exists; deleted data purged within 30 days
-- **International Transfers**: Data processing locations and safeguards
-- **Children's Privacy**: Service not directed at under-16s
-- **Changes to Policy**: Notification process for material changes
-- **Contact**: Privacy contact email
+## Solution
 
-### 2. Terms of Service (`src/pages/TermsPage.tsx`)
-Expand from 7 short sections to full terms covering:
+Strip out the expensive parallax system and simplify animations while keeping the visual appeal.
 
-- **Acceptance and Eligibility**: Must be 16+, agreement to terms
-- **Account Registration**: Accurate information, security responsibility
-- **Your Content and Ownership**: User retains all IP rights to their resumes and content
-- **AI-Generated Content**: Provided as suggestions only; user responsible for review and accuracy; no guarantees
-- **License to Use Service**: Limited, non-exclusive, revocable license
-- **Acceptable Use**: Prohibited activities (fraud, misleading content, reverse engineering, abuse)
-- **Subscription and Payments**: Free tier, premium features, billing terms, cancellation
-- **Service Availability**: Best-effort uptime, maintenance windows, no SLA guarantees
-- **Limitation of Liability**: Cap on damages, exclusion of consequential damages
-- **Indemnification**: User indemnifies against misuse
-- **Termination**: Either party can terminate; data deletion on account closure
-- **Governing Law**: Jurisdiction and dispute resolution
-- **Changes to Terms**: 30-day notice for material changes
-- **Contact**: Support email
+### 1. Simplify `SpaceBackground.tsx`
+- **Remove all parallax**: Delete `useScroll`, `useTransform`, and the three `motion.div` parallax layers. Replace with static `div` elements -- the gradients and nebula are barely perceptible during scroll anyway.
+- **Remove Framer Motion import entirely** from this component (it becomes pure CSS).
+- **Reduce blur values**: Drop orb blur from 70-80px to 40-50px.
+- **Reduce star count**: 30 to 15 stars (fewer DOM nodes with CSS animations).
+- **Keep shooting stars** (only 2, lightweight CSS-only).
+
+### 2. Simplify `Index.tsx` animations
+- **Remove per-item staggered animations** for comparisons, features, and trust pillars. Instead, animate each *section wrapper* once with a single `whileInView` fade-in.
+- **Remove `slideIn` and `popIn` variants** (they use per-item delays creating many observed elements).
+- **Keep hero fade-in** animations (only 4-5 elements, runs once on load).
+- **Keep `scaleIn` for the two demo cards** (only 2 elements, runs once).
+
+### 3. Remove `willChange: 'transform'` declarations
+These force GPU layer promotion for elements that no longer animate on scroll.
 
 ## Files Modified
 
 | File | Changes |
 |---|---|
-| `src/pages/PrivacyPage.tsx` | Replace placeholder with comprehensive privacy policy (12+ sections) |
-| `src/pages/TermsPage.tsx` | Replace placeholder with comprehensive terms of service (13+ sections) |
+| `src/components/landing/SpaceBackground.tsx` | Remove Framer Motion, remove parallax layers, use static divs, reduce stars to 15, lower blur values |
+| `src/pages/Index.tsx` | Remove per-item `slideIn`/`popIn`/`inView` from list items; wrap sections in single `whileInView` fade; keep hero and demo card animations |
 
-No database changes, no new files, no new dependencies needed.
+## Result
+- Scroll handler goes from recalculating 3 transform values per frame to zero
+- Intersection observers drop from ~20+ to ~4 (one per section)
+- Blur compositing cost reduced by ~40%
+- Visual result is nearly identical -- gradients, stars, and shooting stars remain; sections still fade in on scroll but as groups instead of individual items
+
