@@ -198,7 +198,7 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
               style={{ minWidth: PREVIEW_SIZE + 24 }}
             >
               <div ref={qrRef} className="rounded-xl overflow-hidden" />
-              <QRBrandedFrame />
+              <QRBrandedFrame isCapture />
             </div>
 
             <AnimatePresence>
