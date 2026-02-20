@@ -496,12 +496,12 @@ export function CareerCardSheet({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pt-2 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-5 pt-2 pb-4 max-w-3xl mx-auto w-full">
 
           {/* Live preview */}
           <div
             ref={previewWrapperRef}
-            className="w-full rounded-2xl overflow-hidden border border-border/40 relative"
+            className="w-full max-w-2xl mx-auto rounded-2xl overflow-hidden border border-border/40 relative"
             style={{ aspectRatio: '1200/630' }}
           >
             {/* Scaled preview of the actual card */}
