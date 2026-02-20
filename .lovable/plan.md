@@ -1,48 +1,42 @@
 
+# Electric Border for Developer Credit Card
 
-# Auth Flow Test Results and Fix
+## Overview
+Replace the current CSS rotating-gradient border on the Developer Credit Card with a canvas-based ElectricBorder component from React Bits. All internal card animations (particles, holo sweep, sparkles, 3D tilt, orbit, avatar glow) remain unchanged.
 
-## Test Results
+## Changes
 
-### Working Correctly
-- Sign out flow: Confirmation dialog appears, signs out, redirects to landing page
-- Sign in form: Email/password fields, validation, error handling
-- Forgot password: Form renders, redirects to `/auth?reset=true` (fixed in previous update)
-- Password reset from Settings: Correctly points to `/auth?reset=true`
-- Auth callback page: Handles PKCE, hash fragments, and session fallback
-- Social auth on custom domain: Correctly uses `supabase.auth.signInWithOAuth` with `skipBrowserRedirect: true`
-- Email signup redirect: Correctly points to `/auth/callback`
+### 1. Create `src/components/ui/ElectricBorder.tsx`
+- New component using a canvas element to draw a procedurally animated "electric" border around its children
+- Uses ResizeObserver for responsive sizing, requestAnimationFrame for smooth animation
+- Canvas has `pointer-events: none` so touch/click events pass through
+- Props: `color`, `speed`, `chaos`, `borderRadius`, `className`, `style`, `children`
+- Capped `devicePixelRatio` at 2 for mobile performance
 
-### Issue Found: `?mode=signup` URL Parameter Ignored
+### 2. Create `src/components/ui/ElectricBorder.css`
+- Styles for the electric border wrapper, canvas positioning, glow layers, and content container
+- Uses `oklch()` color function for glow effects derived from the provided color prop
+- All overlay layers use `pointer-events: none` to preserve interactivity
 
-When navigating to `/auth?mode=signup` (used by `SignInPromptDialog` when user clicks "Email" button), the page always shows the "Sign In" form instead of "Sign Up". The `AuthPage` initializes mode as `'login'` on line 44 and never reads the `mode` query parameter.
+### 3. Update `src/components/settings/DeveloperCreditCard.tsx`
+- Import `ElectricBorder`
+- Wrap the outer `motion.div` (`.dev-card-wrapper`) content inside `<ElectricBorder>` with theme-appropriate color (`hsl(var(--primary))` mapped to a hex value like `#7C3AED`), `borderRadius={20}` to match the card's `1.25rem` radius
+- The ElectricBorder wraps around the `.dev-card` element, replacing the old `.dev-card-border` div
 
-**Impact:** Users clicking "Sign up" from the sign-in prompt dialog are shown the sign-in form instead of the sign-up form, creating a confusing experience.
+### 4. Update `src/components/settings/DeveloperCreditCard.css`
+- Remove or hide the `.dev-card-border` styles (the old CSS gradient border), since ElectricBorder now handles the border effect
+- Keep all other styles (sparkles, particles, holo sweep, 3D tilt, avatar, buttons) exactly as they are
 
-## Fix
+## What stays the same
+- All internal card animations (holographic sweep, floating particles, sparkles, 3D tilt, orbit ring, avatar glow, button shine, name shimmer)
+- All interactivity (Contact button, GitHub button, website link, haptic feedback)
+- Responsive behavior at 360px breakpoint
+- Component props and API
 
-### File: `src/pages/AuthPage.tsx`
+## Technical Details
 
-Add a `useEffect` to read the `mode` search parameter on mount and switch to signup mode when `?mode=signup` is present:
-
-- After the existing `useEffect` blocks (around line 121), add logic to check `searchParams.get('mode')` and set the auth mode accordingly
-- Support values: `signup` maps to `'signup'` mode, `forgot` maps to `'forgot-password'` mode
-- Clean the URL after reading the parameter to avoid stale state on refresh
-
-### No Other Code Changes Needed
-
-The remaining auth flows (sign-in, sign-out, password reset, social login, deep linking, email verification callback) are all working correctly based on code analysis and live testing.
-
-### Manual Action Still Required
-
-You still need to add these redirect URLs to your authentication settings:
-- `https://wiseresume.magdysaber.com/auth/callback`
-- `https://localhost/auth/callback`
-- `com.wiseresume.app://auth/callback`
-
-## Files Modified
-
-| File | Change |
-|---|---|
-| `src/pages/AuthPage.tsx` | Read `mode` from URL search params to initialize correct auth mode (login vs signup) |
-
+- The ElectricBorder canvas is positioned absolutely around the card with a configurable `borderOffset` (60px default) so the electric line can extend slightly beyond the card edges
+- The noise-based displacement creates the "electric" jagged line effect; `chaos` controls intensity, `speed` controls animation rate
+- `overflow: visible` on the wrapper ensures the electric effect is not clipped
+- The component cleans up its `requestAnimationFrame` and `ResizeObserver` on unmount
+- DPR capped at 2 to avoid excessive canvas sizes on high-density mobile screens
