@@ -10,6 +10,7 @@ import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
+import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
 import { ResumeListCard } from '@/components/dashboard/ResumeListCard';
 import { useResumeStore } from '@/store/resumeStore';
 import { dbToResumeData, useResumeMutations } from '@/hooks/useResumes';
@@ -193,6 +194,9 @@ export default function ProfilePage() {
             <p className="text-xs text-muted-foreground">Applications</p>
           </div>
         </div>
+
+        {/* Career Milestones */}
+        <CareerMilestonesRow />
 
         {/* Resume Portfolio */}
         {resumes.length > 0 && (
