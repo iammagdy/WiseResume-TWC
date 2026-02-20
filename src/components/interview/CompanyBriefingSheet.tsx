@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useCompanyBriefing } from '@/hooks/useCompanyBriefing';
+import { AITrustBadge } from '@/components/ui/AITrustBadge';
 import type { CompanyBriefing } from '@/types/companyBriefing';
 
 interface CompanyBriefingSheetProps {
@@ -68,6 +69,7 @@ export function CompanyBriefingSheet({ open, onOpenChange, jobDescription, resum
         </DrawerHeader>
 
         <ScrollArea className="flex-1 px-4 pb-6 max-h-[75vh]">
+          <AITrustBadge className="mb-3" />
           {isLoading && <BriefingSkeleton />}
           {error && (
             <div className="text-center py-8 text-muted-foreground">

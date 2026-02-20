@@ -33,6 +33,7 @@ import { SuggestionProposal } from '@/lib/agenticChat';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { AppIcon } from '@/components/brand/AppIcon';
+import { AITrustBadge } from '@/components/ui/AITrustBadge';
 
 interface AgenticChatSheetProps {
   open: boolean;
@@ -290,6 +291,12 @@ export function AgenticChatSheet({ open, onOpenChange }: AgenticChatSheetProps) 
             )}
           </div>
         </SheetHeader>
+
+        {isAuthenticated && (
+          <div className="px-4 pt-1">
+            <AITrustBadge />
+          </div>
+        )}
 
         {!isAuthenticated ? (
           <GuestShowcase onClose={() => onOpenChange(false)} onSignIn={handleSignIn} />
