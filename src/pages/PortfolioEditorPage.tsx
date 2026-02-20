@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 import { PortfolioQRDialog } from '@/components/portfolio/PortfolioQRDialog';
 import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
@@ -1157,6 +1158,25 @@ export default function PortfolioEditorPage() {
 
       </div>
 
+      {/* ── Floating "Customize" pill ──────────────────────────────── */}
+      <FloatingCustomizePill
+        onTap={() => {
+          haptics.light();
+          // Expand both theme + customization cards and scroll to theme
+          setOpenSections(prev => {
+            const next = new Set(prev);
+            next.add('theme');
+            next.add('customization');
+            return next;
+          });
+          setTimeout(() => {
+            document.getElementById('section-theme')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 100);
+        }}
+        onViewLive={actualPortfolioUrl ? () => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer') : undefined}
+        hasLiveUrl={!!actualPortfolioUrl && portfolioEnabled}
+      />
+
       <CareerCardSheet
         open={showCareerCard}
         onOpenChange={setShowCareerCard}
@@ -1165,5 +1185,35 @@ export default function PortfolioEditorPage() {
         accentColor={portfolioAccentColor}
       />
     </div>
+  );
+}
+
+// ─── Floating Customize Pill ─────────────────────────────────────────────────
+function FloatingCustomizePill({ onTap, onViewLive, hasLiveUrl }: { onTap: () => void; onViewLive?: () => void; hasLiveUrl: boolean }) {
+  const prefersReduced = useReducedMotion();
+  return (
+    <motion.div
+      className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-40 flex items-center gap-2"
+      initial={prefersReduced ? { opacity: 1 } : { opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.5 }}
+    >
+      <button
+        onClick={onTap}
+        className="flex items-center gap-2 px-4 py-2.5 rounded-full glass-elevated border border-border/50 shadow-lg touch-manipulation active:scale-95 transition-transform min-h-[44px]"
+      >
+        <Palette className="w-4 h-4 text-primary" />
+        <span className="text-sm font-medium text-foreground">Customize</span>
+      </button>
+      {hasLiveUrl && onViewLive && (
+        <button
+          onClick={onViewLive}
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-full glass-elevated border border-primary/30 shadow-lg touch-manipulation active:scale-95 transition-transform min-h-[44px]"
+        >
+          <ExternalLink className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium text-primary">View Live</span>
+        </button>
+      )}
+    </motion.div>
   );
 }

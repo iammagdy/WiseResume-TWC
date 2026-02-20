@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Trophy, Rocket, BookOpen, Heart, Palette, Users, Check, Award, Globe } from 'lucide-react';
 import { useResumeStore } from '@/store/resumeStore';
 import haptics from '@/lib/haptics';
@@ -20,6 +21,7 @@ const OPTIONAL_SECTIONS = [
 
 export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }: AddSectionSheetProps) {
   const currentResume = useResumeStore(state => state.currentResume);
+  const prefersReduced = useReducedMotion();
 
   const getCount = (sectionId: string): number => {
     if (!currentResume) return 0;
@@ -31,13 +33,16 @@ export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Add optional sections to enhance your resume</p>
       <div className="grid grid-cols-2 gap-3">
-        {OPTIONAL_SECTIONS.map(section => {
+        {OPTIONAL_SECTIONS.map((section, index) => {
           const Icon = section.icon;
           const count = getCount(section.id);
           const active = count > 0;
           return (
-            <button
+            <motion.button
               key={section.id}
+              initial={prefersReduced ? { opacity: 1 } : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05, duration: 0.25 }}
               onClick={() => {
                 haptics.light();
                 onSelectSection(section.id);
@@ -56,7 +61,7 @@ export const AddSectionSheet = memo(function AddSectionSheet({ onSelectSection }
               <Icon className={`w-6 h-6 ${section.color}`} />
               <span className="text-sm font-medium">{section.label}</span>
               <span className="text-[11px] text-muted-foreground text-center leading-tight">{section.description}</span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
