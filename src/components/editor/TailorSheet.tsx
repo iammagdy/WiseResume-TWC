@@ -61,6 +61,7 @@ const SECTION_LABELS: Record<TailorSectionId, string> = {
   education: 'Education',
   projects: 'Projects',
   certifications: 'Certifications',
+  awards: 'Awards',
 };
 
 const TAB_CONFIG = [
@@ -187,7 +188,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
 
   // Section toggles
   const [enabledSections, setEnabledSections] = useState<TailorSectionId[]>([
-    'summary', 'skills', 'experience', 'education', 'projects', 'certifications'
+    'summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards'
   ]);
 
   const toggleSection = (sectionId: TailorSectionId) => {
@@ -251,7 +252,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setIsTailoring(true);
     setOriginalResume(currentResume);
     setProgress({ step: 'analyzing', progress: 5, message: 'Starting...' });
-    setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications']);
+    setEnabledSections(['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards']);
     setActiveTab('changes');
 
     abortRef.current = new AbortController();
@@ -284,7 +285,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
         result: superResult,
         original: currentResume,
         jobInfo,
-        sections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications'],
+        sections: ['summary', 'skills', 'experience', 'education', 'projects', 'certifications', 'awards'],
         intensity,
         jobUrl: jobUrl || null,
       });
@@ -375,6 +376,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     } else if (sectionId === 'skills' && Array.isArray(newValue)) {
       handleUpdateTailorResult({ skills: newValue });
     }
+    // Note: projects, certifications, and awards are array-based sections
+    // and don't support inline text editing via this handler
   }, [tailorResult, handleUpdateTailorResult]);
 
   // Auto-create tailored CV as new resume in DB
@@ -410,6 +413,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
       if (enabledSections.includes('certifications') && tailorResult.certifications) {
         mergedResume.certifications = tailorResult.certifications;
       }
+      if (enabledSections.includes('awards') && tailorResult.awards) {
+        mergedResume.awards = tailorResult.awards;
+      }
 
       const jobTitle = parsedJobInfo?.title || tailorResult.jobParsed?.title || 'Position';
       const company = parsedJobInfo?.company || tailorResult.jobParsed?.company || 'Company';
@@ -427,6 +433,8 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           education: mergedResume.education as unknown as Json,
           skills: mergedResume.skills as unknown as Json,
           certifications: mergedResume.certifications as unknown as Json,
+          projects: mergedResume.projects as unknown as Json,
+          awards: mergedResume.awards as unknown as Json,
           template_id: mergedResume.templateId,
           parent_resume_id: currentResumeId,
           target_job_title: jobTitle,
@@ -879,7 +887,7 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         title={SECTION_LABELS.projects}
                         enabled={enabledSections.includes('projects')}
                         onToggle={() => toggleSection('projects')}
-                        impactScore={5}
+                        impactScore={tailorResult.sectionScores && (tailorResult.sectionScores as any).projects ? (tailorResult.sectionScores as any).projects.after - (tailorResult.sectionScores as any).projects.before : 5}
                         changesSummary={`${tailorResult.projects.length} projects optimized`}
                         preview={
                           <ul className="space-y-1">
@@ -901,13 +909,35 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                         title={SECTION_LABELS.certifications}
                         enabled={enabledSections.includes('certifications')}
                         onToggle={() => toggleSection('certifications')}
-                        impactScore={3}
+                        impactScore={tailorResult.sectionScores && (tailorResult.sectionScores as any).certifications ? (tailorResult.sectionScores as any).certifications.after - (tailorResult.sectionScores as any).certifications.before : 3}
                         changesSummary={`${tailorResult.certifications.length} certifications refined`}
                         preview={
                           <ul className="space-y-1">
                             {tailorResult.certifications.map((c, i) => (
                               <li key={i} className="text-muted-foreground text-sm">
                                 {c.name} — {c.issuer}
+                              </li>
+                            ))}
+                          </ul>
+                        }
+                      />
+                    )}
+
+                    {/* Awards section */}
+                    {tailorResult.awards && tailorResult.awards.length > 0 && (
+                      <SectionChangeCard
+                        sectionId="awards"
+                        title={SECTION_LABELS.awards}
+                        enabled={enabledSections.includes('awards')}
+                        onToggle={() => toggleSection('awards')}
+                        impactScore={tailorResult.sectionScores && (tailorResult.sectionScores as any).awards ? (tailorResult.sectionScores as any).awards.after - (tailorResult.sectionScores as any).awards.before : 2}
+                        changesSummary={`${tailorResult.awards.length} awards enhanced`}
+                        preview={
+                          <ul className="space-y-1">
+                            {tailorResult.awards.map((a, i) => (
+                              <li key={i} className="text-muted-foreground text-sm">
+                                <span className="font-medium text-foreground">{a.title}</span>
+                                <span className="text-xs"> — {a.issuer}</span>
                               </li>
                             ))}
                           </ul>
