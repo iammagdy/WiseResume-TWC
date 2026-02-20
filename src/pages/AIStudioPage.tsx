@@ -66,19 +66,39 @@ const PLACEHOLDER_EXAMPLES = [
   'Try: "Proofread my experience"',
 ];
 
-const secondaryTools = [
-  { id: 'proofread', icon: SpellCheck, label: 'Proofread', desc: 'Fix grammar & typos', color: 'text-red-500' },
-  { id: 'ideas', icon: Lightbulb, label: 'Ideas', desc: 'Content suggestions', color: 'text-yellow-500' },
-  { id: 'customize', icon: Palette, label: 'Customize', desc: 'Design & layout', color: 'text-pink-500' },
-  { id: 'enhance', icon: Sparkles, label: 'Enhance', desc: 'Improve writing', color: 'text-cyan-500' },
-  { id: 'interview', icon: Mic, label: 'Interview', desc: 'Practice Q&A', color: 'text-orange-500' },
-  { id: 'career', icon: TrendingUp, label: 'Career', desc: 'Path advisor', color: 'text-emerald-500' },
-  { id: 'humanizer', icon: Shield, label: 'Humanize', desc: 'AI detection fix', color: 'text-violet-500' },
-  { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', desc: 'Profile optimizer', color: 'text-blue-500' },
-  { id: 'onepage', icon: FileText, label: '1-Page', desc: 'Condense resume', color: 'text-amber-500' },
-  { id: 'recruiter', icon: UserCheck, label: 'Recruiter', desc: 'Simulate review', color: 'text-rose-500' },
-  { id: 'company-briefing', icon: Building2, label: 'Briefing', desc: 'Company research', color: 'text-teal-500' },
+const toolCategories = [
+  {
+    title: 'Optimize',
+    description: 'Improve what you have',
+    tools: [
+      { id: 'proofread', icon: SpellCheck, label: 'Proofread', desc: 'Fix grammar & typos', color: 'text-red-500' },
+      { id: 'enhance', icon: Sparkles, label: 'Enhance', desc: 'Improve writing', color: 'text-cyan-500' },
+    ],
+  },
+  {
+    title: 'Create',
+    description: 'Generate new content',
+    tools: [
+      { id: 'ideas', icon: Lightbulb, label: 'Ideas', desc: 'Content suggestions', color: 'text-yellow-500' },
+      { id: 'customize', icon: Palette, label: 'Customize', desc: 'Design & layout', color: 'text-pink-500' },
+      { id: 'onepage', icon: FileText, label: '1-Page', desc: 'Condense resume', color: 'text-amber-500' },
+      { id: 'career', icon: TrendingUp, label: 'Career', desc: 'Path advisor', color: 'text-emerald-500' },
+    ],
+  },
+  {
+    title: 'Prepare',
+    description: 'Get ready for jobs',
+    tools: [
+      { id: 'interview', icon: Mic, label: 'Interview', desc: 'Practice Q&A', color: 'text-orange-500' },
+      { id: 'recruiter', icon: UserCheck, label: 'Recruiter', desc: 'Simulate review', color: 'text-rose-500' },
+      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', desc: 'Profile optimizer', color: 'text-blue-500' },
+      { id: 'humanizer', icon: Shield, label: 'Humanize', desc: 'AI detection fix', color: 'text-violet-500' },
+      { id: 'company-briefing', icon: Building2, label: 'Briefing', desc: 'Company research', color: 'text-teal-500' },
+    ],
+  },
 ];
+
+const secondaryTools = toolCategories.flatMap(c => c.tools);
 
 export default function AIStudioPage() {
   const navigate = useNavigate();
@@ -382,21 +402,31 @@ export default function AIStudioPage() {
             </button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pt-2">
-              {secondaryTools.map(tool => (
-                <button
-                  key={tool.id}
-                  onClick={() => handleSecondaryAction(tool.id)}
-                  className="flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[100px]"
-                >
-                  <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
-                    <tool.icon className={cn('w-6 h-6', tool.color)} />
+            <div className="space-y-5 pt-2">
+              {toolCategories.map(category => (
+                <div key={category.title}>
+                  <div className="mb-2 px-1">
+                    <h3 className="text-sm font-semibold">{category.title}</h3>
+                    <p className="text-xs text-muted-foreground">{category.description}</p>
                   </div>
-                  <div className="text-center">
-                    <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
-                    <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {category.tools.map(tool => (
+                      <button
+                        key={tool.id}
+                        onClick={() => handleSecondaryAction(tool.id)}
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[100px]"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
+                          <tool.icon className={cn('w-6 h-6', tool.color)} />
+                        </div>
+                        <div className="text-center">
+                          <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
+                          <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </CollapsibleContent>

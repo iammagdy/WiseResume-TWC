@@ -18,8 +18,7 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 // DailyTipCard removed - tip merged into DashboardStats
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
-import { CareerMilestonesRow } from '@/components/dashboard/CareerMilestonesRow';
-import { PortfolioActivityCard } from '@/components/dashboard/PortfolioActivityCard';
+import { WhatsNextCard } from '@/components/dashboard/WhatsNextCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
@@ -553,8 +552,16 @@ export default function DashboardPage() {
         {/* All scrollable content inside PullToRefresh */}
         <PullToRefresh onRefresh={handleRefresh} className="flex-1">
           <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
-            {/* Trust banner for new users */}
-            {!localStorage.getItem('wr-trust-banner-seen') && (
+            {/* Trust banner — auto-dismiss after 3 visits */}
+            {(() => {
+              const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
+              if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return null;
+              // Increment visit count
+              if (!localStorage.getItem('wr-trust-banner-counted-' + Date.now().toString().slice(0, 10))) {
+                try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch {}
+              }
+              return true;
+            })() && (
               <div className="px-4 pt-3">
                 <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
@@ -573,8 +580,8 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {/* Portfolio Activity Card - shows if portfolio is enabled */}
-            <PortfolioActivityCard />
+            {/* What's Next Card */}
+            <WhatsNextCard />
 
             {/* Personalized Stats Header */}
             <DashboardStats
@@ -585,9 +592,6 @@ export default function DashboardPage() {
               resumes={resumes ?? undefined}
               loginStreak={profile?.loginStreak}
             />
-
-            {/* Career Milestones Row */}
-            <CareerMilestonesRow />
 
             {/* Quick Action Chips */}
             {resumes && resumes.length > 0 && (

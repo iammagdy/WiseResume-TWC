@@ -31,13 +31,13 @@ const tabs: TabItem[] = [
   {
     path: '/ai-studio',
     icon: Sparkles,
-    label: 'Studio',
+    label: 'AI Tools',
     matchPaths: ['/ai-studio', '/career', '/cover-letter', '/cover-letters', '/resignation-letter', '/resignation-letters', '/interview'],
   },
   {
     path: '/applications',
     icon: BarChart3,
-    label: 'Activity',
+    label: 'Jobs',
     matchPaths: ['/applications', '/application', '/job'],
   },
   {

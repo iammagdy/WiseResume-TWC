@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FileText, Globe, Home, BarChart3, Sparkles } from 'lucide-react';
 import { motion, useReducedMotion, LayoutGroup } from 'framer-motion';
@@ -44,7 +45,7 @@ const tabs: TabItem[] = [
 {
   path: '/ai-studio',
   icon: Sparkles,
-  label: 'Studio',
+  label: 'AI Tools',
   matchPaths: [
     '/ai-studio',
     '/career',
@@ -57,7 +58,7 @@ const tabs: TabItem[] = [
 {
   path: '/applications',
   icon: BarChart3,
-  label: 'Applications',
+  label: 'Jobs',
   matchPaths: ['/applications', '/application', '/job']
 },
 {
@@ -83,6 +84,12 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const { hasNew, markSeen } = useChangelogBadge();
   const prefersReducedMotion = useReducedMotion();
 
+  // First-visit discovery dots
+  const [discoveryDots, setDiscoveryDots] = useState(() => ({
+    aiTools: !localStorage.getItem('wr-discovered-ai-tools'),
+    portfolio: !localStorage.getItem('wr-discovered-portfolio'),
+  }));
+
   const isActive = (tab: TabItem) => {
     if (tab.matchPaths) {
       return tab.matchPaths.some((p) => location.pathname.startsWith(p));
@@ -94,6 +101,15 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
     haptics.selection();
     if (tab.path === '/dashboard') {
       markSeen();
+    }
+    // Dismiss discovery dots
+    if (tab.path === '/ai-studio' && discoveryDots.aiTools) {
+      localStorage.setItem('wr-discovered-ai-tools', 'true');
+      setDiscoveryDots(prev => ({ ...prev, aiTools: false }));
+    }
+    if (tab.path === '/portfolio' && discoveryDots.portfolio) {
+      localStorage.setItem('wr-discovered-portfolio', 'true');
+      setDiscoveryDots(prev => ({ ...prev, portfolio: false }));
     }
     if (tab.guarded && !currentResumeId) {
       if (resumes && resumes.length > 0) {
@@ -193,6 +209,23 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                             animate={prefersReducedMotion ? {} : { scale: [1, 1.3, 1] }}
                             transition={prefersReducedMotion ? {} : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                             aria-label="New updates available"
+                          />
+                        )}
+                        {/* Discovery dots for first-time users */}
+                        {tab.path === '/ai-studio' && discoveryDots.aiTools && !active && (
+                          <motion.span
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background"
+                            animate={prefersReducedMotion ? {} : { scale: [1, 1.3, 1] }}
+                            transition={prefersReducedMotion ? {} : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                            aria-label="Discover AI tools"
+                          />
+                        )}
+                        {tab.path === '/portfolio' && discoveryDots.portfolio && !active && (
+                          <motion.span
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background"
+                            animate={prefersReducedMotion ? {} : { scale: [1, 1.3, 1] }}
+                            transition={prefersReducedMotion ? {} : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                            aria-label="Discover portfolio"
                           />
                         )}
                       </div>
