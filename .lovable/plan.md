@@ -1,46 +1,36 @@
 
 
-# Styled QR Code with Embedded Logo
+# Fix QR Code Not Rendering
 
-## Overview
-Replace the plain QR code (currently fetched from an external API) with a locally-generated, styled QR code using the `qr-code-styling` library. The new QR will feature rounded purple-to-pink gradient dots, extra-rounded corners, and the WiseResume icon centered inside.
+## Root Cause
+When `open` changes to `true`, the `useEffect` fires synchronously, but the Radix Dialog content hasn't mounted into the DOM yet. So `qrRef.current` is `null`, the early return triggers, and the QR code is never created or appended.
 
-## What Changes
+## Fix
+In `src/components/portfolio/PortfolioQRDialog.tsx`, replace the first `useEffect` (lines 34-81) with one that uses a `requestAnimationFrame` to defer the append call until after the Dialog content is actually in the DOM.
 
-### 1. Install `qr-code-styling`
-Add the npm package for local, customizable QR generation.
+```tsx
+useEffect(() => {
+  if (!open) return;
 
-### 2. Extract QR dialog into its own component
-Create **`src/components/portfolio/PortfolioQRDialog.tsx`** to keep `PortfolioEditorPage` clean. This component will:
+  // Defer to next frame so Radix Dialog content is mounted
+  const frameId = requestAnimationFrame(() => {
+    if (!qrRef.current) return;
 
-- Accept `open`, `onOpenChange`, `portfolioUrl`, `displayUrl`, `username`, and the share handler as props
-- Use `useRef` + `useEffect` to initialize `QRCodeStyling` with:
-  - Dark background (`#18181b`)
-  - Radial gradient dots (purple `#a855f7` to pink `#ec4899`)
-  - Extra-rounded corner squares in purple, dot-style corner dots in pink
-  - WiseResume icon (`wise-ai-icon.png`) centered at 35% size with error correction level "H"
-- Responsive sizing: 240px on screens narrower than 360px, 280px otherwise
-- Built-in download via `qrCode.download()` producing a PNG named `wiseresume-portfolio-qr.png`
-- Keep the Share button and its logic passed through unchanged
+    if (!qrCodeRef.current) {
+      qrCodeRef.current = new QRCodeStyling({
+        // ... same config as now ...
+      });
+    }
 
-### 3. Update `src/pages/PortfolioEditorPage.tsx`
-- Import and render `PortfolioQRDialog` in place of the inline QR Dialog block (lines 657-687)
-- Remove the `handleDownloadQR` function (lines 485-498) since download is now handled inside the new component
-- Pass `handleShareQR` to the new component as a prop
-- No other logic changes
+    qrRef.current.innerHTML = '';
+    qrCodeRef.current.append(qrRef.current);
+  });
 
-### Visual Result
-- Dark background (`#18181b`)
-- Purple-to-pink radial gradient rounded dots
-- Extra-rounded corner squares in purple
-- WiseResume app icon centered inside the QR
-- Soft purple glow shadow around the QR card
-- Clean, modern look -- no plain black squares
+  return () => cancelAnimationFrame(frameId);
+}, [open, size, portfolioUrl]);
+```
 
-### Files Affected
-| File | Action |
-|------|--------|
-| `src/components/portfolio/PortfolioQRDialog.tsx` | Create |
-| `src/pages/PortfolioEditorPage.tsx` | Edit (replace inline QR dialog + remove old download handler) |
-| `package.json` | Install `qr-code-styling` |
+## Files Modified
+- `src/components/portfolio/PortfolioQRDialog.tsx` -- wrap the QR init/append logic in `requestAnimationFrame` inside the existing `useEffect`
 
+No other files or dependencies change.
