@@ -1,128 +1,76 @@
 
 
-# Database Logic, Edge Function Wiring, and Social Auth Audit
+# Increase User Trust in WiseResume
 
-## Issues Found
+## Problem
 
-### Issue 1: Missing Edge Functions in `config.toml` (Critical)
+The app lacks visible trust signals beyond a generic "4.9 stars" and "12,000+ users" badge. There is no mention of data privacy, encryption, or AI transparency anywhere. Users interacting with AI features have no reassurance that their personal career data is handled securely. The footer has no privacy or terms links.
 
-Four edge functions exist as code but are NOT registered in `supabase/config.toml`, meaning they will fail to deploy:
+## Changes
 
-| Missing Function | Purpose |
+### 1. Landing Page -- Trust & Security Section
+
+Add a new section between the "Why WiseResume?" features and the footer on the landing page (`src/pages/Index.tsx`). This section will display 3-4 trust pillars:
+
+| Pillar | Icon | Text |
+|---|---|---|
+| Data Encryption | ShieldCheck | Your data is encrypted at rest and in transit |
+| Private by Default | Lock | Only you can see your resumes -- never shared or sold |
+| AI Transparency | Brain | AI suggestions are generated fresh for you, never stored or used to train models |
+| Delete Anytime | Trash2 | Full control -- delete your data permanently at any time |
+
+Styled as a compact horizontal card row with muted backgrounds, matching the existing glass-surface aesthetic.
+
+### 2. Enhanced Footer with Legal Links
+
+Update `src/components/landing/Footer.tsx` to include:
+- "Privacy Policy" and "Terms of Service" text links (pointing to `/privacy` and `/terms`)
+- A small "Your data is encrypted and secure" line with a ShieldCheck icon
+- Create two minimal static pages (`src/pages/PrivacyPage.tsx` and `src/pages/TermsPage.tsx`) with placeholder legal content and register them as routes in `App.tsx`
+
+### 3. AI Processing Trust Indicator
+
+Create a small reusable component `src/components/ui/AITrustBadge.tsx` that displays a subtle "Private and secure -- your data never leaves your session" message. This badge will appear:
+- Inside the AgenticChatSheet header area
+- At the top of TailorSheet results
+- In the CompanyBriefingSheet
+
+It will be a compact, dismissible inline banner (8-10px text, ShieldCheck icon, muted styling).
+
+### 4. Dashboard Welcome Trust Banner
+
+Add a one-time dismissible trust banner to the Dashboard (`src/pages/DashboardPage.tsx`) for new users (shown when `resumes.length === 0` or first visit). Content:
+- "Your career data is encrypted, private, and never shared."
+- "Powered by Wise AI -- built for accuracy, not guesswork."
+- Dismiss stores `wr-trust-banner-seen` in localStorage.
+
+### 5. "Powered by Wise AI" Contextual Badges
+
+Add small "Powered by Wise AI" text badges (using the existing `AIEngineBadge` component or a lighter variant) to key AI result screens:
+- Job Match Score detail sheet (when AI-verified)
+- Interview feedback cards
+- Tailor results header
+
+This reinforces that results come from a real, named AI engine -- not generic automation.
+
+## Files Created
+
+| File | Purpose |
 |---|---|
-| `send-bug-report` | Saves bug reports to DB + emails developer |
-| `send-resume-reminder` | Sends stale-resume notification reminders |
-| `weekly-digest` | Sends weekly career digest notifications |
-| `company-briefing` | AI company research briefing (recently added) |
+| `src/pages/PrivacyPage.tsx` | Static privacy policy page |
+| `src/pages/TermsPage.tsx` | Static terms of service page |
+| `src/components/ui/AITrustBadge.tsx` | Reusable trust indicator for AI features |
 
-**Fix:** Add all four entries to `supabase/config.toml` with `verify_jwt = false`.
+## Files Modified
 
----
-
-### Issue 2: Incomplete CORS Headers in Legacy Functions (Medium)
-
-Two functions use an **outdated, shorter** CORS `Access-Control-Allow-Headers` list that is missing the `x-supabase-client-*` headers. This can cause preflight failures on newer Supabase client versions:
-
-| Function | Current Headers |
+| File | Changes |
 |---|---|
-| `send-resume-reminder` | `authorization, x-client-info, apikey, content-type` (missing 4 headers) |
-| `weekly-digest` | `authorization, x-client-info, apikey, content-type` (missing 4 headers) |
-
-Both also use the deprecated `serve()` import from `deno.land/std` instead of `Deno.serve()`.
-
-**Fix:** Update both functions to use the full CORS header set and `Deno.serve()`.
-
----
-
-### Issue 3: `track-portfolio-view` Short Link Increment Uses Broken RPC (Low)
-
-Lines 133-136 in `track-portfolio-view/index.ts` attempt to call `supabase.rpc("increment_short_link_count")` inside an `.update()` call. This RPC does not exist in the database, so it always fails and falls back to a read-modify-write pattern which has a race condition.
-
-**Fix:** Remove the broken RPC call and use the existing read-modify-write fallback directly, or add a proper SQL `UPDATE short_links SET click_count = click_count + 1 WHERE id = p_link_id` statement.
-
----
-
-### Issue 4: No `/auth/callback` Route for APK Social Auth (Critical for Mobile)
-
-`socialAuth.ts` redirects native (non-Lovable) builds to `/auth/callback` after Google/Apple sign-in. However:
-- There is NO `/auth/callback` route defined in `App.tsx`
-- The app has no `AuthCallback` page component
-
-This means on the APK build, after a user signs in with Google or Apple, they will land on a 404 page. The OAuth flow will technically set the session via URL hash tokens, but the user will see a blank/error page instead of being redirected to the dashboard.
-
-**Fix:** Create a lightweight `/auth/callback` route that reads the session from the URL hash and redirects to `/dashboard`.
-
----
-
-### Issue 5: `og-image` and `portfolio-meta` Use Short CORS Headers (Low)
-
-These two functions use `authorization, x-client-info, apikey, content-type` instead of the full set. While these are primarily consumed by crawlers/browsers (not the Supabase client), updating them for consistency prevents future issues.
-
-**Fix:** Update CORS headers to the full set.
-
----
-
-## Implementation Steps
-
-### Step 1: Register Missing Functions in config.toml
-
-Add these four entries:
-```text
-[functions.send-bug-report]
-verify_jwt = false
-
-[functions.send-resume-reminder]
-verify_jwt = false
-
-[functions.weekly-digest]
-verify_jwt = false
-
-[functions.company-briefing]
-verify_jwt = false
-```
-
-### Step 2: Fix CORS and Runtime in Legacy Functions
-
-Update `send-resume-reminder/index.ts` and `weekly-digest/index.ts`:
-- Replace `import { serve }` with `Deno.serve()`
-- Add full CORS header set including the four `x-supabase-client-*` headers
-
-### Step 3: Fix Short Link Click Tracking
-
-In `track-portfolio-view/index.ts`, replace the broken RPC + fallback pattern (lines 132-153) with a direct increment:
-```typescript
-await supabaseClient
-  .from("short_links")
-  .update({ click_count: supabaseClient.rpc(...) }) // REMOVE THIS
-```
-Replace with a simple read-increment-write or a raw SQL increment via the service client.
-
-### Step 4: Create Auth Callback Route for APK Builds
-
-Create `src/pages/AuthCallbackPage.tsx`:
-- On mount, call `supabase.auth.getSession()` to pick up tokens from the URL hash
-- Redirect to `/dashboard` on success, `/auth` on failure
-- Show a brief loading spinner during the redirect
-
-Register the route in `App.tsx` as a public route:
-```typescript
-<Route path="/auth/callback" element={<AuthCallbackPage />} />
-```
-
-### Step 5: Update Remaining CORS Headers
-
-Update `og-image/index.ts` and `portfolio-meta/index.ts` to use the full CORS header set for consistency.
-
----
-
-## Social Auth on APK Summary
-
-| Aspect | Status |
-|---|---|
-| Lovable domain detection | Working -- correctly routes to `lovable.auth.signInWithOAuth` |
-| APK/non-Lovable detection | Working -- correctly routes to `supabase.auth.signInWithOAuth` |
-| `skipBrowserRedirect: true` | Correct for native in-app browser |
-| OAuth URL validation | Correct (checks hostname) |
-| Redirect URL after OAuth | **Broken** -- `/auth/callback` route does not exist |
-| Capacitor deep linking | Not configured for OAuth callback URLs (should add `capacitor://localhost/auth/callback` and `https://localhost/auth/callback` to allowed redirect URLs in backend auth settings) |
+| `src/pages/Index.tsx` | Add trust pillars section before footer |
+| `src/components/landing/Footer.tsx` | Add privacy/terms links and security line |
+| `src/App.tsx` | Register `/privacy` and `/terms` routes |
+| `src/pages/DashboardPage.tsx` | Add dismissible trust banner for new users |
+| `src/components/editor/AgenticChatSheet.tsx` | Add AITrustBadge in header |
+| `src/components/editor/TailorSheet.tsx` | Add AITrustBadge above results |
+| `src/components/interview/CompanyBriefingSheet.tsx` | Add AITrustBadge in header |
+| `src/components/applications/JobMatchScore.tsx` | Add "Powered by Wise AI" on AI-verified scores |
 
