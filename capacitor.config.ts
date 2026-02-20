@@ -27,8 +27,8 @@ import type { CapacitorConfig } from '@capacitor/cli';
        androidSplashResourceName: 'splash',
        androidScaleType: 'CENTER_CROP',
        showSpinner: false,
-       splashFullScreen: true,
-       splashImmersive: true
+        splashFullScreen: false,
+        splashImmersive: false
      },
      PushNotifications: {
        presentationOptions: ['badge', 'sound', 'alert'],

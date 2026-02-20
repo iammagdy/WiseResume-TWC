@@ -20,6 +20,8 @@ async function applyNativeStatusBar(color: string) {
   try {
     const { StatusBar, Style } = await import('@capacitor/status-bar');
     const isDark = color === '#0a0a14' || color.startsWith('#0a');
+    await StatusBar.setOverlaysWebView({ overlay: false });
+    await StatusBar.show();
     await StatusBar.setBackgroundColor({ color });
     await StatusBar.setStyle({ style: isDark ? Style.Dark : Style.Light });
   } catch {
