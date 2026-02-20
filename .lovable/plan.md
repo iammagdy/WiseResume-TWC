@@ -1,119 +1,107 @@
 
 
-# Typewriter Fix + Ambient Hero Gradient
+# Skill Tags Bubble Pop-In + Education Cards Fade-Up
 
 ## Overview
 
-Two changes to the public portfolio page (`/p/[username]`):
-1. Rewrite the `TypewriterText` component to fix the mid-word cut bug and upgrade its visual quality
-2. Add a slow-moving ambient gradient background layer behind the hero section
+Add two CSS-only scroll-triggered animations to the public portfolio page, replacing the existing Framer Motion entrance animations on the Skills and Education sections with IntersectionObserver-driven CSS keyframe animations. This follows the same pattern already established for experience cards.
 
 ---
 
-## ENHANCEMENT 1: Fix and Upgrade Typewriter
+## ANIMATION 1: Skill Tags Bubble Pop-In
 
-### Problem
+### CSS (`src/index.css`)
 
-The current `TypewriterText` (lines 103-155) has a state machine bug: it can start typing a new phrase before the previous one is fully deleted. The cursor uses a generic `pulse` animation that looks unintentional. The container has a fixed `h-6` which clips longer phrases on mobile.
-
-### File: `src/pages/PublicPortfolioPage.tsx` (lines 103-155)
-
-Replace the entire `TypewriterText` component with a clean state-machine implementation:
-
-**State machine** using a single `phase` state: `'typing' | 'paused' | 'deleting' | 'waiting'`
-
-- `typing`: append one character every 55ms until full phrase is shown, then switch to `paused`
-- `paused`: wait 2000ms, then switch to `deleting`
-- `deleting`: remove one character every 30ms until empty, then switch to `waiting`
-- `waiting`: wait 400ms, advance `phraseIdx`, switch to `typing`
-
-This ensures no new phrase starts until deletion is complete.
-
-**Cursor**: Replace the thin `<span>` with a styled `|` pipe character. Use a new CSS class `pf-cursor-blink` with `@keyframes` blinking at 0.7s. While `phase === 'typing'` or `phase === 'deleting'`, add a class that sets `opacity: 1` (solid, no blink). When paused/waiting, the blink animation runs.
-
-**Container**: Remove the fixed `h-6` class. Use `min-h-[1.5rem]` and `max-w-md` with natural text wrapping so long phrases wrap to 2 lines on mobile instead of clipping.
-
-**Reduced motion**: Check `window.matchMedia('(prefers-reduced-motion: reduce)')` in a ref. If true, show the first phrase statically with no animation loop.
-
-### File: `src/index.css`
-
-Add cursor blink keyframes:
+Add new keyframes and classes after the existing portfolio animation block:
 
 ```css
-@keyframes pf-cursor-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+@keyframes pf-skill-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
 }
-.pf-cursor {
-  animation: pf-cursor-blink 0.7s step-end infinite;
+
+.pf-skill-tag {
+  opacity: 0;
 }
-.pf-cursor--typing {
+.pf-skill-tag.pf-skill-revealed {
+  animation: pf-skill-pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+```
+
+Add reduced-motion overrides inside the existing `@media (prefers-reduced-motion: reduce)` block:
+
+```css
+.pf-skill-tag {
+  opacity: 1;
+}
+.pf-skill-tag.pf-skill-revealed {
   animation: none;
   opacity: 1;
 }
 ```
 
-Add reduced-motion override:
-```css
-@media (prefers-reduced-motion: reduce) {
-  .pf-cursor { animation: none; opacity: 1; }
-}
-```
+### JSX (`src/pages/PublicPortfolioPage.tsx`)
+
+**SkillCloud component (lines 825-874):**
+
+1. Remove Framer Motion entrance from the container: change `<motion.div variants={skillWave} initial="hidden" whileInView="visible" viewport={{ once: true }}>` to a plain `<div>` with a ref for the IntersectionObserver.
+2. Change each `<motion.span variants={skillPill}>` to a plain `<span>` with the `pf-skill-tag` CSS class.
+3. Add an IntersectionObserver ref on the container `<div>` (threshold: 0.2, rootMargin: '0px 0px -50px 0px'). When triggered:
+   - Query all `.pf-skill-tag` children
+   - Add `pf-skill-revealed` class with staggered `animationDelay: index * 40ms` (25ms on mobile via `window.innerWidth < 768` check)
+   - Disconnect observer (once-only)
+4. For the "Show more" expand: when `showMore` toggles from false to true, the newly visible tags (those without `pf-skill-revealed`) get the class added with stagger continuing from the last index. Use a `useEffect` watching `showMore` to handle this.
+
+### Stagger on Expand Logic
+
+When user taps "+N more" and `showMore` becomes true:
+- After React renders the new tags, use a microtask (`requestAnimationFrame`) to find `.pf-skill-tag:not(.pf-skill-revealed)` elements inside the container
+- Apply `pf-skill-revealed` with staggered delay starting from the count of already-revealed tags
+- Use 25ms stagger on mobile, 40ms on desktop
 
 ---
 
-## ENHANCEMENT 2: Animated Ambient Hero Gradient
+## ANIMATION 2: Education Cards Fade-Up
 
-### File: `src/index.css`
+### CSS (`src/index.css`)
 
-Add a new keyframe for the ambient gradient shift:
+Add new keyframes and class:
 
 ```css
-@keyframes pf-hero-gradient {
-  0%   { background-position: 0% 50%; }
-  25%  { background-position: 50% 0%; }
-  50%  { background-position: 100% 50%; }
-  75%  { background-position: 50% 100%; }
-  100% { background-position: 0% 50%; }
+@keyframes pf-edu-fade-up {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.pf-hero-ambient {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    135deg,
-    #0a0a1a 0%,
-    #0f1525 25%,
-    #12101e 50%,
-    #0d1520 75%,
-    #0a0a1a 100%
-  );
-  background-size: 400% 400%;
-  animation: pf-hero-gradient 12s linear infinite;
-  will-change: background-position;
+.pf-edu-card {
+  opacity: 0;
+}
+.pf-edu-card.pf-edu-revealed {
+  animation: pf-edu-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 ```
 
-Add reduced-motion override:
+Add reduced-motion overrides:
+
 ```css
-@media (prefers-reduced-motion: reduce) {
-  .pf-hero-ambient { animation: none; background-position: 0% 50%; }
+.pf-edu-card {
+  opacity: 1;
+}
+.pf-edu-card.pf-edu-revealed {
+  animation: none;
+  opacity: 1;
 }
 ```
 
-### File: `src/pages/PublicPortfolioPage.tsx` (line 1170-1172)
+### JSX (`src/pages/PublicPortfolioPage.tsx`)
 
-Inside the hero `<motion.div>` (which already has `className="relative ..."`), insert a new `<div>` as the first child:
+**EducationCard component (line 577):**
+- Remove Framer Motion entrance: change `<motion.div variants={fadeUp} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }}>` to a plain `<div>` with the `pf-edu-card` CSS class.
 
-```tsx
-<div className="pf-hero-ambient rounded-2xl" aria-hidden="true" />
-```
-
-This sits behind all hero content because the hero already uses `relative` positioning, and all content elements (avatar, name, buttons) have higher z-index or natural stacking. The ambient div gets `z-index: 0` while content sits above it naturally. Add `z-10` to the hero content wrapper if needed to ensure stacking.
-
-Only render this ambient div for dark themes (`pStyle !== 'classic-clean'`) since the classic-clean theme uses a white/light background where dark gradient tones would look wrong.
+**Education section (lines 1476-1485):**
+- Add an IntersectionObserver ref on the `<div className="space-y-4">` container (threshold: 0.2, rootMargin: '0px 0px -50px 0px')
+- When triggered, query child `.pf-edu-card` elements and add `pf-edu-revealed` with staggered `animationDelay: index * 120ms`
+- Disconnect after triggering (once-only)
 
 ---
 
@@ -121,8 +109,9 @@ Only render this ambient div for dark themes (`pStyle !== 'classic-clean'`) sinc
 
 | File | Change |
 |---|---|
-| `src/index.css` | Add `pf-cursor-blink` keyframes + classes, `pf-hero-gradient` keyframes + `.pf-hero-ambient` class, reduced-motion overrides for both |
-| `src/pages/PublicPortfolioPage.tsx` | Rewrite `TypewriterText` with proper state machine (lines 103-155); add ambient gradient div inside hero (line 1172) |
+| `src/index.css` | Add `pf-skill-pop` and `pf-edu-fade-up` keyframes, utility classes, reduced-motion overrides |
+| `src/pages/PublicPortfolioPage.tsx` | SkillCloud: replace FM entrance with CSS classes + observer ref; handle expand stagger |
+| `src/pages/PublicPortfolioPage.tsx` | EducationCard: replace FM entrance with `pf-edu-card` class |
+| `src/pages/PublicPortfolioPage.tsx` | Education section container: add observer ref for staggered reveal |
 
-No backend, data, routing, or dependency changes. CSS-only gradient animation. JS state machine for typewriter is self-contained within the existing component. All reduced-motion safe.
-
+No data, routing, or dependency changes. All GPU-accelerated (transform + opacity). Reduced-motion safe. Observers disconnected on unmount.
