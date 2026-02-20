@@ -85,7 +85,7 @@ export function TemplateSelector({ open, onOpenChange, onTemplateApplied }: Temp
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
           {sortedTemplates.map((template, index) => {
             const isRecommended = recommendedIds.includes(template.id);
             return (
