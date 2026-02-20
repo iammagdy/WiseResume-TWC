@@ -1,28 +1,21 @@
 
-# Add Smooth Expand/Collapse Animations to CollapsibleCard
 
-## What Changes
+# Fix QR Code Download Branding Text
 
-The `CollapsibleCard` in `src/components/portfolio/editor/shared.tsx` currently uses a simple conditional render (`{isOpen && ...}`) with no animation. We'll replace this with Framer Motion's `AnimatePresence` + `motion.div` for a smooth height + opacity transition, plus animate the chevron rotation.
+## Problem
 
-## Technical Details
+When downloading the QR code as PNG, the "Wise Resume" gradient text renders as a solid colored rectangle instead of readable text. This happens because `html2canvas` does not support the CSS `background-clip: text` technique used for the gradient text effect.
 
-### File: `src/components/portfolio/editor/shared.tsx`
+## Solution
 
-1. **Import** `motion, AnimatePresence` from `framer-motion`
-2. **Replace** the conditional `{isOpen && <div>...}` with:
-   - `AnimatePresence` wrapper with `initial={false}`
-   - `motion.div` with animated height (0 to "auto"), opacity (0 to 1), and overflow hidden
-   - Exit animation reverses the same properties
-3. **Animate the chevron** using `motion.div` with `animate={{ rotate: isOpen ? 180 : 0 }}` instead of the CSS class toggle
-4. **Respect reduced motion** via `useReducedMotion()` -- skip animations when the user prefers reduced motion
+Update `QRBrandedFrame` so that when `isCapture` is true (used during the `html2canvas` capture), the "Wise Resume" text uses a simple solid color (#a855f7) instead of the unsupported gradient-clip technique. The live preview in the sheet continues to show the gradient as before.
 
-### Animation Specs
-- **Duration**: 0.25s with `easeInOut` easing
-- **Height**: animates from 0 to `"auto"` (Framer Motion supports this natively)
-- **Opacity**: 0 to 1, slightly staggered (starts at 0.3s into the height animation)
-- **Exit**: reverse of enter
-- **Chevron**: smooth 180-degree rotation with spring physics
+## Technical Changes
 
-### No other files change
-Since all 6 components (ProfileSection, AppearanceSection, ContentVisibilitySection, and the 3 remaining inline sections) use `CollapsibleCard` from shared.tsx, they all get the animation automatically.
+### File: `src/components/portfolio/qr/QRBrandedFrame.tsx`
+
+- Split the "Wise Resume" span rendering into two paths:
+  - **Default (interactive preview):** Keep the existing `background-clip: text` gradient styling
+  - **Capture mode (`isCapture=true`):** Use a plain `color: '#a855f7'` style with no background-clip or text-fill-color properties
+- This is a ~5-line change in a single file
+
