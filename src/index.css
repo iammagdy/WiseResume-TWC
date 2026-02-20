@@ -1248,6 +1248,30 @@ button,
   animation: pf-fade-in 500ms ease-out forwards;
 }
 
+/* Skill tag pop-in */
+@keyframes pf-skill-pop {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.pf-skill-tag {
+  opacity: 0;
+}
+.pf-skill-tag.pf-skill-revealed {
+  animation: pf-skill-pop 350ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Education card fade-up */
+@keyframes pf-edu-fade-up {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.pf-edu-card {
+  opacity: 0;
+}
+.pf-edu-card.pf-edu-revealed {
+  animation: pf-edu-fade-up 500ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /* Reduced motion overrides */
 @media (prefers-reduced-motion: reduce) {
   .pf-section-title::after {
@@ -1274,5 +1298,19 @@ button,
   .pf-hero-ambient {
     animation: none;
     background-position: 0% 50%;
+  }
+  .pf-skill-tag {
+    opacity: 1;
+  }
+  .pf-skill-tag.pf-skill-revealed {
+    animation: none;
+    opacity: 1;
+  }
+  .pf-edu-card {
+    opacity: 1;
+  }
+  .pf-edu-card.pf-edu-revealed {
+    animation: none;
+    opacity: 1;
   }
 }
