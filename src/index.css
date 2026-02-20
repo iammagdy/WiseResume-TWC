@@ -1187,6 +1187,40 @@ button,
   }
 }
 
+/* Typewriter cursor */
+@keyframes pf-cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.pf-cursor {
+  font-style: normal;
+  font-weight: 400;
+  animation: pf-cursor-blink 0.7s step-end infinite;
+}
+.pf-cursor--typing {
+  animation: none;
+  opacity: 1;
+}
+
+/* Ambient hero gradient */
+@keyframes pf-hero-gradient {
+  0%   { background-position: 0% 50%; }
+  25%  { background-position: 50% 0%; }
+  50%  { background-position: 100% 50%; }
+  75%  { background-position: 50% 100%; }
+  100% { background-position: 0% 50%; }
+}
+.pf-hero-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, #0a0a1a 0%, #0f1525 25%, #12101e 50%, #0d1520 75%, #0a0a1a 100%);
+  background-size: 400% 400%;
+  animation: pf-hero-gradient 12s linear infinite;
+  will-change: background-position;
+}
+
 /* Hero entrance animations */
 @keyframes pf-badge-in {
   from { opacity: 0; transform: translateY(16px) scale(0.9); }
@@ -1232,5 +1266,13 @@ button,
   .pf-fade-entrance {
     animation: none;
     opacity: 1;
+  }
+  .pf-cursor {
+    animation: none;
+    opacity: 1;
+  }
+  .pf-hero-ambient {
+    animation: none;
+    background-position: 0% 50%;
   }
 }
