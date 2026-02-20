@@ -1,54 +1,31 @@
 
 
-# 2 UX Improvements: Template Layout + Referrer Suppression
+# Remove Duplicate FAB + Duplicate ATS Score Text
 
-## IMPROVEMENT 1: Single-Column Template Grid on Mobile
+## IMPROVEMENT 1: Remove FloatingCreateButton from Dashboard
 
-**Current state** (`src/components/editor/TemplateSelector.tsx`, line 87):
-```
-<div className="grid grid-cols-2 gap-4 pb-4">
-```
-This renders a 2-column grid at all screen sizes, making previews too small on mobile.
+The `FloatingCreateButton` is rendered in `DashboardPage.tsx` at lines 841-850. Remove this block entirely. The "New Resume" button in the QuickActionChips row remains untouched.
 
-**Fix**: Change the grid class to be single-column by default, 2-column at `md` (768px+):
+### File: `src/pages/DashboardPage.tsx` (lines 840-850)
+- Delete the entire `FloatingCreateButton` block (the conditional render and the component)
+- This only affects the dashboard -- the FAB component file itself stays for use on other pages
 
-```
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4">
-```
+## IMPROVEMENT 2: Remove ATS Score Breakdown from Resume Cards
 
-One line change. All badges, names, descriptions, selection behavior, and close button remain untouched.
+The `ATSScoreBreakdown` section in `ResumeListCard.tsx` at lines 310-328 shows the redundant "ATS Score: XX/100" text below the card content. The circular `ScoreRing` at the top-left (line 216-220) remains.
 
-### File: `src/components/editor/TemplateSelector.tsx` (line 87)
-- Change `grid-cols-2` to `grid-cols-1 md:grid-cols-2`
-
----
-
-## IMPROVEMENT 2: Suppress Internal Referrer URLs
-
-**Current state** (`src/components/portfolio/VisitorsPanel.tsx`, lines 85-96):
-The `parseReferrer` function parses raw referrer URLs. When the referrer contains `lovableproject.com` or `lovable.app` (internal staging/preview domains), it falls through to the `try` block and displays the raw hostname to users.
-
-**Fix**: Add a check after the `null` guard to detect internal domains and treat them as "Direct" visits:
-
-```tsx
-if (/lovableproject\.com|lovable\.app|lovable\.dev/i.test(referrer)) {
-  return { label: 'Direct', host: '', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' };
-}
-```
-
-Insert this line at line 87, right after the `null` check and before the LinkedIn check. This only affects display -- raw data in the database is untouched.
-
-### File: `src/components/portfolio/VisitorsPanel.tsx` (line 87)
-- Add internal domain suppression before other referrer checks
-
----
+### File: `src/components/dashboard/ResumeListCard.tsx` (lines 310-328)
+- Remove the entire `{/* ATS Score Breakdown */}` block including:
+  - The `healthScore` conditional rendering the `ATSScoreBreakdown` component
+  - The loading skeleton fallback (`animate-pulse` div)
+- This keeps the circular score ring intact while removing the redundant text breakdown
 
 ## Summary
 
 | File | Change |
 |---|---|
-| `src/components/editor/TemplateSelector.tsx` | Line 87: `grid-cols-2` to `grid-cols-1 md:grid-cols-2` |
-| `src/components/portfolio/VisitorsPanel.tsx` | Line 87: Add internal domain check returning "Direct" |
+| `src/pages/DashboardPage.tsx` | Remove lines 840-850 (FloatingCreateButton render) |
+| `src/components/dashboard/ResumeListCard.tsx` | Remove lines 310-328 (ATSScoreBreakdown section) |
 
-No backend, routing, database, or dependency changes.
+No backend, routing, database, or dependency changes. Both removals are purely visual -- all data, handlers, and other card elements remain intact.
 
