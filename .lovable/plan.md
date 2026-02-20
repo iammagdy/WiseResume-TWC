@@ -1,41 +1,71 @@
 
 
-# Fix White Frame During Loading
+# Mobile Performance and Responsiveness QA Setup
 
-## Problem
-During page load/refresh, a white frame flashes because the `html` element has no background color set. The dark background only applies once Tailwind processes `body`'s `bg-background` class and the theme JS runs.
+## Overview
+Add documentation, a Web Vitals helper, and wire it into the app entry point -- no business logic changes.
 
 ## Changes
 
-### 1. `index.html` -- Add inline background to `<html>` element
-Add `style="background-color: #0a0a14"` directly on the `<html>` tag. This ensures the viewport is dark from the very first paint, before any CSS or JS loads.
+### 1. Create `docs/perf-checklist.md`
+A release-ready QA checklist covering:
+- Device widths to test: 320, 360, 375, 390, 414, 768 (portrait + landscape)
+- Flows to verify: onboarding, create/edit CV, export/share, settings/developer card
+- What to check: overflow, clipped text, horizontal scroll, broken buttons, white flashes, animation smoothness
+- Space for noting breakpoint issues
 
-### 2. `src/index.css` -- Set `html` background in base layer
-Add `background-color: hsl(var(--background))` to the existing `html` rule (line 183-188), and also add it to `#root`:
+### 2. Update `README.md` -- Add QA sections
+Append three new sections:
 
-```css
-html {
-  background-color: hsl(var(--background));
-  /* ...existing font rules... */
-}
+**Lighthouse Baseline**
+- Instructions to run Lighthouse in Chrome DevTools (Mobile preset, Performance + Best Practices)
+- Placeholder table for FCP, LCP, TBT, CLS scores (before/after columns)
 
-#root {
-  min-height: 100vh;
-  min-height: 100dvh;
-  background-color: hsl(var(--background));
+**React Profiling Steps**
+- Open React DevTools Profiler, record interactions, identify high render-time components
+- Note that `React.memo`, `useMemo`, `useCallback` can be applied to hot spots found
+
+**Real Device and Throttling Testing**
+- Access dev build via local IP (`http://<your-ip>:8080`)
+- Enable Slow 3G + 4x CPU slowdown in Chrome DevTools
+- Verify: no layout breaks, no white flashes, smooth ElectricBorder animation
+
+### 3. Create `src/lib/reportWebVitals.ts`
+A small helper that imports `web-vitals` and logs LCP, FID, CLS, INP, TTFB to the console:
+
+```typescript
+import { onCLS, onINP, onLCP, onFCP, onTTFB } from 'web-vitals';
+
+export function reportWebVitals() {
+  onCLS(console.log);
+  onFCP(console.log);
+  onINP(console.log);
+  onLCP(console.log);
+  onTTFB(console.log);
 }
 ```
 
-### 3. `src/components/ui/PageLoadingSpinner.tsx` -- Ensure spinner uses dark bg
-The spinner already uses `bg-background` which is correct -- no change needed here.
+### 4. Update `src/main.tsx`
+Import and call `reportWebVitals()` after render:
 
-### What stays the same
-- All routing, business logic, and component behavior
-- Theme switching logic
-- All layout components (AppShell, MobileLayout, BottomTabBar)
-- The inline loading spinner in `index.html` (already dark)
+```typescript
+import { reportWebVitals } from './lib/reportWebVitals';
 
-### Files modified
-- `index.html` -- add inline `background-color` on `<html>`
-- `src/index.css` -- add `background-color` to `html` rule, add `#root` rule
+createRoot(document.getElementById("root")!).render(<App />);
+reportWebVitals();
+```
+
+### 5. Install `web-vitals` package
+Add `web-vitals` as a dependency.
+
+## Files modified
+- `docs/perf-checklist.md` (new)
+- `README.md` (append sections)
+- `src/lib/reportWebVitals.ts` (new)
+- `src/main.tsx` (add reportWebVitals call)
+- `package.json` (add web-vitals dependency via install)
+
+## What stays the same
+- All routing, business logic, components, and styles unchanged
+- No changes to any existing page or layout component
 
