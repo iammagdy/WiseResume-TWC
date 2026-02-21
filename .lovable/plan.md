@@ -1,132 +1,83 @@
 
 
-# Production Readiness Audit -- Android & iOS Mobile App
+# Redesign Animated Splash Screen
 
-After a thorough review of the full codebase, database schema, RLS policies, edge functions, navigation, auth flow, and Capacitor configuration, here is the complete production audit.
+## The Problem
+The current splash has Framer Motion animations but they feel flat and instant:
+- Logo springs in too fast (0.6s) with no dramatic build-up
+- Glow ring is barely visible (0.3 opacity max)
+- Stars drift so subtly they're imperceptible
+- Text just fades in -- no wow factor
+- Everything happens almost simultaneously, so nothing feels sequenced
 
----
-
-## VERDICT: App is production-ready with 6 issues to fix
-
-The app is well-architected for mobile production. Auth flows, deep linking, offline sync, database wiring, and RLS policies are all solid. The issues found are minor but should be fixed before a production release.
-
----
-
-## Issues to Fix
-
-### 1. Console Error: DialogFooter ref warning (WhatsNewDialog)
-
-The `DialogFooter` component is a plain function component (not wrapped in `React.forwardRef`), but Radix Dialog internally tries to pass a ref to it. This produces a React warning in the console on every app launch.
-
-**Fix:** Wrap `DialogFooter` in `React.forwardRef` in `src/components/ui/dialog.tsx` (line 70-72).
-
-**File:** `src/components/ui/dialog.tsx`
-
-### 2. Portfolio visits INSERT policy is overly permissive (WITH CHECK true)
-
-The database linter flags the `portfolio_visits` table's INSERT policy as `WITH CHECK (true)`, meaning anyone (including unauthenticated users) can insert arbitrary visit records. While this is intentional for tracking anonymous portfolio views, it creates an abuse vector where someone could flood the table with fake visit data.
-
-**Fix:** Add rate-limiting at the edge function level (`track-portfolio-view`) or add a basic validation trigger (e.g., require a non-empty username). Since this is by design for anonymous tracking, this is low priority but worth noting.
-
-**No code change needed** -- acceptable risk for production, but document it.
-
-### 3. Extensions installed in the `public` schema
-
-The linter warns about extensions (likely `pgcrypto` for the `crypt`/`gen_salt` functions used in password hashing) being in the `public` schema instead of a dedicated `extensions` schema. The functions already reference `extensions.crypt()` and `extensions.gen_salt()`, so this may be a leftover from initial setup.
-
-**No code change needed** -- this is a database admin concern, not an app code issue. Low priority.
-
-### 4. Missing `guides` route in BACK_ROUTES for `/guides/:slug`
-
-The `BACK_ROUTES` map has `/guides` pointing to `/dashboard`, which is correct. Dynamic guide pages (`/guides/:slug`) will match via the `startsWith` check and correctly return `/guides`. This is working correctly -- no fix needed.
-
-### 5. AI Studio "Change" and "Select a resume" buttons navigate to `/dashboard`
-
-On the AI Studio page, the "Change" resume button and "Select a resume" button both navigate to `/dashboard`. This is correct behavior since the dashboard is where resumes are listed. However, ideally these should return the user to AI Studio after selecting a resume.
-
-**Recommendation:** This is a UX improvement, not a bug. Consider adding a query param like `?returnTo=/ai-studio` in a future iteration. No fix needed for production launch.
-
-### 6. `GuidesPage` back button routes to `/dashboard` instead of matching BACK_ROUTES
-
-The `/guides` route in BACK_ROUTES points to `/dashboard`, which is correct since Guides is accessed from the Home tab. Verified -- no issue.
+## The Solution
+A cinematic 3-second sequence with clear visual stages that feel like a premium app launch.
 
 ---
 
-## Verified: All Critical Systems Pass
+## Animation Sequence (timeline)
 
-### Authentication (Android + iOS)
-- Email/password sign-up with email confirmation -- working
-- Google OAuth via Chrome Custom Tab (Android) / SFSafariViewController (iOS) -- working
-- Apple Sign-In via system browser -- working
-- PKCE code exchange on `/auth/callback` -- working
-- Deep link handler correctly parses custom scheme URLs -- working
-- Session persistence via `localStorage` with `autoRefreshToken` -- working
-- Session expiry detection with redirect to `/auth?reason=session_expired` -- working
-
-### Navigation & Back Buttons
-- All 35 BACK_ROUTES entries verified correct
-- Hardware back button exits on `/` and `/dashboard` -- working
-- BottomTabBar `matchPaths` correctly highlights active tab for all routes -- working
-- Editor unsaved-changes guard prevents data loss -- working
-- Deep linking from notifications, share links, portfolio links -- working
-
-### Database & RLS
-- All 18 tables have RLS enabled -- verified
-- All tables enforce `auth.uid() = user_id` for user-scoped data -- verified
-- Public tables (`portfolio_visits`, `resume_shares`, `share_comments`) have appropriate public read policies -- verified
-- No missing RLS on any table -- verified
-
-### Offline & Sync
-- Offline detection with banner -- working
-- Pending changes queue with conflict resolution dialog -- working
-- App lifecycle hooks flush saves on background -- working
-- Network retry with exponential backoff -- working
-
-### Capacitor Configuration
-- `androidScheme: 'https'` ensures correct CORS origin -- correct
-- `webContentsDebuggingEnabled: false` for production -- correct
-- Splash screen configured with `launchAutoHide: false` (manual hide after auth) -- correct
-- Keyboard resize mode set to `body` -- correct
-
-### Edge Functions
-- All 38 edge functions present and deployed
-- CORS headers configured for Capacitor origins (`https://localhost`, `capacitor://localhost`) -- correct
-- Auth token validation in edge functions -- working
-
-### PWA
-- Service worker configured with `navigateFallbackDenylist: [/^\/~oauth/]` -- correct
-- Push notifications with VAPID -- working
-- Offline caching strategies (CacheFirst for fonts, NetworkFirst for API) -- correct
-
----
-
-## Summary of Changes Needed
-
-| File | Change | Priority |
-|---|---|---|
-| `src/components/ui/dialog.tsx` | Wrap `DialogFooter` in `React.forwardRef` to fix console warning | Medium |
-
-Only 1 code change is needed. Everything else is verified and production-ready.
-
----
-
-## Technical Detail: DialogFooter Fix
-
-**Current code (line 70-72):**
-```typescript
-const DialogFooter = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
-);
+```text
+0.0s  -- Screen appears dark, particles begin floating inward
+0.3s  -- Expanding light burst from center (like a star igniting)
+0.5s  -- Logo scales up from 0 with a bounce + rotation, glow ring pulses bright
+1.0s  -- Logo settles, orbital ring spins around it
+1.2s  -- "WiseResume" text types in letter-by-letter with gradient shimmer
+1.8s  -- Tagline fades up with a soft slide
+2.2s  -- Subtle breathing pulse on the whole composition
+3.0s  -- Auto-dismiss (or tap to skip anytime)
 ```
 
-**Fixed code:**
-```typescript
-const DialogFooter = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div ref={ref} className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)} {...props} />
-  )
-);
-```
+## Changes
 
-This eliminates the React warning that fires on every page load when `WhatsNewDialog` renders.
+### File: `src/components/AnimatedSplash.tsx` (full rewrite)
+
+**Phase 1 -- Light Burst (0-0.5s)**
+- A bright radial gradient expands from the center (scale 0 to 1.5), creating a "star ignition" effect
+- Particles (stars) rush inward toward the center instead of just twinkling in place
+
+**Phase 2 -- Logo Entrance (0.3-1.0s)**
+- Logo scales from 0.3 to 1.15 (overshoot) then settles to 1.0 with a spring
+- Adds a subtle 15-degree rotation during the scale-up for dynamism
+- Glow ring pulses from 0 to full brightness (opacity 0.8) then settles to a breathing pulse
+- An orbital ring (like in PlanetLogo) rotates continuously around the logo
+
+**Phase 3 -- Text Reveal (1.0-2.0s)**
+- "WiseResume" letters animate in one by one (staggered 0.04s per letter) with slight y-offset
+- Each letter has the gradient shimmer effect (background-position animation)
+- Tagline slides up from 20px below with a fade
+
+**Phase 4 -- Ambient Loop (2.0-3.0s)**
+- Gentle breathing scale pulse on the logo (1.0 to 1.03 and back)
+- Stars continue twinkling
+- Glow ring continues breathing
+
+### Visual Enhancements
+- Brighter glow ring (peak opacity 0.8 instead of 0.4)
+- More visible nebula overlays (opacity 0.15 instead of 0.08)
+- Add 3 concentric ripple rings that expand outward from center at staggered times
+- Particle count stays at 30 but with more visible sizes (1-3px instead of 0.5-2px)
+
+### Reduced Motion
+- All animations collapse to simple fade-in (no motion, no stagger)
+- Respects `prefers-reduced-motion: reduce`
+
+---
+
+## Technical Details
+
+### No new files or dependencies
+Everything uses the existing `framer-motion` library and `AppIcon` component.
+
+### Key animation techniques used
+- `motion.div` with keyframe arrays for multi-step animations (e.g., `scale: [0.3, 1.15, 1.0]`)
+- `staggerChildren` on the text container for letter-by-letter reveal
+- CSS `@keyframes` for the continuous orbital ring rotation (avoids JS overhead)
+- `useMotionValue` + `useTransform` not needed -- simple declarative animations suffice
+
+### File changes summary
+
+| File | Change |
+|---|---|
+| `src/components/AnimatedSplash.tsx` | Rewrite animation sequence with cinematic phases: light burst, bouncy logo entrance with rotation, letter-by-letter text reveal, breathing ambient loop, brighter glow effects, ripple rings |
 
