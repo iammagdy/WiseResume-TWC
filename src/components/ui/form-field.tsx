@@ -106,8 +106,8 @@ export function InputFormField({
   };
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="flex items-center gap-2 text-sm font-semibold">
+    <div className="space-y-1">
+      <Label htmlFor={id} className="flex items-center gap-2 text-xs font-medium">
         {icon && <span className="text-muted-foreground">{icon}</span>}
         {label}
         {required && <span className="text-destructive">*</span>}
@@ -156,7 +156,7 @@ export function InputFormField({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[48px] min-h-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[40px] min-h-[40px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Clear"
             tabIndex={-1}
           >
@@ -223,8 +223,8 @@ export function TextareaFormField({
   };
 
   return (
-    <div className="space-y-2">
-      <Label htmlFor={id} className="flex items-center gap-2 text-sm font-semibold">
+    <div className="space-y-1">
+      <Label htmlFor={id} className="flex items-center gap-2 text-xs font-medium">
         {icon && <span className="text-muted-foreground">{icon}</span>}
         {label}
         {required && <span className="text-destructive">*</span>}
@@ -242,7 +242,7 @@ export function TextareaFormField({
           rows={rows}
           maxLength={maxLength}
           className={cn(
-            'resize-none min-h-[120px] sm:min-h-[80px]',
+            'resize-none min-h-[100px] sm:min-h-[80px]',
             showError && 'border-destructive focus-visible:ring-destructive',
             value && 'pr-10',
           )}
@@ -253,7 +253,7 @@ export function TextareaFormField({
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-1 top-1 min-w-[48px] min-h-[48px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+            className="absolute right-1 top-1 min-w-[40px] min-h-[40px] flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Clear"
             tabIndex={-1}
           >

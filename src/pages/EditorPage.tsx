@@ -970,10 +970,10 @@ export default function EditorPage() {
           <div className="flex items-center gap-2 min-w-0 flex-1">
               <button 
                 onClick={handleBack}
-                className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
+                className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
                 aria-label="Go back"
               >
-                <ArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-5 h-5" />
               </button>
               <button
                 className="flex items-center gap-1 min-w-0 max-w-[55vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
@@ -1218,11 +1218,11 @@ export default function EditorPage() {
                 {renderEditorContent()}
               </div>
               {/* Compact bottom action bar — icon-only to save vertical space */}
-              <div className="shrink-0 border-t border-border px-3 py-0.5 pb-[max(2px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1 keyboard-hide bg-background/95 backdrop-blur-sm" style={{ minHeight: 36 }}>
+              <div className="shrink-0 border-t border-border px-3 py-px pb-[max(2px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1 keyboard-hide bg-background/95 backdrop-blur-sm" style={{ minHeight: 28 }}>
                 <Button
                   size="sm"
                   disabled={isQuickDownloading}
-                  className="h-8 rounded-lg text-[11px] gap-1 min-h-[36px] touch-manipulation active:scale-95 flex-1"
+                  className="h-7 rounded-lg text-[11px] gap-1 min-h-[28px] touch-manipulation active:scale-95 flex-1"
                   onClick={handleQuickDownload}
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -1231,7 +1231,7 @@ export default function EditorPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 rounded-lg text-[11px] gap-1 min-h-[36px] touch-manipulation active:scale-95"
+                  className="h-7 rounded-lg text-[11px] gap-1 min-h-[28px] touch-manipulation active:scale-95"
                   onClick={() => { haptics.light(); setMobileEditorTab('preview'); }}
                 >
                   <Eye className="w-3.5 h-3.5" />
@@ -1240,7 +1240,7 @@ export default function EditorPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 rounded-lg text-[11px] gap-1 min-h-[36px] touch-manipulation active:scale-95"
+                  className="h-7 rounded-lg text-[11px] gap-1 min-h-[28px] touch-manipulation active:scale-95"
                   onClick={() => { haptics.light(); setMobileEditorTab('ats'); }}
                 >
                   <BarChart3 className="w-3.5 h-3.5" />

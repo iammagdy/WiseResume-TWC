@@ -16,7 +16,7 @@ export function HomeHeroSection({ userName }: HomeHeroSectionProps) {
   const greeting = getTimeBasedGreeting();
 
   return (
-    <header className="relative pt-safe pt-8 pb-6 px-4 flex flex-col items-center text-center">
+    <header className="relative pt-safe pt-6 pb-4 px-4 flex flex-col items-center text-center">
       {/* Animated logo with CSS float and glow */}
       <div
         className="relative mb-4 animate-float"
