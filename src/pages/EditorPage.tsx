@@ -988,7 +988,7 @@ export default function EditorPage() {
               </button>
               <OfflineIndicator isSyncing={isSyncing} />
               {/* Undo/Redo buttons */}
-              <div className="hidden xs:flex items-center gap-0.5">
+              <div className="hidden sm:flex items-center gap-0.5">
                 <button
                   onClick={handleUndo}
                   disabled={!canUndo}
@@ -1212,7 +1212,7 @@ export default function EditorPage() {
             )}
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               <div
-                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-safe space-y-0"
+                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0"
                 ref={scrollContainerRef}
               >
                 {renderEditorContent()}
