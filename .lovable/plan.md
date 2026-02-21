@@ -1,44 +1,77 @@
 
 
-# Further Reduce Splash Screen Animations
+# Performance Improvements Across the App
 
-## Current State
-The previous optimization pass already removed Framer Motion infinite loops and reduced stars to 12. However, there are still **~28 animated elements** running simultaneously, which can cause jank on low-end mobile devices.
+## Overview
+After the splash screen optimizations, several other components still run **infinite Framer Motion loops** and unnecessary background animations that consume GPU/CPU cycles -- especially on pages the user spends the most time on (home, editor, bottom tab bar).
 
-## Remaining Issues
+---
 
-1. **Orbital ring** still uses `animation: infinite` CSS (line 195) -- the only remaining infinite loop
-2. **12 star particles** -- each is a separate `<motion.div>` with individual animation calculations
-3. **3 ripple rings** -- 3 extra animated elements that expand outward
-4. **10 letter `<motion.span>`s** -- each with its own staggered animation; could be simplified
+## Changes
 
-## Changes to `src/components/AnimatedSplash.tsx`
+### 1. HomeHeroSection.tsx -- Remove infinite loops
 
-### 1. Remove orbital ring infinite animation
-Replace `infinite` with a single 3s rotation. Since the splash dismisses at 3.2s, one full rotation is all that's needed. Change line 195 from `animation: 'splash-orbit 3s linear infinite'` to `animation: 'splash-orbit 3s linear 1'` (runs once).
+**Problem**: 4 orbiting particles with `repeat: Infinity` + logo floating with `repeat: Infinity` = 5 infinite Framer Motion animation loops running the entire time the home screen is visible.
 
-### 2. Reduce stars from 12 to 6
-6 stars are enough for ambient sparkle on a mobile screen. Cuts animated DOM nodes by 6.
+**Fix**:
+- Replace the 4 orbiting `motion.div` particles with a single CSS `@keyframes` orbit animation on a container, or remove them entirely (they're barely visible behind the logo)
+- Replace the logo `animate={{ y: [0, -6, 0] }}` infinite loop with a CSS animation (`animate-float` class) to move it off the JS thread
+- The wave emoji rotation already runs once -- no change needed
 
-### 3. Remove ripple rings entirely
-The ripple rings (lines 153-164) add 3 animated elements for a subtle effect. Removing them saves 3 `<motion.div>` instances with no meaningful visual loss -- the light burst and glow ring already provide the "expanding energy" feel.
+### 2. HomeBackground.tsx -- Move style tag to module level
 
-### 4. Simplify text to a single `<motion.div>` fade-in
-Replace the 10 individual `<motion.span>` letter animations with a single `<motion.h1>` that fades and slides in as one unit. This removes 9 animated elements. The shimmer gradient still runs on the parent, so the text still looks premium.
+**Problem**: The inline `<style>` tag with the `@keyframes twinkle` is rendered inside the component, meaning it's in the DOM tree and re-evaluated on re-renders.
 
-### Summary of element reduction
+**Fix**:
+- Move the keyframe injection to module level (same pattern already used in AnimatedSplash.tsx)
+- The 12 twinkling stars use CSS-only `infinite` animations which is fine for GPU-composited layers, but reduce count to 8 since most are off-screen on mobile
 
-| Element | Before | After |
+### 3. BottomTabBar.tsx -- Replace pulsing notification dots
+
+**Problem**: Up to 3 notification dot `motion.div` elements with `repeat: Infinity` scale animations running constantly on the primary navigation bar (visible on every screen).
+
+**Fix**:
+- Replace Framer Motion `animate={{ scale: [1, 1.3, 1] }}` with a simple CSS `animate-pulse` class (already available via Tailwind)
+- This moves the animation from JS to CSS, eliminating 3 Framer Motion animation loops from every page
+
+### 4. AIFloatingButton.tsx -- Remove infinite pulse ring
+
+**Problem**: A `motion.span` with `repeat: Infinity` scale+opacity animation runs behind the FAB at all times on the editor page.
+
+**Fix**:
+- Replace with CSS `animate-pulse` or a CSS `@keyframes` animation
+- The FAB is always visible on the editor, so this saves one perpetual JS animation loop
+
+### 5. ResumeCard.tsx -- Remove infinite "Continue" arrow bounce
+
+**Problem**: Each resume card with a "Continue" label has a `motion.div` with `repeat: Infinity` translating x back and forth.
+
+**Fix**:
+- Replace with CSS `animate-bounce` or remove entirely -- the arrow icon already implies direction
+- If the user has 5+ resumes, this is 5+ infinite JS loops on the dashboard
+
+### 6. EditorDemo.tsx (landing page) -- Scope animation to viewport
+
+**Problem**: The typing/scoring demo loop runs continuously even when scrolled out of view. It uses `requestAnimationFrame` for scoring and `setTimeout` chains for typing.
+
+**Fix**:
+- Add an `IntersectionObserver` to pause the loop when the component is not visible
+- This prevents wasted CPU when users scroll past the demo on the landing page
+
+---
+
+## Summary
+
+| Component | Issue | Fix |
 |---|---|---|
-| Stars | 12 | 6 |
-| Ripple rings | 3 | 0 |
-| Letter spans | 10 | 1 (single h1) |
-| Orbital ring | infinite CSS | single iteration |
-| **Total animated nodes** | **~28** | **~12** |
+| HomeHeroSection | 5 infinite FM loops | CSS animation + remove particles |
+| HomeBackground | Inline style tag | Module-level injection |
+| BottomTabBar | 3 infinite FM dot pulses | CSS `animate-pulse` |
+| AIFloatingButton | 1 infinite FM pulse ring | CSS animation |
+| ResumeCard | N infinite FM arrow bounces | CSS or remove |
+| EditorDemo | Runs off-screen | IntersectionObserver pause |
 
-### Expected Result
-- 57% fewer animated DOM nodes
-- Zero infinite loops (CSS or JS)
-- Smoother startup on mid/low-end Android devices
-- Visual quality remains high: light burst, glow, logo bounce, shimmer text, and tagline all preserved
+**Total**: Eliminates ~10+ perpetual Framer Motion JS animation loops from commonly visited pages, moving visual effects to CSS where possible.
+
+No visual changes -- all animations look the same, they just run more efficiently.
 
