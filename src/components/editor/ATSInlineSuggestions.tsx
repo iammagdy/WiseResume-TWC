@@ -83,7 +83,9 @@ export const ATSInlineSuggestions = memo(function ATSInlineSuggestions({
       <div className="mt-3 rounded-xl border border-border/30 bg-card/30 backdrop-blur-sm overflow-hidden">
         <CollapsibleTrigger className="w-full flex items-center gap-2 px-3 py-2.5 min-h-[44px] active:scale-[0.98] touch-manipulation">
           <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
-          <span className="text-xs font-medium text-foreground flex-1 text-left">ATS Tips</span>
+          <span className="text-xs font-medium text-foreground flex-1 text-left">
+            {suggestions.some(s => s.type === 'missing_keyword') ? 'ATS Tips' : 'Writing Tips'}
+          </span>
           {visible.length > 0 && (
             <Badge variant="glass" className="text-[10px] px-1.5 py-0">
               {visible.length}

@@ -2,6 +2,7 @@ import { useMemo, useCallback, useRef, useState } from 'react';
 import { ResumeData, SectionId } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { showErrorToast } from '@/lib/errorToast';
+import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
 
 export interface ATSSuggestion {
   id: string;
@@ -109,38 +110,107 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
   const cacheRef = useRef<Record<string, { suggestions: ATSSuggestion[]; result: DeepResult }>>({});
   // Client-side keyword analysis
   const suggestions = useMemo(() => {
-    if (!resume || !jobDescription.trim()) return {} as Record<SectionId, ATSSuggestion[]>;
+    if (!resume) return {} as Record<SectionId, ATSSuggestion[]>;
 
-    const jdKeywords = extractKeywords(jobDescription);
     const result: Partial<Record<SectionId, ATSSuggestion[]>> = {};
     const sections: SectionId[] = ['summary', 'experience', 'education', 'skills', 'certifications', 'projects'];
 
-    for (const section of sections) {
-      const content = getSectionContent(resume, section).toLowerCase();
-      const missing: ATSSuggestion[] = [];
+    // --- Keyword suggestions (only when JD present) ---
+    if (jobDescription.trim()) {
+      const jdKeywords = extractKeywords(jobDescription);
 
-      // Sort keywords by frequency (most important first)
-      const sorted = [...jdKeywords.entries()].sort((a, b) => b[1] - a[1]);
+      for (const section of sections) {
+        const content = getSectionContent(resume, section).toLowerCase();
+        const missing: ATSSuggestion[] = [];
+        const sorted = [...jdKeywords.entries()].sort((a, b) => b[1] - a[1]);
 
-      for (const [keyword, freq] of sorted) {
-        if (content.includes(keyword)) continue;
-        if (missing.length >= 5) break; // Cap at 5 per section
+        for (const [keyword, freq] of sorted) {
+          if (content.includes(keyword)) continue;
+          if (missing.length >= 5) break;
 
-        const priority: ATSSuggestion['priority'] = freq >= 3 ? 'high' : freq >= 2 ? 'medium' : 'low';
+          const priority: ATSSuggestion['priority'] = freq >= 3 ? 'high' : freq >= 2 ? 'medium' : 'low';
+          missing.push({
+            id: `${section}-kw-${keyword}`,
+            type: 'missing_keyword',
+            message: `Add keyword: ${keyword}`,
+            section,
+            priority,
+            autoFix: section === 'skills' ? keyword : undefined,
+          });
+        }
 
-        missing.push({
-          id: `${section}-kw-${keyword}`,
-          type: 'missing_keyword',
-          message: `Add keyword: ${keyword}`,
-          section,
-          priority,
-          autoFix: section === 'skills' ? keyword : undefined,
+        if (missing.length > 0) {
+          result[section] = missing;
+        }
+      }
+    }
+
+    // --- Content-quality suggestions (always active) ---
+
+    // Weak verbs in experience
+    const expQuality: ATSSuggestion[] = [];
+    for (const exp of resume.experience || []) {
+      if (expQuality.length >= 3) break;
+      if (exp.description.length < 20) continue;
+      const starter = findPassiveStarter(exp.description);
+      if (starter) {
+        expQuality.push({
+          id: `experience-weak_verb-${exp.id || expQuality.length}`,
+          type: 'weak_verb',
+          message: `Use strong action verbs instead of "${starter}"`,
+          section: 'experience',
+          priority: 'medium',
         });
       }
+    }
 
-      if (missing.length > 0) {
-        result[section] = missing;
+    // Missing metrics in experience
+    let metricsCount = 0;
+    for (const exp of resume.experience || []) {
+      if (metricsCount >= 3) break;
+      if (exp.description.length < 20) continue;
+      if (!hasMetrics(exp.description)) {
+        metricsCount++;
+        expQuality.push({
+          id: `experience-add_metrics-${exp.id || metricsCount}`,
+          type: 'add_metrics',
+          message: `Add quantifiable results (e.g., "increased sales by 20%")`,
+          section: 'experience',
+          priority: 'medium',
+        });
       }
+    }
+
+    // Long bullets in experience
+    for (const exp of resume.experience || []) {
+      if (expQuality.length >= 6) break;
+      if (hasLongBullets(exp.description)) {
+        expQuality.push({
+          id: `experience-formatting-${exp.id || 'long'}`,
+          type: 'formatting',
+          message: 'Break long bullet points into shorter, scannable lines',
+          section: 'experience',
+          priority: 'low',
+        });
+        break; // one formatting tip is enough
+      }
+    }
+
+    if (expQuality.length > 0) {
+      result['experience'] = [...(result['experience'] || []), ...expQuality].slice(0, 8);
+    }
+
+    // Summary formatting
+    const summaryLen = (resume.summary || '').length;
+    if (summaryLen > 500) {
+      const fmtSuggestions: ATSSuggestion[] = [{
+        id: 'summary-formatting-length',
+        type: 'formatting',
+        message: 'Summary exceeds 500 characters — consider shortening for ATS',
+        section: 'summary',
+        priority: 'low',
+      }];
+      result['summary'] = [...(result['summary'] || []), ...fmtSuggestions];
     }
 
     return result as Record<SectionId, ATSSuggestion[]>;

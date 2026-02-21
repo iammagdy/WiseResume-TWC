@@ -1,6 +1,13 @@
 import { useState, useMemo, useCallback } from 'react';
 import { ResumeData } from '@/types/resume';
 import { useSettingsStore } from '@/store/settingsStore';
+import {
+  PASSIVE_STARTERS,
+  GENERIC_SKILLS,
+  hasPassiveVerbs,
+  hasActionVerbs,
+  hasMetrics,
+} from '@/lib/contentAnalysis';
 
 export type NudgeTrigger = 
   | 'empty_summary'
@@ -38,44 +45,7 @@ interface UseResumeNudgesOptions {
   hasMissingSkills?: boolean;
 }
 
-const PASSIVE_STARTERS = [
-  'responsible for', 'managed', 'helped', 'assisted',
-  'was responsible', 'duties included', 'tasked with',
-];
-
-const STRONG_ACTION_VERBS = [
-  'led', 'developed', 'implemented', 'increased', 'decreased', 'reduced',
-  'designed', 'built', 'launched', 'created', 'achieved', 'delivered',
-  'improved', 'optimized', 'automated', 'streamlined', 'negotiated',
-  'spearheaded', 'orchestrated', 'drove', 'established', 'transformed',
-  'pioneered', 'generated', 'secured', 'accelerated', 'mentored',
-  'architected', 'scaled', 'executed',
-];
-
-const GENERIC_SKILLS = [
-  'microsoft office', 'communication', 'teamwork', 'problem solving',
-  'problem-solving', 'time management', 'leadership', 'organization',
-  'organizational skills', 'detail oriented', 'detail-oriented',
-  'hard working', 'hard-working', 'motivated', 'self-motivated',
-  'fast learner', 'quick learner',
-];
-
-function hasPassiveVerbs(description: string): boolean {
-  const lower = description.toLowerCase().trim();
-  return PASSIVE_STARTERS.some((p) => lower.startsWith(p));
-}
-
-function hasActionVerbs(description: string): boolean {
-  const lines = description.split(/[\n•\-;]/).filter(Boolean);
-  return lines.some((line) => {
-    const firstWord = line.trim().split(/\s/)[0]?.toLowerCase();
-    return firstWord && STRONG_ACTION_VERBS.includes(firstWord);
-  });
-}
-
-function hasMetrics(description: string): boolean {
-  return /\d+/.test(description);
-}
+// Helpers imported from @/lib/contentAnalysis
 
 export function useResumeNudges({ resume, jobDescription, hasMissingSkills }: UseResumeNudgesOptions) {
   const { showAIEnhancementTips } = useSettingsStore();
