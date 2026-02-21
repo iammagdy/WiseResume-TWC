@@ -318,6 +318,22 @@ export default function EditorPage() {
     setHasSeenAIIntro(true);
   }, [setHasSeenAIIntro]);
 
+  // Auto-scroll to first form field on mobile after initial load
+  const hasAutoScrolled = useRef(false);
+  useEffect(() => {
+    if (!isMobile || !currentResume || hasAutoScrolled.current) return;
+    const timer = setTimeout(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const firstInput = container.querySelector('input, textarea');
+      if (firstInput) {
+        firstInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasAutoScrolled.current = true;
+      }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [isMobile, currentResume]);
+
   // Use ref to decouple saveToCloud from currentResume dependency
   const resumeRef = useRef(currentResume);
   resumeRef.current = currentResume;
