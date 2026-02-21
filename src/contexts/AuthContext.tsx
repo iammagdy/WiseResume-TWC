@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { Capacitor } from '@capacitor/core';
 import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
 import { logAudit } from '@/lib/auditLogger';
+import { runDailyCleanup } from '@/lib/dbCleanup';
 
 interface AuthState {
   user: User | null;
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         wasAuthenticatedRef.current = true;
         userInitiatedSignOutRef.current = false;
         migrateLocalKeysToServer();
+        runDailyCleanup();
         // Touch last_active_at — fire-and-forget, no UX impact if it fails
         supabase
           .from('profiles')
