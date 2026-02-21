@@ -1,51 +1,58 @@
 
 
-# Remove Editor Bottom Bar and Make Buttons Floating
+# Fix: Remove Black Gap in Editor — Final Approach
 
-## Problem
-The bottom action bar (PDF, Preview, ATS buttons) at the bottom of the editor content area creates a visible "black bar" that takes up significant screen space. Combined with the AppShell layout, this bar causes the half-black-screen appearance.
+## Root Cause
+
+The editor sits inside AppShell's **scroll container** (a `div` with `overflow-y-auto`). Inside a scroll container, `flex-1` does NOT constrain a child to fill the parent's height — the child just sizes to its content and the rest is empty black space.
+
+The hierarchy is:
+```text
+AppShell (h-[100dvh])
+  main (flex-1, overflow-hidden)
+    scroll-div (flex-1, overflow-y-auto)  <-- THIS breaks flex-1 for children
+      motion.div (flex-1)
+        EditorPage main (flex-1)  <-- flex-1 is IGNORED, sizes to content
+```
+
+Since the editor content (form fields) is shorter than the viewport, the remaining space shows as a black gap.
 
 ## Solution
-Remove the fixed bottom action bar entirely and convert its buttons into a floating pill that hovers above the BottomTabBar, similar to the existing `FloatingCreateButton` pattern.
 
-## Changes
+Force the editor's root `<main>` to use a fixed viewport height (`h-[100dvh]`) so it doesn't rely on `flex-1` (which fails in scroll containers). This was tried before but failed because the AppShell header was adding extra height. Since we already hide the AppShell header for editor routes, `h-[100dvh]` should work — BUT the AppShell scroll container itself also needs to stop scrolling for the editor route so the editor can manage its own scroll internally.
 
-### 1. `src/pages/EditorPage.tsx`
+The real fix: **Make the AppShell scroll container NOT scroll for editor routes** by switching from `overflow-y-auto` to `overflow-hidden` when on the editor. This lets the editor's internal `flex-1` chain work correctly because the parent is no longer a scroll container.
 
-**Remove the bottom action bar** (lines 1220-1249):
-Delete the entire `div` containing the PDF, Preview, and ATS buttons from inside `TabsContent value="editor"`.
+### File 1: `src/components/layout/AppShell.tsx` (line 67)
 
-**Remove `h-[100dvh]` from root `<main>`** (line 966):
-Change back to just `flex-1` since the black gap was caused by this bar, not the height calc:
-```
-<main className="flex-1 flex flex-col overflow-hidden">
-```
-
-**Add a floating action pill** rendered via `createPortal` to `document.body`, positioned at `bottom-[7rem]` (above the BottomTabBar). It will contain the same 3 buttons (PDF, Preview, ATS) in a compact horizontal pill with glass styling:
+Change the scroll div to conditionally disable scrolling for editor routes:
 
 ```tsx
-{isMobile && mobileEditorTab === 'editor' && createPortal(
-  <div className="fixed bottom-[7rem] left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 rounded-full bg-background/90 backdrop-blur-xl border border-border/50 shadow-lg">
-    <Button size="sm" onClick={handleQuickDownload} ...>PDF</Button>
-    <Button variant="outline" size="sm" onClick={Preview} ...>Preview</Button>
-    <Button variant="outline" size="sm" onClick={ATS} ...>ATS</Button>
-  </div>,
-  document.body
+// Before:
+className="flex-1 flex flex-col min-h-0 w-full overflow-y-auto"
+
+// After:
+className={cn(
+  "flex-1 flex flex-col min-h-0 w-full",
+  isEditorRoute ? "overflow-hidden" : "overflow-y-auto"
 )}
 ```
 
-### 2. `src/components/layout/AppShell.tsx`
+This makes `flex-1` on the editor's children actually work, since the parent is no longer a scroll container. The editor manages its own scrolling internally via `editor-scroll-container` with `overflow-y-auto`.
 
-**Revert the `pb-20` conditional** back to include editor routes, since the editor no longer has its own bottom bar stealing space. Or keep the current `!isEditorRoute` exclusion since the floating pill handles its own positioning.
+### File 2: `src/pages/EditorPage.tsx` (no changes needed)
 
-No changes needed here -- the current state (no `pb-20` for editor) is correct for the floating approach.
+The current `flex-1 flex flex-col overflow-hidden` on the root `<main>` is correct — once the parent stops being a scroll container, `flex-1` will properly fill the available height.
 
 ## Summary
 
-| # | File | What |
-|---|------|------|
-| 1 | `EditorPage.tsx` | Remove bottom action bar (lines 1220-1249) |
-| 2 | `EditorPage.tsx` | Change root `<main>` from `h-[100dvh]` to just `flex-1 flex flex-col overflow-hidden` |
-| 3 | `EditorPage.tsx` | Add floating pill with PDF/Preview/ATS buttons via portal, positioned above BottomTabBar |
+| File | Line | Change |
+|------|------|--------|
+| `AppShell.tsx` | 67 | Use `overflow-hidden` instead of `overflow-y-auto` for editor routes |
 
-No database changes. No new dependencies.
+One line change. No database changes. No new dependencies.
+
+## Why This Works
+
+- Non-editor pages: scroll div uses `overflow-y-auto` as before (pages can scroll normally)
+- Editor page: scroll div uses `overflow-hidden`, making `flex-1` propagate correctly down to the editor, which manages its own internal scrolling via `editor-scroll-container`
