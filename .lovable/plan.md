@@ -1,31 +1,61 @@
 
+# Fix: Black Gap Below Editor — Correct Approach
 
-# Fix: Black Gap Below Editor Content
+## Root Cause (why previous fixes failed)
 
-## Root Cause
+The EditorPage sits inside this hierarchy:
 
-Using `min-h-[calc(100dvh-10rem)]` does NOT solve the problem because:
+```text
+AppShell root (h-[100dvh])
+  +-- header (h-10, shrink-0)
+  +-- main (flex-1, overflow-hidden, pb-20)
+       +-- scroll div (flex-1, overflow-y-auto)  <-- SCROLL CONTAINER
+            +-- motion.div (flex-1, flex-col)
+                 +-- EditorPage main (h-[calc(100dvh-10rem)])
+```
 
-- `min-height` on a flex container does NOT make its `flex-1` children stretch to fill it
-- The container's **actual** height collapses to its content's natural height
-- The flex children (`Tabs`, `TabsContent`, scroll area) all use `flex-1` expecting a fixed-height parent
-- Result: content renders at natural height, leaving a black gap below
+The problem: the scroll div has `overflow-y-auto`, making it a scroll container. In a scroll container, `flex-1` on children does NOT constrain them to the parent's height -- children can grow beyond and scroll. So EditorPage's `h-[calc(100dvh-10rem)]` creates a fixed-height box, but the `pb-20` on AppShell's `<main>` adds 80px of padding that appears as the black gap below.
 
-## Fix
+Additionally, `10rem = 160px` is too much offset -- the header is only 40px and bottom nav is 80px, so the editor ends up 40px too short.
+
+## The Fix (2 files)
+
+### 1. AppShell: Don't apply pb-20 for editor route
+The `pb-20` bottom padding reserves space for the BottomTabBar, but the EditorPage already manages its own layout to account for the tab bar. The padding creates the visible black gap.
+
+**File: `src/components/layout/AppShell.tsx` (lines 57-62)**
+
+For routes like `/editor` that manage their own height, skip `pb-20` on the `<main>` element:
+
+```tsx
+<main
+  id="main-content"
+  className={cn(
+    "flex-1 flex flex-col min-h-0 overflow-hidden",
+    showBottomNav && !isEditorRoute && "pb-20 lg:pb-0"
+  )}
+>
+```
+
+Where `isEditorRoute = location.pathname.startsWith('/editor')`.
+
+### 2. EditorPage: Use 100dvh minus only header (40px)
+Since the editor now won't have `pb-20` from AppShell, the height calc only needs to subtract the AppShell header:
 
 **File: `src/pages/EditorPage.tsx` (line 966)**
 
-Change `min-h-` to `h-` (fixed height):
-
-```
-Before: <main className="flex-1 flex flex-col overflow-hidden min-h-[calc(100dvh-10rem)]">
-After:  <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-10rem)]">
+```tsx
+Before: <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-10rem)]">
+After:  <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-2.5rem)]">
 ```
 
-With a fixed `h-`, the flex column has a definite height, so all `flex-1` children (Tabs container, TabsContent, scroll area) properly expand to fill the remaining space. The editor already manages its own internal scrolling, so it does not need to participate in AppShell's scroll.
+`2.5rem = 40px` = AppShell header height. The BottomTabBar is `position: fixed` so it overlays on top and doesn't need height subtracted.
+
+## Summary
 
 | Change | File | Line | What |
 |--------|------|------|------|
-| `min-h-` to `h-` | `EditorPage.tsx` | 966 | Give flex container a definite height so children fill it |
+| Skip pb-20 for editor | `AppShell.tsx` | 59-62 | Prevent bottom padding from creating black gap |
+| Fix height calc | `EditorPage.tsx` | 966 | Use `h-[calc(100dvh-2.5rem)]` (only subtract header) |
 
 No database changes. No new dependencies.
