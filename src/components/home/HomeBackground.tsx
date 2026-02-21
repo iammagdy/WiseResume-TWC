@@ -9,7 +9,7 @@ interface Star {
   animationDuration: number;
 }
 
-// Pre-generate stars for consistent renders
+// Pre-generate stars for consistent renders (reduced from 12 to 8)
 function generateStars(count: number): Star[] {
   return Array.from({ length: count }, (_, i) => ({
     id: i,
@@ -21,12 +21,25 @@ function generateStars(count: number): Star[] {
   }));
 }
 
+// Inject keyframes at module level to avoid re-evaluation on renders
+if (typeof document !== 'undefined' && !document.getElementById('home-bg-keyframes')) {
+  const style = document.createElement('style');
+  style.id = 'home-bg-keyframes';
+  style.textContent = `
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.3); }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 interface HomeBackgroundProps {
   children: React.ReactNode;
 }
 
 export function HomeBackground({ children }: HomeBackgroundProps) {
-  const starsRef = useRef<Star[]>(generateStars(12));
+  const starsRef = useRef<Star[]>(generateStars(8));
 
   return (
     <div className="relative min-h-full bg-background">
@@ -84,13 +97,7 @@ export function HomeBackground({ children }: HomeBackgroundProps) {
         {children}
       </div>
 
-      {/* CSS Keyframes for star twinkle - injected via style tag */}
-      <style>{`
-        @keyframes twinkle {
-          0%, 100% { opacity: 0.3; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.3); }
-        }
-      `}</style>
+      {/* Keyframes injected at module level */}
     </div>
   );
 }

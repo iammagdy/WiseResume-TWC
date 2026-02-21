@@ -25,8 +25,6 @@ export function AIFloatingButton({
   onExport,
 }: AIFloatingButtonProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const hasSeenAIIntro = useSettingsStore(s => s.hasSeenAIIntro);
-  const isFirstVisit = !hasSeenAIIntro;
 
   const handleMainClick = () => {
     haptics.medium();
@@ -114,19 +112,10 @@ export function AIFloatingButton({
           <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full border-2 border-background" />
         )}
         
-        {/* Subtle pulse animation */}
+        {/* Subtle pulse animation - CSS only */}
         {!isExpanded && (
-          <motion.span
-            className="absolute inset-0 rounded-full gradient-primary"
-            animate={{
-              scale: [1, isFirstVisit ? 1.4 : 1.2, 1],
-              opacity: [isFirstVisit ? 0.7 : 0.5, 0, isFirstVisit ? 0.7 : 0.5],
-            }}
-            transition={{
-              duration: isFirstVisit ? 1.5 : 2,
-              repeat: Infinity,
-              ease: 'easeInOut',
-            }}
+          <span
+            className="absolute inset-0 rounded-full gradient-primary animate-pulse opacity-50"
           />
         )}
       </motion.button>

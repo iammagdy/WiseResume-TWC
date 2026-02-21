@@ -205,27 +205,21 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                           aria-hidden="true"
                         />
                         {tab.path === '/dashboard' && hasNew && (
-                          <motion.span
-                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background"
-                            animate={prefersReducedMotion ? {} : { scale: [1, 1.3, 1] }}
-                            transition={prefersReducedMotion ? {} : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                          <span
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
                             aria-label="New updates available"
                           />
                         )}
                         {/* Discovery dots for first-time users */}
                         {tab.path === '/ai-studio' && discoveryDots.aiTools && !active && (
-                          <motion.span
-                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background"
-                            animate={prefersReducedMotion ? {} : { scale: [1, 1.3, 1] }}
-                            transition={prefersReducedMotion ? {} : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                          <span
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
                             aria-label="Discover AI tools"
                           />
                         )}
                         {tab.path === '/portfolio' && discoveryDots.portfolio && !active && (
-                          <motion.span
-                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background"
-                            animate={prefersReducedMotion ? {} : { scale: [1, 1.3, 1] }}
-                            transition={prefersReducedMotion ? {} : { duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+                          <span
+                            className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
                             aria-label="Discover portfolio"
                           />
                         )}

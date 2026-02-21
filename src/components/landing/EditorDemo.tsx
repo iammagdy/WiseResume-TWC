@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { Sparkles } from 'lucide-react';
+import { useInView } from '@/hooks/useInView';
 
 const BEFORE_TEXT = 'Managed team projects and tasks';
 const AFTER_TEXT = 'Led cross-functional team of 8, delivering 3 projects 2 weeks ahead of schedule, saving $120K in operational costs';
@@ -20,6 +21,7 @@ export function EditorDemo() {
   const [score, setScore] = useState(45);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const frameRef = useRef<number | null>(null);
+  const { ref: containerRef, inView } = useInView({ threshold: 0.2, triggerOnce: false });
 
   const cleanup = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -34,9 +36,16 @@ export function EditorDemo() {
     setScore(45);
   }, [cleanup]);
 
+  // Pause all animations when out of viewport
+  useEffect(() => {
+    if (!inView && !prefersReducedMotion) {
+      cleanup();
+    }
+  }, [inView, cleanup, prefersReducedMotion]);
+
   // Typing phase
   useEffect(() => {
-    if (prefersReducedMotion || phase !== 'typing') return;
+    if (prefersReducedMotion || phase !== 'typing' || !inView) return;
     if (typed.length < BEFORE_TEXT.length) {
       timerRef.current = setTimeout(() => {
         setTyped(BEFORE_TEXT.slice(0, typed.length + 1));
@@ -49,21 +58,21 @@ export function EditorDemo() {
 
   // Enhancing → enhanced
   useEffect(() => {
-    if (prefersReducedMotion || phase !== 'enhancing') return;
+    if (prefersReducedMotion || phase !== 'enhancing' || !inView) return;
     timerRef.current = setTimeout(() => setPhase('enhanced'), PAUSE_AFTER_ENHANCE);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [phase, prefersReducedMotion]);
 
   // Enhanced → scoring
   useEffect(() => {
-    if (prefersReducedMotion || phase !== 'enhanced') return;
+    if (prefersReducedMotion || phase !== 'enhanced' || !inView) return;
     timerRef.current = setTimeout(() => setPhase('scoring'), 800);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [phase, prefersReducedMotion]);
 
   // Score animation
   useEffect(() => {
-    if (prefersReducedMotion || phase !== 'scoring') return;
+    if (prefersReducedMotion || phase !== 'scoring' || !inView) return;
     const start = performance.now();
     const from = 45;
     const to = 92;
@@ -84,7 +93,7 @@ export function EditorDemo() {
 
   // Hold → restart
   useEffect(() => {
-    if (prefersReducedMotion || phase !== 'hold') return;
+    if (prefersReducedMotion || phase !== 'hold' || !inView) return;
     timerRef.current = setTimeout(startLoop, HOLD_DURATION);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [phase, startLoop, prefersReducedMotion]);
@@ -104,7 +113,7 @@ export function EditorDemo() {
   const strokeDashoffset = circumference - (displayScore / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center">
+    <div ref={containerRef} className="flex flex-col items-center">
       {/* Phone frame */}
       <div className="w-[260px] rounded-[28px] border-2 border-border/40 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
         {/* Status bar */}
