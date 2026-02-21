@@ -1,60 +1,87 @@
 
-
-# Dashboard (Home Page) Improvements
+# Editor Page Improvements
 
 ## Issues Found
 
 ### 1. Performance: Remaining infinite animation loops
-- **EmptyState.tsx line 76**: Floating icon has `y: { repeat: Infinity }` -- another infinite Framer Motion loop we missed in previous passes
-- **EmptyState.tsx line 84**: `animate-ring-pulse` and `animate-pulse` CSS classes running infinitely on elements that should settle
-- **DashboardStats.tsx**: The `conic-gradient` border uses a CSS `animation: rotate-gradient 6s linear infinite` -- an infinite CSS animation on the main stats card
+- **EditorPage.tsx line 1006**: Desktop "Wise AI" button has `animate-[pulse-glow_2s_ease-in-out_infinite]` CSS animation running permanently
+- **EditorPage.tsx lines 1011, 1023, 1034**: Three separate `animate-pulse` notification dots running on header buttons
+- **AddSectionFAB (line 1370-1372)**: First-visit pulse uses `repeat: Infinity` Framer Motion loop -- should use CSS `animate-[ping_1.5s_ease-out_4]` (run 4 times then stop, like we did for profile pulse)
+- **AIFloatingButton.tsx line 118**: `animate-pulse` on the FAB overlay runs infinitely
 
-### 2. Performance: localStorage reads during render
-- **DashboardPage.tsx lines 581-606**: The trust banner IIFE runs `localStorage.getItem` and `localStorage.setItem` directly inside the render function on every re-render. This should be moved to state initialized once.
-- **DashboardPage.tsx line 499**: `localStorage.getItem('wr-profile-pulse-seen')` is read inline during render
+### 2. Performance: Inline style tags re-rendered
+- **EditorPage.tsx lines 1045-1056**: The `spring-enter` and `save-check-pop` keyframe `<style>` tags are inside the render tree and re-injected on every render. Should be moved to module level or a CSS file.
+- **ProgressBar.tsx lines 46-56**: Same issue -- `progress-confetti-burst` and `progress-text-pulse` keyframes are inline.
+- **StepperNav.tsx lines 233-243**: `stepper-confetti-burst` and `stepper-icon-pulse` keyframes inline.
 
-### 3. Performance: Stagger animations doing nothing
-- **DashboardPage.tsx lines 801-806 and 873-877**: The `staggerChildren: 0.05` variants reference `itemVariants` (lines 415-418) that set `opacity: 1, y: 0` for both `hidden` and `visible` -- meaning Framer Motion processes stagger overhead for zero visual effect. Either remove the motion wrappers or add actual entrance animations.
+### 3. UX: Mobile header is cluttered
+- The header has back button, resume name, undo/redo, version history, Template button, and Chat button all competing for space. On a 375px screen this leaves the resume name truncated to nearly nothing.
+- **Fix**: Hide undo/redo on xs screens (they're already `hidden xs:flex`) but the two mobile-only buttons (Template + Chat) could be consolidated into the tools sheet to free up space.
 
-### 4. UX: DashboardStats card is too dense
-- The glass hero card crams greeting, streak, daily tip, motivational subtitle, and stat badges into one card. On xs (375px) screens the tip text truncates aggressively and the dismiss button is hard to tap.
-- **Fix**: Move the daily tip outside the stats card into a standalone dismissible banner below it, giving each element breathing room.
+### 4. UX: Mobile Editor/Preview tabs feel disconnected
+- The `TabsList` at line 1177 uses plain rounded-none styling with no visual connection to the content below. It looks like a generic switch rather than an integrated editing experience.
+- **Fix**: Add a subtle bottom border highlight on the active tab and slightly better spacing to make it feel more native.
 
-### 5. UX: Empty state has too many CTAs
-- When no resumes exist, users see: 4 ActionCards grid + EmptyState with 3 steps + 3 template previews + 2 CTA buttons + tips carousel. That's 12+ tap targets competing for attention.
-- **Fix**: Consolidate -- remove the ActionCards grid from the empty state (keep it only when resumes exist as QuickActionChips already does), and let the EmptyState component be the single focus.
+### 5. UX: Section navigation buttons (Previous/Next) are too large
+- The Previous/Next buttons at lines 812-852 have `min-h-[56px]` which is taller than standard mobile nav buttons. Combined with `flex-col xs:flex-row`, they stack vertically on the smallest screens, consuming ~120px of vertical space.
+- **Fix**: Reduce to `min-h-[48px]` and ensure they always sit side-by-side with `flex-row` even on xs.
 
-### 6. UX: WhatsNextCard lacks visual hierarchy
-- It's a plain glass card that blends with everything else. Since it's the primary CTA for returning users, it should stand out more.
-- **Fix**: Add a subtle gradient left border or a primary-tinted background to make it visually distinct from resume cards.
+### 6. UX: SectionCard tip pill is always visible
+- The tip pill (e.g., "Include a professional email...") takes space even after the section is complete. Once `status === 'complete'`, the tip is no longer helpful.
+- **Fix**: Hide the tip when status is `'complete'`.
 
-### 7. Code: 1076-line monolith page component
-- DashboardPage.tsx is over 1000 lines with inline handlers, render logic, and state management all in one file. This hurts maintainability and increases bundle parse time.
-- **Fix**: Extract the header, trust banner, selection toolbar, and tab content into separate components.
+### 7. UX: No visual feedback on section switch
+- Each section uses `animation: 'spring-enter 0.35s ease-out'` via inline CSS style. This works but there's no exit animation, making transitions feel abrupt.
+- **Fix**: This is minor and the current approach is fine for performance -- no change needed here.
+
+### 8. Code: 1393-line monolith
+- EditorPage.tsx continues to grow. The header (lines 906-1039) is 133 lines of JSX that could be a separate component.
 
 ---
 
 ## Proposed Changes
 
-### File: `src/components/dashboard/EmptyState.tsx`
-- Remove `repeat: Infinity` from the floating icon's y animation (line 76) -- animate once and hold
-- Remove `animate-ring-pulse` infinite animation from the icon border
-- Keep the tips carousel as-is (it's CSS-based AnimatePresence, lightweight)
+### File: `src/pages/EditorPage.tsx`
 
-### File: `src/components/dashboard/DashboardStats.tsx`
-- Remove the `rotate-gradient` infinite CSS animation on the conic-gradient border -- use a static gradient border instead
-- Separate the daily tip into its own small component below the stats card for better spacing on xs screens
+**Move inline keyframes to module level:**
+- Extract the `spring-enter` and `save-check-pop` `<style>` tag (lines 1045-1056) to a `const` outside the component, injected once.
 
-### File: `src/pages/DashboardPage.tsx`
-- **Trust banner**: Move localStorage reads into a `useState` initializer so they only run once
-- **Profile pulse**: Same -- cache in state, not inline render
-- **Stagger variants**: Either add real entrance animations (opacity 0 to 1) or remove the motion wrappers to avoid overhead
-- **Empty state simplification**: Remove the 4-card ActionCards grid when `resumes.length === 0` -- the EmptyState component already provides all necessary entry points
-- **Extract DashboardHeader**: Move the header (lines 471-575) into its own component to reduce file size
+**Remove infinite animations from header buttons:**
+- Line 1006: Replace `animate-[pulse-glow_2s_ease-in-out_infinite]` with a static glow (`bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)]`)
+- Lines 1011, 1034: Replace `animate-pulse` notification dots with a static dot or a CSS animation that runs 3-4 times then stops (`animate-[ping_1.5s_ease-out_3]`)
+- Line 1023: Same for template button pulse dot
 
-### File: `src/components/dashboard/WhatsNextCard.tsx`
-- Add a primary-tinted left border and slightly stronger background to differentiate it from resume cards
-- Add a subtle "Suggested next step" label above the title for clarity
+**Simplify section navigation buttons:**
+- Change `min-h-[56px] sm:h-12` to `min-h-[48px]`
+- Change `flex-col xs:flex-row` to always `flex-row` so they never stack
+
+**Extract EditorHeader component:**
+- Move lines 906-1039 into `src/components/editor/EditorHeader.tsx` to reduce file size by ~130 lines
+
+### File: `src/components/editor/SectionCard.tsx`
+
+**Hide tip when complete:**
+- Wrap the tip pill in a condition: only render when `status !== 'complete'`
+
+### File: `src/components/editor/ProgressBar.tsx`
+
+**Move keyframes to module level:**
+- Extract the `<style>` tag content to a module-level constant
+
+### File: `src/components/editor/StepperNav.tsx`
+
+**Move keyframes to module level:**
+- Extract confetti and pulse keyframes to module-level injection
+
+### File: `src/pages/EditorPage.tsx` (AddSectionFAB)
+
+**Fix infinite pulse on FAB:**
+- Replace lines 1370-1372 Framer Motion `repeat: Infinity` pulse with CSS `animate-[ping_1.5s_ease-out_4]` (runs 4 times then stops)
+
+### File: `src/components/editor/AIFloatingButton.tsx`
+
+**Remove remaining infinite pulse:**
+- Line 118: The `animate-pulse` on the gradient overlay should be removed -- the FAB already has a shadow glow
 
 ---
 
@@ -62,13 +89,12 @@
 
 | Area | Issue | Fix |
 |---|---|---|
-| EmptyState | Infinite float loop | Animate once |
-| DashboardStats | Infinite gradient rotation | Static gradient |
-| DashboardPage | localStorage in render | useState initializer |
-| DashboardPage | No-op stagger variants | Real animations or remove |
-| DashboardPage | Duplicate CTAs in empty state | Remove ActionCards grid |
-| WhatsNextCard | Low visual hierarchy | Tinted border + label |
-| DashboardPage | 1076-line monolith | Extract header component |
+| Header buttons | 4 infinite pulse animations | Static glow or finite CSS |
+| AddSectionFAB | Infinite FM pulse loop | CSS ping x4 |
+| AIFloatingButton | Infinite CSS pulse | Remove overlay |
+| Inline style tags | 3 components re-inject keyframes | Module-level constants |
+| Section nav buttons | Too tall, stack on xs | 48px, always flex-row |
+| SectionCard tip | Shows when complete | Hide when status=complete |
+| EditorPage.tsx | 1393-line monolith | Extract EditorHeader |
 
-All changes are visual parity or improvement -- no features removed, just cleaner UX and fewer wasted CPU cycles.
-
+All changes maintain visual parity -- no features removed, just cleaner code and fewer wasted CPU cycles.
