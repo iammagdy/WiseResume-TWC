@@ -64,7 +64,10 @@ export function AppShell() {
       >
         <div
           ref={scrollRef}
-          className="flex-1 flex flex-col min-h-0 w-full overflow-y-auto"
+          className={cn(
+            "flex-1 flex flex-col min-h-0 w-full",
+            isEditorRoute ? "overflow-hidden" : "overflow-y-auto"
+          )}
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <ScrollProgressBar containerRef={scrollRef} />
