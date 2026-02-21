@@ -60,7 +60,7 @@ export default function ResignationLettersPage() {
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-10 glass-header px-4 py-3 flex items-center gap-3">
         <button
-          onClick={() => navigate('/dashboard')}
+          onClick={() => navigate('/ai-studio')}
           className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
           aria-label="Back"
         >

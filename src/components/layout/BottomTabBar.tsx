@@ -53,6 +53,7 @@ const tabs: TabItem[] = [
     '/cover-letters',
     '/resignation-letter',
     '/resignation-letters',
+    '/interview',
   ]
 },
 {

@@ -23,8 +23,7 @@ const actions = [
     icon: Target,
     title: 'AI Tailor',
     description: 'Match your resume to any job posting',
-    route: '/editor',
-    createBlank: true,
+    route: '/ai-studio?tool=tailor',
   },
   {
     icon: Mic,

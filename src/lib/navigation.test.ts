@@ -26,8 +26,16 @@ describe('navigation', () => {
       expect(getBackRoute('/settings')).toBe('/dashboard');
     });
 
-    it('returns /dashboard for exact match /ai', () => {
-      expect(getBackRoute('/ai')).toBe('/dashboard');
+    it('returns /ai-studio for /cover-letters', () => {
+      expect(getBackRoute('/cover-letters')).toBe('/ai-studio');
+    });
+
+    it('returns /ai-studio for /resignation-letters', () => {
+      expect(getBackRoute('/resignation-letters')).toBe('/ai-studio');
+    });
+
+    it('returns /ai-studio for /interview', () => {
+      expect(getBackRoute('/interview')).toBe('/ai-studio');
     });
 
     it('returns / for exact match /auth', () => {
