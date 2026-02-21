@@ -15,9 +15,11 @@ import {
   FileText,
   UserCheck,
   FileSearch,
-  ChevronDown,
   Send,
   Building2,
+  FileSignature,
+  FileOutput,
+  ArrowRight,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -32,7 +34,6 @@ import { AIStudioTourModal } from '@/components/ai-studio/AIStudioTourModal';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
 
@@ -64,37 +65,56 @@ const PLACEHOLDER_EXAMPLES = [
   'Try: "Proofread my experience"',
 ];
 
-const toolCategories = [
+interface ToolEntry {
+  id: string;
+  icon: React.ElementType;
+  label: string;
+  desc: string;
+  color: string;
+  cost: string;
+  navigate?: string;
+}
+
+const toolCategories: { title: string; description: string; tools: ToolEntry[] }[] = [
   {
-    title: 'Optimize',
-    description: 'Improve what you have',
+    title: 'Resume Tools',
+    description: 'Optimize & improve your resume',
     tools: [
+      { id: 'tailor', icon: Wand2, label: 'Smart Tailor', desc: 'Adapt to job descriptions', color: 'text-primary', cost: 'tailor' },
       { id: 'proofread', icon: SpellCheck, label: 'Proofread', desc: 'Fix grammar & typos', color: 'text-red-500', cost: 'proofread' },
       { id: 'enhance', icon: Sparkles, label: 'Enhance', desc: 'Improve writing', color: 'text-cyan-500', cost: 'enhance' },
-    ],
-  },
-  {
-    title: 'Create',
-    description: 'Generate new content',
-    tools: [
-      { id: 'onepage', icon: FileText, label: '1-Page', desc: 'Condense resume', color: 'text-amber-500', cost: 'one-page' },
-      { id: 'career', icon: TrendingUp, label: 'Career', desc: 'Path advisor', color: 'text-emerald-500', cost: 'career-assessment' },
-    ],
-  },
-  {
-    title: 'Prepare',
-    description: 'Get ready for jobs',
-    tools: [
-      { id: 'interview', icon: Mic, label: 'Interview', desc: 'Practice Q&A', color: 'text-orange-500', cost: 'interview' },
-      { id: 'recruiter', icon: UserCheck, label: 'Recruiter', desc: 'Simulate review', color: 'text-rose-500', cost: 'recruiter-sim' },
-      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', desc: 'Profile optimizer', color: 'text-blue-500', cost: 'linkedin' },
+      { id: 'onepage', icon: FileText, label: '1-Page Wizard', desc: 'Condense resume', color: 'text-amber-500', cost: 'one-page' },
       { id: 'humanizer', icon: Shield, label: 'Humanize', desc: 'AI detection fix', color: 'text-violet-500', cost: 'detect-humanize' },
+    ],
+  },
+  {
+    title: 'Job Analysis',
+    description: 'Match & compare against jobs',
+    tools: [
+      { id: 'job-match', icon: Target, label: 'Job Match', desc: 'ATS compatibility score', color: 'text-green-500', cost: 'score' },
+      { id: 'ab-compare', icon: GitCompareArrows, label: 'A/B Compare', desc: 'Score two resumes', color: 'text-indigo-500', cost: 'score' },
+      { id: 'recruiter', icon: UserCheck, label: 'Recruiter Sim', desc: 'Simulate review', color: 'text-rose-500', cost: 'recruiter-sim' },
+    ],
+  },
+  {
+    title: 'Career Growth',
+    description: 'Plan your future',
+    tools: [
+      { id: 'interview', icon: Mic, label: 'Interview Prep', desc: 'Practice Q&A', color: 'text-orange-500', cost: 'interview', navigate: '/interview' },
+      { id: 'career', icon: TrendingUp, label: 'Career Plan', desc: 'Path advisor', color: 'text-emerald-500', cost: 'career-assessment', navigate: '/career' },
+      { id: 'linkedin', icon: Linkedin, label: 'LinkedIn', desc: 'Profile optimizer', color: 'text-blue-500', cost: 'linkedin' },
       { id: 'company-briefing', icon: Building2, label: 'Briefing', desc: 'Company research', color: 'text-teal-500', cost: 'company_briefing' },
     ],
   },
+  {
+    title: 'Documents',
+    description: 'Generate professional letters',
+    tools: [
+      { id: 'cover-letters', icon: FileSignature, label: 'Cover Letters', desc: 'AI-generated letters', color: 'text-sky-500', cost: 'cover-letter', navigate: '/cover-letters' },
+      { id: 'resignation-letters', icon: FileOutput, label: 'Resignation', desc: 'Leave professionally', color: 'text-pink-500', cost: 'cover-letter', navigate: '/resignation-letters' },
+    ],
+  },
 ];
-
-const secondaryTools = toolCategories.flatMap(c => c.tools);
 
 export default function AIStudioPage() {
   const navigate = useNavigate();
@@ -125,7 +145,6 @@ export default function AIStudioPage() {
   const [showEnhance, setShowEnhance] = useState(false);
   const [showABCompare, setShowABCompare] = useState(false);
   const [showCompanyBriefing, setShowCompanyBriefing] = useState(false);
-  const [moreToolsOpen, setMoreToolsOpen] = useState(true);
   const [stickyInput, setStickyInput] = useState('');
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandled = useRef(false);
@@ -149,10 +168,12 @@ export default function AIStudioPage() {
       'career': () => setShowCareerPath(true),
       'chat': () => setShowChat(true),
       'company-briefing': () => setShowCompanyBriefing(true),
+      'cover-letters': () => navigate('/cover-letters'),
+      'resignation-letters': () => navigate('/resignation-letters'),
     };
     toolMap[tool]?.();
     setSearchParams({}, { replace: true });
-  }, [searchParams, setSearchParams]);
+  }, [searchParams, setSearchParams, navigate]);
 
   const handleStickySubmit = useCallback(() => {
     if (!stickyInput.trim()) return;
@@ -184,25 +205,29 @@ export default function AIStudioPage() {
     action();
   }, [currentResumeId, navigate]);
 
-  const handleSecondaryAction = useCallback((id: string) => {
-    const action = () => {
-      switch (id) {
-        case 'proofread': setShowProofread(true); break;
-        case 'enhance': setShowEnhance(true); break;
-        case 'interview': navigate('/interview'); break;
-        case 'career': setShowCareerPath(true); break;
-        case 'humanizer': setShowAIDetector(true); break;
-        case 'linkedin': setShowLinkedIn(true); break;
-        case 'onepage': setShowOnePage(true); break;
-        case 'recruiter': setShowRecruiterSim(true); break;
-        case 'company-briefing': setShowCompanyBriefing(true); break;
-      }
-    };
-    if (id === 'interview') {
+  const handleToolAction = useCallback((tool: ToolEntry) => {
+    // Navigation tools don't need a resume
+    if (tool.navigate) {
       haptics.medium();
-      navigate('/interview');
+      navigate(tool.navigate);
       return;
     }
+    // Sheet tools require a resume
+    const action = () => {
+      switch (tool.id) {
+        case 'tailor': setShowTailor(true); break;
+        case 'proofread': setShowProofread(true); break;
+        case 'enhance': setShowEnhance(true); break;
+        case 'onepage': setShowOnePage(true); break;
+        case 'humanizer': setShowAIDetector(true); break;
+        case 'job-match': setShowJobSheet(true); break;
+        case 'ab-compare': setShowABCompare(true); break;
+        case 'recruiter': setShowRecruiterSim(true); break;
+        case 'linkedin': setShowLinkedIn(true); break;
+        case 'company-briefing': setShowCompanyBriefing(true); break;
+        case 'career': setShowCareerPath(true); break;
+      }
+    };
     requireResume(action);
   }, [navigate, requireResume]);
 
@@ -297,7 +322,6 @@ export default function AIStudioPage() {
             isFirstVisit && 'ring-2 ring-primary/40 animate-pulse'
           )}
         >
-          {/* Cycling placeholder hint */}
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-primary-foreground" />
@@ -320,124 +344,48 @@ export default function AIStudioPage() {
         </button>
       </motion.div>
 
-      {/* Featured Tools */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="px-4 pb-4 space-y-3"
-      >
-        <h2 className="text-base sm:text-sm font-semibold text-muted-foreground px-1">Featured Tools</h2>
-        <button
-          onClick={() => requireResume(() => setShowTailor(true))}
-          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
+      {/* All Tools - Flat Grid by Category */}
+      {toolCategories.map((category, catIdx) => (
+        <motion.div
+          key={category.title}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 + catIdx * 0.05 }}
+          className="px-4 pb-4"
         >
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Wand2 className="w-7 h-7 text-primary" />
+          <div className="mb-2 px-1">
+            <h2 className="text-base sm:text-sm font-semibold">{category.title}</h2>
+            <p className="text-xs text-muted-foreground">{category.description}</p>
           </div>
-          <div className="text-left flex-1 min-w-0">
-            <p className="font-semibold text-base sm:text-sm">Smart Tailor</p>
-            <div className="flex items-center gap-2">
-              <p className="text-sm sm:text-xs text-muted-foreground">Adapt your resume to any job description</p>
-              <AICostBadge operation="tailor" />
-            </div>
-          </div>
-        </button>
-        <button
-          onClick={() => { haptics.medium(); setShowABCompare(true); }}
-          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
-        >
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <GitCompareArrows className="w-7 h-7 text-primary" />
-          </div>
-          <div className="text-left flex-1 min-w-0">
-            <p className="font-semibold text-base sm:text-sm">A/B Compare</p>
-            <div className="flex items-center gap-2">
-              <p className="text-sm sm:text-xs text-muted-foreground">Score two resumes against a job description</p>
-              <AICostBadge operation="score" className="whitespace-nowrap" />
-            </div>
-          </div>
-        </button>
-        <button
-          onClick={() => requireResume(() => setShowJobSheet(true))}
-          className="w-full p-4 rounded-2xl glass-elevated border border-border/50 hover:border-primary/30 active:scale-[0.98] transition-all touch-manipulation flex items-center gap-4 min-h-[100px] sm:min-h-[72px]"
-        >
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Target className="w-7 h-7 text-primary" />
-          </div>
-          <div className="text-left flex-1 min-w-0">
-            <p className="font-semibold text-base sm:text-sm">Job Match Analysis</p>
-            <div className="flex items-center gap-2">
-              <p className="text-sm sm:text-xs text-muted-foreground">Check ATS compatibility and match score</p>
-              <AICostBadge operation="score" className="whitespace-nowrap" />
-            </div>
-          </div>
-        </button>
-      </motion.div>
-
-      {/* More AI Tools */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="px-4 pb-4"
-      >
-        <Collapsible open={moreToolsOpen} onOpenChange={setMoreToolsOpen}>
-          <CollapsibleTrigger asChild>
-            <button
-              className="w-full flex items-center justify-between py-2 px-1 min-h-[48px] text-base sm:text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
-              onClick={() => haptics.light()}
-            >
-              <span className="font-semibold">More AI Tools</span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground/70">({secondaryTools.length} tools)</span>
-                <div
-                  className="transition-transform duration-200"
-                  style={{ transform: moreToolsOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
-                >
-                  <ChevronDown className="w-4 h-4" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {category.tools.map(tool => (
+              <button
+                key={tool.id}
+                onClick={() => handleToolAction(tool)}
+                className="flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[100px] relative"
+              >
+                <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
+                  <tool.icon className={cn('w-6 h-6', tool.color)} />
                 </div>
-              </div>
-            </button>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <div className="space-y-5 pt-2">
-              {toolCategories.map(category => (
-                <div key={category.title}>
-                  <div className="mb-2 px-1">
-                    <h3 className="text-sm font-semibold">{category.title}</h3>
-                    <p className="text-xs text-muted-foreground">{category.description}</p>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {category.tools.map(tool => (
-                      <button
-                        key={tool.id}
-                        onClick={() => handleSecondaryAction(tool.id)}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[100px]"
-                      >
-                        <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
-                          <tool.icon className={cn('w-6 h-6', tool.color)} />
-                        </div>
-                        <div className="text-center">
-                          <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
-                          <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
-                          <AICostBadge operation={tool.cost} className="mt-1" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                <div className="text-center">
+                  <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
+                  <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
+                  <AICostBadge operation={tool.cost} className="mt-1" />
                 </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </motion.div>
+                {tool.navigate && (
+                  <ArrowRight className="w-3 h-3 text-muted-foreground/50 absolute top-2 right-2" />
+                )}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      ))}
 
       {/* Pro Tip */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.25 }}
+        transition={{ delay: 0.4 }}
         className="px-4 pb-6"
       >
         <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
@@ -482,7 +430,6 @@ export default function AIStudioPage() {
           {showLinkedIn && <LinkedInOptimizerSheet open={showLinkedIn} onOpenChange={setShowLinkedIn} />}
           {showOnePage && <OnePageWizardSheet open={showOnePage} onOpenChange={setShowOnePage} />}
           {showCareerPath && <CareerPathSheet open={showCareerPath} onOpenChange={setShowCareerPath} />}
-          {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
           {showProofread && <ProofreadSheet open={showProofread} onOpenChange={setShowProofread} issues={[]} score={null} isChecking={false} onFix={() => {}} onIgnore={() => {}} onFixAll={() => {}} onCheckNow={() => {}} autoProofread={false} />}
           {showEnhance && <AIEnhanceSheet open={showEnhance} onOpenChange={setShowEnhance} />}
           {showABCompare && <ResumeABCompareSheet open={showABCompare} onOpenChange={setShowABCompare} />}
