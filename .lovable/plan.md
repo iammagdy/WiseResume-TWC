@@ -1,21 +1,48 @@
 
 
-# Add Audit Logging to Data Export Actions
-
-## Current State
-
-- `DataExportSheet.tsx` has three user actions -- Export All, Export Single, and Import Backup -- but **none** log to the audit trail.
-- The `logAudit` utility (`@/lib/auditLogger.ts`) is already used elsewhere (API key saves/deletes, sign-out, data deletion) with the pattern `logAudit(category, action, metadata)`.
-- The `exportTailorHistory` call in `TailorHistorySheet.tsx` also lacks audit logging but is out of scope for this change.
+# Add Resume Editing Session Start/End Events to Audit Logs
 
 ## What Changes
 
-### File: `src/components/settings/DataExportSheet.tsx`
+### File: `src/pages/EditorPage.tsx`
 
 1. **Import** `logAudit` from `@/lib/auditLogger`
-2. **After successful Export All** (line 51, after `setExportedType('all')`): add `logAudit('account', 'data_exported', { type: 'all', resumeCount: resumes.length })`
-3. **After successful Export Single** (line 71, after `setExportedType('single')`): add `logAudit('account', 'data_exported', { type: 'single', resumeId: currentResume.id })`
-4. **After successful Import** (line 95, after `toast.success`): add `logAudit('account', 'data_imported', { resumeCount: count })`
 
-Three `logAudit` calls plus one import -- no other files change.
+2. **Session start**: Inside the existing hydration `useEffect` (line ~130), after the initial hydration branch (line ~150, where `lastSavedResumeRef.current` is set), add:
+   ```typescript
+   logAudit('account', 'editor_session_started', {
+     resumeId: currentResumeId,
+     resumeTitle: resumeFromDb.title,
+   });
+   ```
 
+3. **Session end**: Add a new `useEffect` that fires a cleanup function on unmount, logging the session end with duration:
+   ```typescript
+   const sessionStartRef = useRef<number | null>(null);
+
+   useEffect(() => {
+     if (!currentResumeId || !currentResume) return;
+     sessionStartRef.current = Date.now();
+     return () => {
+       if (sessionStartRef.current) {
+         const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+         logAudit('account', 'editor_session_ended', {
+           resumeId: currentResumeId,
+           durationSeconds,
+         });
+       }
+     };
+   }, [currentResumeId]);
+   ```
+   This tracks how long the user spent editing and logs it when they leave the page.
+
+## Summary
+
+| Change | Detail |
+|--------|--------|
+| Import | `logAudit` from `@/lib/auditLogger` |
+| Session start log | Fires once on initial resume hydration with `resumeId` and `resumeTitle` |
+| Session end log | Fires on component unmount with `resumeId` and `durationSeconds` |
+| Files changed | 1 (`src/pages/EditorPage.tsx`) |
+
+No new dependencies, no database changes.
