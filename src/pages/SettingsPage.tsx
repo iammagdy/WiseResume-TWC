@@ -155,6 +155,15 @@ export default function SettingsPage() {
   const [changelogLoading, setChangelogLoading] = useState(false);
   const [changelogError, setChangelogError] = useState(false);
 
+  // Auto-open changelog if navigated with ?changelog=true
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('changelog') === 'true') {
+      setChangelogOpen(true);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   // Fetch changelog on mount for version, and re-fetch when dialog opens
   useEffect(() => {
     fetch('/changelog.json')
