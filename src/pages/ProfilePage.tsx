@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
 import { formatDistanceToNow } from 'date-fns';
+import { ProfilePageSkeleton } from '@/components/layout/PageSkeletons';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -30,7 +31,6 @@ export default function ProfilePage() {
   const [editOpen, setEditOpen] = useState(false);
 
   if (authLoading || (!profile && profileLoading)) {
-    const { ProfilePageSkeleton } = require('@/components/layout/PageSkeletons');
     return <ProfilePageSkeleton />;
   }
   if (!user) return null;
