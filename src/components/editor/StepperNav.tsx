@@ -76,7 +76,7 @@ export const StepperNav = memo(function StepperNav({
     return (
       <>
         {/* Horizontal scrollable pill bar */}
-        <div className="px-2 py-1.5 overflow-x-auto scrollbar-hide">
+        <div className="px-2 py-1 overflow-x-auto scrollbar-hide">
           <div className="flex items-center gap-1.5 w-max">
             {steps.map((step) => {
               const moreDef = step.id === 'more' && activeMoreSection
@@ -97,7 +97,7 @@ export const StepperNav = memo(function StepperNav({
                     haptics.light();
                   }}
                   className={cn(
-                    'flex items-center gap-1.5 px-3 h-9 rounded-full border text-xs font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 shrink-0',
+                    'flex items-center gap-1.5 px-3 h-7 rounded-full border text-xs font-medium whitespace-nowrap transition-all touch-manipulation active:scale-95 shrink-0',
                     isActive
                       ? 'bg-primary/15 border-primary/40 text-primary'
                       : isCompleted
@@ -126,7 +126,7 @@ export const StepperNav = memo(function StepperNav({
             {onMoreSectionSelect && !activeMoreSection && (
               <button
                 onClick={() => { setShowMoreSheet(true); haptics.light(); }}
-                className="flex items-center gap-1 px-3 h-9 rounded-full border border-dashed border-border text-xs font-medium text-muted-foreground whitespace-nowrap touch-manipulation active:scale-95 shrink-0 hover:bg-muted/50"
+                className="flex items-center gap-1 px-3 h-7 rounded-full border border-dashed border-border text-xs font-medium text-muted-foreground whitespace-nowrap touch-manipulation active:scale-95 shrink-0 hover:bg-muted/50"
                 aria-label="Add more sections"
               >
                 <Plus className="w-3.5 h-3.5" />

@@ -25,13 +25,13 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
       )}
     >
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 pt-4 pb-2">
+      <div className="flex items-center gap-2.5 px-3 pt-3 pb-1">
         <div className={cn(
-          'w-8 h-8 rounded-lg flex items-center justify-center',
+          'w-6 h-6 rounded-md flex items-center justify-center',
           status === 'complete' ? 'bg-success/15' : 'bg-primary/10'
         )}>
           <Icon className={cn(
-            'w-4 h-4',
+            'w-3.5 h-3.5',
             status === 'complete' ? 'text-success' : 'text-primary'
           )} />
         </div>
@@ -41,7 +41,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
 
       {/* Tip pill - hidden when section is complete */}
       {tip && status !== 'complete' && (
-        <div className="px-4 pb-2">
+        <div className="px-3 pb-1">
           <span className="inline-block text-tiny text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
             💡 {tip}
           </span>
@@ -49,7 +49,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
       )}
 
       {/* Content */}
-      <div className="px-3 sm:px-4 pb-4">
+      <div className="px-3 pb-3">
         {children}
       </div>
     </div>

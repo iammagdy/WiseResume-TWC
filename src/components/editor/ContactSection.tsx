@@ -169,7 +169,7 @@ export const ContactSection = memo(function ContactSection() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-3">
       <AIContextualNudge
         show={!!contactNudge}
         message={contactNudge?.message || ''}
