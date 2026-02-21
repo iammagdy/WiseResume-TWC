@@ -22,6 +22,7 @@ const BACK_ROUTES: Record<string, string> = {
   '/application': '/applications',
   '/notifications': '/dashboard',
   '/portfolio': '/dashboard',
+  '/portfolio/edit': '/portfolio',
   '/cover-letter/new': '/cover-letters',
   '/cover-letter/edit': '/cover-letters',
   '/cover-letter': '/cover-letters',

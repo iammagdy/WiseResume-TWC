@@ -3,6 +3,7 @@ import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Copy, Download, Trash2, Save, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useResignationLetter, useResignationLetterMutations } from '@/hooks/useResignationLetters';
@@ -191,25 +192,28 @@ export default function ResignationLetterEditPage() {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={() => navigate('/resignation-letters')}
-          className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-base font-bold truncate">{letter.title || `${letter.company} Resignation`}</h1>
-          <div className="flex items-center gap-2">
-            {letter.company && <span className="text-xs text-muted-foreground truncate">{letter.company}</span>}
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 capitalize">{letter.tone}</Badge>
-            {hasUnsavedChanges && <span className="text-[10px] text-warning">Unsaved</span>}
+      <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/resignation-letters')}
+            className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-base font-bold truncate">{letter.title || `${letter.company} Resignation`}</h1>
+            <div className="flex items-center gap-2">
+              {letter.company && <span className="text-xs text-muted-foreground truncate">{letter.company}</span>}
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 capitalize">{letter.tone}</Badge>
+              {hasUnsavedChanges && <span className="text-[10px] text-warning">Unsaved</span>}
+            </div>
           </div>
+          <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)} className="touch-manipulation">
+            {isEditing ? 'Preview' : 'Edit'}
+          </Button>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => setIsEditing(!isEditing)} className="touch-manipulation">
-          {isEditing ? 'Preview' : 'Edit'}
-        </Button>
+        <Breadcrumb items={['AI Tools', 'Resignation Letters', 'Edit']} className="pl-10" />
       </header>
 
       <div className="flex-1 overflow-y-auto overscroll-y-contain">

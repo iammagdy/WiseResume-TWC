@@ -193,7 +193,13 @@ export default function UploadPage() {
     setPendingResumeData(null);
     
     const selectedCount = Object.values(sections).filter(Boolean).length;
-    toast.success(`Imported ${selectedCount} sections successfully!`, { duration: 3000 });
+    const sectionNames = Object.entries(sections)
+      .filter(([, v]) => v)
+      .map(([k]) => k.charAt(0).toUpperCase() + k.slice(1))
+      .slice(0, 3);
+    const moreCount = selectedCount - sectionNames.length;
+    const summary = sectionNames.join(', ') + (moreCount > 0 ? ` +${moreCount} more` : '');
+    toast.success(`Import complete! ${summary}`, { duration: 4000 });
     navigate('/editor');
   }, [user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
 

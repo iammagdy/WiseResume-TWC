@@ -8,6 +8,7 @@ import { ScrollProgressBar } from './ScrollProgressBar';
 import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
+import { getPageTitle } from '@/lib/pageTitles';
 
 
 // Routes that show bottom nav
@@ -40,6 +41,14 @@ export function AppShell() {
       {showBottomNav && (
         <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">
           <span className="text-sm font-bold text-primary">WiseResume</span>
+          {(() => {
+            const pageTitle = getPageTitle(location.pathname);
+            return pageTitle && pageTitle !== 'Home' ? (
+              <span className="ml-2 text-xs text-muted-foreground font-medium">
+                / {pageTitle}
+              </span>
+            ) : null;
+          })()}
         </header>
       )}
       {showBottomNav && <DesktopNav />}

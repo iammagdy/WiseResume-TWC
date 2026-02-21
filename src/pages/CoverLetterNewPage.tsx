@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Sparkles, Copy, Download, Save, Loader2, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -139,15 +140,18 @@ export default function CoverLetterNewPage() {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
-      <header className="sticky top-0 z-10 glass-header px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={() => navigate('/cover-letters')}
-          className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <h1 className="text-lg font-bold flex-1">New Cover Letter</h1>
+      <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/cover-letters')}
+            className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+            aria-label="Back"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="text-lg font-bold flex-1">New Cover Letter</h1>
+        </div>
+        <Breadcrumb items={['AI Tools', 'Cover Letters', 'New']} className="pl-10" />
       </header>
 
       {/* Scrollable form */}

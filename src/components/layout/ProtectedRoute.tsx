@@ -1,11 +1,12 @@
 import { useEffect, useRef } from 'react';
-import { Navigate, Outlet, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const wasLoggedInRef = useRef(false);
 
   // Listen for unexpected session expiry and redirect with reason param
@@ -32,6 +33,13 @@ export function ProtectedRoute() {
       </div>
     </div>
   );
-  if (!user) return <Navigate to="/auth" replace />;
+  if (!user) {
+    // Preserve intended destination so auth can redirect back
+    const intendedPath = location.pathname + location.search;
+    const redirectParam = intendedPath !== '/' && intendedPath !== '/dashboard'
+      ? `?redirect=${encodeURIComponent(intendedPath)}`
+      : '';
+    return <Navigate to={`/auth${redirectParam}`} replace />;
+  }
   return <Outlet />;
 }
