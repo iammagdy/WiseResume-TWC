@@ -17,6 +17,36 @@ body.wr-security-curtain [data-biometric-lock] {
   pointer-events: auto !important;
 }
 
+/* Editor keyframes (module-level, injected once) */
+@keyframes spring-enter {
+  0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+  60% { opacity: 1; transform: translateY(-2px) scale(1.005); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes save-check-pop {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+@keyframes progress-confetti-burst {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
+}
+@keyframes progress-text-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@keyframes stepper-confetti-burst {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
+}
+@keyframes stepper-icon-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
 
 /* Android WebView scroll fix - apply to ALL scrollable containers */
 .overflow-y-auto,

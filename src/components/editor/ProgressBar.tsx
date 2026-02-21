@@ -43,17 +43,6 @@ export const ProgressBar = memo(function ProgressBar({ resume, className, varian
 
   return (
     <div className={cn('flex items-center gap-3 flex-1 min-w-0 animate-fade-in relative', className)}>
-      <style>{`
-        @keyframes progress-confetti-burst {
-          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-          100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
-        }
-        @keyframes progress-text-pulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.15); }
-          100% { transform: scale(1); }
-        }
-      `}</style>
 
       <span
         className={cn(

@@ -808,11 +808,11 @@ export default function EditorPage() {
       )}
 
       {/* Section Navigation */}
-      <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 sm:gap-3 pt-6 pb-2 overflow-hidden">
+      <div className="flex flex-row items-center gap-2 sm:gap-3 pt-6 pb-2 overflow-hidden">
         <Button
           variant="outline"
           size="lg"
-          className="flex-1 min-w-0 min-h-[56px] sm:h-12"
+          className="flex-1 min-w-0 min-h-[48px]"
           onClick={() => {
             haptics.light();
             const currentIndex = steps.findIndex(s => s.id === activeTab);
@@ -826,7 +826,7 @@ export default function EditorPage() {
         {activeTab === steps[steps.length - 1].id ? (
           <Button
             size="lg"
-            className="flex-1 min-w-0 min-h-[56px] sm:h-12 text-sm gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
+            className="flex-1 min-w-0 min-h-[48px] text-sm gradient-primary shadow-[0_8px_32px_-8px_hsl(var(--primary)/0.5)]"
             onClick={() => {
               haptics.success();
               navigate('/preview');
@@ -838,7 +838,7 @@ export default function EditorPage() {
         ) : (
           <Button
             size="lg"
-            className="flex-1 min-w-0 min-h-[56px] sm:h-12"
+            className="flex-1 min-w-0 min-h-[48px]"
             onClick={() => {
               haptics.medium();
               const currentIndex = steps.findIndex(s => s.id === activeTab);
@@ -1003,12 +1003,12 @@ export default function EditorPage() {
             </button>
             <button
               onClick={() => setShowChat(true)}
-              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.6)] hover:bg-primary/15 active:scale-95 animate-[pulse-glow_2s_ease-in-out_infinite]"
+              className="keyboard-hide relative rounded-full transition-all touch-manipulation min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 -mr-2 bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)] hover:shadow-[0_0_28px_-4px_hsl(var(--primary)/0.5)] hover:bg-primary/15 active:scale-95"
               aria-label="Open Wise AI Chat"
             >
               <span className="relative">
                 <MessageSquare className="w-5 h-5 text-primary" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
               </span>
               <span className="text-[9px] font-medium leading-none text-primary">Wise AI</span>
             </button>
@@ -1020,7 +1020,7 @@ export default function EditorPage() {
               className="relative rounded-full min-w-[48px] min-h-[48px] flex flex-col items-center justify-center gap-0.5 active:scale-95 bg-muted hover:bg-muted/80 touch-manipulation"
               aria-label="Change template"
             >
-              {!templateBtnSeen && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />}
+              {!templateBtnSeen && <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-[ping_1.5s_ease-out_3]" />}
               <LayoutGrid className={`w-5 h-5 ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`} />
               <span className={`text-[9px] font-medium leading-none ${templateBtnSeen ? 'text-muted-foreground' : 'text-primary'}`}>Template</span>
             </button>
@@ -1031,7 +1031,7 @@ export default function EditorPage() {
             >
               <span className="relative">
                 <MessageSquare className="w-5 h-5 text-primary" />
-                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-primary" />
               </span>
               <span className="text-[9px] font-medium leading-none text-primary">Chat</span>
             </button>
@@ -1042,18 +1042,6 @@ export default function EditorPage() {
 
         {/* Progress Bar with Save Status */}
         <div className="shrink-0 px-4 py-1.5 sm:py-3 border-b border-border">
-          <style>{`
-            @keyframes spring-enter {
-              0% { opacity: 0; transform: translateY(12px) scale(0.98); }
-              60% { opacity: 1; transform: translateY(-2px) scale(1.005); }
-              100% { opacity: 1; transform: translateY(0) scale(1); }
-            }
-            @keyframes save-check-pop {
-              0% { transform: scale(0); }
-              60% { transform: scale(1.2); }
-              100% { transform: scale(1); }
-            }
-          `}</style>
           <div className="flex flex-row flex-wrap items-center justify-between gap-1 mb-1">
             <ProgressBar resume={currentResume} compact />
             {user && currentResumeId && (
@@ -1174,9 +1162,9 @@ export default function EditorPage() {
             onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview')}
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
-            <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none">
-              <TabsTrigger value="editor" className="flex-1">Editor</TabsTrigger>
-              <TabsTrigger value="preview" className="flex-1">Preview</TabsTrigger>
+            <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none border-b border-border bg-background/95 backdrop-blur-sm h-12 p-0 gap-0">
+              <TabsTrigger value="editor" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Editor</TabsTrigger>
+              <TabsTrigger value="preview" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
             </TabsList>
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0">
               <div
@@ -1365,11 +1353,7 @@ function AddSectionFAB({ onSelectSection }: { onSelectSection: (id: string) => v
         </motion.div>
         {/* First-visit pulse */}
         {!hasSeen && !sheetOpen && (
-          <motion.span
-            className="absolute inset-0 rounded-full gradient-primary"
-            animate={{ scale: [1, 1.4, 1], opacity: [0.6, 0, 0.6] }}
-            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-          />
+          <span className="absolute inset-0 rounded-full gradient-primary animate-[ping_1.5s_ease-out_4] pointer-events-none" />
         )}
       </motion.button>
 

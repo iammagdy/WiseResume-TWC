@@ -229,18 +229,6 @@ export const StepperNav = memo(function StepperNav({
   // Desktop: existing horizontal stepper (unchanged)
   return (
     <div className="px-2 py-3 relative">
-      {/* Confetti keyframes */}
-      <style>{`
-        @keyframes stepper-confetti-burst {
-          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-          100% { transform: translate(var(--tx), var(--ty)) scale(1); opacity: 0; }
-        }
-        @keyframes stepper-icon-pulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.3); }
-          100% { transform: scale(1); }
-        }
-      `}</style>
 
       <div className="flex items-center relative w-full px-1">
         {/* Connecting line (background) */}

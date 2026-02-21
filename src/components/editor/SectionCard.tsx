@@ -39,8 +39,8 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
         {action && <div className="shrink-0 min-h-[44px] flex items-center">{action}</div>}
       </div>
 
-      {/* Tip pill */}
-      {tip && (
+      {/* Tip pill - hidden when section is complete */}
+      {tip && status !== 'complete' && (
         <div className="px-4 pb-2">
           <span className="inline-block text-tiny text-muted-foreground bg-muted/50 px-2.5 py-1 rounded-full">
             💡 {tip}
