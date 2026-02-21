@@ -41,7 +41,7 @@ export function AppShell() {
       </a>
       <OfflineBanner />
       <SlowConnectionBanner />
-      {showBottomNav && (
+      {showBottomNav && !isEditorRoute && (
         <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">
           <span className="text-sm font-bold text-primary">WiseResume</span>
           {(() => {

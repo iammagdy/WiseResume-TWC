@@ -963,7 +963,7 @@ export default function EditorPage() {
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (
-    <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-2.5rem)]">
+    <main className="flex-1 flex flex-col overflow-hidden h-[100dvh]">
       {/* Header */}
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
