@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
+import { logAudit } from '@/lib/auditLogger';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
@@ -122,6 +123,22 @@ export default function EditorPage() {
   const { data: resumeFromDb, isLoading: isValidating } = useResume(currentResumeId);
   const { updateResume } = useResumeMutations();
 
+  // Audit: track session duration
+  const sessionStartRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!currentResumeId || !currentResume) return;
+    sessionStartRef.current = Date.now();
+    return () => {
+      if (sessionStartRef.current) {
+        const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
+        logAudit('account', 'editor_session_ended', {
+          resumeId: currentResumeId,
+          durationSeconds,
+        });
+      }
+    };
+  }, [currentResumeId]);
+
   // Single hydration effect: sync DB data into Zustand store + ownership check
   // Also detects stale resume (Fix 2): if server version is newer than local, auto-refresh or show conflict banner
   const setConflict = useOfflineSyncStore(s => s.setConflict);
@@ -147,6 +164,10 @@ export default function EditorPage() {
       // Record the server timestamp we loaded from so we can detect future conflicts
       localLoadedAtRef.current = resumeFromDb.updated_at ?? null;
       lastSavedResumeRef.current = JSON.stringify(dbToResumeData(resumeFromDb));
+      logAudit('account', 'editor_session_started', {
+        resumeId: currentResumeId,
+        resumeTitle: resumeFromDb.title,
+      });
       return;
     }
 
