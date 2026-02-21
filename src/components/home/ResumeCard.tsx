@@ -145,15 +145,11 @@ export function ResumeCard({
           )}
         </div>
 
-        {/* Animated Continue arrow */}
-        <motion.div
-          className="shrink-0 flex items-center gap-1 text-primary"
-          animate={{ x: [0, 4, 0] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
-        >
+        {/* Continue arrow - static, no infinite loop */}
+        <div className="shrink-0 flex items-center gap-1 text-primary">
           <span className="text-xs font-medium hidden sm:inline">Continue</span>
           <ChevronRight className="w-5 h-5" />
-        </motion.div>
+        </div>
       </button>
 
       {/* Three-dot menu (top-right) */}
