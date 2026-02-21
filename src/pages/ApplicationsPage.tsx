@@ -11,7 +11,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { JobActivityStatsCard } from '@/components/applications/JobActivityStats';
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { ActivityStreak } from '@/components/applications/ActivityStreak';
-import { ResumeCompletionCard } from '@/components/applications/ResumeCompletionCard';
+
 import { AddApplicationSheet } from '@/components/applications/AddApplicationSheet';
 import { ResumeListSheet } from '@/components/applications/ResumeListSheet';
 import { JobSearchSheet, JobFilters } from '@/components/applications/JobSearchSheet';
@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+
 import { format, isBefore, addDays } from 'date-fns';
 import { scoreJobMatch, scoreJobMatchAI, getCachedAIScore, JobMatchResult } from '@/lib/jobMatchScorer';
 
@@ -40,11 +40,7 @@ const STATUS_BADGE_CLASSES: Record<ApplicationStatus, string> = {
 
 function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: Job; onClick: () => void; matchScore: JobMatchResult | null; onTailor: () => void; onMarkApplied: () => void }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="glass-card rounded-2xl p-4 space-y-2"
-    >
+    <div className="glass-card rounded-2xl p-4 space-y-2">
       <button
         onClick={onClick}
         className="flex items-start gap-3 w-full text-left"
@@ -87,7 +83,7 @@ function JobCard({ job, onClick, matchScore, onTailor, onMarkApplied }: { job: J
           <CheckCircle2 className="w-3 h-3" /> Mark Applied
         </button>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -142,7 +138,7 @@ export default function ApplicationsPage() {
 
   // Fire background AI scoring for visible jobs (once per mount/resume change)
   useEffect(() => {
-    if (!primaryResume || jobs.length === 0) return;
+    if (!primaryResume || jobs.length === 0 || activeTab !== 'jobs') return;
     const primaryResumeRaw = resumes?.find(r => r.is_primary) || resumes?.[0];
     if (!primaryResumeRaw) return;
 
@@ -174,7 +170,7 @@ export default function ApplicationsPage() {
     })();
 
     return () => { cancelled = true; };
-  }, [primaryResume, jobs, resumes]);
+  }, [primaryResume, jobs, resumes, activeTab]);
 
   // Merged scores: AI overrides heuristic when available
   const matchScores = useMemo(() => {
@@ -264,13 +260,13 @@ export default function ApplicationsPage() {
       <PullToRefresh onRefresh={handleRefresh} className="flex-1">
         <div className="px-4 py-4 space-y-4 max-w-3xl mx-auto w-full">
           {/* Premium Tab Bar */}
-          <div className="glass-elevated rounded-2xl p-1 flex gap-1 -mt-2">
+          <div className="rounded-2xl bg-muted/50 p-1 flex gap-1 -mt-2">
             {TABS.map(t => (
               <button
                 key={t.key}
                 onClick={() => { haptics.selection(); setActiveTab(t.key); }}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all min-h-[44px] flex-1 touch-manipulation active:scale-95 ${
-                  activeTab === t.key ? 'bg-primary text-primary-foreground shadow-md' : 'text-muted-foreground hover:bg-muted/50'
+                  activeTab === t.key ? 'bg-background text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
                 {t.label}
@@ -282,9 +278,21 @@ export default function ApplicationsPage() {
               {/* Status Filter */}
               <StatusFilter value={statusFilter} onChange={setStatusFilter} counts={statusCounts} />
 
-              {/* Streak & Completion Cards */}
+              {/* Streak */}
               <ActivityStreak />
-              <ResumeCompletionCard />
+
+              {/* Stats - show above cards when meaningful */}
+              {(stats.applicationsSubmitted > 0 || stats.originals > 0) && <JobActivityStatsCard
+                stats={stats}
+                onOriginalsTap={() => {
+                  setResumeListFilter('originals');
+                  setResumeListOpen(true);
+                }}
+                onTailoredTap={() => {
+                  setResumeListFilter('tailored');
+                  setResumeListOpen(true);
+                }}
+              />}
 
               {/* Recent Activity — primary content, always visible */}
               <div id="activity-timeline">
@@ -304,10 +312,8 @@ export default function ApplicationsPage() {
                     const remindDue = app.remind_at && isBefore(new Date(app.remind_at), addDays(new Date(), 1));
                     const deadlineSoon = app.deadline && !isInterviewing && isBefore(new Date(app.deadline), addDays(new Date(), 3)) && !isBefore(new Date(app.deadline), new Date());
                     return (
-                      <motion.div
+                      <div
                         key={app.id}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
                         className="glass-card rounded-2xl p-4 space-y-2"
                       >
                         <button
@@ -363,7 +369,7 @@ export default function ApplicationsPage() {
                             <Mail className="w-3 h-3" /> Follow-up
                           </button>
                         </div>
-                      </motion.div>
+                      </div>
                     );
                   })}
                 </div>
@@ -413,18 +419,6 @@ export default function ApplicationsPage() {
                 )
               )}
 
-              {/* Stats - only when meaningful data exists */}
-              {(stats.applicationsSubmitted > 0 || stats.originals > 0) && <JobActivityStatsCard
-                stats={stats}
-                onOriginalsTap={() => {
-                  setResumeListFilter('originals');
-                  setResumeListOpen(true);
-                }}
-                onTailoredTap={() => {
-                  setResumeListFilter('tailored');
-                  setResumeListOpen(true);
-                }}
-              />}
             </>
           ) : (
             <>
@@ -485,17 +479,24 @@ export default function ApplicationsPage() {
         </div>
       </PullToRefresh>
 
-      {/* Save Job FAB */}
+      {/* FAB */}
       {activeTab === 'jobs' && (
-        <motion.button
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
+        <button
           onClick={() => { haptics.medium(); setShowSaveJob(true); }}
-          className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-16 h-16 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
           aria-label="Save new job"
         >
           <Plus className="w-6 h-6 text-primary-foreground" />
-        </motion.button>
+        </button>
+      )}
+      {activeTab === 'applications' && (
+        <button
+          onClick={() => { haptics.medium(); setShowAdd(true); }}
+          className="fixed bottom-[7.5rem] sm:bottom-20 right-4 pr-safe z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+          aria-label="Add application"
+        >
+          <Plus className="w-6 h-6 text-primary-foreground" />
+        </button>
       )}
 
       <AddApplicationSheet open={showAdd} onOpenChange={setShowAdd} />

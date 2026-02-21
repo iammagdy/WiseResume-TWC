@@ -6,6 +6,7 @@ const STATUSES: { value: ApplicationStatus | 'all'; label: string; color: string
   { value: 'all', label: 'All', color: 'bg-muted text-foreground' },
   { value: 'saved', label: 'Saved', color: 'bg-secondary/15 text-secondary-foreground' },
   { value: 'applied', label: 'Applied', color: 'bg-primary/15 text-primary' },
+  { value: 'screening', label: 'Screening', color: 'bg-blue-500/15 text-blue-500' },
   { value: 'interviewing', label: 'Interviewing', color: 'bg-warning/15 text-warning' },
   { value: 'offer', label: 'Offer', color: 'bg-success/15 text-success' },
   { value: 'rejected', label: 'Rejected', color: 'bg-destructive/15 text-destructive' },
