@@ -1,65 +1,79 @@
 
-# Page-Specific Skeletons Implementation
 
-## Problem
+# Add Download, Share, and Template Buttons to Mobile Preview Tab
 
-Many routes use mismatched or generic skeleton fallbacks during lazy-load. For example, `/applications` uses `DashboardSkeleton` instead of the already-defined `ApplicationsSkeleton`, and `/ai-studio` uses `DashboardSkeleton` instead of `AIStudioSkeleton`. Several pages like Templates, Cover Letters, Notifications, and Portfolio Editor have no dedicated skeleton at all, leading to jarring layout shifts when loading.
+## Current State
 
-## What Changes
+The mobile editor has three tabs: Editor, Preview, and ATS View. When on the Preview tab, a bottom action bar (lines 1188-1217 in `EditorPage.tsx`) currently shows three buttons:
+- **Full Preview** (navigates to `/preview`)
+- **Template** (opens template selector sheet)
+- **Design** (opens customization sheet)
 
-### Part 1: Fix Mismatched Skeleton Assignments in App.tsx
+Users who want to download or share must navigate to the full Preview page first, which adds unnecessary friction.
 
-Three page-specific skeletons already exist but are not wired up:
+## Changes
 
-| Route | Current Fallback | Correct Fallback |
-|-------|-----------------|-----------------|
-| `/applications` | `DashboardSkeleton` | `ApplicationsSkeleton` |
-| `/profile` | `SettingsSkeleton` | `ProfilePageSkeleton` |
-| `/ai-studio` | `DashboardSkeleton` | `AIStudioSkeleton` |
+Replace the existing 3-button bar with a more useful 4-button bar:
+- **Download** (primary CTA) -- triggers quick PDF download directly from the editor preview tab
+- **Share** -- opens the ShareSheet (already lazy-loaded in EditorPage)
+- **Template** -- opens template selector (keep existing)
+- **Export** -- navigates to full Preview page for advanced export options
 
-### Part 2: Create 7 New Page-Specific Skeletons
-
-Add to `src/components/layout/PageSkeletons.tsx`:
-
-- **TemplatesPageSkeleton** -- back button + title header, filter chips row, 2-column grid of template thumbnail placeholders
-- **CoverLettersSkeleton** -- back button + title + plus icon header, search bar, 3 card placeholders
-- **ResignationLettersSkeleton** -- same structure as CoverLettersSkeleton (back + title + plus, search, 3 cards)
-- **NotificationsSkeleton** -- back + title header, 4 filter tab pills, 4 notification row placeholders
-- **PortfolioEditorSkeleton** -- back + title + publish button header, status toggle row, 3 collapsible section placeholders
-- **OnboardingSkeleton** -- centered card with icon, title, subtitle, 3 option card placeholders, and a bottom button
-- **GuidesExamplesSkeleton** -- back + title header, search bar, category chips, 3-4 card placeholders (shared for both Guides and Examples pages)
-
-### Part 3: Wire New Skeletons in App.tsx
-
-| Route | New Fallback |
-|-------|-------------|
-| `/templates` | `TemplatesPageSkeleton` |
-| `/cover-letters` | `CoverLettersSkeleton` |
-| `/resignation-letters` | `ResignationLettersSkeleton` |
-| `/notifications` | `NotificationsSkeleton` |
-| `/portfolio` | `PortfolioEditorSkeleton` |
-| `/onboarding` | `OnboardingSkeleton` |
-| `/examples` | `GuidesExamplesSkeleton` |
-| `/guides` | `GuidesExamplesSkeleton` |
-
----
+This gives users the two most common actions (Download + Share) immediately, keeps Template for quick switching, and moves "Full Preview" to "Export" for the advanced export sheet flow.
 
 ## Technical Details
 
-### Files Modified
+### File Modified: `src/pages/EditorPage.tsx`
 
-1. **`src/components/layout/PageSkeletons.tsx`** -- Add 7 new exported skeleton components (each ~20-30 lines of simple `animate-pulse` div structures matching each page's actual layout)
+**1. Add ShareSheet state and lazy import (if not already present)**
 
-2. **`src/App.tsx`** -- Update import list to include `ApplicationsSkeleton`, `AIStudioSkeleton`, `ProfilePageSkeleton`, and the 7 new skeletons. Update 10 `<Route>` elements to use the correct fallback.
+Search for existing `showShareSheet` state -- if missing, add it alongside other sheet states. The `ShareSheet` component is already lazy-imported in the file.
 
-### No Other Files Changed
+**2. Replace the Quick Actions Bar (lines 1188-1217)**
 
-All skeletons are pure presentational components (no data fetching, no hooks). No new dependencies needed.
+Replace the current 3-button layout with:
 
-### Skeleton Design Principles
+```text
+[Download (primary filled)] [Share] [Template] [Export]
+```
 
-- Each skeleton mirrors the target page's header (back button position, title, action buttons)
-- Uses `animate-pulse` with `bg-muted` blocks matching the page's content zones
-- Respects `pt-safe` for pages with safe-area headers
-- Matches `rounded-2xl`, `rounded-xl`, `rounded-full` patterns from the actual UI
-- Mobile-first at 375px breakpoint per project guidelines
+- **Download button**: Primary styled, calls a new `handleQuickDownload` function that dynamically imports `generatePDF` + `downloadFile`, generates a PDF from `resumeRef` (the LivePreviewPanel's internal ref won't work -- need to use the editor's own hidden template ref or navigate to preview). Since `LivePreviewPanel` has its own `resumeRef`, the simplest approach is to add a quick download handler that reuses the existing `handleDownload` from `LivePreviewPanel` by extracting it, OR simply navigate to `/preview` with a query param.
+
+Actually, the cleanest approach: add a `handleQuickPDF` function in EditorPage that dynamically imports `generatePDF`, renders using a hidden ref, and downloads. But `LivePreviewPanel` already has this exact logic with its own `resumeRef`. 
+
+The simplest reliable approach: make the Download button trigger the same PDF generation that `LivePreviewPanel` already does, by forwarding a callback ref.
+
+**Revised simpler approach**: Add a `ref` prop to `LivePreviewPanel` so the parent can trigger download, OR just add the download/share buttons and have them:
+- **Download**: Use inline PDF generation (dynamic import of `generatePDF` with the resume data, using `null` for the element ref which falls back to html2canvas rendering)
+- **Share**: Open `ShareSheet` (already available in the lazy imports)
+
+**3. Add ShareSheet rendering**
+
+Add `showShareSheet` state and render `<ShareSheet>` in the Suspense block at the bottom of the component (near line 1320+).
+
+### Implementation Detail
+
+```text
+Lines 1188-1217 replacement:
+
+<div className="shrink-0 glass-header border-t border-border px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))] flex items-center justify-center gap-2">
+  <Button primary  onClick={handleMobileQuickDownload}> Download </Button>
+  <Button outline   onClick={() => setShowShareSheet(true)}> Share </Button>
+  <Button outline   onClick={() => setShowTemplates(true)}> Template </Button>
+  <Button outline   onClick={() => navigate('/preview')}> Export </Button>
+</div>
+```
+
+New handler `handleMobileQuickDownload`:
+- Sets generating state
+- Dynamically imports `generatePDF`
+- Calls `generatePDF(currentResume, selectedTemplate, null)` (null element = pure render)
+- Downloads via `downloadFile`
+- Shows success/error toast
+
+New state + sheet:
+- `const [showShareSheet, setShowShareSheet] = useState(false)`
+- Render `<ShareSheet>` in the existing `<Suspense>` block
+
+### Files Modified (1)
+- `src/pages/EditorPage.tsx` -- add Download/Share buttons to mobile preview action bar, add ShareSheet state + rendering, add quick download handler
