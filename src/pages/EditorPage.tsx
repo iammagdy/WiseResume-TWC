@@ -1321,9 +1321,12 @@ export default function EditorPage() {
           </div>
         )}
 
-        {/* Next Step Banner - only show when most sections complete */}
+        {/* Next Step Banners - contextual suggestions */}
         {sectionStatus.contact && sectionStatus.experience && sectionStatus.summary && sectionStatus.skills && (
-          <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
+          <>
+            <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
+            <NextStepBanner variant="tailor" onAction={() => setShowTailor(true)} />
+          </>
         )}
 
         {/* AI Studio Bar removed — now lives at /ai-studio tab */}

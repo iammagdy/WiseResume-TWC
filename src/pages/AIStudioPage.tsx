@@ -31,6 +31,7 @@ import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResume, useResumes, dbToResumeData } from '@/hooks/useResumes';
+import { calcOverallScore } from '@/lib/resumeCompletionRules';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
 import { AIStudioTourModal } from '@/components/ai-studio/AIStudioTourModal';
@@ -404,6 +405,55 @@ export default function AIStudioPage() {
           </div>
         </div>
       )}
+
+      {/* Recommended for You */}
+      {(() => {
+        // Compute recommended tools based on user state
+        const recommended: ToolEntry[] = [];
+        const resumeInfo = resumeData ? dbToResumeData(resumeData) : null;
+        const hasTailored = allResumes?.some(r => r.parent_resume_id);
+        
+        if (!hasTailored) {
+          const tailor = allTools.find(t => t.id === 'tailor');
+          if (tailor) recommended.push(tailor);
+        }
+        if (resumeInfo && calcOverallScore(resumeInfo) < 40) {
+          const enhance = allTools.find(t => t.id === 'enhance');
+          if (enhance) recommended.push(enhance);
+        }
+        const proofread = allTools.find(t => t.id === 'proofread');
+        if (proofread && recommended.length < 3) recommended.push(proofread);
+        const interview = allTools.find(t => t.id === 'interview');
+        if (interview && recommended.length < 3) recommended.push(interview);
+
+        if (recommended.length === 0) return null;
+
+        return (
+          <div className="px-4 pb-4">
+            <div className="mb-2 px-1">
+              <h2 className="text-base sm:text-sm font-semibold">Recommended for you</h2>
+              <p className="text-xs text-muted-foreground">Based on your resume progress</p>
+            </div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar">
+              {recommended.map(tool => (
+                <button
+                  key={tool.id}
+                  onClick={() => handleToolAction(tool)}
+                  className="flex items-center gap-2.5 px-4 py-3 rounded-xl border border-primary/20 bg-primary/[0.03] hover:bg-primary/[0.06] active:scale-95 transition-all touch-manipulation shrink-0 min-h-[56px]"
+                >
+                  <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <tool.icon className={cn('w-4.5 h-4.5', tool.color)} />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-sm font-medium block">{tool.label}</span>
+                    <span className="text-[11px] text-muted-foreground">{tool.desc}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* All Tools - Flat Grid by Category (no individual entrance anims) */}
       {toolCategories.map((category) => (
