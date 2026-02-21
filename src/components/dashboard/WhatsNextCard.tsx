@@ -113,11 +113,12 @@ export function WhatsNextCard() {
   return (
     <motion.button
       onClick={() => { haptics.light(); step.action(); }}
-      className="mx-4 mb-3 w-[calc(100%-2rem)] rounded-2xl glass-elevated p-4 text-left active:scale-[0.98] transition-transform touch-manipulation"
+      className="mx-4 mb-3 w-[calc(100%-2rem)] rounded-2xl glass-elevated p-4 text-left active:scale-[0.98] transition-transform touch-manipulation border-l-[3px] border-primary/40 bg-primary/[0.03]"
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, delay: 0.1 }}
     >
+      <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-1.5">Suggested next step</p>
       <div className="flex items-center gap-3">
         <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shrink-0', step.bgColor)}>
           <Icon className={cn('w-5 h-5', step.color)} />
