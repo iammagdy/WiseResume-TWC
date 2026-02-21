@@ -58,6 +58,7 @@ const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').t
 const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
 const LivePreviewPanel = lazy(() => import('@/components/editor/LivePreviewPanel').then(m => ({ default: m.LivePreviewPanel })));
 const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet').then(m => ({ default: m.LivePreviewSheet })));
+const ATSParserPreview = lazy(() => import('@/components/editor/ATSParserPreview'));
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import { ATSScoreBreakdown, getScoreColorClass } from '@/components/dashboard/ATSScoreBreakdown';
 import { useResumeScore, ResumeHealthScore, backgroundScore } from '@/hooks/useResumeScore';
@@ -218,7 +219,8 @@ export default function EditorPage() {
   const [showATSBadge, setShowATSBadge] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
   const [showATSScan, setShowATSScan] = useState(false);
-  const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview'>('editor');
+  const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
+  const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   const isMobile = useIsMobile();
   // Auto-open Tailor sheet if navigated with ?openTailor=1
   useEffect(() => {
@@ -1159,12 +1161,13 @@ export default function EditorPage() {
         {isMobile ? (
           <Tabs
             value={mobileEditorTab}
-            onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview')}
+            onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
             <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none border-b border-border bg-background/95 backdrop-blur-sm h-12 p-0 gap-0">
               <TabsTrigger value="editor" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Editor</TabsTrigger>
               <TabsTrigger value="preview" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
+              <TabsTrigger value="ats" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs">ATS View</TabsTrigger>
             </TabsList>
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0">
               <div
@@ -1215,6 +1218,13 @@ export default function EditorPage() {
                 </>
               )}
             </TabsContent>
+            <TabsContent value="ats" className="flex-1 min-h-0 overflow-hidden mt-0">
+              {mobileEditorTab === 'ats' && (
+                <Suspense fallback={null}>
+                  <ATSParserPreview />
+                </Suspense>
+              )}
+            </TabsContent>
           </Tabs>
         ) : showPreview ? (
           <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
@@ -1230,12 +1240,43 @@ export default function EditorPage() {
             </ResizablePanel>
             <ResizableHandle withHandle />
             <ResizablePanel defaultSize={45} minSize={25}>
-              <Suspense fallback={null}>
-                <LivePreviewPanel
-                  onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
-                  highlightSection={activeTab}
-                />
-              </Suspense>
+              <div className="flex flex-col h-full min-h-0">
+                {/* Visual / ATS toggle */}
+                <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-background/80 backdrop-blur-sm">
+                  <button
+                    onClick={() => setDesktopPreviewMode('visual')}
+                    className={cn(
+                      'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                      desktopPreviewMode === 'visual' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                  >
+                    Visual
+                  </button>
+                  <button
+                    onClick={() => setDesktopPreviewMode('ats')}
+                    className={cn(
+                      'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                      desktopPreviewMode === 'ats' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    )}
+                  >
+                    ATS View
+                  </button>
+                </div>
+                <div className="flex-1 min-h-0">
+                  <Suspense fallback={null}>
+                    {desktopPreviewMode === 'visual' ? (
+                      <LivePreviewPanel
+                        onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
+                        highlightSection={activeTab}
+                      />
+                    ) : (
+                      <ATSParserPreview
+                        onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
+                      />
+                    )}
+                  </Suspense>
+                </div>
+              </div>
             </ResizablePanel>
           </ResizablePanelGroup>
         ) : (
