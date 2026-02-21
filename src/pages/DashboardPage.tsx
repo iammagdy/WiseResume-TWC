@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useDeferredValue, lazy, Suspense, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Plus, Search, User, Settings, LogOut, FileText as FileTextIcon, Upload, Briefcase, Sparkles, Linkedin, CheckSquare, X, Trash2, WifiOff, ShieldCheck, ExternalLink, HelpCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import useEmblaCarousel from 'embla-carousel-react';
 import { ResumeFilters, SortOption, CategoryFilter, ScoreFilter } from '@/components/dashboard/ResumeFilters';
@@ -21,7 +21,8 @@ import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 // DailyTipCard removed - tip merged into DashboardStats
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { WhatsNextCard } from '@/components/dashboard/WhatsNextCard';
-import { FeatureDiscoveryCard } from '@/components/dashboard/FeatureDiscoveryCard';
+import { FeatureMapSheet } from '@/components/layout/FeatureMapSheet';
+import { trackSession } from '@/lib/discoveryManager';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
@@ -95,6 +96,10 @@ export default function DashboardPage() {
     return true;
   });
   const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
+  const [showFeatureMap, setShowFeatureMap] = useState(false);
+
+  // Track session count for progressive disclosure
+  useEffect(() => { trackSession(); }, []);
 
   // Embla carousel for swipeable tabs
   const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: false, containScroll: false });
@@ -480,7 +485,16 @@ export default function DashboardPage() {
           <button onClick={() => navigate('/')} aria-label="Back to home" className="touch-manipulation">
             <AppLogo size="sm" showTagline={false} hideText />
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-9 h-9 rounded-xl touch-manipulation active:scale-95"
+              onClick={() => { haptics.light(); setShowFeatureMap(true); }}
+              aria-label="What can I do?"
+            >
+              <HelpCircle className="w-4.5 h-4.5 text-muted-foreground" />
+            </Button>
             <AICreditsIndicator />
             <AIHealthBadge />
             <Button
@@ -609,8 +623,7 @@ export default function DashboardPage() {
             {/* What's Next Card */}
             <WhatsNextCard />
 
-            {/* Feature Discovery */}
-            <FeatureDiscoveryCard />
+            {/* Feature discovery merged into WhatsNextCard */}
 
             {/* Personalized Stats Header */}
             <DashboardStats
@@ -1043,7 +1056,8 @@ export default function DashboardPage() {
           <AnalyzeJobSheet open={showAnalyzeJob} onOpenChange={setShowAnalyzeJob} />
         </Suspense>
       )}
-
+      {/* Feature Map Sheet */}
+      <FeatureMapSheet open={showFeatureMap} onOpenChange={setShowFeatureMap} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { motion, useReducedMotion, LayoutGroup } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { shouldShowDiscovery } from '@/lib/discoveryManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
@@ -86,10 +87,11 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const { hasNew, markSeen } = useChangelogBadge();
   const prefersReducedMotion = useReducedMotion();
 
-  // First-visit discovery dots
+  // First-visit discovery dots — gated by progressive disclosure
+  const showDots = shouldShowDiscovery('discovery-dots');
   const [discoveryDots, setDiscoveryDots] = useState(() => ({
-    aiTools: !localStorage.getItem('wr-discovered-ai-tools'),
-    portfolio: !localStorage.getItem('wr-discovered-portfolio'),
+    aiTools: showDots && !localStorage.getItem('wr-discovered-ai-tools'),
+    portfolio: showDots && !localStorage.getItem('wr-discovered-portfolio'),
   }));
 
   const isActive = (tab: TabItem) => {
