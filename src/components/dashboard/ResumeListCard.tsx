@@ -1,4 +1,4 @@
-import { useState, useMemo, memo } from 'react';
+import { useState, useMemo, memo, useCallback } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -37,7 +37,7 @@ import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { ATSScoreBreakdown } from './ATSScoreBreakdown';
 import { SetTargetJobSheet } from './SetTargetJobSheet';
 import { useNavigate } from 'react-router-dom';
-
+import { useDoubleTap } from '@/hooks/useDoubleTap';
 interface ResumeListCardProps {
   resume: DatabaseResume;
   onEdit: (id: string) => void;
@@ -140,7 +140,7 @@ export const ResumeListCard = memo(function ResumeListCard({
     }
   };
 
-  const handleCardClick = () => {
+  const handleSingleTap = useCallback(() => {
     if (selectionMode && onToggleSelect) {
       haptics.light();
       onToggleSelect(resume.id);
@@ -150,7 +150,19 @@ export const ResumeListCard = memo(function ResumeListCard({
       haptics.light();
       navigateToEditor(`/resume/${resume.id}`);
     }
-  };
+  }, [selectionMode, onToggleSelect, isDragging, resume.id, navigateToEditor]);
+
+  const handleDoubleTapAction = useCallback(() => {
+    if (selectionMode || isDragging) return;
+    haptics.medium();
+    // Load resume and go directly to preview
+    const { setCurrentResumeId, setCurrentResume } = useResumeStore.getState();
+    setCurrentResumeId(resume.id);
+    setCurrentResume(dbToResumeData(resume));
+    navigateToEditor('/preview');
+  }, [selectionMode, isDragging, resume, navigateToEditor]);
+
+  const handleCardClick = useDoubleTap(handleSingleTap, handleDoubleTapAction);
 
   return (
     <div className={cn(

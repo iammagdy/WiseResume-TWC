@@ -17,6 +17,7 @@ import { SignupForm } from '@/components/auth/SignupForm';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { Mail } from 'lucide-react';
+import haptics from '@/lib/haptics';
 
 const emailSchema = z.string().email('Please enter a valid email');
 const signupPasswordSchema = z.string()
@@ -138,6 +139,7 @@ export default function AuthPage() {
     try {
       const { error } = await withNetworkRetry(() => supabase.auth.signInWithPassword({ email, password }));
       if (error) {
+        haptics.error();
         const newAttempts = failedAttempts + 1;
         if (newAttempts >= MAX_FAILED_ATTEMPTS) {
           const until = Date.now() + COOLDOWN_SECONDS * 1000;
@@ -155,6 +157,7 @@ export default function AuthPage() {
       setTimeout(() => navigate(redirectTo), 600);
     } catch (err) {
       const isNetworkErr = err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
+      haptics.error();
       toast.error(isNetworkErr ? 'Connection failed — check your network and try again.' : 'Something went wrong. Please try again.');
     } finally {
       clearTimeout(slowTimer);
@@ -181,6 +184,7 @@ export default function AuthPage() {
         })
       );
       if (error) {
+        haptics.error();
         // Generic message to prevent email enumeration
         if (error.message.includes('already registered')) {
           toast.success("If this email is not already registered, you'll receive a verification link shortly.");
@@ -205,6 +209,7 @@ export default function AuthPage() {
       }
     } catch (err) {
       const isNetworkErr = err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
+      haptics.error();
       toast.error(isNetworkErr ? 'Connection failed — check your network and try again.' : 'Something went wrong. Please try again.');
     } finally {
       clearTimeout(slowTimer);

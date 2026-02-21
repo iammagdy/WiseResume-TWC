@@ -5,6 +5,7 @@ import { motion, useReducedMotion, LayoutGroup } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
+import { useOfflineSyncStore } from '@/store/offlineSyncStore';
 import { shouldShowDiscovery } from '@/lib/discoveryManager';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
@@ -85,6 +86,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
   const { user } = useAuth();
   const { data: resumes } = useResumes({ select: (data) => data.slice(0, 1) });
   const { hasNew, markSeen } = useChangelogBadge();
+  const pendingCount = useOfflineSyncStore(s => s.pendingChanges.length);
   const prefersReducedMotion = useReducedMotion();
 
   // First-visit discovery dots — gated by progressive disclosure
@@ -214,6 +216,15 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
                             className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse"
                             aria-label="New updates available"
                           />
+                        )}
+                        {tab.path === '/dashboard' && pendingCount > 0 && (
+                          <span
+                            className="absolute -top-1 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-warning text-warning-foreground text-[9px] font-bold flex items-center justify-center border border-background"
+                            aria-label={`${pendingCount} changes waiting to sync`}
+                            title={`${pendingCount} change${pendingCount > 1 ? 's' : ''} waiting to sync`}
+                          >
+                            {pendingCount}
+                          </span>
                         )}
                         {/* Discovery dots for first-time users */}
                         {tab.path === '/ai-studio' && discoveryDots.aiTools && !active && (

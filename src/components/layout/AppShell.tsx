@@ -6,6 +6,7 @@ import { DesktopNav } from './DesktopNav';
 import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
+import { SlowConnectionBanner } from './SlowConnectionBanner';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
 import { getPageTitle } from '@/lib/pageTitles';
@@ -38,6 +39,7 @@ export function AppShell() {
         Skip to content
       </a>
       <OfflineBanner />
+      <SlowConnectionBanner />
       {showBottomNav && (
         <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">
           <span className="text-sm font-bold text-primary">WiseResume</span>

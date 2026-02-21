@@ -1,4 +1,4 @@
-import { memo, useState, useCallback, Suspense, lazy, useRef, CSSProperties } from 'react';
+import { memo, useState, useCallback, Suspense, lazy, useRef, CSSProperties, useEffect } from 'react';
 import { ZoomIn, ZoomOut, Download, Loader2, Eye, EyeOff, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -104,6 +104,17 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
   const currentResume = useResumeStore(s => s.currentResume);
   const selectedTemplate = useResumeStore(s => s.selectedTemplate);
   const [zoom, setZoom] = useState(0.75);
+
+  // Orientation-aware auto-zoom
+  useEffect(() => {
+    const mql = window.matchMedia('(orientation: landscape)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      setZoom(e.matches ? 1 : 0.75);
+    };
+    handler(mql); // set initial
+    mql.addEventListener('change', handler);
+    return () => mql.removeEventListener('change', handler);
+  }, []);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hiddenSections, setHiddenSections] = useState<Set<string>>(new Set());
   const [showSectionToggles, setShowSectionToggles] = useState(false);
