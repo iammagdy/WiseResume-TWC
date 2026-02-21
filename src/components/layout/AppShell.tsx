@@ -19,6 +19,7 @@ export function AppShell() {
   const location = useLocation();
   const currentOutlet = useOutlet();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
+  const isEditorRoute = location.pathname.startsWith('/editor');
   const scrollRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
@@ -58,7 +59,7 @@ export function AppShell() {
         id="main-content"
         className={cn(
           "flex-1 flex flex-col min-h-0 overflow-hidden",
-          showBottomNav && "pb-20 lg:pb-0"
+          showBottomNav && !isEditorRoute && "pb-20 lg:pb-0"
         )}
       >
         <div
