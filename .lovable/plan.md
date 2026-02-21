@@ -1,83 +1,93 @@
 
 
-# Audit Logging for DB Migrations and User-Related Changes
+# Database Cleanup Utility for Post-Migration Orphan Pruning
 
 ## Problem
 
-Migration pipelines (`migrationRunner.ts`) and key user actions (account deletion, API key changes, profile updates) produce only ephemeral `console.warn`/`console.info` logs that vanish when the browser tab closes. There is no persistent, queryable record of migration outcomes, retries, or sensitive account-level changes -- making debugging and support harder.
+After migrations run (guest resume, API key), several types of orphaned data can accumulate:
+
+1. **Stale localStorage checkpoints** -- `wr-migration-*-step` keys persist even after `wr-migration-*-done` is set to `1`. These are harmless but accumulate indefinitely.
+2. **Database orphans** -- The existing `cleanup_stale_data()` Postgres function handles old audit logs (90d), read notifications (30d), and excess resume versions (50 per resume), but it is never called from the client. It runs only if manually invoked.
+3. **Potential orphaned resume_shares/resume_versions** -- If a resume is deleted but cascade didn't fire (edge case with soft-deletes or failed transactions), child rows linger.
 
 ## Solution
 
-Add a lightweight, client-side audit logger that persists structured events to the `ai_usage_logs`-style pattern -- a new `audit_logs` table in the database. The logger is fire-and-forget (never blocks UX) and captures migration step results, account changes, and API key lifecycle events.
+Create a lightweight cleanup utility that runs once per day (debounced via localStorage timestamp) and:
+- Calls the existing `cleanup_stale_data()` RPC to prune old logs, notifications, and excess versions
+- Cleans up completed migration checkpoint keys from localStorage
+- Logs the cleanup event to audit_logs
 
 ---
 
-## 1. Create `audit_logs` Database Table
+## Changes
 
-A new table to store structured audit events with RLS scoped to the owning user.
+### 1. Create `src/lib/dbCleanup.ts` (~50 lines)
+
+A utility with two functions:
+
+**`pruneLocalStorageCheckpoints()`** -- Scans localStorage for `wr-migration-*-done` keys. For each completed pipeline, removes the corresponding `wr-migration-*-step` key (no longer needed after completion).
+
+**`runDailyCleanup()`** -- The main entry point:
+1. Checks `localStorage['wr-cleanup-last']` timestamp. If less than 24 hours ago, returns immediately.
+2. Calls `pruneLocalStorageCheckpoints()`.
+3. Invokes `supabase.rpc('cleanup_stale_data')` to prune server-side orphans.
+4. Writes current timestamp to `wr-cleanup-last`.
+5. Logs `logAudit('account', 'daily_cleanup_ran')`.
+6. Entire function is wrapped in try/catch -- never blocks or throws.
+
+### 2. Modify `src/contexts/AuthContext.tsx`
+
+Add a single fire-and-forget call to `runDailyCleanup()` inside the existing `onAuthStateChange` handler, right after the `migrateLocalKeysToServer()` call. It only fires on `SIGNED_IN` events (same gate as key migration), ensuring it runs once per authenticated session.
+
+### 3. Modify existing `cleanup_stale_data()` DB function (migration)
+
+Extend the existing function to also prune:
+- `audit_logs` older than 90 days (matching the `ai_usage_logs` retention)
+- `resume_shares` where `is_active = false` and `created_at` older than 30 days
+
+This keeps the single RPC call comprehensive.
+
+---
+
+## Technical Details
+
+### `dbCleanup.ts` structure
 
 ```text
-Table: audit_logs
-Columns:
-  id          uuid        PK, default gen_random_uuid()
-  user_id     uuid        NOT NULL
-  category    text        NOT NULL  -- 'migration' | 'account' | 'api_key' | 'auth'
-  action      text        NOT NULL  -- 'pipeline_started' | 'step_completed' | 'step_failed' | 'data_deleted' | 'key_saved' | 'key_deleted' | 'signed_out'
-  metadata    jsonb       DEFAULT '{}'  -- pipeline_id, step_name, error message, etc.
-  created_at  timestamptz DEFAULT now()
+pruneLocalStorageCheckpoints()
+  - Iterate localStorage keys matching /^wr-migration-.*-done$/
+  - For each, extract pipeline ID
+  - Remove the corresponding -step key
+  - No DB interaction
 
-RLS policies:
-  - INSERT: auth.uid() = user_id
-  - SELECT: auth.uid() = user_id
-  - DELETE: auth.uid() = user_id  (for GDPR data export/delete)
+runDailyCleanup()
+  - Guard: skip if last run < 24h ago
+  - Call pruneLocalStorageCheckpoints()
+  - Call supabase.rpc('cleanup_stale_data')
+  - Update wr-cleanup-last timestamp
+  - logAudit('account', 'daily_cleanup_ran')
+  - All wrapped in try/catch
 ```
 
-No UPDATE policy needed -- audit logs are append-only.
-
-## 2. Create `src/lib/auditLogger.ts`
-
-A thin utility (~30 lines) that wraps inserts to `audit_logs`. It is fire-and-forget -- errors are caught and silently logged to console to never disrupt the user.
+### AuthContext integration point
 
 ```text
-Functions:
-  logAudit(category, action, metadata?)
-    - Reads user ID from supabase.auth.getUser() (cached)
-    - Inserts a row into audit_logs
-    - Catches and swallows errors (console.warn only)
+// Inside onAuthStateChange SIGNED_IN handler (after migrateLocalKeysToServer):
+runDailyCleanup();  // fire-and-forget, never blocks
 ```
 
-Key design decisions:
-- Uses the existing Supabase client from `safeClient.ts`
-- No batching needed -- audit events are infrequent (a few per session)
-- Returns void, never throws
+### Extended cleanup_stale_data() SQL
 
-## 3. Instrument `migrationRunner.ts`
+```text
+-- Existing:
+DELETE FROM ai_usage_logs WHERE created_at < now() - interval '90 days';
+DELETE FROM notifications WHERE is_read = true AND created_at < now() - interval '30 days';
+DELETE FROM resume_versions WHERE rn > 50 (per resume);
 
-Add `logAudit` calls at three points inside `runMigrationPipeline`:
-- **Pipeline start**: `logAudit('migration', 'pipeline_started', { pipelineId, totalSteps, resumedFrom })`
-- **Step success**: `logAudit('migration', 'step_completed', { pipelineId, stepName })`
-- **Step failure** (after retry exhaustion): `logAudit('migration', 'step_failed', { pipelineId, stepName, error })`
-
-These are fire-and-forget -- they don't affect pipeline control flow or checkpointing.
-
-## 4. Instrument User-Related Changes
-
-### `manage-api-keys` Edge Function
-Add a `logAudit` call after successful POST (key saved) and DELETE (key removed) in `migrateLocalKeys.ts` and `AISettingsSheet.tsx`:
-- `logAudit('api_key', 'key_saved', { provider })`
-- `logAudit('api_key', 'key_deleted', { provider })`
-
-### `DeleteDataDialog.tsx`
-After successful `deleteAllUserData()`:
-- `logAudit('account', 'data_deleted', { resumeCount })`
-
-### `AuthContext.tsx`
-On user-initiated sign-out:
-- `logAudit('auth', 'signed_out')` (called before `supabase.auth.signOut`)
-
-## 5. Integrate into Data Export
-
-Add `audit_logs` to the existing `dataExport.ts` tables array so users can export their own audit trail via GDPR export.
+-- New additions:
+DELETE FROM audit_logs WHERE created_at < now() - interval '90 days';
+DELETE FROM resume_shares WHERE is_active = false AND created_at < now() - interval '30 days';
+```
 
 ---
 
@@ -85,14 +95,9 @@ Add `audit_logs` to the existing `dataExport.ts` tables array so users can expor
 
 | File | Action |
 |------|--------|
-| Database migration | Create `audit_logs` table with RLS |
-| `src/lib/auditLogger.ts` | Create -- fire-and-forget audit insert utility |
-| `src/lib/migrationRunner.ts` | Modify -- add 3 audit log calls (start, success, fail) |
-| `src/lib/migrateLocalKeys.ts` | Modify -- log key upload success |
-| `src/components/settings/AISettingsSheet.tsx` | Modify -- log key save/delete |
-| `src/components/settings/DeleteDataDialog.tsx` | Modify -- log data deletion |
-| `src/contexts/AuthContext.tsx` | Modify -- log sign-out |
-| `src/lib/dataExport.ts` | Modify -- add `audit_logs` to export list |
+| `src/lib/dbCleanup.ts` | Create -- daily cleanup utility |
+| `src/contexts/AuthContext.tsx` | Modify -- add `runDailyCleanup()` call on sign-in |
+| Database migration | Modify -- extend `cleanup_stale_data()` with audit_logs and inactive shares pruning |
 
 ### No new dependencies required.
 
