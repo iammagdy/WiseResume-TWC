@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Key, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { logAudit } from '@/lib/auditLogger';
 
 interface ElevenLabsKeySheetProps {
   open: boolean;
@@ -41,6 +42,7 @@ export const ElevenLabsKeySheet = forwardRef<HTMLDivElement, ElevenLabsKeySheetP
       });
 
       if (error) throw new Error(error.message);
+      logAudit('api_key', 'key_saved', { provider: 'elevenlabs' });
 
       onSave(trimmed); // notify parent that a key is now configured
       toast.success('ElevenLabs API key saved securely');
@@ -61,6 +63,7 @@ export const ElevenLabsKeySheet = forwardRef<HTMLDivElement, ElevenLabsKeySheetP
       });
 
       if (error) throw new Error(error.message);
+      logAudit('api_key', 'key_deleted', { provider: 'elevenlabs' });
 
       onSave(''); // notify parent that key is gone
       toast.success('API key cleared');
