@@ -4,8 +4,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
 import type { Session } from '@supabase/supabase-js';
+import { runMigrationPipeline, isMigrationDone } from '@/lib/migrationRunner';
+import type { MigrationStep } from '@/lib/migrationRunner';
 
-const MIGRATION_FLAG = 'wr-guest-migrated';
+const PIPELINE_ID = 'guest-resume';
 
 interface GuestStoreState {
   state?: {
@@ -22,7 +24,6 @@ function readGuestResume(): { resume: ResumeData; resumeId: string } | null {
     const resume = parsed?.state?.currentResume;
     const resumeId = parsed?.state?.currentResumeId;
     if (!resume || !resumeId) return null;
-    // Basic check: must have some content
     if (!resume.contactInfo && !resume.summary && (!resume.experience || resume.experience.length === 0)) {
       return null;
     }
@@ -55,9 +56,7 @@ export function useGuestMigration(session: Session | null) {
   useEffect(() => {
     if (hasRun.current) return;
     if (!session?.user) return;
-
-    // Prevent re-running in the same browser session
-    if (sessionStorage.getItem(MIGRATION_FLAG)) return;
+    if (isMigrationDone(PIPELINE_ID)) return;
 
     const guest = readGuestResume();
     if (!guest) return;
@@ -65,62 +64,80 @@ export function useGuestMigration(session: Session | null) {
     hasRun.current = true;
     setIsMigrating(true);
 
-    const migrate = async () => {
+    const { resume, resumeId } = guest;
+    const userId = session.user.id;
+
+    const toJson = (v: unknown) => JSON.parse(JSON.stringify(v ?? {}));
+    const toJsonArr = (v: unknown) => JSON.parse(JSON.stringify(v ?? []));
+
+    const steps: MigrationStep[] = [
+      {
+        name: 'check-existing',
+        action: async () => {
+          const { data: existing } = await supabase
+            .from('resumes')
+            .select('id')
+            .eq('id', resumeId)
+            .maybeSingle();
+
+          if (existing) {
+            // Already migrated or ID collision — mark done
+            return 'skip-remaining';
+          }
+        },
+      },
+      {
+        name: 'insert-resume',
+        action: async () => {
+          // Re-check existence for idempotency (in case checkpoint write failed)
+          const { data: existing } = await supabase
+            .from('resumes')
+            .select('id')
+            .eq('id', resumeId)
+            .maybeSingle();
+
+          if (existing) return;
+
+          const { error } = await supabase.from('resumes').insert([{
+            user_id: userId,
+            title: resume.contactInfo?.fullName
+              ? `${resume.contactInfo.fullName}'s Resume`
+              : 'My Resume',
+            contact_info: toJson(resume.contactInfo),
+            summary: resume.summary || '',
+            experience: toJsonArr(resume.experience),
+            education: toJsonArr(resume.education),
+            skills: toJsonArr(resume.skills),
+            certifications: toJsonArr(resume.certifications),
+            awards: toJsonArr(resume.awards),
+            projects: toJsonArr(resume.projects),
+            publications: toJsonArr(resume.publications),
+            volunteering: toJsonArr(resume.volunteering),
+            hobbies: toJsonArr(resume.hobbies),
+            references: toJsonArr(resume.references),
+            template_id: resume.templateId || 'modern',
+            customization: toJson(resume.customization),
+          }]);
+
+          if (error) throw error;
+        },
+      },
+      {
+        name: 'cleanup-local',
+        action: async () => {
+          clearGuestResumeFromStore();
+          await queryClient.invalidateQueries({ queryKey: ['resumes'] });
+          toast.success('Your draft resume has been saved to your account.');
+        },
+      },
+    ];
+
+    const run = async () => {
       try {
-        const { resume, resumeId } = guest;
-        const userId = session.user.id;
-
-        // Check if this resume ID already exists in the DB (unlikely but safe)
-        const { data: existing } = await supabase
-          .from('resumes')
-          .select('id')
-          .eq('id', resumeId)
-          .maybeSingle();
-
-        if (existing) {
-          // Already migrated or ID collision – skip
-          sessionStorage.setItem(MIGRATION_FLAG, '1');
-          setIsMigrating(false);
-          return;
+        const result = await runMigrationPipeline(PIPELINE_ID, steps);
+        if (!result.completed) {
+          toast.info("We'll finish saving your draft next time you're online.");
         }
-
-        // JSON.parse(JSON.stringify(...)) to satisfy Supabase Json type
-        const toJson = (v: unknown) => JSON.parse(JSON.stringify(v ?? {}));
-        const toJsonArr = (v: unknown) => JSON.parse(JSON.stringify(v ?? []));
-
-        const { error } = await supabase.from('resumes').insert([{
-          user_id: userId,
-          title: resume.contactInfo?.fullName
-            ? `${resume.contactInfo.fullName}'s Resume`
-            : 'My Resume',
-          contact_info: toJson(resume.contactInfo),
-          summary: resume.summary || '',
-          experience: toJsonArr(resume.experience),
-          education: toJsonArr(resume.education),
-          skills: toJsonArr(resume.skills),
-          certifications: toJsonArr(resume.certifications),
-          awards: toJsonArr(resume.awards),
-          projects: toJsonArr(resume.projects),
-          publications: toJsonArr(resume.publications),
-          volunteering: toJsonArr(resume.volunteering),
-          hobbies: toJsonArr(resume.hobbies),
-          references: toJsonArr(resume.references),
-          template_id: resume.templateId || 'modern',
-          customization: toJson(resume.customization),
-        }]);
-
-        if (error) {
-          console.error('Guest migration failed:', error);
-          toast.error('Failed to migrate your draft resume. Your data is still saved locally.');
-          setIsMigrating(false);
-          return;
-        }
-
-        // Success – clear local data and refresh
-        clearGuestResumeFromStore();
-        sessionStorage.setItem(MIGRATION_FLAG, '1');
-        await queryClient.invalidateQueries({ queryKey: ['resumes'] });
-        toast.success('Your draft resume has been saved to your account.');
       } catch (err) {
         console.error('Guest migration error:', err);
         toast.error('Failed to migrate your draft resume. Your data is still saved locally.');
@@ -129,7 +146,7 @@ export function useGuestMigration(session: Session | null) {
       }
     };
 
-    migrate();
+    run();
   }, [session, queryClient]);
 
   return { isMigrating };
