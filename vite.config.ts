@@ -23,6 +23,8 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('node_modules/pdf-lib') || id.includes('node_modules/pdfjs-dist')) return 'pdf';
           if (id.includes('node_modules/tesseract') || id.includes('node_modules/mammoth')) return 'ocr';
           if (id.includes('node_modules/docx')) return 'docx';
+          if (id.includes('node_modules/qr-code-styling')) return 'qr';
+          if (id.includes('node_modules/react-image-crop')) return 'image-crop';
         },
       },
     },
