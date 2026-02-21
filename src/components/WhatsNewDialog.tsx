@@ -85,7 +85,7 @@ export function WhatsNewDialog() {
           </Button>
           {isAuthenticated && (
             <button
-              onClick={() => { handleClose(); navigate('/settings'); }}
+              onClick={() => { handleClose(); navigate('/settings?changelog=true'); }}
               className="flex items-center justify-center gap-1 text-fluid-xs text-muted-foreground hover:text-foreground transition-colors min-h-[44px] active:scale-95"
             >
               View full changelog <ChevronRight className="h-3 w-3" />
