@@ -868,10 +868,8 @@ export type Database = {
           hobbies: Json | null
           id: string
           is_primary: boolean | null
-          is_public: boolean
           job_match_score: number | null
           job_url: string | null
-          last_reminder_sent_at: string | null
           parent_resume_id: string | null
           projects: Json | null
           publications: Json | null
@@ -897,10 +895,8 @@ export type Database = {
           hobbies?: Json | null
           id?: string
           is_primary?: boolean | null
-          is_public?: boolean
           job_match_score?: number | null
           job_url?: string | null
-          last_reminder_sent_at?: string | null
           parent_resume_id?: string | null
           projects?: Json | null
           publications?: Json | null
@@ -926,10 +922,8 @@ export type Database = {
           hobbies?: Json | null
           id?: string
           is_primary?: boolean | null
-          is_public?: boolean
           job_match_score?: number | null
           job_url?: string | null
-          last_reminder_sent_at?: string | null
           parent_resume_id?: string | null
           projects?: Json | null
           publications?: Json | null

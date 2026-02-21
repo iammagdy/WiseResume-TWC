@@ -1,7 +1,7 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAI, isAIError, parseAIJSON, toUserError } from "../_shared/aiClient.ts";
 import { checkRateLimit, recordUsage } from "../_shared/rateLimiter.ts";
+import { requireAuth, authErrorResponse } from "../_shared/authMiddleware.ts";
 
 interface DetectAndHumanizeRequest {
   text: string;
@@ -19,30 +19,15 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    let userId: string;
+    try {
+      const auth = await requireAuth(req);
+      userId = auth.userId;
+    } catch (authErr) {
+      return authErrorResponse(authErr, req.headers.get('origin'));
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const rateCheck = await checkRateLimit(user.id, { maxRequests: 15, windowSeconds: 60, actionType: 'detect_humanize' });
+    const rateCheck = await checkRateLimit(userId, { maxRequests: 15, windowSeconds: 60, actionType: 'detect_humanize' });
     if (!rateCheck.allowed) {
       return new Response(
         JSON.stringify({ error: `Rate limit exceeded. Try again in ${rateCheck.retryAfterSeconds}s.` }),
@@ -97,7 +82,7 @@ ${text}
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: detectPrompt }],
         temperature: 0.3,
-        userId: user.id,
+        userId: userId,
       });
 
       result.detection = parseAIJSON(detectResponse.content || '{}');
@@ -135,13 +120,13 @@ Return a JSON object:
         model: 'google/gemini-2.5-flash',
         messages: [{ role: 'user', content: humanizePrompt }],
         temperature: 0.7,
-        userId: user.id,
+        userId: userId,
       });
 
       result.humanized = parseAIJSON(humanizeResponse.content || '{}');
     }
 
-    await recordUsage(user.id, 'detect_humanize');
+    await recordUsage(userId, 'detect_humanize');
 
     return new Response(
       JSON.stringify({ success: true, ...result }),
