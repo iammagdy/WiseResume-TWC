@@ -1,46 +1,44 @@
 
 
-# Fix Splash Screen Performance
+# Further Reduce Splash Screen Animations
 
-## The Problem
-The current splash screen runs **120+ concurrent infinite Framer Motion animation loops** during its 3.2-second lifespan:
-- 30 star particles, each with 4 independently animated properties (`opacity`, `x`, `y`, `scale`) set to `repeat: Infinity`
-- Logo scale set to `repeat: Infinity, repeatType: 'reverse'`
-- Glow ring with `repeat: Infinity, repeatType: 'reverse'`
-- 10 letter spans each with infinite CSS shimmer
-- An inline `<style>` tag injected into the DOM
+## Current State
+The previous optimization pass already removed Framer Motion infinite loops and reduced stars to 12. However, there are still **~28 animated elements** running simultaneously, which can cause jank on low-end mobile devices.
 
-On mobile devices, this causes frame drops and GPU pressure during the most critical moment of app launch.
+## Remaining Issues
 
-## The Fix
-Optimize for the 3.2-second lifespan -- no animation needs to repeat infinitely since the component dismisses.
+1. **Orbital ring** still uses `animation: infinite` CSS (line 195) -- the only remaining infinite loop
+2. **12 star particles** -- each is a separate `<motion.div>` with individual animation calculations
+3. **3 ripple rings** -- 3 extra animated elements that expand outward
+4. **10 letter `<motion.span>`s** -- each with its own staggered animation; could be simplified
 
-### File: `src/components/AnimatedSplash.tsx`
+## Changes to `src/components/AnimatedSplash.tsx`
 
-**1. Reduce star count from 30 to 12**
-- 12 stars are visually sufficient on mobile screens
-- Cuts animated elements by 60%
+### 1. Remove orbital ring infinite animation
+Replace `infinite` with a single 3s rotation. Since the splash dismisses at 3.2s, one full rotation is all that's needed. Change line 195 from `animation: 'splash-orbit 3s linear infinite'` to `animation: 'splash-orbit 3s linear 1'` (runs once).
 
-**2. Remove ALL `repeat: Infinity` from Framer Motion animations**
-- Stars: animate once to their target position/opacity, then hold. No looping needed.
-- Logo: scale up with bounce, then hold at 1.0. Remove the breathing loop.
-- Glow ring: pulse once and settle. Remove the infinite reverse loop.
-- These all dismiss in 3.2s anyway -- infinite loops waste GPU cycles.
+### 2. Reduce stars from 12 to 6
+6 stars are enough for ambient sparkle on a mobile screen. Cuts animated DOM nodes by 6.
 
-**3. Replace per-letter CSS shimmer with a single gradient animation on the whole title**
-- Currently: 10 separate `<motion.span>` elements each with their own infinite CSS `background-position` animation
-- After: Keep the staggered entrance (letter-by-letter), but apply the shimmer as a single CSS animation on the parent `<h1>` instead of each letter
+### 3. Remove ripple rings entirely
+The ripple rings (lines 153-164) add 3 animated elements for a subtle effect. Removing them saves 3 `<motion.div>` instances with no meaningful visual loss -- the light burst and glow ring already provide the "expanding energy" feel.
 
-**4. Move the `<style>` tag to a static declaration outside the component**
-- The inline `<style>` block is re-injected every render. Move the keyframes to the module level or use a `useEffect` to inject once.
+### 4. Simplify text to a single `<motion.div>` fade-in
+Replace the 10 individual `<motion.span>` letter animations with a single `<motion.h1>` that fades and slides in as one unit. This removes 9 animated elements. The shimmer gradient still runs on the parent, so the text still looks premium.
 
-**5. Add `will-change: transform, opacity` to the star container**
-- Promotes the layer to GPU compositing for smoother transforms
+### Summary of element reduction
+
+| Element | Before | After |
+|---|---|---|
+| Stars | 12 | 6 |
+| Ripple rings | 3 | 0 |
+| Letter spans | 10 | 1 (single h1) |
+| Orbital ring | infinite CSS | single iteration |
+| **Total animated nodes** | **~28** | **~12** |
 
 ### Expected Result
-- From ~140 concurrent animation loops down to ~20 one-shot animations
-- Smoother launch experience on mid-range Android devices
-- Same visual quality -- the animations still look cinematic, they just don't loop uselessly
+- 57% fewer animated DOM nodes
+- Zero infinite loops (CSS or JS)
+- Smoother startup on mid/low-end Android devices
+- Visual quality remains high: light burst, glow, logo bounce, shimmer text, and tagline all preserved
 
-### No new dependencies needed
-All changes are within the single file using existing Framer Motion APIs.
