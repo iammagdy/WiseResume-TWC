@@ -34,7 +34,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
 
   const stars = useMemo(
     () =>
-      Array.from({ length: 12 }, (_, i) => ({
+      Array.from({ length: 6 }, (_, i) => ({
         id: i,
         x: Math.random() * 100,
         y: Math.random() * 100,
@@ -56,7 +56,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
     return () => clearTimeout(timeout);
   }, [dismiss, prefersReduced]);
 
-  const letters = useMemo(() => APP_NAME.split(''), []);
+  
 
   return (
     <AnimatePresence onExitComplete={onComplete}>
@@ -150,18 +150,6 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             }
           />
 
-          {/* Ripple rings */}
-          {!prefersReduced &&
-            [0, 1, 2].map((i) => (
-              <motion.div
-                key={`ripple-${i}`}
-                className="absolute rounded-full border border-primary/20"
-                style={{ width: 120, height: 120 }}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: [0.5, 2.5 + i * 0.5], opacity: [0.6, 0] }}
-                transition={{ duration: 1.5, ease: 'easeOut', delay: 0.3 + i * 0.25 }}
-              />
-            ))}
 
           {/* Glow ring – single pulse, no infinite loop */}
           <motion.div
@@ -192,7 +180,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
               style={{
                 width: 150,
                 height: 52,
-                animation: 'splash-orbit 3s linear infinite',
+                animation: 'splash-orbit 3s linear 1',
               }}
             />
           )}
@@ -218,42 +206,19 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             <AppIcon size={80} />
           </motion.div>
 
-          {/* Letter-by-letter title with single shimmer on parent */}
+          {/* Title with shimmer */}
           <motion.h1
-            className="mt-5 flex text-fluid-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto]"
+            className="mt-5 text-fluid-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto]"
             style={!prefersReduced ? { animation: 'splash-shimmer 2.5s ease-in-out 1.2s 1' } : undefined}
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: {},
-              visible: {
-                transition: {
-                  staggerChildren: prefersReduced ? 0 : 0.045,
-                  delayChildren: prefersReduced ? 0.2 : 1.2,
-                },
-              },
-            }}
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={
+              prefersReduced
+                ? { duration: 0.2, delay: 0.2 }
+                : { duration: 0.6, ease: 'easeOut', delay: 1.2 }
+            }
           >
-            {letters.map((letter, i) => (
-              <motion.span
-                key={i}
-                className="inline-block"
-                variants={{
-                  hidden: { opacity: 0, y: 20, scale: 0.7 },
-                  visible: {
-                    opacity: 1,
-                    y: 0,
-                    scale: 1,
-                    transition: {
-                      duration: prefersReduced ? 0.2 : 0.4,
-                      ease: 'easeOut',
-                    },
-                  },
-                }}
-              >
-                {letter}
-              </motion.span>
-            ))}
+            {APP_NAME}
           </motion.h1>
 
           {/* Tagline */}
