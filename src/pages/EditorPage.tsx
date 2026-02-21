@@ -222,6 +222,26 @@ export default function EditorPage() {
   const [showATSScan, setShowATSScan] = useState(false);
   const [showShareSheet, setShowShareSheet] = useState(false);
   const [isQuickDownloading, setIsQuickDownloading] = useState(false);
+
+  const handleQuickDownload = useCallback(async () => {
+    if (!currentResume) return;
+    haptics.medium();
+    setIsQuickDownloading(true);
+    try {
+      const { generatePDF } = await import('@/lib/pdfGenerator');
+      const { downloadFile } = await import('@/lib/downloadUtils');
+      const pdfBlob = await generatePDF(currentResume, selectedTemplate, null, undefined, { showPageNumbers: true });
+      const fileName = `${currentResume.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
+      await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
+      haptics.success();
+      toast.success('PDF downloaded');
+    } catch {
+      haptics.error();
+      toast.error('Download failed');
+    } finally {
+      setIsQuickDownloading(false);
+    }
+  }, [currentResume, selectedTemplate]);
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   const isMobile = useIsMobile();
@@ -1172,12 +1192,33 @@ export default function EditorPage() {
               <TabsTrigger value="preview" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
               <TabsTrigger value="ats" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs">ATS View</TabsTrigger>
             </TabsList>
-            <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0">
+            <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               <div
-                className="editor-scroll-container h-full overflow-y-auto px-4 py-4 pb-safe space-y-0"
+                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-4 pb-safe space-y-0"
                 ref={scrollContainerRef}
               >
                 {renderEditorContent()}
+              </div>
+              {/* Editor Quick Actions Bar — hidden when keyboard is open */}
+              <div className="shrink-0 glass-header border-t border-border px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))] flex items-center justify-center gap-2 keyboard-hide">
+                <Button
+                  size="sm"
+                  disabled={isQuickDownloading}
+                  className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95 flex-1"
+                  onClick={handleQuickDownload}
+                >
+                  <Download className="w-4 h-4" />
+                  {isQuickDownloading ? 'Saving…' : 'Download PDF'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
+                  onClick={() => { haptics.light(); setMobileEditorTab('preview'); }}
+                >
+                  <Eye className="w-4 h-4" />
+                  Preview
+                </Button>
               </div>
             </TabsContent>
             <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
@@ -1194,24 +1235,7 @@ export default function EditorPage() {
                       size="sm"
                       disabled={isQuickDownloading}
                       className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95 flex-1"
-                      onClick={async () => {
-                        haptics.medium();
-                        setIsQuickDownloading(true);
-                        try {
-                          const { generatePDF } = await import('@/lib/pdfGenerator');
-                          const { downloadFile } = await import('@/lib/downloadUtils');
-                          const pdfBlob = await generatePDF(currentResume!, selectedTemplate, null, undefined, { showPageNumbers: true });
-                          const fileName = `${currentResume?.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
-                          await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
-                          haptics.success();
-                          toast.success('PDF downloaded');
-                        } catch {
-                          haptics.error();
-                          toast.error('Download failed');
-                        } finally {
-                          setIsQuickDownloading(false);
-                        }
-                      }}
+                      onClick={handleQuickDownload}
                     >
                       <Download className="w-4 h-4" />
                       {isQuickDownloading ? 'Saving…' : 'Download'}

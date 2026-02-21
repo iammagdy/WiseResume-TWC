@@ -1154,7 +1154,8 @@ button,
   padding-bottom: 0.25rem;
 }
 
-.keyboard-open .editor-header .keyboard-hide {
+.keyboard-open .editor-header .keyboard-hide,
+.keyboard-open .keyboard-hide {
   display: none;
 }
 
