@@ -1,73 +1,72 @@
 
-# Fix Mobile Editor Layout -- More Space for Editing
 
-## Problem
+# UI/UX Audit: Issues and Improvements
 
-The mobile editor stacks 6 layers of UI chrome before the user can see any form fields:
+## Critical Bug
 
-1. Header (back, resume name, Template, Chat) -- ~56px
-2. Progress bar + save status -- ~48px
-3. StepperNav dropdown (Contact, 0 of 5 complete) -- ~72px
-4. "+ More Sections" button -- ~52px
-5. Editor / Preview / ATS View tabs -- ~48px
-6. Bottom action bar (Download PDF, Preview) -- ~56px
+### 1. Profile Page Crash (BLOCKER)
+**File:** `src/pages/ProfilePage.tsx`, line 33
 
-That is roughly 330px of chrome on a 667px screen, leaving only ~337px for the actual editing form -- and the form starts below the fold.
+The Profile Page uses `require()` (CommonJS) to import a skeleton component, which crashes in Vite's ESM environment with "ReferenceError: require is not defined".
 
-## Solution
+**Fix:** Replace `const { ProfilePageSkeleton } = require(...)` with a top-level ESM `import`.
 
-Consolidate the chrome layers to maximize editing space:
+---
 
-### 1. Merge StepperNav into the tab bar
-Remove the separate StepperNav dropdown and the separate Editor/Preview/ATS tabs on mobile. Instead, make the section stepper itself the primary navigation inside the editor tab. The Editor/Preview/ATS tabs move up to replace the section picker.
+## UI/UX Issues Found
 
-### 2. Inline section stepper as a horizontal scrollable pill bar
-Replace the tall dropdown StepperNav on mobile with a compact horizontal scrollable row of section pills (Contact, Summary, Experience, Education, Skills, +More). This saves ~40px vs the dropdown and feels more native.
+### 2. "Install WiseResume" Banner Obscures Content
+On every page, a persistent PWA install banner covers the bottom portion of the screen, hiding content and overlapping the bottom tab bar area. On the Dashboard, it hides resume cards. On the Editor, it hides the Download/Preview action bar.
 
-### 3. Remove redundant "+ More Sections" button
-The "More Sections" button is redundant with the "+" pill in the stepper bar and the FAB. Remove the standalone button to reclaim ~52px.
+**Fix:** Make the install banner dismissible with a clear close button and persist the dismissal in `localStorage`. Consider showing it only after the 2nd or 3rd session, or as a small inline card rather than a floating overlay.
 
-### 4. Compact the progress bar
-Merge the save status into the header row (next to the resume title), removing the dedicated progress bar row. Show only the percentage inline.
+### 3. Editor Still Has Too Much Chrome on Mobile
+Despite the previous compaction work, the editor still stacks: Header (~56px) + Progress/save row (~28px) + Pill bar (~44px) + Editor/Preview/ATS tabs (~40px) + Bottom action bar (~48px) = ~216px of chrome. The form content starts below the fold and the "Contact Information" section header is barely visible. The Download/Preview bar is also obscured by the install banner.
 
-### 5. Make bottom action bar slimmer
-Reduce the Download PDF / Preview bottom bar to a single-row icon bar (40px height instead of current ~56px).
+**Fixes:**
+- Hide the Editor/Preview/ATS tab bar on mobile when in editor mode (only show it when user explicitly wants to switch via a header toggle)
+- Make the bottom Download/Preview bar collapsible or merge into the header as icon buttons
+- Estimated savings: ~80px more editing space
 
-## Technical Changes
+### 4. Dashboard Information Overload
+The Dashboard has too many competing elements on first load:
+- Trust banner ("Your career data is encrypted...")
+- "Suggested Next Step" card
+- Greeting card
+- Install banner (overlapping)
+- Quick action chips
+- Search bar + filters
 
-### File: `src/components/editor/StepperNav.tsx`
-- Add a new mobile layout: horizontal scrollable pill bar instead of the dropdown trigger + bottom sheet
-- Each pill shows the section icon + short label (e.g., "Contact", "Summary")
-- Active pill gets primary accent; completed pills get a check icon
-- "+" pill at the end opens the More Sections sheet
-- Approximate height: 44px (down from 72px + 52px = 124px)
+**Fix:** Consolidate banners -- merge the trust banner content into the "Suggested Next Step" card or show it only on first visit. Remove the greeting card on small screens (the header already says "WiseResume") to surface resume content faster.
 
-### File: `src/pages/EditorPage.tsx`
-- Remove the separate `Editor / Preview / ATS View` TabsList from the mobile layout
-- Move the editor/preview/ATS switching to the header area (small toggle icons)
-- Merge save status into the header row next to the resume title
-- Remove the standalone "More Sections" rendering below StepperNav
-- Compact the progress bar section -- show only the colored bar, remove the expandable details on mobile
-- Reduce bottom action bar padding and height
+### 5. Truncated Resume Name in Editor Header
+The resume title is truncated to "Magdy Sa..." with `max-w-[45vw]`. On small screens this makes it unreadable and wastes space since the ChevronDown icon implies a dropdown that doesn't exist (it navigates to dashboard).
 
-### File: `src/components/editor/ProgressBar.tsx` (if needed)
-- Ensure the compact variant is truly minimal (just the colored bar, no text)
+**Fix:** Increase max-width to `max-w-[55vw]` and remove the misleading ChevronDown icon (or make it actually open a resume picker dropdown).
 
-## Expected Result
+### 6. No Visible Form Fields on Editor Load
+When the editor loads on mobile, the "Contact Information" title is visible but the actual input fields (Full Name, Email, etc.) are pushed below the fold.
 
-Before: ~330px of chrome, ~337px of editing space
-After: ~180px of chrome, ~487px of editing space (~45% more editing room)
+**Fix:** Combine changes from items 3 above. Additionally, auto-scroll to the first input field on initial load.
 
-The user will immediately see the Contact form fields (Full Name, Email, Phone, etc.) without scrolling.
+### 7. AI Intro Tooltip Blocks First-Time Editing
+The "Meet Your AI Assistant" modal takes over the entire screen when a user first opens the editor, forcing them to dismiss it before they can do anything. This is friction for new users who just want to edit.
+
+**Fix:** Replace the full-screen modal with a small, non-blocking tooltip or banner at the bottom of the screen that auto-dismisses after 5 seconds.
+
+---
 
 ## Summary
 
-| Change | File | Impact |
-|--------|------|--------|
-| Horizontal scrollable section pills | `StepperNav.tsx` | Saves ~80px |
-| Remove separate Editor/Preview/ATS tabs | `EditorPage.tsx` | Saves ~48px |
-| Merge save status into header | `EditorPage.tsx` | Saves ~24px |
-| Compact bottom action bar | `EditorPage.tsx` | Saves ~16px |
-| Remove standalone More Sections btn | `EditorPage.tsx` | Included above |
+| # | Issue | Severity | File(s) | Effort |
+|---|-------|----------|---------|--------|
+| 1 | Profile page crash (`require`) | Critical | `ProfilePage.tsx` | 5 min |
+| 2 | Install banner obscures content | High | Install prompt component | 30 min |
+| 3 | Editor still has too much chrome | High | `EditorPage.tsx` | 1-2 hrs |
+| 4 | Dashboard information overload | Medium | `DashboardPage.tsx` | 1 hr |
+| 5 | Truncated resume name + misleading icon | Medium | `EditorPage.tsx` | 15 min |
+| 6 | No visible form fields on editor load | Medium | `EditorPage.tsx` | Included in #3 |
+| 7 | AI intro modal blocks editing | Low | `EditorPage.tsx` | 30 min |
 
-No database changes. No new dependencies.
+No database changes needed. No new dependencies.
+
