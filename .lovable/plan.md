@@ -1,107 +1,73 @@
 
+# Fix Mobile Editor Layout -- More Space for Editing
 
-# User Profile Improvements
+## Problem
 
-## Overview
+The mobile editor stacks 6 layers of UI chrome before the user can see any form fields:
 
-After reviewing the profile system (`useProfile`, `EditProfileSheet`, `ProfilePage`, `SettingsPage`), here are targeted improvements to make profiles more complete, useful, and polished.
+1. Header (back, resume name, Template, Chat) -- ~56px
+2. Progress bar + save status -- ~48px
+3. StepperNav dropdown (Contact, 0 of 5 complete) -- ~72px
+4. "+ More Sections" button -- ~52px
+5. Editor / Preview / ATS View tabs -- ~48px
+6. Bottom action bar (Download PDF, Preview) -- ~56px
 
----
+That is roughly 330px of chrome on a 667px screen, leaving only ~337px for the actual editing form -- and the form starts below the fold.
 
-## 1. Smarter Profile Completion Calculation
+## Solution
 
-**Problem:** `calculateProfileCompletion` only checks 7 basic fields (name, avatar, job title, industry, career level, location, LinkedIn). It ignores phone number, portfolio setup, and resume content -- giving users 100% even with a mostly empty profile.
+Consolidate the chrome layers to maximize editing space:
 
-**Fix:** Weight the calculation to include phone number and portfolio bio, and add a "bonus" tier for portfolio setup:
+### 1. Merge StepperNav into the tab bar
+Remove the separate StepperNav dropdown and the separate Editor/Preview/ATS tabs on mobile. Instead, make the section stepper itself the primary navigation inside the editor tab. The Editor/Preview/ATS tabs move up to replace the section picker.
 
-```text
-Core fields (70%): fullName, avatarUrl, jobTitle, industry, careerLevel, location, linkedinUrl
-Extended fields (30%): phoneNumber, portfolioBio, contactEmail
-```
+### 2. Inline section stepper as a horizontal scrollable pill bar
+Replace the tall dropdown StepperNav on mobile with a compact horizontal scrollable row of section pills (Contact, Summary, Experience, Education, Skills, +More). This saves ~40px vs the dropdown and feels more native.
 
-**File:** `src/hooks/useProfile.ts` -- update `calculateProfileCompletion`
+### 3. Remove redundant "+ More Sections" button
+The "More Sections" button is redundant with the "+" pill in the stepper bar and the FAB. Remove the standalone button to reclaim ~52px.
 
----
+### 4. Compact the progress bar
+Merge the save status into the header row (next to the resume title), removing the dedicated progress bar row. Show only the percentage inline.
 
-## 2. Auto-Save on Edit Profile Sheet
+### 5. Make bottom action bar slimmer
+Reduce the Download PDF / Preview bottom bar to a single-row icon bar (40px height instead of current ~56px).
 
-**Problem:** Users must manually tap "Save Changes" after editing. If they swipe the sheet closed, changes are lost silently.
+## Technical Changes
 
-**Fix:** Add debounced auto-save (1.5s after last change) with a subtle "Saved" indicator, matching the pattern already used for avatar uploads. Keep the explicit Save button as a "save and close" action.
+### File: `src/components/editor/StepperNav.tsx`
+- Add a new mobile layout: horizontal scrollable pill bar instead of the dropdown trigger + bottom sheet
+- Each pill shows the section icon + short label (e.g., "Contact", "Summary")
+- Active pill gets primary accent; completed pills get a check icon
+- "+" pill at the end opens the More Sections sheet
+- Approximate height: 44px (down from 72px + 52px = 124px)
 
-**File:** `src/components/settings/EditProfileSheet.tsx`
+### File: `src/pages/EditorPage.tsx`
+- Remove the separate `Editor / Preview / ATS View` TabsList from the mobile layout
+- Move the editor/preview/ATS switching to the header area (small toggle icons)
+- Merge save status into the header row next to the resume title
+- Remove the standalone "More Sections" rendering below StepperNav
+- Compact the progress bar section -- show only the colored bar, remove the expandable details on mobile
+- Reduce bottom action bar padding and height
 
----
+### File: `src/components/editor/ProgressBar.tsx` (if needed)
+- Ensure the compact variant is truly minimal (just the colored bar, no text)
 
-## 3. Profile Page -- Show Job Title and Location
+## Expected Result
 
-**Problem:** The Profile Page (`ProfilePage.tsx`) shows the user's name and email but not their job title or location, even though these are stored in the profile.
+Before: ~330px of chrome, ~337px of editing space
+After: ~180px of chrome, ~487px of editing space (~45% more editing room)
 
-**Fix:** Add job title below the name and location as a subtle badge with a MapPin icon.
-
-**File:** `src/pages/ProfilePage.tsx`
-
----
-
-## 4. Actionable Completion Tips
-
-**Problem:** When profile completion is below 100%, the message is generic ("Complete your profile to unlock more features"). Users don't know which specific field to fill.
-
-**Fix:** Show the next missing field as a specific, tappable hint:
-- "Add your job title to get better AI suggestions" (taps to focus the field)
-- "Upload a photo to personalize your profile"
-
-**Files:** `src/components/settings/EditProfileSheet.tsx`, `src/pages/ProfilePage.tsx`
-
----
-
-## 5. Profile Export / Summary Card
-
-**Problem:** No way to quickly share or view a summary of profile data outside the portfolio.
-
-**Fix:** Add a "Copy Profile Summary" action on the Profile Page that copies a formatted text block:
-```
-Jane Doe -- Senior Software Engineer
-Location: San Francisco, CA
-Industry: Technology
-LinkedIn: linkedin.com/in/janedoe
-```
-
-**File:** `src/pages/ProfilePage.tsx`
-
----
-
-## 6. Validate LinkedIn URL Format
-
-**Problem:** The LinkedIn field in EditProfileSheet prepends `https://linkedin.com/in/` but doesn't validate the username portion (allows spaces via `.replace(/\s/g, '')` but not other invalid characters).
-
-**Fix:** Add regex validation to reject special characters and show an inline error for invalid usernames.
-
-**File:** `src/components/settings/EditProfileSheet.tsx`
-
----
-
-## 7. Profile Last Updated Timestamp
-
-**Problem:** Users can't see when their profile was last modified. The `updated_at` column exists in the database but isn't surfaced.
-
-**Fix:** Show "Last updated 3 days ago" on the Profile Page using the `updated_at` field from the profiles table. Requires adding `updated_at` to the `fetchProfile` select query and the `Profile` interface.
-
-**Files:** `src/hooks/useProfile.ts`, `src/pages/ProfilePage.tsx`
-
----
+The user will immediately see the Contact form fields (Full Name, Email, Phone, etc.) without scrolling.
 
 ## Summary
 
-| # | Improvement | Files | Effort |
-|---|------------|-------|--------|
-| 1 | Smarter completion calculation | `useProfile.ts` | Low |
-| 2 | Auto-save on edit sheet | `EditProfileSheet.tsx` | Medium |
-| 3 | Show job title/location on profile page | `ProfilePage.tsx` | Low |
-| 4 | Actionable completion tips | `EditProfileSheet.tsx`, `ProfilePage.tsx` | Low |
-| 5 | Copy profile summary | `ProfilePage.tsx` | Low |
-| 6 | LinkedIn URL validation | `EditProfileSheet.tsx` | Low |
-| 7 | Last updated timestamp | `useProfile.ts`, `ProfilePage.tsx` | Low |
+| Change | File | Impact |
+|--------|------|--------|
+| Horizontal scrollable section pills | `StepperNav.tsx` | Saves ~80px |
+| Remove separate Editor/Preview/ATS tabs | `EditorPage.tsx` | Saves ~48px |
+| Merge save status into header | `EditorPage.tsx` | Saves ~24px |
+| Compact bottom action bar | `EditorPage.tsx` | Saves ~16px |
+| Remove standalone More Sections btn | `EditorPage.tsx` | Included above |
 
-No database migrations needed -- all fields already exist. No new dependencies.
-
+No database changes. No new dependencies.
