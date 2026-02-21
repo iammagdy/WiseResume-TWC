@@ -1,115 +1,98 @@
 
-# Resumable Migration Retry Workflow
+
+# Audit Logging for DB Migrations and User-Related Changes
 
 ## Problem
 
-Both migration flows -- guest resume migration (`useGuestMigration`) and API key migration (`migrateLocalKeysToServer`) -- are fire-and-forget with no retry logic. If a network blip occurs during sign-in, the migration silently fails and the user's local data is stranded until they manually trigger it again (next full session for keys, or never for guest data since `hasRun.current` blocks re-attempts within the same React lifecycle).
+Migration pipelines (`migrationRunner.ts`) and key user actions (account deletion, API key changes, profile updates) produce only ephemeral `console.warn`/`console.info` logs that vanish when the browser tab closes. There is no persistent, queryable record of migration outcomes, retries, or sensitive account-level changes -- making debugging and support harder.
 
 ## Solution
 
-Extract a shared `retryWithBackoff` utility and refactor both migrations into multi-step pipelines where each step is idempotent and progress is checkpointed to `localStorage`. If a step fails, the pipeline stops and automatically retries with exponential backoff (up to 3 attempts). On next app launch, incomplete migrations resume from the last successful checkpoint.
+Add a lightweight, client-side audit logger that persists structured events to the `ai_usage_logs`-style pattern -- a new `audit_logs` table in the database. The logger is fire-and-forget (never blocks UX) and captures migration step results, account changes, and API key lifecycle events.
 
 ---
 
-## New File: `src/lib/migrationRunner.ts`
+## 1. Create `audit_logs` Database Table
 
-A generic migration runner with:
+A new table to store structured audit events with RLS scoped to the owning user.
 
-- **`retryWithBackoff(fn, options)`** -- runs an async function up to `maxRetries` times with exponential backoff (1s, 2s, 4s). Returns result or throws after exhaustion.
-- **`runMigrationPipeline(id, steps)`** -- accepts a pipeline ID (e.g. `'guest-resume'`) and an ordered array of named steps. For each step:
-  1. Checks `localStorage` checkpoint (`wr-migration-{id}-step`) to skip already-completed steps (resumable).
-  2. Runs the step function wrapped in `retryWithBackoff`.
-  3. On success, writes the step name to the checkpoint.
-  4. On failure after all retries, stops and returns `{ completed: false, failedStep }`.
-  5. When all steps complete, writes a final "done" checkpoint and returns `{ completed: true }`.
+```text
+Table: audit_logs
+Columns:
+  id          uuid        PK, default gen_random_uuid()
+  user_id     uuid        NOT NULL
+  category    text        NOT NULL  -- 'migration' | 'account' | 'api_key' | 'auth'
+  action      text        NOT NULL  -- 'pipeline_started' | 'step_completed' | 'step_failed' | 'data_deleted' | 'key_saved' | 'key_deleted' | 'signed_out'
+  metadata    jsonb       DEFAULT '{}'  -- pipeline_id, step_name, error message, etc.
+  created_at  timestamptz DEFAULT now()
 
-Each step function is idempotent by contract -- safe to re-run if the checkpoint write failed after the step succeeded.
+RLS policies:
+  - INSERT: auth.uid() = user_id
+  - SELECT: auth.uid() = user_id
+  - DELETE: auth.uid() = user_id  (for GDPR data export/delete)
+```
 
-## Modified File: `src/hooks/useGuestMigration.ts`
+No UPDATE policy needed -- audit logs are append-only.
 
-Refactor the single `migrate()` function into a 3-step pipeline:
+## 2. Create `src/lib/auditLogger.ts`
 
-| Step | Action | Idempotency Guard |
-|------|--------|-------------------|
-| `check-existing` | Query DB for existing resume by ID | Read-only, always safe |
-| `insert-resume` | Insert resume row | Uses `ON CONFLICT DO NOTHING` or checks existence first (already does `maybeSingle` check) |
-| `cleanup-local` | Clear guest data from localStorage, invalidate queries, show toast | Clearing already-null data is a no-op |
+A thin utility (~30 lines) that wraps inserts to `audit_logs`. It is fire-and-forget -- errors are caught and silently logged to console to never disrupt the user.
 
-Changes:
-- Replace the monolithic `migrate()` with `runMigrationPipeline('guest-resume', steps)`.
-- Remove `hasRun.current` ref guard -- the checkpoint system handles deduplication.
-- Replace `sessionStorage` flag with the pipeline's own "done" checkpoint in `localStorage` (persists across sessions so incomplete migrations resume).
-- On partial failure, show a softer toast: "We'll finish saving your draft next time you're online."
+```text
+Functions:
+  logAudit(category, action, metadata?)
+    - Reads user ID from supabase.auth.getUser() (cached)
+    - Inserts a row into audit_logs
+    - Catches and swallows errors (console.warn only)
+```
 
-## Modified File: `src/lib/migrateLocalKeys.ts`
+Key design decisions:
+- Uses the existing Supabase client from `safeClient.ts`
+- No batching needed -- audit events are infrequent (a few per session)
+- Returns void, never throws
 
-Refactor into a 2-step pipeline:
+## 3. Instrument `migrationRunner.ts`
 
-| Step | Action | Idempotency Guard |
-|------|--------|-------------------|
-| `upload-key` | Invoke `manage-api-keys` edge function | Server-side upsert (inserting same key twice is safe) |
-| `strip-local` | Remove sensitive keys from localStorage, set migrated flag | Stripping already-absent keys is a no-op |
+Add `logAudit` calls at three points inside `runMigrationPipeline`:
+- **Pipeline start**: `logAudit('migration', 'pipeline_started', { pipelineId, totalSteps, resumedFrom })`
+- **Step success**: `logAudit('migration', 'step_completed', { pipelineId, stepName })`
+- **Step failure** (after retry exhaustion): `logAudit('migration', 'step_failed', { pipelineId, stepName, error })`
 
-Changes:
-- Replace the single try/catch with `runMigrationPipeline('api-keys', steps)`.
-- The existing `MIGRATED_FLAG` check becomes the pipeline's "done" checkpoint.
-- Retries with backoff instead of silently deferring to "next session".
+These are fire-and-forget -- they don't affect pipeline control flow or checkpointing.
 
-## Modified File: `src/contexts/AuthContext.tsx`
+## 4. Instrument User-Related Changes
 
-No structural changes. The `migrateLocalKeysToServer()` call on line 65 remains fire-and-forget -- the retry logic is now internal to the function. The only change is that if the pipeline was left incomplete from a previous session, it automatically resumes on next sign-in.
+### `manage-api-keys` Edge Function
+Add a `logAudit` call after successful POST (key saved) and DELETE (key removed) in `migrateLocalKeys.ts` and `AISettingsSheet.tsx`:
+- `logAudit('api_key', 'key_saved', { provider })`
+- `logAudit('api_key', 'key_deleted', { provider })`
+
+### `DeleteDataDialog.tsx`
+After successful `deleteAllUserData()`:
+- `logAudit('account', 'data_deleted', { resumeCount })`
+
+### `AuthContext.tsx`
+On user-initiated sign-out:
+- `logAudit('auth', 'signed_out')` (called before `supabase.auth.signOut`)
+
+## 5. Integrate into Data Export
+
+Add `audit_logs` to the existing `dataExport.ts` tables array so users can export their own audit trail via GDPR export.
 
 ---
 
-## Technical Details
-
-### `migrationRunner.ts` (~60 lines)
-
-```text
-retryWithBackoff(fn, { maxRetries: 3, baseDelay: 1000 })
-  - Attempt 1: immediate
-  - Attempt 2: wait 1s
-  - Attempt 3: wait 2s
-  - Attempt 4: wait 4s (if maxRetries=3, this is the last)
-  - Throws on final failure
-
-runMigrationPipeline(id, steps[])
-  - Reads checkpoint: localStorage['wr-migration-{id}-step']
-  - Skips steps up to and including the checkpointed step
-  - Runs remaining steps sequentially with retryWithBackoff
-  - Writes checkpoint after each successful step
-  - Returns { completed, failedStep? }
-```
-
-### Checkpoint storage format
-
-```text
-Key: wr-migration-guest-resume-step
-Value: "insert-resume"  (last completed step name)
-
-Key: wr-migration-guest-resume-done
-Value: "1"  (pipeline fully complete)
-```
-
-### `useGuestMigration.ts` changes
-
-- The `useEffect` still gates on `session?.user` being present.
-- Instead of `hasRun.current`, checks `localStorage['wr-migration-guest-resume-done'] === '1'` for instant bail-out.
-- The pipeline's `check-existing` step returns early (marks pipeline done) if the resume already exists in DB.
-- The `cleanup-local` step is the final step -- local data is only cleared after the DB insert is confirmed and checkpointed.
-
-### `migrateLocalKeys.ts` changes
-
-- The existing `MIGRATED_FLAG` (`wiseresume-keys-migrated`) is replaced by the pipeline's `wr-migration-api-keys-done` checkpoint.
-- The `upload-key` step gracefully handles the case where no key exists (marks done immediately).
-
-### Files Summary
+## Files Summary
 
 | File | Action |
 |------|--------|
-| `src/lib/migrationRunner.ts` | Create -- shared retry + pipeline runner |
-| `src/hooks/useGuestMigration.ts` | Modify -- refactor to use pipeline |
-| `src/lib/migrateLocalKeys.ts` | Modify -- refactor to use pipeline |
-| `src/contexts/AuthContext.tsx` | No changes needed |
+| Database migration | Create `audit_logs` table with RLS |
+| `src/lib/auditLogger.ts` | Create -- fire-and-forget audit insert utility |
+| `src/lib/migrationRunner.ts` | Modify -- add 3 audit log calls (start, success, fail) |
+| `src/lib/migrateLocalKeys.ts` | Modify -- log key upload success |
+| `src/components/settings/AISettingsSheet.tsx` | Modify -- log key save/delete |
+| `src/components/settings/DeleteDataDialog.tsx` | Modify -- log data deletion |
+| `src/contexts/AuthContext.tsx` | Modify -- log sign-out |
+| `src/lib/dataExport.ts` | Modify -- add `audit_logs` to export list |
 
 ### No new dependencies required.
+
