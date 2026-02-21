@@ -53,7 +53,6 @@ interface Profile {
   portfolioSections: Record<string, boolean> | null;
   portfolioMetaTitle: string | null;
   portfolioMetaDescription: string | null;
-  // New fields
   views: number;
   portfolioStyle: string | null;
   portfolioLayout: string | null;
@@ -61,14 +60,13 @@ interface Profile {
   portfolioFont: string | null;
   openToWork: boolean;
   availabilityHeadline: string | null;
-  // Portfolio extras (case studies, services, snapshot)
   portfolioExtras: PortfolioExtras;
   portfolioSyncMode: 'auto' | 'locked';
-  // Retention fields
   loginStreak: number;
   lastLoginDate: string | null;
   digestEnabled: boolean;
   hiredAt: string | null;
+  updatedAt: string | null;
 }
 
 export const INDUSTRY_OPTIONS = [
@@ -94,7 +92,8 @@ export const CAREER_LEVEL_OPTIONS: { value: CareerLevel; label: string; descript
 
 export function calculateProfileCompletion(profile: Profile | null): number {
   if (!profile) return 0;
-  const fields = [
+  // Core fields worth 70% total (10% each)
+  const coreFields = [
     profile.fullName,
     profile.avatarUrl,
     profile.jobTitle,
@@ -103,14 +102,42 @@ export function calculateProfileCompletion(profile: Profile | null): number {
     profile.location,
     profile.linkedinUrl,
   ];
-  const filled = fields.filter(Boolean).length;
-  return Math.round((filled / fields.length) * 100);
+  const coreFilled = coreFields.filter(Boolean).length;
+  const coreScore = (coreFilled / coreFields.length) * 70;
+
+  // Extended fields worth 30% total (10% each)
+  const extendedFields = [
+    profile.phoneNumber,
+    profile.portfolioBio,
+    profile.contactEmail,
+  ];
+  const extendedFilled = extendedFields.filter(Boolean).length;
+  const extendedScore = (extendedFilled / extendedFields.length) * 30;
+
+  return Math.round(coreScore + extendedScore);
+}
+
+export function getNextMissingField(profile: Partial<Profile> | null): { field: string; hint: string } | null {
+  if (!profile) return { field: 'fullName', hint: 'Add your name to personalize your profile' };
+  const checks: Array<{ value: unknown; field: string; hint: string }> = [
+    { value: profile.avatarUrl, field: 'avatarUrl', hint: 'Upload a photo to personalize your profile' },
+    { value: profile.fullName, field: 'fullName', hint: 'Add your name so others can find you' },
+    { value: profile.jobTitle, field: 'jobTitle', hint: 'Add your job title for better AI suggestions' },
+    { value: profile.industry, field: 'industry', hint: 'Select your industry to tailor recommendations' },
+    { value: profile.careerLevel, field: 'careerLevel', hint: 'Set your career level for relevant advice' },
+    { value: profile.location, field: 'location', hint: 'Add your location for local job matches' },
+    { value: profile.linkedinUrl, field: 'linkedinUrl', hint: 'Link your LinkedIn to import profile data' },
+    { value: profile.phoneNumber, field: 'phoneNumber', hint: 'Add a phone number for your resume contact info' },
+    { value: profile.portfolioBio, field: 'portfolioBio', hint: 'Write a bio for your portfolio website' },
+    { value: profile.contactEmail, field: 'contactEmail', hint: 'Add a contact email for your portfolio' },
+  ];
+  return checks.find(c => !c.value) || null;
 }
 
 async function fetchProfile(userId: string, user?: User | null): Promise<Profile> {
   const { data, error } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at')
+    .select('full_name, avatar_url, job_title, industry, career_level, location, linkedin_url, profile_completed, username, portfolio_bio, portfolio_enabled, portfolio_resume_id, github_url, website_url, twitter_url, contact_email, portfolio_theme, phone_number, portfolio_sections, portfolio_meta_title, portfolio_meta_description, views, portfolio_style, portfolio_layout, portfolio_accent_color, portfolio_font, open_to_work, availability_headline, portfolio_extras, portfolio_sync_mode, login_streak, last_login_date, digest_enabled, hired_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -157,6 +184,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
       lastLoginDate: (d.last_login_date as string) ?? null,
       digestEnabled: (d.digest_enabled as boolean) ?? true,
       hiredAt: (d.hired_at as string) ?? null,
+      updatedAt: (d.updated_at as string) ?? null,
     };
   }
 
@@ -199,6 +227,7 @@ async function fetchProfile(userId: string, user?: User | null): Promise<Profile
     lastLoginDate: null,
     digestEnabled: true,
     hiredAt: null,
+    updatedAt: null,
   };
 
   // Create the row via upsert

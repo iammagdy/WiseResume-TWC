@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download, X, ChevronDown, Crown, GraduationCap, Wrench } from 'lucide-react';
 import {
   Sheet,
@@ -23,7 +23,9 @@ import {
   CareerLevel,
   INDUSTRY_OPTIONS, 
   CAREER_LEVEL_OPTIONS,
-  calculateProfileCompletion 
+  calculateProfileCompletion,
+  getNextMissingField,
+  PortfolioExtras,
 } from '@/hooks/useProfile';
 import { LinkedInImportSheet } from './LinkedInImportSheet';
 import { AvatarCropSheet } from './AvatarCropSheet';
@@ -52,7 +54,7 @@ interface Profile {
   contactEmail?: string | null;
   theme?: string | null;
   phoneNumber?: string | null;
-  portfolioSections?: unknown;
+  portfolioSections?: Record<string, boolean> | null;
   portfolioMetaTitle?: string | null;
   portfolioMetaDescription?: string | null;
   views?: number;
@@ -62,7 +64,7 @@ interface Profile {
   portfolioFont?: string | null;
   openToWork?: boolean;
   availabilityHeadline?: string | null;
-  portfolioExtras?: unknown;
+  portfolioExtras?: PortfolioExtras;
   portfolioSyncMode?: 'auto' | 'locked';
 }
 
@@ -92,6 +94,9 @@ export function EditProfileSheet({
   const [linkedinUrl, setLinkedinUrl] = useState(profile?.linkedinUrl || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [autoSaved, setAutoSaved] = useState(false);
+  const [linkedinError, setLinkedinError] = useState('');
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [linkedInImportOpen, setLinkedInImportOpen] = useState(false);
   const [cropSheetOpen, setCropSheetOpen] = useState(false);
@@ -114,6 +119,40 @@ export function EditProfileSheet({
       setLinkedinUrl(profile.linkedinUrl || '');
     }
   }, [open, profile, masterCV]);
+
+  // Debounced auto-save (1.5s after last change)
+  const triggerAutoSave = useCallback(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await onSave({
+          fullName: fullName.trim() || null,
+          jobTitle: jobTitle.trim() || null,
+          industry: industry || null,
+          careerLevel: careerLevel || null,
+          location: location.trim() || null,
+          linkedinUrl: linkedinUrl.trim() || null,
+        });
+        setAutoSaved(true);
+        setTimeout(() => setAutoSaved(false), 2000);
+      } catch {}
+    }, 1500);
+  }, [fullName, jobTitle, industry, careerLevel, location, linkedinUrl, onSave]);
+
+  // Cleanup auto-save timer
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, []);
+
+  // LinkedIn username validation
+  const validateLinkedInUsername = (username: string): boolean => {
+    if (!username) return true;
+    const isValid = /^[a-zA-Z0-9\-]+$/.test(username);
+    setLinkedinError(isValid ? '' : 'Only letters, numbers, and hyphens allowed');
+    return isValid;
+  };
 
   const currentFormProfile = {
     fullName: fullName.trim() || null,
@@ -150,6 +189,7 @@ export function EditProfileSheet({
     lastLoginDate: null,
     digestEnabled: true,
     hiredAt: null,
+    updatedAt: null,
   };
   const completionPercentage = calculateProfileCompletion(currentFormProfile);
 
@@ -380,11 +420,14 @@ export function EditProfileSheet({
                 </span>
               </div>
               <Progress value={completionPercentage} className="h-2" />
-              {completionPercentage < 100 && (
-                <p className="text-xs text-muted-foreground">
-                  Complete your profile to get personalized AI suggestions
-                </p>
-              )}
+              {completionPercentage < 100 && (() => {
+                const tip = getNextMissingField(profile);
+                return tip ? (
+                  <p className="text-xs text-muted-foreground">
+                    💡 {tip.hint}
+                  </p>
+                ) : null;
+              })()}
             </div>
           </div>
         </SheetHeader>
@@ -453,7 +496,7 @@ export function EditProfileSheet({
                       id="fullName"
                       placeholder="Enter your name"
                       value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
+                      onChange={(e) => { setFullName(e.target.value); triggerAutoSave(); }}
                       className="bg-background"
                       autoComplete="name"
                     />
@@ -468,7 +511,7 @@ export function EditProfileSheet({
                       id="location"
                       placeholder="City, Country"
                       value={location}
-                      onChange={(e) => setLocation(e.target.value)}
+                      onChange={(e) => { setLocation(e.target.value); triggerAutoSave(); }}
                       className="bg-background"
                       autoComplete="address-level2"
                     />
@@ -487,12 +530,20 @@ export function EditProfileSheet({
                         id="linkedin"
                         placeholder="yourprofile"
                         value={linkedinUrl?.replace(/^https?:\/\/(www\.)?linkedin\.com\/in\//i, '') || ''}
-                        onChange={(e) => setLinkedinUrl(`https://linkedin.com/in/${e.target.value.replace(/\s/g, '')}`)}
-                        className="pl-[115px] bg-background"
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\s/g, '');
+                          validateLinkedInUsername(val);
+                          setLinkedinUrl(val ? `https://linkedin.com/in/${val}` : '');
+                          triggerAutoSave();
+                        }}
+                        className={`pl-[115px] bg-background ${linkedinError ? 'border-destructive' : ''}`}
                         autoCapitalize="none"
                         autoCorrect="off"
                         spellCheck={false}
                       />
+                      {linkedinError && (
+                        <p className="text-xs text-destructive mt-1">{linkedinError}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -537,7 +588,7 @@ export function EditProfileSheet({
                       id="jobTitle"
                       placeholder="e.g. Software Engineer"
                       value={jobTitle}
-                      onChange={(e) => setJobTitle(e.target.value)}
+                      onChange={(e) => { setJobTitle(e.target.value); triggerAutoSave(); }}
                       className="bg-background"
                       autoComplete="organization-title"
                     />
@@ -547,7 +598,7 @@ export function EditProfileSheet({
                     <Label htmlFor="industry" className="text-xs text-muted-foreground">
                       Industry
                     </Label>
-                    <Select value={industry} onValueChange={setIndustry}>
+                    <Select value={industry} onValueChange={(v) => { setIndustry(v); triggerAutoSave(); }}>
                       <SelectTrigger id="industry" className="bg-background">
                         <SelectValue placeholder="Select your industry" />
                       </SelectTrigger>
@@ -568,7 +619,7 @@ export function EditProfileSheet({
                         <button
                           key={level.value}
                           type="button"
-                          onClick={() => setCareerLevel(level.value)}
+                          onClick={() => { setCareerLevel(level.value); triggerAutoSave(); }}
                           className={`p-3 rounded-lg border text-left transition-all ${
                             careerLevel === level.value
                               ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary/20'
@@ -673,21 +724,28 @@ export function EditProfileSheet({
         </div>
 
         {/* Actions - Fixed footer */}
-        <div className="flex gap-3 p-6 pb-safe border-t border-border bg-background shrink-0">
+        <div className="p-6 pb-safe border-t border-border bg-background shrink-0 space-y-2">
+          {autoSaved && (
+            <p className="text-xs text-center text-muted-foreground flex items-center justify-center gap-1">
+              <CheckCircle2 className="w-3 h-3 text-primary" /> Auto-saved
+            </p>
+          )}
+          <div className="flex gap-3">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="flex-1"
           >
-            Cancel
+            Close
           </Button>
           <Button
             onClick={handleSave}
             disabled={isSaving}
             className="flex-1"
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? 'Saving...' : 'Save & Close'}
           </Button>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
