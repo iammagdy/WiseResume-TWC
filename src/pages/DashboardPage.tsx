@@ -60,7 +60,7 @@ import {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user, loading: authLoading, session } = useAuth();
+  const { user, loading: authLoading, session, signOut } = useAuth();
   const { isMigrating } = useGuestMigration(session);
   const { data: resumes, isLoading: resumesLoading, isError: resumesError, refetch } = useResumes();
   const { deleteResume, deleteMultipleResumes, duplicateResume, updateResume } = useResumeMutations();
@@ -583,7 +583,7 @@ export default function DashboardPage() {
                       className="flex-1 active:scale-95 touch-manipulation"
                       onClick={async () => {
                         haptics.warning();
-                        await supabase.auth.signOut();
+                        await signOut();
                         navigate('/');
                       }}
                     >
