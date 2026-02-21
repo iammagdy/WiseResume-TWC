@@ -1,31 +1,31 @@
 
 
-# Fix: Half Black Screen on Editor (for real this time)
+# Fix: Black Gap Below Editor Content
 
 ## Root Cause
 
-Line 966 of `EditorPage.tsx` currently has:
-```
-min-h-0 overflow-hidden min-h-[calc(100dvh-10rem)]
-```
+Using `min-h-[calc(100dvh-10rem)]` does NOT solve the problem because:
 
-Both `min-h-0` and `min-h-[calc(100dvh-10rem)]` compile to the same CSS property (`min-height`). Tailwind's class ordering means `min-h-0` can override the calc value, making the previous fix ineffective.
+- `min-height` on a flex container does NOT make its `flex-1` children stretch to fill it
+- The container's **actual** height collapses to its content's natural height
+- The flex children (`Tabs`, `TabsContent`, scroll area) all use `flex-1` expecting a fixed-height parent
+- Result: content renders at natural height, leaving a black gap below
 
 ## Fix
 
 **File: `src/pages/EditorPage.tsx` (line 966)**
 
-Remove `min-h-0` and keep only `min-h-[calc(100dvh-10rem)]`:
+Change `min-h-` to `h-` (fixed height):
 
 ```
-Before: <main className="flex-1 flex flex-col min-h-0 overflow-hidden min-h-[calc(100dvh-10rem)]">
-After:  <main className="flex-1 flex flex-col overflow-hidden min-h-[calc(100dvh-10rem)]">
+Before: <main className="flex-1 flex flex-col overflow-hidden min-h-[calc(100dvh-10rem)]">
+After:  <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-10rem)]">
 ```
 
-This single class removal ensures the editor container correctly fills the viewport between the header and bottom tab bar, eliminating the black gap.
+With a fixed `h-`, the flex column has a definite height, so all `flex-1` children (Tabs container, TabsContent, scroll area) properly expand to fill the remaining space. The editor already manages its own internal scrolling, so it does not need to participate in AppShell's scroll.
 
 | Change | File | Line | What |
 |--------|------|------|------|
-| Remove conflicting `min-h-0` | `EditorPage.tsx` | 966 | Keep only `min-h-[calc(100dvh-10rem)]` |
+| `min-h-` to `h-` | `EditorPage.tsx` | 966 | Give flex container a definite height so children fill it |
 
 No database changes. No new dependencies.
