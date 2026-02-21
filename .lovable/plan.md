@@ -1,109 +1,135 @@
 
 
-# Activity Tab Improvements (rename "Jobs" to "Activity")
+# Portfolio Tab -- Creative Jaw-Dropping Improvements
 
-## 1. Rename the tab from "Jobs" to "Activity"
+## Current State
 
-The tab is already titled "My Activity" in the page header, but the bottom tab bar and desktop nav both say "Jobs". This creates a mismatch. The tab covers applications, saved jobs, timelines, streaks, and stats -- "Activity" is a much better label.
-
-### Files to change
-- **BottomTabBar.tsx** line 62: Change `label: 'Jobs'` to `label: 'Activity'`
-- **DesktopNav.tsx** line 40: Change `label: 'Jobs'` to `label: 'Activity'`
+The portfolio tab has solid foundations: 4 themes, accent colors, typewriter text, bio reveal, timeline with dots, skill cloud, career card, QR studio, and a chat widget. However, the public-facing portfolio and the editor both lack the "wow factor" that makes visitors remember a portfolio. Here's what's missing and how to fix it.
 
 ---
 
-## 2. Performance: Per-item entrance animations on application cards
+## Proposed Improvements
 
-Every application card and job card has its own `motion.div` with `initial={{ opacity: 0, y: 8 }}` and `animate`. For users with 20+ applications, this means 20+ Framer Motion instances animating simultaneously on mount.
+### 1. Live Preview Mini-Card in the Editor
 
-### Fix
-- Remove individual `motion.div` wrappers from the application card loop (lines 307-367) and `JobCard` component (lines 43-91). Replace with plain `div` elements -- the list appears instantly which feels snappier on mobile.
+**Problem:** Users edit their portfolio blind -- they configure themes, colors, and fonts without seeing the result until they open the live URL. This is frustrating and creates a disconnect.
 
----
+**Solution:** Add a live preview mini-card inside the Hero section of the editor that shows a scaled-down snapshot of their portfolio's hero area (avatar, name, job title, accent color, theme background). It updates in real-time as they change appearance settings. This gives instant visual feedback without leaving the editor.
 
-## 3. Performance: AI scoring runs on every mount
-
-The `useEffect` at lines 144-177 fires background AI scoring for all uncached jobs every time the component mounts, even when the user is on the "applications" tab and never views jobs.
-
-### Fix
-- Gate the AI scoring effect behind `activeTab === 'jobs'` so it only runs when the user actually views saved jobs.
+**Technical approach:**
+- New component `src/components/portfolio/editor/LivePreviewCard.tsx`
+- Renders a 320px-wide scaled container with the user's avatar, name, job title, and current theme/accent/font applied using the same CSS variables as the public page
+- Placed inside the Hero card, just below the stats row
+- Uses `useMemo` to derive theme vars from current editor state
 
 ---
 
-## 4. UX: Tab bar is disconnected from content
+### 2. Animated Gradient Border on Avatar (Public Portfolio)
 
-The current tab bar (lines 267-279) uses the same `glass-elevated` style as other cards, making it blend in. The active tab uses a solid primary background that doesn't match the page's overall style.
+**Problem:** The avatar on the public portfolio has a static `conic-gradient` border with `animate-pulse` (infinite) on the glow layer -- it looks flat and the pulse wastes CPU.
 
-### Fix
-- Use a cleaner pill-style tab bar with a subtle indicator rather than a heavy filled background. Add a bottom border accent on the active tab similar to what we did for the Editor tabs.
+**Solution:** Replace the static conic-gradient + infinite pulse with a single CSS-animated rotating gradient border that spins once on page load (3s ease-out), then stops. This creates a cinematic "reveal" moment when the page loads.
 
----
-
-## 5. UX: StatusFilter only visible in applications tab but counts include all statuses
-
-The `StatusFilter` shows counts but the "screening" status is missing from the filter chips. Users with applications in "screening" status have no way to filter to them.
-
-### Fix
-- Add `screening` to the `STATUSES` array in `StatusFilter.tsx` between "Applied" and "Interviewing".
+**Technical approach:**
+- Add a `@keyframes pf-avatar-spin` in `index.css` that rotates `conic-gradient` from 0deg to 360deg over 3s
+- Replace the `animate-pulse` div (line 451) with a CSS class `pf-avatar-ring` that runs the spin once
+- Remove the separate blur glow div -- the conic-gradient itself will have a subtle blur
 
 ---
 
-## 6. UX: The "Add Application" FAB is missing from the applications tab
+### 3. Parallax Depth on Hero Section (Public Portfolio)
 
-When on the "applications" tab, there's no floating action button -- only the "Saved Jobs" tab has a FAB (lines 489-499). Users have to scroll up to find the "+ Add" in the empty state or the header area.
+**Problem:** The hero section is a flat gradient. It doesn't create any sense of depth or immersion.
 
-### Fix
-- Show a FAB on the applications tab too, wired to `setShowAdd(true)`.
+**Solution:** Add a subtle parallax shift to the hero ambient gradient based on scroll position. As the user scrolls, the radial gradient shifts upward slightly faster than the content, creating a gentle depth effect. This is purely CSS-driven using `background-attachment: fixed` or a lightweight scroll listener.
 
----
-
-## 7. UX: Activity stats card is buried below applications
-
-The `JobActivityStatsCard` only shows after scrolling past the timeline and all application cards (line 417). It should be more prominent -- at least above the application cards list.
-
-### Fix
-- Move the `JobActivityStatsCard` block above the "Applications" cards section (before line 299), so users see their stats summary without scrolling past individual cards.
+**Technical approach:**
+- Add `transform: translateY(calc(var(--pf-scroll) * -0.15))` to `.pf-hero-ambient`
+- Update the scroll listener already in `PublicPortfolioPage.tsx` to set a CSS variable `--pf-scroll` on the root element
+- Respects `prefers-reduced-motion` by skipping the transform
 
 ---
 
-## 8. UX: ResumeCompletionCard feels out of place
+### 4. Hover Tilt Effect on Project & Case Study Cards (Public Portfolio)
 
-The `ResumeCompletionCard` belongs more on the Dashboard/Home tab. On the Activity tab it adds noise between the streak and the timeline.
+**Problem:** Project cards and case study cards are flat rectangles. They don't feel interactive or premium.
 
-### Fix
-- Remove `ResumeCompletionCard` from this page -- it's already accessible from the Home tab.
+**Solution:** Add a subtle 3D tilt effect on hover (desktop) using CSS `perspective` and `transform: rotateX/rotateY`. On mobile, skip the effect entirely for performance. This is the same technique used in the `DeveloperCreditCard` but lighter (max 3deg tilt).
+
+**Technical approach:**
+- New CSS class `pf-card-tilt` in `index.css` with `perspective: 800px` on the parent
+- On `mousemove`, calculate rotation based on cursor position relative to card center
+- Apply via a reusable `useTilt` hook or inline pointer handler on `ProjectCard` and `CaseStudyCard`
+- Desktop only: wrap in `@media (hover: hover)` and respect reduced motion
+
+---
+
+### 5. Animated Section Dividers (Public Portfolio)
+
+**Problem:** Sections (Experience, Skills, Projects, etc.) transition into each other with no visual separation. The `SectionHeader` is just text + icon.
+
+**Solution:** Add a subtle animated accent line that draws itself (from left to right) when the section scrolls into view. This uses the existing `IntersectionObserver` pattern already established in the codebase.
+
+**Technical approach:**
+- Update `SectionHeader.tsx` to include a `<div className="pf-section-line">` below the title
+- CSS: `pf-section-line` has `transform: scaleX(0)` by default, and a `.pf-section-line-drawn` class that transitions to `scaleX(1)` with `transform-origin: left`
+- The existing section IntersectionObserver adds the class when the section enters view
+
+---
+
+### 6. Skill Cloud Hover Glow (Public Portfolio)
+
+**Problem:** The skill cloud tags are static pills. For a "jaw-dropping" portfolio, skills should feel alive and interactive.
+
+**Solution:** On desktop hover, add a radial glow behind the hovered skill tag using the accent color. The glow fades in smoothly and creates a spotlight effect.
+
+**Technical approach:**
+- CSS only: `.pf-skill-tag:hover` with `box-shadow: 0 0 20px -4px var(--pf-accent)` and `border-color: var(--pf-accent)` with a 200ms transition
+- Wrapped in `@media (hover: hover)` so mobile isn't affected
+
+---
+
+### 7. Testimonials / Social Proof Section (Editor + Public)
+
+**Problem:** There's no way for users to add testimonials or quotes from colleagues/clients. This is a major gap for freelancers and consultants -- social proof is the single highest-conversion element on a portfolio.
+
+**Solution:** Add a new optional "Testimonials" section in the editor (alongside Case Studies and Services) that allows users to add 1-3 short quotes with author name, title, and optional avatar URL. On the public portfolio, these render as elegant quote cards with large quotation marks.
+
+**Technical approach:**
+- Add `testimonials` array to the `portfolioExtras` JSON (same pattern as `caseStudies` and `services`)
+- New editor section in `PortfolioEditorPage.tsx` under the "Add more sections" toggle
+- New `TestimonialCard.tsx` component in `src/components/portfolio/public/cards/`
+- Renders with a large decorative quote mark, the text, and author info below
+- Limit to 3 testimonials to keep it curated
+
+---
+
+### 8. "Highlight Reel" -- Pinned Metrics Strip (Editor + Public)
+
+**Problem:** Users have no way to showcase key achievement numbers (e.g., "50+ projects delivered", "10 years experience", "3 startups built"). The `StatsStrip` auto-computes from resume data but users can't customize it.
+
+**Solution:** Add 1-3 custom "highlight" metrics in the editor that display as a bold animated counter strip on the public portfolio, below the existing auto-computed StatsStrip. Users type a number and a label.
+
+**Technical approach:**
+- Add `highlights` array to `portfolioExtras` (each: `{ id, value: string, label: string }`)
+- New editor fields in the Profile section
+- On the public portfolio, render below `StatsStrip` using the same ref-based counter animation
+- Limit to 3 highlights
 
 ---
 
 ## Summary
 
-| Area | Issue | Fix |
-|---|---|---|
-| Tab label | "Jobs" vs "My Activity" mismatch | Rename to "Activity" in nav |
-| Card animations | 20+ motion.div on mount | Remove per-card motion wrappers |
-| AI scoring | Runs even on applications tab | Gate behind activeTab === 'jobs' |
-| Tab bar style | Heavy filled active state | Cleaner pill with border accent |
-| StatusFilter | Missing "screening" status | Add screening chip |
-| Applications FAB | No FAB on applications tab | Add FAB for adding applications |
-| Stats placement | Buried below all cards | Move above application cards |
-| ResumeCompletionCard | Out of place on Activity tab | Remove from this page |
+| # | Feature | Where | Impact |
+|---|---------|-------|--------|
+| 1 | Live Preview Mini-Card | Editor | Instant visual feedback |
+| 2 | Animated Avatar Ring | Public | Cinematic first impression |
+| 3 | Parallax Hero Depth | Public | Immersive feel |
+| 4 | Card Tilt on Hover | Public | Premium interactivity |
+| 5 | Animated Section Lines | Public | Visual rhythm |
+| 6 | Skill Tag Hover Glow | Public | Interactive polish |
+| 7 | Testimonials Section | Both | Social proof (high-conversion) |
+| 8 | Custom Highlight Metrics | Both | Personalized impact numbers |
 
-All changes are additive to UX -- no features removed, just better organization and fewer wasted CPU cycles.
-
-### Technical Details
-
-**BottomTabBar.tsx**: Single line change on line 62.
-
-**DesktopNav.tsx**: Single line change on line 40.
-
-**ApplicationsPage.tsx**:
-- Remove `ResumeCompletionCard` import and usage
-- Move `JobActivityStatsCard` rendering above application cards
-- Replace `motion.div` wrappers in application card loop with plain `div`
-- Remove `motion` wrapper from `JobCard` component
-- Add `activeTab === 'jobs'` guard to AI scoring `useEffect`
-- Add a FAB for the applications tab (similar to existing Save Job FAB)
-- Update tab bar styling to use border-accent approach
-
-**StatusFilter.tsx**: Add `{ value: 'screening', label: 'Screening', color: 'bg-blue-500/15 text-blue-500' }` after the "Applied" entry.
+All features respect `prefers-reduced-motion`, are mobile-first (tilt/parallax desktop-only), and follow existing code patterns. No new dependencies required.
 
