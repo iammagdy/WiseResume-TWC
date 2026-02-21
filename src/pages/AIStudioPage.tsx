@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense, useCallback } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -20,6 +20,8 @@ import {
   FileSignature,
   FileOutput,
   ArrowRight,
+  X,
+  Clock,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
@@ -36,6 +38,7 @@ import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import { CompanyBriefingSheet } from '@/components/interview/CompanyBriefingSheet';
 import { AICostBadge } from '@/components/ai/AICostBadge';
+import { Badge } from '@/components/ui/badge';
 
 // Lazy-loaded sheets
 const TailorSheet = lazy(() => import('@/components/editor/TailorSheet').then(m => ({ default: m.TailorSheet })));
@@ -64,6 +67,31 @@ const PLACEHOLDER_EXAMPLES = [
   'Try: "Add metrics to my bullets"',
   'Try: "Proofread my experience"',
 ];
+
+const PRO_TIPS = [
+  'Paste a job URL or description to get a personalized match score and tailoring suggestions.',
+  'Use Smart Tailor before applying — it adapts your resume keywords to match the job description.',
+  'Run Proofread after editing to catch grammar issues and inconsistent formatting.',
+  'The A/B Compare tool lets you score two versions of your resume side-by-side.',
+];
+
+const FEATURED_TOOL_IDS = new Set(['tailor', 'job-match', 'enhance']);
+
+const RECENT_TOOLS_KEY = 'wr-recent-ai-tools';
+const TIP_DISMISSED_KEY = 'wr-ai-tip-dismissed';
+
+function getRecentToolIds(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENT_TOOLS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveRecentToolId(id: string) {
+  const recent = getRecentToolIds().filter(t => t !== id);
+  recent.unshift(id);
+  localStorage.setItem(RECENT_TOOLS_KEY, JSON.stringify(recent.slice(0, 3)));
+}
 
 interface ToolEntry {
   id: string;
@@ -116,6 +144,9 @@ const toolCategories: { title: string; description: string; tools: ToolEntry[] }
   },
 ];
 
+// Flat lookup for recent tools
+const allTools = toolCategories.flatMap(c => c.tools);
+
 export default function AIStudioPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -125,12 +156,25 @@ export default function AIStudioPage() {
   const setHasSeenAIStudioTour = useSettingsStore(s => s.setHasSeenAIStudioTour);
   const isFirstVisit = !hasSeenAIStudioTour;
 
-  // Cycling placeholder
+  // Cycling placeholder — pauses when tab hidden
   const [placeholderIdx, setPlaceholderIdx] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDER_EXAMPLES.length), 3000);
-    return () => clearInterval(t);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => { interval = setInterval(() => setPlaceholderIdx(i => (i + 1) % PLACEHOLDER_EXAMPLES.length), 3000); };
+    const stop = () => { if (interval) { clearInterval(interval); interval = null; } };
+    const onVisChange = () => { document.visibilityState === 'visible' ? start() : stop(); };
+    start();
+    document.addEventListener('visibilitychange', onVisChange);
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisChange); };
   }, []);
+
+  // Recent tools
+  const [recentIds, setRecentIds] = useState(getRecentToolIds);
+  const recentTools = useMemo(() => recentIds.map(id => allTools.find(t => t.id === id)).filter(Boolean) as ToolEntry[], [recentIds]);
+
+  // Dismissible pro tip
+  const [tipDismissed, setTipDismissed] = useState(() => localStorage.getItem(TIP_DISMISSED_KEY) === '1');
+  const tipIdx = useMemo(() => new Date().getDate() % PRO_TIPS.length, []);
 
   // Sheet states
   const [showChat, setShowChat] = useState(false);
@@ -149,7 +193,7 @@ export default function AIStudioPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkHandled = useRef(false);
 
-  // Deep-link: open tool from ?tool= query param (e.g. from Cmd+K)
+  // Deep-link: open tool from ?tool= query param
   useEffect(() => {
     if (deepLinkHandled.current) return;
     const tool = searchParams.get('tool');
@@ -175,18 +219,19 @@ export default function AIStudioPage() {
     setSearchParams({}, { replace: true });
   }, [searchParams, setSearchParams, navigate]);
 
+  const openChatWithMessage = useCallback((msg: string) => {
+    haptics.light();
+    if (!user) { setShowChat(true); return; }
+    if (!currentResumeId) { toast.info('Select a resume first to chat with Wise AI'); return; }
+    setStickyInput(msg);
+    setShowChat(true);
+  }, [user, currentResumeId]);
+
   const handleStickySubmit = useCallback(() => {
     if (!stickyInput.trim()) return;
     haptics.light();
-    if (!user) {
-      setShowChat(true);
-      setStickyInput('');
-      return;
-    }
-    if (!currentResumeId) {
-      toast.info('Select a resume first to chat with Wise AI');
-      return;
-    }
+    if (!user) { setShowChat(true); setStickyInput(''); return; }
+    if (!currentResumeId) { toast.info('Select a resume first to chat with Wise AI'); return; }
     setShowChat(true);
     setStickyInput('');
   }, [stickyInput, user, currentResumeId]);
@@ -194,10 +239,7 @@ export default function AIStudioPage() {
   const requireResume = useCallback((action: () => void) => {
     if (!currentResumeId) {
       toast.info('Create or select a resume first', {
-        action: {
-          label: 'Create',
-          onClick: () => navigate('/dashboard?action=create'),
-        },
+        action: { label: 'Create', onClick: () => navigate('/dashboard?action=create') },
       });
       return;
     }
@@ -206,13 +248,11 @@ export default function AIStudioPage() {
   }, [currentResumeId, navigate]);
 
   const handleToolAction = useCallback((tool: ToolEntry) => {
-    // Navigation tools don't need a resume
-    if (tool.navigate) {
-      haptics.medium();
-      navigate(tool.navigate);
-      return;
-    }
-    // Sheet tools require a resume
+    // Track recent usage
+    saveRecentToolId(tool.id);
+    setRecentIds(getRecentToolIds());
+
+    if (tool.navigate) { haptics.medium(); navigate(tool.navigate); return; }
     const action = () => {
       switch (tool.id) {
         case 'tailor': setShowTailor(true); break;
@@ -230,6 +270,11 @@ export default function AIStudioPage() {
     };
     requireResume(action);
   }, [navigate, requireResume]);
+
+  const dismissTip = useCallback(() => {
+    setTipDismissed(true);
+    localStorage.setItem(TIP_DISMISSED_KEY, '1');
+  }, []);
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-[180px] sm:pb-20 lg:pb-6 pt-safe">
@@ -268,29 +313,17 @@ export default function AIStudioPage() {
             <span className="text-[15px] sm:text-sm flex-1 break-words leading-snug" title={resumeData.title}>
               Working on: <span className="font-medium">{resumeData.title}</span>
             </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="shrink-0 min-h-[44px] text-xs text-primary"
-              onClick={() => navigate('/dashboard')}
-            >
+            <Button variant="ghost" size="sm" className="shrink-0 min-h-[44px] text-xs text-primary" onClick={() => navigate('/dashboard')}>
               Change
             </Button>
           </div>
         ) : (
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1 justify-start gap-2"
-              onClick={() => navigate('/dashboard')}
-            >
+            <Button variant="outline" className="flex-1 justify-start gap-2" onClick={() => navigate('/dashboard')}>
               <FileSearch className="w-4 h-4" />
               Select a resume
             </Button>
-            <Button
-              className="shrink-0 gradient-primary"
-              onClick={() => navigate('/dashboard?action=create')}
-            >
+            <Button className="shrink-0 gradient-primary" onClick={() => navigate('/dashboard?action=create')}>
               Create
             </Button>
           </div>
@@ -304,22 +337,16 @@ export default function AIStudioPage() {
         transition={{ delay: 0.1 }}
         className="px-4 pb-4"
       >
-        <button
+        <div
           onClick={() => {
             haptics.light();
-            if (!user) {
-              setShowChat(true);
-              return;
-            }
-            if (!currentResumeId) {
-              toast.info('Select a resume first to chat with Wise AI');
-              return;
-            }
+            if (!user) { setShowChat(true); return; }
+            if (!currentResumeId) { toast.info('Select a resume first to chat with Wise AI'); return; }
             setShowChat(true);
           }}
           className={cn(
-            'w-full p-4 rounded-2xl glass-elevated border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden',
-            isFirstVisit && 'ring-2 ring-primary/40 animate-pulse'
+            'w-full p-4 rounded-2xl glass-elevated border border-primary/20 hover:border-primary/40 active:scale-[0.98] transition-all touch-manipulation relative overflow-hidden cursor-pointer',
+            isFirstVisit && 'ring-2 ring-primary/40 animate-[pulse_1.5s_ease-in-out_3]'
           )}
         >
           <div className="flex items-center gap-3 mb-3">
@@ -333,71 +360,106 @@ export default function AIStudioPage() {
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             {SUGGESTIONS.slice(0, 3).map(s => (
-              <span
+              <button
                 key={s}
-                className="text-sm px-3 py-1.5 min-h-[44px] flex items-center justify-center sm:justify-start rounded-full bg-primary/5 border border-primary/10 text-muted-foreground"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); openChatWithMessage(s); }}
+                className="text-sm px-3 py-1.5 min-h-[44px] flex items-center justify-center sm:justify-start rounded-full bg-primary/5 border border-primary/10 text-muted-foreground hover:bg-primary/10 hover:border-primary/20 active:scale-95 transition-all touch-manipulation text-left"
               >
                 {s}
-              </span>
+              </button>
             ))}
           </div>
-        </button>
+        </div>
       </motion.div>
 
-      {/* All Tools - Flat Grid by Category */}
-      {toolCategories.map((category, catIdx) => (
-        <motion.div
-          key={category.title}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 + catIdx * 0.05 }}
-          className="px-4 pb-4"
-        >
+      {/* Recent Tools */}
+      {recentTools.length > 0 && (
+        <div className="px-4 pb-4">
+          <div className="mb-2 px-1 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+            <h2 className="text-sm font-medium text-muted-foreground">Recent</h2>
+          </div>
+          <div className="flex gap-2 overflow-x-auto no-scrollbar">
+            {recentTools.map(tool => (
+              <button
+                key={tool.id}
+                onClick={() => handleToolAction(tool)}
+                className="flex items-center gap-2 px-3 py-2 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation shrink-0"
+              >
+                <tool.icon className={cn('w-4 h-4', tool.color)} />
+                <span className="text-sm font-medium whitespace-nowrap">{tool.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All Tools - Flat Grid by Category (no individual entrance anims) */}
+      {toolCategories.map((category) => (
+        <div key={category.title} className="px-4 pb-4">
           <div className="mb-2 px-1">
             <h2 className="text-base sm:text-sm font-semibold">{category.title}</h2>
             <p className="text-xs text-muted-foreground">{category.description}</p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {category.tools.map(tool => (
-              <button
-                key={tool.id}
-                onClick={() => handleToolAction(tool)}
-                className="flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border border-border/30 hover:border-primary/20 active:scale-95 transition-all touch-manipulation min-h-[100px] relative"
-              >
-                <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
-                  <tool.icon className={cn('w-6 h-6', tool.color)} />
-                </div>
-                <div className="text-center">
-                  <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
-                  <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
-                  <AICostBadge operation={tool.cost} className="mt-1" />
-                </div>
-                {tool.navigate && (
-                  <ArrowRight className="w-3 h-3 text-muted-foreground/50 absolute top-2 right-2" />
-                )}
-              </button>
-            ))}
+            {category.tools.map(tool => {
+              const isFeatured = FEATURED_TOOL_IDS.has(tool.id);
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => handleToolAction(tool)}
+                  className={cn(
+                    'flex flex-col items-center gap-2 p-3 rounded-xl glass-surface border active:scale-95 transition-all touch-manipulation min-h-[100px] relative',
+                    isFeatured
+                      ? 'border-primary/20 shadow-[0_0_12px_-4px_hsl(var(--primary)/0.2)]'
+                      : 'border-border/30 hover:border-primary/20'
+                  )}
+                >
+                  {isFeatured && (
+                    <Badge variant="secondary" className="absolute top-1.5 right-1.5 text-[9px] px-1.5 py-0 h-4 font-medium">
+                      Popular
+                    </Badge>
+                  )}
+                  <div className="w-10 h-10 rounded-full bg-muted/30 flex items-center justify-center">
+                    <tool.icon className={cn('w-6 h-6', tool.color)} />
+                  </div>
+                  <div className="text-center">
+                    <span className="text-sm sm:text-xs font-medium block">{tool.label}</span>
+                    <span className="text-xs sm:text-[10px] text-muted-foreground leading-tight block">{tool.desc}</span>
+                    <AICostBadge operation={tool.cost} className="mt-1" />
+                  </div>
+                  {tool.navigate && (
+                    <ArrowRight className="w-3 h-3 text-muted-foreground/50 absolute top-2 right-2" />
+                  )}
+                </button>
+              );
+            })}
           </div>
-        </motion.div>
+        </div>
       ))}
 
-      {/* Pro Tip */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="px-4 pb-6"
-      >
-        <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
-          <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-          <p className="text-xs text-muted-foreground">
-            <span className="text-foreground font-medium">Pro tip:</span> Paste a job URL or description to get a personalized match score and tailoring suggestions.
-          </p>
+      {/* Pro Tip - dismissible & rotating */}
+      {!tipDismissed && (
+        <div className="px-4 pb-6">
+          <div className="flex items-start gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10 relative">
+            <Lightbulb className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground pr-6">
+              <span className="text-foreground font-medium">Pro tip:</span> {PRO_TIPS[tipIdx]}
+            </p>
+            <button
+              onClick={dismissTip}
+              className="absolute top-2 right-2 p-1 rounded-full hover:bg-muted/50 transition-colors touch-manipulation"
+              aria-label="Dismiss tip"
+            >
+              <X className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
-      </motion.div>
+      )}
 
       {/* Sticky Mobile Chat Input */}
-      <div className="fixed bottom-[68px] left-0 right-0 z-40 md:hidden bg-background shadow-[0_-4px_12px_rgba(0,0,0,0.2)] px-4 py-2 pb-safe">
+      <div className="fixed bottom-[68px] left-0 right-0 z-40 md:hidden bg-background border-t border-border shadow-[0_-2px_8px_rgba(0,0,0,0.08)] px-4 py-2 pb-safe">
         <form
           onSubmit={(e) => { e.preventDefault(); handleStickySubmit(); }}
           className="flex items-center gap-2"
