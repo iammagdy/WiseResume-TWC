@@ -1,35 +1,31 @@
 
-# Fix: Half Black Screen on Editor Page
+
+# Fix: Half Black Screen on Editor (for real this time)
 
 ## Root Cause
 
-The editor page has a **nested layout conflict** between `AppShell` and `EditorPage`:
+Line 966 of `EditorPage.tsx` currently has:
+```
+min-h-0 overflow-hidden min-h-[calc(100dvh-10rem)]
+```
 
-1. **AppShell** (line 57-63) applies `pb-20` (80px bottom padding) to `<main>` when bottom nav is visible, reserving space for the `BottomTabBar`
-2. **AppShell's inner scroll div** (line 64-68) has `overflow-y-auto` making it a scroll container
-3. **EditorPage** (line 966) renders as `flex-1 flex flex-col min-h-0 overflow-hidden` -- it expects to fill a fixed-height parent and manage its own scrolling internally
-4. But inside AppShell's scrollable div, `flex-1` doesn't constrain to viewport height -- it just takes the content's natural height
+Both `min-h-0` and `min-h-[calc(100dvh-10rem)]` compile to the same CSS property (`min-height`). Tailwind's class ordering means `min-h-0` can override the calc value, making the previous fix ineffective.
 
-The result: the editor content renders at its natural (short) height, and the remaining space below is empty black background. The `pb-20` from AppShell adds even more black space at the bottom.
+## Fix
 
-## Fix (2 changes)
-
-### 1. EditorPage: Set minimum height to fill viewport
 **File: `src/pages/EditorPage.tsx` (line 966)**
 
-Change the root `<main>` element to use `min-h-[calc(100dvh-theme(spacing.10)-theme(spacing.20))]` so it fills the available viewport space (100dvh minus AppShell header 40px minus bottom nav 80px). This ensures the flex column layout has enough height for its children to expand into, preventing the black gap.
+Remove `min-h-0` and keep only `min-h-[calc(100dvh-10rem)]`:
 
-Simplified approach: use `min-h-[calc(100dvh-10rem)]` which accounts for the header + bottom nav chrome.
+```
+Before: <main className="flex-1 flex flex-col min-h-0 overflow-hidden min-h-[calc(100dvh-10rem)]">
+After:  <main className="flex-1 flex flex-col overflow-hidden min-h-[calc(100dvh-10rem)]">
+```
 
-### 2. EditorPage scroll container: Ensure it grows to fill
-**File: `src/pages/EditorPage.tsx` (line 1213-1215)**
-
-The `TabsContent` for "editor" and its inner scroll div already use `flex-1`, but with the parent having proper min-height, they will now correctly fill the space. No additional change needed here beyond fixing the root element height.
-
-## Summary
+This single class removal ensures the editor container correctly fills the viewport between the header and bottom tab bar, eliminating the black gap.
 
 | Change | File | Line | What |
 |--------|------|------|------|
-| Root layout height | `EditorPage.tsx` | 966 | Add `min-h-[calc(100dvh-10rem)]` to ensure editor fills viewport |
+| Remove conflicting `min-h-0` | `EditorPage.tsx` | 966 | Keep only `min-h-[calc(100dvh-10rem)]` |
 
-This single CSS change eliminates the black gap by giving the flex column layout a proper minimum height to work within. No database changes, no new dependencies.
+No database changes. No new dependencies.
