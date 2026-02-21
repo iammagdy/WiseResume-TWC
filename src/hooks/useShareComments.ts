@@ -19,7 +19,7 @@ export function useShareComments(shareId: string | null) {
     queryKey: ['share-comments', shareId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('share_comments' as any)
+        .from('share_comments')
         .select('*')
         .eq('share_id', shareId!)
         .order('created_at', { ascending: false });
@@ -35,7 +35,7 @@ export function usePublicShareComments(token: string | null) {
   return useQuery({
     queryKey: ['public-share-comments', token],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_share_comments' as any, {
+      const { data, error } = await supabase.rpc('get_share_comments', {
         p_share_token: token!,
       });
       if (error) throw error;
@@ -55,7 +55,7 @@ export function useAddShareComment() {
       content: string;
       section?: string;
     }) => {
-      const { data, error } = await supabase.rpc('add_share_comment' as any, {
+      const { data, error } = await supabase.rpc('add_share_comment', {
         p_share_token: input.shareToken,
         p_author_name: input.authorName,
         p_content: input.content,
@@ -80,7 +80,7 @@ export function useResolveComment() {
   return useMutation({
     mutationFn: async ({ commentId, resolved }: { commentId: string; resolved: boolean }) => {
       const { error } = await supabase
-        .from('share_comments' as any)
+        .from('share_comments')
         .update({ is_resolved: resolved })
         .eq('id', commentId);
       if (error) throw error;

@@ -117,9 +117,12 @@ export function EditorDemo() {
           </div>
         </div>
 
-        {/* Toolbar */}
+      {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/20">
-          <span className="text-[11px] font-semibold text-foreground">Resume Editor</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-semibold text-foreground">Resume Editor</span>
+            <span className="text-[8px] font-medium px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">Example</span>
+          </div>
           <div className="flex items-center gap-1.5">
             {/* Score ring */}
             <div className="relative w-10 h-10">
