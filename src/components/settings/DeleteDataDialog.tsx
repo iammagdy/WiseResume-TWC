@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { deleteAllUserData } from '@/lib/dataExport';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
+import { logAudit } from '@/lib/auditLogger';
 
 interface DeleteDataDialogProps {
   open: boolean;
@@ -43,6 +44,7 @@ export function DeleteDataDialog({
 
     try {
       await deleteAllUserData(userId);
+      logAudit('account', 'data_deleted', { resumeCount });
       toast.success('All data deleted');
       haptics.success();
       onDeleted();

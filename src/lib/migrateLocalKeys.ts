@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/safeClient';
 import { runMigrationPipeline, isMigrationDone } from '@/lib/migrationRunner';
 import type { MigrationStep } from '@/lib/migrationRunner';
+import { logAudit } from '@/lib/auditLogger';
 
 const SETTINGS_KEY = 'wiseresume-settings';
 const PIPELINE_ID = 'api-keys';
@@ -40,6 +41,7 @@ export async function migrateLocalKeysToServer(): Promise<void> {
             },
           });
           if (error) throw error;
+          logAudit('api_key', 'key_migrated', { provider: 'gemini' });
         },
       },
       {

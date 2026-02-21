@@ -4,6 +4,8 @@
  * so incomplete migrations resume on next app launch.
  */
 
+import { logAudit } from '@/lib/auditLogger';
+
 interface RetryOptions {
   maxRetries?: number;
   baseDelay?: number;
@@ -65,6 +67,12 @@ export async function runMigrationPipeline(
   const lastCompleted = localStorage.getItem(checkpointKey(id));
   let pastCheckpoint = !lastCompleted;
 
+  logAudit('migration', 'pipeline_started', {
+    pipelineId: id,
+    totalSteps: steps.length,
+    resumedFrom: lastCompleted ?? null,
+  });
+
   for (const step of steps) {
     // Skip already-completed steps
     if (!pastCheckpoint) {
@@ -78,12 +86,16 @@ export async function runMigrationPipeline(
       const result = await retryWithBackoff(step.action, retryOptions);
       localStorage.setItem(checkpointKey(id), step.name);
 
+      logAudit('migration', 'step_completed', { pipelineId: id, stepName: step.name });
+
       if (result === 'skip-remaining') {
         localStorage.setItem(doneKey(id), '1');
         return { completed: true };
       }
     } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
       console.warn(`Migration "${id}" failed at step "${step.name}":`, err);
+      logAudit('migration', 'step_failed', { pipelineId: id, stepName: step.name, error: errorMsg });
       return { completed: false, failedStep: step.name };
     }
   }

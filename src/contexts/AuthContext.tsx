@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { Capacitor } from '@capacitor/core';
 import { migrateLocalKeysToServer } from '@/lib/migrateLocalKeys';
+import { logAudit } from '@/lib/auditLogger';
 
 interface AuthState {
   user: User | null;
@@ -124,6 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
+    logAudit('auth', 'signed_out');
     userInitiatedSignOutRef.current = true;
     wasAuthenticatedRef.current = false;
     activeUserIdRef.current = null;
