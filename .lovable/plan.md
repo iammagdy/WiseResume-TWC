@@ -1,83 +1,46 @@
 
 
-# Redesign Animated Splash Screen
+# Fix Splash Screen Performance
 
 ## The Problem
-The current splash has Framer Motion animations but they feel flat and instant:
-- Logo springs in too fast (0.6s) with no dramatic build-up
-- Glow ring is barely visible (0.3 opacity max)
-- Stars drift so subtly they're imperceptible
-- Text just fades in -- no wow factor
-- Everything happens almost simultaneously, so nothing feels sequenced
+The current splash screen runs **120+ concurrent infinite Framer Motion animation loops** during its 3.2-second lifespan:
+- 30 star particles, each with 4 independently animated properties (`opacity`, `x`, `y`, `scale`) set to `repeat: Infinity`
+- Logo scale set to `repeat: Infinity, repeatType: 'reverse'`
+- Glow ring with `repeat: Infinity, repeatType: 'reverse'`
+- 10 letter spans each with infinite CSS shimmer
+- An inline `<style>` tag injected into the DOM
 
-## The Solution
-A cinematic 3-second sequence with clear visual stages that feel like a premium app launch.
+On mobile devices, this causes frame drops and GPU pressure during the most critical moment of app launch.
 
----
+## The Fix
+Optimize for the 3.2-second lifespan -- no animation needs to repeat infinitely since the component dismisses.
 
-## Animation Sequence (timeline)
+### File: `src/components/AnimatedSplash.tsx`
 
-```text
-0.0s  -- Screen appears dark, particles begin floating inward
-0.3s  -- Expanding light burst from center (like a star igniting)
-0.5s  -- Logo scales up from 0 with a bounce + rotation, glow ring pulses bright
-1.0s  -- Logo settles, orbital ring spins around it
-1.2s  -- "WiseResume" text types in letter-by-letter with gradient shimmer
-1.8s  -- Tagline fades up with a soft slide
-2.2s  -- Subtle breathing pulse on the whole composition
-3.0s  -- Auto-dismiss (or tap to skip anytime)
-```
+**1. Reduce star count from 30 to 12**
+- 12 stars are visually sufficient on mobile screens
+- Cuts animated elements by 60%
 
-## Changes
+**2. Remove ALL `repeat: Infinity` from Framer Motion animations**
+- Stars: animate once to their target position/opacity, then hold. No looping needed.
+- Logo: scale up with bounce, then hold at 1.0. Remove the breathing loop.
+- Glow ring: pulse once and settle. Remove the infinite reverse loop.
+- These all dismiss in 3.2s anyway -- infinite loops waste GPU cycles.
 
-### File: `src/components/AnimatedSplash.tsx` (full rewrite)
+**3. Replace per-letter CSS shimmer with a single gradient animation on the whole title**
+- Currently: 10 separate `<motion.span>` elements each with their own infinite CSS `background-position` animation
+- After: Keep the staggered entrance (letter-by-letter), but apply the shimmer as a single CSS animation on the parent `<h1>` instead of each letter
 
-**Phase 1 -- Light Burst (0-0.5s)**
-- A bright radial gradient expands from the center (scale 0 to 1.5), creating a "star ignition" effect
-- Particles (stars) rush inward toward the center instead of just twinkling in place
+**4. Move the `<style>` tag to a static declaration outside the component**
+- The inline `<style>` block is re-injected every render. Move the keyframes to the module level or use a `useEffect` to inject once.
 
-**Phase 2 -- Logo Entrance (0.3-1.0s)**
-- Logo scales from 0.3 to 1.15 (overshoot) then settles to 1.0 with a spring
-- Adds a subtle 15-degree rotation during the scale-up for dynamism
-- Glow ring pulses from 0 to full brightness (opacity 0.8) then settles to a breathing pulse
-- An orbital ring (like in PlanetLogo) rotates continuously around the logo
+**5. Add `will-change: transform, opacity` to the star container**
+- Promotes the layer to GPU compositing for smoother transforms
 
-**Phase 3 -- Text Reveal (1.0-2.0s)**
-- "WiseResume" letters animate in one by one (staggered 0.04s per letter) with slight y-offset
-- Each letter has the gradient shimmer effect (background-position animation)
-- Tagline slides up from 20px below with a fade
+### Expected Result
+- From ~140 concurrent animation loops down to ~20 one-shot animations
+- Smoother launch experience on mid-range Android devices
+- Same visual quality -- the animations still look cinematic, they just don't loop uselessly
 
-**Phase 4 -- Ambient Loop (2.0-3.0s)**
-- Gentle breathing scale pulse on the logo (1.0 to 1.03 and back)
-- Stars continue twinkling
-- Glow ring continues breathing
-
-### Visual Enhancements
-- Brighter glow ring (peak opacity 0.8 instead of 0.4)
-- More visible nebula overlays (opacity 0.15 instead of 0.08)
-- Add 3 concentric ripple rings that expand outward from center at staggered times
-- Particle count stays at 30 but with more visible sizes (1-3px instead of 0.5-2px)
-
-### Reduced Motion
-- All animations collapse to simple fade-in (no motion, no stagger)
-- Respects `prefers-reduced-motion: reduce`
-
----
-
-## Technical Details
-
-### No new files or dependencies
-Everything uses the existing `framer-motion` library and `AppIcon` component.
-
-### Key animation techniques used
-- `motion.div` with keyframe arrays for multi-step animations (e.g., `scale: [0.3, 1.15, 1.0]`)
-- `staggerChildren` on the text container for letter-by-letter reveal
-- CSS `@keyframes` for the continuous orbital ring rotation (avoids JS overhead)
-- `useMotionValue` + `useTransform` not needed -- simple declarative animations suffice
-
-### File changes summary
-
-| File | Change |
-|---|---|
-| `src/components/AnimatedSplash.tsx` | Rewrite animation sequence with cinematic phases: light burst, bouncy logo entrance with rotation, letter-by-letter text reveal, breathing ambient loop, brighter glow effects, ripple rings |
-
+### No new dependencies needed
+All changes are within the single file using existing Framer Motion APIs.
