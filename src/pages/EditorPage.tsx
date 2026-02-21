@@ -56,6 +56,7 @@ const VersionHistorySheet = lazy(() => import('@/components/editor/VersionHistor
 const ContentLibrarySheet = lazy(() => import('@/components/editor/ContentLibrarySheet').then(m => ({ default: m.ContentLibrarySheet })));
 const CustomizeSheet = lazy(() => import('@/components/editor/CustomizeSheet').then(m => ({ default: m.CustomizeSheet })));
 const ProofreadSheet = lazy(() => import('@/components/editor/ProofreadSheet').then(m => ({ default: m.ProofreadSheet })));
+const ShareSheet = lazy(() => import('@/components/editor/ShareSheet').then(m => ({ default: m.ShareSheet })));
 const LivePreviewPanel = lazy(() => import('@/components/editor/LivePreviewPanel').then(m => ({ default: m.LivePreviewPanel })));
 const LivePreviewSheet = lazy(() => import('@/components/editor/LivePreviewSheet').then(m => ({ default: m.LivePreviewSheet })));
 const ATSParserPreview = lazy(() => import('@/components/editor/ATSParserPreview'));
@@ -219,6 +220,8 @@ export default function EditorPage() {
   const [showATSBadge, setShowATSBadge] = useState(false);
   const [showToolsSheet, setShowToolsSheet] = useState(false);
   const [showATSScan, setShowATSScan] = useState(false);
+  const [showShareSheet, setShowShareSheet] = useState(false);
+  const [isQuickDownloading, setIsQuickDownloading] = useState(false);
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   const isMobile = useIsMobile();
@@ -1188,13 +1191,39 @@ export default function EditorPage() {
                   {/* Quick Actions Bar */}
                   <div className="shrink-0 glass-header border-t border-border px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))] flex items-center justify-center gap-2">
                     <Button
+                      size="sm"
+                      disabled={isQuickDownloading}
+                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95 flex-1"
+                      onClick={async () => {
+                        haptics.medium();
+                        setIsQuickDownloading(true);
+                        try {
+                          const { generatePDF } = await import('@/lib/pdfGenerator');
+                          const { downloadFile } = await import('@/lib/downloadUtils');
+                          const pdfBlob = await generatePDF(currentResume!, selectedTemplate, null, undefined, { showPageNumbers: true });
+                          const fileName = `${currentResume?.contactInfo?.fullName?.replace(/\s+/g, '_') || 'Resume'}_Resume.pdf`;
+                          await downloadFile({ blob: pdfBlob, fileName, mimeType: 'application/pdf' });
+                          haptics.success();
+                          toast.success('PDF downloaded');
+                        } catch {
+                          haptics.error();
+                          toast.error('Download failed');
+                        } finally {
+                          setIsQuickDownloading(false);
+                        }
+                      }}
+                    >
+                      <Download className="w-4 h-4" />
+                      {isQuickDownloading ? 'Saving…' : 'Download'}
+                    </Button>
+                    <Button
                       variant="outline"
                       size="sm"
                       className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
-                      onClick={() => { haptics.light(); navigate('/preview'); }}
+                      onClick={() => { haptics.light(); setShowShareSheet(true); }}
                     >
-                      <Eye className="w-4 h-4" />
-                      Full Preview
+                      <Globe className="w-4 h-4" />
+                      Share
                     </Button>
                     <Button
                       variant="outline"
@@ -1209,10 +1238,10 @@ export default function EditorPage() {
                       variant="outline"
                       size="sm"
                       className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
-                      onClick={() => { haptics.light(); setShowCustomize(true); }}
+                      onClick={() => { haptics.light(); navigate('/preview'); }}
                     >
-                      <Palette className="w-4 h-4" />
-                      Design
+                      <Eye className="w-4 h-4" />
+                      Export
                     </Button>
                   </div>
                 </>
@@ -1366,6 +1395,16 @@ export default function EditorPage() {
             />
           )}
           {showATSScan && <ATSScanSheet open={showATSScan} onOpenChange={setShowATSScan} summary={scanSummary} onJumpToSection={handleTabChange} />}
+          {showShareSheet && currentResume && (
+            <ShareSheet
+              open={showShareSheet}
+              onOpenChange={setShowShareSheet}
+              resume={currentResume}
+              templateId={selectedTemplate}
+              templateName={selectedTemplate}
+              resumeRef={{ current: null } as React.RefObject<HTMLDivElement>}
+            />
+          )}
         </Suspense>
       </ErrorBoundary>
 
