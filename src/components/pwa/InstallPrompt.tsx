@@ -20,6 +20,10 @@ export function InstallPrompt() {
     const alreadyDismissed = localStorage.getItem('pwa-install-dismissed');
     if (alreadyDismissed) return;
 
+    // Only show after 2nd session to avoid first-visit overload
+    const sessionCount = parseInt(localStorage.getItem('wr-session-count') || '0', 10);
+    if (sessionCount < 2) return;
+
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as Navigator & { standalone?: boolean }).standalone;

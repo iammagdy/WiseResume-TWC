@@ -960,7 +960,7 @@ export default function EditorPage() {
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <button
-                className="flex items-center gap-1 min-w-0 max-w-[45vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
+                className="flex items-center gap-1 min-w-0 max-w-[55vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
                 title={resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
                 onClick={() => navigate('/dashboard')}
                 aria-label="Switch resume"
@@ -968,7 +968,7 @@ export default function EditorPage() {
                 <span className="text-h3 truncate">
                   {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
                 </span>
-                <ChevronDown className="w-4 h-4 shrink-0 text-muted-foreground" />
+                {/* ChevronDown removed — tapping title navigates to dashboard */}
               </button>
               <OfflineIndicator isSyncing={isSyncing} />
               {/* Undo/Redo buttons */}
@@ -1186,11 +1186,14 @@ export default function EditorPage() {
             onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
-            <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none border-b border-border bg-background/95 backdrop-blur-sm h-9 p-0 gap-0">
-              <TabsTrigger value="editor" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Editor</TabsTrigger>
-              <TabsTrigger value="preview" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
-              <TabsTrigger value="ats" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">ATS</TabsTrigger>
-            </TabsList>
+            {/* Tab bar hidden on mobile editor view — switch via bottom bar or header */}
+            {mobileEditorTab !== 'editor' && (
+              <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none border-b border-border bg-background/95 backdrop-blur-sm h-9 p-0 gap-0">
+                <TabsTrigger value="editor" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Editor</TabsTrigger>
+                <TabsTrigger value="preview" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
+                <TabsTrigger value="ats" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">ATS</TabsTrigger>
+              </TabsList>
+            )}
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               <div
                 className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-safe space-y-0"
@@ -1198,25 +1201,34 @@ export default function EditorPage() {
               >
                 {renderEditorContent()}
               </div>
-              {/* Compact bottom action bar */}
-              <div className="shrink-0 border-t border-border px-2 py-1 pb-[max(4px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1.5 keyboard-hide bg-background/95 backdrop-blur-sm">
+              {/* Compact bottom action bar — icon-only to save vertical space */}
+              <div className="shrink-0 border-t border-border px-3 py-0.5 pb-[max(2px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1 keyboard-hide bg-background/95 backdrop-blur-sm" style={{ minHeight: 36 }}>
                 <Button
                   size="sm"
                   disabled={isQuickDownloading}
-                  className="h-9 rounded-lg text-xs gap-1 min-h-[40px] touch-manipulation active:scale-95 flex-1"
+                  className="h-8 rounded-lg text-[11px] gap-1 min-h-[36px] touch-manipulation active:scale-95 flex-1"
                   onClick={handleQuickDownload}
                 >
                   <Download className="w-3.5 h-3.5" />
-                  {isQuickDownloading ? 'Saving…' : 'Download'}
+                  {isQuickDownloading ? 'Saving…' : 'PDF'}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-9 rounded-lg text-xs gap-1 min-h-[40px] touch-manipulation active:scale-95"
+                  className="h-8 rounded-lg text-[11px] gap-1 min-h-[36px] touch-manipulation active:scale-95"
                   onClick={() => { haptics.light(); setMobileEditorTab('preview'); }}
                 >
                   <Eye className="w-3.5 h-3.5" />
                   Preview
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 rounded-lg text-[11px] gap-1 min-h-[36px] touch-manipulation active:scale-95"
+                  onClick={() => { haptics.light(); setMobileEditorTab('ats'); }}
+                >
+                  <BarChart3 className="w-3.5 h-3.5" />
+                  ATS
                 </Button>
               </div>
             </TabsContent>

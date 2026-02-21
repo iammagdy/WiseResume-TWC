@@ -600,18 +600,17 @@ export default function DashboardPage() {
         {/* All scrollable content inside PullToRefresh */}
         <PullToRefresh onRefresh={handleRefresh} className="flex-1">
           <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
-            {/* Trust banner — auto-dismiss after 3 visits */}
+            {/* Trust banner — only on first visit, hidden on small screens after first dismiss */}
             {showTrustBanner && (
-              <div className="px-4 pt-3">
+              <div className="px-4 pt-3 hidden sm:block">
                 <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">Your career data is encrypted, private, and never shared.</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Powered by Wise AI — built for accuracy, not guesswork.</p>
                   </div>
                   <button
                     onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
-                    className="shrink-0 active:scale-95"
+                    className="shrink-0 active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center"
                     aria-label="Dismiss"
                   >
                     <X className="w-3.5 h-3.5 text-muted-foreground/50" />
