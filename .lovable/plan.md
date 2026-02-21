@@ -1,21 +1,40 @@
 
+# Fix Sign-Out Audit Gap in DashboardPage
 
-# Instrument API Key Lifecycle Events with Audit Entries
+## Problem
 
-## Current State
+The `DashboardPage.tsx` has a sign-out button (inside a popover menu) that calls `supabase.auth.signOut()` directly, bypassing the `useAuth().signOut()` wrapper. This means sign-outs triggered from the Dashboard are **not** recorded in audit logs.
 
-- **AISettingsSheet.tsx** (Gemini keys): Already logs `logAudit('api_key', 'key_saved', ...)` and `logAudit('api_key', 'key_deleted', ...)` -- no changes needed here.
-- **ElevenLabsKeySheet.tsx**: Saves and deletes ElevenLabs keys via `manage-api-keys` but has **zero** audit logging.
-- **migrateLocalKeys.ts**: Logs `key_migrated` -- already instrumented.
+All other sign-out paths (Settings page, Landing page, post-data-deletion) correctly use `useAuth().signOut()`, which already calls `logAudit('auth', 'signed_out')`.
+
+Data deletion is already fully instrumented in `DeleteDataDialog.tsx` -- no changes needed there.
 
 ## What Changes
 
-Add `logAudit` calls to `ElevenLabsKeySheet.tsx` for both the save and delete flows, matching the pattern already established in `AISettingsSheet.tsx`.
+### File: `src/pages/DashboardPage.tsx` (lines 584-588)
 
-## File: `src/components/settings/ElevenLabsKeySheet.tsx`
+Replace the direct `supabase.auth.signOut()` call with the `signOut` function from `useAuth()`:
 
-1. **Import** `logAudit` from `@/lib/auditLogger`
-2. **After successful save** (line ~43, after the `if (error) throw` check): add `logAudit('api_key', 'key_saved', { provider: 'elevenlabs' })`
-3. **After successful delete** (line ~63, after the `if (error) throw` check): add `logAudit('api_key', 'key_deleted', { provider: 'elevenlabs' })`
+**Before:**
+```typescript
+onClick={async () => {
+  haptics.warning();
+  await supabase.auth.signOut();
+  navigate('/');
+}}
+```
 
-That is the only file that needs changes -- two lines of audit logging plus one import.
+**After:**
+```typescript
+onClick={async () => {
+  haptics.warning();
+  await signOut();
+  navigate('/');
+}}
+```
+
+This ensures the Dashboard sign-out goes through the same `AuthContext.signOut()` path that logs the audit entry, resets internal refs, and clears state -- matching every other sign-out trigger in the app.
+
+If `signOut` is not already destructured from `useAuth()` in this component, that destructuring will also be added.
+
+**One file, one line changed.** No new dependencies, no new audit calls needed -- the existing `logAudit('auth', 'signed_out')` in `AuthContext` covers it once we route through the correct function.
