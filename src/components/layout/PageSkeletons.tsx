@@ -231,26 +231,122 @@ export function AuthSkeleton() {
 export function TemplateSkeleton() {
   return (
     <div className="w-full h-full min-h-[400px] animate-pulse p-8 space-y-4">
-      {/* Name */}
       <div className="h-7 w-48 bg-muted rounded mx-auto" />
-      {/* Contact line */}
       <div className="h-3 w-64 bg-muted rounded mx-auto" />
-      {/* Divider */}
       <div className="h-px w-full bg-muted my-4" />
-      {/* Section heading */}
       <div className="h-4 w-24 bg-muted rounded" />
-      {/* Lines */}
       <div className="space-y-2">
         <div className="h-3 w-full bg-muted/60 rounded" />
         <div className="h-3 w-5/6 bg-muted/60 rounded" />
         <div className="h-3 w-4/6 bg-muted/60 rounded" />
       </div>
-      {/* Section heading */}
       <div className="h-4 w-28 bg-muted rounded mt-4" />
-      {/* Lines */}
       <div className="space-y-2">
         <div className="h-3 w-full bg-muted/60 rounded" />
         <div className="h-3 w-3/4 bg-muted/60 rounded" />
+      </div>
+    </div>
+  );
+}
+
+export function ApplicationsSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <header className="sticky top-0 z-10 glass-header px-4 py-3 pt-safe border-b border-border flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 bg-muted rounded" />
+          <div className="h-6 w-28 bg-muted rounded" />
+        </div>
+        <div className="flex items-center gap-1">
+          <div className="w-10 h-10 bg-muted rounded-xl" />
+          <div className="w-10 h-10 bg-muted rounded-xl" />
+        </div>
+      </header>
+      <div className="h-[2px] bg-muted/30" />
+      <div className="px-4 py-4 space-y-4">
+        {/* Tab bar */}
+        <div className="rounded-2xl bg-muted/30 p-1 flex gap-1">
+          <div className="h-10 flex-1 bg-muted rounded-xl" />
+          <div className="h-10 flex-1 bg-muted/50 rounded-xl" />
+        </div>
+        {/* Status chips */}
+        <div className="flex gap-2 overflow-hidden">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="h-8 w-20 bg-muted rounded-full flex-shrink-0" />
+          ))}
+        </div>
+        {/* Cards */}
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-24 bg-muted rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AIStudioSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse pt-safe">
+      <div className="px-4 pt-4 pb-3 space-y-3">
+        <div className="h-8 w-32 bg-muted rounded" />
+        <div className="flex items-center justify-between">
+          <div className="h-5 w-24 bg-muted rounded-full" />
+          <div className="h-5 w-16 bg-muted rounded-full" />
+        </div>
+      </div>
+      {/* Resume context bar */}
+      <div className="px-4 pb-4">
+        <div className="h-14 bg-muted rounded-2xl" />
+      </div>
+      {/* Chat CTA */}
+      <div className="px-4 pb-4">
+        <div className="h-20 bg-muted rounded-2xl" />
+      </div>
+      {/* Tool grid */}
+      <div className="px-4 space-y-4">
+        <div className="h-5 w-24 bg-muted rounded" />
+        <div className="grid grid-cols-2 gap-3">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-24 bg-muted rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ProfilePageSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border">
+        <div className="w-12 h-12 bg-muted rounded-lg" />
+        <div className="h-5 w-24 bg-muted rounded" />
+      </div>
+      <div className="flex-1 px-4 py-6 space-y-6">
+        {/* Avatar */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-24 w-24 rounded-full bg-muted" />
+          <div className="space-y-2 flex flex-col items-center">
+            <div className="h-7 w-36 bg-muted rounded" />
+            <div className="h-4 w-48 bg-muted rounded" />
+          </div>
+        </div>
+        {/* Completion */}
+        <div className="h-32 bg-muted rounded-2xl" />
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-12 bg-muted rounded-xl" />
+          <div className="h-12 bg-muted rounded-xl" />
+        </div>
+        {/* Portfolio card */}
+        <div className="h-36 bg-muted rounded-2xl" />
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="h-24 bg-muted rounded-2xl" />
+          <div className="h-24 bg-muted rounded-2xl" />
+        </div>
       </div>
     </div>
   );

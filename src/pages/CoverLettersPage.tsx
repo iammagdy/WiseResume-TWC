@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
 import { CoverLetterCard } from '@/components/cover-letter/CoverLetterCard';
+import { EmptyCoverLetters } from '@/components/cover-letter/EmptyCoverLetters';
 import { CoverLetterActionSheet } from '@/components/cover-letter/CoverLetterActionSheet';
 import { useCoverLetters, useCoverLetterMutations } from '@/hooks/useCoverLetters';
 import { useAuth } from '@/hooks/useAuth';
@@ -131,30 +132,19 @@ export default function CoverLettersPage() {
               <SkeletonCardList count={3} />
             </div>
           ) : !filtered || filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
-              <div className="w-16 h-16 rounded-2xl glass-elevated flex items-center justify-center mb-4">
-                <FileText className="w-8 h-8 text-accent opacity-50" />
+            searchQuery ? (
+              <div className="flex flex-col items-center justify-center px-4 py-20 text-center">
+                <div className="w-16 h-16 rounded-2xl glass-elevated flex items-center justify-center mb-4">
+                  <FileText className="w-8 h-8 text-accent opacity-50" />
+                </div>
+                <h3 className="font-semibold text-foreground mb-1">No matches found</h3>
+                <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
+                  No cover letters match "{searchQuery}"
+                </p>
               </div>
-              <h3 className="font-semibold text-foreground mb-1">
-                {searchQuery ? 'No matches found' : 'No cover letters yet'}
-              </h3>
-              <p className="text-sm text-muted-foreground mb-6 max-w-[240px]">
-                {searchQuery
-                  ? `No cover letters match "${searchQuery}"`
-                  : 'Create your first AI-powered cover letter tailored to any job'}
-              </p>
-              {!searchQuery && (
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  style={{ touchAction: 'pan-y' }}
-                  onClick={() => navigate('/cover-letter/new')}
-                  className="gradient-primary text-primary-foreground px-6 py-3 rounded-2xl font-medium flex items-center gap-2 active:scale-95"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Cover Letter
-                </motion.button>
-              )}
-            </div>
+            ) : (
+              <EmptyCoverLetters onCreateNew={() => navigate('/cover-letter/new')} />
+            )
           ) : (
             <div className="px-4 pt-2 pb-4 space-y-3">
               <AnimatePresence initial={false}>

@@ -21,6 +21,7 @@ import { QuickActionChips } from '@/components/dashboard/QuickActionChips';
 // DailyTipCard removed - tip merged into DashboardStats
 import { FloatingCreateButton } from '@/components/dashboard/FloatingCreateButton';
 import { WhatsNextCard } from '@/components/dashboard/WhatsNextCard';
+import { FeatureDiscoveryCard } from '@/components/dashboard/FeatureDiscoveryCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { calculateProfileCompletion } from '@/hooks/useProfile';
@@ -607,6 +608,9 @@ export default function DashboardPage() {
 
             {/* What's Next Card */}
             <WhatsNextCard />
+
+            {/* Feature Discovery */}
+            <FeatureDiscoveryCard />
 
             {/* Personalized Stats Header */}
             <DashboardStats
