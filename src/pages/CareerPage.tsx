@@ -93,7 +93,7 @@ export default function CareerPage() {
       <header className="shrink-0 sticky top-0 z-50 glass-header border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/ai-studio')}
             className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
             aria-label="Go back"
           >
