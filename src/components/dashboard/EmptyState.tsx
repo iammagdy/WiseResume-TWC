@@ -71,19 +71,16 @@ export function EmptyState({ onCreateNew, onBrowseTemplates, onStartOnboarding }
         variants={shouldReduceMotion ? undefined : itemVariants}
       >
         <motion.div
-          initial={shouldReduceMotion ? undefined : { scale: 0.8 }}
-          animate={shouldReduceMotion ? undefined : { scale: 1, y: [0, -8, 0] }}
+          initial={shouldReduceMotion ? undefined : { scale: 0.8, y: 8 }}
+          animate={shouldReduceMotion ? undefined : { scale: 1, y: 0 }}
           transition={{
             scale: { delay: 0.1, type: 'spring', stiffness: 200 },
-            y: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
+            y: { duration: 0.6, ease: 'easeOut' },
           }}
           className="w-16 h-16 rounded-2xl gradient-primary flex items-center justify-center mb-5 relative"
           style={{ boxShadow: '0 20px 40px -10px hsl(var(--primary) / 0.4)' }}
         >
           <FileText className="w-8 h-8 text-primary-foreground" />
-          <div className="absolute inset-0 rounded-2xl animate-ring-pulse border-2 border-primary/40" />
-          {/* Pulsing glow */}
-          <div className="absolute inset-0 rounded-2xl bg-primary/15 blur-xl scale-150 animate-pulse pointer-events-none" />
         </motion.div>
       </motion.div>
 

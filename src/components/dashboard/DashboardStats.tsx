@@ -115,14 +115,13 @@ export function DashboardStats({ totalResumes, healthScores, userName, isScoring
         {/* Animated gradient border */}
         <div className="absolute inset-0 rounded-2xl p-[1px] pointer-events-none">
           <div
-            className="absolute inset-0 rounded-2xl opacity-40"
+            className="absolute inset-0 rounded-2xl opacity-30"
             style={{
-              background: `conic-gradient(from 0deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--accent)), hsl(var(--primary)))`,
+              background: `conic-gradient(from 135deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--accent)), hsl(var(--primary)))`,
               WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
               WebkitMaskComposite: 'xor',
               maskComposite: 'exclude',
               padding: '1px',
-              animation: 'rotate-gradient 6s linear infinite',
             }}
           />
         </div>

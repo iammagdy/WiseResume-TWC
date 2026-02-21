@@ -87,6 +87,13 @@ export default function DashboardPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('my-cvs');
+  const [showTrustBanner, setShowTrustBanner] = useState(() => {
+    const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
+    if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return false;
+    try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch {}
+    return true;
+  });
+  const [profilePulseSeen, setProfilePulseSeen] = useState(() => !!localStorage.getItem('wr-profile-pulse-seen'));
 
   // Embla carousel for swipeable tabs
   const [emblaRef, emblaApi] = useEmblaCarousel({ skipSnaps: false, containScroll: false });
@@ -413,8 +420,8 @@ export default function DashboardPage() {
   const hasResumes = filteredResumes && filteredResumes.length > 0;
 
   const itemVariants = {
-    hidden: { opacity: 1, y: 0 },
-    visible: { opacity: 1, y: 0 }
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] as const } }
   };
 
   // Handle creating a tailored version
@@ -485,7 +492,8 @@ export default function DashboardPage() {
               <Settings className="w-5 h-5 text-muted-foreground" />
             </Button>
             <Popover onOpenChange={(open) => {
-              if (open && !localStorage.getItem('wr-profile-pulse-seen')) {
+              if (open && !profilePulseSeen) {
+                setProfilePulseSeen(true);
                 localStorage.setItem('wr-profile-pulse-seen', 'true');
               }
             }}>
@@ -496,7 +504,7 @@ export default function DashboardPage() {
                   aria-label="Profile menu"
                 >
                   {/* First-visit pulse ring */}
-                  {!localStorage.getItem('wr-profile-pulse-seen') && (
+                  {!profilePulseSeen && (
                     <span className="absolute inset-0 rounded-full border-2 border-primary/40 animate-[ping_1.5s_ease-out_4]" />
                   )}
                   <Avatar className="w-9 h-9 border-2 border-primary/20">
@@ -578,15 +586,7 @@ export default function DashboardPage() {
         <PullToRefresh onRefresh={handleRefresh} className="flex-1">
           <div className="pb-safe max-w-3xl xl:max-w-5xl mx-auto w-full">
             {/* Trust banner — auto-dismiss after 3 visits */}
-            {(() => {
-              const visitCount = parseInt(localStorage.getItem('wr-trust-banner-visits') || '0', 10);
-              if (visitCount >= 3 || localStorage.getItem('wr-trust-banner-seen')) return null;
-              // Increment visit count
-              if (!localStorage.getItem('wr-trust-banner-counted-' + Date.now().toString().slice(0, 10))) {
-                try { localStorage.setItem('wr-trust-banner-visits', String(visitCount + 1)); } catch {}
-              }
-              return true;
-            })() && (
+            {showTrustBanner && (
               <div className="px-4 pt-3">
                 <div className="flex items-start gap-3 p-3 rounded-xl border border-primary/10 bg-primary/5">
                   <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
@@ -595,7 +595,7 @@ export default function DashboardPage() {
                     <p className="text-[10px] text-muted-foreground mt-0.5">Powered by Wise AI — built for accuracy, not guesswork.</p>
                   </div>
                   <button
-                    onClick={() => { localStorage.setItem('wr-trust-banner-seen', 'true'); window.dispatchEvent(new Event('storage')); }}
+                    onClick={() => { setShowTrustBanner(false); localStorage.setItem('wr-trust-banner-seen', 'true'); }}
                     className="shrink-0 active:scale-95"
                     aria-label="Dismiss"
                   >
@@ -721,37 +721,6 @@ export default function DashboardPage() {
               </div>
             ) : !resumes || resumes.length === 0 ? (
               <>
-                {/* Quick Actions Grid */}
-                <div className="grid grid-cols-2 gap-2 px-4 xs:gap-3 xs:px-6 mb-4">
-                  <ActionCard
-                    icon={FileTextIcon}
-                    title="New Resume"
-                    description="Start from scratch"
-                    onClick={handleCreateNew}
-                    aria-label="Create new resume"
-                  />
-                  <ActionCard
-                    icon={Upload}
-                    title="Import PDF"
-                    description="Upload existing resume"
-                    onClick={() => navigate('/upload')}
-                    aria-label="Import PDF resume"
-                  />
-                  <ActionCard
-                    icon={Linkedin}
-                    title="Import LinkedIn"
-                    description="Import your profile"
-                    onClick={() => setShowLinkedInImport(true)}
-                    aria-label="Import from LinkedIn"
-                  />
-                  <ActionCard
-                    icon={Briefcase}
-                    title="Browse Jobs"
-                    description="Find opportunities"
-                    onClick={() => navigate('/applications')}
-                    aria-label="Browse job listings"
-                  />
-                </div>
                 <EmptyState onCreateNew={handleCreateNew} onBrowseTemplates={() => setShowCreateDialog(true)} onStartOnboarding={() => setShowOnboarding(true)} />
               </>
             ) : !hasResumes ? (
