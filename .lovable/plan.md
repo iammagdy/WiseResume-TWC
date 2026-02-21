@@ -1,61 +1,49 @@
 
-# Fix: Black Gap Below Editor — Correct Approach
 
-## Root Cause (why previous fixes failed)
+# Fix: Black Gap Below Editor — The Real Root Cause
 
-The EditorPage sits inside this hierarchy:
+## Why all previous fixes failed
 
-```text
-AppShell root (h-[100dvh])
-  +-- header (h-10, shrink-0)
-  +-- main (flex-1, overflow-hidden, pb-20)
-       +-- scroll div (flex-1, overflow-y-auto)  <-- SCROLL CONTAINER
-            +-- motion.div (flex-1, flex-col)
-                 +-- EditorPage main (h-[calc(100dvh-10rem)])
-```
+The EditorPage sits inside AppShell's **scroll container** (a div with `overflow-y-auto`). In a scroll container, children are NOT constrained to the parent's height — they can grow beyond and scroll. This means:
 
-The problem: the scroll div has `overflow-y-auto`, making it a scroll container. In a scroll container, `flex-1` on children does NOT constrain them to the parent's height -- children can grow beyond and scroll. So EditorPage's `h-[calc(100dvh-10rem)]` creates a fixed-height box, but the `pb-20` on AppShell's `<main>` adds 80px of padding that appears as the black gap below.
+- `flex-1` on EditorPage does NOT force it to fill the container
+- `h-[calc(100dvh-2.5rem)]` creates a fixed box, but the AppShell header + safe-area padding means the available space is less than `100dvh - 2.5rem`, causing the editor to slightly overflow AND leaving a black gap visible when the page loads
 
-Additionally, `10rem = 160px` is too much offset -- the header is only 40px and bottom nav is 80px, so the editor ends up 40px too short.
+Additionally, the AppShell renders its own "WiseResume" header bar for the editor route, but the editor already has its own header. This wastes ~40px of vertical space.
 
-## The Fix (2 files)
+## The Fix (2 changes)
 
-### 1. AppShell: Don't apply pb-20 for editor route
-The `pb-20` bottom padding reserves space for the BottomTabBar, but the EditorPage already manages its own layout to account for the tab bar. The padding creates the visible black gap.
+### 1. Hide AppShell header on editor routes
 
-**File: `src/components/layout/AppShell.tsx` (lines 57-62)**
+The editor has its own header with back button, title, template picker, etc. The AppShell "WiseResume / Editor" header is redundant.
 
-For routes like `/editor` that manage their own height, skip `pb-20` on the `<main>` element:
+**File: `src/components/layout/AppShell.tsx` (line 44)**
 
-```tsx
-<main
-  id="main-content"
-  className={cn(
-    "flex-1 flex flex-col min-h-0 overflow-hidden",
-    showBottomNav && !isEditorRoute && "pb-20 lg:pb-0"
-  )}
->
-```
+Change `{showBottomNav && (` to `{showBottomNav && !isEditorRoute && (`
 
-Where `isEditorRoute = location.pathname.startsWith('/editor')`.
+This hides the duplicate header, giving the editor the full viewport minus only the bottom tab bar.
 
-### 2. EditorPage: Use 100dvh minus only header (40px)
-Since the editor now won't have `pb-20` from AppShell, the height calc only needs to subtract the AppShell header:
+### 2. EditorPage: use full viewport height, subtract nothing
+
+With no AppShell header above it, the editor container should use the full viewport height. The BottomTabBar is `position: fixed` and overlays on top, so no subtraction needed. The editor's own internal `pb-16` on the scroll area already provides clearance for the bottom tab bar.
 
 **File: `src/pages/EditorPage.tsx` (line 966)**
 
-```tsx
-Before: <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-10rem)]">
-After:  <main className="flex-1 flex flex-col overflow-hidden h-[calc(100dvh-2.5rem)]">
+Change from:
 ```
-
-`2.5rem = 40px` = AppShell header height. The BottomTabBar is `position: fixed` so it overlays on top and doesn't need height subtracted.
+h-[calc(100dvh-2.5rem)]
+```
+to:
+```
+h-[100dvh]
+```
 
 ## Summary
 
-| Change | File | Line | What |
-|--------|------|------|------|
-| Skip pb-20 for editor | `AppShell.tsx` | 59-62 | Prevent bottom padding from creating black gap |
-| Fix height calc | `EditorPage.tsx` | 966 | Use `h-[calc(100dvh-2.5rem)]` (only subtract header) |
+| # | File | Line | Change |
+|---|------|------|--------|
+| 1 | `AppShell.tsx` | 44 | Hide AppShell header for editor routes: `showBottomNav && !isEditorRoute && (` |
+| 2 | `EditorPage.tsx` | 966 | Use full viewport: `h-[100dvh]` instead of `h-[calc(100dvh-2.5rem)]` |
 
 No database changes. No new dependencies.
+
