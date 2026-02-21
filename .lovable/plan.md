@@ -1,135 +1,113 @@
 
 
-# Portfolio Tab -- Creative Jaw-Dropping Improvements
+# Settings Page Improvements
 
-## Current State
+## Issues Found
 
-The portfolio tab has solid foundations: 4 themes, accent colors, typewriter text, bio reveal, timeline with dots, skill cloud, career card, QR studio, and a chat widget. However, the public-facing portfolio and the editor both lack the "wow factor" that makes visitors remember a portfolio. Here's what's missing and how to fix it.
+### 1. Performance: 1305-line monolith component
+The entire settings page is a single 1305-line component with 12+ `useState` hooks for sheet/dialog state, multiple inline handlers, and helper components defined in the same file. This creates a large initial parse cost and makes maintenance difficult.
 
----
-
-## Proposed Improvements
-
-### 1. Live Preview Mini-Card in the Editor
-
-**Problem:** Users edit their portfolio blind -- they configure themes, colors, and fonts without seeing the result until they open the live URL. This is frustrating and creates a disconnect.
-
-**Solution:** Add a live preview mini-card inside the Hero section of the editor that shows a scaled-down snapshot of their portfolio's hero area (avatar, name, job title, accent color, theme background). It updates in real-time as they change appearance settings. This gives instant visual feedback without leaving the editor.
-
-**Technical approach:**
-- New component `src/components/portfolio/editor/LivePreviewCard.tsx`
-- Renders a 320px-wide scaled container with the user's avatar, name, job title, and current theme/accent/font applied using the same CSS variables as the public page
-- Placed inside the Hero card, just below the stats row
-- Uses `useMemo` to derive theme vars from current editor state
+**Fix:** Extract each settings section into its own component file (e.g., `AppearanceSection`, `NotificationsSection`, `PrivacySection`, `AccountSection`, `AboutSection`). Each section manages only its own sheet state. The main `SettingsPage` becomes a thin orchestrator (~150 lines).
 
 ---
 
-### 2. Animated Gradient Border on Avatar (Public Portfolio)
+### 2. Performance: Developer entrance animation on every mount
+Line 947-949: The `DeveloperCreditCard` has `motion.div` with `initial={{ opacity: 0, y: 20 }}` that animates every time the user visits settings. It's at the bottom of the page and the user won't see it until they scroll there.
 
-**Problem:** The avatar on the public portfolio has a static `conic-gradient` border with `animate-pulse` (infinite) on the glow layer -- it looks flat and the pulse wastes CPU.
-
-**Solution:** Replace the static conic-gradient + infinite pulse with a single CSS-animated rotating gradient border that spins once on page load (3s ease-out), then stops. This creates a cinematic "reveal" moment when the page loads.
-
-**Technical approach:**
-- Add a `@keyframes pf-avatar-spin` in `index.css` that rotates `conic-gradient` from 0deg to 360deg over 3s
-- Replace the `animate-pulse` div (line 451) with a CSS class `pf-avatar-ring` that runs the spin once
-- Remove the separate blur glow div -- the conic-gradient itself will have a subtle blur
+**Fix:** Replace with `whileInView` + `viewport={{ once: true }}` so it only animates when scrolled into view, and only once.
 
 ---
 
-### 3. Parallax Depth on Hero Section (Public Portfolio)
+### 3. Performance: Changelog fetches twice on mount
+Lines 168-184: The changelog is fetched once on mount (line 169) AND again when the dialog opens (line 179). The initial fetch is only needed to get the version number.
 
-**Problem:** The hero section is a flat gradient. It doesn't create any sense of depth or immersion.
-
-**Solution:** Add a subtle parallax shift to the hero ambient gradient based on scroll position. As the user scrolls, the radial gradient shifts upward slightly faster than the content, creating a gentle depth effect. This is purely CSS-driven using `background-attachment: fixed` or a lightweight scroll listener.
-
-**Technical approach:**
-- Add `transform: translateY(calc(var(--pf-scroll) * -0.15))` to `.pf-hero-ambient`
-- Update the scroll listener already in `PublicPortfolioPage.tsx` to set a CSS variable `--pf-scroll` on the root element
-- Respects `prefers-reduced-motion` by skipping the transform
+**Fix:** Fetch once on mount. When the dialog opens, only re-fetch if the data is empty or stale (>5 minutes old). This eliminates a redundant network request.
 
 ---
 
-### 4. Hover Tilt Effect on Project & Case Study Cards (Public Portfolio)
+### 4. UX: No search/jump-to-section
+With 8 sections and growing, users must scroll through everything to find a specific setting. Power users who frequently toggle one setting waste time scrolling.
 
-**Problem:** Project cards and case study cards are flat rectangles. They don't feel interactive or premium.
-
-**Solution:** Add a subtle 3D tilt effect on hover (desktop) using CSS `perspective` and `transform: rotateX/rotateY`. On mobile, skip the effect entirely for performance. This is the same technique used in the `DeveloperCreditCard` but lighter (max 3deg tilt).
-
-**Technical approach:**
-- New CSS class `pf-card-tilt` in `index.css` with `perspective: 800px` on the parent
-- On `mousemove`, calculate rotation based on cursor position relative to card center
-- Apply via a reusable `useTilt` hook or inline pointer handler on `ProjectCard` and `CaseStudyCard`
-- Desktop only: wrap in `@media (hover: hover)` and respect reduced motion
+**Fix:** Add a sticky section index (horizontal scrollable chips) below the header showing section names (Appearance, AI, Editor, Notifications, Privacy, Account, About). Tapping a chip smooth-scrolls to that section using `scrollIntoView`. The active chip highlights based on scroll position using `IntersectionObserver`.
 
 ---
 
-### 5. Animated Section Dividers (Public Portfolio)
+### 5. UX: Account stats card is too basic
+The account stats card (lines 792-812) shows just 3 numbers in a flat grid. It doesn't feel special or reward loyalty.
 
-**Problem:** Sections (Experience, Skills, Projects, etc.) transition into each other with no visual separation. The `SectionHeader` is just text + icon.
-
-**Solution:** Add a subtle animated accent line that draws itself (from left to right) when the section scrolls into view. This uses the existing `IntersectionObserver` pattern already established in the codebase.
-
-**Technical approach:**
-- Update `SectionHeader.tsx` to include a `<div className="pf-section-line">` below the title
-- CSS: `pf-section-line` has `transform: scaleX(0)` by default, and a `.pf-section-line-drawn` class that transitions to `scaleX(1)` with `transform-origin: left`
-- The existing section IntersectionObserver adds the class when the section enters view
+**Fix:** Add a subtle accent-colored border to the stats card, show a "membership tier" label based on account age (e.g., "Early Adopter" for 6+ months, "Founding Member" for 12+), and animate the numbers with a count-up effect on first view (same pattern as portfolio HighlightsStrip).
 
 ---
 
-### 6. Skill Cloud Hover Glow (Public Portfolio)
+### 6. UX: AI Credits row has no quick action
+The `AICreditsRow` (lines 1285-1305) shows usage but offers no way to act on it. When credits are low, users have to figure out themselves that they should switch to a BYOK key.
 
-**Problem:** The skill cloud tags are static pills. For a "jaw-dropping" portfolio, skills should feel alive and interactive.
-
-**Solution:** On desktop hover, add a radial glow behind the hovered skill tag using the accent color. The glow fades in smoothly and creates a spotlight effect.
-
-**Technical approach:**
-- CSS only: `.pf-skill-tag:hover` with `box-shadow: 0 0 20px -4px var(--pf-accent)` and `border-color: var(--pf-accent)` with a 200ms transition
-- Wrapped in `@media (hover: hover)` so mobile isn't affected
+**Fix:** When usage is above 80%, show a subtle "Switch to your own key for unlimited" link that opens the AI Settings sheet. Add a color transition to the progress bar (green -> amber -> red) based on usage percentage.
 
 ---
 
-### 7. Testimonials / Social Proof Section (Editor + Public)
+### 7. UX: Privacy section lacks a "privacy summary" status
+Users toggle Local-Only and Analytics on/off but have no quick way to see their overall privacy posture at a glance.
 
-**Problem:** There's no way for users to add testimonials or quotes from colleagues/clients. This is a major gap for freelancers and consultants -- social proof is the single highest-conversion element on a portfolio.
-
-**Solution:** Add a new optional "Testimonials" section in the editor (alongside Case Studies and Services) that allows users to add 1-3 short quotes with author name, title, and optional avatar URL. On the public portfolio, these render as elegant quote cards with large quotation marks.
-
-**Technical approach:**
-- Add `testimonials` array to the `portfolioExtras` JSON (same pattern as `caseStudies` and `services`)
-- New editor section in `PortfolioEditorPage.tsx` under the "Add more sections" toggle
-- New `TestimonialCard.tsx` component in `src/components/portfolio/public/cards/`
-- Renders with a large decorative quote mark, the text, and author info below
-- Limit to 3 testimonials to keep it curated
+**Fix:** Add a small privacy status badge next to the section header (e.g., "Strict" when local-only is on + analytics off, "Standard" otherwise). This gives users instant feedback without expanding the section.
 
 ---
 
-### 8. "Highlight Reel" -- Pinned Metrics Strip (Editor + Public)
+### 8. Styling: Section headers lack visual anchoring
+All section headers use the same `text-label uppercase tracking-wider` style. They're functional but don't create a strong visual hierarchy between sections.
 
-**Problem:** Users have no way to showcase key achievement numbers (e.g., "50+ projects delivered", "10 years experience", "3 startups built"). The `StatsStrip` auto-computes from resume data but users can't customize it.
+**Fix:** Add a subtle left accent bar (2px wide, primary color, rounded) to each section header, similar to the classic-clean portfolio theme. This creates a consistent visual anchor point as users scroll.
 
-**Solution:** Add 1-3 custom "highlight" metrics in the editor that display as a bold animated counter strip on the public portfolio, below the existing auto-computed StatsStrip. Users type a number and a label.
+---
 
-**Technical approach:**
-- Add `highlights` array to `portfolioExtras` (each: `{ id, value: string, label: string }`)
-- New editor fields in the Profile section
-- On the public portfolio, render below `StatsStrip` using the same ref-based counter animation
-- Limit to 3 highlights
+## Proposed Changes
+
+### File: `src/pages/SettingsPage.tsx`
+
+**Add section index chips:**
+- Below the header, add a horizontally scrollable row of section chips
+- Each chip uses `document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' })`
+- Track active section via `IntersectionObserver` on each `section-*` element
+- Sticky below the header with `glass-header` backdrop blur
+
+**Fix Developer card animation:**
+- Line 947: Change `initial/animate` to `whileInView` with `viewport={{ once: true }}`
+
+**Fix changelog double-fetch:**
+- Remove the `useEffect` at lines 175-184
+- In the existing mount fetch (lines 168-173), store a timestamp
+- When dialog opens, only re-fetch if data is empty or >5 min old
+
+**Enhance section headers:**
+- Add a `<div className="w-1 h-5 rounded-full bg-primary/40 mr-1" />` before each section title icon
+
+**Enhance AI Credits row:**
+- Add color-coded progress bar: green (<60%), amber (60-80%), red (>80%)
+- When >80%, show a subtle text link: "Get unlimited" that opens AI settings sheet
+- Pass `setAISettingsOpen` to the `AICreditsRow` component
+
+**Enhance Account stats:**
+- Add count-up animation using `IntersectionObserver` (same pattern as portfolio)
+- Calculate membership tier based on `user.created_at` age
+- Add accent border to the stats card
+
+**Add privacy status badge:**
+- Next to "Privacy & Security" header, show a `Badge` that reads "Strict" or "Standard" based on `localOnlyMode` and `analyticsEnabled` values
 
 ---
 
 ## Summary
 
-| # | Feature | Where | Impact |
-|---|---------|-------|--------|
-| 1 | Live Preview Mini-Card | Editor | Instant visual feedback |
-| 2 | Animated Avatar Ring | Public | Cinematic first impression |
-| 3 | Parallax Hero Depth | Public | Immersive feel |
-| 4 | Card Tilt on Hover | Public | Premium interactivity |
-| 5 | Animated Section Lines | Public | Visual rhythm |
-| 6 | Skill Tag Hover Glow | Public | Interactive polish |
-| 7 | Testimonials Section | Both | Social proof (high-conversion) |
-| 8 | Custom Highlight Metrics | Both | Personalized impact numbers |
+| # | Area | Issue | Fix |
+|---|------|-------|-----|
+| 1 | Architecture | 1305-line monolith | Extract sections into sub-components |
+| 2 | Performance | Developer card animates every mount | Use whileInView once |
+| 3 | Performance | Changelog fetches twice | Deduplicate with staleness check |
+| 4 | UX | No section navigation | Add sticky section index chips |
+| 5 | UX | Basic account stats | Count-up animation + membership tier |
+| 6 | UX | AI credits row is passive | Color-coded bar + "Get unlimited" CTA |
+| 7 | UX | No privacy summary | Badge showing "Strict" / "Standard" |
+| 8 | Styling | Flat section headers | Left accent bar for visual anchoring |
 
-All features respect `prefers-reduced-motion`, are mobile-first (tilt/parallax desktop-only), and follow existing code patterns. No new dependencies required.
+All changes maintain existing functionality. Section extraction (item 1) is the highest-impact change for maintainability but also the most invasive -- it can be done incrementally, starting with the largest sections (Notifications, Privacy, Account).
 
