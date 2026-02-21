@@ -218,7 +218,7 @@ function InterviewPageContent() {
           <h2 className="font-semibold text-lg mb-1 text-foreground">No Resume Selected</h2>
           <p className="text-sm text-muted-foreground max-w-xs">Select or create a resume from your dashboard to start interview practice.</p>
         </div>
-        <Button onClick={() => navigate('/dashboard')} className="min-h-[48px] px-6">
+        <Button onClick={() => navigate('/ai-studio')} className="min-h-[48px] px-6">
           Go to Dashboard
         </Button>
       </div>
@@ -234,7 +234,7 @@ function InterviewPageContent() {
           duration={elapsedSeconds}
           scores={scores}
           onRestart={() => { setSessionSaved(false); handleReset(); }}
-          onGoHome={() => navigate('/dashboard')}
+          onGoHome={() => navigate('/ai-studio')}
           onShowTips={() => setShowTips(true)}
         />
         <InterviewTipsSheet open={showTips} onOpenChange={setShowTips} />
@@ -272,7 +272,7 @@ function InterviewPageContent() {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <button onClick={() => navigate('/dashboard')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
+          <button onClick={() => navigate('/ai-studio')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2 flex-1">
@@ -309,7 +309,7 @@ function InterviewPageContent() {
       {/* Premium glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/dashboard')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
+          <button onClick={() => navigate('/ai-studio')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
             <ArrowLeft className="w-5 h-5 text-foreground" />
           </button>
           <div className="flex items-center gap-2">
