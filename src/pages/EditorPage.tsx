@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, lazy, Suspense, CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
 import { logAudit } from '@/lib/auditLogger';
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -963,7 +964,7 @@ export default function EditorPage() {
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (
-    <main className="flex-1 flex flex-col overflow-hidden h-[100dvh]">
+    <main className="flex-1 flex flex-col overflow-hidden">
       {/* Header */}
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
@@ -1217,36 +1218,6 @@ export default function EditorPage() {
               >
                 {renderEditorContent()}
               </div>
-              {/* Compact bottom action bar — icon-only to save vertical space */}
-              <div className="shrink-0 border-t border-border px-3 py-px pb-[max(2px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1 keyboard-hide bg-background/95 backdrop-blur-sm" style={{ minHeight: 28 }}>
-                <Button
-                  size="sm"
-                  disabled={isQuickDownloading}
-                  className="h-7 rounded-lg text-[11px] gap-1 min-h-[28px] touch-manipulation active:scale-95 flex-1"
-                  onClick={handleQuickDownload}
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  {isQuickDownloading ? 'Saving…' : 'PDF'}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 rounded-lg text-[11px] gap-1 min-h-[28px] touch-manipulation active:scale-95"
-                  onClick={() => { haptics.light(); setMobileEditorTab('preview'); }}
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  Preview
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 rounded-lg text-[11px] gap-1 min-h-[28px] touch-manipulation active:scale-95"
-                  onClick={() => { haptics.light(); setMobileEditorTab('ats'); }}
-                >
-                  <BarChart3 className="w-3.5 h-3.5" />
-                  ATS
-                </Button>
-              </div>
             </TabsContent>
             <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               {mobileEditorTab === 'preview' && (
@@ -1459,6 +1430,40 @@ export default function EditorPage() {
             handleMoreSectionSelect(sectionId);
           }}
         />
+      )}
+
+      {/* Floating action pill (mobile editor tab only) */}
+      {isMobile && mobileEditorTab === 'editor' && createPortal(
+        <div className="fixed bottom-[7rem] left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 rounded-full bg-background/90 backdrop-blur-xl border border-border/50 shadow-lg">
+          <Button
+            size="sm"
+            disabled={isQuickDownloading}
+            className="h-8 rounded-full text-xs gap-1 min-h-[32px] touch-manipulation active:scale-95"
+            onClick={handleQuickDownload}
+          >
+            <Download className="w-3.5 h-3.5" />
+            {isQuickDownloading ? 'Saving…' : 'PDF'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full text-xs gap-1 min-h-[32px] touch-manipulation active:scale-95"
+            onClick={() => { haptics.light(); setMobileEditorTab('preview'); }}
+          >
+            <Eye className="w-3.5 h-3.5" />
+            Preview
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full text-xs gap-1 min-h-[32px] touch-manipulation active:scale-95"
+            onClick={() => { haptics.light(); setMobileEditorTab('ats'); }}
+          >
+            <BarChart3 className="w-3.5 h-3.5" />
+            ATS
+          </Button>
+        </div>,
+        document.body
       )}
     </main>
   );
