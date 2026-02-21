@@ -1,40 +1,58 @@
 
-# Fix Sign-Out Audit Gap in DashboardPage
 
-## Problem
+# Add Real-Time Keyword Optimization Suggestions While Editing
 
-The `DashboardPage.tsx` has a sign-out button (inside a popover menu) that calls `supabase.auth.signOut()` directly, bypassing the `useAuth().signOut()` wrapper. This means sign-outs triggered from the Dashboard are **not** recorded in audit logs.
+## Overview
 
-All other sign-out paths (Settings page, Landing page, post-data-deletion) correctly use `useAuth().signOut()`, which already calls `logAudit('auth', 'signed_out')`.
-
-Data deletion is already fully instrumented in `DeleteDataDialog.tsx` -- no changes needed there.
+The existing `useATSSuggestions` hook currently only generates `missing_keyword` suggestions (comparing job description keywords against resume content). The `ATSSuggestion` interface already defines `weak_verb`, `add_metrics`, and `formatting` types, but they are never produced client-side. This plan adds real-time, client-side detection for these additional suggestion types so users get actionable tips as they type -- no AI call required.
 
 ## What Changes
 
-### File: `src/pages/DashboardPage.tsx` (lines 584-588)
+### File: `src/hooks/useATSSuggestions.ts`
 
-Replace the direct `supabase.auth.signOut()` call with the `signOut` function from `useAuth()`:
+Expand the `useMemo` block (lines 111-147) that computes `suggestions` to also detect:
 
-**Before:**
-```typescript
-onClick={async () => {
-  haptics.warning();
-  await supabase.auth.signOut();
-  navigate('/');
-}}
-```
+1. **Weak verbs** (`weak_verb` type, `experience` section only)
+   - Scan each experience bullet/description for lines starting with passive voice ("responsible for", "helped with", "assisted in", etc.) using the same patterns already in `useResumeNudges.ts`
+   - Generate a suggestion like: "Use strong action verbs instead of 'responsible for'"
+   - Priority: `medium`
 
-**After:**
-```typescript
-onClick={async () => {
-  haptics.warning();
-  await signOut();
-  navigate('/');
-}}
-```
+2. **Missing metrics** (`add_metrics` type, `experience` section only)
+   - Detect experience entries whose description lacks any numbers (`/\d+/`)
+   - Generate a suggestion like: "Add quantifiable results (e.g., 'increased sales by 20%')"
+   - Priority: `medium`
 
-This ensures the Dashboard sign-out goes through the same `AuthContext.signOut()` path that logs the audit entry, resets internal refs, and clears state -- matching every other sign-out trigger in the app.
+3. **Formatting issues** (`formatting` type, any section)
+   - Detect overly long bullet points (>150 characters without line breaks) in experience descriptions
+   - Detect summaries exceeding 500 characters (may hurt ATS parsability)
+   - Priority: `low`
 
-If `signOut` is not already destructured from `useAuth()` in this component, that destructuring will also be added.
+These suggestions appear **without a job description** (unlike keyword suggestions which require one). They are computed purely client-side via `useMemo`, so they update instantly as the user types.
 
-**One file, one line changed.** No new dependencies, no new audit calls needed -- the existing `logAudit('auth', 'signed_out')` in `AuthContext` covers it once we route through the correct function.
+### File: `src/components/editor/ATSInlineSuggestions.tsx`
+
+1. Update the component to also render when there is no job description but content-quality suggestions exist
+2. Change the header label from "ATS Tips" to a contextual label: "ATS Tips" when job description is present, "Writing Tips" otherwise
+3. Add type-specific icons: use `Zap` for `weak_verb`, `Info` for `add_metrics`, keep existing priority-based icons for keywords
+
+### File: `src/pages/EditorPage.tsx`
+
+Remove the `{jobDescription && ...}` guard around `ATSInlineSuggestions` for the `experience` and `summary` sections so content-quality suggestions appear even without a job description. The component itself will return `null` when there are no suggestions.
+
+## Technical Details
+
+- All new detections reuse the passive-verb list and metrics regex already defined in `useResumeNudges.ts`. To avoid duplication, extract `PASSIVE_STARTERS`, `hasPassiveVerbs`, and `hasMetrics` into a shared `src/lib/contentAnalysis.ts` utility and import from both hooks.
+- Cap content-quality suggestions at 3 per section (separate from the 5-per-section keyword cap) to avoid overwhelming the UI.
+- Suggestions are deduplicated by `id` pattern: `{section}-{type}-{index}`.
+- No new dependencies, no API calls, no database changes.
+
+## File Summary
+
+| File | Change |
+|------|--------|
+| `src/lib/contentAnalysis.ts` | **New** -- shared helpers: `PASSIVE_STARTERS`, `hasPassiveVerbs`, `hasMetrics`, `hasLongBullets` |
+| `src/hooks/useATSSuggestions.ts` | Add `weak_verb`, `add_metrics`, `formatting` detection in `useMemo` |
+| `src/hooks/useResumeNudges.ts` | Import shared helpers from `contentAnalysis.ts` instead of inline definitions |
+| `src/components/editor/ATSInlineSuggestions.tsx` | Contextual header label, render without job description |
+| `src/pages/EditorPage.tsx` | Remove `{jobDescription && ...}` guard on experience/summary `ATSInlineSuggestions` |
+
