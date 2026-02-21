@@ -14,6 +14,7 @@ interface LoginFormProps {
   onSubmit: (email: string, password: string) => Promise<void>;
   onForgotPassword: () => void;
   onSwitchToSignup: () => void;
+  onMagicLink: () => void;
   onGoogleSignIn: () => void;
   onAppleSignIn: () => void;
   isLoading: boolean;
@@ -22,7 +23,7 @@ interface LoginFormProps {
 }
 
 export function LoginForm({
-  onSubmit, onForgotPassword, onSwitchToSignup,
+  onSubmit, onForgotPassword, onSwitchToSignup, onMagicLink,
   onGoogleSignIn, onAppleSignIn,
   isLoading, isSlowConnection, socialLoading,
 }: LoginFormProps) {
@@ -73,7 +74,10 @@ export function LoginForm({
           show={showPassword} onToggleShow={() => setShowPassword(!showPassword)}
           error={passwordError} touched={touched.password} required
         />
-        <div className="text-right">
+        <div className="flex items-center justify-between">
+          <button type="button" onClick={onMagicLink} className="text-sm text-muted-foreground hover:text-primary transition-colors touch-manipulation">
+            Sign in with email link
+          </button>
           <button type="button" onClick={onForgotPassword} className="text-sm text-muted-foreground hover:text-primary transition-colors touch-manipulation">
             Forgot password?
           </button>

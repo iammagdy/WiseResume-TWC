@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { logAudit } from '@/lib/auditLogger';
+import { MagicLinkForm } from '@/components/auth/MagicLinkForm';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { PasswordInput } from '@/components/auth/PasswordInput';
@@ -31,7 +32,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
 const COOLDOWN_KEY = 'wr-auth-cooldown';
 
-type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
+type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'magic-link';
 
 // Retry helper for transient network errors
 async function withNetworkRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
@@ -264,6 +265,30 @@ export default function AuthPage() {
     finally { setIsLoading(false); }
   };
 
+  const handleMagicLink = async (email: string) => {
+    if (!navigator.onLine) { toast.error("You're offline — please check your connection and try again."); return; }
+    setIsLoading(true);
+    setIsSlowConnection(false);
+    const slowTimer = setTimeout(() => setIsSlowConnection(true), 15_000);
+    try {
+      const { error } = await withNetworkRetry(() =>
+        supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: `${window.location.origin}/auth/callback` } })
+      );
+      if (error) { haptics.error(); toast.error(error.message); return; }
+      logAudit('auth', 'magic_link_requested', { method: 'magic_link' });
+      toast.success('Check your email for the sign-in link!');
+      setMode('login');
+    } catch (err) {
+      const isNetworkErr = err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
+      haptics.error();
+      toast.error(isNetworkErr ? 'Connection failed — check your network and try again.' : 'Something went wrong. Please try again.');
+    } finally {
+      clearTimeout(slowTimer);
+      setIsSlowConnection(false);
+      setIsLoading(false);
+    }
+  };
+
   const handleGoogleSignIn = async () => {
     setSocialLoading('google');
     logAudit('auth', 'login_attempted', { method: 'google' });
@@ -280,6 +305,7 @@ export default function AuthPage() {
 
   const isForgotPassword = mode === 'forgot-password';
   const isResetPassword = mode === 'reset-password';
+  const isMagicLink = mode === 'magic-link';
   const resetPasswordError = getResetPasswordError();
   const forgotEmailError = !forgotEmail ? 'Email is required' : (() => { try { emailSchema.parse(forgotEmail); return undefined; } catch { return 'Please enter a valid email'; } })();
 
@@ -307,10 +333,10 @@ export default function AuthPage() {
           {/* Header */}
           <div className="text-center mb-6">
             <h1 className="text-2xl font-display font-bold mb-1">
-              {isResetPassword ? 'Set New Password' : isForgotPassword ? 'Reset Password' : mode === 'login' ? 'Welcome Back' : 'Create Account'}
+              {isResetPassword ? 'Set New Password' : isForgotPassword ? 'Reset Password' : isMagicLink ? 'Sign In with Email Link' : mode === 'login' ? 'Welcome Back' : 'Create Account'}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {isResetPassword ? 'Enter your new password below' : isForgotPassword ? "We'll send you a reset link" : mode === 'login' ? 'Sign in to access your resumes' : 'Sign up to save your work'}
+              {isResetPassword ? 'Enter your new password below' : isForgotPassword ? "We'll send you a reset link" : isMagicLink ? "We'll send a link to your inbox" : mode === 'login' ? 'Sign in to access your resumes' : 'Sign up to save your work'}
             </p>
           </div>
 
@@ -362,11 +388,19 @@ export default function AuthPage() {
                 </button>
               </div>
             </form>
+          ) : isMagicLink ? (
+            <MagicLinkForm
+              onSubmit={handleMagicLink}
+              onBackToLogin={() => setMode('login')}
+              isLoading={isLoading}
+              isSlowConnection={isSlowConnection}
+            />
           ) : mode === 'login' ? (
             <LoginForm
               onSubmit={handleLoginSubmit}
               onForgotPassword={() => setMode('forgot-password')}
               onSwitchToSignup={() => setMode('signup')}
+              onMagicLink={() => setMode('magic-link')}
               onGoogleSignIn={handleGoogleSignIn}
               onAppleSignIn={handleAppleSignIn}
               isLoading={isLoading}
