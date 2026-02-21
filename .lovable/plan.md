@@ -1,87 +1,107 @@
 
 
-# Add Passwordless Login with Email Magic Links
+# User Profile Improvements
 
 ## Overview
 
-Add a "Sign in with email link" option to the login form, allowing users to receive a magic link via email and sign in without entering a password. This integrates with the existing authentication system using the built-in `signInWithOtp` method.
+After reviewing the profile system (`useProfile`, `EditProfileSheet`, `ProfilePage`, `SettingsPage`), here are targeted improvements to make profiles more complete, useful, and polished.
 
-## Changes
+---
 
-### 1. Update `AuthMode` Type
-**File:** `src/pages/AuthPage.tsx`
+## 1. Smarter Profile Completion Calculation
 
-Add `'magic-link'` to the `AuthMode` union type:
-```typescript
-type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'magic-link';
+**Problem:** `calculateProfileCompletion` only checks 7 basic fields (name, avatar, job title, industry, career level, location, LinkedIn). It ignores phone number, portfolio setup, and resume content -- giving users 100% even with a mostly empty profile.
+
+**Fix:** Weight the calculation to include phone number and portfolio bio, and add a "bonus" tier for portfolio setup:
+
+```text
+Core fields (70%): fullName, avatarUrl, jobTitle, industry, careerLevel, location, linkedinUrl
+Extended fields (30%): phoneNumber, portfolioBio, contactEmail
 ```
 
-### 2. Add Magic Link Handler
-**File:** `src/pages/AuthPage.tsx`
+**File:** `src/hooks/useProfile.ts` -- update `calculateProfileCompletion`
 
-Add a new handler function `handleMagicLink` that:
-- Validates the email with the existing Zod schema
-- Calls `supabase.auth.signInWithOtp({ email, options: { emailRedirectTo } })`
-- Wraps in `withNetworkRetry` for resilience
-- Logs `logAudit('auth', 'magic_link_requested', { method: 'magic_link' })`
-- Shows a toast: "Check your email for the sign-in link!"
-- Switches view back to login mode after success
+---
 
-### 3. Create `MagicLinkForm` Component
-**File:** `src/components/auth/MagicLinkForm.tsx` (new)
+## 2. Auto-Save on Edit Profile Sheet
 
-A simple form containing:
-- Email input field (reuses `InputFormField`)
-- "Send Magic Link" submit button with loading state
-- "Back to Sign In" link
-- Slow-connection warning (same pattern as other forms)
+**Problem:** Users must manually tap "Save Changes" after editing. If they swipe the sheet closed, changes are lost silently.
 
-Props:
-```typescript
-interface MagicLinkFormProps {
-  onSubmit: (email: string) => Promise<void>;
-  onBackToLogin: () => void;
-  isLoading: boolean;
-  isSlowConnection: boolean;
-}
+**Fix:** Add debounced auto-save (1.5s after last change) with a subtle "Saved" indicator, matching the pattern already used for avatar uploads. Keep the explicit Save button as a "save and close" action.
+
+**File:** `src/components/settings/EditProfileSheet.tsx`
+
+---
+
+## 3. Profile Page -- Show Job Title and Location
+
+**Problem:** The Profile Page (`ProfilePage.tsx`) shows the user's name and email but not their job title or location, even though these are stored in the profile.
+
+**Fix:** Add job title below the name and location as a subtle badge with a MapPin icon.
+
+**File:** `src/pages/ProfilePage.tsx`
+
+---
+
+## 4. Actionable Completion Tips
+
+**Problem:** When profile completion is below 100%, the message is generic ("Complete your profile to unlock more features"). Users don't know which specific field to fill.
+
+**Fix:** Show the next missing field as a specific, tappable hint:
+- "Add your job title to get better AI suggestions" (taps to focus the field)
+- "Upload a photo to personalize your profile"
+
+**Files:** `src/components/settings/EditProfileSheet.tsx`, `src/pages/ProfilePage.tsx`
+
+---
+
+## 5. Profile Export / Summary Card
+
+**Problem:** No way to quickly share or view a summary of profile data outside the portfolio.
+
+**Fix:** Add a "Copy Profile Summary" action on the Profile Page that copies a formatted text block:
+```
+Jane Doe -- Senior Software Engineer
+Location: San Francisco, CA
+Industry: Technology
+LinkedIn: linkedin.com/in/janedoe
 ```
 
-### 4. Add Magic Link Toggle to Login Form
-**File:** `src/components/auth/LoginForm.tsx`
+**File:** `src/pages/ProfilePage.tsx`
 
-Add a new prop `onMagicLink: () => void` and render a button below the "Forgot password?" link:
-```
-Sign in with email link (no password needed)
-```
-Styled as a subtle text button matching the existing "Forgot password?" style.
+---
 
-### 5. Wire Up in AuthPage
-**File:** `src/pages/AuthPage.tsx`
+## 6. Validate LinkedIn URL Format
 
-- Add magic-link form state (`magicLinkEmail`, `magicLinkTouched`)
-- Render `MagicLinkForm` when `mode === 'magic-link'`
-- Pass `onMagicLink={() => setMode('magic-link')}` to `LoginForm`
-- Update header text for magic-link mode: title "Sign In with Email Link", subtitle "We'll send a link to your inbox"
+**Problem:** The LinkedIn field in EditProfileSheet prepends `https://linkedin.com/in/` but doesn't validate the username portion (allows spaces via `.replace(/\s/g, '')` but not other invalid characters).
 
-### 6. Handle Magic Link Callback
-**File:** `src/pages/AuthCallbackPage.tsx`
+**Fix:** Add regex validation to reject special characters and show an inline error for invalid usernames.
 
-No changes needed -- the existing callback already handles hash-fragment tokens and PKCE code exchange, which covers magic link callbacks.
+**File:** `src/components/settings/EditProfileSheet.tsx`
 
-## Technical Details
+---
 
-- Uses `supabase.auth.signInWithOtp()` which sends a magic link email via the built-in auth system
-- `emailRedirectTo` set to `window.location.origin + '/auth/callback'` (same as signup)
-- Audit logging: `magic_link_requested` event with `{ method: 'magic_link' }`
-- No database changes required
-- No new dependencies
+## 7. Profile Last Updated Timestamp
+
+**Problem:** Users can't see when their profile was last modified. The `updated_at` column exists in the database but isn't surfaced.
+
+**Fix:** Show "Last updated 3 days ago" on the Profile Page using the `updated_at` field from the profiles table. Requires adding `updated_at` to the `fetchProfile` select query and the `Profile` interface.
+
+**Files:** `src/hooks/useProfile.ts`, `src/pages/ProfilePage.tsx`
+
+---
 
 ## Summary
 
-| Change | File | Type |
-|--------|------|------|
-| New `MagicLinkForm` component | `src/components/auth/MagicLinkForm.tsx` | Create |
-| Add magic-link mode + handler | `src/pages/AuthPage.tsx` | Edit |
-| Add "email link" toggle button | `src/components/auth/LoginForm.tsx` | Edit |
-| Files changed | 3 (1 new, 2 edited) | -- |
+| # | Improvement | Files | Effort |
+|---|------------|-------|--------|
+| 1 | Smarter completion calculation | `useProfile.ts` | Low |
+| 2 | Auto-save on edit sheet | `EditProfileSheet.tsx` | Medium |
+| 3 | Show job title/location on profile page | `ProfilePage.tsx` | Low |
+| 4 | Actionable completion tips | `EditProfileSheet.tsx`, `ProfilePage.tsx` | Low |
+| 5 | Copy profile summary | `ProfilePage.tsx` | Low |
+| 6 | LinkedIn URL validation | `EditProfileSheet.tsx` | Low |
+| 7 | Last updated timestamp | `useProfile.ts`, `ProfilePage.tsx` | Low |
+
+No database migrations needed -- all fields already exist. No new dependencies.
 
