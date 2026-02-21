@@ -1,54 +1,105 @@
 
 
-# Navigation Audit: Fix Misrouted Buttons Across the App
+# Reorganize AI Studio for Better Feature Discoverability
 
-After a thorough review of every page, back button, and action button in the app, here are the issues found and the fixes needed.
+## The Problem
+The AI Studio tab currently has several discoverability issues:
+- **Hidden features**: Cover Letters and Resignation Letters have full pages but aren't listed anywhere in AI Studio -- users may never find them
+- **Inconsistent patterns**: Some tools open as bottom sheets (Proofread, Enhance, LinkedIn, etc.) while others navigate to pages (Interview, Career) -- confusing UX
+- **Collapsed by default**: 9 tools are tucked inside a "More AI Tools" collapsible, making them easy to miss
+- **No history/persistence**: Sheet-based tools (Proofread, Enhance, LinkedIn) disappear after closing -- no way to revisit results
+- **Career page back button**: Still navigates to `/dashboard` instead of `/ai-studio`
+
+## The Solution
+Reorganize AI Studio into a clear, scannable grid of ALL features grouped by purpose, with every feature visible on first load (no collapsible). Add Cover Letters and Resignation Letters as first-class entries. Keep tools that are quick actions as sheets, but ensure navigation-based tools (Interview, Career, Cover Letters, Resignation Letters) are clearly linked.
 
 ---
 
-## Issues Found
+## Changes
 
-### 1. Interview Page: Back button goes to `/dashboard` instead of staying within its tab group
-The Interview page is grouped under the **AI Tools** tab (its `matchPaths` includes `/interview` in `DesktopNav`), but its back button navigates to `/dashboard`. The `BACK_ROUTES` map also sends `/interview` to `/dashboard`. It should go to `/ai-studio` to stay consistent with the tab hierarchy.
+### 1. Restructure tool categories to include ALL features
 
-**Affected files:**
-- `src/lib/navigation.ts` -- change `'/interview': '/dashboard'` to `'/interview': '/ai-studio'`
-- `src/pages/InterviewPage.tsx` -- change all `navigate('/dashboard')` back-button calls to `navigate('/ai-studio')` (3 occurrences: setup header, active header, no-resume state)
+Replace the current "Featured Tools" + collapsible "More AI Tools" layout with a single flat grid organized into 4 clear sections, all visible without scrolling past a fold:
 
-### 2. Cover Letters Page: Back button goes to `/dashboard` instead of `/ai-studio`
-Cover Letters is grouped under the AI Tools tab (`/cover-letters` is in AI Tools `matchPaths`), but its back button goes to `/dashboard`. Should go to `/ai-studio`.
+**Resume Tools** (work on your resume)
+- Smart Tailor -- sheet (existing)
+- Proofread -- sheet (existing)
+- Enhance -- sheet (existing)
+- 1-Page Wizard -- sheet (existing)
+- Humanize -- sheet (existing)
 
-**Affected files:**
-- `src/lib/navigation.ts` -- change `'/cover-letters': '/dashboard'` to `'/cover-letters': '/ai-studio'`
-- `src/pages/CoverLettersPage.tsx` -- change `navigate('/dashboard')` to `navigate('/ai-studio')` (line 93)
+**Job Analysis** (match to jobs)
+- Job Match Analysis -- sheet (existing)
+- A/B Compare -- sheet (existing)
+- Recruiter Sim -- sheet (existing)
 
-### 3. Resignation Letters Page: Back button goes to `/dashboard` instead of `/ai-studio`
-Same issue as Cover Letters -- grouped under AI Tools tab but back goes to dashboard.
+**Career Growth** (plan your future)
+- Interview Practice -- navigates to `/interview`
+- Career Plan -- navigates to `/career`
+- LinkedIn Optimizer -- sheet (existing)
+- Company Briefing -- sheet (existing)
 
-**Affected files:**
-- `src/lib/navigation.ts` -- change `'/resignation-letters': '/dashboard'` to `'/resignation-letters': '/ai-studio'`
-- `src/pages/ResignationLettersPage.tsx` -- change `navigate('/dashboard')` to `navigate('/ai-studio')` (line 63)
+**Documents** (generate letters) -- NEW section
+- Cover Letters -- navigates to `/cover-letters`
+- Resignation Letters -- navigates to `/resignation-letters`
 
-### 4. Portfolio Editor Page: Back button goes to `/dashboard` instead of staying on `/portfolio`
-The Portfolio page has its own bottom tab, so pressing back from the Portfolio editor should not jump to dashboard. However, since `/portfolio` IS the tab itself and there's no parent above it, `/dashboard` is acceptable. **No change needed** -- this is correct behavior (portfolio IS a top-level tab).
+### 2. Fix CareerPage back button
 
-### 5. Landing Page "AI Tailor" Quick Action routes to `/editor` instead of `/ai-studio?tool=tailor`
-In `QuickActions.tsx`, the "AI Tailor" card navigates to `/editor` with `createBlank: true`, which dumps the user into a blank editor. It should navigate to the AI Studio tailor tool instead.
+File: `src/pages/CareerPage.tsx`
+- Change `navigate('/dashboard')` to `navigate('/ai-studio')` (line 96)
 
-**Affected file:**
-- `src/components/landing/QuickActions.tsx` -- change the "AI Tailor" action route from `/editor` to `/ai-studio?tool=tailor` and remove `createBlank: true`
+### 3. Remove the collapsible wrapper
 
-### 6. BottomTabBar: `/interview` missing from AI Tools `matchPaths`
-In `BottomTabBar.tsx`, the AI Tools tab `matchPaths` does NOT include `/interview`, so when the user is on the Interview page, no tab appears active. The `DesktopNav` correctly includes it.
+File: `src/pages/AIStudioPage.tsx`
+- Remove the `Collapsible` / "More AI Tools" section entirely
+- Display all tools in a single scrollable grid with section headers
+- Each tool card shows: icon, name, short description, and cost badge
+- Use a consistent 2-column grid (3 on tablet, 4 on desktop)
 
-**Affected file:**
-- `src/components/layout/BottomTabBar.tsx` -- add `'/interview'` to the AI Tools tab `matchPaths` array
+### 4. Keep Wise AI Chat prominent at top
 
-### 7. Update navigation test to reflect new back routes
-The test file checks that `/interview` goes to `/dashboard` -- needs updating.
+The Wise AI Chat button stays at the top as the primary CTA, followed by the tool grid sections.
 
-**Affected file:**
-- `src/lib/navigation.test.ts` -- update test expectations for changed routes
+### 5. Add Cover Letters and Resignation Letters to navigation map
+
+File: `src/pages/AIStudioPage.tsx`
+- Add `cover-letters` and `resignation-letters` entries to the tool categories and to the `handleSecondaryAction` switch
+- These navigate to their respective pages instead of opening sheets
+
+### 6. Update deep-link support
+
+Add `cover-letters` and `resignation-letters` to the `toolMap` in the deep-link `useEffect`.
+
+---
+
+## Technical Details
+
+### File: `src/pages/AIStudioPage.tsx`
+
+**toolCategories** restructured to:
+```text
+[
+  { title: "Resume Tools", tools: [tailor, proofread, enhance, onepage, humanizer] },
+  { title: "Job Analysis",  tools: [job-match, ab-compare, recruiter] },
+  { title: "Career Growth", tools: [interview, career, linkedin, company-briefing] },
+  { title: "Documents",     tools: [cover-letters, resignation-letters] },
+]
+```
+
+Each tool entry gains a `navigate?: string` field. If present, the handler calls `navigate(tool.navigate)` instead of opening a sheet.
+
+The Featured Tools section (Smart Tailor, A/B Compare, Job Match as large cards) is removed. All tools now appear uniformly in the grid, making the page shorter and easier to scan.
+
+The `Collapsible` wrapper is removed -- all sections render directly.
+
+### File: `src/pages/CareerPage.tsx`
+- Line 96: `navigate('/dashboard')` changes to `navigate('/ai-studio')`
+
+### File: `src/lib/navigation.ts`
+- Add `'/career': '/ai-studio'` to `BACK_ROUTES` if not already present
+
+### No new files needed
+All changes are within existing files. No new pages or components are created.
 
 ---
 
@@ -56,13 +107,7 @@ The test file checks that `/interview` goes to `/dashboard` -- needs updating.
 
 | File | Change |
 |---|---|
-| `src/lib/navigation.ts` | Update 3 BACK_ROUTES: `/interview` -> `/ai-studio`, `/cover-letters` -> `/ai-studio`, `/resignation-letters` -> `/ai-studio` |
-| `src/pages/InterviewPage.tsx` | Change 3 back-button `navigate('/dashboard')` calls to `navigate('/ai-studio')` |
-| `src/pages/CoverLettersPage.tsx` | Change back-button `navigate('/dashboard')` to `navigate('/ai-studio')` |
-| `src/pages/ResignationLettersPage.tsx` | Change back-button `navigate('/dashboard')` to `navigate('/ai-studio')` |
-| `src/components/landing/QuickActions.tsx` | Fix "AI Tailor" route from `/editor` to `/ai-studio?tool=tailor` |
-| `src/components/layout/BottomTabBar.tsx` | Add `/interview` to AI Tools `matchPaths` |
-| `src/lib/navigation.test.ts` | Update test expectations |
-
-All other pages (Editor, Preview, Settings, Profile, Templates, Examples, Guides, Guide detail, Notifications, ApplicationTracker, OnboardingPage, CoverLetterNew, CoverLetterEdit, ResignationLetterNew, ResignationLetterEdit, CareerPage) were verified and route correctly.
+| `src/pages/AIStudioPage.tsx` | Flatten all tools into 4 visible sections; add Cover Letters and Resignation Letters; remove Collapsible; remove separate Featured Tools section; add deep-link entries for new tools |
+| `src/pages/CareerPage.tsx` | Fix back button: `/dashboard` to `/ai-studio` |
+| `src/lib/navigation.ts` | Add `/career` to BACK_ROUTES pointing to `/ai-studio` |
 
