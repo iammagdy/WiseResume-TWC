@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
   Eye, QrCode, Plus, Briefcase, Star, Search,
-  ArrowRight, AlertTriangle, X,
+  ArrowRight, AlertTriangle, X, MessageSquareQuote, TrendingUp,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ import { CollapsibleCard } from '@/components/portfolio/editor/shared';
 import { ProfileSection } from '@/components/portfolio/editor/ProfileSection';
 import { AppearanceSection, type PortfolioStyle, type PortfolioLayout, type PortfolioFont, THEMES } from '@/components/portfolio/editor/AppearanceSection';
 import { ContentVisibilitySection, type PortfolioSections, DEFAULT_SECTIONS } from '@/components/portfolio/editor/ContentVisibilitySection';
+import { LivePreviewCard } from '@/components/portfolio/editor/LivePreviewCard';
 
 export default function PortfolioEditorPage() {
   const navigate = useNavigate();
@@ -83,6 +84,8 @@ export default function PortfolioEditorPage() {
   const [syncMode, setSyncMode] = useState<'auto' | 'locked'>('auto');
   const [caseStudies, setCaseStudies] = useState<Array<{id:string;title:string;challenge:string;outcome:string}>>([]);
   const [services, setServices] = useState<Array<{id:string;title:string;description:string;category:string}>>([]);
+  const [testimonials, setTestimonials] = useState<Array<{id:string;quote:string;authorName:string;authorTitle:string}>>([]);
+  const [highlights, setHighlights] = useState<Array<{id:string;value:string;label:string}>>([]);
   const [showAllSections, setShowAllSections] = useState(false);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,6 +115,8 @@ export default function PortfolioEditorPage() {
       const extras = (profile.portfolioExtras as Record<string, unknown>) || {};
       setCaseStudies((extras.caseStudies as Array<{id:string;title:string;challenge:string;outcome:string}>) || []);
       setServices((extras.services as Array<{id:string;title:string;description:string;category:string}>) || []);
+      setTestimonials((extras.testimonials as Array<{id:string;quote:string;authorName:string;authorTitle:string}>) || []);
+      setHighlights((extras.highlights as Array<{id:string;value:string;label:string}>) || []);
     }
   }, [profile]);
 
@@ -307,7 +312,7 @@ export default function PortfolioEditorPage() {
         openToWork,
         availabilityHeadline: availabilityHeadline || null,
         portfolioSyncMode: syncMode,
-        portfolioExtras: { caseStudies, services },
+        portfolioExtras: { caseStudies, services, testimonials, highlights },
       };
       await updateProfile(updates as Parameters<typeof updateProfile>[0]);
       if (overrides?.portfolioEnabled !== undefined) {
@@ -494,6 +499,16 @@ export default function PortfolioEditorPage() {
               </Button>
             </div>
           )}
+
+          {/* Live Preview Mini-Card */}
+          <LivePreviewCard
+            avatarUrl={profile?.avatarUrl}
+            fullName={profile?.fullName}
+            jobTitle={profile?.jobTitle}
+            portfolioStyle={portfolioStyle}
+            accentColor={portfolioAccentColor}
+            portfolioFont={portfolioFont}
+          />
         </div>
 
         {/* QR Code Studio */}
@@ -658,7 +673,69 @@ export default function PortfolioEditorPage() {
           </CollapsibleCard>
         )}
 
-        {/* ── SEO & Sharing ─────────────────────────────────────────── */}
+        {/* ── Testimonials ──────────────────────────────────────────── */}
+        {(showAllSections || testimonials.length > 0) && (
+          <CollapsibleCard
+            id="testimonials"
+            icon={<MessageSquareQuote className="w-4 h-4" />}
+            title="Testimonials"
+            hint={testimonials.length > 0 ? <span>{testimonials.length} added</span> : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <p className="text-xs text-muted-foreground mb-3">Add quotes from colleagues or clients (max 3).</p>
+            <div className="space-y-3">
+              {testimonials.map((t, i) => (
+                <div key={t.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Testimonial {i + 1}</span>
+                    <button onClick={() => setTestimonials(prev => prev.filter(x => x.id !== t.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
+                  </div>
+                  <Textarea placeholder="What they said about you..." value={t.quote} onChange={e => setTestimonials(prev => prev.map(x => x.id === t.id ? {...x, quote: e.target.value} : x))} className="min-h-[60px] text-sm" maxLength={300} />
+                  <Input placeholder="Author name" value={t.authorName} onChange={e => setTestimonials(prev => prev.map(x => x.id === t.id ? {...x, authorName: e.target.value} : x))} />
+                  <Input placeholder="Author title (e.g. CEO at Acme)" value={t.authorTitle} onChange={e => setTestimonials(prev => prev.map(x => x.id === t.id ? {...x, authorTitle: e.target.value} : x))} />
+                </div>
+              ))}
+              {testimonials.length < 3 && (
+                <Button variant="outline" size="sm" onClick={() => setTestimonials(prev => [...prev, {id: crypto.randomUUID(), quote:'', authorName:'', authorTitle:''}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+                  <Plus className="w-4 h-4 mr-2" /> Add Testimonial
+                </Button>
+              )}
+            </div>
+          </CollapsibleCard>
+        )}
+
+        {/* ── Highlight Metrics ──────────────────────────────────────── */}
+        {(showAllSections || highlights.length > 0) && (
+          <CollapsibleCard
+            id="highlights"
+            icon={<TrendingUp className="w-4 h-4" />}
+            title="Highlight Metrics"
+            hint={highlights.length > 0 ? <span>{highlights.length} added</span> : undefined}
+            openSections={openSections}
+            toggleSection={toggleSection}
+          >
+            <p className="text-xs text-muted-foreground mb-3">Showcase key numbers (e.g. "50+ projects", "10 years"). Max 3.</p>
+            <div className="space-y-3">
+              {highlights.map((h, i) => (
+                <div key={h.id} className="rounded-xl border border-border bg-card/50 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Metric {i + 1}</span>
+                    <button onClick={() => setHighlights(prev => prev.filter(x => x.id !== h.id))} className="text-muted-foreground hover:text-destructive transition-colors"><X className="w-4 h-4" /></button>
+                  </div>
+                  <Input placeholder="Value (e.g. 50+)" value={h.value} onChange={e => setHighlights(prev => prev.map(x => x.id === h.id ? {...x, value: e.target.value} : x))} maxLength={10} />
+                  <Input placeholder="Label (e.g. Projects Delivered)" value={h.label} onChange={e => setHighlights(prev => prev.map(x => x.id === h.id ? {...x, label: e.target.value} : x))} maxLength={30} />
+                </div>
+              ))}
+              {highlights.length < 3 && (
+                <Button variant="outline" size="sm" onClick={() => setHighlights(prev => [...prev, {id: crypto.randomUUID(), value:'', label:''}])} className="w-full h-10 rounded-xl active:scale-95 touch-manipulation">
+                  <Plus className="w-4 h-4 mr-2" /> Add Metric
+                </Button>
+              )}
+            </div>
+          </CollapsibleCard>
+        )}
+
         {(showAllSections || metaTitle || metaDescription) && (
           <CollapsibleCard
             id="seo"
