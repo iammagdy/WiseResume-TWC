@@ -1,48 +1,50 @@
 
 
-# Add Resume Editing Session Start/End Events to Audit Logs
+# Add Login Attempt and Success Events to Audit Logs
+
+## Overview
+
+Add `logAudit` calls to all sign-in flows in `src/pages/AuthPage.tsx` to track login attempts (including failures) and successes.
 
 ## What Changes
 
-### File: `src/pages/EditorPage.tsx`
+### File: `src/pages/AuthPage.tsx`
 
 1. **Import** `logAudit` from `@/lib/auditLogger`
 
-2. **Session start**: Inside the existing hydration `useEffect` (line ~130), after the initial hydration branch (line ~150, where `lastSavedResumeRef.current` is set), add:
-   ```typescript
-   logAudit('account', 'editor_session_started', {
-     resumeId: currentResumeId,
-     resumeTitle: resumeFromDb.title,
-   });
-   ```
+2. **Email/password login attempt** (line 135, after `setIsLoading(true)`):
+   - `logAudit('auth', 'login_attempted', { method: 'email' })`
 
-3. **Session end**: Add a new `useEffect` that fires a cleanup function on unmount, logging the session end with duration:
-   ```typescript
-   const sessionStartRef = useRef<number | null>(null);
+3. **Email/password login failure** (line 141-151, inside the `if (error)` branch):
+   - `logAudit('auth', 'login_failed', { method: 'email', reason: error.message })`
 
-   useEffect(() => {
-     if (!currentResumeId || !currentResume) return;
-     sessionStartRef.current = Date.now();
-     return () => {
-       if (sessionStartRef.current) {
-         const durationSeconds = Math.round((Date.now() - sessionStartRef.current) / 1000);
-         logAudit('account', 'editor_session_ended', {
-           resumeId: currentResumeId,
-           durationSeconds,
-         });
-       }
-     };
-   }, [currentResumeId]);
-   ```
-   This tracks how long the user spent editing and logs it when they leave the page.
+4. **Email/password login success** (line 154, after `clearCooldown()`):
+   - `logAudit('auth', 'login_succeeded', { method: 'email' })`
+
+5. **Signup success** (line 202-208, after account creation):
+   - `logAudit('auth', 'signup_succeeded', { method: 'email', confirmed: !!data.session })`
+
+6. **Google sign-in attempt** (line 261, inside `handleGoogleSignIn`):
+   - `logAudit('auth', 'login_attempted', { method: 'google' })`
+
+7. **Apple sign-in attempt** (line 267, inside `handleAppleSignIn`):
+   - `logAudit('auth', 'login_attempted', { method: 'apple' })`
+
+8. **Password reset request** (line 233, after successful reset email):
+   - `logAudit('auth', 'password_reset_requested', { email: forgotEmail })`
+
+9. **Password update success** (line 254, after successful password update):
+   - `logAudit('auth', 'password_updated', {})`
 
 ## Summary
 
-| Change | Detail |
-|--------|--------|
-| Import | `logAudit` from `@/lib/auditLogger` |
-| Session start log | Fires once on initial resume hydration with `resumeId` and `resumeTitle` |
-| Session end log | Fires on component unmount with `resumeId` and `durationSeconds` |
-| Files changed | 1 (`src/pages/EditorPage.tsx`) |
+| Event | When | Metadata |
+|-------|------|----------|
+| `login_attempted` | User submits email login or initiates social sign-in | `{ method }` |
+| `login_failed` | Email login returns an error | `{ method, reason }` |
+| `login_succeeded` | Email login succeeds | `{ method }` |
+| `signup_succeeded` | Account created | `{ method, confirmed }` |
+| `password_reset_requested` | Reset email sent | `{ email }` |
+| `password_updated` | New password set | -- |
 
-No new dependencies, no database changes.
+One file changed, one import added, 8 `logAudit` calls inserted. No new dependencies or database changes.
