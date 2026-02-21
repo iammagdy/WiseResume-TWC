@@ -1,77 +1,86 @@
 
-# UI/UX Analysis: Current Issues and Fixes
+# Native App UI Compaction: Make Everything Feel Like a Real App
 
-## Issues Found
+## Problem
+The app's UI elements (icons, inputs, labels, cards, spacing) are sized for a desktop website, not a native mobile app. This makes form fields hard to see without scrolling, wastes precious viewport space, and gives a "web page" feel rather than a polished native app experience.
 
-### 1. "Complete your contact info" Nudge Card Wastes Space (HIGH)
-**Location:** Editor > Contact section
-**Problem:** The `AIContextualNudge` card ("Complete your contact info" with a "Complete" button) sits between the section header and the first form field (Full Name). On mobile, this pushes the actual input fields further below the fold. The nudge's "Complete" action just dismisses itself -- it doesn't actually do anything useful. Combined with the SectionCard's tip pill ("Include a professional email and phone number"), there are TWO instructional banners before the first input.
+## Root Causes Identified
 
-**Fix:** Hide the `AIContextualNudge` on initial editor load when the section is the active section. The tip pill inside `SectionCard` already communicates the same guidance. Alternatively, make the nudge `compact` by default in the Contact section so it takes less vertical space.
+1. **Input fields are 48px tall** (`h-12`) -- native apps use 40px or 36px
+2. **Form field labels have `space-y-2`** (8px gap) between label and input -- should be 4px
+3. **Section card headers are oversized** -- 32x32px icon box + large padding
+4. **The tip pill + nudge card = two instructional banners** before any input
+5. **The "Previous / Next" navigation row** at the bottom of each section consumes ~56px
+6. **Dashboard header has too many icon buttons** competing for attention
+7. **The "Good afternoon" greeting card** takes ~120px of vertical space with a large font
+8. **Stepper nav pills are 36px tall** (`h-9`) -- could be 32px
+9. **The progress bar row has generous padding** (`py-1 sm:py-3`)
+10. **Bottom action bar could be slimmer** -- currently 36px min-height
 
-### 2. Bottom Action Bar Obscures Content (HIGH)
-**Location:** Editor bottom bar (PDF / Preview / ATS)
-**Problem:** The bottom action bar is always visible and overlaps the scrollable editor content. When scrolled to the bottom, the last form fields are hidden behind it. The `pb-safe` on the scroll container doesn't account for the action bar height.
+## Changes
 
-**Fix:** Add bottom padding to the editor scroll container equal to the action bar height (~44px) so content is never obscured. Change `space-y-0` to include `pb-12` on the scroll container.
+### 1. Compact Input Fields (HIGH IMPACT)
+**File: `src/components/ui/input.tsx`**
+- Reduce default height from `h-12` (48px) to `h-10` (40px)
+- Reduce padding from `px-4 py-3` to `px-3 py-2`
+- Keep `text-[16px]` (required to prevent iOS zoom on focus)
 
-### 3. FAB Overlaps Bottom Tab Bar (MEDIUM)
-**Location:** Dashboard and Editor floating action buttons
-**Problem:** The pink FAB in the bottom-right corner partially overlaps the bottom tab bar area, creating visual clutter and potential accidental taps.
+### 2. Tighten Form Field Spacing (HIGH IMPACT)
+**File: `src/components/ui/form-field.tsx`**
+- Reduce wrapper `space-y-2` to `space-y-1` (label-to-input gap: 8px to 4px)
+- Reduce label text from `text-sm font-semibold` to `text-xs font-medium`
+- Reduce clear button touch area from `min-w-[48px] min-h-[48px]` to `min-w-[40px] min-h-[40px]` (still above 38px minimum)
+- Reduce textarea `min-h-[120px]` to `min-h-[100px]` on mobile
 
-**Fix:** Increase FAB bottom offset to `bottom-[7rem]` to clear the tab bar properly, matching the staggering hierarchy documented in project memory.
+### 3. Compact Section Card Header
+**File: `src/components/editor/SectionCard.tsx`**
+- Reduce icon box from `w-8 h-8` to `w-6 h-6`, icon from `w-4 h-4` to `w-3.5 h-3.5`
+- Reduce header padding from `px-4 pt-4 pb-2` to `px-3 pt-3 pb-1`
+- Reduce content padding from `px-3 sm:px-4 pb-4` to `px-3 pb-3`
 
-### 4. Resume Title Over-Truncated (MEDIUM)
-**Location:** Editor header
-**Problem:** "Magdy Saber's Res..." is truncated to "Magdy ..." on 375px. The current `max-w-[55vw]` is still too narrow because the undo/redo buttons and Template/Chat buttons consume horizontal space.
+### 4. Reduce Contact Section Vertical Waste
+**File: `src/components/editor/ContactSection.tsx`**
+- Reduce the wrapper `space-y-5` to `space-y-3` (field-to-field gap: 20px to 12px)
 
-**Fix:** Hide undo/redo buttons on screens narrower than `sm` (they're already hidden below `xs`) and give the title more room, or show only the first name.
+### 5. Compact Stepper Nav Pills
+**File: `src/components/editor/StepperNav.tsx`**
+- Reduce pill height from `h-9` (36px) to `h-7` (28px)
+- Reduce container padding from `py-1.5` to `py-1`
 
-### 5. Editor Scroll Container Missing Bottom Padding (HIGH)
-**Location:** `EditorPage.tsx` line 1215
-**Problem:** The scroll container class is `px-4 py-3 pb-safe space-y-0`. The `pb-safe` only accounts for the device safe area, not the action bar above it. Form fields at the bottom of a section are hidden behind the PDF/Preview/ATS bar.
+### 6. Slim Down Editor Chrome
+**File: `src/pages/EditorPage.tsx`**
+- Reduce editor header back button from `p-3 min-w-[48px] min-h-[48px]` to `p-2 min-w-[40px] min-h-[40px]`
+- Reduce the back arrow icon from `w-6 h-6` to `w-5 h-5`
+- Reduce progress bar row padding from `py-1` to `py-0.5`
 
-**Fix:** Change to `pb-16` (64px) to ensure the last field is always scrollable above the action bar.
+### 7. Compact Dashboard Layout
+**File: `src/pages/DashboardPage.tsx`**
+- Reduce the "Good afternoon" greeting font from the current large size to `text-lg` (from `text-xl` or larger)
+- Tighten vertical spacing between dashboard sections
 
-### 6. "What's New" Changelog Modal on Every Visit (LOW)
-**Location:** Appears to be a changelog dialog
-**Problem:** The "What's New v2.3.1" modal appeared immediately on dashboard load, blocking interaction. It should only show once per version.
+### 8. Compact Bottom Action Bar
+**File: `src/pages/EditorPage.tsx`**
+- Reduce button heights from `h-8 min-h-[36px]` to `h-7 min-h-[28px]`
+- Reduce bar padding from `py-0.5` to `py-px`
 
-**Fix:** Verify the changelog uses a version-keyed `localStorage` flag so it only shows once per release. This may already be implemented but worth confirming.
+## Expected Impact
+- Each input field saves ~8px vertically (6 contact fields = ~48px saved)
+- Label spacing saves ~4px per field (6 fields = ~24px)
+- Section card header saves ~12px
+- Stepper nav saves ~12px  
+- Progress row saves ~4px
+- Header saves ~8px
+- **Total: ~108px of vertical space recovered** -- enough to show 2-3 more fields above the fold
 
-### 7. AI Studio Onboarding Carousel Blocks Page (LOW)
-**Location:** AI Studio page
-**Problem:** Similar to the editor AI intro -- a multi-step "Welcome to AI Studio" modal blocks the entire page on first visit.
-
-**Fix:** Replace with a non-blocking inline banner or auto-dismissing tooltip, consistent with the editor fix.
-
----
-
-## Technical Changes
-
-### File: `src/components/editor/ContactSection.tsx`
-- Make the `AIContextualNudge` use `compact` mode to reduce vertical footprint
-- This saves ~20px of vertical space in the Contact section
-
-### File: `src/pages/EditorPage.tsx`
-- **Line 1215**: Change `pb-safe` to `pb-16` on the editor scroll container to prevent content from being hidden behind the bottom action bar
-- **Line 991**: Ensure undo/redo buttons use `hidden sm:flex` instead of `hidden xs:flex` so the title gets more room on 375px screens
-
-### File: `src/components/dashboard/FloatingCreateButton.tsx`
-- Verify FAB positioning clears bottom tab bar -- should be `bottom-[7rem]` on mobile
-
----
-
-## Summary
-
-| # | Issue | Severity | File(s) | Impact |
-|---|-------|----------|---------|--------|
-| 1 | Nudge card wastes space in editor | High | `ContactSection.tsx` | ~20px saved |
-| 2 | Bottom bar obscures form fields | High | `EditorPage.tsx` | Fields visible |
-| 3 | FAB overlaps tab bar | Medium | `FloatingCreateButton.tsx` | Cleaner layout |
-| 4 | Title over-truncated | Medium | `EditorPage.tsx` | More readable |
-| 5 | Missing scroll padding | High | `EditorPage.tsx` | Content accessible |
-| 6 | Changelog shows repeatedly | Low | Changelog component | Less friction |
-| 7 | AI Studio onboarding blocks page | Low | AI Studio page | Less friction |
+## Files Modified
+| File | Change |
+|------|--------|
+| `src/components/ui/input.tsx` | `h-12` to `h-10`, padding reduction |
+| `src/components/ui/form-field.tsx` | Tighter spacing, smaller labels |
+| `src/components/editor/SectionCard.tsx` | Smaller header icons and padding |
+| `src/components/editor/ContactSection.tsx` | `space-y-5` to `space-y-3` |
+| `src/components/editor/StepperNav.tsx` | Shorter pills |
+| `src/pages/EditorPage.tsx` | Slimmer header, progress, action bar |
+| `src/pages/DashboardPage.tsx` | Tighter greeting/spacing |
 
 No database changes. No new dependencies.
