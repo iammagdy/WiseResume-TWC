@@ -9,6 +9,7 @@ import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
+import { logAudit } from '@/lib/auditLogger';
 
 interface DataExportSheetProps {
   open: boolean;
@@ -48,6 +49,7 @@ export function DataExportSheet({
     try {
       await exportAllResumes(resumes, userEmail, userName);
       setExportedType('all');
+      logAudit('account', 'data_exported', { type: 'all', resumeCount: resumes.length });
       toast.success(`Exported ${resumes.length} resume${resumes.length !== 1 ? 's' : ''}`);
       haptics.success();
     } catch (error) {
@@ -69,6 +71,7 @@ export function DataExportSheet({
     try {
       await exportSingleResume(currentResume);
       setExportedType('single');
+      logAudit('account', 'data_exported', { type: 'single', resumeId: currentResume.id });
       toast.success('Resume exported');
       haptics.success();
     } catch (error) {
@@ -93,6 +96,7 @@ export function DataExportSheet({
       const count = await importResumes(file, user.id);
       setImportProgress(100);
       toast.success(`Imported ${count} resume${count !== 1 ? 's' : ''} successfully`);
+      logAudit('account', 'data_imported', { resumeCount: count });
       haptics.success();
       onImportComplete?.();
     } catch (error: unknown) {
