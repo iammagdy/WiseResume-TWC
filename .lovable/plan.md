@@ -1,220 +1,185 @@
 
 
-# Database and Auth Improvements
+# Auth Logic and UI Improvements
 
-## Issues Found and Fixes
+## Current State Summary
 
-### 1. CRITICAL: Missing Foreign Keys to auth.users (Orphan Data Risk)
-
-**Problem:** 10 out of 17 tables with a `user_id` column have NO foreign key to `auth.users`. If a user deletes their account, their data in these tables becomes orphaned forever and can never be cleaned up.
-
-**Affected tables:**
-- `ai_credits`
-- `ai_usage_logs`
-- `bug_reports`
-- `career_assessments` (no FK to auth.users, only to resumes)
-- `feature_requests`
-- `job_applications`
-- `jobs`
-- `notifications`
-- `resignation_letters`
-- `resume_shares`
-- `resume_versions`
-- `user_api_keys`
-
-**Fix:** Add `REFERENCES auth.users(id) ON DELETE CASCADE` to each table's `user_id` column. This ensures all user data is automatically cleaned up when an account is deleted.
+The auth page is a 559-line monolithic component handling login, signup, forgot password, and reset password -- all in a single file with inline state management, validation, and rendering. It works but has several opportunities for improvement across UX, security, code quality, and accessibility.
 
 ---
 
-### 2. CRITICAL: resume_shares Exposes All Active Shares to Anyone
+## Issues and Proposed Fixes
 
-**Problem:** The RLS policy "Public can view active shares" allows any unauthenticated user to `SELECT * FROM resume_shares WHERE is_active = true`. This means anyone can enumerate every shared resume in the system, see `user_id`, `resume_id`, and `token` values -- effectively giving them access to all shared resumes without knowing the share link.
+### 1. PASSWORD STRENGTH INDICATOR (UX)
 
-**Fix:** Replace the overly permissive SELECT policy with a token-gated policy. Since shared resumes are accessed via the `get_shared_resume` RPC (SECURITY DEFINER), the public SELECT policy is unnecessary. Drop it and rely on the RPC for public access.
+**Problem:** Users creating an account see validation errors only after blurring the field. There is no real-time visual feedback showing password strength progress.
 
----
+**Fix:** Add a live password strength meter below the password field during signup. Show 4 colored bars that fill as requirements are met (length, uppercase, lowercase, number). This reduces friction and failed submissions.
 
-### 3. HIGH: portfolio_visits INSERT Policy Uses `WITH CHECK (true)`
-
-**Problem:** The portfolio_visits INSERT policy allows literally anyone (including unauthenticated users) to insert any row with any data. An attacker could flood this table with fake visit records, corrupting analytics. This is the "RLS Policy Always True" linter warning.
-
-**Fix:** Add a SECURITY DEFINER function `record_portfolio_visit(p_username text, p_country text, p_city text, ...)` that validates the username exists and has portfolio enabled before inserting. Replace the `true` INSERT policy with one that blocks direct inserts, requiring all inserts to go through the RPC.
+**File:** Create `src/components/auth/PasswordStrengthMeter.tsx` (~40 lines)
+**Edit:** `src/pages/AuthPage.tsx` -- render the meter below the password input when `mode === 'signup'`
 
 ---
 
-### 4. MEDIUM: No Automatic Data Cleanup for Old Records
+### 2. CONFIRM PASSWORD ON SIGNUP (UX / Security)
 
-**Problem:** Several tables accumulate data indefinitely with no cleanup mechanism:
-- `ai_usage_logs` -- grows with every AI request, used only for rate limiting (60-second window)
-- `notifications` -- read notifications pile up forever
-- `resume_versions` -- every auto-save creates a new version row
+**Problem:** Signup does not require password confirmation. Users can typo their password and be locked out after email verification. Only the reset-password flow has a confirm field.
 
-**Fix:** Add a scheduled database function (pg_cron or edge function) to:
-- Delete `ai_usage_logs` older than 90 days
-- Delete read `notifications` older than 30 days
-- Keep only the latest 50 `resume_versions` per resume
+**Fix:** Add the `confirmPassword` field and match-check to the signup form, reusing the existing `confirmPassword` state and `showConfirmPassword` toggle that are already declared but unused in signup mode.
+
+**Edit:** `src/pages/AuthPage.tsx` -- add confirm password `InputFormField` after the password field when `!isLogin`, and add `password !== confirmPassword` check to `validateInputs()`.
 
 ---
 
-### 5. MEDIUM: Missing Indexes on Frequently Queried Columns
+### 3. COMPONENT EXTRACTION (Code Quality)
 
-**Problem:** Several commonly-queried columns lack indexes:
-- `portfolio_visits.username` -- queried by `get_portfolio_analytics` RPC
-- `portfolio_visits.visited_at` -- sorted in analytics queries
-- `resume_shares.token` -- looked up by `get_shared_resume` RPC on every share view
-- `notifications.user_id` (standalone) -- missing, only composite indexes exist
-- `resignation_letters.user_id` -- no index at all
+**Problem:** AuthPage is 559 lines in a single component with 15+ state variables, 4 form modes, inline validation, and duplicated password toggle markup. This makes it hard to maintain and test.
 
-**Fix:** Create targeted indexes on these columns.
+**Fix:** Extract into focused sub-components:
+- `src/components/auth/LoginForm.tsx` -- email + password + forgot link + submit
+- `src/components/auth/SignupForm.tsx` -- name + phone + email + password + confirm + submit
+- `src/components/auth/ForgotPasswordForm.tsx` -- email + submit
+- `src/components/auth/ResetPasswordForm.tsx` -- password + confirm + submit
+- `src/components/auth/SocialAuthButtons.tsx` -- Google + Apple buttons (already duplicated in `SignInPromptDialog`)
+- `src/components/auth/PasswordInput.tsx` -- reusable password field with show/hide toggle
 
----
-
-### 6. MEDIUM: Auth Session Hardening
-
-**Problem:** The auth configuration uses default Supabase settings. For a production app handling sensitive career data, several hardening measures are missing:
-- No password strength enforcement beyond basic length
-- No rate limiting on login attempts at the application level (Supabase has built-in GoTrue rate limits, but they're generous)
-- Session timeout is the default (1 week), which is long for an app with biometric lock
-
-**Fix:**
-- Add client-side password strength validation (min 8 chars, must include uppercase, lowercase, and number) in the signup form
-- Add a failed login counter that shows a CAPTCHA or cooldown message after 5 failed attempts
-- The existing biometric lock already handles session protection on mobile, but add a "Remember me" toggle on web that controls whether the session persists
+**Edit:** `src/pages/AuthPage.tsx` becomes ~120 lines: mode state, routing logic, and rendering the correct sub-component.
 
 ---
 
-### 7. LOW: profiles Table is Overloaded
+### 4. COOLDOWN PERSISTENCE (Security)
 
-**Problem:** The `profiles` table has 37 columns, mixing user identity (name, avatar), portfolio configuration (theme, font, layout, accent color, sync mode, extras), and engagement tracking (views, login streak, last active). This makes queries heavier than needed and violates single-responsibility.
+**Problem:** The failed login cooldown (`failedAttempts`, `cooldownUntil`) is stored in React state. Refreshing the page resets the counter, completely bypassing the rate limit.
 
-**Fix:** This is a longer-term refactor -- for now, document the column groups. In a future phase, consider splitting into:
-- `profiles` (identity: name, avatar, job_title, industry, career_level, location, social URLs)
-- `portfolio_settings` (theme, layout, font, accent, sections, sync_mode, extras, meta_title, meta_description)
-- `user_engagement` (views, login_streak, last_login_date, last_active_at, hired_at)
+**Fix:** Store `failedAttempts` and `cooldownUntil` in `sessionStorage`. Read on mount, write on each failed attempt. This survives page refreshes within the same browser tab session.
 
----
-
-### 8. LOW: user_api_keys Encrypted Keys Readable via RLS
-
-**Problem:** The `user_api_keys` table has a SELECT policy that lets users read their own `encrypted_key` values. While encrypted, returning ciphertext to the client is unnecessary -- keys are only needed server-side in edge functions. If a client is compromised, the attacker gets the ciphertext.
-
-**Fix:** Create a database view or RPC that returns only `provider`, `key_tier`, `created_at`, `updated_at` -- never `encrypted_key`. Update the SELECT policy or use a column-level security approach.
+**Edit:** `src/pages/AuthPage.tsx` -- replace `useState` with `sessionStorage`-backed state for the two cooldown values.
 
 ---
 
-## Implementation Summary
+### 5. EMAIL ENUMERATION LEAK (Security)
 
-| # | Severity | Issue | Fix |
-|---|----------|-------|-----|
-| 1 | Critical | 10 tables missing FK to auth.users | Add ON DELETE CASCADE foreign keys |
-| 2 | Critical | resume_shares exposes all shares publicly | Drop overly permissive SELECT policy |
-| 3 | High | portfolio_visits allows unrestricted inserts | Replace WITH CHECK (true) with RPC |
-| 4 | Medium | No data cleanup for logs/versions | Add cleanup function with retention policy |
-| 5 | Medium | Missing indexes on hot columns | Add 5 targeted indexes |
-| 6 | Medium | Auth session hardening | Add password rules + failed login handling |
-| 7 | Low | profiles table has 37 columns | Document now, split later |
-| 8 | Low | Encrypted API keys readable client-side | Restrict SELECT to non-sensitive columns |
+**Problem:** The signup error handler checks for "already registered" and shows a specific message: "Already registered. Please sign in." This tells an attacker whether an email exists in the system.
+
+**Fix:** Show a generic message for both success and "already registered" scenarios: "If this email is not already registered, you'll receive a verification link shortly." This matches the forgot-password pattern where the backend always returns success.
+
+**Edit:** `src/pages/AuthPage.tsx` -- update the signup success/error handling block.
+
+---
+
+### 6. "EXPLORE WITHOUT ACCOUNT" BUTTON VISIBLE ON RESET PASSWORD (UX)
+
+**Problem:** The "Explore without account" ghost button at line 550-553 renders on ALL modes, including the reset-password flow. A user who clicked a password reset link should not be encouraged to leave.
+
+**Fix:** Hide the "Explore without account" button when `mode === 'reset-password'`.
+
+**Edit:** `src/pages/AuthPage.tsx` -- wrap the button in a conditional.
+
+---
+
+### 7. SOCIAL AUTH BUTTONS SHOWN ON FORGOT/RESET MODES (UX)
+
+**Problem:** The social login buttons (Google/Apple) and the "or" divider render even when the user is in login/signup mode. But they also appear when switching modes. Currently this is handled correctly since they're inside the login/signup branch. However, the "Don't have an account?" toggle also appears during these modes -- verified correct. No issue here.
+
+---
+
+### 8. ACCESSIBLE ERROR ANNOUNCEMENTS (A11y)
+
+**Problem:** Validation errors are displayed visually but not announced to screen readers. The `toast.error()` calls are the only feedback, which may not be picked up by all assistive technologies.
+
+**Fix:** Add `aria-live="polite"` to the form error regions. The existing `InputFormField` already has `aria-invalid` -- verify it also has `aria-describedby` linking to the error message (it does via `FormField` patterns). Add a visually-hidden live region that announces "X errors found" on failed submission.
+
+**Edit:** `src/pages/AuthPage.tsx` -- add an `aria-live` region near the submit button.
+
+---
+
+### 9. DARK MODE APPLE BUTTON CONTRAST (UI)
+
+**Problem:** The Apple sign-in button uses `bg-black text-white border-black` which is hardcoded regardless of theme. In dark mode, a black button on a dark background has poor contrast and no visible border.
+
+**Fix:** Use theme-aware styling: `bg-foreground text-background border-border` so the button inverts naturally in both themes.
+
+**Edit:** `src/pages/AuthPage.tsx` -- update the Apple button className.
+
+---
+
+### 10. INPUT CLEAR ON MODE SWITCH (UX)
+
+**Problem:** When switching between login and signup modes, the form state (email, password, name, phone) persists. If a user types a password in signup mode (which has strict validation), switches to login, the strict validation errors may flash briefly. More importantly, the `fullName` and `phoneNumber` values persist invisibly.
+
+**Fix:** Reset `password`, `confirmPassword`, `fullName`, `phoneNumber`, and all `touched` flags when `mode` changes. Keep `email` since it is shared between modes.
+
+**Edit:** `src/pages/AuthPage.tsx` -- add a `useEffect` on `mode` that resets non-email fields.
+
+---
+
+## Implementation Order
+
+1. Confirm password on signup (quick win, prevents lockouts)
+2. Cooldown persistence in sessionStorage (security fix)
+3. Email enumeration fix (security)
+4. Password strength meter (new component)
+5. Hide "Explore" on reset mode (trivial)
+6. Apple button dark mode fix (trivial)
+7. Input clear on mode switch (UX polish)
+8. Accessibility live region (a11y)
+9. Component extraction (refactor -- largest change, do last)
 
 ---
 
 ## Technical Details
 
-### Foreign Key Migration (Item 1)
+### Password Strength Meter
 
-```sql
-ALTER TABLE ai_credits ADD CONSTRAINT ai_credits_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+```text
+src/components/auth/PasswordStrengthMeter.tsx
 
-ALTER TABLE ai_usage_logs ADD CONSTRAINT ai_usage_logs_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+Props: { password: string }
 
-ALTER TABLE bug_reports ADD CONSTRAINT bug_reports_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+Renders 4 small horizontal bars:
+- Bar 1: green if length >= 8
+- Bar 2: green if has uppercase
+- Bar 3: green if has lowercase
+- Bar 4: green if has number
 
--- Repeat for: career_assessments, feature_requests, job_applications,
--- jobs, notifications, resignation_letters, resume_shares,
--- resume_versions, user_api_keys
+Below bars: text label ("Weak" / "Fair" / "Good" / "Strong")
+Colors: red (0-1), amber (2), green (3-4)
 ```
 
-### resume_shares Policy Fix (Item 2)
+### Cooldown Persistence
 
-```sql
-DROP POLICY "Public can view active shares" ON resume_shares;
+```text
+On mount:
+  const stored = sessionStorage.getItem('wr-auth-cooldown');
+  if (stored) parse JSON { failedAttempts, cooldownUntil }
+
+On failed attempt:
+  sessionStorage.setItem('wr-auth-cooldown', JSON.stringify({ failedAttempts, cooldownUntil }))
+
+On successful login:
+  sessionStorage.removeItem('wr-auth-cooldown')
 ```
 
-The `get_shared_resume` RPC (SECURITY DEFINER) already handles public access by validating the token and returning data. No direct table SELECT is needed for anonymous users.
+### Component Extraction Structure
 
-### portfolio_visits RPC (Item 3)
-
-```sql
-CREATE OR REPLACE FUNCTION record_portfolio_visit(
-  p_username text,
-  p_country text DEFAULT NULL,
-  p_city text DEFAULT NULL,
-  p_referrer text DEFAULT NULL,
-  p_short_link_id text DEFAULT NULL
-) RETURNS void
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
-BEGIN
-  -- Validate portfolio exists and is enabled
-  IF NOT EXISTS (
-    SELECT 1 FROM profiles
-    WHERE username = lower(p_username) AND portfolio_enabled = true
-  ) THEN
-    RETURN;
-  END IF;
-
-  INSERT INTO portfolio_visits (username, country, city, referrer, short_link_id)
-  VALUES (lower(p_username), p_country, p_city, p_referrer, p_short_link_id);
-END;
-$$;
-
--- Replace the permissive policy
-DROP POLICY "Anyone can record portfolio visit" ON portfolio_visits;
-CREATE POLICY "No direct inserts" ON portfolio_visits FOR INSERT
-  WITH CHECK (false);
+```text
+src/components/auth/
+  PasswordInput.tsx        -- reusable password field with toggle
+  PasswordStrengthMeter.tsx -- visual strength indicator
+  SocialAuthButtons.tsx    -- Google + Apple buttons
+  LoginForm.tsx            -- login form
+  SignupForm.tsx            -- signup form with confirm password
+  ForgotPasswordForm.tsx   -- forgot password form
+  ResetPasswordForm.tsx    -- reset password form
 ```
 
-### Index Creation (Item 5)
+### Files Created (5)
+- `src/components/auth/PasswordInput.tsx`
+- `src/components/auth/PasswordStrengthMeter.tsx`
+- `src/components/auth/SocialAuthButtons.tsx`
+- `src/components/auth/LoginForm.tsx`
+- `src/components/auth/SignupForm.tsx`
 
-```sql
-CREATE INDEX idx_portfolio_visits_username ON portfolio_visits (username);
-CREATE INDEX idx_portfolio_visits_visited_at ON portfolio_visits (visited_at DESC);
-CREATE INDEX idx_resume_shares_token ON resume_shares (token);
-CREATE INDEX idx_resignation_letters_user_id ON resignation_letters (user_id);
-```
-
-### Auth Password Validation (Item 6)
-
-Add Zod schema validation to the signup form in `AuthPage.tsx`:
-
-```typescript
-const passwordSchema = z.string()
-  .min(8, 'At least 8 characters')
-  .regex(/[A-Z]/, 'Include an uppercase letter')
-  .regex(/[a-z]/, 'Include a lowercase letter')
-  .regex(/[0-9]/, 'Include a number');
-```
-
-### API Keys View (Item 8)
-
-```sql
-CREATE OR REPLACE FUNCTION get_user_api_key_info(p_user_id uuid)
-RETURNS TABLE(provider text, key_tier text, created_at timestamptz, updated_at timestamptz)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
-  SELECT provider, key_tier, created_at, updated_at
-  FROM user_api_keys
-  WHERE user_id = p_user_id AND p_user_id = auth.uid();
-$$;
-```
-
-### Recommended Implementation Order
-1. Foreign keys (prevents orphan data immediately)
-2. resume_shares policy fix (closes data enumeration vulnerability)
-3. portfolio_visits RPC (closes spam vector)
-4. Indexes (instant query performance improvement)
-5. Auth password validation (signup hardening)
-6. API keys view (defense in depth)
-7. Data cleanup function (operational health)
-8. Document profiles split (future planning)
+### Files Modified (1)
+- `src/pages/AuthPage.tsx` -- refactored to use sub-components, all fixes applied
 
