@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
+import { useEffect, useState, useCallback, useRef, lazy, Suspense } from 'react';
 import { getAppUrl } from '@/lib/portfolioUrl';
 import { SettingsSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
@@ -79,6 +79,7 @@ import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getChangelog } from '@/hooks/useChangelogBadge';
 import developerPhoto from '@/assets/developer-photo.png';
 
 // Lazy-loaded sheets
@@ -93,6 +94,29 @@ const AISettingsSheet = lazy(() => import('@/components/settings/AISettingsSheet
 const HelpSheet = lazy(() => import('@/components/settings/HelpSheet').then(m => ({ default: m.HelpSheet })));
 const DeveloperCreditCard = lazy(() => import('@/components/settings/DeveloperCreditCard').then(m => ({ default: m.DeveloperCreditCard })));
 const PushNotificationSettings = lazy(() => import('@/components/settings/PushNotificationSettings').then(m => ({ default: m.PushNotificationSettings })));
+
+// --- Section index chips ---
+const SECTIONS = [
+  { id: 'section-appearance', label: 'Appearance', icon: Palette },
+  { id: 'section-ai-voice', label: 'AI & Voice', icon: Brain },
+  { id: 'section-editor-export', label: 'Editor', icon: Download },
+  { id: 'section-notifications', label: 'Notifications', icon: Bell },
+  { id: 'section-privacy', label: 'Privacy', icon: Shield },
+  { id: 'section-account', label: 'Account', icon: LogOut },
+  { id: 'section-about', label: 'About', icon: Info },
+] as const;
+
+// --- Section header helper ---
+function SectionHeader({ icon: Icon, label, badge }: { icon: React.ElementType; label: string; badge?: React.ReactNode }) {
+  return (
+    <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+      <div className="w-1 h-5 rounded-full bg-primary/40" />
+      <Icon className="w-4 h-4 text-primary/60" />
+      {label}
+      {badge}
+    </h2>
+  );
+}
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -150,10 +174,11 @@ export default function SettingsPage() {
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [signOutConfirmOpen, setSignOutConfirmOpen] = useState(false);
 
-  // Dynamic changelog
+  // Dynamic changelog — single fetch via module-level cache
   const [changelogData, setChangelogData] = useState<Array<{ version: string; date: string; latest?: boolean; summary?: string; items: Array<{ title: string; description: string }> }>>([]);
   const [changelogLoading, setChangelogLoading] = useState(false);
   const [changelogError, setChangelogError] = useState(false);
+  const changelogFetchedAt = useRef<number>(0);
 
   // Auto-open changelog if navigated with ?changelog=true
   useEffect(() => {
@@ -164,26 +189,69 @@ export default function SettingsPage() {
     }
   }, []);
 
-  // Fetch changelog on mount for version, and re-fetch when dialog opens
+  // Fetch changelog once on mount via shared cache
   useEffect(() => {
-    fetch('/changelog.json')
-      .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(data => setChangelogData(data))
-      .catch(() => {});
+    getChangelog().then(data => {
+      setChangelogData(data as typeof changelogData);
+      changelogFetchedAt.current = Date.now();
+    });
   }, []);
 
+  // When dialog opens, only re-fetch if stale (>5 min)
   useEffect(() => {
     if (!changelogOpen) return;
+    const age = Date.now() - changelogFetchedAt.current;
+    if (changelogData.length > 0 && age < 5 * 60 * 1000) return; // fresh
     setChangelogLoading(true);
     setChangelogError(false);
     fetch('/changelog.json')
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
-      .then(data => setChangelogData(data))
+      .then(data => { setChangelogData(data); changelogFetchedAt.current = Date.now(); })
       .catch(() => setChangelogError(true))
       .finally(() => setChangelogLoading(false));
   }, [changelogOpen]);
 
   const appVersion = changelogData[0]?.version || 'v2.0.0';
+
+  // --- Section index: active tracking ---
+  const [activeSection, setActiveSection] = useState<string>(SECTIONS[0].id);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const observers: IntersectionObserver[] = [];
+    const visibleSections = new Map<string, boolean>();
+
+    SECTIONS.forEach(({ id }) => {
+      const el = container.querySelector(`#${id}`);
+      if (!el) return;
+      const obs = new IntersectionObserver(
+        ([entry]) => {
+          visibleSections.set(id, entry.isIntersecting);
+          // Pick first visible
+          for (const s of SECTIONS) {
+            if (visibleSections.get(s.id)) {
+              setActiveSection(s.id);
+              break;
+            }
+          }
+        },
+        { root: container, rootMargin: '-20% 0px -60% 0px', threshold: 0 }
+      );
+      obs.observe(el);
+      observers.push(obs);
+    });
+
+    return () => observers.forEach(o => o.disconnect());
+  }, [user]); // re-run when user changes (account section appears)
+
+  const scrollToSection = (id: string) => {
+    haptics.light();
+    const container = scrollContainerRef.current;
+    const el = container?.querySelector(`#${id}`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Auth provider detection
   const authProvider = (user?.app_metadata?.provider as string) || 'email';
@@ -274,9 +342,7 @@ export default function SettingsPage() {
         toast.success('Link copied! Share it with a friend 🎉');
       }
     } catch (err: unknown) {
-      // If user cancelled share, do nothing
       if (err instanceof Error && err.name === 'AbortError') return;
-      // Fallback: try clipboard, then show link as toast
       try {
         await navigator.clipboard.writeText(shareData.url);
         toast.success('Link copied! Share it with a friend 🎉');
@@ -322,6 +388,9 @@ export default function SettingsPage() {
   const displayName = profile?.fullName || user?.email || 'User';
   const profileCompletion = calculateProfileCompletion(profile);
 
+  // Privacy status
+  const privacyStatus = localOnlyMode && !analyticsEnabled ? 'Strict' : 'Standard';
+
   if (loading) {
     return <SettingsSkeleton />;
   }
@@ -329,8 +398,8 @@ export default function SettingsPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header - clean, no hamburger */}
-        <header className="pt-safe sticky top-0 z-10 pt-4 pb-3 px-4 glass-header backdrop-blur-xl">
+        {/* Header */}
+        <header className="pt-safe sticky top-0 z-10 pt-4 pb-1 px-4 glass-header backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => navigate('/dashboard')}
@@ -341,10 +410,34 @@ export default function SettingsPage() {
             </button>
             <h1 className="text-page-title">Settings</h1>
           </div>
+
+          {/* Section index chips */}
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-2 -mx-1 px-1">
+            {SECTIONS.map(({ id, label, icon: SIcon }) => {
+              // Hide Account chip for guests
+              if (id === 'section-account' && !user) return null;
+              const isActive = activeSection === id;
+              return (
+                <button
+                  key={id}
+                  onClick={() => scrollToSection(id)}
+                  className={cn(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation shrink-0',
+                    isActive
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  <SIcon className="w-3 h-3" />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </header>
 
         {/* Content */}
-        <div className="px-5 py-4 space-y-8 overflow-y-auto pb-24">
+        <div ref={scrollContainerRef} className="px-5 py-4 space-y-8 overflow-y-auto pb-24">
           {/* Guest CTA */}
           {!user && <GuestCtaCard navigate={navigate} />}
           
@@ -379,10 +472,7 @@ export default function SettingsPage() {
 
           {/* 2. Appearance & Language */}
           <div id="section-appearance">
-            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <Palette className="w-4 h-4 text-primary/60" />
-              Appearance
-            </h2>
+            <SectionHeader icon={Palette} label="Appearance" />
             <p className="text-xs text-muted-foreground mb-3 px-1">Theme, language, and display preferences</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <div className="p-4">
@@ -403,10 +493,7 @@ export default function SettingsPage() {
 
           {/* 3. AI & Voice */}
           <div id="section-ai-voice">
-            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <Brain className="w-4 h-4 text-primary/60" />
-              AI & Voice
-            </h2>
+            <SectionHeader icon={Brain} label="AI & Voice" />
             <p className="text-xs text-muted-foreground mb-3 px-1">Choose your AI engine and voice settings</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <SettingsRow
@@ -418,7 +505,7 @@ export default function SettingsPage() {
                 onClick={() => setAISettingsOpen(true)}
               />
               <Separator className="bg-border/30" />
-              <AICreditsRow />
+              <AICreditsRow onOpenAISettings={() => setAISettingsOpen(true)} />
               <Separator className="bg-border/30" />
 
               {elevenlabsApiKey ? (
@@ -471,10 +558,7 @@ export default function SettingsPage() {
 
           {/* 4. Editor & Export */}
           <div id="section-editor-export">
-            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <Download className="w-4 h-4 text-primary/60" />
-              Editor & Export
-            </h2>
+            <SectionHeader icon={Download} label="Editor & Export" />
             <p className="text-xs text-muted-foreground mb-3 px-1">PDF output and resume backup options</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               {/* PDF Export Settings - Collapsible */}
@@ -605,10 +689,7 @@ export default function SettingsPage() {
 
           {/* 5. Notifications */}
           <div id="section-notifications">
-            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <Bell className="w-4 h-4 text-primary/60" />
-              Notifications
-            </h2>
+            <SectionHeader icon={Bell} label="Notifications" />
             <p className="text-xs text-muted-foreground mb-3 px-1">Control alerts and suggestion prompts</p>
             <div className="rounded-2xl glass-elevated overflow-hidden">
               <Suspense fallback={null}>
@@ -713,10 +794,18 @@ export default function SettingsPage() {
 
           <Separator className="opacity-10" />
           <div id="section-privacy">
-            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <Shield className="w-4 h-4 text-primary/60" />
-              Privacy & Security
-            </h2>
+            <SectionHeader
+              icon={Shield}
+              label="Privacy & Security"
+              badge={
+                <Badge
+                  variant={privacyStatus === 'Strict' ? 'default' : 'secondary'}
+                  className="text-[10px] px-2 py-0 ml-auto"
+                >
+                  {privacyStatus}
+                </Badge>
+              }
+            />
             <p className="text-xs text-muted-foreground mb-3 px-1">Biometric lock, data protection, and privacy controls</p>
             
             <div className="rounded-2xl glass-elevated overflow-hidden">
@@ -782,34 +871,16 @@ export default function SettingsPage() {
           {user && (
             <>
               <div id="section-account">
-                <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-                  <LogOut className="w-4 h-4 text-primary/60" />
-                  Account
-                </h2>
+                <SectionHeader icon={LogOut} label="Account" />
                 <p className="text-xs text-muted-foreground mb-3 px-1">Manage your account and data</p>
                 
-                {/* Account Stats - wired to real data */}
-                <div className="rounded-2xl glass-elevated overflow-hidden p-4 mb-3">
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-lg font-bold text-primary">{resumes.length}</p>
-                      <p className="text-[10px] text-muted-foreground">Resumes</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-primary">{coverLetters.length}</p>
-                      <p className="text-[10px] text-muted-foreground">Cover Letters</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-primary">{applications.length}</p>
-                      <p className="text-[10px] text-muted-foreground">Applications</p>
-                    </div>
-                  </div>
-                  {user.created_at && (
-                    <p className="text-[10px] text-muted-foreground text-center mt-2">
-                      Member since {new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                    </p>
-                  )}
-                </div>
+                {/* Account Stats - enhanced */}
+                <AccountStatsCard
+                  resumes={resumes.length}
+                  coverLetters={coverLetters.length}
+                  applications={applications.length}
+                  createdAt={user.created_at}
+                />
 
                 <div className="rounded-2xl glass-elevated overflow-hidden">
                   {/* Change Password - email users only */}
@@ -848,10 +919,7 @@ export default function SettingsPage() {
 
           {/* 8. About & Help */}
           <div id="section-about">
-            <h2 className="text-label uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-              <Info className="w-4 h-4 text-primary/60" />
-              About & Help
-            </h2>
+            <SectionHeader icon={Info} label="About & Help" />
             <p className="text-xs text-muted-foreground mb-3 px-1">App info, onboarding, and sharing</p>
 
             <div className="rounded-2xl glass-elevated overflow-hidden">
@@ -943,23 +1011,17 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          {/* Developer Credit Card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-          >
-            <Suspense fallback={null}>
-              <DeveloperCreditCard
-                name="Magdy Saber"
-                title="Creator & Developer"
-                avatarUrl={developerPhoto}
-                websiteUrl="https://magdysaber.com"
-                githubUrl="https://github.com/iammagdy"
-                onContactClick={() => window.open('mailto:contact@magdysaber.com')}
-              />
-            </Suspense>
-          </motion.div>
+          {/* Developer Credit Card — whileInView, once */}
+          <Suspense fallback={null}>
+            <DeveloperCreditCard
+              name="Magdy Saber"
+              title="Creator & Developer"
+              avatarUrl={developerPhoto}
+              websiteUrl="https://magdysaber.com"
+              githubUrl="https://github.com/iammagdy"
+              onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+            />
+          </Suspense>
 
           {/* Branded Footer */}
           <div className="pt-2 pb-10">
@@ -1282,11 +1344,18 @@ function GuestCtaCard({ navigate }: { navigate: (path: string) => void }) {
   );
 }
 
-function AICreditsRow() {
+// --- Enhanced AI Credits Row with color-coded progress & CTA ---
+function AICreditsRow({ onOpenAISettings }: { onOpenAISettings: () => void }) {
   const { data: credits } = useAICredits();
   const used = credits?.daily_usage || 0;
   const limit = credits?.daily_limit || 20;
-  const percentage = (used / limit) * 100;
+  const percentage = Math.min((used / limit) * 100, 100);
+
+  const progressColor = percentage > 80
+    ? 'bg-destructive'
+    : percentage > 60
+      ? 'bg-amber-500'
+      : 'bg-emerald-500';
 
   return (
     <div className="flex items-center gap-3 px-4 py-3.5 min-h-[56px]">
@@ -1298,8 +1367,111 @@ function AICreditsRow() {
         <p className="text-xs text-muted-foreground">
           {used} / {limit} used today
         </p>
-        <Progress value={percentage} className="h-1.5 mt-1.5" />
+        <div className="relative h-1.5 mt-1.5 w-full overflow-hidden rounded-full bg-secondary/30">
+          <div
+            className={cn("h-full rounded-full transition-all duration-500", progressColor)}
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
+        {percentage > 80 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onOpenAISettings(); }}
+            className="text-[11px] text-primary hover:underline mt-1 inline-block"
+          >
+            Get unlimited with your own key →
+          </button>
+        )}
       </div>
+    </div>
+  );
+}
+
+// --- Enhanced Account Stats with count-up & membership tier ---
+function AccountStatsCard({ resumes, coverLetters, applications, createdAt }: {
+  resumes: number;
+  coverLetters: number;
+  applications: number;
+  createdAt?: string;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const countRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const hasAnimated = useRef(false);
+
+  const stats = [
+    { value: resumes, label: 'Resumes' },
+    { value: coverLetters, label: 'Cover Letters' },
+    { value: applications, label: 'Applications' },
+  ];
+
+  // Membership tier
+  const membershipTier = (() => {
+    if (!createdAt) return null;
+    const months = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24 * 30));
+    if (months >= 12) return 'Founding Member';
+    if (months >= 6) return 'Early Adopter';
+    if (months >= 1) return 'Member';
+    return 'New Member';
+  })();
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || hasAnimated.current) return;
+      hasAnimated.current = true;
+
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      stats.forEach((stat, i) => {
+        const span = countRefs.current[i];
+        if (!span) return;
+        if (prefersReduced || stat.value === 0) {
+          span.textContent = String(stat.value);
+          return;
+        }
+        const duration = 800;
+        const start = performance.now();
+        const animate = (now: number) => {
+          const elapsed = now - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(1 - progress, 3);
+          span.textContent = String(Math.round(eased * stat.value));
+          if (progress < 1) requestAnimationFrame(animate);
+        };
+        requestAnimationFrame(animate);
+      });
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [resumes, coverLetters, applications]);
+
+  return (
+    <div
+      ref={cardRef}
+      className="rounded-2xl glass-elevated overflow-hidden p-4 mb-3 border border-primary/20"
+    >
+      {membershipTier && (
+        <div className="flex justify-center mb-2">
+          <Badge variant="outline" className="text-[10px] gap-1 border-primary/30 text-primary">
+            <Star className="w-3 h-3" />
+            {membershipTier}
+          </Badge>
+        </div>
+      )}
+      <div className="grid grid-cols-3 gap-3 text-center">
+        {stats.map((stat, i) => (
+          <div key={stat.label}>
+            <p className="text-lg font-bold text-primary">
+              <span ref={el => { countRefs.current[i] = el; }}>0</span>
+            </p>
+            <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+      {createdAt && (
+        <p className="text-[10px] text-muted-foreground text-center mt-2">
+          Member since {new Date(createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+        </p>
+      )}
     </div>
   );
 }

@@ -51,7 +51,7 @@ export function DeveloperCreditCard({
       className="dev-card-wrapper"
       initial={{ opacity: 0, y: 30, scale: 0.97 }}
       whileInView={{ opacity: 1, y: 0, scale: 1 }}
-      viewport={{ once: false, amount: 0.3 }}
+      viewport={{ once: true, amount: 0.3 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
       {/* Sparkle elements */}
@@ -76,7 +76,7 @@ export function DeveloperCreditCard({
             variants={containerVariants}
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: false, amount: 0.3 }}
+            viewport={{ once: true, amount: 0.3 }}
           >
             <div className="flex flex-col gap-3 w-full">
               {/* Top section: avatar + info */}
