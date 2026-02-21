@@ -1,70 +1,77 @@
 
 
-# AI Studio Tab Improvements
+# Activity Tab Improvements (rename "Jobs" to "Activity")
 
-## Issues Found
+## 1. Rename the tab from "Jobs" to "Activity"
 
-### 1. Performance: Infinite animation on first visit
-- **Line 322**: The Wise AI Chat button has `animate-pulse` when `isFirstVisit` is true. This is an infinite CSS animation that runs until the user dismisses the tour modal.
-- **Fix**: Replace with a finite animation like `animate-[pulse_1.5s_ease-in-out_3]` that pulses 3 times then stops.
+The tab is already titled "My Activity" in the page header, but the bottom tab bar and desktop nav both say "Jobs". This creates a mismatch. The tab covers applications, saved jobs, timelines, streaks, and stats -- "Activity" is a much better label.
 
-### 2. Performance: Cycling placeholder interval never pauses
-- **Lines 130-133**: A `setInterval` runs every 3 seconds to cycle placeholder text, even when the page is backgrounded or the input is not visible (desktop hides the sticky input).
-- **Fix**: Use `document.visibilitychange` to pause the interval when the tab is hidden, or switch to a CSS-only approach.
-
-### 3. Performance: 12 individual `motion.div` entrance animations
-- Every section (header, resume bar, chat button, 4 categories, pro tip) has its own `motion.div` with `initial/animate`. That's 8+ Framer Motion instances orchestrating on mount.
-- **Fix**: Wrap in a single `motion.div` parent with `staggerChildren` or remove individual entrance animations for the category sections (they're below the fold on mobile anyway and the user won't see them animate).
-
-### 4. UX: Tool cards are too uniform -- no visual priority
-- All 14 tools look identical (same size, same glass-surface style). The most-used tools (Smart Tailor, Job Match, Enhance) don't stand out from niche tools (Resignation Letters, Company Briefing).
-- **Fix**: Make the top 2-3 tools in "Resume Tools" slightly larger or add a subtle primary border/glow to featured tools. Add a "Popular" badge to the top 2 tools.
-
-### 5. UX: Suggestion chips in the Chat button are not tappable
-- The 3 suggestion chips inside the chat button (lines 335-342) are `<span>` elements inside a `<button>`. Tapping them opens the chat sheet but doesn't pre-fill the suggestion text.
-- **Fix**: Convert them to individual tappable elements that pre-fill the chat with the suggestion text, so users get instant value.
-
-### 6. UX: Pro tip is static and always the same
-- The "Pro tip" at the bottom always shows the same message about pasting a job URL. After the first read it becomes visual noise.
-- **Fix**: Cycle through 3-4 tips or make it dismissible (persist to localStorage).
-
-### 7. UX: Sticky mobile input shadow is too harsh
-- **Line 400**: `shadow-[0_-4px_12px_rgba(0,0,0,0.2)]` creates a heavy dark shadow above the input. On light mode this looks jarring.
-- **Fix**: Soften to `shadow-[0_-2px_8px_rgba(0,0,0,0.08)]` and add a top border for structure.
-
-### 8. UX: No recent/frequently used tools section
-- Users must scan all categories every time. Power users who use Smart Tailor and Job Match daily have to scroll through the same grid.
-- **Fix**: Add a "Recent" row at the top showing the last 3 tools used (tracked in localStorage). This gives returning users a one-tap shortcut.
+### Files to change
+- **BottomTabBar.tsx** line 62: Change `label: 'Jobs'` to `label: 'Activity'`
+- **DesktopNav.tsx** line 40: Change `label: 'Jobs'` to `label: 'Activity'`
 
 ---
 
-## Proposed Changes
+## 2. Performance: Per-item entrance animations on application cards
 
-### File: `src/pages/AIStudioPage.tsx`
+Every application card and job card has its own `motion.div` with `initial={{ opacity: 0, y: 8 }}` and `animate`. For users with 20+ applications, this means 20+ Framer Motion instances animating simultaneously on mount.
 
-**Fix infinite pulse on chat button:**
-- Line 322: Replace `animate-pulse` with `animate-[pulse_1.5s_ease-in-out_3]`
+### Fix
+- Remove individual `motion.div` wrappers from the application card loop (lines 307-367) and `JobCard` component (lines 43-91). Replace with plain `div` elements -- the list appears instantly which feels snappier on mobile.
 
-**Make suggestion chips actionable:**
-- Convert the 3 `<span>` chips to `<button>` elements that stop propagation, pre-fill the chat with the suggestion text, and open the chat sheet
+---
 
-**Reduce motion.div overhead:**
-- Remove individual `initial/animate` from category sections (lines 349-353) -- they're below the fold on xs screens and the staggered delay adds no perceived value. Keep the header and chat button animations.
+## 3. Performance: AI scoring runs on every mount
 
-**Soften sticky input shadow:**
-- Line 400: Change to `shadow-[0_-2px_8px_rgba(0,0,0,0.08)] border-t border-border`
+The `useEffect` at lines 144-177 fires background AI scoring for all uncached jobs every time the component mounts, even when the user is on the "applications" tab and never views jobs.
 
-**Make Pro tip dismissible:**
-- Add a dismiss button (X) and persist dismissal in localStorage via a useState initializer
-- Rotate through 3-4 tips using a random index seeded by day
+### Fix
+- Gate the AI scoring effect behind `activeTab === 'jobs'` so it only runs when the user actually views saved jobs.
 
-**Add "Recent Tools" row:**
-- Track last 3 used tool IDs in localStorage (updated in `handleToolAction`)
-- Render a horizontal scroll row above the categories showing the recently used tools as compact chips
+---
 
-### File: `src/components/ai/AICostBadge.tsx`
+## 4. UX: Tab bar is disconnected from content
 
-No changes needed -- this component is clean and lightweight.
+The current tab bar (lines 267-279) uses the same `glass-elevated` style as other cards, making it blend in. The active tab uses a solid primary background that doesn't match the page's overall style.
+
+### Fix
+- Use a cleaner pill-style tab bar with a subtle indicator rather than a heavy filled background. Add a bottom border accent on the active tab similar to what we did for the Editor tabs.
+
+---
+
+## 5. UX: StatusFilter only visible in applications tab but counts include all statuses
+
+The `StatusFilter` shows counts but the "screening" status is missing from the filter chips. Users with applications in "screening" status have no way to filter to them.
+
+### Fix
+- Add `screening` to the `STATUSES` array in `StatusFilter.tsx` between "Applied" and "Interviewing".
+
+---
+
+## 6. UX: The "Add Application" FAB is missing from the applications tab
+
+When on the "applications" tab, there's no floating action button -- only the "Saved Jobs" tab has a FAB (lines 489-499). Users have to scroll up to find the "+ Add" in the empty state or the header area.
+
+### Fix
+- Show a FAB on the applications tab too, wired to `setShowAdd(true)`.
+
+---
+
+## 7. UX: Activity stats card is buried below applications
+
+The `JobActivityStatsCard` only shows after scrolling past the timeline and all application cards (line 417). It should be more prominent -- at least above the application cards list.
+
+### Fix
+- Move the `JobActivityStatsCard` block above the "Applications" cards section (before line 299), so users see their stats summary without scrolling past individual cards.
+
+---
+
+## 8. UX: ResumeCompletionCard feels out of place
+
+The `ResumeCompletionCard` belongs more on the Dashboard/Home tab. On the Activity tab it adds noise between the streak and the timeline.
+
+### Fix
+- Remove `ResumeCompletionCard` from this page -- it's already accessible from the Home tab.
 
 ---
 
@@ -72,13 +79,31 @@ No changes needed -- this component is clean and lightweight.
 
 | Area | Issue | Fix |
 |---|---|---|
-| Chat button | Infinite pulse on first visit | Finite 3x pulse |
-| Placeholder cycling | Runs when tab hidden | Pause on visibilitychange |
-| Entrance animations | 8+ individual motion.div | Remove from below-fold sections |
-| Tool cards | All look identical | Featured badge on top tools |
-| Suggestion chips | Not individually tappable | Make them pre-fill chat |
-| Pro tip | Static, never changes | Dismissible + rotating tips |
-| Sticky input | Harsh shadow | Softer shadow + border |
-| Navigation | No shortcuts for power users | Recent tools row |
+| Tab label | "Jobs" vs "My Activity" mismatch | Rename to "Activity" in nav |
+| Card animations | 20+ motion.div on mount | Remove per-card motion wrappers |
+| AI scoring | Runs even on applications tab | Gate behind activeTab === 'jobs' |
+| Tab bar style | Heavy filled active state | Cleaner pill with border accent |
+| StatusFilter | Missing "screening" status | Add screening chip |
+| Applications FAB | No FAB on applications tab | Add FAB for adding applications |
+| Stats placement | Buried below all cards | Move above application cards |
+| ResumeCompletionCard | Out of place on Activity tab | Remove from this page |
 
-All changes maintain existing functionality while improving perceived performance and making the most common actions faster to reach.
+All changes are additive to UX -- no features removed, just better organization and fewer wasted CPU cycles.
+
+### Technical Details
+
+**BottomTabBar.tsx**: Single line change on line 62.
+
+**DesktopNav.tsx**: Single line change on line 40.
+
+**ApplicationsPage.tsx**:
+- Remove `ResumeCompletionCard` import and usage
+- Move `JobActivityStatsCard` rendering above application cards
+- Replace `motion.div` wrappers in application card loop with plain `div`
+- Remove `motion` wrapper from `JobCard` component
+- Add `activeTab === 'jobs'` guard to AI scoring `useEffect`
+- Add a FAB for the applications tab (similar to existing Save Job FAB)
+- Update tab bar styling to use border-accent approach
+
+**StatusFilter.tsx**: Add `{ value: 'screening', label: 'Screening', color: 'bg-blue-500/15 text-blue-500' }` after the "Applied" entry.
+
