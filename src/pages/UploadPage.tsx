@@ -23,6 +23,7 @@ import { OCRPromptDialog } from '@/components/upload/OCRPromptDialog';
 import { UploadErrorRecovery, UploadErrorType } from '@/components/upload/UploadErrorRecovery';
 import { UploadProgressSteps, ParseStep } from '@/components/upload/UploadProgressSteps';
 import { ImportReviewSheet, SelectedSections } from '@/components/upload/ImportReviewSheet';
+import { ATSValidationChecklist } from '@/components/upload/ATSValidationChecklist';
 import { ImportUploadSheet, FileType } from '@/components/upload/ImportUploadSheet';
 import { UploadZone } from '@/components/upload/UploadZone';
 import { toast } from 'sonner';
@@ -69,6 +70,11 @@ export default function UploadPage() {
   // ATS scoring state for import flow
   const [importATSScore, setImportATSScore] = useState<ResumeHealthScore | null>(null);
   const [isImportScoring, setIsImportScoring] = useState(false);
+
+  // Validation checklist state
+  const [showValidationChecklist, setShowValidationChecklist] = useState(false);
+  const [validationResumeData, setValidationResumeData] = useState<ResumeData | null>(null);
+  const [validationSections, setValidationSections] = useState<SelectedSections | null>(null);
 
   // Get accept string based on file type
   function getAcceptString(type: FileType): string {
@@ -147,7 +153,7 @@ export default function UploadPage() {
     setIsProcessing(false);
   }, []);
 
-  // Handle import confirmation from review sheet
+  // Handle import confirmation — show validation checklist instead of navigating directly
   const handleImportConfirm = useCallback(async (data: ResumeData, sections: SelectedSections) => {
     // Filter data based on selected sections
     const filteredData: ResumeData = {
@@ -165,35 +171,45 @@ export default function UploadPage() {
       certifications: sections.certifications ? data.certifications : [],
     };
 
-    // Save and navigate
+    // Store filtered data and show validation checklist
+    setValidationResumeData(filteredData);
+    setValidationSections(sections);
+    setShowImportReview(false);
+    setShowValidationChecklist(true);
+  }, []);
+
+  // Continue from validation checklist — save and navigate to editor
+  const handleValidationContinue = useCallback(async () => {
+    if (!validationResumeData || !validationSections) return;
+
     if (user) {
       try {
         const newResume = await createResume.mutateAsync({
-          resume: filteredData,
-          title: filteredData.contactInfo.fullName || 'Uploaded Resume',
+          resume: validationResumeData,
+          title: validationResumeData.contactInfo.fullName || 'Uploaded Resume',
         });
         setCurrentResumeId(newResume.id);
         setCurrentResume({
-          ...filteredData,
+          ...validationResumeData,
           id: newResume.id,
         });
-        // Record import ATS score under the real resume ID
         if (importATSScore) {
           useATSScoreHistoryStore.getState().addScore(newResume.id, importATSScore);
         }
       } catch (error) {
         console.error('Failed to save to cloud:', error);
-        setCurrentResume(filteredData);
+        setCurrentResume(validationResumeData);
       }
     } else {
-      setCurrentResume(filteredData);
+      setCurrentResume(validationResumeData);
     }
 
-    setShowImportReview(false);
-    setPendingResumeData(null);
-    
-    const selectedCount = Object.values(sections).filter(Boolean).length;
-    const sectionNames = Object.entries(sections)
+    setShowValidationChecklist(false);
+    setValidationResumeData(null);
+    setValidationSections(null);
+
+    const selectedCount = Object.values(validationSections).filter(Boolean).length;
+    const sectionNames = Object.entries(validationSections)
       .filter(([, v]) => v)
       .map(([k]) => k.charAt(0).toUpperCase() + k.slice(1))
       .slice(0, 3);
@@ -201,7 +217,17 @@ export default function UploadPage() {
     const summary = sectionNames.join(', ') + (moreCount > 0 ? ` +${moreCount} more` : '');
     toast.success(`Import complete! ${summary}`, { duration: 4000 });
     navigate('/editor');
-  }, [user, createResume, setCurrentResume, setCurrentResumeId, navigate]);
+  }, [validationResumeData, validationSections, user, createResume, setCurrentResume, setCurrentResumeId, navigate, importATSScore]);
+
+  // Go back from validation to import review
+  const handleValidationBack = useCallback(() => {
+    setShowValidationChecklist(false);
+    setShowImportReview(true);
+    // Restore pending data so ImportReviewSheet can display it
+    if (validationResumeData) {
+      setPendingResumeData(validationResumeData);
+    }
+  }, [validationResumeData]);
 
   const handleImportReviewClose = useCallback(() => {
     setShowImportReview(false);
@@ -774,6 +800,17 @@ export default function UploadPage() {
         isScoring={isImportScoring}
       />
       
+      {/* ATS Validation Checklist */}
+      {validationResumeData && (
+        <ATSValidationChecklist
+          open={showValidationChecklist}
+          parsedData={validationResumeData}
+          atsScore={importATSScore}
+          onContinue={handleValidationContinue}
+          onBack={handleValidationBack}
+        />
+      )}
+
       {/* Import Upload Sheet (replaces FileTypeSelector) */}
       <ImportUploadSheet
         open={showImportSheet}
