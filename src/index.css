@@ -85,7 +85,7 @@ body.wr-security-curtain [data-biometric-lock] {
     --secondary-foreground: 240 20% 4%;
 
     --muted: 240 15% 15%;
-    --muted-foreground: 240 10% 65%;
+    --muted-foreground: 240 10% 68%;
 
     /* Accent - Hot Pink */
     --accent: 330 100% 65%;
@@ -186,7 +186,7 @@ body.wr-security-curtain [data-biometric-lock] {
     --secondary: 185 100% 50%;
     --secondary-foreground: 240 20% 4%;
     --muted: 240 15% 15%;
-    --muted-foreground: 240 10% 65%;
+    --muted-foreground: 240 10% 68%;
     --accent: 330 100% 65%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;

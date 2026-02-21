@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo, useDeferredValue, la
 import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
-import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors } from 'lucide-react';
+import { Download, ChevronRight, ChevronLeft, Check, Cloud, CloudOff, ArrowLeft, Sparkles, MessageSquare, Lock, User, AlignLeft, Briefcase, GraduationCap, Wrench, Clock, Info, X, Plus, Trophy, Rocket, BookOpen, Heart, Palette, Users, Eye, Award, Globe, PanelLeftClose, PanelLeft, ChevronDown, BarChart3, Undo2, Redo2, Scissors, LayoutTemplate } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 // Tooltip removed – Radix Popper causes infinite setRef loop on this page
 import { calcContactScore, calcSummaryScore, calcExperienceScore, calcEducationScore, calcSkillsScore, calcOverallScore, getSectionStatus, getNextIncompleteSection } from '@/lib/resumeCompletionRules';
@@ -1174,11 +1174,45 @@ export default function EditorPage() {
                 {renderEditorContent()}
               </div>
             </TabsContent>
-            <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0">
+            <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               {mobileEditorTab === 'preview' && (
-                <Suspense fallback={null}>
-                  <LivePreviewPanel highlightSection={activeTab} />
-                </Suspense>
+                <>
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <Suspense fallback={null}>
+                      <LivePreviewPanel highlightSection={activeTab} />
+                    </Suspense>
+                  </div>
+                  {/* Quick Actions Bar */}
+                  <div className="shrink-0 glass-header border-t border-border px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))] flex items-center justify-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
+                      onClick={() => { haptics.light(); navigate('/preview'); }}
+                    >
+                      <Eye className="w-4 h-4" />
+                      Full Preview
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
+                      onClick={() => { haptics.light(); setShowTemplates(true); }}
+                    >
+                      <LayoutTemplate className="w-4 h-4" />
+                      Template
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
+                      onClick={() => { haptics.light(); setShowCustomize(true); }}
+                    >
+                      <Palette className="w-4 h-4" />
+                      Design
+                    </Button>
+                  </div>
+                </>
               )}
             </TabsContent>
           </Tabs>
