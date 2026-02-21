@@ -12,6 +12,7 @@ import { useGuestMigration } from '@/hooks/useGuestMigration';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { AppIcon } from '@/components/brand/AppIcon';
+import { logAudit } from '@/lib/auditLogger';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { PasswordInput } from '@/components/auth/PasswordInput';
@@ -134,12 +135,14 @@ export default function AuthPage() {
 
     setIsLoading(true);
     setIsSlowConnection(false);
+    logAudit('auth', 'login_attempted', { method: 'email' });
     const slowTimer = setTimeout(() => setIsSlowConnection(true), 15_000);
 
     try {
       const { error } = await withNetworkRetry(() => supabase.auth.signInWithPassword({ email, password }));
       if (error) {
         haptics.error();
+        logAudit('auth', 'login_failed', { method: 'email', reason: error.message });
         const newAttempts = failedAttempts + 1;
         if (newAttempts >= MAX_FAILED_ATTEMPTS) {
           const until = Date.now() + COOLDOWN_SECONDS * 1000;
@@ -152,6 +155,7 @@ export default function AuthPage() {
         return;
       }
       clearCooldown();
+      logAudit('auth', 'login_succeeded', { method: 'email' });
       toast.success('Welcome back!');
       const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
       setTimeout(() => navigate(redirectTo), 600);
@@ -199,6 +203,7 @@ export default function AuthPage() {
           { onConflict: 'user_id' }
         );
       }
+      logAudit('auth', 'signup_succeeded', { method: 'email', confirmed: !!data.session });
       if (data.session) {
         toast.success('Account created!');
         const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
@@ -230,6 +235,7 @@ export default function AuthPage() {
         redirectTo: `${window.location.origin}/auth?reset=true`,
       });
       if (error) { toast.error(error.message); return; }
+      logAudit('auth', 'password_reset_requested', { email: forgotEmail });
       toast.success('Check your email for the reset link!');
       setMode('login');
     } catch { toast.error('An unexpected error occurred.'); }
@@ -251,6 +257,7 @@ export default function AuthPage() {
     try {
       const { error } = await supabase.auth.updateUser({ password: resetPassword });
       if (error) { toast.error(error.message); return; }
+      logAudit('auth', 'password_updated', {});
       toast.success('Password updated successfully!');
       setTimeout(() => navigate('/dashboard'), 600);
     } catch { toast.error('An unexpected error occurred.'); }
@@ -259,12 +266,14 @@ export default function AuthPage() {
 
   const handleGoogleSignIn = async () => {
     setSocialLoading('google');
+    logAudit('auth', 'login_attempted', { method: 'google' });
     try { await signInWithGoogle(); } catch { /* handled */ }
     finally { setTimeout(() => setSocialLoading(null), 2000); }
   };
 
   const handleAppleSignIn = async () => {
     setSocialLoading('apple');
+    logAudit('auth', 'login_attempted', { method: 'apple' });
     try { await signInWithApple(); } catch { /* handled */ }
     finally { setTimeout(() => setSocialLoading(null), 2000); }
   };
