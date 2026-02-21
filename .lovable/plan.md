@@ -1,49 +1,51 @@
 
 
-# Fix: Black Gap Below Editor — The Real Root Cause
+# Remove Editor Bottom Bar and Make Buttons Floating
 
-## Why all previous fixes failed
+## Problem
+The bottom action bar (PDF, Preview, ATS buttons) at the bottom of the editor content area creates a visible "black bar" that takes up significant screen space. Combined with the AppShell layout, this bar causes the half-black-screen appearance.
 
-The EditorPage sits inside AppShell's **scroll container** (a div with `overflow-y-auto`). In a scroll container, children are NOT constrained to the parent's height — they can grow beyond and scroll. This means:
+## Solution
+Remove the fixed bottom action bar entirely and convert its buttons into a floating pill that hovers above the BottomTabBar, similar to the existing `FloatingCreateButton` pattern.
 
-- `flex-1` on EditorPage does NOT force it to fill the container
-- `h-[calc(100dvh-2.5rem)]` creates a fixed box, but the AppShell header + safe-area padding means the available space is less than `100dvh - 2.5rem`, causing the editor to slightly overflow AND leaving a black gap visible when the page loads
+## Changes
 
-Additionally, the AppShell renders its own "WiseResume" header bar for the editor route, but the editor already has its own header. This wastes ~40px of vertical space.
+### 1. `src/pages/EditorPage.tsx`
 
-## The Fix (2 changes)
+**Remove the bottom action bar** (lines 1220-1249):
+Delete the entire `div` containing the PDF, Preview, and ATS buttons from inside `TabsContent value="editor"`.
 
-### 1. Hide AppShell header on editor routes
-
-The editor has its own header with back button, title, template picker, etc. The AppShell "WiseResume / Editor" header is redundant.
-
-**File: `src/components/layout/AppShell.tsx` (line 44)**
-
-Change `{showBottomNav && (` to `{showBottomNav && !isEditorRoute && (`
-
-This hides the duplicate header, giving the editor the full viewport minus only the bottom tab bar.
-
-### 2. EditorPage: use full viewport height, subtract nothing
-
-With no AppShell header above it, the editor container should use the full viewport height. The BottomTabBar is `position: fixed` and overlays on top, so no subtraction needed. The editor's own internal `pb-16` on the scroll area already provides clearance for the bottom tab bar.
-
-**File: `src/pages/EditorPage.tsx` (line 966)**
-
-Change from:
+**Remove `h-[100dvh]` from root `<main>`** (line 966):
+Change back to just `flex-1` since the black gap was caused by this bar, not the height calc:
 ```
-h-[calc(100dvh-2.5rem)]
+<main className="flex-1 flex flex-col overflow-hidden">
 ```
-to:
+
+**Add a floating action pill** rendered via `createPortal` to `document.body`, positioned at `bottom-[7rem]` (above the BottomTabBar). It will contain the same 3 buttons (PDF, Preview, ATS) in a compact horizontal pill with glass styling:
+
+```tsx
+{isMobile && mobileEditorTab === 'editor' && createPortal(
+  <div className="fixed bottom-[7rem] left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 rounded-full bg-background/90 backdrop-blur-xl border border-border/50 shadow-lg">
+    <Button size="sm" onClick={handleQuickDownload} ...>PDF</Button>
+    <Button variant="outline" size="sm" onClick={Preview} ...>Preview</Button>
+    <Button variant="outline" size="sm" onClick={ATS} ...>ATS</Button>
+  </div>,
+  document.body
+)}
 ```
-h-[100dvh]
-```
+
+### 2. `src/components/layout/AppShell.tsx`
+
+**Revert the `pb-20` conditional** back to include editor routes, since the editor no longer has its own bottom bar stealing space. Or keep the current `!isEditorRoute` exclusion since the floating pill handles its own positioning.
+
+No changes needed here -- the current state (no `pb-20` for editor) is correct for the floating approach.
 
 ## Summary
 
-| # | File | Line | Change |
-|---|------|------|--------|
-| 1 | `AppShell.tsx` | 44 | Hide AppShell header for editor routes: `showBottomNav && !isEditorRoute && (` |
-| 2 | `EditorPage.tsx` | 966 | Use full viewport: `h-[100dvh]` instead of `h-[calc(100dvh-2.5rem)]` |
+| # | File | What |
+|---|------|------|
+| 1 | `EditorPage.tsx` | Remove bottom action bar (lines 1220-1249) |
+| 2 | `EditorPage.tsx` | Change root `<main>` from `h-[100dvh]` to just `flex-1 flex flex-col overflow-hidden` |
+| 3 | `EditorPage.tsx` | Add floating pill with PDF/Preview/ATS buttons via portal, positioned above BottomTabBar |
 
 No database changes. No new dependencies.
-
