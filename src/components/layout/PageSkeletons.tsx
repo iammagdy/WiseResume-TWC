@@ -325,7 +325,6 @@ export function ProfilePageSkeleton() {
         <div className="h-5 w-24 bg-muted rounded" />
       </div>
       <div className="flex-1 px-4 py-6 space-y-6">
-        {/* Avatar */}
         <div className="flex flex-col items-center gap-3">
           <div className="h-24 w-24 rounded-full bg-muted" />
           <div className="space-y-2 flex flex-col items-center">
@@ -333,20 +332,173 @@ export function ProfilePageSkeleton() {
             <div className="h-4 w-48 bg-muted rounded" />
           </div>
         </div>
-        {/* Completion */}
         <div className="h-32 bg-muted rounded-2xl" />
-        {/* Actions */}
         <div className="grid grid-cols-2 gap-3">
           <div className="h-12 bg-muted rounded-xl" />
           <div className="h-12 bg-muted rounded-xl" />
         </div>
-        {/* Portfolio card */}
         <div className="h-36 bg-muted rounded-2xl" />
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-3">
           <div className="h-24 bg-muted rounded-2xl" />
           <div className="h-24 bg-muted rounded-2xl" />
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function TemplatesPageSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+        <div className="h-6 w-32 bg-muted rounded" />
+      </div>
+      <div className="px-4 pt-3 pb-1 flex gap-2 overflow-hidden">
+        {[1, 2, 3, 4, 5].map(i => (
+          <div key={i} className="h-8 w-20 bg-muted rounded-full flex-shrink-0" />
+        ))}
+      </div>
+      <div className="px-4 py-3 grid grid-cols-2 gap-3">
+        {[1, 2, 3, 4, 5, 6].map(i => (
+          <div key={i} className="aspect-[3/4] bg-muted rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function CoverLettersSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+        <div className="h-6 w-32 bg-muted rounded flex-1" />
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+      </div>
+      <div className="px-4 pt-3">
+        <div className="h-11 bg-muted rounded-xl" />
+      </div>
+      <div className="px-4 pt-3 space-y-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-24 bg-muted rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function ResignationLettersSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+        <div className="h-6 w-40 bg-muted rounded flex-1" />
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+      </div>
+      <div className="px-4 pt-3">
+        <div className="h-11 bg-muted rounded-xl" />
+      </div>
+      <div className="px-4 pt-3 space-y-3">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-24 bg-muted rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function NotificationsSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+        <div className="h-6 w-28 bg-muted rounded flex-1" />
+        <div className="flex gap-1">
+          <div className="w-16 h-8 bg-muted rounded" />
+          <div className="w-14 h-8 bg-muted rounded" />
+        </div>
+      </div>
+      <div className="px-4 pt-3 pb-1 flex gap-2">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-8 w-20 bg-muted rounded-full flex-shrink-0" />
+        ))}
+      </div>
+      <div className="px-4 mt-2 space-y-2">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-20 bg-muted rounded-xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PortfolioEditorSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+        <div className="h-6 w-36 bg-muted rounded flex-1" />
+        <div className="w-20 h-9 bg-muted rounded-lg" />
+      </div>
+      <div className="px-4 pt-4">
+        <div className="h-14 bg-muted rounded-2xl" />
+      </div>
+      <div className="px-4 pt-4 space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-20 bg-muted rounded-2xl" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function OnboardingSkeleton() {
+  return (
+    <div className="min-h-screen min-h-[100dvh] bg-background flex flex-col animate-pulse">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
+        <div className="w-10 h-10 bg-muted rounded-full" />
+        <div className="w-12 h-5 bg-muted rounded" />
+      </div>
+      <div className="px-4 py-2">
+        <div className="h-2 w-full bg-muted rounded" />
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center px-6 space-y-6">
+        <div className="w-16 h-16 bg-muted rounded-2xl" />
+        <div className="h-7 w-48 bg-muted rounded" />
+        <div className="h-4 w-64 bg-muted rounded" />
+        <div className="w-full space-y-3 max-w-sm">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-16 bg-muted rounded-xl" />
+          ))}
+        </div>
+      </div>
+      <div className="px-6 pb-8">
+        <div className="h-14 w-full bg-muted rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+export function GuidesExamplesSkeleton() {
+  return (
+    <div className="flex-1 flex flex-col animate-pulse">
+      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
+        <div className="w-10 h-10 bg-muted rounded-xl" />
+        <div className="h-6 w-32 bg-muted rounded" />
+      </div>
+      <div className="px-4 pt-3">
+        <div className="h-11 bg-muted rounded-xl" />
+      </div>
+      <div className="px-4 pt-3 flex gap-2 overflow-hidden">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-8 w-20 bg-muted rounded-full flex-shrink-0" />
+        ))}
+      </div>
+      <div className="px-4 pt-3 space-y-3">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-20 bg-muted rounded-2xl" />
+        ))}
       </div>
     </div>
   );
