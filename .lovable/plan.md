@@ -1,87 +1,70 @@
 
-# Editor Page Improvements
+
+# AI Studio Tab Improvements
 
 ## Issues Found
 
-### 1. Performance: Remaining infinite animation loops
-- **EditorPage.tsx line 1006**: Desktop "Wise AI" button has `animate-[pulse-glow_2s_ease-in-out_infinite]` CSS animation running permanently
-- **EditorPage.tsx lines 1011, 1023, 1034**: Three separate `animate-pulse` notification dots running on header buttons
-- **AddSectionFAB (line 1370-1372)**: First-visit pulse uses `repeat: Infinity` Framer Motion loop -- should use CSS `animate-[ping_1.5s_ease-out_4]` (run 4 times then stop, like we did for profile pulse)
-- **AIFloatingButton.tsx line 118**: `animate-pulse` on the FAB overlay runs infinitely
+### 1. Performance: Infinite animation on first visit
+- **Line 322**: The Wise AI Chat button has `animate-pulse` when `isFirstVisit` is true. This is an infinite CSS animation that runs until the user dismisses the tour modal.
+- **Fix**: Replace with a finite animation like `animate-[pulse_1.5s_ease-in-out_3]` that pulses 3 times then stops.
 
-### 2. Performance: Inline style tags re-rendered
-- **EditorPage.tsx lines 1045-1056**: The `spring-enter` and `save-check-pop` keyframe `<style>` tags are inside the render tree and re-injected on every render. Should be moved to module level or a CSS file.
-- **ProgressBar.tsx lines 46-56**: Same issue -- `progress-confetti-burst` and `progress-text-pulse` keyframes are inline.
-- **StepperNav.tsx lines 233-243**: `stepper-confetti-burst` and `stepper-icon-pulse` keyframes inline.
+### 2. Performance: Cycling placeholder interval never pauses
+- **Lines 130-133**: A `setInterval` runs every 3 seconds to cycle placeholder text, even when the page is backgrounded or the input is not visible (desktop hides the sticky input).
+- **Fix**: Use `document.visibilitychange` to pause the interval when the tab is hidden, or switch to a CSS-only approach.
 
-### 3. UX: Mobile header is cluttered
-- The header has back button, resume name, undo/redo, version history, Template button, and Chat button all competing for space. On a 375px screen this leaves the resume name truncated to nearly nothing.
-- **Fix**: Hide undo/redo on xs screens (they're already `hidden xs:flex`) but the two mobile-only buttons (Template + Chat) could be consolidated into the tools sheet to free up space.
+### 3. Performance: 12 individual `motion.div` entrance animations
+- Every section (header, resume bar, chat button, 4 categories, pro tip) has its own `motion.div` with `initial/animate`. That's 8+ Framer Motion instances orchestrating on mount.
+- **Fix**: Wrap in a single `motion.div` parent with `staggerChildren` or remove individual entrance animations for the category sections (they're below the fold on mobile anyway and the user won't see them animate).
 
-### 4. UX: Mobile Editor/Preview tabs feel disconnected
-- The `TabsList` at line 1177 uses plain rounded-none styling with no visual connection to the content below. It looks like a generic switch rather than an integrated editing experience.
-- **Fix**: Add a subtle bottom border highlight on the active tab and slightly better spacing to make it feel more native.
+### 4. UX: Tool cards are too uniform -- no visual priority
+- All 14 tools look identical (same size, same glass-surface style). The most-used tools (Smart Tailor, Job Match, Enhance) don't stand out from niche tools (Resignation Letters, Company Briefing).
+- **Fix**: Make the top 2-3 tools in "Resume Tools" slightly larger or add a subtle primary border/glow to featured tools. Add a "Popular" badge to the top 2 tools.
 
-### 5. UX: Section navigation buttons (Previous/Next) are too large
-- The Previous/Next buttons at lines 812-852 have `min-h-[56px]` which is taller than standard mobile nav buttons. Combined with `flex-col xs:flex-row`, they stack vertically on the smallest screens, consuming ~120px of vertical space.
-- **Fix**: Reduce to `min-h-[48px]` and ensure they always sit side-by-side with `flex-row` even on xs.
+### 5. UX: Suggestion chips in the Chat button are not tappable
+- The 3 suggestion chips inside the chat button (lines 335-342) are `<span>` elements inside a `<button>`. Tapping them opens the chat sheet but doesn't pre-fill the suggestion text.
+- **Fix**: Convert them to individual tappable elements that pre-fill the chat with the suggestion text, so users get instant value.
 
-### 6. UX: SectionCard tip pill is always visible
-- The tip pill (e.g., "Include a professional email...") takes space even after the section is complete. Once `status === 'complete'`, the tip is no longer helpful.
-- **Fix**: Hide the tip when status is `'complete'`.
+### 6. UX: Pro tip is static and always the same
+- The "Pro tip" at the bottom always shows the same message about pasting a job URL. After the first read it becomes visual noise.
+- **Fix**: Cycle through 3-4 tips or make it dismissible (persist to localStorage).
 
-### 7. UX: No visual feedback on section switch
-- Each section uses `animation: 'spring-enter 0.35s ease-out'` via inline CSS style. This works but there's no exit animation, making transitions feel abrupt.
-- **Fix**: This is minor and the current approach is fine for performance -- no change needed here.
+### 7. UX: Sticky mobile input shadow is too harsh
+- **Line 400**: `shadow-[0_-4px_12px_rgba(0,0,0,0.2)]` creates a heavy dark shadow above the input. On light mode this looks jarring.
+- **Fix**: Soften to `shadow-[0_-2px_8px_rgba(0,0,0,0.08)]` and add a top border for structure.
 
-### 8. Code: 1393-line monolith
-- EditorPage.tsx continues to grow. The header (lines 906-1039) is 133 lines of JSX that could be a separate component.
+### 8. UX: No recent/frequently used tools section
+- Users must scan all categories every time. Power users who use Smart Tailor and Job Match daily have to scroll through the same grid.
+- **Fix**: Add a "Recent" row at the top showing the last 3 tools used (tracked in localStorage). This gives returning users a one-tap shortcut.
 
 ---
 
 ## Proposed Changes
 
-### File: `src/pages/EditorPage.tsx`
+### File: `src/pages/AIStudioPage.tsx`
 
-**Move inline keyframes to module level:**
-- Extract the `spring-enter` and `save-check-pop` `<style>` tag (lines 1045-1056) to a `const` outside the component, injected once.
+**Fix infinite pulse on chat button:**
+- Line 322: Replace `animate-pulse` with `animate-[pulse_1.5s_ease-in-out_3]`
 
-**Remove infinite animations from header buttons:**
-- Line 1006: Replace `animate-[pulse-glow_2s_ease-in-out_infinite]` with a static glow (`bg-primary/10 shadow-[0_0_20px_-4px_hsl(var(--primary)/0.3)]`)
-- Lines 1011, 1034: Replace `animate-pulse` notification dots with a static dot or a CSS animation that runs 3-4 times then stops (`animate-[ping_1.5s_ease-out_3]`)
-- Line 1023: Same for template button pulse dot
+**Make suggestion chips actionable:**
+- Convert the 3 `<span>` chips to `<button>` elements that stop propagation, pre-fill the chat with the suggestion text, and open the chat sheet
 
-**Simplify section navigation buttons:**
-- Change `min-h-[56px] sm:h-12` to `min-h-[48px]`
-- Change `flex-col xs:flex-row` to always `flex-row` so they never stack
+**Reduce motion.div overhead:**
+- Remove individual `initial/animate` from category sections (lines 349-353) -- they're below the fold on xs screens and the staggered delay adds no perceived value. Keep the header and chat button animations.
 
-**Extract EditorHeader component:**
-- Move lines 906-1039 into `src/components/editor/EditorHeader.tsx` to reduce file size by ~130 lines
+**Soften sticky input shadow:**
+- Line 400: Change to `shadow-[0_-2px_8px_rgba(0,0,0,0.08)] border-t border-border`
 
-### File: `src/components/editor/SectionCard.tsx`
+**Make Pro tip dismissible:**
+- Add a dismiss button (X) and persist dismissal in localStorage via a useState initializer
+- Rotate through 3-4 tips using a random index seeded by day
 
-**Hide tip when complete:**
-- Wrap the tip pill in a condition: only render when `status !== 'complete'`
+**Add "Recent Tools" row:**
+- Track last 3 used tool IDs in localStorage (updated in `handleToolAction`)
+- Render a horizontal scroll row above the categories showing the recently used tools as compact chips
 
-### File: `src/components/editor/ProgressBar.tsx`
+### File: `src/components/ai/AICostBadge.tsx`
 
-**Move keyframes to module level:**
-- Extract the `<style>` tag content to a module-level constant
-
-### File: `src/components/editor/StepperNav.tsx`
-
-**Move keyframes to module level:**
-- Extract confetti and pulse keyframes to module-level injection
-
-### File: `src/pages/EditorPage.tsx` (AddSectionFAB)
-
-**Fix infinite pulse on FAB:**
-- Replace lines 1370-1372 Framer Motion `repeat: Infinity` pulse with CSS `animate-[ping_1.5s_ease-out_4]` (runs 4 times then stops)
-
-### File: `src/components/editor/AIFloatingButton.tsx`
-
-**Remove remaining infinite pulse:**
-- Line 118: The `animate-pulse` on the gradient overlay should be removed -- the FAB already has a shadow glow
+No changes needed -- this component is clean and lightweight.
 
 ---
 
@@ -89,12 +72,13 @@
 
 | Area | Issue | Fix |
 |---|---|---|
-| Header buttons | 4 infinite pulse animations | Static glow or finite CSS |
-| AddSectionFAB | Infinite FM pulse loop | CSS ping x4 |
-| AIFloatingButton | Infinite CSS pulse | Remove overlay |
-| Inline style tags | 3 components re-inject keyframes | Module-level constants |
-| Section nav buttons | Too tall, stack on xs | 48px, always flex-row |
-| SectionCard tip | Shows when complete | Hide when status=complete |
-| EditorPage.tsx | 1393-line monolith | Extract EditorHeader |
+| Chat button | Infinite pulse on first visit | Finite 3x pulse |
+| Placeholder cycling | Runs when tab hidden | Pause on visibilitychange |
+| Entrance animations | 8+ individual motion.div | Remove from below-fold sections |
+| Tool cards | All look identical | Featured badge on top tools |
+| Suggestion chips | Not individually tappable | Make them pre-fill chat |
+| Pro tip | Static, never changes | Dismissible + rotating tips |
+| Sticky input | Harsh shadow | Softer shadow + border |
+| Navigation | No shortcuts for power users | Recent tools row |
 
-All changes maintain visual parity -- no features removed, just cleaner code and fewer wasted CPU cycles.
+All changes maintain existing functionality while improving perceived performance and making the most common actions faster to reach.
