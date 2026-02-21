@@ -1,113 +1,105 @@
 
 
-# Settings Page Improvements
+# User Flow & Navigation Improvements
 
-## Issues Found
+## Problems Identified
 
-### 1. Performance: 1305-line monolith component
-The entire settings page is a single 1305-line component with 12+ `useState` hooks for sheet/dialog state, multiple inline handlers, and helper components defined in the same file. This creates a large initial parse cost and makes maintenance difficult.
+### 1. Editor "Dead End" — No Resume Loaded
+When a user taps the **Editor** tab without a resume loaded, the BottomTabBar silently loads the most recent resume or redirects to `?action=create`. But if the user has resumes and the fetch hasn't finished yet, or the store is stale, they see a loading skeleton for up to 8 seconds before being bounced to the dashboard. There is no explanation of what is happening.
 
-**Fix:** Extract each settings section into its own component file (e.g., `AppearanceSection`, `NotificationsSection`, `PrivacySection`, `AccountSection`, `AboutSection`). Each section manages only its own sheet state. The main `SettingsPage` becomes a thin orchestrator (~150 lines).
+**Fix:** Show a brief inline toast or micro-banner ("Loading your latest resume...") when the Editor tab auto-loads a resume. If the redirect to `/dashboard?action=create` fires, show a toast explaining why ("No resumes yet -- let's create one!").
 
----
+### 2. Back Button Inconsistency Across Sub-Pages
+Multiple pages hard-code `navigate('/dashboard')` in their back button instead of using the centralized `getBackRoute()` from `navigation.ts`. Examples:
+- `PortfolioEditorPage.tsx` line 383: back goes to `/dashboard` instead of staying on the Portfolio tab
+- `ProfilePage.tsx` line 80: back goes to `/dashboard` (correct)
+- `NotificationsPage.tsx` line 57: back goes to `/dashboard` (correct)
+- `ExamplesPage.tsx` line 74: back goes to `/dashboard` (correct)
+- `GuidesPage.tsx` line 48: back goes to `/dashboard` (correct)
 
-### 2. Performance: Developer entrance animation on every mount
-Line 947-949: The `DeveloperCreditCard` has `motion.div` with `initial={{ opacity: 0, y: 20 }}` that animates every time the user visits settings. It's at the bottom of the page and the user won't see it until they scroll there.
+The Portfolio back button is wrong -- it should go back contextually. `BACK_ROUTES` already maps `/portfolio` to `/dashboard`, but the PortfolioEditorPage's inline `navigate('/dashboard')` bypasses the system.
 
-**Fix:** Replace with `whileInView` + `viewport={{ once: true }}` so it only animates when scrolled into view, and only once.
+**Fix:** Replace hard-coded `navigate('/dashboard')` calls with a shared `useBackNavigation()` hook that reads from `BACK_ROUTES`, so all back buttons behave consistently and can be updated from one place.
 
----
+### 3. AI Studio "Requires Resume" is a Dead End
+When the user opens an AI tool from the AI Studio without a resume loaded, `requireResume()` shows a toast and navigates to `/dashboard`. The user has no idea why they were kicked out or what to do next.
 
-### 3. Performance: Changelog fetches twice on mount
-Lines 168-184: The changelog is fetched once on mount (line 169) AND again when the dialog opens (line 179). The initial fetch is only needed to get the version number.
+**Fix:** Replace the generic toast with a specific actionable message: "Select a resume first to use this tool" and navigate to `/dashboard` with a highlight/pulse on the resume list. Or better: show an inline sheet asking "Which resume do you want to work with?" with a quick-pick list instead of navigating away.
 
-**Fix:** Fetch once on mount. When the dialog opens, only re-fetch if the data is empty or stale (>5 minutes old). This eliminates a redundant network request.
+### 4. Post-Auth Redirect is Always `/dashboard`
+After login or signup (line 173, 205 of `AuthPage.tsx`), the user always goes to `/dashboard`. If they were trying to access `/ai-studio` or `/portfolio` and got redirected to `/auth`, they lose their intended destination.
 
----
+**Fix:** Store the intended route before redirecting to `/auth` (via `ProtectedRoute`) and restore it after successful authentication. Use a `?redirect=` query param or sessionStorage.
 
-### 4. UX: No search/jump-to-section
-With 8 sections and growing, users must scroll through everything to find a specific setting. Power users who frequently toggle one setting waste time scrolling.
+### 5. Onboarding Double-Check Creates Flash
+`DashboardPage` checks onboarding status (line 142-159) and `OnboardingPage` also checks it (line 35-54). Both query the database independently. If timing is off, the user sees the dashboard flash before being redirected to onboarding.
 
-**Fix:** Add a sticky section index (horizontal scrollable chips) below the header showing section names (Appearance, AI, Editor, Notifications, Privacy, Account, About). Tapping a chip smooth-scrolls to that section using `scrollIntoView`. The active chip highlights based on scroll position using `IntersectionObserver`.
+**Fix:** Consolidate onboarding check into a single gate. The `DashboardPage` already shows an onboarding overlay (`setShowOnboarding(true)`), so remove the independent redirect from `OnboardingPage` and let the dashboard be the single source of truth.
 
----
+### 6. No "Where Am I?" Breadcrumb on Deep Pages
+Pages like `/cover-letter/edit/:id`, `/resignation-letter/edit/:id`, `/guides/:slug`, and `/resume/:id` show a back arrow but no breadcrumb trail. Users lose spatial awareness of where they are in the app hierarchy.
 
-### 5. UX: Account stats card is too basic
-The account stats card (lines 792-812) shows just 3 numbers in a flat grid. It doesn't feel special or reward loyalty.
+**Fix:** Add a subtle breadcrumb text below the header on detail pages showing the path (e.g., "AI Tools > Cover Letters > Edit"). This is one line of text, not a full breadcrumb component.
 
-**Fix:** Add a subtle accent-colored border to the stats card, show a "membership tier" label based on account age (e.g., "Early Adopter" for 6+ months, "Founding Member" for 12+), and animate the numbers with a count-up effect on first view (same pattern as portfolio HighlightsStrip).
+### 7. Tab Bar Doesn't Reflect "You Are Here" on Sub-Routes
+The BottomTabBar correctly highlights tabs via `matchPaths`, but there is no visual indication of the specific sub-page within a tab. For example, under "AI Tools", the user might be on `/interview`, `/cover-letters`, or `/career` -- the tab just shows "AI Tools" highlighted with no distinction.
 
----
+**Fix:** Add a subtle page title in the mobile header bar (the "WiseResume" branded bar at line 41 of AppShell) that shows the current page name instead of just the app name. This gives users instant spatial awareness.
 
-### 6. UX: AI Credits row has no quick action
-The `AICreditsRow` (lines 1285-1305) shows usage but offers no way to act on it. When credits are low, users have to figure out themselves that they should switch to a BYOK key.
+### 8. Upload Flow Ends Abruptly
+After uploading and importing a resume (`UploadPage.tsx` line 197), the user is sent to `/editor` with just a toast. There is no summary of what was imported or a quick "review what we found" step before diving into editing.
 
-**Fix:** When usage is above 80%, show a subtle "Switch to your own key for unlimited" link that opens the AI Settings sheet. Add a color transition to the progress bar (green -> amber -> red) based on usage percentage.
-
----
-
-### 7. UX: Privacy section lacks a "privacy summary" status
-Users toggle Local-Only and Analytics on/off but have no quick way to see their overall privacy posture at a glance.
-
-**Fix:** Add a small privacy status badge next to the section header (e.g., "Strict" when local-only is on + analytics off, "Standard" otherwise). This gives users instant feedback without expanding the section.
-
----
-
-### 8. Styling: Section headers lack visual anchoring
-All section headers use the same `text-label uppercase tracking-wider` style. They're functional but don't create a strong visual hierarchy between sections.
-
-**Fix:** Add a subtle left accent bar (2px wide, primary color, rounded) to each section header, similar to the classic-clean portfolio theme. This creates a consistent visual anchor point as users scroll.
+**Fix:** The `ImportReviewSheet` already exists (line 25) and shows section selection. Add a brief "Import Complete" confirmation with section counts before navigating to the editor, giving users confidence their data was captured correctly.
 
 ---
 
-## Proposed Changes
+## Implementation Summary
 
-### File: `src/pages/SettingsPage.tsx`
-
-**Add section index chips:**
-- Below the header, add a horizontally scrollable row of section chips
-- Each chip uses `document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth' })`
-- Track active section via `IntersectionObserver` on each `section-*` element
-- Sticky below the header with `glass-header` backdrop blur
-
-**Fix Developer card animation:**
-- Line 947: Change `initial/animate` to `whileInView` with `viewport={{ once: true }}`
-
-**Fix changelog double-fetch:**
-- Remove the `useEffect` at lines 175-184
-- In the existing mount fetch (lines 168-173), store a timestamp
-- When dialog opens, only re-fetch if data is empty or >5 min old
-
-**Enhance section headers:**
-- Add a `<div className="w-1 h-5 rounded-full bg-primary/40 mr-1" />` before each section title icon
-
-**Enhance AI Credits row:**
-- Add color-coded progress bar: green (<60%), amber (60-80%), red (>80%)
-- When >80%, show a subtle text link: "Get unlimited" that opens AI settings sheet
-- Pass `setAISettingsOpen` to the `AICreditsRow` component
-
-**Enhance Account stats:**
-- Add count-up animation using `IntersectionObserver` (same pattern as portfolio)
-- Calculate membership tier based on `user.created_at` age
-- Add accent border to the stats card
-
-**Add privacy status badge:**
-- Next to "Privacy & Security" header, show a `Badge` that reads "Strict" or "Standard" based on `localOnlyMode` and `analyticsEnabled` values
+| # | Issue | Fix | Files |
+|---|-------|-----|-------|
+| 1 | Editor dead-end on no resume | Toast explaining auto-load or redirect | `BottomTabBar.tsx`, `DesktopNav.tsx` |
+| 2 | Back button inconsistency | New `useBackNavigation` hook | `PortfolioEditorPage.tsx`, new hook |
+| 3 | AI Studio resume-required dead end | Inline resume picker instead of redirect | `AIStudioPage.tsx` |
+| 4 | Post-auth always goes to dashboard | Store + restore intended destination | `ProtectedRoute.tsx`, `AuthPage.tsx` |
+| 5 | Onboarding double-check flash | Consolidate into dashboard-only gate | `OnboardingPage.tsx`, `DashboardPage.tsx` |
+| 6 | No breadcrumb on deep pages | Subtle path text on detail headers | Detail page headers (cover-letter, resume, guides) |
+| 7 | No current page name in header | Dynamic page title in AppShell mobile header | `AppShell.tsx` |
+| 8 | Upload ends abruptly | Brief success summary before editor | `UploadPage.tsx` |
 
 ---
 
-## Summary
+## Technical Details
 
-| # | Area | Issue | Fix |
-|---|------|-------|-----|
-| 1 | Architecture | 1305-line monolith | Extract sections into sub-components |
-| 2 | Performance | Developer card animates every mount | Use whileInView once |
-| 3 | Performance | Changelog fetches twice | Deduplicate with staleness check |
-| 4 | UX | No section navigation | Add sticky section index chips |
-| 5 | UX | Basic account stats | Count-up animation + membership tier |
-| 6 | UX | AI credits row is passive | Color-coded bar + "Get unlimited" CTA |
-| 7 | UX | No privacy summary | Badge showing "Strict" / "Standard" |
-| 8 | Styling | Flat section headers | Left accent bar for visual anchoring |
+### New hook: `useBackNavigation`
+```typescript
+// src/hooks/useBackNavigation.ts
+import { useNavigate, useLocation } from 'react-router-dom';
+import { getBackRoute } from '@/lib/navigation';
+import { useAuth } from '@/hooks/useAuth';
 
-All changes maintain existing functionality. Section extraction (item 1) is the highest-impact change for maintainability but also the most invasive -- it can be done incrementally, starting with the largest sections (Notifications, Privacy, Account).
+export function useBackNavigation() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  
+  return () => {
+    const route = getBackRoute(location.pathname, !!user);
+    navigate(route);
+  };
+}
+```
+
+### Post-auth redirect (ProtectedRoute change)
+- On redirect to `/auth`, append `?redirect=/intended-path` 
+- In `AuthPage`, after successful login, read `redirect` param and navigate there instead of `/dashboard`
+
+### Dynamic page title in AppShell
+- Map current `location.pathname` to a human-readable title using a simple lookup
+- Replace the static "WiseResume" text in the mobile header with the current page title
+- Keep "WiseResume" as fallback for unmapped routes
+
+### AI Studio resume picker
+- Instead of `navigate('/dashboard')` in `requireResume()`, show a small `Sheet` listing the user's resumes (max 5, sorted by recent)
+- Selecting one sets it in the store and proceeds with the tool action
+- "View All" button navigates to dashboard for full list
 
