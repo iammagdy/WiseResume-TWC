@@ -9,20 +9,38 @@ interface AnimatedSplashProps {
 
 const APP_NAME = 'WiseResume';
 
+// Static styles injected once, outside component render
+const splashStyles = `
+  @keyframes splash-orbit {
+    from { transform: rotateX(65deg) rotateZ(0deg); }
+    to   { transform: rotateX(65deg) rotateZ(360deg); }
+  }
+  @keyframes splash-shimmer {
+    0%, 100% { background-position: 0% center; }
+    50%      { background-position: 100% center; }
+  }
+`;
+
+// Inject styles once at module level
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = splashStyles;
+  document.head.appendChild(style);
+}
+
 export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   const [visible, setVisible] = useState(true);
   const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const stars = useMemo(
     () =>
-      Array.from({ length: 30 }, (_, i) => ({
+      Array.from({ length: 12 }, (_, i) => ({
         id: i,
         x: Math.random() * 100,
         y: Math.random() * 100,
         size: Math.random() * 2 + 1,
         opacity: Math.random() * 0.5 + 0.3,
         delay: Math.random() * 1.5,
-        duration: 2 + Math.random() * 2,
       })),
     [],
   );
@@ -54,7 +72,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
           tabIndex={0}
           aria-label="Tap to skip"
         >
-          {/* ── Nebula gradient overlays ── */}
+          {/* Nebula gradient overlays */}
           <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
             <div
               className="absolute -top-1/4 -left-1/4 w-[500px] h-[500px] rounded-full opacity-[0.15]"
@@ -70,8 +88,12 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             />
           </div>
 
-          {/* ── Star-field: rush inward toward center ── */}
-          <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
+          {/* Star-field with GPU compositing */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{ willChange: 'transform, opacity' }}
+            aria-hidden="true"
+          >
             {stars.map((star) => (
               <motion.div
                 key={star.id}
@@ -87,37 +109,26 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
                   prefersReduced
                     ? { opacity: star.opacity }
                     : {
-                        opacity: [0, star.opacity, 0.9, star.opacity],
+                        opacity: star.opacity,
                         x: `${(50 - star.x) * 0.4}%`,
                         y: `${(50 - star.y) * 0.4}%`,
-                        scale: [0.5, 1.2, 0.8, 1],
+                        scale: 1,
                       }
                 }
                 transition={
                   prefersReduced
                     ? { duration: 0.3 }
                     : {
-                        opacity: {
-                          duration: star.duration,
-                          repeat: Infinity,
-                          delay: star.delay,
-                          ease: 'easeInOut',
-                        },
-                        x: { duration: 1.8, ease: 'easeOut', delay: star.delay * 0.3 },
-                        y: { duration: 1.8, ease: 'easeOut', delay: star.delay * 0.3 },
-                        scale: {
-                          duration: star.duration,
-                          repeat: Infinity,
-                          delay: star.delay,
-                          ease: 'easeInOut',
-                        },
+                        duration: 1.8,
+                        ease: 'easeOut',
+                        delay: star.delay * 0.3,
                       }
                 }
               />
             ))}
           </div>
 
-          {/* ── Phase 1: Light Burst ── */}
+          {/* Light Burst */}
           <motion.div
             className="absolute rounded-full"
             style={{
@@ -130,10 +141,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             animate={
               prefersReduced
                 ? { scale: 1, opacity: 0.3 }
-                : {
-                    scale: [0, 1.5, 1.1],
-                    opacity: [0, 0.9, 0.25],
-                  }
+                : { scale: [0, 1.5, 1.1], opacity: [0, 0.9, 0.25] }
             }
             transition={
               prefersReduced
@@ -142,7 +150,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             }
           />
 
-          {/* ── Ripple rings ── */}
+          {/* Ripple rings */}
           {!prefersReduced &&
             [0, 1, 2].map((i) => (
               <motion.div
@@ -150,19 +158,12 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
                 className="absolute rounded-full border border-primary/20"
                 style={{ width: 120, height: 120 }}
                 initial={{ scale: 0.5, opacity: 0 }}
-                animate={{
-                  scale: [0.5, 2.5 + i * 0.5],
-                  opacity: [0.6, 0],
-                }}
-                transition={{
-                  duration: 1.5,
-                  ease: 'easeOut',
-                  delay: 0.3 + i * 0.25,
-                }}
+                animate={{ scale: [0.5, 2.5 + i * 0.5], opacity: [0.6, 0] }}
+                transition={{ duration: 1.5, ease: 'easeOut', delay: 0.3 + i * 0.25 }}
               />
             ))}
 
-          {/* ── Glow ring (breathing) ── */}
+          {/* Glow ring – single pulse, no infinite loop */}
           <motion.div
             className="absolute rounded-full"
             style={{
@@ -175,26 +176,16 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             animate={
               prefersReduced
                 ? { scale: 1, opacity: 0.5 }
-                : {
-                    scale: [0.6, 1.3, 1.1, 1.15, 1.1],
-                    opacity: [0, 0.8, 0.5, 0.6, 0.5],
-                  }
+                : { scale: [0.6, 1.3, 1.1], opacity: [0, 0.8, 0.5] }
             }
             transition={
               prefersReduced
                 ? { duration: 0.3 }
-                : {
-                    duration: 3,
-                    ease: 'easeInOut',
-                    delay: 0.3,
-                    times: [0, 0.25, 0.5, 0.75, 1],
-                    repeat: Infinity,
-                    repeatType: 'reverse',
-                  }
+                : { duration: 1.5, ease: 'easeInOut', delay: 0.3 }
             }
           />
 
-          {/* ── Orbital ring ── */}
+          {/* Orbital ring */}
           {!prefersReduced && (
             <div
               className="absolute rounded-full border border-primary/30"
@@ -206,30 +197,19 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             />
           )}
 
-          {/* ── Phase 2: Logo entrance ── */}
+          {/* Logo entrance – bounce then hold */}
           <motion.div
             initial={{ scale: 0.3, rotate: -15, opacity: 0 }}
             animate={
               prefersReduced
                 ? { scale: 1, rotate: 0, opacity: 1 }
-                : {
-                    scale: [0.3, 1.15, 1.0, 1.03, 1.0],
-                    rotate: [-15, 8, 0],
-                    opacity: 1,
-                  }
+                : { scale: [0.3, 1.15, 1.0], rotate: [-15, 8, 0], opacity: 1 }
             }
             transition={
               prefersReduced
                 ? { duration: 0.3 }
                 : {
-                    scale: {
-                      duration: 2.5,
-                      ease: 'easeOut',
-                      delay: 0.4,
-                      times: [0, 0.3, 0.5, 0.75, 1],
-                      repeat: Infinity,
-                      repeatType: 'reverse',
-                    },
+                    scale: { duration: 0.8, ease: 'easeOut', delay: 0.4 },
                     rotate: { duration: 0.7, ease: 'easeOut', delay: 0.4 },
                     opacity: { duration: 0.3, delay: 0.4 },
                   }
@@ -238,9 +218,10 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             <AppIcon size={80} />
           </motion.div>
 
-          {/* ── Phase 3: Letter-by-letter title ── */}
+          {/* Letter-by-letter title with single shimmer on parent */}
           <motion.h1
-            className="mt-5 flex text-fluid-2xl font-bold"
+            className="mt-5 flex text-fluid-2xl font-bold bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto]"
+            style={!prefersReduced ? { animation: 'splash-shimmer 2.5s ease-in-out 1.2s 1' } : undefined}
             initial="hidden"
             animate="visible"
             variants={{
@@ -256,7 +237,7 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
             {letters.map((letter, i) => (
               <motion.span
                 key={i}
-                className="inline-block bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent bg-[length:200%_auto]"
+                className="inline-block"
                 variants={{
                   hidden: { opacity: 0, y: 20, scale: 0.7 },
                   visible: {
@@ -269,21 +250,13 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
                     },
                   },
                 }}
-                style={
-                  !prefersReduced
-                    ? {
-                        animation: 'splash-shimmer 2.5s ease-in-out infinite',
-                        animationDelay: `${1.2 + i * 0.045}s`,
-                      }
-                    : undefined
-                }
               >
                 {letter}
               </motion.span>
             ))}
           </motion.h1>
 
-          {/* ── Phase 3b: Tagline ── */}
+          {/* Tagline */}
           <motion.p
             className="mt-2 text-fluid-sm text-muted-foreground"
             initial={{ opacity: 0, y: 20 }}
@@ -296,18 +269,6 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
           >
             Your AI Career Partner
           </motion.p>
-
-          {/* CSS animations for orbital ring & shimmer */}
-          <style>{`
-            @keyframes splash-orbit {
-              from { transform: rotateX(65deg) rotateZ(0deg); }
-              to   { transform: rotateX(65deg) rotateZ(360deg); }
-            }
-            @keyframes splash-shimmer {
-              0%, 100% { background-position: 0% center; }
-              50%      { background-position: 100% center; }
-            }
-          `}</style>
         </motion.div>
       )}
     </AnimatePresence>
