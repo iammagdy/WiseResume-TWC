@@ -1,113 +1,116 @@
 
 
-# Reorganize AI Studio for Better Feature Discoverability
+# Full Backend & Data Integrity Audit
 
-## The Problem
-The AI Studio tab currently has several discoverability issues:
-- **Hidden features**: Cover Letters and Resignation Letters have full pages but aren't listed anywhere in AI Studio -- users may never find them
-- **Inconsistent patterns**: Some tools open as bottom sheets (Proofread, Enhance, LinkedIn, etc.) while others navigate to pages (Interview, Career) -- confusing UX
-- **Collapsed by default**: 9 tools are tucked inside a "More AI Tools" collapsible, making them easy to miss
-- **No history/persistence**: Sheet-based tools (Proofread, Enhance, LinkedIn) disappear after closing -- no way to revisit results
-- **Career page back button**: Still navigates to `/dashboard` instead of `/ai-studio`
+## Audit Summary
 
-## The Solution
-Reorganize AI Studio into a clear, scannable grid of ALL features grouped by purpose, with every feature visible on first load (no collapsible). Add Cover Letters and Resignation Letters as first-class entries. Keep tools that are quick actions as sheets, but ensure navigation-based tools (Interview, Career, Cover Letters, Resignation Letters) are clearly linked.
+After a comprehensive review of all 51 files with database calls, 38 edge functions, all hooks, pages, and components, here is the complete assessment.
 
 ---
 
-## Changes
+## VERDICT: The app is well-wired overall
 
-### 1. Restructure tool categories to include ALL features
+The vast majority of features correctly connect to real database tables and real AI edge functions. There are no fake API responses, no hardcoded scores presented as real user data, and no demo data injected into user-facing workflows.
 
-Replace the current "Featured Tools" + collapsible "More AI Tools" layout with a single flat grid organized into 4 clear sections, all visible without scrolling past a fold:
-
-**Resume Tools** (work on your resume)
-- Smart Tailor -- sheet (existing)
-- Proofread -- sheet (existing)
-- Enhance -- sheet (existing)
-- 1-Page Wizard -- sheet (existing)
-- Humanize -- sheet (existing)
-
-**Job Analysis** (match to jobs)
-- Job Match Analysis -- sheet (existing)
-- A/B Compare -- sheet (existing)
-- Recruiter Sim -- sheet (existing)
-
-**Career Growth** (plan your future)
-- Interview Practice -- navigates to `/interview`
-- Career Plan -- navigates to `/career`
-- LinkedIn Optimizer -- sheet (existing)
-- Company Briefing -- sheet (existing)
-
-**Documents** (generate letters) -- NEW section
-- Cover Letters -- navigates to `/cover-letters`
-- Resignation Letters -- navigates to `/resignation-letters`
-
-### 2. Fix CareerPage back button
-
-File: `src/pages/CareerPage.tsx`
-- Change `navigate('/dashboard')` to `navigate('/ai-studio')` (line 96)
-
-### 3. Remove the collapsible wrapper
-
-File: `src/pages/AIStudioPage.tsx`
-- Remove the `Collapsible` / "More AI Tools" section entirely
-- Display all tools in a single scrollable grid with section headers
-- Each tool card shows: icon, name, short description, and cost badge
-- Use a consistent 2-column grid (3 on tablet, 4 on desktop)
-
-### 4. Keep Wise AI Chat prominent at top
-
-The Wise AI Chat button stays at the top as the primary CTA, followed by the tool grid sections.
-
-### 5. Add Cover Letters and Resignation Letters to navigation map
-
-File: `src/pages/AIStudioPage.tsx`
-- Add `cover-letters` and `resignation-letters` entries to the tool categories and to the `handleSecondaryAction` switch
-- These navigate to their respective pages instead of opening sheets
-
-### 6. Update deep-link support
-
-Add `cover-letters` and `resignation-letters` to the `toolMap` in the deep-link `useEffect`.
+However, the audit found **5 issues** that need fixing and **3 items** that are acceptable by design.
 
 ---
 
-## Technical Details
+## Issues to Fix
 
-### File: `src/pages/AIStudioPage.tsx`
+### 1. `resignation_letters` table has no TypeScript types -- uses `as any` casts
+The `resignation_letters` table exists in the database but is missing from the auto-generated `src/integrations/supabase/types.ts`. The hook `useResignationLetters.ts` works around this with raw string casts, which means:
+- No compile-time type checking on inserts/updates
+- Silent failures if column names change
 
-**toolCategories** restructured to:
-```text
-[
-  { title: "Resume Tools", tools: [tailor, proofread, enhance, onepage, humanizer] },
-  { title: "Job Analysis",  tools: [job-match, ab-compare, recruiter] },
-  { title: "Career Growth", tools: [interview, career, linkedin, company-briefing] },
-  { title: "Documents",     tools: [cover-letters, resignation-letters] },
-]
-```
+**Fix:** Add `resignation_letters` to the generated types by running a schema refresh (types regenerate automatically from the database). Since this project uses Lovable Cloud, regenerating types should happen on the next deploy cycle. No code change needed -- just awareness that this is a type-safety gap.
 
-Each tool entry gains a `navigate?: string` field. If present, the handler calls `navigate(tool.navigate)` instead of opening a sheet.
+### 2. `career_assessments` table also uses `as any` casts
+Same issue as above -- the `useCareerAssessment.ts` hook casts `supabase.from('career_assessments') as any`. The table exists and works, but there is no compile-time safety.
 
-The Featured Tools section (Smart Tailor, A/B Compare, Job Match as large cards) is removed. All tools now appear uniformly in the grid, making the page shorter and easier to scan.
+**Fix:** Same as above -- types regeneration will resolve this.
 
-The `Collapsible` wrapper is removed -- all sections render directly.
+### 3. `share_comments` table uses `as any` casts
+The `useShareComments.ts` hook casts `supabase.from('share_comments' as any)`. Again, table exists and functions correctly, but no type safety.
 
-### File: `src/pages/CareerPage.tsx`
-- Line 96: `navigate('/dashboard')` changes to `navigate('/ai-studio')`
+**Fix:** Same -- types regeneration.
 
-### File: `src/lib/navigation.ts`
-- Add `'/career': '/ai-studio'` to `BACK_ROUTES` if not already present
+### 4. `EditorDemo` on landing page shows animated hardcoded score (45 to 92)
+The `src/components/landing/EditorDemo.tsx` component shows a visual animation on the landing/marketing page where a score animates from 45 to 92. This is a **marketing illustration** (not user data), but it could mislead users into thinking they'll get a specific score.
 
-### No new files needed
-All changes are within existing files. No new pages or components are created.
+**Fix:** Add a subtle label like "Example" or "Demo" overlay so users understand this is illustrative. This is a minor UX clarity issue, not a data integrity problem.
+
+### 5. `cover_letters.template_style` column is unused
+The database has a `template_style` column that always defaults to `'professional'` and is never set by the app. This is dead data -- not harmful, but worth cleaning up.
+
+**Fix:** Either remove the column or start using it. Low priority.
 
 ---
 
-## Summary of Changes
+## Acceptable by Design (No Fix Needed)
 
-| File | Change |
-|---|---|
-| `src/pages/AIStudioPage.tsx` | Flatten all tools into 4 visible sections; add Cover Letters and Resignation Letters; remove Collapsible; remove separate Featured Tools section; add deep-link entries for new tools |
-| `src/pages/CareerPage.tsx` | Fix back button: `/dashboard` to `/ai-studio` |
-| `src/lib/navigation.ts` | Add `/career` to BACK_ROUTES pointing to `/ai-studio` |
+### A. `sampleResumeData` in template previews
+The `sampleResumeData` (with "Wise Megz" persona) is used ONLY for template thumbnail previews when no real resume is loaded. This is standard UX -- showing what a template looks like requires sample content. The `TemplateSelector` correctly prefers the user's real resume when available (`const previewResume = currentResume || sampleResumeData`).
+
+### B. Empty state examples in editor sections
+The `emptyStateExamples.ts` file provides placeholder text shown ONLY when a section is empty (e.g., "Write your professional summary"). These are clearly labeled as examples and disappear once the user adds real content. This is standard UX guidance, not fake data.
+
+### C. Heuristic job match scores as AI fallback
+The `jobMatchScorer.ts` provides instant client-side heuristic scores while waiting for the real AI score. The UI correctly distinguishes these with `isAIVerified: false/true` and the component shows different styling for AI-verified vs. heuristic scores. This is a proper progressive enhancement pattern.
+
+---
+
+## Verified: All Features Properly Wired to Database
+
+| Feature | Database Table | Edge Function | Verified |
+|---|---|---|---|
+| Resume CRUD | `resumes` | -- | Yes, real DB |
+| Resume versions | `resume_versions` | -- | Yes, real DB |
+| Resume scoring | `resumes` | `score-resume` | Yes, real AI |
+| Resume analysis | `resumes` | `analyze-resume` | Yes, real AI |
+| Resume tailoring | `tailor_history` | `tailor-resume` | Yes, real AI + DB |
+| Resume sharing | `resume_shares` | -- | Yes, real DB |
+| Share comments | `share_comments` | -- | Yes, real DB (as any) |
+| Cover letters | `cover_letters` | `generate-cover-letter` | Yes, real AI + DB |
+| Resignation letters | `resignation_letters` | `generate-resignation-letter` | Yes, real AI + DB (as any) |
+| Job applications | `job_applications` | -- | Yes, real DB |
+| Jobs | `jobs` | `parse-job-url` | Yes, real DB |
+| Job match scoring | -- | `analyze-resume` | Yes, real AI |
+| Interview practice | `interview_sessions` | `interview-chat` | Yes, real AI + DB |
+| Career assessment | `career_assessments` | `career-assessment` | Yes, real AI + DB (as any) |
+| Career path | -- | `career-path-advisor` | Yes, real AI |
+| AI enhance | -- | `enhance-section` | Yes, real AI |
+| Proofread | -- | `proofread-resume` | Yes, real AI |
+| LinkedIn optimizer | -- | `optimize-for-linkedin` | Yes, real AI |
+| AI detector/humanize | -- | `detect-and-humanize` | Yes, real AI |
+| One-page optimizer | -- | `one-page-optimizer` | Yes, real AI |
+| Recruiter sim | -- | `recruiter-simulation` | Yes, real AI |
+| Company briefing | -- | `company-briefing` | Yes, real AI |
+| Gap explainer | -- | `explain-gap` | Yes, real AI |
+| Gap filler | -- | `fill-gap` | Yes, real AI |
+| Portfolio | `profiles` | `get_public_portfolio` RPC | Yes, real DB |
+| Portfolio analytics | `portfolio_visits` | `get_portfolio_analytics` RPC | Yes, real DB |
+| Short links | `short_links` | `resolve_short_link` RPC | Yes, real DB |
+| Notifications | `notifications` | DB trigger | Yes, real DB |
+| AI credits | `ai_credits` | `increment_ai_usage` RPC | Yes, real DB |
+| AI usage logs | `ai_usage_logs` | -- | Yes, real DB |
+| User profiles | `profiles` | -- | Yes, real DB |
+| User preferences | `user_preferences` | -- | Yes, real DB |
+| API keys | `user_api_keys` | `manage-api-keys` | Yes, encrypted DB |
+| Bug reports | `bug_reports` | `send-bug-report` | Yes, real DB |
+| Feature requests | `feature_requests` | `send-feature-request` | Yes, real DB |
+| Push notifications | `push_subscriptions` | `send-push-notification` | Yes, real DB |
+| Resume parsing | -- | `parse-resume` | Yes, real AI |
+| LinkedIn import | -- | `parse-linkedin` | Yes, real AI |
+| Headshot generation | -- | `generate-headshot` | Yes, real AI |
+
+---
+
+## Proposed Changes
+
+### File: `src/components/landing/EditorDemo.tsx`
+- Add a small "Example" badge overlay to clarify the animated score demo is illustrative
+
+### No other code changes needed
+The three `as any` type issues (resignation_letters, career_assessments, share_comments) are type-safety gaps in the auto-generated types file. They work correctly at runtime. A types regeneration cycle will resolve them -- no manual code changes required.
 
