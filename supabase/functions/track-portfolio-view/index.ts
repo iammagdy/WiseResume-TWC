@@ -79,39 +79,30 @@ serve(async (req) => {
       console.warn("Geolocation failed (non-fatal):", geoErr);
     }
 
-    // ── 3. Validate the portfolio exists before inserting visit ────────────
+    // ── 3. Validate portfolio + insert visit via RPC ─────────────────────
+    const referrer = req.headers.get("referer") || null;
+
+    const { error: visitError } = await supabaseClient.rpc("record_portfolio_visit", {
+      p_username: username.toLowerCase(),
+      p_country: country,
+      p_city: city,
+      p_referrer: referrer,
+      p_short_link_id: ref || null,
+      p_sections_viewed: sectionsViewed ?? [],
+      p_time_spent_seconds: timeSpentSeconds ?? null,
+    });
+
+    if (visitError) {
+      console.error("Error recording visit via RPC:", visitError);
+    }
+
+    // ── 4. Look up profile owner for notification ──────────────────────────
     const { data: profileRow } = await supabaseClient
       .from("profiles")
-      .select("username, user_id")
+      .select("user_id")
       .eq("username", username.toLowerCase())
       .eq("portfolio_enabled", true)
       .single();
-
-    if (!profileRow) {
-      // Still succeed — just don't record an invalid visit
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ── 4. Insert detailed visit record ────────────────────────────────────
-    const referrer = req.headers.get("referer") || null;
-
-    const { error: insertError } = await supabaseClient
-      .from("portfolio_visits")
-      .insert({
-        username: username.toLowerCase(),
-        short_link_id: ref || null,
-        country,
-        city,
-        time_spent_seconds: timeSpentSeconds ?? null,
-        sections_viewed: sectionsViewed ?? [],
-        referrer,
-      });
-
-    if (insertError) {
-      console.error("Error inserting visit:", insertError);
-    }
 
     // ── 5. Create in-app notification for portfolio owner ──────────────────
     try {

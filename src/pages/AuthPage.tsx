@@ -15,7 +15,15 @@ import { z } from 'zod';
 import { AppIcon } from '@/components/brand/AppIcon';
 
 const emailSchema = z.string().email('Please enter a valid email');
-const passwordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const loginPasswordSchema = z.string().min(6, 'Password must be at least 6 characters');
+const signupPasswordSchema = z.string()
+  .min(8, 'At least 8 characters')
+  .regex(/[A-Z]/, 'Include an uppercase letter')
+  .regex(/[a-z]/, 'Include a lowercase letter')
+  .regex(/[0-9]/, 'Include a number');
+
+const MAX_FAILED_ATTEMPTS = 5;
+const COOLDOWN_SECONDS = 30;
 
 type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password';
 
@@ -52,6 +60,8 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSlowConnection, setIsSlowConnection] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   const [touched, setTouched] = useState<{ email: boolean; password: boolean; confirmPassword: boolean; fullName: boolean; phoneNumber: boolean }>({
     email: false,
     password: false,
@@ -82,7 +92,8 @@ export default function AuthPage() {
 
   const getPasswordError = (): string | undefined => {
     if (!password) return 'Password is required';
-    try { passwordSchema.parse(password); return undefined; }
+    const schema = mode === 'signup' ? signupPasswordSchema : loginPasswordSchema;
+    try { schema.parse(password); return undefined; }
     catch (e) { return e instanceof z.ZodError ? e.errors[0]?.message : 'Invalid password'; }
   };
 
@@ -148,6 +159,13 @@ export default function AuthPage() {
     e.preventDefault();
     if (!validateInputs()) return;
 
+    // Cooldown check for login
+    if (mode === 'login' && cooldownUntil && Date.now() < cooldownUntil) {
+      const remaining = Math.ceil((cooldownUntil - Date.now()) / 1000);
+      toast.error(`Too many failed attempts. Try again in ${remaining}s.`);
+      return;
+    }
+
     // Immediate offline guard
     if (!navigator.onLine) {
       toast.error("You're offline — please check your connection and try again.");
@@ -166,9 +184,19 @@ export default function AuthPage() {
           supabase.auth.signInWithPassword({ email, password })
         );
         if (error) {
-          toast.error(error.message.includes('Invalid login credentials') ? 'Invalid credentials' : error.message);
+          const newAttempts = failedAttempts + 1;
+          setFailedAttempts(newAttempts);
+          if (newAttempts >= MAX_FAILED_ATTEMPTS) {
+            setCooldownUntil(Date.now() + COOLDOWN_SECONDS * 1000);
+            setFailedAttempts(0);
+            toast.error(`Too many failed attempts. Please wait ${COOLDOWN_SECONDS}s before trying again.`);
+          } else {
+            toast.error(error.message.includes('Invalid login credentials') ? 'Invalid credentials' : error.message);
+          }
           return;
         }
+        setFailedAttempts(0);
+        setCooldownUntil(null);
         toast.success('Welcome back!');
         const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
         setTimeout(() => navigate(redirectTo), 600);

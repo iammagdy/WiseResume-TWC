@@ -1126,6 +1126,7 @@ export type Database = {
         Args: { p_user_id: string; p_username: string }
         Returns: boolean
       }
+      cleanup_stale_data: { Args: never; Returns: undefined }
       get_portfolio_active_status: {
         Args: { p_username: string }
         Returns: string
@@ -1139,6 +1140,15 @@ export type Database = {
             Args: { password_attempt?: string; share_token: string }
             Returns: Json
           }
+      get_user_api_key_info: {
+        Args: { p_user_id: string }
+        Returns: {
+          created_at: string
+          key_tier: string
+          provider: string
+          updated_at: string
+        }[]
+      }
       hash_share_password: { Args: { raw_password: string }; Returns: string }
       increment_ai_usage: { Args: { p_user_id: string }; Returns: undefined }
       increment_portfolio_views: {
@@ -1147,6 +1157,18 @@ export type Database = {
       }
       increment_share_view_count: {
         Args: { share_token: string }
+        Returns: undefined
+      }
+      record_portfolio_visit: {
+        Args: {
+          p_city?: string
+          p_country?: string
+          p_referrer?: string
+          p_sections_viewed?: Json
+          p_short_link_id?: string
+          p_time_spent_seconds?: number
+          p_username: string
+        }
         Returns: undefined
       }
       resolve_short_link: { Args: { p_link_id: string }; Returns: Json }
