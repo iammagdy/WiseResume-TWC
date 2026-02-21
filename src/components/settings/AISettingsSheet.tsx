@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { logAudit } from '@/lib/auditLogger';
 
 interface AISettingsSheetProps {
   open: boolean;
@@ -108,6 +109,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
           setGeminiApiKey(keyInput.trim());
           setGeminiKeyTier(validationResult.tier);
           setGeminiKeyValidated(true);
+          logAudit('api_key', 'key_saved', { provider: 'gemini', tier: validationResult.tier });
           resetFallbackToast();
           haptics.success();
           toast.success(`API key validated & saved! Tier: ${validationResult.tier === 'paid' ? 'Paid' : 'Free'}`);
@@ -132,6 +134,7 @@ export function AISettingsSheet({ open, onOpenChange }: AISettingsSheetProps) {
         await supabase.functions.invoke('manage-api-keys', {
           body: { action: 'delete', provider: 'gemini' },
         });
+        logAudit('api_key', 'key_deleted', { provider: 'gemini' });
       } catch (e) {
         console.error('Failed to delete key server-side:', e);
       }

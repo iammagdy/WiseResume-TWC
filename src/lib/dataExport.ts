@@ -217,6 +217,7 @@ export async function deleteAllUserData(userId: string): Promise<void> {
     'bug_reports',
     'resignation_letters',
     'user_preferences',
+    'audit_logs',
   ] as const;
 
   for (const table of userTables) {

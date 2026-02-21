@@ -82,6 +82,33 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          action: string
+          category: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          category: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          category?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       bug_reports: {
         Row: {
           active_feature: string | null
