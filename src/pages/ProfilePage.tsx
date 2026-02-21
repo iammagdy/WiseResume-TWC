@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Edit2, Share2, FileText, Briefcase, Globe, ExternalLink, MapPin, Copy, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { useProfile, calculateProfileCompletion } from '@/hooks/useProfile';
+import { useProfile, calculateProfileCompletion, getNextMissingField } from '@/hooks/useProfile';
 import { useResumes } from '@/hooks/useResumes';
 import { useJobApplications } from '@/hooks/useJobApplications';
 import { EditProfileSheet } from '@/components/settings/EditProfileSheet';
@@ -17,6 +17,7 @@ import { dbToResumeData, useResumeMutations } from '@/hooks/useResumes';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
@@ -53,6 +54,19 @@ export default function ProfilePage() {
     }
   };
 
+  const handleCopyProfileSummary = async () => {
+    const parts: string[] = [];
+    if (profile?.fullName) parts.push(profile.fullName + (profile.jobTitle ? ` — ${profile.jobTitle}` : ''));
+    if (profile?.location) parts.push(`Location: ${profile.location}`);
+    if (profile?.industry) parts.push(`Industry: ${profile.industry}`);
+    if (profile?.linkedinUrl) parts.push(`LinkedIn: ${profile.linkedinUrl}`);
+    if (parts.length === 0) parts.push('No profile info yet');
+    parts.push(`${resumes.length} resumes on WiseResume`);
+    await navigator.clipboard.writeText(parts.join('\n'));
+    toast.success('Profile summary copied!');
+    haptics.light();
+  };
+
   const handleShareProfile = async () => {
     if (profile?.portfolioEnabled && profile?.username) {
       const url = getPortfolioUrl(profile.username);
@@ -77,6 +91,8 @@ export default function ProfilePage() {
     }
   };
 
+  const nextTip = getNextMissingField(profile);
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
@@ -94,9 +110,24 @@ export default function ProfilePage() {
             <AvatarImage src={profile?.avatarUrl || undefined} />
             <AvatarFallback className="bg-primary text-primary-foreground text-2xl">{getInitials()}</AvatarFallback>
           </Avatar>
-          <div>
+           <div>
             <h2 className="text-2xl font-bold text-foreground">{profile?.fullName || 'Your Name'}</h2>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
+            {profile?.jobTitle && (
+              <p className="text-sm font-medium text-muted-foreground">{profile.jobTitle}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-0.5">{user.email}</p>
+            {profile?.location && (
+              <div className="flex items-center justify-center gap-1 mt-1">
+                <MapPin className="w-3 h-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{profile.location}</span>
+              </div>
+            )}
+            {profile?.updatedAt && (
+              <p className="text-[10px] text-muted-foreground/60 mt-1 flex items-center justify-center gap-1">
+                <Clock className="w-2.5 h-2.5" />
+                Updated {formatDistanceToNow(new Date(profile.updatedAt), { addSuffix: true })}
+              </p>
+            )}
           </div>
         </div>
 
@@ -108,7 +139,7 @@ export default function ProfilePage() {
           </div>
           <Progress value={completion} className="h-2" />
           <p className="text-xs text-muted-foreground">
-            Complete your profile to unlock more features and improve your resume.
+            {nextTip ? `💡 ${nextTip.hint}` : 'Your profile is complete! 🎉'}
           </p>
           <Button variant="secondary" size="sm" className="w-full" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit Profile
@@ -116,9 +147,12 @@ export default function ProfilePage() {
         </div>
 
         {/* Actions */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={handleShareProfile}>
             <Share2 className="w-4 h-4 mr-2" /> Share
+          </Button>
+          <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={handleCopyProfileSummary}>
+            <Copy className="w-4 h-4 mr-2" /> Copy
           </Button>
           <Button variant="outline" className="flex-1 h-12 min-h-[48px] rounded-xl active:scale-95 touch-manipulation" onClick={() => setEditOpen(true)}>
             <Edit2 className="w-4 h-4 mr-2" /> Edit
