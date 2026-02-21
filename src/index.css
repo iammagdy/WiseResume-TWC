@@ -1494,6 +1494,10 @@ button,
     transform: none;
     opacity: 1;
   }
+  .pf-avatar-ring { animation: none; opacity: 0.5; }
+  .pf-hero-ambient { transform: none !important; }
+  .pf-section-line { transform: scaleX(1); transition: none; }
+  .pf-card-tilt > * { transition: none; transform: none !important; }
   .pf-stats-strip {
     opacity: 1;
     transform: none;
@@ -1524,6 +1528,62 @@ button,
   .pf-contact-cta { transition: opacity 200ms ease-in; transform: none; }
   .pf-contact-cta.pf-contact-visible { transition: opacity 200ms ease-out; transform: none; }
   .pf-contact-cta-inner { animation: none; }
+}
+
+/* ─── Avatar Ring Spin (one-time reveal) ─────────────────────────────────── */
+@keyframes pf-avatar-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.pf-avatar-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 9999px;
+  opacity: 0.5;
+  filter: blur(2px);
+  animation: pf-avatar-spin 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ─── Parallax Hero Depth ────────────────────────────────────────────────── */
+.pf-hero-ambient {
+  transition: transform 0s;
+  will-change: transform;
+  transform: translateY(calc(var(--pf-scroll, 0) * -0.15px));
+}
+
+/* ─── Section Line Divider (draw on scroll) ──────────────────────────────── */
+.pf-section-line {
+  height: 2px;
+  margin-top: 6px;
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pf-section-line.pf-section-line-drawn {
+  transform: scaleX(1);
+}
+
+/* ─── Skill Tag Hover Glow (desktop) ─────────────────────────────────────── */
+@media (hover: hover) {
+  .pf-skill-tag {
+    transition: all 200ms ease;
+  }
+  .pf-skill-tag:hover {
+    box-shadow: 0 0 20px -4px var(--pf-accent) !important;
+    border-color: var(--pf-accent) !important;
+  }
+}
+
+/* ─── Card Tilt (desktop only) ───────────────────────────────────────────── */
+@media (hover: hover) {
+  .pf-card-tilt {
+    perspective: 800px;
+  }
+  .pf-card-tilt > * {
+    transition: transform 200ms ease;
+    will-change: transform;
+  }
 }
 
 /* ─── CTA Shimmer Sweep ──────────────────────────────────────────────────── */

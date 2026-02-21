@@ -23,6 +23,7 @@ import { BioReveal } from '@/components/portfolio/public/BioReveal';
 import { StickyHeader } from '@/components/portfolio/public/StickyHeader';
 import { SectionHeader } from '@/components/portfolio/public/SectionHeader';
 import { StatsStrip } from '@/components/portfolio/public/StatsStrip';
+import { HighlightsStrip } from '@/components/portfolio/public/HighlightsStrip';
 import { SectionNav } from '@/components/portfolio/public/SectionNav';
 import { SkillCloud, SKILL_CLOUD_LIMIT } from '@/components/portfolio/public/SkillCloud';
 import { ExperienceCard } from '@/components/portfolio/public/cards/ExperienceCard';
@@ -30,6 +31,9 @@ import { EducationCard } from '@/components/portfolio/public/cards/EducationCard
 import { ProjectCard } from '@/components/portfolio/public/cards/ProjectCard';
 import { CaseStudyCard } from '@/components/portfolio/public/cards/CaseStudyCard';
 import { ServiceCard } from '@/components/portfolio/public/cards/ServiceCard';
+import { TestimonialCard } from '@/components/portfolio/public/cards/TestimonialCard';
+import type { Testimonial } from '@/components/portfolio/public/cards/TestimonialCard';
+import type { Highlight } from '@/components/portfolio/public/HighlightsStrip';
 import { useActiveStatus, isActiveWithin24h } from '@/hooks/useActiveStatus';
 
 // Lazy-loaded ChatWidget
@@ -139,8 +143,12 @@ function PublicPortfolioContent() {
   const contactIsExternal = !contactHref?.startsWith('mailto:');
 
   useEffect(() => {
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const onScroll = () => {
       setNearFooter(window.scrollY + window.innerHeight >= document.body.scrollHeight - 200);
+      if (!prefersReduced) {
+        document.documentElement.style.setProperty('--pf-scroll', String(window.scrollY));
+      }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -347,6 +355,9 @@ function PublicPortfolioContent() {
   const hasVolunteering = show('volunteering') && resume.volunteering?.length > 0;
   const hasCaseStudies = profile.caseStudies?.length > 0;
   const hasServices = profile.services?.length > 0;
+  const hasTestimonials = (profile as unknown as Record<string, unknown>).testimonials && ((profile as unknown as Record<string, unknown>).testimonials as Testimonial[])?.length > 0;
+  const testimonials = ((profile as unknown as Record<string, unknown>).testimonials as Testimonial[]) || [];
+  const highlights = ((profile as unknown as Record<string, unknown>).highlights as Highlight[]) || [];
 
   const themeVars = getThemeVars(pStyle, accentColor, pFont);
 
@@ -406,6 +417,7 @@ function PublicPortfolioContent() {
     ...(hasProjects ? [{ id: 'section-projects', label: 'Projects' }] : []),
     ...(hasCaseStudies ? [{ id: 'section-case-studies', label: 'Case Studies' }] : []),
     ...(hasServices ? [{ id: 'section-services', label: 'Services' }] : []),
+    ...(hasTestimonials ? [{ id: 'section-testimonials', label: 'Testimonials' }] : []),
     ...(hasCerts ? [{ id: 'section-certifications', label: 'Certifications' }] : []),
     ...(hasAwards ? [{ id: 'section-awards', label: 'Awards' }] : []),
     ...(hasPublications ? [{ id: 'section-publications', label: 'Publications' }] : []),
@@ -445,14 +457,10 @@ function PublicPortfolioContent() {
             <div className="pf-hero-ambient rounded-2xl" aria-hidden="true" />
           )}
 
-          {/* Avatar — static gradient border (no infinite spin) */}
+          {/* Avatar — animated gradient ring */}
           <div className="relative mb-6">
             <div
-              className="absolute inset-0 rounded-full scale-125 animate-pulse opacity-20 blur-lg"
-              style={{ background: accentColor }}
-            />
-            <div
-              className="absolute inset-[-4px] rounded-full opacity-40"
+              className="pf-avatar-ring"
               style={{ background: `conic-gradient(${accentColor}, transparent, ${accentColor})` }}
             />
             <Avatar className="h-36 w-36 relative z-10 border-[3px]" style={{ borderColor: accentColor }}>
@@ -640,6 +648,10 @@ function PublicPortfolioContent() {
 
         <StatsStrip experience={resume.experience} skillCount={allSkills.length} accentColor={accentColor} />
 
+        {highlights.length > 0 && (
+          <HighlightsStrip highlights={highlights} accentColor={accentColor} />
+        )}
+
         <SectionNav sections={navSections} accentColor={accentColor} />
 
         {/* ── Body content ─────────────────────────────────────────────── */}
@@ -726,6 +738,18 @@ function PublicPortfolioContent() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {profile.services.map((s) => (
                     <ServiceCard key={s.id} service={s} style={pStyle} />
+                  ))}
+                </div>
+              </motion.section>
+            )}
+
+            {/* Testimonials */}
+            {hasTestimonials && (
+              <motion.section variants={stagger} id="section-testimonials">
+                <SectionHeader icon={<Sparkles className="w-5 h-5" />} title="Testimonials" style={pStyle} />
+                <div className="space-y-4">
+                  {testimonials.map((t) => (
+                    <TestimonialCard key={t.id} testimonial={t} style={pStyle} />
                   ))}
                 </div>
               </motion.section>

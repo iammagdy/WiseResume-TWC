@@ -1,3 +1,4 @@
+import { useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import type { CaseStudy } from '@/hooks/useProfile';
@@ -16,8 +17,20 @@ export function CaseStudyCard({ cs, style }: { cs: CaseStudy; style: string }) {
     ? { borderLeft: '3px solid var(--pf-accent)', paddingLeft: '1.5rem', paddingTop: '1rem', paddingBottom: '1rem', borderRadius: '0 0.75rem 0.75rem 0', background: 'var(--pf-card, #f9f9f9)' }
     : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.5rem' };
 
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const el = tiltRef.current;
+    if (!el || e.pointerType === 'touch' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    el.style.transform = `rotateY(${x * 3}deg) rotateX(${-y * 3}deg)`;
+  }, []);
+  const onPointerLeave = useCallback(() => { if (tiltRef.current) tiltRef.current.style.transform = ''; }, []);
+
   return (
-    <motion.div variants={unfold} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-4 relative">
+    <div className="pf-card-tilt">
+    <motion.div ref={tiltRef} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} variants={unfold} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-4 relative">
       <div className="absolute top-4 right-4">
         <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
           style={{ background: 'color-mix(in srgb, var(--pf-accent) 15%, transparent)', color: 'var(--pf-accent)', border: '1px solid color-mix(in srgb, var(--pf-accent) 30%, transparent)' }}>
@@ -63,5 +76,6 @@ export function CaseStudyCard({ cs, style }: { cs: CaseStudy; style: string }) {
         </div>
       )}
     </motion.div>
+    </div>
   );
 }

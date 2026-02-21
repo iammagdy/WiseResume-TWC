@@ -1,3 +1,4 @@
+import { useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowUpRight, ExternalLink, Github } from 'lucide-react';
 import type { Project } from '@/types/resume';
@@ -16,8 +17,20 @@ export function ProjectCard({ project, style }: { project: Project; style: strin
     ? { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem', paddingTop: '0.75rem', paddingBottom: '0.75rem' }
     : { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))', borderRadius: '1rem', padding: '1.25rem' };
 
+  const tiltRef = useRef<HTMLDivElement>(null);
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const el = tiltRef.current;
+    if (!el || e.pointerType === 'touch' || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    el.style.transform = `rotateY(${x * 3}deg) rotateX(${-y * 3}deg)`;
+  }, []);
+  const onPointerLeave = useCallback(() => { if (tiltRef.current) tiltRef.current.style.transform = ''; }, []);
+
   return (
-    <motion.div variants={scalePop} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-3 group">
+    <div className="pf-card-tilt">
+    <motion.div ref={tiltRef} onPointerMove={onPointerMove} onPointerLeave={onPointerLeave} variants={scalePop} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-50px' }} style={cardStyle} className="space-y-3 group">
       <div>
         {project.url ? (
           <a href={project.url} target="_blank" rel="noopener noreferrer"
@@ -64,5 +77,6 @@ export function ProjectCard({ project, style }: { project: Project; style: strin
         </div>
       )}
     </motion.div>
+    </div>
   );
 }

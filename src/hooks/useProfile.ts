@@ -26,6 +26,8 @@ export interface PortfolioService {
 export interface PortfolioExtras {
   caseStudies?: CaseStudy[];
   services?: PortfolioService[];
+  testimonials?: Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>;
+  highlights?: Array<{ id: string; value: string; label: string }>;
   portfolioSnapshot?: Record<string, unknown> | null;
 }
 

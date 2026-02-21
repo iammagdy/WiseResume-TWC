@@ -44,6 +44,8 @@ export interface PublicProfile {
   // Portfolio extras
   caseStudies: CaseStudy[];
   services: PortfolioService[];
+  testimonials: Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>;
+  highlights: Array<{ id: string; value: string; label: string }>;
   portfolioSyncMode: 'auto' | 'locked';
 }
 
@@ -115,6 +117,8 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       lastActiveAt: (profile.lastActiveAt as string) || null,
       caseStudies: (extras.caseStudies as CaseStudy[]) || [],
       services: (extras.services as PortfolioService[]) || [],
+      testimonials: (extras.testimonials as Array<{ id: string; quote: string; authorName: string; authorTitle?: string; avatarUrl?: string }>) || [],
+      highlights: (extras.highlights as Array<{ id: string; value: string; label: string }>) || [],
       portfolioSyncMode: ((profile.portfolioSyncMode as string) || 'auto') as 'auto' | 'locked',
     },
     resume: {
