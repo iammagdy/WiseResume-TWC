@@ -33,25 +33,11 @@ export default function OnboardingPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateId | null>(null);
 
   useEffect(() => {
-    // Fast path: localStorage already marked complete
+    // Fast path: localStorage already marked complete — let dashboard handle it
     if (localStorage.getItem(ONBOARDING_KEY) === 'true') {
       navigate('/dashboard', { replace: true });
-      return;
     }
-    // DB check for cross-device consistency
-    if (!user) return;
-    supabase
-      .from('profiles')
-      .select('onboarding_completed')
-      .eq('user_id', user.id)
-      .single()
-      .then(({ data }) => {
-        if (data?.onboarding_completed) {
-          localStorage.setItem(ONBOARDING_KEY, 'true');
-          navigate('/dashboard', { replace: true });
-        }
-      });
-  }, [navigate, user]);
+  }, [navigate]);
 
   const handleSkip = () => {
     localStorage.setItem(ONBOARDING_KEY, 'true');

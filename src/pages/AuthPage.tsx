@@ -170,7 +170,8 @@ export default function AuthPage() {
           return;
         }
         toast.success('Welcome back!');
-        setTimeout(() => navigate('/dashboard'), 600);
+        const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
+        setTimeout(() => navigate(redirectTo), 600);
       } else {
         const { data, error } = await withNetworkRetry(() =>
           supabase.auth.signUp({
@@ -202,7 +203,8 @@ export default function AuthPage() {
         }
         if (data.session) {
           toast.success('Account created!');
-          setTimeout(() => navigate('/dashboard'), 600);
+          const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
+          setTimeout(() => navigate(redirectTo), 600);
         } else {
           toast.success('Account created! Check your email to verify, then sign in.');
           setMode('login');

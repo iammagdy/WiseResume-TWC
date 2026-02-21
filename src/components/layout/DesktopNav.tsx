@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useResumeStore } from '@/store/resumeStore';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useChangelogBadge } from '@/hooks/useChangelogBadge';
+import { toast } from 'sonner';
 
 interface TabItem {
   path: string;
@@ -72,8 +73,10 @@ export function DesktopNav() {
         const latest = resumes[0];
         setCurrentResumeId(latest.id);
         setCurrentResume(dbToResumeData(latest));
+        toast.info('Loading your latest resume…');
         navigate('/editor');
       } else {
+        toast.info('No resumes yet — let\'s create one!');
         navigate('/dashboard?action=create');
       }
       return;

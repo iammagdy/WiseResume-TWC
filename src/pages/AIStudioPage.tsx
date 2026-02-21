@@ -24,12 +24,13 @@ import {
   Clock,
 } from 'lucide-react';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { AIEngineBadge } from '@/components/editor/ai/AIEngineBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import { useResumeStore } from '@/store/resumeStore';
-import { useResume } from '@/hooks/useResumes';
+import { useResume, useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { useSettingsStore } from '@/store/settingsStore';
 import { AIStudioTourModal } from '@/components/ai-studio/AIStudioTourModal';
@@ -236,16 +237,25 @@ export default function AIStudioPage() {
     setStickyInput('');
   }, [stickyInput, user, currentResumeId]);
 
+  const [showResumePicker, setShowResumePicker] = useState(false);
+  const pendingActionRef = useRef<(() => void) | null>(null);
+  const { data: allResumes } = useResumes({ select: (data) => data.slice(0, 5) });
+
   const requireResume = useCallback((action: () => void) => {
     if (!currentResumeId) {
-      toast.info('Create or select a resume first', {
-        action: { label: 'Create', onClick: () => navigate('/dashboard?action=create') },
-      });
+      if (allResumes && allResumes.length > 0) {
+        pendingActionRef.current = action;
+        setShowResumePicker(true);
+      } else {
+        toast.info('Create a resume first to use this tool', {
+          action: { label: 'Create', onClick: () => navigate('/dashboard?action=create') },
+        });
+      }
       return;
     }
     haptics.medium();
     action();
-  }, [currentResumeId, navigate]);
+  }, [currentResumeId, navigate, allResumes]);
 
   const handleToolAction = useCallback((tool: ToolEntry) => {
     // Track recent usage
@@ -480,6 +490,44 @@ export default function AIStudioPage() {
           </button>
         </form>
       </div>
+
+      {/* Resume Picker Sheet */}
+      {showResumePicker && (
+        <Sheet open={showResumePicker} onOpenChange={(open) => { if (!open) { setShowResumePicker(false); pendingActionRef.current = null; } }}>
+          <SheetContent side="bottom" className="max-h-[60dvh] rounded-t-2xl">
+            <SheetHeader>
+              <SheetTitle>Which resume do you want to use?</SheetTitle>
+            </SheetHeader>
+            <div className="space-y-2 py-3">
+              {allResumes?.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => {
+                    const setId = useResumeStore.getState().setCurrentResumeId;
+                    const setResume = useResumeStore.getState().setCurrentResume;
+                    setId(r.id);
+                    setResume(dbToResumeData(r));
+                    setShowResumePicker(false);
+                    haptics.medium();
+                    const action = pendingActionRef.current;
+                    pendingActionRef.current = null;
+                    if (action) setTimeout(action, 100);
+                  }}
+                  className="w-full text-left px-4 py-3 rounded-xl border border-border/50 hover:bg-muted/60 transition-colors"
+                >
+                  <p className="font-medium text-sm truncate">{r.title}</p>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {r.target_job_title || 'No target role'}
+                  </p>
+                </button>
+              ))}
+            </div>
+            <Button variant="outline" className="w-full" onClick={() => { setShowResumePicker(false); navigate('/dashboard'); }}>
+              View All Resumes
+            </Button>
+          </SheetContent>
+        </Sheet>
+      )}
 
       {/* Sheets */}
       <ErrorBoundary>
