@@ -1,128 +1,115 @@
 
+# Resumable Migration Retry Workflow
 
-# Reducing Feature Overwhelm: Discoverability Improvements
+## Problem
 
-## The Problem
+Both migration flows -- guest resume migration (`useGuestMigration`) and API key migration (`migrateLocalKeysToServer`) -- are fire-and-forget with no retry logic. If a network blip occurs during sign-in, the migration silently fails and the user's local data is stranded until they manually trigger it again (next full session for keys, or never for guest data since `hasRun.current` blocks re-attempts within the same React lifecycle).
 
-The app has 15+ AI tools, 5 bottom tabs, multiple dashboard cards (WhatsNextCard, FeatureDiscoveryCard, DashboardStats with tips, QuickActionChips, trust banner), onboarding modals, tour modals, discovery dots, intro tooltips, NextStepBanners, and pro tips -- all competing for attention. A new user lands on the dashboard and is hit with:
+## Solution
 
-1. Trust banner
-2. WhatsNextCard (suggested action)
-3. FeatureDiscoveryCard ("Did you know?")
-4. DashboardStats with inline daily tip
-5. QuickActionChips row (3 buttons)
-6. Discovery dots pulsing on AI Tools + Portfolio tabs
-7. Eventually: AIStudioTourModal, AIIntroTooltip, NextStepBanners
-
-This creates "notification fatigue" where users tune out everything rather than engaging with any single prompt.
+Extract a shared `retryWithBackoff` utility and refactor both migrations into multi-step pipelines where each step is idempotent and progress is checkpointed to `localStorage`. If a step fails, the pipeline stops and automatically retries with exponential backoff (up to 3 attempts). On next app launch, incomplete migrations resume from the last successful checkpoint.
 
 ---
 
-## Proposed Changes
+## New File: `src/lib/migrationRunner.ts`
 
-### 1. PROGRESSIVE DISCLOSURE -- Stagger Hints Over Time
+A generic migration runner with:
 
-**Problem:** Multiple discovery mechanisms fire simultaneously on first use.
+- **`retryWithBackoff(fn, options)`** -- runs an async function up to `maxRetries` times with exponential backoff (1s, 2s, 4s). Returns result or throws after exhaustion.
+- **`runMigrationPipeline(id, steps)`** -- accepts a pipeline ID (e.g. `'guest-resume'`) and an ordered array of named steps. For each step:
+  1. Checks `localStorage` checkpoint (`wr-migration-{id}-step`) to skip already-completed steps (resumable).
+  2. Runs the step function wrapped in `retryWithBackoff`.
+  3. On success, writes the step name to the checkpoint.
+  4. On failure after all retries, stops and returns `{ completed: false, failedStep }`.
+  5. When all steps complete, writes a final "done" checkpoint and returns `{ completed: true }`.
 
-**Fix:** Introduce a simple `DiscoveryManager` utility that gates hints based on session count and resume count. Only one "discovery surface" shows per session.
+Each step function is idempotent by contract -- safe to re-run if the checkpoint write failed after the step succeeded.
 
-- Session 1-2: Only WhatsNextCard (core CTA)
-- Session 3: FeatureDiscoveryCard appears
-- Session 4+: Discovery dots on tabs activate
-- AIStudioTourModal: only on first AI Studio visit (already correct)
-- NextStepBanners: only after completing their trigger action (already correct)
+## Modified File: `src/hooks/useGuestMigration.ts`
 
-**Files:**
-- Create `src/lib/discoveryManager.ts` (~40 lines) -- reads/writes session count from localStorage, exposes `shouldShow(feature: string): boolean`
-- Edit `src/pages/DashboardPage.tsx` -- wrap FeatureDiscoveryCard in discovery gate
-- Edit `src/components/layout/BottomTabBar.tsx` -- wrap discovery dots in discovery gate
+Refactor the single `migrate()` function into a 3-step pipeline:
 
-### 2. MERGE REDUNDANT DASHBOARD CARDS
+| Step | Action | Idempotency Guard |
+|------|--------|-------------------|
+| `check-existing` | Query DB for existing resume by ID | Read-only, always safe |
+| `insert-resume` | Insert resume row | Uses `ON CONFLICT DO NOTHING` or checks existence first (already does `maybeSingle` check) |
+| `cleanup-local` | Clear guest data from localStorage, invalidate queries, show toast | Clearing already-null data is a no-op |
 
-**Problem:** WhatsNextCard, FeatureDiscoveryCard, and the inline daily tip in DashboardStats all compete for the same "nudge the user" role. Three nudge surfaces above the actual resume list push content below the fold.
+Changes:
+- Replace the monolithic `migrate()` with `runMigrationPipeline('guest-resume', steps)`.
+- Remove `hasRun.current` ref guard -- the checkpoint system handles deduplication.
+- Replace `sessionStorage` flag with the pipeline's own "done" checkpoint in `localStorage` (persists across sessions so incomplete migrations resume).
+- On partial failure, show a softer toast: "We'll finish saving your draft next time you're online."
 
-**Fix:** Merge FeatureDiscoveryCard into WhatsNextCard as a secondary state. When there is no "next step" to suggest (user has resumes, has tailored, has practiced), WhatsNextCard falls back to showing a rotating feature discovery tip instead. Remove the standalone FeatureDiscoveryCard from the dashboard.
+## Modified File: `src/lib/migrateLocalKeys.ts`
 
-**Files:**
-- Edit `src/components/dashboard/WhatsNextCard.tsx` -- add feature discovery fallback when no step is computed
-- Edit `src/pages/DashboardPage.tsx` -- remove `<FeatureDiscoveryCard />` import and rendering
-- Delete or deprecate `src/components/dashboard/FeatureDiscoveryCard.tsx`
+Refactor into a 2-step pipeline:
 
-### 3. SIMPLIFY AI STUDIO -- ADD "RECOMMENDED FOR YOU" SECTION
+| Step | Action | Idempotency Guard |
+|------|--------|-------------------|
+| `upload-key` | Invoke `manage-api-keys` edge function | Server-side upsert (inserting same key twice is safe) |
+| `strip-local` | Remove sensitive keys from localStorage, set migrated flag | Stripping already-absent keys is a no-op |
 
-**Problem:** AI Studio shows 14 tools in a flat 4-category grid. New users don't know which tool to start with and are overwhelmed by choice.
+Changes:
+- Replace the single try/catch with `runMigrationPipeline('api-keys', steps)`.
+- The existing `MIGRATED_FLAG` check becomes the pipeline's "done" checkpoint.
+- Retries with backoff instead of silently deferring to "next session".
 
-**Fix:** Add a "Recommended" row at the top that shows 2-3 tools contextually based on user state:
-- No tailored resume yet: show "Smart Tailor"
-- Resume score below 40: show "Enhance"
-- Never proofread: show "Proofread"
-- Has interviews coming (or never tried): show "Interview Prep"
+## Modified File: `src/contexts/AuthContext.tsx`
 
-This gives a clear starting point without removing any tools.
-
-**Files:**
-- Edit `src/pages/AIStudioPage.tsx` -- add a `useMemo` that computes 2-3 recommended tools based on resume data, render them as a highlighted row above the categories
-
-### 4. CONTEXTUAL TOOL SURFACING IN EDITOR
-
-**Problem:** Users editing their resume don't know about relevant AI tools unless they switch to the AI Studio tab. The editor had an `AIAssistantBar` that was removed.
-
-**Fix:** Add a lightweight "AI suggestion chip" that appears at the bottom of the editor (above the tab bar) only when contextually relevant:
-- After editing 3+ sections: "Try Proofread to catch errors"
-- After first save: "Match this to a job with Smart Tailor"
-- These use the existing `NextStepBanner` component (already built for this purpose)
-
-This is already partially implemented via `NextStepBanner` but the `variant="tailor"` banner only triggers after editing. Ensure the trigger conditions are reliable.
-
-**Files:**
-- Edit `src/pages/EditorPage.tsx` -- verify NextStepBanner render conditions, add proofread variant trigger after 3+ section edits
-
-### 5. SIMPLIFY ONBOARDING GOAL TO ACTION MAPPING
-
-**Problem:** The onboarding collects a goal (land a job, update resume, explore templates) but doesn't visibly use it afterward. The dashboard looks the same regardless of goal.
-
-**Fix:** Use the stored goal to customize the WhatsNextCard suggestion:
-- "Land a new job" goal: prioritize "Smart Tailor" as first suggestion
-- "Update my resume" goal: prioritize "Enhance" or "Proofread"
-- "Explore templates" goal: prioritize "Browse Templates"
-
-**Files:**
-- Edit `src/components/dashboard/WhatsNextCard.tsx` -- read `localStorage.getItem('wr-onboarding-goal')` and factor it into the step selection logic
-
-### 6. ADD A "WHAT CAN I DO?" QUICK HELP ENTRY POINT
-
-**Problem:** The Settings > Help section has Documentation (coming soon) and Keyboard Shortcuts, but no quick way to see what features exist from the dashboard or editor.
-
-**Fix:** Add a small "?" floating button (or integrate into the existing profile popover) that opens a minimal feature map -- a bottom sheet listing the 5 tabs with one-line descriptions of what each contains. This serves as a "table of contents" for the app.
-
-**Files:**
-- Create `src/components/layout/FeatureMapSheet.tsx` (~80 lines) -- a Sheet with 5 sections matching the bottom tabs, each listing 2-3 key capabilities
-- Edit `src/pages/DashboardPage.tsx` -- add a subtle "?" icon button in the header that opens the sheet
+No structural changes. The `migrateLocalKeysToServer()` call on line 65 remains fire-and-forget -- the retry logic is now internal to the function. The only change is that if the pipeline was left incomplete from a previous session, it automatically resumes on next sign-in.
 
 ---
 
-## Summary of Changes
+## Technical Details
 
-| Change | Impact | Effort |
-|--------|--------|--------|
-| Progressive disclosure manager | High -- eliminates first-session overwhelm | Small |
-| Merge FeatureDiscoveryCard into WhatsNextCard | Medium -- reduces visual clutter | Small |
-| AI Studio "Recommended" row | High -- gives clear starting point | Small |
-| Contextual editor suggestions (verify NextStepBanner) | Medium -- surfaces tools in context | Tiny |
-| Goal-based WhatsNextCard | Medium -- makes onboarding feel personalized | Small |
-| Feature map help sheet | Medium -- gives overwhelmed users an overview | Small |
+### `migrationRunner.ts` (~60 lines)
 
-### Files Created (2)
-- `src/lib/discoveryManager.ts`
-- `src/components/layout/FeatureMapSheet.tsx`
+```text
+retryWithBackoff(fn, { maxRetries: 3, baseDelay: 1000 })
+  - Attempt 1: immediate
+  - Attempt 2: wait 1s
+  - Attempt 3: wait 2s
+  - Attempt 4: wait 4s (if maxRetries=3, this is the last)
+  - Throws on final failure
 
-### Files Modified (5)
-- `src/pages/DashboardPage.tsx` -- remove FeatureDiscoveryCard, add discovery gates, add "?" button
-- `src/components/dashboard/WhatsNextCard.tsx` -- merge feature discovery fallback, read onboarding goal
-- `src/components/layout/BottomTabBar.tsx` -- gate discovery dots via discoveryManager
-- `src/pages/AIStudioPage.tsx` -- add "Recommended for you" section
-- `src/pages/EditorPage.tsx` -- verify/fix NextStepBanner trigger conditions
+runMigrationPipeline(id, steps[])
+  - Reads checkpoint: localStorage['wr-migration-{id}-step']
+  - Skips steps up to and including the checkpointed step
+  - Runs remaining steps sequentially with retryWithBackoff
+  - Writes checkpoint after each successful step
+  - Returns { completed, failedStep? }
+```
 
-### Files Removed (1)
-- `src/components/dashboard/FeatureDiscoveryCard.tsx` (functionality merged into WhatsNextCard)
+### Checkpoint storage format
 
+```text
+Key: wr-migration-guest-resume-step
+Value: "insert-resume"  (last completed step name)
+
+Key: wr-migration-guest-resume-done
+Value: "1"  (pipeline fully complete)
+```
+
+### `useGuestMigration.ts` changes
+
+- The `useEffect` still gates on `session?.user` being present.
+- Instead of `hasRun.current`, checks `localStorage['wr-migration-guest-resume-done'] === '1'` for instant bail-out.
+- The pipeline's `check-existing` step returns early (marks pipeline done) if the resume already exists in DB.
+- The `cleanup-local` step is the final step -- local data is only cleared after the DB insert is confirmed and checkpointed.
+
+### `migrateLocalKeys.ts` changes
+
+- The existing `MIGRATED_FLAG` (`wiseresume-keys-migrated`) is replaced by the pipeline's `wr-migration-api-keys-done` checkpoint.
+- The `upload-key` step gracefully handles the case where no key exists (marks done immediately).
+
+### Files Summary
+
+| File | Action |
+|------|--------|
+| `src/lib/migrationRunner.ts` | Create -- shared retry + pipeline runner |
+| `src/hooks/useGuestMigration.ts` | Modify -- refactor to use pipeline |
+| `src/lib/migrateLocalKeys.ts` | Modify -- refactor to use pipeline |
+| `src/contexts/AuthContext.tsx` | No changes needed |
+
+### No new dependencies required.
