@@ -1086,55 +1086,33 @@ export default function EditorPage() {
       </header>
 
 
-        {/* Progress Bar with Save Status */}
-        <div className="shrink-0 px-4 py-1.5 sm:py-3 border-b border-border">
-          <div className="flex flex-row flex-wrap items-center justify-between gap-1 mb-1">
-            <ProgressBar resume={currentResume} compact />
+        {/* Progress Bar with Save Status — compact on mobile, full on desktop */}
+        <div className="shrink-0 px-4 py-1 sm:py-3 border-b border-border">
+          <div className="flex flex-row items-center justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <ProgressBar resume={currentResume} compact />
+            </div>
             {user && currentResumeId && (
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={!isOnline ? 'offline' : isSaving ? 'saving' : showSavedCheck ? 'saved' : hasUnsavedChanges ? 'unsaved' : 'idle'}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2"
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  {!isOnline ? (
-                    <>
-                      <CloudOff className="w-3.5 h-3.5 text-warning" />
-                      <span className="text-warning">Offline</span>
-                    </>
-                  ) : isSaving ? (
-                    <>
-                      <Cloud className="w-3.5 h-3.5 animate-pulse" />
-                      <span>Saving...</span>
-                    </>
-                  ) : showSavedCheck ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
-                      <span>Saved</span>
-                    </>
-                  ) : hasUnsavedChanges ? (
-                    <>
-                      <span className="w-2 h-2 rounded-full bg-warning inline-block" />
-                      <span className="text-warning">Unsaved</span>
-                    </>
-                  ) : lastSavedAt ? (
-                    <>
-                      <Cloud className="w-3.5 h-3.5 opacity-50" />
-                      <span className="opacity-70">Last saved · {formatDistanceToNow(lastSavedAt, { addSuffix: false })} ago</span>
-                    </>
-                  ) : null}
-                </motion.div>
-              </AnimatePresence>
+              <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+                {!isOnline ? (
+                  <>
+                    <CloudOff className="w-3 h-3 text-warning" />
+                    <span className="text-warning hidden xs:inline">Offline</span>
+                  </>
+                ) : isSaving ? (
+                  <Cloud className="w-3 h-3 animate-pulse" />
+                ) : showSavedCheck ? (
+                  <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
+                ) : hasUnsavedChanges ? (
+                  <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block" />
+                ) : (
+                  <Cloud className="w-3 h-3 opacity-40" />
+                )}
+              </div>
             )}
             {user && !currentResumeId && (
-              <div className="flex items-center gap-1 text-xs text-muted-foreground sm:ml-2">
-                <CloudOff className="w-3.5 h-3.5" />
-                <span>Local</span>
+              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <CloudOff className="w-3 h-3" />
               </div>
             )}
           </div>
@@ -1208,36 +1186,36 @@ export default function EditorPage() {
             onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
             className="flex-1 flex flex-col min-h-0 overflow-hidden"
           >
-            <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none border-b border-border bg-background/95 backdrop-blur-sm h-12 p-0 gap-0">
-              <TabsTrigger value="editor" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Editor</TabsTrigger>
-              <TabsTrigger value="preview" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
-              <TabsTrigger value="ats" className="flex-1 rounded-none h-full data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent text-xs">ATS View</TabsTrigger>
+            <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none border-b border-border bg-background/95 backdrop-blur-sm h-9 p-0 gap-0">
+              <TabsTrigger value="editor" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Editor</TabsTrigger>
+              <TabsTrigger value="preview" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
+              <TabsTrigger value="ats" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">ATS</TabsTrigger>
             </TabsList>
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               <div
-                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-4 pb-safe space-y-0"
+                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-safe space-y-0"
                 ref={scrollContainerRef}
               >
                 {renderEditorContent()}
               </div>
-              {/* Editor Quick Actions Bar — hidden when keyboard is open */}
-              <div className="shrink-0 glass-header border-t border-border px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))] flex items-center justify-center gap-2 keyboard-hide">
+              {/* Compact bottom action bar */}
+              <div className="shrink-0 border-t border-border px-2 py-1 pb-[max(4px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1.5 keyboard-hide bg-background/95 backdrop-blur-sm">
                 <Button
                   size="sm"
                   disabled={isQuickDownloading}
-                  className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95 flex-1"
+                  className="h-9 rounded-lg text-xs gap-1 min-h-[40px] touch-manipulation active:scale-95 flex-1"
                   onClick={handleQuickDownload}
                 >
-                  <Download className="w-4 h-4" />
-                  {isQuickDownloading ? 'Saving…' : 'Download PDF'}
+                  <Download className="w-3.5 h-3.5" />
+                  {isQuickDownloading ? 'Saving…' : 'Download'}
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
+                  className="h-9 rounded-lg text-xs gap-1 min-h-[40px] touch-manipulation active:scale-95"
                   onClick={() => { haptics.light(); setMobileEditorTab('preview'); }}
                 >
-                  <Eye className="w-4 h-4" />
+                  <Eye className="w-3.5 h-3.5" />
                   Preview
                 </Button>
               </div>
@@ -1250,43 +1228,24 @@ export default function EditorPage() {
                       <LivePreviewPanel highlightSection={activeTab} />
                     </Suspense>
                   </div>
-                  {/* Quick Actions Bar */}
-                  <div className="shrink-0 glass-header border-t border-border px-3 py-2 pb-[max(8px,env(safe-area-inset-bottom))] flex items-center justify-center gap-2">
+                  <div className="shrink-0 border-t border-border px-2 py-1 pb-[max(4px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1.5 bg-background/95 backdrop-blur-sm">
                     <Button
                       size="sm"
                       disabled={isQuickDownloading}
-                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95 flex-1"
+                      className="h-9 rounded-lg text-xs gap-1 min-h-[40px] touch-manipulation active:scale-95 flex-1"
                       onClick={handleQuickDownload}
                     >
-                      <Download className="w-4 h-4" />
-                      {isQuickDownloading ? 'Saving…' : 'Download'}
+                      <Download className="w-3.5 h-3.5" />
+                      Download
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
-                      onClick={() => { haptics.light(); setShowShareSheet(true); }}
-                    >
-                      <Globe className="w-4 h-4" />
-                      Share
+                    <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs min-h-[40px] min-w-[40px] touch-manipulation active:scale-95 px-2" onClick={() => { haptics.light(); setShowShareSheet(true); }} aria-label="Share">
+                      <Globe className="w-3.5 h-3.5" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
-                      onClick={() => { haptics.light(); setShowTemplates(true); }}
-                    >
-                      <LayoutTemplate className="w-4 h-4" />
-                      Template
+                    <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs min-h-[40px] min-w-[40px] touch-manipulation active:scale-95 px-2" onClick={() => { haptics.light(); setShowTemplates(true); }} aria-label="Template">
+                      <LayoutTemplate className="w-3.5 h-3.5" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-10 rounded-xl text-xs gap-1.5 min-h-[44px] touch-manipulation active:scale-95"
-                      onClick={() => { haptics.light(); navigate('/preview'); }}
-                    >
-                      <Eye className="w-4 h-4" />
-                      Export
+                    <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs min-h-[40px] min-w-[40px] touch-manipulation active:scale-95 px-2" onClick={() => { haptics.light(); navigate('/preview'); }} aria-label="Export">
+                      <Eye className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </>
