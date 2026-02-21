@@ -1,77 +1,74 @@
 
 
-# Performance Improvements Across the App
+# Dashboard (Home Page) Improvements
 
-## Overview
-After the splash screen optimizations, several other components still run **infinite Framer Motion loops** and unnecessary background animations that consume GPU/CPU cycles -- especially on pages the user spends the most time on (home, editor, bottom tab bar).
+## Issues Found
+
+### 1. Performance: Remaining infinite animation loops
+- **EmptyState.tsx line 76**: Floating icon has `y: { repeat: Infinity }` -- another infinite Framer Motion loop we missed in previous passes
+- **EmptyState.tsx line 84**: `animate-ring-pulse` and `animate-pulse` CSS classes running infinitely on elements that should settle
+- **DashboardStats.tsx**: The `conic-gradient` border uses a CSS `animation: rotate-gradient 6s linear infinite` -- an infinite CSS animation on the main stats card
+
+### 2. Performance: localStorage reads during render
+- **DashboardPage.tsx lines 581-606**: The trust banner IIFE runs `localStorage.getItem` and `localStorage.setItem` directly inside the render function on every re-render. This should be moved to state initialized once.
+- **DashboardPage.tsx line 499**: `localStorage.getItem('wr-profile-pulse-seen')` is read inline during render
+
+### 3. Performance: Stagger animations doing nothing
+- **DashboardPage.tsx lines 801-806 and 873-877**: The `staggerChildren: 0.05` variants reference `itemVariants` (lines 415-418) that set `opacity: 1, y: 0` for both `hidden` and `visible` -- meaning Framer Motion processes stagger overhead for zero visual effect. Either remove the motion wrappers or add actual entrance animations.
+
+### 4. UX: DashboardStats card is too dense
+- The glass hero card crams greeting, streak, daily tip, motivational subtitle, and stat badges into one card. On xs (375px) screens the tip text truncates aggressively and the dismiss button is hard to tap.
+- **Fix**: Move the daily tip outside the stats card into a standalone dismissible banner below it, giving each element breathing room.
+
+### 5. UX: Empty state has too many CTAs
+- When no resumes exist, users see: 4 ActionCards grid + EmptyState with 3 steps + 3 template previews + 2 CTA buttons + tips carousel. That's 12+ tap targets competing for attention.
+- **Fix**: Consolidate -- remove the ActionCards grid from the empty state (keep it only when resumes exist as QuickActionChips already does), and let the EmptyState component be the single focus.
+
+### 6. UX: WhatsNextCard lacks visual hierarchy
+- It's a plain glass card that blends with everything else. Since it's the primary CTA for returning users, it should stand out more.
+- **Fix**: Add a subtle gradient left border or a primary-tinted background to make it visually distinct from resume cards.
+
+### 7. Code: 1076-line monolith page component
+- DashboardPage.tsx is over 1000 lines with inline handlers, render logic, and state management all in one file. This hurts maintainability and increases bundle parse time.
+- **Fix**: Extract the header, trust banner, selection toolbar, and tab content into separate components.
 
 ---
 
-## Changes
+## Proposed Changes
 
-### 1. HomeHeroSection.tsx -- Remove infinite loops
+### File: `src/components/dashboard/EmptyState.tsx`
+- Remove `repeat: Infinity` from the floating icon's y animation (line 76) -- animate once and hold
+- Remove `animate-ring-pulse` infinite animation from the icon border
+- Keep the tips carousel as-is (it's CSS-based AnimatePresence, lightweight)
 
-**Problem**: 4 orbiting particles with `repeat: Infinity` + logo floating with `repeat: Infinity` = 5 infinite Framer Motion animation loops running the entire time the home screen is visible.
+### File: `src/components/dashboard/DashboardStats.tsx`
+- Remove the `rotate-gradient` infinite CSS animation on the conic-gradient border -- use a static gradient border instead
+- Separate the daily tip into its own small component below the stats card for better spacing on xs screens
 
-**Fix**:
-- Replace the 4 orbiting `motion.div` particles with a single CSS `@keyframes` orbit animation on a container, or remove them entirely (they're barely visible behind the logo)
-- Replace the logo `animate={{ y: [0, -6, 0] }}` infinite loop with a CSS animation (`animate-float` class) to move it off the JS thread
-- The wave emoji rotation already runs once -- no change needed
+### File: `src/pages/DashboardPage.tsx`
+- **Trust banner**: Move localStorage reads into a `useState` initializer so they only run once
+- **Profile pulse**: Same -- cache in state, not inline render
+- **Stagger variants**: Either add real entrance animations (opacity 0 to 1) or remove the motion wrappers to avoid overhead
+- **Empty state simplification**: Remove the 4-card ActionCards grid when `resumes.length === 0` -- the EmptyState component already provides all necessary entry points
+- **Extract DashboardHeader**: Move the header (lines 471-575) into its own component to reduce file size
 
-### 2. HomeBackground.tsx -- Move style tag to module level
-
-**Problem**: The inline `<style>` tag with the `@keyframes twinkle` is rendered inside the component, meaning it's in the DOM tree and re-evaluated on re-renders.
-
-**Fix**:
-- Move the keyframe injection to module level (same pattern already used in AnimatedSplash.tsx)
-- The 12 twinkling stars use CSS-only `infinite` animations which is fine for GPU-composited layers, but reduce count to 8 since most are off-screen on mobile
-
-### 3. BottomTabBar.tsx -- Replace pulsing notification dots
-
-**Problem**: Up to 3 notification dot `motion.div` elements with `repeat: Infinity` scale animations running constantly on the primary navigation bar (visible on every screen).
-
-**Fix**:
-- Replace Framer Motion `animate={{ scale: [1, 1.3, 1] }}` with a simple CSS `animate-pulse` class (already available via Tailwind)
-- This moves the animation from JS to CSS, eliminating 3 Framer Motion animation loops from every page
-
-### 4. AIFloatingButton.tsx -- Remove infinite pulse ring
-
-**Problem**: A `motion.span` with `repeat: Infinity` scale+opacity animation runs behind the FAB at all times on the editor page.
-
-**Fix**:
-- Replace with CSS `animate-pulse` or a CSS `@keyframes` animation
-- The FAB is always visible on the editor, so this saves one perpetual JS animation loop
-
-### 5. ResumeCard.tsx -- Remove infinite "Continue" arrow bounce
-
-**Problem**: Each resume card with a "Continue" label has a `motion.div` with `repeat: Infinity` translating x back and forth.
-
-**Fix**:
-- Replace with CSS `animate-bounce` or remove entirely -- the arrow icon already implies direction
-- If the user has 5+ resumes, this is 5+ infinite JS loops on the dashboard
-
-### 6. EditorDemo.tsx (landing page) -- Scope animation to viewport
-
-**Problem**: The typing/scoring demo loop runs continuously even when scrolled out of view. It uses `requestAnimationFrame` for scoring and `setTimeout` chains for typing.
-
-**Fix**:
-- Add an `IntersectionObserver` to pause the loop when the component is not visible
-- This prevents wasted CPU when users scroll past the demo on the landing page
+### File: `src/components/dashboard/WhatsNextCard.tsx`
+- Add a primary-tinted left border and slightly stronger background to differentiate it from resume cards
+- Add a subtle "Suggested next step" label above the title for clarity
 
 ---
 
 ## Summary
 
-| Component | Issue | Fix |
+| Area | Issue | Fix |
 |---|---|---|
-| HomeHeroSection | 5 infinite FM loops | CSS animation + remove particles |
-| HomeBackground | Inline style tag | Module-level injection |
-| BottomTabBar | 3 infinite FM dot pulses | CSS `animate-pulse` |
-| AIFloatingButton | 1 infinite FM pulse ring | CSS animation |
-| ResumeCard | N infinite FM arrow bounces | CSS or remove |
-| EditorDemo | Runs off-screen | IntersectionObserver pause |
+| EmptyState | Infinite float loop | Animate once |
+| DashboardStats | Infinite gradient rotation | Static gradient |
+| DashboardPage | localStorage in render | useState initializer |
+| DashboardPage | No-op stagger variants | Real animations or remove |
+| DashboardPage | Duplicate CTAs in empty state | Remove ActionCards grid |
+| WhatsNextCard | Low visual hierarchy | Tinted border + label |
+| DashboardPage | 1076-line monolith | Extract header component |
 
-**Total**: Eliminates ~10+ perpetual Framer Motion JS animation loops from commonly visited pages, moving visual effects to CSS where possible.
-
-No visual changes -- all animations look the same, they just run more efficiently.
+All changes are visual parity or improvement -- no features removed, just cleaner UX and fewer wasted CPU cycles.
 
