@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
 import { CareerPathResult } from '@/lib/careerPath';
-import { ResumeData } from '@/types/resume';
+import type { TablesInsert } from '@/integrations/supabase/types';
 
 export interface CareerAssessment {
   id: string;
@@ -23,8 +23,8 @@ export function useCareerAssessment() {
     queryKey: ['career-assessments', user?.id],
     queryFn: async () => {
        
-      const { data, error } = await (supabase
-        .from('career_assessments') as any)
+      const { data, error } = await supabase
+        .from('career_assessments')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -65,15 +65,16 @@ export function useCareerMutations() {
       if (!user) throw new Error('Not authenticated');
 
        
-      const { data, error } = await (supabase
-        .from('career_assessments') as any)
-        .insert({
+      const insertPayload = {
           user_id: user.id,
           resume_id: resumeId || null,
-          result: result,
-          quiz_answers: quizAnswers,
-          completed_milestones: [],
-        })
+          result: JSON.parse(JSON.stringify(result)),
+          quiz_answers: JSON.parse(JSON.stringify(quizAnswers)),
+          completed_milestones: JSON.parse(JSON.stringify([])),
+        } satisfies TablesInsert<'career_assessments'>;
+      const { data, error } = await supabase
+        .from('career_assessments')
+        .insert(insertPayload)
         .select()
         .single();
 
@@ -104,8 +105,8 @@ export function useCareerMutations() {
         : [...completed, milestoneId];
 
        
-      const { error } = await (supabase
-        .from('career_assessments') as any)
+      const { error } = await supabase
+        .from('career_assessments')
         .update({ completed_milestones: newMilestones })
         .eq('id', assessmentId);
 
