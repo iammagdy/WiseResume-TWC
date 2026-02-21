@@ -1,103 +1,111 @@
 
 
-# Database Cleanup Utility for Post-Migration Orphan Pruning
+# Mobile App Improvements and Responsiveness Enhancements
 
-## Problem
+## Current State
 
-After migrations run (guest resume, API key), several types of orphaned data can accumulate:
-
-1. **Stale localStorage checkpoints** -- `wr-migration-*-step` keys persist even after `wr-migration-*-done` is set to `1`. These are harmless but accumulate indefinitely.
-2. **Database orphans** -- The existing `cleanup_stale_data()` Postgres function handles old audit logs (90d), read notifications (30d), and excess resume versions (50 per resume), but it is never called from the client. It runs only if manually invoked.
-3. **Potential orphaned resume_shares/resume_versions** -- If a resume is deleted but cascade didn't fire (edge case with soft-deletes or failed transactions), child rows linger.
-
-## Solution
-
-Create a lightweight cleanup utility that runs once per day (debounced via localStorage timestamp) and:
-- Calls the existing `cleanup_stale_data()` RPC to prune old logs, notifications, and excess versions
-- Cleans up completed migration checkpoint keys from localStorage
-- Logs the cleanup event to audit_logs
+Your app already has a strong mobile foundation: `100dvh` layouts, 44px touch targets, safe-area handling, pull-to-refresh, haptic feedback, skeleton loading screens, Capacitor integration, keyboard-aware scrolling, and bottom tab navigation. The improvements below address the remaining gaps.
 
 ---
 
-## Changes
+## Improvement 1: Haptic Feedback on Form Validation Errors
 
-### 1. Create `src/lib/dbCleanup.ts` (~50 lines)
+Currently, form validation errors show visual feedback but don't trigger haptic vibration. On a native mobile app, a subtle vibration on error makes the experience feel polished.
 
-A utility with two functions:
-
-**`pruneLocalStorageCheckpoints()`** -- Scans localStorage for `wr-migration-*-done` keys. For each completed pipeline, removes the corresponding `wr-migration-*-step` key (no longer needed after completion).
-
-**`runDailyCleanup()`** -- The main entry point:
-1. Checks `localStorage['wr-cleanup-last']` timestamp. If less than 24 hours ago, returns immediately.
-2. Calls `pruneLocalStorageCheckpoints()`.
-3. Invokes `supabase.rpc('cleanup_stale_data')` to prune server-side orphans.
-4. Writes current timestamp to `wr-cleanup-last`.
-5. Logs `logAudit('account', 'daily_cleanup_ran')`.
-6. Entire function is wrapped in try/catch -- never blocks or throws.
-
-### 2. Modify `src/contexts/AuthContext.tsx`
-
-Add a single fire-and-forget call to `runDailyCleanup()` inside the existing `onAuthStateChange` handler, right after the `migrateLocalKeysToServer()` call. It only fires on `SIGNED_IN` events (same gate as key migration), ensuring it runs once per authenticated session.
-
-### 3. Modify existing `cleanup_stale_data()` DB function (migration)
-
-Extend the existing function to also prune:
-- `audit_logs` older than 90 days (matching the `ai_usage_logs` retention)
-- `resume_shares` where `is_active = false` and `created_at` older than 30 days
-
-This keeps the single RPC call comprehensive.
+**What changes:**
+- Add `haptics.notification('error')` calls in `AuthPage.tsx` login/signup error handlers
+- Add haptic feedback on editor section validation failures
+- Add haptic feedback when AI operations fail (tailor, score, etc.)
 
 ---
 
-## Technical Details
+## Improvement 2: Swipe-to-Go-Back Gesture on Key Pages
 
-### `dbCleanup.ts` structure
+Pages like Resume Detail, Cover Letter Edit, and Interview currently rely on a back button. Adding a swipe-right gesture to navigate back would feel more native.
 
-```text
-pruneLocalStorageCheckpoints()
-  - Iterate localStorage keys matching /^wr-migration-.*-done$/
-  - For each, extract pipeline ID
-  - Remove the corresponding -step key
-  - No DB interaction
-
-runDailyCleanup()
-  - Guard: skip if last run < 24h ago
-  - Call pruneLocalStorageCheckpoints()
-  - Call supabase.rpc('cleanup_stale_data')
-  - Update wr-cleanup-last timestamp
-  - logAudit('account', 'daily_cleanup_ran')
-  - All wrapped in try/catch
-```
-
-### AuthContext integration point
-
-```text
-// Inside onAuthStateChange SIGNED_IN handler (after migrateLocalKeysToServer):
-runDailyCleanup();  // fire-and-forget, never blocks
-```
-
-### Extended cleanup_stale_data() SQL
-
-```text
--- Existing:
-DELETE FROM ai_usage_logs WHERE created_at < now() - interval '90 days';
-DELETE FROM notifications WHERE is_read = true AND created_at < now() - interval '30 days';
-DELETE FROM resume_versions WHERE rn > 50 (per resume);
-
--- New additions:
-DELETE FROM audit_logs WHERE created_at < now() - interval '90 days';
-DELETE FROM resume_shares WHERE is_active = false AND created_at < now() - interval '30 days';
-```
+**What changes:**
+- Create a `SwipeBackWrapper` component using Framer Motion's `onPan` gesture
+- Wrap detail/edit pages that have a back button
+- Respect `prefers-reduced-motion` and only trigger above a velocity threshold
 
 ---
 
-## Files Summary
+## Improvement 3: Smart Keyboard Toolbar for Rich Text Fields
 
-| File | Action |
-|------|--------|
-| `src/lib/dbCleanup.ts` | Create -- daily cleanup utility |
-| `src/contexts/AuthContext.tsx` | Modify -- add `runDailyCleanup()` call on sign-in |
-| Database migration | Modify -- extend `cleanup_stale_data()` with audit_logs and inactive shares pruning |
+The editor already has a `KeyboardToolbar` component, but it could be extended with quick-insert actions (bullet point, em-dash, common phrases) that float above the keyboard on mobile.
 
-### No new dependencies required.
+**What changes:**
+- Extend `KeyboardToolbar.tsx` with context-aware quick-insert buttons (e.g., bullet `"Managed"`, `"Led"`, `"Developed"` for experience sections)
+- Show/hide based on which section is active
+
+---
+
+## Improvement 4: Network-Aware Loading States
+
+When on slow mobile connections (3G), the app should show more informative loading states and potentially reduce image quality or defer non-critical requests.
+
+**What changes:**
+- Create a `useNetworkQuality` hook that reads `navigator.connection.effectiveType`
+- When on `"slow-2g"` or `"2g"`, show a subtle banner: "Slow connection detected"
+- Defer background scoring and ATS analysis until connection improves or user explicitly requests it
+
+---
+
+## Improvement 5: Orientation-Aware Resume Preview
+
+The Preview page renders the resume at a fixed scale. On landscape mobile, there is wasted space. The preview should auto-adjust zoom to fill the available width.
+
+**What changes:**
+- In `LivePreviewPanel.tsx`, detect orientation changes via `matchMedia('(orientation: landscape)')`
+- Auto-select a higher zoom level in landscape to maximize the readable area
+- Reset to default zoom on portrait
+
+---
+
+## Improvement 6: Offline Queue Visibility
+
+The app supports offline sync, but there is no user-facing indicator of how many pending changes are queued. Users on flaky mobile connections need reassurance.
+
+**What changes:**
+- Add a small badge on the Home tab (or editor header) showing pending sync count from `useOfflineSyncStore`
+- When tapped, show a brief summary: "3 changes waiting to sync"
+
+---
+
+## Improvement 7: Reduce Initial Bundle for Mobile First-Load
+
+The main bundle is 670 KB gzipped. For mobile users on slow connections, further code-splitting would improve Time to Interactive.
+
+**What changes:**
+- Lazy-load the `PortfolioEditorPage`, `CareerPage`, and `InterviewPage` routes (they are secondary flows)
+- Move `qr-code-styling` into a dedicated chunk (only used in portfolio QR sheet)
+- Add `react-image-crop` to its own chunk (only used in avatar crop)
+
+---
+
+## Improvement 8: Double-Tap to Quick Preview in Dashboard
+
+Currently, tapping a resume card navigates to the detail page. A quick double-tap gesture could open the live preview directly, saving one navigation step.
+
+**What changes:**
+- Add a `useDoubleTap` hook
+- On double-tap of a resume card, load the resume and navigate directly to `/preview`
+- Single tap remains as-is (resume detail)
+
+---
+
+## Technical Summary
+
+| # | Improvement | Files | Complexity |
+|---|------------|-------|------------|
+| 1 | Haptic validation feedback | AuthPage, EditorPage, TailorSheet | Low |
+| 2 | Swipe-to-go-back gesture | New component + 5-6 page wrappers | Medium |
+| 3 | Smart keyboard toolbar | KeyboardToolbar.tsx | Medium |
+| 4 | Network-aware loading | New hook + AppShell integration | Low |
+| 5 | Orientation-aware preview | LivePreviewPanel.tsx | Low |
+| 6 | Offline queue visibility | BottomTabBar, editor header | Low |
+| 7 | Bundle splitting | vite.config.ts, route definitions | Low |
+| 8 | Double-tap quick preview | New hook + DashboardPage | Medium |
+
+No new dependencies are required for any of these improvements.
 
