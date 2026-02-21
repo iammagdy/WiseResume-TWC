@@ -964,7 +964,7 @@ export default function EditorPage() {
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (
-    <main className="flex-1 flex flex-col overflow-hidden">
+    <main className="flex-1 flex flex-col overflow-hidden bg-background">
       {/* Header */}
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
@@ -1201,16 +1201,8 @@ export default function EditorPage() {
           <Tabs
             value={mobileEditorTab}
             onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
-            className="flex-1 flex flex-col min-h-0 overflow-hidden"
+            className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background"
           >
-            {/* Tab bar hidden on mobile editor view — switch via bottom bar or header */}
-            {mobileEditorTab !== 'editor' && (
-              <TabsList className="w-full shrink-0 sticky top-0 z-10 rounded-none border-b border-border bg-background/95 backdrop-blur-sm h-9 p-0 gap-0">
-                <TabsTrigger value="editor" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Editor</TabsTrigger>
-                <TabsTrigger value="preview" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">Preview</TabsTrigger>
-                <TabsTrigger value="ats" className="flex-1 rounded-none h-full text-xs data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:bg-transparent">ATS</TabsTrigger>
-              </TabsList>
-            )}
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               <div
                 className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0"
@@ -1226,26 +1218,6 @@ export default function EditorPage() {
                     <Suspense fallback={null}>
                       <LivePreviewPanel highlightSection={activeTab} />
                     </Suspense>
-                  </div>
-                  <div className="shrink-0 border-t border-border px-2 py-1 pb-[max(4px,env(safe-area-inset-bottom))] flex items-center justify-center gap-1.5 bg-background/95 backdrop-blur-sm">
-                    <Button
-                      size="sm"
-                      disabled={isQuickDownloading}
-                      className="h-9 rounded-lg text-xs gap-1 min-h-[40px] touch-manipulation active:scale-95 flex-1"
-                      onClick={handleQuickDownload}
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      Download
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs min-h-[40px] min-w-[40px] touch-manipulation active:scale-95 px-2" onClick={() => { haptics.light(); setShowShareSheet(true); }} aria-label="Share">
-                      <Globe className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs min-h-[40px] min-w-[40px] touch-manipulation active:scale-95 px-2" onClick={() => { haptics.light(); setShowTemplates(true); }} aria-label="Template">
-                      <LayoutTemplate className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-9 rounded-lg text-xs min-h-[40px] min-w-[40px] touch-manipulation active:scale-95 px-2" onClick={() => { haptics.light(); navigate('/preview'); }} aria-label="Export">
-                      <Eye className="w-3.5 h-3.5" />
-                    </Button>
                   </div>
                 </>
               )}
@@ -1432,39 +1404,6 @@ export default function EditorPage() {
         />
       )}
 
-      {/* Floating action pill (mobile editor tab only) */}
-      {isMobile && mobileEditorTab === 'editor' && createPortal(
-        <div className="fixed bottom-[7rem] left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 px-2 py-1.5 rounded-full bg-background/90 backdrop-blur-xl border border-border/50 shadow-lg">
-          <Button
-            size="sm"
-            disabled={isQuickDownloading}
-            className="h-8 rounded-full text-xs gap-1 min-h-[32px] touch-manipulation active:scale-95"
-            onClick={handleQuickDownload}
-          >
-            <Download className="w-3.5 h-3.5" />
-            {isQuickDownloading ? 'Saving…' : 'PDF'}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-full text-xs gap-1 min-h-[32px] touch-manipulation active:scale-95"
-            onClick={() => { haptics.light(); setMobileEditorTab('preview'); }}
-          >
-            <Eye className="w-3.5 h-3.5" />
-            Preview
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 rounded-full text-xs gap-1 min-h-[32px] touch-manipulation active:scale-95"
-            onClick={() => { haptics.light(); setMobileEditorTab('ats'); }}
-          >
-            <BarChart3 className="w-3.5 h-3.5" />
-            ATS
-          </Button>
-        </div>,
-        document.body
-      )}
     </main>
   );
 }
