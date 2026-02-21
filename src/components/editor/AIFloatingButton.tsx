@@ -112,12 +112,6 @@ export function AIFloatingButton({
           <span className="absolute top-0 right-0 w-3 h-3 bg-destructive rounded-full border-2 border-background" />
         )}
         
-        {/* Subtle pulse animation - CSS only */}
-        {!isExpanded && (
-          <span
-            className="absolute inset-0 rounded-full gradient-primary animate-pulse opacity-50"
-          />
-        )}
       </motion.button>
     </div>
   );
