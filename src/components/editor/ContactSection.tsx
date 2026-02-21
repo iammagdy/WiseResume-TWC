@@ -178,6 +178,7 @@ export const ContactSection = memo(function ContactSection() {
           if (contactNudge) dismissNudge(contactNudge.trigger);
         }}
         onDismiss={() => contactNudge && dismissNudge(contactNudge.trigger)}
+        compact
       />
         <InputFormField
           id="fullName"

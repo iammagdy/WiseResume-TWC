@@ -597,9 +597,15 @@ export default function AIStudioPage() {
         </Suspense>
       </ErrorBoundary>
 
-      {/* Onboarding Tour */}
+      {/* Onboarding Tour — auto-dismiss inline banner */}
       {isFirstVisit && (
-        <AIStudioTourModal onDismiss={() => setHasSeenAIStudioTour(true)} />
+        <div className="fixed bottom-24 sm:bottom-20 left-4 right-4 z-40 animate-in fade-in-0 slide-in-from-bottom-4 duration-300">
+          <div className="flex items-center gap-3 px-4 py-3 rounded-2xl glass-surface border border-primary/20 shadow-lg">
+            <Sparkles className="w-5 h-5 text-primary shrink-0" />
+            <p className="text-sm text-foreground flex-1">Welcome to <span className="font-semibold">AI Studio</span> — tap any tool to supercharge your resume.</p>
+            <Button size="sm" variant="ghost" className="shrink-0 min-h-[44px] text-xs" onClick={() => setHasSeenAIStudioTour(true)}>Got it</Button>
+          </div>
+        </div>
       )}
     </div>
   );
