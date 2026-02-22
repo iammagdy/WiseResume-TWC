@@ -1,7 +1,8 @@
 import { useCallback, useRef } from 'react';
 import { motion, PanInfo, useReducedMotion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { haptics } from '@/lib/haptics';
+import { getBackRoute } from '@/lib/navigation';
 
 interface SwipeBackWrapperProps {
   children: React.ReactNode;
@@ -12,10 +13,12 @@ interface SwipeBackWrapperProps {
 
 /**
  * Wraps a page to enable swipe-right-to-go-back gesture on mobile.
+ * Uses BACK_ROUTES for deterministic navigation (not navigate(-1)).
  * Respects prefers-reduced-motion and only triggers above a velocity threshold.
  */
 export function SwipeBackWrapper({ children, className, velocityThreshold = 400 }: SwipeBackWrapperProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
   const triggered = useRef(false);
 
@@ -29,11 +32,12 @@ export function SwipeBackWrapper({ children, className, velocityThreshold = 400 
     ) {
       triggered.current = true;
       haptics.light();
-      navigate(-1);
+      const backRoute = getBackRoute(location.pathname);
+      navigate(backRoute);
       // Reset after navigation settles
       setTimeout(() => { triggered.current = false; }, 500);
     }
-  }, [navigate, velocityThreshold]);
+  }, [navigate, location.pathname, velocityThreshold]);
 
   if (prefersReducedMotion) {
     return <div className={className}>{children}</div>;

@@ -84,6 +84,7 @@ import { useUndoRedo } from '@/hooks/useUndoRedo';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { selectErrorCount, selectIssueCount } from '@/store/proofreadStore';
 import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { getBackRoute } from '@/lib/navigation';
 import { UnsavedChangesDialog } from '@/components/editor/UnsavedChangesDialog';
 import { useBackButton } from '@/hooks/useBackButton';
 import { useAppLifecycle } from '@/hooks/useAppLifecycle';
@@ -705,7 +706,7 @@ export default function EditorPage() {
   }, []);
 
   const handleBack = useCallback(() => {
-    unsavedGuard.interceptNavigate('/dashboard');
+    unsavedGuard.interceptNavigate(getBackRoute('/editor'));
   }, [unsavedGuard]);
 
   const handleChangeTemplate = useCallback(() => setShowTemplates(true), []);

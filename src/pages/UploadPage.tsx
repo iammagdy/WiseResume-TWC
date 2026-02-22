@@ -1,7 +1,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, FileText, ArrowLeft } from 'lucide-react';
+import { Upload, FileText } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 // mammoth is dynamically imported when needed (see handleWordFile)
 import { useResumeStore } from '@/store/resumeStore';
 import { useAuth } from '@/hooks/useAuth';
@@ -670,13 +671,7 @@ export default function UploadPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => navigate('/dashboard')}
-            className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
+          <BackButton />
           <h1 className="text-page-title truncate">Upload Resume</h1>
         </div>
       </header>

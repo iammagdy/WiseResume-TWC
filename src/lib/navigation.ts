@@ -33,6 +33,7 @@ const BACK_ROUTES: Record<string, string> = {
   '/resignation-letters': '/ai-studio',
   '/examples': '/dashboard',
   '/guides': '/dashboard',
+  '/guide': '/guides',
   '/ai-studio': '/dashboard',
 };
 

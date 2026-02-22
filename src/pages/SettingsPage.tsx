@@ -78,6 +78,7 @@ import { useAICredits } from '@/hooks/useAICredits';
 import { useBiometricLock } from '@/hooks/useBiometricLock';
 import { toast } from 'sonner';
 import { AppIcon } from '@/components/brand/AppIcon';
+import { BackButton } from '@/components/ui/BackButton';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getChangelog } from '@/hooks/useChangelogBadge';
 import developerPhoto from '@/assets/developer-photo.png';
@@ -401,13 +402,7 @@ export default function SettingsPage() {
         {/* Header */}
         <header className="pt-safe sticky top-0 z-10 pt-4 pb-1 px-4 glass-header backdrop-blur-xl">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => navigate('/dashboard')}
-              className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-              aria-label="Go back"
-            >
-              <ArrowLeft className="w-6 h-6" />
-            </button>
+            <BackButton />
             <h1 className="text-page-title">Settings</h1>
           </div>
 

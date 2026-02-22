@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } fro
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Check, Scissors, FileText, Mic, FolderDown } from 'lucide-react';
+import { Download, Share2, Check, Scissors, FileText, Mic, FolderDown } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
@@ -488,13 +489,7 @@ export default function PreviewPage() {
       {/* Header */}
       <header className="shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-2 pt-safe">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate('/editor')}
-            className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center"
-            aria-label="Go back">
-
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <BackButton />
           <h1 className="text-page-title truncate">Preview</h1>
         </div>
       </header>
@@ -634,7 +629,6 @@ export default function PreviewPage() {
             className="w-auto px-2.5 h-11 sm:h-11 touch-manipulation"
             onClick={() => navigate('/editor')}>
 
-              <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5" />
               <span className="text-xs sm:text-sm">Edit</span>
             </Button>
             {isIOS &&

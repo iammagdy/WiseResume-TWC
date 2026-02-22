@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Sparkles, Copy, Download, Save, RotateCcw } from 'lucide-react';
+import { Sparkles, Copy, Download, Save, RotateCcw } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
@@ -143,13 +144,7 @@ export default function CoverLetterNewPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/cover-letters')}
-            className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <BackButton />
           <h1 className="text-lg font-bold flex-1">New Cover Letter</h1>
         </div>
         <Breadcrumb items={['AI Tools', 'Cover Letters', 'New']} className="pl-10" />
