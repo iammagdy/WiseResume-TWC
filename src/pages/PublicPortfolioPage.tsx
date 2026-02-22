@@ -60,7 +60,16 @@ const bioFade = {
 };
 
 // ─── Theme CSS injection ───────────────────────────────────────────────────────
+import { getThemeById, buildThemeCSSVars } from '@/lib/portfolioThemes';
+
 function getThemeVars(style: string, accentColor: string | null, font: string): React.CSSProperties {
+  // Try theme registry first
+  const theme = getThemeById(style);
+  if (theme) {
+    return buildThemeCSSVars(theme, accentColor);
+  }
+
+  // Fallback for legacy styles
   const accent = accentColor || '#e84545';
   const fontFamilies: Record<string, string> = {
     'inter': 'Inter, system-ui, sans-serif',
@@ -270,10 +279,30 @@ function PublicPortfolioContent() {
       setMeta('twitter:title', ogTitle, 'name');
       setMeta('twitter:description', ogDesc, 'name');
       setMeta('twitter:image', ogImageUrl, 'name');
+      // Load Google Fonts for premium themes
+      const pStyle = profile.portfolioStyle || 'minimal';
+      const needsFiraCode = pStyle === 'developer-terminal' || pStyle === 'neon-cyber';
+      const needsSpaceGrotesk = pStyle === 'creative-spotlight' || pStyle === 'neon-cyber';
+      const fontFamilies: string[] = [];
+      if (needsFiraCode) fontFamilies.push('Fira+Code:wght@400;600;700');
+      if (needsSpaceGrotesk) fontFamilies.push('Space+Grotesk:wght@400;500;600;700');
+      if (fontFamilies.length > 0) {
+        const linkId = 'pf-theme-fonts';
+        let link = document.getElementById(linkId) as HTMLLinkElement | null;
+        if (!link) {
+          link = document.createElement('link');
+          link.id = linkId;
+          link.rel = 'stylesheet';
+          document.head.appendChild(link);
+        }
+        link.href = `https://fonts.googleapis.com/css2?${fontFamilies.map(f => `family=${f}`).join('&')}&display=swap`;
+      }
     }
     return () => {
       document.title = 'WiseResume';
       document.documentElement.removeAttribute("data-theme");
+      const fontLink = document.getElementById('pf-theme-fonts');
+      if (fontLink) fontLink.remove();
     };
   }, [portfolio]);
 
@@ -347,10 +376,19 @@ function PublicPortfolioContent() {
 
   const themeVars = getThemeVars(pStyle, accentColor, pFont);
 
+  // Use theme registry for root style vars
+  const themeConfig = getThemeById(pStyle);
   const rootStyle: React.CSSProperties = {
     ...themeVars,
     fontFamily: 'var(--pf-body-font, Inter, system-ui, sans-serif)',
-    ...(pStyle === 'bold-dark' ? {
+    ...(themeConfig ? {
+      '--pf-bg': themeConfig.colors.bg,
+      '--pf-bg-alpha': themeConfig.colors.bg.replace(')', ', 0.88)').replace('rgb(', 'rgba(').replace('#', ''),
+      '--pf-card': themeConfig.colors.card,
+      '--pf-border': themeConfig.colors.border,
+      '--pf-fg': themeConfig.colors.fg,
+      '--pf-muted': themeConfig.colors.muted,
+    } as React.CSSProperties : pStyle === 'bold-dark' ? {
       '--pf-bg': '#0a0a0f',
       '--pf-bg-alpha': 'rgba(10,10,15,0.88)',
       '--pf-card': 'rgba(255,255,255,0.03)',
@@ -381,13 +419,27 @@ function PublicPortfolioContent() {
     } as React.CSSProperties),
   };
 
-  const heroBg: React.CSSProperties = pStyle === 'bold-dark'
+  const heroBg: React.CSSProperties = pStyle === 'developer-terminal'
+    ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor} 8%, #1a1b26), #1a1b26 70%)` }
+    : pStyle === 'creative-spotlight'
+    ? { background: `radial-gradient(ellipse 120% 80% at 30% -10%, color-mix(in srgb, ${accentColor} 18%, transparent), transparent 60%), radial-gradient(ellipse 80% 60% at 80% 20%, rgba(168,85,247,0.08), transparent)` }
+    : pStyle === 'executive-suite'
+    ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor} 4%, #ffffff), #ffffff 50%)` }
+    : pStyle === 'freelancer-starter'
+    ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor} 6%, #ffffff), #ffffff 60%)` }
+    : pStyle === 'neon-cyber'
+    ? { background: `radial-gradient(ellipse 60% 50% at 50% 0%, color-mix(in srgb, ${accentColor} 20%, transparent), transparent)` }
+    : pStyle === 'bold-dark'
     ? { background: `radial-gradient(ellipse 90% 50% at 50% 0%, color-mix(in srgb, ${accentColor} 22%, transparent), transparent)` }
     : pStyle === 'glass-pro'
     ? { background: `radial-gradient(ellipse 90% 60% at 50% -5%, color-mix(in srgb, ${accentColor} 16%, transparent), transparent)` }
     : pStyle === 'classic-clean'
     ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor} 6%, #ffffff), #ffffff 60%)` }
     : { background: `radial-gradient(ellipse 80% 40% at 50% 0%, color-mix(in srgb, ${accentColor} 14%, transparent), transparent)` };
+
+  // Hero alignment from theme config
+  const heroAlign = themeConfig?.layout.heroAlign || 'center';
+  const heroAlignClass = heroAlign === 'left' ? 'items-start text-left' : 'items-center text-center';
 
   const isTwoCol = pLayout === 'two-col';
 
@@ -436,7 +488,7 @@ function PublicPortfolioContent() {
         <motion.div
           ref={heroRef}
           variants={fadeUp}
-          className="relative flex flex-col items-center text-center pt-16 pb-12 px-4"
+          className={`relative flex flex-col ${heroAlignClass} pt-16 pb-12 px-4`}
           style={heroBg}
         >
           {pStyle !== 'classic-clean' && (
