@@ -1,11 +1,11 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { AppIcon } from '@/components/brand/AppIcon';
 
-const particles = Array.from({ length: 6 }, (_, i) => ({
+const particles = Array.from({ length: 8 }, (_, i) => ({
   id: i,
-  angle: (360 / 6) * i,
-  delay: i * 0.3,
-  radius: 52,
+  angle: (360 / 8) * i,
+  delay: i * 0.25,
+  radius: 62,
 }));
 
 export function PageLoadingSpinner() {
@@ -37,53 +37,48 @@ export function PageLoadingSpinner() {
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4, ease: 'easeOut' }}
       >
-        {/* Spinner container */}
-        <div className="relative w-28 h-28 flex items-center justify-center">
+        <div className="relative w-36 h-36 flex items-center justify-center">
           {/* Outer glow */}
           <motion.div
-            className="absolute inset-0 rounded-full bg-primary/5"
-            animate={{ scale: [1, 1.15, 1], opacity: [0.3, 0.6, 0.3] }}
+            className="absolute inset-0 rounded-full bg-primary/10"
+            animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.8, 0.4] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
           />
 
-          {/* Orbital ring 1 */}
+          {/* Ring 1 — outer */}
           <motion.div
-            className="absolute inset-2 rounded-full border border-primary/30"
+            className="absolute inset-2 rounded-full border-2 border-primary/15"
             style={{ borderTopColor: 'hsl(var(--primary))' }}
             animate={{ rotate: 360 }}
             transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
           />
 
-          {/* Orbital ring 2 — tilted */}
+          {/* Ring 2 — middle, counter-rotate */}
           <motion.div
-            className="absolute inset-4 rounded-full border border-primary/20"
-            style={{
-              borderTopColor: 'hsl(var(--primary))',
-              transform: 'rotateX(60deg)',
-            }}
+            className="absolute inset-5 rounded-full border-2 border-primary/10"
+            style={{ borderTopColor: 'hsl(var(--primary) / 0.7)', borderLeftColor: 'hsl(var(--primary) / 0.4)' }}
             animate={{ rotate: -360 }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
           />
 
-          {/* Orbital ring 3 — opposite tilt */}
+          {/* Ring 3 — inner */}
           <motion.div
-            className="absolute inset-3 rounded-full border border-primary/15"
-            style={{
-              borderRightColor: 'hsl(var(--primary) / 0.6)',
-              transform: 'rotateY(55deg)',
-            }}
+            className="absolute inset-8 rounded-full border-2 border-primary/10"
+            style={{ borderBottomColor: 'hsl(var(--primary) / 0.6)' }}
             animate={{ rotate: 360 }}
             transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
           />
 
-          {/* Pulsing core — branded logo */}
+          {/* Logo with glowing backdrop */}
           <motion.div
-            className="relative"
-            animate={{ scale: [1, 1.15, 1] }}
+            className="relative flex items-center justify-center"
+            animate={{ scale: [1, 1.12, 1] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-            style={{ filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))' }}
           >
-            <AppIcon size={32} />
+            <div className="absolute w-14 h-14 rounded-full bg-primary/10" />
+            <div style={{ filter: 'drop-shadow(0 0 24px hsl(var(--primary) / 0.6))' }}>
+              <AppIcon size={40} />
+            </div>
           </motion.div>
 
           {/* Particles */}
@@ -94,17 +89,17 @@ export function PageLoadingSpinner() {
             return (
               <motion.div
                 key={p.id}
-                className="absolute w-1.5 h-1.5 rounded-full bg-primary/60"
+                className="absolute w-2 h-2 rounded-full bg-primary/80"
                 style={{
                   left: '50%',
                   top: '50%',
-                  marginLeft: -3,
-                  marginTop: -3,
+                  marginLeft: -4,
+                  marginTop: -4,
                 }}
                 animate={{
                   x: [0, x, 0],
                   y: [0, y, 0],
-                  opacity: [0, 0.8, 0],
+                  opacity: [0, 0.9, 0],
                   scale: [0.5, 1, 0.5],
                 }}
                 transition={{
