@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -214,17 +214,29 @@ const queryClient = new QueryClient({
       </>
     );
  }
+
+/** Defers non-critical global dialogs until 2s after mount */
+function DeferredProviders() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setReady(true), 2000); return () => clearTimeout(t); }, []);
+  if (!ready) return null;
+  return (
+    <>
+      <Suspense fallback={null}><CommandPalette /></Suspense>
+      <Suspense fallback={null}><BugReportDialog /></Suspense>
+    </>
+  );
+}
  
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-        <Suspense fallback={null}><BugReportDialog /></Suspense>
         <ErrorBoundary>
           <Toaster />
           <BrowserRouter>
             <AuthProvider>
               <AppRoutes />
-              <Suspense fallback={null}><CommandPalette /></Suspense>
+              <DeferredProviders />
               <InstallPrompt />
             </AuthProvider>
           </BrowserRouter>

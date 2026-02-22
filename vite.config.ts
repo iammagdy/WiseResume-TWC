@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => ({
           if (id.includes('node_modules/docx')) return 'docx';
           if (id.includes('node_modules/qr-code-styling')) return 'qr';
           if (id.includes('node_modules/react-image-crop')) return 'image-crop';
+          if (id.includes('node_modules/@radix-ui')) return 'radix';
         },
       },
     },
