@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import QRCodeStyling from 'qr-code-styling';
-import html2canvas from 'html2canvas';
+import { captureWithRetry } from '@/lib/html2canvasRetry';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -146,7 +146,7 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
 
     if (state.options.format === 'png') {
       try {
-        const canvas = await html2canvas(captureRef.current, {
+        const canvas = await captureWithRetry(captureRef.current, {
           backgroundColor: null,
           scale: state.options.sizePx / PREVIEW_SIZE,
         });
@@ -155,8 +155,9 @@ export function QRGeneratorSheet({ open, onOpenChange, portfolioUrl, onShare }: 
         link.href = canvas.toDataURL('image/png');
         link.click();
         toast.success('QR code downloaded as PNG!');
-      } catch {
-        toast.error('Download failed. Please try again.');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Capture failed';
+        toast.error(msg, { action: { label: 'Retry', onClick: () => handleDownload() } });
       }
     } else {
       // SVG fallback — download QR only

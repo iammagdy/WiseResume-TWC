@@ -283,31 +283,15 @@ function PublicPortfolioContent() {
       const portfolioEl = document.getElementById('portfolio-content');
       if (!portfolioEl) throw new Error('Content not found');
 
-      const [{ default: html2canvas }, { PDFDocument }] = await Promise.all([
-        import('html2canvas'),
+      const [{ captureWithRetry }, { PDFDocument }] = await Promise.all([
+        import('@/lib/html2canvasRetry'),
         import('pdf-lib').then(m => ({ PDFDocument: m.PDFDocument })),
       ]);
 
-      const canvas = await html2canvas(portfolioEl, {
+      const canvas = await captureWithRetry(portfolioEl, {
         scale: 1.5,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
         foreignObjectRendering: false,
-        ignoreElements: (el) => el.hasAttribute('data-pdf-exclude'),
-        onclone: (clonedDoc) => {
-          const imgs = clonedDoc.querySelectorAll('img');
-          imgs.forEach((img) => {
-            try {
-              const src = img.getAttribute('src') || '';
-              if (src && !src.startsWith('data:') && !src.startsWith(window.location.origin)) {
-                img.style.display = 'none';
-              }
-            } catch {
-              img.style.display = 'none';
-            }
-          });
-        },
+        ignoreElements: (el: Element) => el.hasAttribute('data-pdf-exclude'),
       });
 
       const pdfDoc = await PDFDocument.create();
@@ -326,8 +310,9 @@ function PublicPortfolioContent() {
       const name = portfolio?.profile?.fullName?.replace(/\s+/g, '_') || 'Portfolio';
       await downloadFile({ blob, fileName: `${name}_Portfolio.pdf` });
       toast.success('Portfolio saved as PDF!');
-    } catch {
-      toast.error('Failed to generate PDF');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'PDF generation failed';
+      toast.error(msg, { action: { label: 'Retry', onClick: () => handleDownload() } });
     } finally {
       setIsDownloading(false);
     }

@@ -1,4 +1,4 @@
-import html2canvas from 'html2canvas';
+import { captureWithRetry } from '@/lib/html2canvasRetry';
 import { PDFDocument, StandardFonts, rgb, PDFFont } from 'pdf-lib';
 import { ResumeData, TemplateId, ContactInfo, PDFOptions, SectionId } from '@/types/resume';
 import { TemplateConfig, getTemplateConfig } from '@/lib/templateConfig';
@@ -780,13 +780,10 @@ export async function captureTemplateAsCanvas(
   height: number,
   scale: number = SCALE
 ): Promise<HTMLCanvasElement> {
-  // Capture the element directly (don't clone - preserves all styles including Tailwind)
-  const canvas = await html2canvas(sourceElement, {
+  // Capture with retry logic for WebView reliability
+  const canvas = await captureWithRetry(sourceElement, {
     scale,
-    useCORS: true,
-    allowTaint: true,
     backgroundColor: '#ffffff',
-    logging: false,
     width,
     height,
     scrollX: 0,
@@ -794,10 +791,6 @@ export async function captureTemplateAsCanvas(
     windowWidth: width,
     windowHeight: height,
   });
-
-  if (canvas.width === 0 || canvas.height === 0) {
-    throw new PdfGenerationError('Canvas capture resulted in empty image', 'EMPTY_CANVAS');
-  }
 
   return canvas;
 }
