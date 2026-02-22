@@ -12,7 +12,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import triggerHaptic from '@/lib/haptics';
 import { motion, useReducedMotion, AnimatePresence, type Easing } from 'framer-motion';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useInView } from '@/hooks/useInView';
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 
 const features = [
@@ -46,27 +47,29 @@ function PortfolioDemo() {
   const prefersReducedMotion = useReducedMotion();
   const [animStep, setAnimStep] = useState(prefersReducedMotion ? 5 : 0);
   const [themeIdx, setThemeIdx] = useState(0);
+  const { ref: viewRef, inView } = useInView({ triggerOnce: false, rootMargin: '100px' });
 
   useEffect(() => {
-    if (prefersReducedMotion) return;
+    if (prefersReducedMotion || !inView) return;
     const delays: Record<number, number> = { 0: 300, 1: 500, 2: 500, 3: 600, 4: 3000 };
     const delay = delays[animStep] ?? 3000;
     const t = setTimeout(() => {
       setAnimStep((s) => (s >= 5 ? 0 : s + 1));
     }, delay);
     return () => clearTimeout(t);
-  }, [animStep, prefersReducedMotion]);
+  }, [animStep, prefersReducedMotion, inView]);
 
   useEffect(() => {
+    if (!inView) return;
     const t = setInterval(() => setThemeIdx((i) => (i + 1) % 3), 2000);
     return () => clearInterval(t);
-  }, []);
+  }, [inView]);
 
   const accent = THEME_ACCENTS[themeIdx];
   const show = (step: number) => prefersReducedMotion || animStep >= step;
 
   return (
-    <div className="flex flex-col items-center">
+    <div ref={viewRef} className="flex flex-col items-center">
       <div className="w-[260px] rounded-[28px] border-2 border-border/40 bg-card/80 backdrop-blur-sm shadow-xl overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-2 pb-1">
           <span className="text-[10px] text-muted-foreground font-medium">9:41</span>
@@ -172,10 +175,12 @@ const Index = () => {
   const { profile } = useProfile(user?.id, user);
   const prefersReducedMotion = useReducedMotion();
   const [scrolled, setScrolled] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const progressRef = useRef<HTMLDivElement>(null);
 
-  // Pre-warm backend connection to avoid cold-start failures on first navigation
+  // Pre-warm backend connection once per session
   useEffect(() => {
+    if (sessionStorage.getItem('backend-warmed')) return;
+    sessionStorage.setItem('backend-warmed', '1');
     fetch(SUPABASE_URL + '/rest/v1/', {
       method: 'HEAD',
       headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
@@ -185,9 +190,12 @@ const Index = () => {
   useEffect(() => {
     const onScroll = () => {
       setScrolled(window.scrollY > 120);
-      const { scrollY } = window;
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      setScrollProgress(max > 0 ? (scrollY / max) * 100 : 0);
+      if (progressRef.current) {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
+        progressRef.current.style.width = `${pct}%`;
+        progressRef.current.parentElement!.style.display = pct > 0 ? '' : 'none';
+      }
     };
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
@@ -231,14 +239,9 @@ const Index = () => {
   return (
     <SpaceBackground>
       {/* Scroll progress bar for homepage */}
-      {scrollProgress > 0 && (
-        <div className="fixed top-0 left-0 right-0 h-[3px] z-[60] pointer-events-none">
-          <div
-            className="h-full bg-primary transition-[width] duration-75 ease-out"
-            style={{ width: `${scrollProgress}%` }}
-          />
-        </div>
-      )}
+      <div className="fixed top-0 left-0 right-0 h-[3px] z-[60] pointer-events-none" style={{ display: 'none' }}>
+        <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
+      </div>
       {/* Sticky Mini Header */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${

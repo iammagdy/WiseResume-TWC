@@ -96,3 +96,5 @@ export function WhatsNewDialog() {
     </Dialog>
   );
 }
+
+export default WhatsNewDialog;

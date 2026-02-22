@@ -17,10 +17,11 @@ import { AnimatedSplash } from "@/components/AnimatedSplash";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { CommandPalette } from "@/components/layout/CommandPalette";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
-import { WhatsNewDialog } from "@/components/WhatsNewDialog";
-import { BugReportDialog } from "@/components/BugReportDialog";
+
+const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
+const WhatsNewDialog = lazyWithRetry(() => import("@/components/WhatsNewDialog"));
+const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
 import {
   DashboardSkeleton,
   EditorSkeleton,
@@ -209,7 +210,7 @@ const queryClient = new QueryClient({
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
-      <WhatsNewDialog />
+      <Suspense fallback={null}><WhatsNewDialog /></Suspense>
       </>
     );
  }
@@ -217,13 +218,13 @@ const queryClient = new QueryClient({
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-        <BugReportDialog />
+        <Suspense fallback={null}><BugReportDialog /></Suspense>
         <ErrorBoundary>
           <Toaster />
           <BrowserRouter>
             <AuthProvider>
               <AppRoutes />
-              <CommandPalette />
+              <Suspense fallback={null}><CommandPalette /></Suspense>
               <InstallPrompt />
             </AuthProvider>
           </BrowserRouter>
