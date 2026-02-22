@@ -1,26 +1,42 @@
 
-# Add Theme Toggle to Spinner Preview
 
-## What
-Add the existing `ThemeDropdown` component (a small icon button with a dropdown) to the `AuthCallbackPage` so you can toggle between light and dark mode while viewing the futuristic spinner.
+# Add App Logo to Futuristic Loading Spinner
+
+## Overview
+Place the `AppIcon` logo at the center of the spinner, replacing the plain pulsing core circle, so the orbital rings and particles animate around the branded logo.
 
 ## Change
 
-### `src/pages/AuthCallbackPage.tsx`
-- Import `ThemeDropdown` from `@/components/settings/ThemeDropdown`
-- Wrap the return in a fragment containing:
-  - A fixed-position `ThemeDropdown` button in the top-right corner (z-50, safe-area padded)
-  - The existing `<PageLoadingSpinner />`
+### `src/components/ui/PageLoadingSpinner.tsx`
+- Import `AppIcon` from `@/components/brand/AppIcon`
+- Replace the "Pulsing core" `motion.div` (the solid primary circle with box-shadow animation) with `AppIcon` wrapped in a `motion.div` that applies the same pulsing scale and glow animation
+- Use a size of ~32px for the icon so it fits neatly inside the orbital rings
+- Keep the same animation properties (scale 1 to 1.25, shadow pulse) on the wrapper
+- In the reduced-motion fallback, replace the inner circle with a static `AppIcon` at ~20px
 
+### Specific replacement (main spinner, around line 88-100)
+Replace:
 ```tsx
-return (
-  <>
-    <div className="fixed top-4 right-4 z-50">
-      <ThemeDropdown />
-    </div>
-    <PageLoadingSpinner />
-  </>
-);
+<motion.div
+  className="relative w-6 h-6 rounded-full bg-primary shadow-..."
+  animate={{ scale: [...], boxShadow: [...] }}
+  ...
+/>
+```
+With:
+```tsx
+<motion.div
+  className="relative"
+  animate={{ scale: [1, 1.15, 1] }}
+  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+  style={{ filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))' }}
+>
+  <AppIcon size={32} />
+</motion.div>
 ```
 
-This uses the already-built `ThemeDropdown` component (sun/moon icon button with light/dark/system options) so no new components are needed. The toggle floats above the spinner for easy testing.
+### Reduced-motion fallback (around line 22-25)
+Replace the inner `div` with `<AppIcon size={20} />`.
+
+## Result
+The branded logo pulses and glows at the center of the orbital rings, reinforcing app identity on every loading screen. No new dependencies needed.
