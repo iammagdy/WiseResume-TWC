@@ -1,9 +1,10 @@
 import { useState, useCallback, useMemo, useDeferredValue, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2 } from 'lucide-react';
+import { Plus, Bell, BarChart3, Briefcase, FileText, Search, MapPin, Building2, Calendar, Mic, Mail, Scissors, CheckCircle2, FlaskConical } from 'lucide-react';
 import { useJobApplications, useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApplications';
-import { useJobs, Job } from '@/hooks/useJobs';
+import { useJobs, useJobMutations, Job } from '@/hooks/useJobs';
+import { sampleJobs } from '@/lib/sampleJobs';
 import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
@@ -103,6 +104,8 @@ export default function ApplicationsPage() {
   const [filters, setFilters] = useState<JobFilters>({ query: '', jobTypes: [], location: '' });
   const { data: unreadCount = 0 } = useUnreadNotificationCount();
   const { data: jobs = [] } = useJobs();
+  const { createJob } = useJobMutations();
+  const [isSeeding, setIsSeeding] = useState(false);
   const { data: applications = [] } = useJobApplications(statusFilter === 'all' ? undefined : statusFilter);
   const { data: resumes } = useResumes();
   const [resumeListOpen, setResumeListOpen] = useState(false);
@@ -463,20 +466,42 @@ export default function ApplicationsPage() {
                   <p className="font-medium">{hasActiveFilters ? 'No jobs match filters' : 'No saved jobs yet'}</p>
                   <p className="text-sm mt-1 mb-4">{hasActiveFilters ? 'Try adjusting your filters' : 'Save jobs to start tracking your applications'}</p>
                   {!hasActiveFilters && (
-                    <div className="flex gap-3">
+                    <>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => { haptics.light(); setShowSearch(true); }}
+                          className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation"
+                        >
+                          <Search className="w-3.5 h-3.5" /> Search Jobs
+                        </button>
+                        <button
+                          onClick={() => { haptics.light(); setShowSaveJob(true); }}
+                          className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Add Manually
+                        </button>
+                      </div>
                       <button
-                        onClick={() => { haptics.light(); setShowSearch(true); }}
-                        className="flex items-center gap-1.5 text-xs font-medium text-primary px-4 py-2.5 rounded-full bg-primary/10 hover:bg-primary/15 transition-colors min-h-[44px] touch-manipulation"
+                        disabled={isSeeding}
+                        onClick={async () => {
+                          setIsSeeding(true);
+                          try {
+                            for (const job of sampleJobs) {
+                              await createJob.mutateAsync(job);
+                            }
+                            toast.success('5 sample jobs added!');
+                          } catch {
+                            toast.error('Failed to add sample jobs');
+                          } finally {
+                            setIsSeeding(false);
+                          }
+                        }}
+                        className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground px-4 py-2 rounded-full border border-dashed border-border hover:border-primary/40 hover:text-primary transition-colors min-h-[44px] touch-manipulation mt-3"
                       >
-                        <Search className="w-3.5 h-3.5" /> Search Jobs
+                        <FlaskConical className="w-3.5 h-3.5" />
+                        {isSeeding ? 'Adding...' : 'Add Sample Jobs'}
                       </button>
-                      <button
-                        onClick={() => { haptics.light(); setShowSaveJob(true); }}
-                        className="flex items-center gap-1.5 text-xs font-medium text-foreground px-4 py-2.5 rounded-full bg-muted hover:bg-muted/80 transition-colors min-h-[44px] touch-manipulation"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Add Manually
-                      </button>
-                    </div>
+                    </>
                   )}
                 </div>
               )}
