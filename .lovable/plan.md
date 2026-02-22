@@ -1,77 +1,63 @@
 
-# Enhance Public Portfolio Scroll UX
 
-## Current State
-The public portfolio page (`/p/username`) has basic scroll infrastructure (sticky header, SectionNav, IntersectionObserver for analytics tracking) but lacks polished scroll interactions that make it feel native and usable on mobile.
+# Fix Theme Persistence - Always Respect User's Dark Mode Choice
 
-## Issues Identified
+## Problem
 
-1. **No scroll-to-top button** -- After scrolling through 10+ sections, the user has no quick way back to the hero
-2. **SectionNav active pill doesn't track correctly** -- The IntersectionObserver in SectionNav uses `rootMargin: '-30% 0px -70% 0px'` which conflicts with the sticky header (48px) and nav bar itself (~44px), causing the "About" pill to stay highlighted when the user is already viewing Experience
-3. **No scroll progress indicator** -- Other pages in the app use `ScrollProgressBar` but the portfolio page has none, giving no sense of position in a long page
-4. **Floating CTA button overlaps content** -- The chat widget and contact CTA float at bottom-right but there's no scroll-aware fade/slide to reduce visual clutter at the top of the page
+The app's dark/light theme randomly resets on refresh because theme state is managed independently in 4 different places, each reading localStorage and applying CSS classes on its own schedule. This creates race conditions where one component's effect can override another.
 
-## Planned Changes
+**Duplicated theme management today:**
+1. `index.html` inline script (reads localStorage, adds class)
+2. `App.tsx` useEffect (reads localStorage, removes + adds class)
+3. `ThemeToggle.tsx` local useState + useEffect (reads localStorage, uses classList.replace)
+4. `ThemeDropdown.tsx` local useState + useEffect (reads localStorage, uses classList.replace)
 
-### 1. Add Scroll-to-Top Button
-- **File**: `src/pages/PublicPortfolioPage.tsx`
-- Add a floating "back to top" button (arrow-up icon) that appears after scrolling past the hero section
-- Fades in/out smoothly, uses `scroll-behavior: smooth`
-- Positioned bottom-left to avoid conflict with the chat widget (bottom-right)
-- 44x44px touch target, accent-colored
+When these effects fire in different orders on refresh, the theme can flicker or land on the wrong value.
 
-### 2. Fix SectionNav Active Tracking
-- **File**: `src/components/portfolio/public/SectionNav.tsx`
-- Adjust IntersectionObserver `rootMargin` to account for the sticky header (48px) and the nav bar itself (~44px): change to `'-20% 0px -60% 0px'`
-- This ensures sections are marked active when they're actually visible in the viewport below the fixed UI
+## Solution
 
-### 3. Add Scroll Progress Bar
-- **File**: `src/pages/PublicPortfolioPage.tsx`
-- Add a thin accent-colored progress bar at the very top of the page (below the sticky header, 3px tall)
-- Reuse the existing window scroll listener already in the component
-- Shows percentage of page scrolled, styled with the portfolio's accent color
+Centralize theme state in the existing Zustand `settingsStore` (which already persists to localStorage) and have a **single** DOM synchronization effect in `App.tsx`. The toggle components become thin UI wrappers that just call `setTheme()` on the store.
 
-### 4. Smooth Scroll Enhancements
-- **File**: `src/pages/PublicPortfolioPage.tsx`
-- Add `scroll-behavior: smooth` to the root portfolio container
-- Ensure SectionNav tap-to-scroll accounts for sticky header offset (currently scrolls to `block: 'start'` which goes behind the header)
+## Changes
 
-## Technical Details
+### 1. Add `theme` to settingsStore
+**File:** `src/store/settingsStore.ts`
+- Add `theme: 'light' | 'dark' | 'system'` to the store state (default: `'dark'`)
+- Add `setTheme(theme)` setter
+- The store already persists to localStorage via Zustand's `persist` middleware, so the value survives refreshes
 
-### Scroll-to-Top Button (new inline component)
-```text
-- Uses existing `stickyVisible` state (true when hero is out of view)
-- onClick: window.scrollTo({ top: 0, behavior: 'smooth' })
-- Styled with accent color, 44x44 touch target
-- Positioned fixed bottom-left with safe-area padding
-- Uses framer-motion AnimatePresence for enter/exit
-```
+### 2. Single DOM sync in App.tsx
+**File:** `src/App.tsx`
+- Replace the existing one-shot `useEffect` with a reactive effect that subscribes to `useSettingsStore(s => s.theme)`
+- This effect resolves `'system'` to the OS preference, removes both classes, and adds the correct one
+- Also listens for `prefers-color-scheme` changes when theme is `'system'`
+- Remove the old standalone localStorage-based useEffect
 
-### SectionNav rootMargin Fix
-```text
-Current:  { threshold: 0.2, rootMargin: '-30% 0px -70% 0px' }
-Updated:  { threshold: 0.15, rootMargin: '-100px 0px -65% 0px' }
-```
-The `-100px` top margin accounts for the fixed header (48px) + nav bar (~44px). The `-65%` bottom margin ensures a section is active when it occupies the upper third of the viewport.
+### 3. Simplify ThemeToggle
+**File:** `src/components/settings/ThemeToggle.tsx`
+- Remove local `useState` for theme and the `useEffect` that manipulates DOM classes
+- Read theme from `useSettingsStore(s => s.theme)` and write via `useSettingsStore(s => s.setTheme)`
+- The component becomes a pure UI control -- no DOM side effects
 
-### SectionNav scroll offset fix
-```text
-Current: el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-Updated: window.scrollTo({ top: el.offsetTop - 100, behavior: 'smooth' })
-```
-The 100px offset accounts for sticky header + section nav height.
+### 4. Simplify ThemeDropdown
+**File:** `src/components/settings/ThemeDropdown.tsx`
+- Same change as ThemeToggle: replace local state with store access
+- Remove the `useEffect` that manipulates classList
 
-### Scroll Progress Bar
-```text
-- Thin 3px bar fixed below the sticky header (top: 48px)
-- Width transitions from 0% to 100% based on scroll position
-- Uses the portfolio accent color
-- Only visible when stickyVisible is true (after scrolling past hero)
-```
+### 5. Update Sonner Toaster
+**File:** `src/components/ui/sonner.tsx`
+- Replace the localStorage + storage event listener with `useSettingsStore(s => s.theme)`
+- No more manual polling of localStorage
 
-## Files Modified
+### 6. Keep inline script as-is
+**File:** `index.html`
+- The inline script in index.html stays unchanged -- it prevents the initial white flash before React hydrates
+- It reads from the Zustand persist key (`settings-storage`) or falls back to `'dark'`
 
-| File | Change |
-|------|--------|
-| `src/pages/PublicPortfolioPage.tsx` | Add scroll-to-top button, scroll progress bar, smooth scroll CSS |
-| `src/components/portfolio/public/SectionNav.tsx` | Fix rootMargin for active tracking, fix scroll offset for tapped pills |
+## Why This Fixes It
+
+- **Single source of truth:** Zustand store owns the theme value
+- **Single DOM effect:** Only `App.tsx` touches `document.documentElement.classList`
+- **No race conditions:** Zustand state is synchronous; the reactive effect fires once per change
+- **Survives refresh:** Zustand persist middleware saves to localStorage automatically
+
