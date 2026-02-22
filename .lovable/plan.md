@@ -1,121 +1,46 @@
 
-# Universal Link Shortener for All Sharing
 
-## What Changes
+# Add "Seed Sample Jobs" Button for Testing
 
-Currently, short links only work for portfolio pages. This upgrade makes them work for **any app URL** -- portfolio shares, resume preview links, and the app itself.
+## Overview
 
-When a user shares a resume or portfolio, instead of a long URL like `wiseresume.magdysaber.com/preview?shared=abc123`, they'll get a clean short link like `wiseresume.magdysaber.com/l/xK9mP` that redirects to the correct page.
+Add a developer/testing button that inserts 5 realistic sample jobs into the database. The button will appear on the **Saved Jobs tab empty state** in `ApplicationsPage.tsx`, so testers can quickly populate data without manually filling out forms.
 
----
+## Sample Data
 
-## Technical Plan
+Five diverse jobs covering different types, locations, and salary ranges:
 
-### 1. Database: Add `target_url` column to `short_links`
+1. **Frontend Engineer** at TechCorp (Remote, Full-time, $90k-$130k)
+2. **Product Designer** at DesignStudio (New York, Full-time, $85k-$120k)
+3. **Backend Developer** at CloudScale (San Francisco, Contract, $70-$90/hr)
+4. **Marketing Manager** at GrowthLab (Chicago, Full-time, $75k-$95k)
+5. **Data Analyst Intern** at DataVault (Remote, Internship, $25/hr)
 
-Add a `target_url TEXT` column to store the full destination path (e.g., `/preview?shared=abc123` or `/p/john`). Make `portfolio_username` nullable since links won't always be portfolio-related.
+Each includes a realistic description with requirements, making them useful for testing the Tailor Resume and Job Match flows.
 
-```sql
-ALTER TABLE public.short_links 
-  ADD COLUMN target_url TEXT,
-  ALTER COLUMN portfolio_username DROP NOT NULL;
+## Changes
 
--- Backfill existing portfolio links
-UPDATE public.short_links 
-  SET target_url = '/p/' || portfolio_username 
-  WHERE target_url IS NULL;
-```
+### File: `src/lib/sampleJobs.ts` (new)
 
-Update RLS policies to keep the existing security model.
+A data file exporting an array of 5 sample job objects matching the `createJob` input shape. Each includes title, company, location, job_type, salary_range, description, and requirements.
 
-### 2. Update `resolve_short_link` RPC
+### File: `src/pages/ApplicationsPage.tsx`
 
-Replace the current function to return `target_url` alongside `username` (for backwards compatibility):
+In the "Saved Jobs" tab empty state (around line 450+), add a secondary "Add Sample Jobs" button below the existing "Save a Job" button. It will:
 
-```sql
-CREATE OR REPLACE FUNCTION resolve_short_link(p_link_id TEXT)
-RETURNS JSONB AS $$
-DECLARE v_link RECORD;
-BEGIN
-  SELECT id, portfolio_username, label, target_url INTO v_link
-  FROM public.short_links WHERE id = p_link_id;
-  
-  IF NOT FOUND THEN RETURN NULL; END IF;
-  
-  UPDATE public.short_links SET click_count = click_count + 1 WHERE id = p_link_id;
-  
-  RETURN jsonb_build_object(
-    'username', v_link.portfolio_username,
-    'label', v_link.label,
-    'target_url', v_link.target_url
-  );
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-```
+1. Call `createJob.mutateAsync()` for each sample job in sequence
+2. Show a loading state while inserting
+3. Toast on success ("5 sample jobs added!")
+4. Only appear when the jobs list is empty (disappears after seeding)
 
-### 3. Update `ShortLinkPage.tsx` -- Universal Redirect
+The button will use a `FlaskConical` (or `TestTube2`) icon and muted styling to signal it's a dev/test helper, not a primary action.
 
-Instead of only redirecting to `/p/{username}`, use the `target_url` field first, falling back to username-based redirect for backwards compatibility:
-
-```typescript
-const result = await res.json();
-
-if (result?.target_url) {
-  // Universal redirect: target_url is a relative path like /preview?shared=xxx
-  navigate(result.target_url, { replace: true });
-} else if (result?.username) {
-  // Legacy portfolio link
-  navigate(`/p/${result.username}?ref=${linkId}`, { replace: true });
-} else {
-  setNotFound(true);
-}
-```
-
-Also fix the existing bug: the component makes **two** API calls (one via `supabase.functions.invoke` and one via `fetch`). Remove the dead first call.
-
-### 4. Update `shareUtils.ts` -- Auto-Shorten on Share
-
-Add a `createShortUrl()` helper that creates a short link in the database and returns the shortened URL:
-
-```typescript
-export async function createShortUrl(targetPath: string, label?: string): Promise<string> {
-  const slug = generateSlug(5);
-  const { error } = await supabase
-    .from('short_links')
-    .insert({ id: slug, owner_user_id: userId, target_url: targetPath, label: label || 'Shared Link' });
-  
-  if (error) throw error;
-  return `${PORTFOLIO_DOMAIN}/l/${slug}`;
-}
-```
-
-Update `shareAsLink()` to use the short URL instead of the raw long URL:
-
-```typescript
-export async function shareAsLink(resumeId: string): Promise<void> {
-  const targetPath = `/preview?shared=${resumeId}`;
-  const shortUrl = await createShortUrl(targetPath, 'Resume Share');
-  // Share/copy the short URL instead of the long one
-}
-```
-
-### 5. Update `usePortfolioAnalytics.ts` -- Support Generic Links
-
-Update `useCreateShortLink` to accept an optional `targetUrl` parameter so the VisitorsPanel can still create portfolio-specific short links while other parts of the app create generic ones.
-
-### 6. Update `ShareSheet.tsx` -- Use Short Links
-
-The "Share Link" action will now automatically generate a short link before sharing/copying.
-
----
-
-## Files to Modify
+## Technical Details
 
 | File | Change |
 |------|--------|
-| Database migration | Add `target_url` column, update `resolve_short_link` RPC |
-| `src/pages/ShortLinkPage.tsx` | Universal redirect via `target_url`, remove duplicate API call |
-| `src/lib/shareUtils.ts` | Add `createShortUrl()`, update `shareAsLink()` to auto-shorten |
-| `src/hooks/usePortfolioAnalytics.ts` | Support `targetUrl` param in `useCreateShortLink` |
-| `src/components/editor/ShareSheet.tsx` | Minor: pass user context for short link creation |
-| `src/components/portfolio/VisitorsPanel.tsx` | Pass `target_url` when creating portfolio short links |
+| `src/lib/sampleJobs.ts` | New file -- array of 5 sample job objects |
+| `src/pages/ApplicationsPage.tsx` | Import sample data + add seed button to Saved Jobs empty state |
+
+No database changes, no new dependencies. Uses existing `useJobMutations().createJob` hook.
+
