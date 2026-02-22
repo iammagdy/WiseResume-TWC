@@ -1,4 +1,4 @@
-import { useLocation, useOutlet } from 'react-router-dom';
+import { useLocation, useOutlet, useNavigate } from 'react-router-dom';
 import { useRef, useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { BottomTabBar } from './BottomTabBar';
@@ -20,6 +20,7 @@ export function AppShell() {
   const currentOutlet = useOutlet();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor');
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const prefersReducedMotion = useReducedMotion();
 
@@ -43,7 +44,7 @@ export function AppShell() {
       <SlowConnectionBanner />
       {showBottomNav && !isEditorRoute && (
         <header className="lg:hidden h-10 flex items-center px-edge pt-safe glass-surface border-b border-border/30 shrink-0">
-          <span className="text-sm font-bold text-primary">WiseResume</span>
+          <button onClick={() => navigate('/')} className="text-sm font-bold text-primary">WiseResume</button>
           {(() => {
             const pageTitle = getPageTitle(location.pathname);
             return pageTitle && pageTitle !== 'Home' ? (
