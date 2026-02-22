@@ -20,7 +20,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
-const WhatsNewDialog = lazyWithRetry(() => import("@/components/WhatsNewDialog"));
+
 const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
 import {
   DashboardSkeleton,
@@ -229,7 +229,7 @@ const queryClient = new QueryClient({
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
-      {!isPublicStandalone && <Suspense fallback={null}><WhatsNewDialog /></Suspense>}
+      
       </>
     );
  }
