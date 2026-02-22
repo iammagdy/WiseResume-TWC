@@ -66,15 +66,37 @@
     <meta name="twitter:image" content="/favicon.svg" />
   </head>
 
-  <body>
+  <body style="overflow:hidden;">
     <div id="root">
-      <div style="min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;background:#0a0a14;">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;">
-          <div style="width:32px;height:32px;border-radius:50%;border:2px solid rgba(255,255,255,0.1);border-top-color:hsl(355,90%,60%);animation:sp .8s linear infinite;"></div>
-          <span style="font-family:system-ui,sans-serif;font-size:14px;color:rgba(255,255,255,0.5);">Loading...</span>
+      <div style="position:fixed;inset:0;background:#0a0a14;display:flex;align-items:center;justify-content:center;overflow:hidden;z-index:50;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:24px;">
+          <!-- Spinner container 144px -->
+          <div style="position:relative;width:144px;height:144px;display:flex;align-items:center;justify-content:center;">
+            <!-- Outer glow -->
+            <div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(220,38,38,0.15);animation:glowPulse 2.5s ease-in-out infinite;"></div>
+            <!-- Ring 1 outer -->
+            <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(220,38,38,0.4);border-top-color:hsl(355,90%,60%);border-right-color:rgba(220,38,38,0.6);animation:sp1 1.8s linear infinite;"></div>
+            <!-- Ring 2 middle -->
+            <div style="position:absolute;inset:16px;border-radius:50%;border:3px solid rgba(220,38,38,0.3);border-top-color:hsl(355,90%,60%);border-left-color:rgba(220,38,38,0.6);animation:sp2 2.4s linear infinite;"></div>
+            <!-- Ring 3 inner -->
+            <div style="position:absolute;inset:32px;border-radius:50%;border:3px solid rgba(220,38,38,0.3);border-bottom-color:rgba(220,38,38,0.6);border-right-color:rgba(220,38,38,0.5);animation:sp1 3s linear infinite;"></div>
+            <!-- Logo -->
+            <div style="position:relative;display:flex;align-items:center;justify-content:center;animation:glow 1.6s ease-in-out infinite;">
+              <div style="position:absolute;width:56px;height:56px;border-radius:50%;background:rgba(220,38,38,0.15);"></div>
+              <img src="/favicon.png" alt="" width="40" height="40" style="position:relative;filter:drop-shadow(0 0 24px rgba(220,38,38,0.7));" />
+            </div>
+          </div>
+          <!-- Shimmer text -->
+          <span style="font-family:'Space Grotesk',system-ui,sans-serif;font-size:14px;font-weight:500;color:rgba(255,255,255,0.5);animation:shimmer 1.8s ease-in-out infinite;">Loading...</span>
         </div>
       </div>
-      <style>@keyframes sp{to{transform:rotate(360deg)}}</style>
+      <style>
+        @keyframes sp1{to{transform:rotate(360deg)}}
+        @keyframes sp2{to{transform:rotate(-360deg)}}
+        @keyframes glow{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+        @keyframes glowPulse{0%,100%{transform:scale(1);opacity:.3}50%{transform:scale(1.25);opacity:.7}}
+        @keyframes shimmer{0%,100%{opacity:.4}50%{opacity:1}}
+      </style>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
