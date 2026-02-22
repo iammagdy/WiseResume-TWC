@@ -3,6 +3,7 @@ import { ResumeData, SectionId } from '@/types/resume';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { showErrorToast } from '@/lib/errorToast';
 import { hasPassiveVerbs, hasMetrics, hasLongBullets, findPassiveStarter } from '@/lib/contentAnalysis';
+import { useAICreditsMutations } from './useAICredits';
 
 export interface ATSSuggestion {
   id: string;
@@ -108,6 +109,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
   const [deepResults, setDeepResults] = useState<Record<string, DeepResult>>({});
   const [analyzingSections, setAnalyzingSections] = useState<Set<string>>(new Set());
   const cacheRef = useRef<Record<string, { suggestions: ATSSuggestion[]; result: DeepResult }>>({});
+  const { checkCredits, incrementUsage } = useAICreditsMutations();
   // Client-side keyword analysis
   const suggestions = useMemo(() => {
     if (!resume) return {} as Record<SectionId, ATSSuggestion[]>;
@@ -243,6 +245,9 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       return;
     }
 
+    const hasCredits = await checkCredits();
+    if (!hasCredits) return;
+
     setAnalyzingSections(prev => new Set(prev).add(section));
     try {
       const currentContent = getSectionContent(resume, section);
@@ -283,6 +288,7 @@ export function useATSSuggestions(resume: ResumeData | null, jobDescription: str
       cacheRef.current[cacheKey] = { suggestions: aiSuggestions, result };
       setDeepSuggestions(prev => ({ ...prev, [section]: aiSuggestions }));
       setDeepResults(prev => ({ ...prev, [section]: result }));
+      incrementUsage.mutate();
     } catch (err) {
       console.error('Deep ATS analysis failed:', err);
       const msg = err instanceof Error ? err.message : 'Deep analysis failed';

@@ -3,7 +3,7 @@ import { Plus, ArrowUpDown, Hash } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { trackGeminiUsage } from '@/lib/aiProvider';
+import { useAIAction } from '@/hooks/useAIAction';
 import { showErrorToast } from '@/lib/errorToast';
 import { toast } from 'sonner';
 import { ResumeData, SuperTailorResult } from '@/types/resume';
@@ -26,6 +26,7 @@ const ACTIONS: { id: ActionId; icon: typeof Plus; label: string; description: st
 export function QuickActions({ resume, tailorResult, jobDescription, onUpdateResult }: QuickActionsProps) {
   const [loading, setLoading] = useState<ActionId | null>(null);
   const [completed, setCompleted] = useState<ActionId[]>([]);
+  const { execute: executeAI } = useAIAction({ operation: 'enhance' });
 
   const handleAction = async (actionId: ActionId) => {
     setLoading(actionId);
@@ -63,29 +64,36 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
           break;
       }
 
-      const { data, error } = await supabase.functions.invoke('enhance-section', {
-        body: {
-          section: 'custom',
-          content: instruction,
-          instruction,
-        },
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('enhance-section', {
+          body: {
+            section: 'custom',
+            content: instruction,
+            instruction,
+          },
+        });
+
+        if (error) throw error;
+        if (data?.error) throw new Error(data.message || data.error);
+        return data;
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.message || data.error);
-      trackGeminiUsage();
+      if (!result) {
+        setLoading(null);
+        return;
+      }
 
-      if (actionId === 'quantify' && data?.experience) {
-        onUpdateResult({ experience: data.experience });
+      if (actionId === 'quantify' && result?.experience) {
+        onUpdateResult({ experience: result.experience });
         toast.success('Bullets enhanced with metrics!');
-      } else if (actionId === 'projects' && data?.projects) {
-        toast.success(`${data.projects.length} project ideas generated! Check the suggestions.`, {
-          description: data.projects.map((p: any) => p.name).join(', '),
+      } else if (actionId === 'projects' && result?.projects) {
+        toast.success(`${result.projects.length} project ideas generated! Check the suggestions.`, {
+          description: result.projects.map((p: any) => p.name).join(', '),
           duration: 6000,
         });
-      } else if (actionId === 'reorder' && data?.recommendedOrder) {
+      } else if (actionId === 'reorder' && result?.recommendedOrder) {
         toast.success('Section order optimized!', {
-          description: data.reasoning || 'Sections reordered for maximum impact',
+          description: result.reasoning || 'Sections reordered for maximum impact',
           duration: 6000,
         });
       } else {

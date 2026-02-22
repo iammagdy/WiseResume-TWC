@@ -112,24 +112,29 @@ export function RecruiterSimSheet({ open, onOpenChange }: RecruiterSimSheetProps
         return;
       }
 
-      // 2. Call AI to apply the fix
-      const { data, error } = await supabase.functions.invoke('enhance-section', {
-        body: {
-          section: target.section,
-          action: 'fix_error',
-          currentContent: target.content,
-          fixInstruction: redFlag.fix,
-          context: {
-            resume: currentResume,
+      // 2. Call AI to apply the fix (with credit check)
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('enhance-section', {
+          body: {
+            section: target.section,
+            action: 'fix_error',
+            currentContent: target.content,
+            fixInstruction: redFlag.fix,
+            context: {
+              resume: currentResume,
+            },
           },
-        },
+        });
+
+        if (error) throw error;
+        if (!data.improved) throw new Error('AI returned no content');
+        return data;
       });
 
-      if (error) throw error;
-      if (!data.improved) throw new Error('AI returned no content');
+      if (!result) { setIsApplyingFix(null); return; }
 
       // 3. Update the resume store
-      const improvedContent = data.improved;
+      const improvedContent = result.improved;
 
       if (target.section === 'summary') {
         updateResume({ summary: improvedContent as string });

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/safeClient';
 import { ResumeData } from '@/types/resume';
 import { useElevenLabsScribe } from './useElevenLabsScribe';
 import { useWebSpeechFallback, isWebSpeechSupported } from './useWebSpeechFallback';
+import { useAICreditsMutations } from './useAICredits';
 import { toast } from 'sonner';
 
 
@@ -137,6 +138,7 @@ function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore 
 }
 
 export function useVoiceInterview(resumeData: ResumeData | null) {
+  const { checkCredits, incrementUsage } = useAICreditsMutations();
   const [status, setStatus] = useState<InterviewStatus>('idle');
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [isStarted, setIsStarted] = useState(false);
@@ -334,6 +336,11 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
 
   const callAI = useCallback(
     async (endInterview = false) => {
+      const hasCredits = await checkCredits();
+      if (!hasCredits) {
+        setStatus('idle');
+        return;
+      }
       setStatus('thinking');
 
       // Show "taking longer" toast after 8 seconds
@@ -368,6 +375,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           throw new Error(typeof msg === 'string' ? msg : 'Interview request failed');
         }
         if (data?.error) throw new Error(data.error);
+
+        incrementUsage.mutate();
 
         const rawReply = data.reply as string;
         const { cleanText: reply, score } = parseScoreBlock(rawReply);
@@ -484,6 +493,8 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   );
 
   const analyzeRole = useCallback(async (jobDescription: string) => {
+    const hasCredits = await checkCredits();
+    if (!hasCredits) return;
     setIsAnalyzingRole(true);
     try {
       const { data, error: fnError } = await supabase.functions.invoke('interview-chat', {
@@ -500,6 +511,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       if (data?.error) throw new Error(data.error);
       if (data?.roleAnalysis) {
         setRoleAnalysis(data.roleAnalysis);
+        incrementUsage.mutate();
       }
     } catch (err: unknown) {
       console.error('Role analysis error:', err);
