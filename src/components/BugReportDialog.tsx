@@ -285,3 +285,5 @@ export function BugReportDialog() {
     </Dialog>
   );
 }
+
+export default BugReportDialog;
