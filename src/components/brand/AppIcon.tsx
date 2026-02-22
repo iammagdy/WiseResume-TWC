@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 
 interface AppIconProps {
   size?: number | string;
@@ -16,7 +16,7 @@ export function AppIcon({ size = 64, showSparkle = true, className = '' }: AppIc
       alt="Wise AI"
       width={size}
       height={size}
-      className={`object-contain ${className}`}
+      className={`object-contain rounded-2xl ${className}`}
       style={{
         width: typeof size === 'number' ? `${size}px` : size,
         height: typeof size === 'number' ? `${size}px` : size,

@@ -1,6 +1,6 @@
 import { Sparkles, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 
 export function Footer() {
   return (
@@ -18,7 +18,7 @@ export function Footer() {
         <img
           src={wiseAiLogo}
           alt="WiseResume"
-          className="w-8 h-8 object-contain"
+          className="w-8 h-8 object-contain rounded-lg"
         />
         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <Sparkles className="w-3 h-3 text-primary" />
