@@ -34,7 +34,7 @@ export interface PublicProfile {
   metaTitle: string | null;
   metaDescription: string | null;
   // Portfolio design fields
-  portfolioStyle: 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean';
+  portfolioStyle: string;
   portfolioLayout: 'single' | 'two-col';
   portfolioAccentColor: string | null;
   portfolioFont: 'inter' | 'space-grotesk' | 'serif';
@@ -108,7 +108,7 @@ async function fetchPublicPortfolio(username: string): Promise<PublicPortfolioDa
       portfolioSections: (profile.portfolioSections as PortfolioSections) || null,
       metaTitle: (profile.metaTitle as string) || null,
       metaDescription: (profile.metaDescription as string) || null,
-      portfolioStyle: ((profile.portfolioStyle as string) || 'minimal') as 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean',
+      portfolioStyle: ((profile.portfolioStyle as string) || 'minimal'),
       portfolioLayout: ((profile.portfolioLayout as string) || 'single') as 'single' | 'two-col',
       portfolioAccentColor: (profile.portfolioAccentColor as string) || null,
       portfolioFont: ((profile.portfolioFont as string) || 'inter') as 'inter' | 'space-grotesk' | 'serif',
