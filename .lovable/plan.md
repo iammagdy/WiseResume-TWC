@@ -1,44 +1,35 @@
 
 
-# Fix 404 Page and Add Missing Route Aliases
+# Fix Black Bar Above Bottom Tab Bar on Editor (Root Cause)
 
 ## Problem
-1. The user landed on `/jobs/:id` but the defined route is `/job/:id` (singular). This causes a 404.
-2. The 404 page only shows a single "Go to Dashboard" button -- it should offer more helpful navigation options.
+The previous `pb-24` fix only added scroll padding inside the editor's scrollable area. The actual issue is structural: the AppShell's `<main>` element explicitly excludes editor routes from receiving `pb-20` bottom padding (line 66 of AppShell.tsx). This means:
 
-## Changes
+1. The editor's content area extends behind the fixed bottom tab bar
+2. When content is short (e.g., Contact section with 3 fields), the dark `bg-background` is visible between the last field and the tab bar
+3. This creates the "black bar" appearance
 
-### 1. Add route aliases in `src/App.tsx`
-Add redirect routes for common plural/singular mismatches so users never hit 404 for valid-ish URLs:
+## Fix
 
-- `/jobs/:id` redirects to `/job/:id`  
-- `/jobs` redirects to `/applications` (the closest listing page)
+### 1. `src/components/layout/AppShell.tsx` (line 66)
+Remove the `!isEditorRoute` exception so the editor route also gets `pb-20`:
 
-### 2. Improve the `src/pages/NotFound.tsx` page
-Replace the single button with multiple navigation options so users can find their way:
+- **Before**: `showBottomNav && !isEditorRoute && "pb-20 lg:pb-0"`
+- **After**: `showBottomNav && "pb-20 lg:pb-0"`
 
-- **Go to Dashboard** -- primary action
-- **My Resumes** -- link to `/dashboard`
-- **Applications** -- link to `/applications`
-- **AI Studio** -- link to `/ai-studio`
-- **Go Back** -- uses browser history (`navigate(-1)`) if available
+This pushes the editor's content area up by 5rem, so it no longer extends behind the tab bar. The fixed tab bar sits in that cleared space instead.
 
-This gives users clear paths forward instead of a dead end.
+### 2. `src/pages/EditorPage.tsx` (line 1214)
+Revert the scroll padding from `pb-24` back to `pb-16` since the AppShell now handles tab bar clearance:
 
-## Technical Details
+- **Before**: `pb-24`
+- **After**: `pb-16`
 
-### `src/App.tsx`
-Add inside the protected routes block, before the catch-all:
-```tsx
-<Route path="/jobs/:id" element={<Navigate to="/job/:id" replace />} />
-<Route path="/jobs" element={<Navigate to="/applications" replace />} />
-```
+The `pb-16` provides additional scroll clearance for the floating action pill (positioned at `bottom-[7rem]`), which is still needed within the editor scroll area.
 
-Note: React Router `Navigate` does not interpolate params, so we need a small wrapper component that reads `useParams` and redirects to `/job/${id}`.
-
-### `src/pages/NotFound.tsx`
-- Add quick-link buttons below the primary CTA in a grid layout
-- Each button has an icon + label for easy scanning
-- Keep the existing auth-aware primary button logic
-- Add a "Go Back" option using `navigate(-1)` as a secondary action
+## Why This Works
+- `pb-20` on AppShell's `<main>` ensures the editor layout ends ABOVE the tab bar
+- The editor still manages its own internal scrolling with `overflow-hidden` on its container
+- The floating action pill still clears properly with `pb-16` inside the scroll container
+- All other routes continue to work as before since they already had `pb-20`
 
