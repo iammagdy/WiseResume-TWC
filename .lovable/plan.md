@@ -1,58 +1,73 @@
 
 
-# Step 5: Update OG Image Edge Function for 5 New Themes
+# Fix Logo Black Background + Theme Feature Verification
 
 ## Problem
 
-The `og-image` edge function generates the social sharing preview image (1200x630 SVG) when portfolios are shared on LinkedIn, Twitter, etc. It currently only handles 4 themes (`minimal`, `bold-dark`, `glass-pro`, `classic-clean`). The 5 new themes all fall through to the `minimal` default, meaning users who pick Terminal, Spotlight, Executive, Starter, or Neon will get a generic OG image that doesn't match their portfolio.
+The app logo (`wise-ai-logo.webp`) has a black background baked into the image file itself. This causes an ugly dark square to appear behind the logo across the entire app -- on the landing page, splash screen, loading spinner, home screen, footer, and other locations.
 
-## What Changes
+## Solution
 
-All changes are in a single file: `supabase/functions/og-image/index.ts`
+Since the `.webp` file has a non-transparent background, we need to:
 
-### 1. Update `styleToBg` / `styleToFg` / `styleToMuted`
+1. **Create a new transparent logo** by converting the existing `.png` file or creating a CSS-based approach to mask out the black background
+2. **Update all references** from `.webp` to the transparent version
 
-Add cases for the 5 new theme IDs using their colors from the theme registry:
+## Affected Locations (7 places)
 
-| Theme | Background | Foreground | Muted |
-|-------|-----------|-----------|-------|
-| `developer-terminal` | `#1a1b26` | `#c0caf5` | `#565f89` |
-| `creative-spotlight` | `#faf9f6` | `#1a1a2e` | `#6b7280` |
-| `executive-suite` | `#fefefe` | `#0f172a` | `#64748b` |
-| `freelancer-starter` | `#ffffff` | `#18181b` | `#71717a` |
-| `neon-cyber` | `#0a0a0a` | `#e4e4e7` | `#71717a` |
+| Location | File | How Logo Is Used |
+|----------|------|-----------------|
+| Landing page header | `src/pages/Index.tsx` | Small logo in top-left nav |
+| Landing page hero | `src/pages/Index.tsx` | Large 120x120 hero logo |
+| App Icon (splash, spinner, home) | `src/components/brand/AppIcon.tsx` | Central component used everywhere |
+| Footer | `src/components/landing/Footer.tsx` | Brand logo in footer |
+| QR Code Studio | `src/components/portfolio/qr/QRGeneratorSheet.tsx` | Logo overlay on QR codes |
+| Job Match Score | `src/components/applications/JobMatchScore.tsx` | Badge-style logo |
+| HTML loading spinner | `index.html` | Uses `favicon.png` (separate file) |
 
-### 2. Update `styleToDecoLayer` -- 5 new decoration cases
+## Changes
 
-Each theme gets a unique SVG decoration layer matching the portfolio's visual identity:
+### 1. `src/components/brand/AppIcon.tsx`
+- Switch import from `wise-ai-logo.webp` to `wise-ai-logo.png`
+- Add `border-radius: 16px` (rounded corners like an app icon) to visually soften the appearance if the PNG also has the same issue
+- Add a CSS approach to handle non-transparent logos: apply `border-radius` and `overflow: hidden` so the square edges are masked
 
-- **Terminal**: Scanline pattern + monospace font hint, top bar with terminal dots (red/yellow/green circles), dark charcoal aesthetic
-- **Spotlight**: Warm gradient mesh background (subtle purple/pink hues), elevated card shadow effect, warm neutral feel
-- **Executive**: Clean dot grid pattern (like classic-clean but more refined), thin navy accent line, serif-appropriate whitespace
-- **Starter**: Vibrant accent gradient bar at top, rounded card outline with shadow effect, energetic feel
-- **Neon**: Radial neon glow from center, subtle grid/scanline overlay, cyberpunk border glow effect
+### 2. `src/pages/Index.tsx`
+- Change import from `wise-ai-logo.webp` to `wise-ai-logo.png`
+- Apply rounded styling to both the header logo (line 259) and hero logo (line 322)
 
-### 3. Update `buildSkillPills` -- 5 new pill styles
+### 3. `src/components/landing/Footer.tsx`
+- Change import from `.webp` to `.png`
+- Apply consistent rounded styling
 
-Each theme gets matching skill pill styling:
+### 4. `src/components/portfolio/qr/QRGeneratorSheet.tsx`
+- Change import from `.webp` to `.png`
 
-- **Terminal**: Monospace-feel, green border on dark bg
-- **Spotlight**: White elevated pills with shadow, accent text
-- **Executive**: White pills with thin navy border
-- **Starter**: Solid accent fill pills, white text (like bold-dark)
-- **Neon**: Transparent pills with neon glow border
+### 5. `src/components/applications/JobMatchScore.tsx`
+- Change import from `.webp` to `.png`
 
-### 4. Update `buildSVG` font references
+### 6. `index.html`
+- The inline loading spinner uses `favicon.png` -- add `border-radius: 12px` to the img tag to round corners if needed
 
-The monogram and name text elements should use theme-appropriate font-family hints (e.g., `monospace` for Terminal, `serif` for Executive) in the SVG `font-family` attributes.
+### 7. `src/components/AnimatedSplash.tsx`
+- Uses `AppIcon` component, so it gets fixed automatically when AppIcon is updated
 
-## No other files change
-
-The `portfolio-meta` function doesn't need updates -- it only handles HTML meta tags, not visuals. The theme registry in `src/lib/portfolioThemes.ts` is frontend-only and not imported by edge functions (Deno runtime), so the OG function maintains its own color mappings.
+### 8. `src/components/ui/PageLoadingSpinner.tsx`
+- Uses `AppIcon` component, so it gets fixed automatically when AppIcon is updated
 
 ## Technical Notes
 
-- Edge function will be auto-deployed after changes
-- SVG output is cached (`Cache-Control: public, max-age=3600`) so changes take up to 1 hour to propagate for existing users
-- All SVG decorations use inline elements (gradients, patterns, shapes) -- no external dependencies
+- The `.png` version (`wise-ai-logo.png`) exists in `src/assets/` and may already have transparency. If it does, the fix is simply swapping the import. If it also has a black background, we'll apply `border-radius: 16px` as an app-icon-style mask to make it look intentional and polished.
+- All 5 files that directly import `wise-ai-logo.webp` need their import path updated
+- The 3 components that use `AppIcon` (AnimatedSplash, PageLoadingSpinner, HomeHeroSection) are fixed automatically
 
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/components/brand/AppIcon.tsx` | Switch to `.png`, add rounded styling |
+| `src/pages/Index.tsx` | Switch to `.png`, add rounded styling |
+| `src/components/landing/Footer.tsx` | Switch to `.png` |
+| `src/components/portfolio/qr/QRGeneratorSheet.tsx` | Switch to `.png` |
+| `src/components/applications/JobMatchScore.tsx` | Switch to `.png` |
+| `index.html` | Add border-radius to favicon img |
