@@ -1,225 +1,238 @@
 
-# Comprehensive UI/UX Audit -- All Tabs and Screens
 
-After reviewing every page and component in the app, here are the issues found organized by screen, with severity ratings and fixes.
+# Mobile APK Comprehensive Analysis -- Issues and Fixes
 
----
-
-## Tab 1: Home (Dashboard)
-
-### Issues Found
-
-1. **Header icon overload on small screens (375px)**
-   - The header packs 5 interactive elements (HelpCircle, AICredits, AIHealth, Settings, Avatar) in a row. On iPhone SE, these compress and some may overlap or have insufficient spacing.
-   - **Fix**: Collapse AICredits and AIHealth into the profile popover menu, leaving only HelpCircle, Settings, and Avatar in the header.
-
-2. **Dashboard has no bottom padding awareness for FAB**
-   - The `FloatingCreateButton` renders at `bottom-[7rem]` via portal, but the `PullToRefresh` scrollable area uses `pb-safe` which may not account for the FAB. The last resume card could be obscured.
-   - **Fix**: Add `pb-32` to the scrollable content wrapper to ensure the last item clears the FAB.
-
-3. **Embla carousel swipe conflict with PullToRefresh**
-   - The Embla carousel for swipeable tabs (My CVs / Tailored) sits inside `PullToRefresh`. Horizontal swipes can inadvertently trigger pull-to-refresh on some Android devices.
-   - **Fix**: Add `touch-action: pan-x` on the Embla container to prevent vertical gesture hijacking.
-
-4. **Search input `h-12` is too tall on compact mobile**
-   - At 375px width, a 48px input + filter row + selection toolbar consume excessive vertical real estate before any resume cards appear.
-   - **Fix**: Use `h-10` (40px) for the search input on mobile, matching the native compaction standard.
+After analyzing the full codebase for native APK (Capacitor Android WebView) compatibility, here are the issues categorized by severity.
 
 ---
 
-## Tab 2: Editor
+## CRITICAL -- Functional Breakage on Real Devices
 
-### Issues Found
+### 1. Capacitor Config Missing Hot-Reload Server URL
+**File**: `capacitor.config.ts`
+The config lacks the `server.url` field for development. While fine for production builds, this means developers building the APK locally can't hot-reload from the Lovable sandbox. The `server.cleartext` flag is also missing, which blocks HTTP connections on Android 9+ (API 28+).
 
-5. **No loading skeleton when `currentResume` is null but not redirecting**
-   - There's an 8-second safety timeout before redirecting. During this wait, the user sees nothing (the component returns early before rendering). This violates the "never show a blank screen" rule.
-   - **Fix**: Show `EditorSkeleton` during the loading/validation period instead of returning early with nothing rendered.
+**Fix**: Add `server` block with the sandbox URL for development and `cleartext: true` for mixed content. For production builds, remove the `server.url` so the app loads from the bundled `dist/` folder.
 
-6. **Floating action pill position conflicts on landscape orientation**
-   - The editor's floating pill (PDF/Preview/ATS) at `bottom-[7rem]` was designed for portrait. In landscape mode on phones, it may overlap with the StepperNav pill bar.
-   - **Fix**: Adjust to `bottom-20` in landscape using a media query or orientation check.
+### 2. `backdrop-filter` / `backdrop-blur` Performance on Android WebView
+**288 occurrences across 35 files** use `backdrop-blur-sm`, `backdrop-blur-md`, `backdrop-blur-xl`. On mid/low-end Android devices (Snapdragon 400/600 series), `backdrop-filter: blur()` is extremely expensive in WebView, causing:
+- Janky scrolling (dropped frames)
+- Visible lag when opening sheets/modals
+- Battery drain
 
-7. **`useResumeStore.getState()` called inside render callbacks**
-   - Line 440 in `ApplicationsPage` and line 34 in `TemplatesPage` call `useResumeStore.getState()` inside event handlers that set state. While not a UI bug, this creates coupling issues and can produce stale reads.
-   - **Fix**: Use the hook-level selector instead for reactive values.
+**Files affected**: `BottomTabBar.tsx`, `AppShell.tsx`, `InterviewPage.tsx` (header, controls, transcript bubbles), all `glass-*` utility classes in `index.css`, every sheet overlay, popover, and tooltip.
 
----
+**Fix**: Add a CSS media query or JS-based detector to disable `backdrop-filter` on low-end devices:
+```css
+@media (prefers-reduced-transparency: reduce), (max-device-memory: 4) {
+  .glass, .glass-card, .glass-surface, .glass-elevated, .glass-header {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: hsl(var(--card) / 0.95); /* opaque fallback */
+  }
+}
+```
+Also add a Capacitor-specific override in `index.css` using a body class set in `main.tsx`:
+```typescript
+if (Capacitor.isNativePlatform()) document.body.classList.add('native-app');
+```
+```css
+body.native-app .glass, body.native-app .glass-surface { backdrop-filter: none; background: hsl(var(--card) / 0.95); }
+```
 
-## Tab 3: AI Studio
+### 3. OAuth Redirect URL Mismatch on APK
+**File**: `src/lib/socialAuth.ts`
+The OAuth redirect URL for native is hardcoded to `https://localhost/auth/callback` (line 13). This only works if the Capacitor app has configured a custom URL scheme or Universal Links. Without the proper `applinks` / `assetlinks.json` setup, Google/Apple OAuth will fail silently on the APK.
 
-### Issues Found
+**Fix**: 
+- Use the app's custom scheme: `com.wiseresume.app://auth/callback`
+- Configure `android/app/src/main/AndroidManifest.xml` with intent filters for the callback URL
+- Add `assetlinks.json` to the server for Google verification
 
-8. **Excessive bottom padding `pb-[180px]` on mobile**
-   - Line 291: `pb-[180px] sm:pb-20`. The 180px padding is far too generous -- it wastes nearly half the viewport on short devices like iPhone SE. This makes the page feel empty at the bottom.
-   - **Fix**: Reduce to `pb-28` (112px) which clears the bottom tab bar + safe area without wasting space.
+### 4. `window.open()` Blocked in Android WebView
+**File**: `src/pages/PortfolioEditorPage.tsx` line 782
+```typescript
+window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer')
+```
+In Android WebView, `window.open` with `_blank` is blocked by default. The `openExternal` utility exists but isn't used here.
 
-9. **"Select a resume" flow is confusing**
-   - When no resume is selected, tapping any tool shows a toast "Create a resume first" with an action link. But the resume picker sheet only shows 5 resumes (`data.slice(0, 5)`). Users with many resumes can't find the one they need.
-   - **Fix**: Remove the `slice(0, 5)` limit or add a "View all" link that navigates to dashboard.
+**Also affects**: Multiple places where `window.open` is used without the `openExternal` wrapper.
 
-10. **Chat suggestion pills overflow on 320px screens**
-    - The grid `grid-cols-2` with `px-3 py-1.5` suggestion buttons can cause text overflow on very narrow screens.
-    - **Fix**: Use `grid-cols-1 xs:grid-cols-2` to stack on the smallest screens.
+**Fix**: Replace all `window.open(..., '_blank')` calls with the `openExternal()` utility from `src/lib/openExternal.ts`, which correctly uses `_system` on native.
 
----
+### 5. `html2canvas` Unreliable in WebView
+**File**: `src/lib/pdfGenerator.ts`, `src/components/portfolio/qr/QRGeneratorSheet.tsx`
+`html2canvas` has known issues in Android WebView:
+- Cross-origin font loading failures (Google Fonts)
+- `foreignObject` SVG rendering gaps
+- Canvas taint errors on external images
 
-## Tab 4: Activity (Applications)
-
-### Issues Found
-
-11. **Two different FAB positions for the two sub-tabs**
-    - Applications FAB: `bottom-[7.5rem] sm:bottom-20`
-    - Jobs FAB: Same position
-    - But the `pr-safe` (padding-right safe area) is inconsistent -- it's only on the Jobs FAB but not the Applications FAB in some code paths. This creates asymmetric positioning on phones with notches.
-    - **Fix**: Standardize both FABs to use identical positioning classes.
-
-12. **Application card action buttons are too small visually**
-    - The "Prep" and "Follow-up" buttons use `text-[11px]` and `min-h-[44px]`, which meets touch targets but looks disproportionate -- a tiny label inside a tall tap zone with no visual feedback of the full area.
-    - **Fix**: Increase text to `text-xs` (12px) and add a visible background fill to the full 44px hit area.
-
-13. **No empty state for Activity Timeline**
-    - The `ActivityTimeline` component is always rendered but shows nothing when there are no activities. This creates a blank gap between "Recent Activity" heading and the application cards.
-    - **Fix**: Add an inline empty state like "No recent activity -- start by adding an application."
-
-14. **Saved Jobs tab: seed button has no guard for unauthenticated users**
-    - The `sampleJobs` seeder uses `createJob.mutateAsync()` which requires authentication. If somehow accessed without auth, it will fail silently.
-    - **Fix**: Disable the seed button or hide it when `!user`.
-
----
-
-## Tab 5: Portfolio
-
-### Issues Found
-
-15. **Portfolio Editor page has `overflow-hidden` on root but no internal scroll container**
-    - Line 381: `overflow-hidden` on root div. The content scroll is handled by child sections, but the sticky "Save" button at the bottom may not be visible if content is long.
-    - **Fix**: Add explicit `overflow-y-auto` on the content area below the header.
-
-16. **Username validation runs on every keystroke with a 500ms debounce, but shows "Checking..." immediately**
-    - This creates a flickering UX where the user types and sees "Checking... Checking... Checking..." for each character.
-    - **Fix**: Only show "Checking..." after the debounce timer fires (when the actual API call starts), not on every keystroke.
+**Fix**: Add error boundaries around PDF generation with user-facing retry logic. Pre-load fonts as base64 data URLs before capture. Add a WebView-specific timeout increase (from default 5s to 15s).
 
 ---
 
-## Interview Page
+## HIGH -- UI Overlapping and Layout Issues
 
-### Issues Found
+### 6. BottomTabBar Rounded Corners Create Dead Zones
+**File**: `src/components/layout/BottomTabBar.tsx` line 143
+```
+"fixed bottom-0 left-0 right-0 z-50 ... rounded-3xl"
+```
+The `rounded-3xl` (24px border radius) on the bottom tab bar means the corners are visually cut off, but the underlying `fixed bottom-0 left-0 right-0` still occupies the full width. On real phones, this creates:
+- Visual gap between the rounded corner and the screen edge where the background shows through
+- On phones with gesture navigation bars, the bottom safe area + rounded corners + gesture bar create a confusing visual stack
 
-17. **Empty state button says "Go to Dashboard" but navigates to `/ai-studio`**
-    - Line 222: The empty state (no resume selected) shows a "Go to Dashboard" button but `onClick={() => navigate('/ai-studio')}`. This is misleading -- the label and destination don't match.
-    - **Fix**: Change label to "Go to AI Studio" or change navigation to `/dashboard`.
+**Fix**: Remove `rounded-3xl` from the nav and use `rounded-t-2xl` instead (only round the top). Add `mx-2 mb-1` for a floating tab bar look if rounded corners are desired, and ensure `pb-safe` accounts for the margin.
 
-18. **BackButton during active interview has no confirmation**
-    - During an active interview (phase === 'active'), tapping the back button navigates away immediately, losing the entire session without saving.
-    - **Fix**: Add `onBeforeBack` guard that shows the existing `showEndConfirm` dialog before navigating away.
+### 7. Multiple Fixed Elements Competing for Z-Index
+The app has many `fixed` positioned elements that can overlap on small screens:
+- `BottomTabBar` at z-50
+- `FloatingCreateButton` at z-50, bottom-[7rem]
+- `AddSectionFAB` at z-40, bottom calc(5rem + safe-area)
+- `ProofreadButton` at z-40, fixed bottom
+- `InstallPrompt` at z-40, bottom-[5.5rem]
+- `AIIntroTooltip` at z-[60], bottom-24
+- `AnswerScoreSheet` at z-50, fixed bottom
+- `FloatingViewLivePill` at z-40, bottom calc(7rem + safe-area)
+- `ChatWidget` at z-40, fixed bottom-6
 
----
+On a phone with 640px viewport height, these elements can stack and obscure content.
 
-## Preview Page
+**Fix**: Create a z-index registry and stacking-context map. Ensure only ONE floating action is visible per screen. Use `createPortal` consistently and gate visibility based on the current route.
 
-### Issues Found
+### 8. Editor Header Overflow on Small Screens
+**File**: `src/pages/EditorPage.tsx` lines 975-1108
+The editor header contains: back button + title + offline indicator + (undo/redo on sm+) + template button + chat button. On a 320px screen, the title with `max-w-[55vw]` (176px) plus all the buttons exceeds the available width, causing buttons to be pushed off-screen or overlapping.
 
-19. **Template switcher horizontal scroll has no visual indicator**
-    - The template list is a horizontal scroll row but has no scroll indicators or fade edges, so users don't know they can scroll to see more templates.
-    - **Fix**: Add gradient fade masks on the left/right edges of the template scroll area.
+**Fix**: Reduce `max-w-[55vw]` to `max-w-[40vw]` on xs screens. Use `gap-1` instead of `gap-2` in the mobile header. Consider hiding the template button label on very narrow screens.
 
-20. **Guest preview hint toast fires after 3 seconds unconditionally**
-    - Even if the user is actively interacting (e.g., switching templates), a toast appears prompting sign-up. This feels intrusive.
-    - **Fix**: Delay to 10 seconds and check if user has interacted with the page before showing.
+### 9. Interview Controls Bottom Bar Clips Below Safe Area
+**File**: `src/pages/InterviewPage.tsx` line 398
+```
+className="shrink-0 border-t border-border/20 bg-card/50 backdrop-blur-xl px-4 py-4 space-y-3 pb-safe"
+```
+The `pb-safe` adds `max(16px, env(safe-area-inset-bottom))`. But on Android devices with gesture navigation, the safe area inset can be 48px+, and the entire control bar (toggle + buttons + text input) becomes very tall, pushing the interview toggle partially off the visible area.
 
----
+**Fix**: Use `pb-[max(12px,env(safe-area-inset-bottom))]` (reduce the 16px minimum) and add `max-h-[40vh]` with `overflow-y-auto` to the control bar to prevent it from consuming more than 40% of the viewport.
 
-## Settings Page
+### 10. Countdown Overlay Overlaps Interview Controls
+**File**: `src/pages/InterviewPage.tsx` lines 448-466
+The countdown numbers are rendered inside the controls `flex` container with `gap-6`. When the countdown appears, it pushes the Replay and Skip buttons apart or overlaps them, because it's not absolutely positioned.
 
-### Issues Found
-
-21. **Double `pt-safe` in the header**
-    - Line 403: `className="pt-safe sticky top-0 z-10 pt-4 pb-1 px-4 glass-header"` -- both `pt-safe` and `pt-4` are applied. On devices with no safe area, only `pt-4` applies, but on devices with safe areas, both stack, creating excessive top spacing.
-    - **Fix**: Remove `pt-4` and rely on `pt-safe` alone, or use `pt-safe` as the container and inner padding separately.
-
-22. **Section index chips have no minimum touch target height**
-    - The section navigation chips (`px-3 py-1.5`) result in approximately 30px height, below the 44px minimum.
-    - **Fix**: Add `min-h-[44px]` to each chip button.
-
----
-
-## Cover Letters / Resignation Letters
-
-### Issues Found
-
-23. **FAB overlaps with bottom tab bar**
-    - Both pages position the FAB at `fixed bottom-20 right-4`. With the `rounded-3xl` bottom tab bar, this means the FAB sits right at the top edge of the tab bar, which can cause overlap on smaller screens.
-    - **Fix**: Standardize to `bottom-[7rem]` matching the staggered hierarchy from project guidelines.
-
-24. **Resignation letter delete button (`x`) has no minimum touch target**
-    - Line 143-146: The delete button is just `p-1` with a text `x` character, far below the 44px minimum touch target.
-    - **Fix**: Use a proper icon button with `min-w-[44px] min-h-[44px]` and a `Trash2` or `X` Lucide icon.
+**Fix**: Change the countdown to `absolute` positioning relative to the controls container, centered over the InterviewToggle.
 
 ---
 
-## Notifications Page
+## MEDIUM -- Functional Issues
 
-### Issues Found
+### 11. SpeechRecognition Not Available in Some Android WebViews
+The `useVoiceInterview` hook uses the Web Speech API (`webkitSpeechRecognition`), which requires Google Chrome's speech recognition service. In a Capacitor WebView that doesn't have Google Play Services or uses a non-Chrome WebView engine (e.g., older Samsung Internet WebView), this API is unavailable.
 
-25. **Filter tab pills below 44px touch target**
-    - Line 78-85: `px-3 py-1.5 rounded-full text-xs` results in approximately 28px height, well below the 44px minimum.
-    - **Fix**: Add `min-h-[44px] flex items-center` to ensure proper touch targets.
+**Fix**: Add a pre-check in `InterviewSetup` that tests for `window.SpeechRecognition || window.webkitSpeechRecognition` availability. If unavailable, show a message explaining the user needs to enable the feature or use the text input mode by default.
 
-26. **"Clear" button is destructive without confirmation**
-    - The "Clear all notifications" button immediately deletes all notifications with no confirmation dialog. One accidental tap erases everything.
-    - **Fix**: Add an `AlertDialog` confirmation before clearing all.
+### 12. Keyboard Resize Mode May Cause Layout Jumps
+**File**: `capacitor.config.ts` line 37
+```json
+Keyboard: { resize: 'body', resizeOnFullScreen: true }
+```
+`resize: 'body'` resizes the entire WebView when the keyboard opens. Combined with `h-[100dvh]` in `AppShell` and the keyboard-aware scroll hook, this can cause double-resize effects (the CSS `100dvh` already accounts for keyboard, plus Capacitor physically resizes the viewport).
 
----
+**Fix**: Change to `resize: 'none'` and rely entirely on the CSS `100dvh` + `useKeyboardAwareScroll` hook for keyboard handling. This prevents the double-adjustment.
 
-## Onboarding Page
+### 13. PDF Export Uses `html2canvas` Which Blocks Main Thread
+**File**: `src/lib/pdfGenerator.ts`
+PDF generation runs `html2canvas` synchronously on the main thread, which freezes the UI for 3-10 seconds on mobile devices. No loading indicator is shown during this time.
 
-### Issues Found
+**Fix**: Wrap the `html2canvas` call in a `requestIdleCallback` or use `OffscreenCanvas` where supported. Show a full-screen loading overlay with progress during PDF generation.
 
-27. **Template thumbnails in step 2 have no loading state**
-    - The `TemplateThumbnail` components are rendered without Suspense or skeleton fallbacks. On slow connections, the grid shows blank boxes.
-    - **Fix**: Wrap in `Suspense` with skeleton placeholders matching the thumbnail dimensions.
+### 14. `window.speechSynthesis` Issues on Android WebView
+**File**: `src/pages/InterviewPage.tsx` lines 406-414
+The interview replay button uses `window.speechSynthesis` which has known bugs in Android WebView:
+- Voices list is empty until a delayed `voiceschanged` event
+- `speak()` may silently fail on first call
 
-28. **No haptic feedback on goal selection or template selection**
-    - Every other interactive element in the app uses haptics, but onboarding selections are silent.
-    - **Fix**: Add `haptics.selection()` on goal and template button clicks.
-
----
-
-## Upload Page
-
-### Issues Found
-
-29. **No clear "cancel" action during processing**
-    - Once a file starts processing (especially OCR which can take 30+ seconds), there's no way for the user to cancel and try a different file.
-    - **Fix**: Add a "Cancel" button that sets `isProcessing = false` and resets state.
+**Fix**: Pre-load voices in `useEffect` on mount with a retry, and add a `voiceschanged` event listener. Show a toast if synthesis is unavailable.
 
 ---
 
-## Cross-Cutting User Flow Issues
+## MEDIUM -- UI Polish
 
-30. **No global "resume context" indicator**
-    - Users frequently land on AI Studio or Interview without knowing which resume is active. Only AI Studio shows this context bar. The Editor, Preview, and Interview pages assume the user knows.
-    - **Fix**: Add a compact resume name chip in the headers of Interview and Preview pages.
+### 15. `pb-safe` Minimum 16px Creates Excessive Bottom Spacing on Non-Notch Devices
+**File**: `src/index.css` line 522
+```css
+.pb-safe { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+```
+On devices without notches (most mid-range Androids), `env(safe-area-inset-bottom)` is 0, so every element with `pb-safe` gets 16px bottom padding. This stacks with the BottomTabBar's own padding, creating ~32px of dead space at the bottom.
 
-31. **Inconsistent back navigation after completing flows**
-    - After completing a cover letter creation, the user is on `/cover-letter/edit/:id` but BackButton goes to `/cover-letters`, which goes to `/ai-studio`. This 3-level deep navigation is confusing.
-    - **Fix**: After save, show a "Done" button that goes directly to `/cover-letters` instead of relying on sequential back presses.
+**Fix**: Reduce the minimum to `max(8px, env(safe-area-inset-bottom))` or use `env(safe-area-inset-bottom, 0px)` with no minimum for elements above the tab bar.
+
+### 16. Double-Tap Zoom Not Fully Disabled
+**File**: `index.html` line 5
+```
+maximum-scale=5.0, user-scalable=yes
+```
+On Android WebView, allowing user-scalable means double-tap triggers a 300ms delay on all taps (despite `touch-manipulation`). While modern browsers handle this, older WebViews may still exhibit the delay.
+
+**Fix**: For the APK specifically, change to `maximum-scale=1.0, user-scalable=no` since the app handles its own zoom for the resume preview. This eliminates the 300ms tap delay entirely.
+
+### 17. Font Loading Causes FOUT (Flash of Unstyled Text)
+**File**: `index.html` line 16
+Google Fonts are loaded via `<link rel="preload" ... as="style">` with `display=swap`. On first APK load (no cache), the user sees system fonts for 1-2 seconds before Google Fonts load. In a native app context, this feels unpolished.
+
+**Fix**: Bundle the fonts locally in `public/fonts/` and load them via `@font-face` in CSS. This ensures instant availability without network dependency.
+
+### 18. Sonner Toast Positioning Conflicts with Floating Elements
+Toasts appear at the top of the screen by default, but on mobile they can overlap with the header and safe-area padding. On Android with gesture navigation, bottom-positioned toasts may overlap with the tab bar.
+
+**Fix**: Configure Sonner's `toastOptions.className` with explicit positioning that accounts for the header height and safe area. Use `top-[calc(env(safe-area-inset-top)+56px)]`.
 
 ---
 
-## Priority Summary
+## LOW -- Quality of Life
 
-| Priority | Count | Examples |
-|----------|-------|---------|
-| Critical (blocks usage) | 2 | #5 blank editor screen, #18 interview data loss |
-| High (poor UX) | 8 | #1 header overflow, #8 wasted space, #17 wrong label, #24 tiny delete target |
-| Medium (polish) | 12 | #3 swipe conflict, #9 resume limit, #13 empty timeline, #22 chip targets |
-| Low (nice to have) | 9 | #4 input height, #20 toast timing, #28 haptics |
+### 19. No Network Error Recovery UI
+When the APK loses network connectivity, API calls to Supabase fail silently or show generic toasts. There's an `OfflineBanner` but no retry mechanism for failed operations.
+
+**Fix**: Add automatic retry with exponential backoff for failed Supabase queries. Show an inline "Retry" button on failed network operations.
+
+### 20. Bundle Size Could Impact APK First Load
+The app loads `framer-motion`, `recharts`, `pdf-lib`, `pdfjs-dist`, `tesseract.js`, `mammoth`, `docx`, `qr-code-styling`, and `react-image-crop`. While manual chunks help, the initial JS parse time on mid-range phones can be 3-5 seconds.
+
+**Fix**: Audit which chunks are loaded on the initial route. Ensure `tesseract.js`, `mammoth`, `docx`, `qr-code-styling`, and `react-image-crop` are only loaded when their features are actually used (they should be lazy-loaded behind `import()`).
+
+---
+
+## Summary Table
+
+| # | Issue | Severity | Impact |
+|---|-------|----------|--------|
+| 1 | Missing Capacitor server config | Critical | Dev workflow broken |
+| 2 | backdrop-blur kills performance | Critical | Laggy scrolling, janky UI |
+| 3 | OAuth redirect URL wrong for APK | Critical | Login broken on native |
+| 4 | window.open blocked in WebView | Critical | External links don't work |
+| 5 | html2canvas unreliable in WebView | Critical | PDF/QR export fails |
+| 6 | Tab bar rounded corners dead zones | High | Visual gaps, tap issues |
+| 7 | Fixed element z-index stacking | High | Buttons overlapping |
+| 8 | Editor header overflow on 320px | High | Buttons pushed off-screen |
+| 9 | Interview controls clip below safe area | High | Controls partially hidden |
+| 10 | Countdown overlay mispositioned | High | UI elements overlap |
+| 11 | SpeechRecognition unavailable | Medium | Interview broken on some devices |
+| 12 | Keyboard double-resize | Medium | Layout jumps |
+| 13 | PDF blocks main thread | Medium | UI freezes 3-10 seconds |
+| 14 | speechSynthesis bugs | Medium | Replay/TTS fails silently |
+| 15 | pb-safe excessive on non-notch | Medium | Wasted space |
+| 16 | Double-tap zoom delay | Medium | Sluggish tap response |
+| 17 | FOUT from Google Fonts | Medium | Flash of unstyled text |
+| 18 | Toast positioning conflicts | Medium | Toasts hidden behind elements |
+| 19 | No network retry | Low | Operations fail silently |
+| 20 | Bundle size parse time | Low | Slow cold start |
 
 ## Recommended Fix Order
 
-1. Fix #5 (blank editor screen) and #18 (interview back without save) -- these lose user data
-2. Fix all touch target violations (#22, #24, #25) -- accessibility requirement
-3. Fix #8 (AI Studio padding) and #1 (header overflow) -- most visible UX issues
-4. Fix #17 (wrong button label) and #26 (destructive clear without confirm) -- user confusion
-5. Address remaining medium/low items in batches
+1. **Fix #2** (backdrop-blur) -- biggest single improvement for native feel
+2. **Fix #3 + #4** (OAuth + window.open) -- login and external links must work
+3. **Fix #6 + #7** (tab bar + z-index) -- visual overlap issues
+4. **Fix #12** (keyboard resize) -- layout stability
+5. **Fix #8 + #9 + #10** (header/controls overflow) -- UI clipping
+6. **Fix #16 + #17** (tap delay + fonts) -- polish for native feel
+7. Everything else in priority order
