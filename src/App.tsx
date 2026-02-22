@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useDeepLinking } from "./hooks/useDeepLinking";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useBackButton } from "@/hooks/useBackButton";
 import { useStatusBarThemeSync } from "@/hooks/useStatusBar";
@@ -128,24 +128,30 @@ const queryClient = new QueryClient({
    }, []);
    
    const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
-   const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
+    const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);
+    const location = useLocation();
 
-   // Global unhandled rejection handler to prevent black screens from async errors
-   useEffect(() => {
-     const handleRejection = (event: PromiseRejectionEvent) => {
-       console.error("Unhandled rejection:", event.reason);
-       toast.error("Something went wrong. Please try again.");
-       event.preventDefault();
-     };
+    // Detect public standalone routes that should skip app chrome (splash, dialogs, install prompt)
+    const isPublicStandalone = location.pathname.startsWith('/p/')
+      || location.pathname.startsWith('/share/')
+      || location.pathname.startsWith('/l/');
 
-     window.addEventListener("unhandledrejection", handleRejection);
-     return () => window.removeEventListener("unhandledrejection", handleRejection);
-   }, []);
-   
-    // Show animated splash on first launch
-    if (!hasSeenSplash) {
-      return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
-    }
+    // Global unhandled rejection handler to prevent black screens from async errors
+    useEffect(() => {
+      const handleRejection = (event: PromiseRejectionEvent) => {
+        console.error("Unhandled rejection:", event.reason);
+        toast.error("Something went wrong. Please try again.");
+        event.preventDefault();
+      };
+
+      window.addEventListener("unhandledrejection", handleRejection);
+      return () => window.removeEventListener("unhandledrejection", handleRejection);
+    }, []);
+    
+     // Show animated splash on first launch (skip for public standalone pages)
+     if (!hasSeenSplash && !isPublicStandalone) {
+       return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
+     }
 
     // Show lock screen if biometric lock is enabled and app is locked
     if (biometricLockEnabled && isLocked && isAvailable) {
@@ -212,7 +218,7 @@ const queryClient = new QueryClient({
         
         <Route path="*" element={<Suspense fallback={<DetailSkeleton />}><NotFound /></Suspense>} />
       </Routes>
-      <Suspense fallback={null}><WhatsNewDialog /></Suspense>
+      {!isPublicStandalone && <Suspense fallback={null}><WhatsNewDialog /></Suspense>}
       </>
     );
  }
@@ -220,14 +226,28 @@ const queryClient = new QueryClient({
 /** Defers non-critical global dialogs until 2s after mount */
 function DeferredProviders() {
   const [ready, setReady] = useState(false);
+  const location = useLocation();
+  const isPublicStandalone = location.pathname.startsWith('/p/')
+    || location.pathname.startsWith('/share/')
+    || location.pathname.startsWith('/l/');
   useEffect(() => { const t = setTimeout(() => setReady(true), 2000); return () => clearTimeout(t); }, []);
-  if (!ready) return null;
+  if (!ready || isPublicStandalone) return null;
   return (
     <>
       <Suspense fallback={null}><CommandPalette /></Suspense>
       <Suspense fallback={null}><BugReportDialog /></Suspense>
     </>
   );
+}
+
+/** Wraps InstallPrompt to skip on public standalone routes */
+function AppInstallPrompt() {
+  const location = useLocation();
+  const isPublicStandalone = location.pathname.startsWith('/p/')
+    || location.pathname.startsWith('/share/')
+    || location.pathname.startsWith('/l/');
+  if (isPublicStandalone) return null;
+  return <InstallPrompt />;
 }
  
 const App = () => (
@@ -239,7 +259,7 @@ const App = () => (
             <AuthProvider>
               <AppRoutes />
               <DeferredProviders />
-              <InstallPrompt />
+              <AppInstallPrompt />
             </AuthProvider>
           </BrowserRouter>
         </ErrorBoundary>
