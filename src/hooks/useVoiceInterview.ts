@@ -116,25 +116,56 @@ function playBeep(): Promise<void> {
 }
 
 function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore | null } {
-  const scoreRegex = /---SCORE---\s*(\{[\s\S]*?\})\s*---END_SCORE---/;
+  const scoreRegex = /---SCORE---\s*([\s\S]*?)\s*---END_SCORE---/;
   const match = text.match(scoreRegex);
-  if (!match) return { cleanText: text, score: null };
+  const cleanText = match ? text.replace(scoreRegex, '').trim() : text;
 
-  const cleanText = text.replace(scoreRegex, '').trim();
-  try {
-    const parsed = JSON.parse(match[1]);
+  if (match) {
+    // Try robust JSON extraction (handles code blocks, nested objects, etc.)
+    try {
+      // First try direct parse
+      let parsed = null;
+      try {
+        parsed = JSON.parse(match[1].trim());
+      } catch {
+        // Try extracting JSON from within the block (handles markdown wrapping)
+        const jsonMatch = match[1].match(/(\{[\s\S]*\})/);
+        if (jsonMatch) {
+          parsed = JSON.parse(jsonMatch[1]);
+        }
+      }
+      if (parsed && typeof parsed.score === 'number') {
+        return {
+          cleanText,
+          score: {
+            questionIndex: 0,
+            score: Math.min(10, Math.max(0, parsed.score)),
+            tip: parsed.tip || '',
+            improvedAnswer: parsed.improved_answer || '',
+          },
+        };
+      }
+    } catch {
+      // Fall through to fallback
+    }
+  }
+
+  // Fallback: try to extract score from the text itself (e.g. "Score: 7/10" or "**Score: 8/10**")
+  const fallbackScoreMatch = cleanText.match(/\bscore[:\s]*\*?\*?(\d{1,2})\s*\/\s*10/i);
+  if (fallbackScoreMatch) {
+    const score = Math.min(10, Math.max(0, parseInt(fallbackScoreMatch[1], 10)));
     return {
       cleanText,
       score: {
         questionIndex: 0,
-        score: parsed.score || 0,
-        tip: parsed.tip || '',
-        improvedAnswer: parsed.improved_answer || '',
+        score,
+        tip: '',
+        improvedAnswer: '',
       },
     };
-  } catch {
-    return { cleanText, score: null };
   }
+
+  return { cleanText, score: null };
 }
 
 export function useVoiceInterview(resumeData: ResumeData | null) {
@@ -306,6 +337,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
         utteranceRef.current = utterance;
 
         utterance.onend = async () => {
+          if (ttsSafetyTimer) clearTimeout(ttsSafetyTimer);
           try {
             for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
               setCountdown(i);
@@ -320,9 +352,30 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
           resolve();
         };
         utterance.onerror = () => {
+          if (ttsSafetyTimer) clearTimeout(ttsSafetyTimer);
           setStatus('idle');
           resolve();
         };
+
+        // Fix #10: TTS onend safety timeout — auto-resolve if onend doesn't fire
+        const wordCount = text.split(/\s+/).length;
+        const estimatedDurationMs = Math.max(3000, (wordCount / 2.5) * 1000 + 2000);
+        const ttsSafetyTimer = setTimeout(async () => {
+          console.warn('[VoiceInterview] TTS onend safety timeout triggered after', estimatedDurationMs, 'ms');
+          window.speechSynthesis?.cancel();
+          try {
+            for (let i = COUNTDOWN_SECONDS; i >= 1; i--) {
+              setCountdown(i);
+              await new Promise(r => setTimeout(r, 1000));
+            }
+            setCountdown(null);
+            await playBeep();
+            startListeningAfterSpeakRef.current?.();
+          } catch (e) {
+            console.error('Error in TTS safety timeout:', e);
+          }
+          resolve();
+        }, estimatedDurationMs);
 
         setStatus('speaking');
         window.speechSynthesis.speak(utterance);
@@ -352,9 +405,15 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       }, 8000);
 
       try {
+        // Fix #5: Sliding window — keep first 2 messages + last 16 to manage context size
+        const allMessages = messagesRef.current;
+        const windowedMessages = allMessages.length > 18
+          ? [...allMessages.slice(0, 2), ...allMessages.slice(-16)]
+          : allMessages;
+
         const aiPromise = supabase.functions.invoke('interview-chat', {
           body: {
-            messages: messagesRef.current,
+            messages: windowedMessages,
             resumeData,
             jobDescription: jobDescriptionRef.current || undefined,
             endInterview,
