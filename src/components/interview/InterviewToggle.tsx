@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mic, MicOff, Volume2, Hand } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -20,6 +21,27 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
   const isSpeaking = status === 'speaking';
   const isIdle = status === 'idle';
   const isReady = status === 'ready';
+
+  // Track how long we've been listening with low audio
+  const [waitingForAnswer, setWaitingForAnswer] = useState(false);
+  const lowAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (isListening && audioLevel < 0.05 && !silenceDetected) {
+      if (!lowAudioTimerRef.current) {
+        lowAudioTimerRef.current = setTimeout(() => setWaitingForAnswer(true), 3000);
+      }
+    } else {
+      if (lowAudioTimerRef.current) {
+        clearTimeout(lowAudioTimerRef.current);
+        lowAudioTimerRef.current = null;
+      }
+      if (waitingForAnswer) setWaitingForAnswer(false);
+    }
+    return () => {
+      if (lowAudioTimerRef.current) clearTimeout(lowAudioTimerRef.current);
+    };
+  }, [isListening, audioLevel, silenceDetected, waitingForAnswer]);
 
   // Icon component selection (Loader2 removed, handled explicitly)
   const Icon = isListening ? Mic : isSpeaking ? Volume2 : isReady ? Hand : MicOff;
@@ -193,15 +215,20 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
         {isThinking ? (
           <MiniSpinner size={36} className="text-muted-foreground animate-spin" />
         ) : (
-          <Icon
-            className={cn(
-              'w-9 h-9 transition-all',
-              isListening && 'text-primary',
-              isSpeaking && 'text-[hsl(142_70%_50%)]',
-              isReady && 'text-[hsl(45_90%_55%)]',
-              isIdle && 'text-muted-foreground'
-            )}
-          />
+          <motion.div
+            animate={isListening && waitingForAnswer ? { rotate: [-3, 3, -3, 0] } : {}}
+            transition={isListening && waitingForAnswer ? { duration: 0.5, repeat: Infinity, repeatDelay: 2 } : {}}
+          >
+            <Icon
+              className={cn(
+                'w-9 h-9 transition-all',
+                isListening && 'text-primary',
+                isSpeaking && 'text-[hsl(142_70%_50%)]',
+                isReady && 'text-[hsl(45_90%_55%)]',
+                isIdle && 'text-muted-foreground'
+              )}
+            />
+          </motion.div>
         )}
       </motion.button>
 
@@ -244,6 +271,8 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
         >
           {isListening && silenceDetected
             ? 'Sending soon…'
+            : isListening && waitingForAnswer
+            ? 'Waiting for your answer...'
             : isListening
             ? (amplifiedLevel > 0.1 ? 'Detecting speech...' : 'Listening...')
             : isThinking
