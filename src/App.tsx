@@ -45,8 +45,11 @@ import {
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import { lazyWithRetry } from "@/lib/lazyWithRetry";
 
-// Eagerly load Index for LCP
+// Eagerly load Index (solar system) for LCP
 import Index from "./pages/Index";
+
+// Old landing page moved to /home
+const HomePage = lazyWithRetry(() => import("./pages/HomePage"));
 
 // Lazy load other pages with retry
 const UploadPage = lazyWithRetry(() => import("./pages/UploadPage"));
@@ -161,6 +164,7 @@ const queryClient = new QueryClient({
         <Routes>
           {/* Public routes - no auth required */}
           <Route path="/" element={<Index />} />
+          <Route path="/home" element={<Suspense fallback={<PageLoadingSpinner />}><HomePage /></Suspense>} />
            <Route element={<AppShell />}>
              <Route path="/auth" element={<Suspense fallback={<AuthSkeleton />}><AuthPage /></Suspense>} />
               <Route path="/auth/callback" element={<Suspense fallback={<PageLoadingSpinner />}><AuthCallbackPage /></Suspense>} />
