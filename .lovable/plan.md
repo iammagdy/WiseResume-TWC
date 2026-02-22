@@ -1,134 +1,122 @@
 
 
-# Tailor Tool -- User Flow Analysis and Gap Report
+# Analyze Job -- User Flow Audit and Gap Report
 
-## Summary
+## Overview
 
-The Tailor tool is feature-rich but has several broken navigation flows, a credit bypass, and UX friction points that will confuse users in production. Here are the issues ranked by impact.
+There are actually **two separate "analyze job" features** that serve different purposes but overlap confusingly:
 
----
+1. **AnalyzeJobSheet** (Dashboard) -- Parses a job URL/description, shows title + company, then lets you save the job or pick a resume to tailor.
+2. **JobAnalysisSheet** (Editor / AI Studio) -- Takes a job description and runs AI-powered match scoring against the current resume (skills match, ATS score, gap analysis).
 
-## CRITICAL: Broken Deep-Link (`?tailor=true` Never Opens TailorSheet)
-
-Two navigation flows use `?tailor=true` to open the tailor sheet from outside the editor:
-
-- **AnalyzeJobSheet** navigates to `/editor?tailor=true&jobTitle=...&jobCompany=...`
-- **ApplicationsPage** navigates to `/editor?tailor=true&jobTitle=...&company=...`
-
-But **EditorPage only handles `?openTailor=1`** -- it never checks for `?tailor=true`. This means users who tap "Tailor Resume" from the dashboard job analysis or from the applications page land in the editor with **nothing happening**. The tailor sheet silently fails to open.
-
-**Fix:** Update EditorPage's `useEffect` to also handle `?tailor=true`, and pre-populate the job description in the store from the query params when available. Alternatively, standardize all callers to use `?openTailor=1`.
+Both are called "Analyze" in some form, creating user confusion. Here are the issues found:
 
 ---
 
-## HIGH: SetTargetJobSheet Bypasses Credit System
+## CRITICAL: `parseJobUrl()` Discards Rich Data from the Backend
 
-`SetTargetJobSheet` (opened from the resume detail page) calls `tailorResumeWithProgress()` directly without wrapping it in `useAIAction({ operation: 'tailor' })`. This means:
+The `parse-job-url` edge function returns a rich payload:
+- `experienceLevel`, `salaryRange`, `workMode`
+- `mustHaveSkills`, `niceToHaveSkills`
+- `companyCultureSignals`, `benefits`, `redFlags`
+- `yearsExperience`, `applicationDeadline`
 
-- No credit check before the AI call
+But the client-side `parseJobUrl()` function in `aiTailor.ts` types its return as `{ title, company, description }` only. All the rich intelligence the AI extracts is thrown away. The `AnalyzeJobSheet` results phase only shows title, company, and a 300-character truncated description -- making the "Analyze" button feel like it does almost nothing.
+
+**Fix:** Update `parseJobUrl()` return type to include all fields. Update `AnalyzeJobSheet` results phase to display the rich data (experience level badge, salary range, must-have vs nice-to-have skills, work mode, red flags).
+
+---
+
+## HIGH: JobAnalysisSheet Bypasses Credit System
+
+`JobAnalysisSheet` calls `analyzeResume()` directly -- no `useAIAction` wrapper. This means:
+- No credit check before the expensive AI call
 - No credit deduction after
-- Users can run unlimited tailoring from this entry point
+- `'analyze'` is not even in `AI_COST_MAP`
 
-Every other AI feature uses `useAIAction`. This is the only bypass.
+Every other AI feature uses `useAIAction`. This is an unmetered bypass.
 
-**Fix:** Wrap the `tailorResumeWithProgress` call in `useAIAction({ operation: 'tailor' }).execute()`.
-
----
-
-## HIGH: Job Description Lost Between Screens
-
-When users navigate from `AnalyzeJobSheet` or `ApplicationsPage` to the editor with tailor intent, the job description they already entered is **not carried over**. The `AnalyzeJobSheet` only passes `jobTitle` and `jobCompany` as query params, but not the full job description text. Users have to paste the job description a second time in the TailorSheet.
-
-**Fix:** Before navigating, store the job description in the Zustand store (`setJobDescription()`), which the TailorSheet already reads from on open. This eliminates the need to pass it via URL params.
+**Fix:** Add `'analyze': 2` to `AI_COST_MAP` and wrap the `analyzeResume()` call in `useAIAction({ operation: 'analyze' }).execute()`.
 
 ---
 
-## MEDIUM: No Resume Selection When TailorSheet Opens Without Context
+## HIGH: AnalyzeJobSheet Fake "Analyzing" Progress
 
-When TailorSheet is opened from AI Studio (`AIStudioPage`), it relies on `currentResume` being set in the Zustand store. If the user hasn't recently edited a resume, `currentResume` is null, and tapping "Tailor My Resume" shows a toast error: "No resume to tailor". There's no way to select a resume from within the sheet.
+When the user pastes a URL and `JobUrlParser` already parsed title/company, tapping "Analyze Job" runs a fake animation (5 steps x 300ms = 1.5s) that does nothing new -- it just updates `parsedJob.description` and switches to results. For manual text input, it uses a crude heuristic (regex for "company" or "at") to guess company name, which fails for most real job descriptions.
 
-**Fix:** Add a resume picker at the top of TailorSheet when `currentResume` is null -- a simple dropdown or list of the user's resumes that sets `currentResumeId` when selected.
+This is misleading. If we're already showing rich parsed data from Step 1 above, the "Analyze" button becomes meaningful. For manual text input, the heuristic should be replaced with actual AI extraction.
 
----
-
-## MEDIUM: Confusing Input Flow in JobUrlParser
-
-The `JobUrlParser` component has an unintuitive interaction pattern:
-
-1. It starts in "URL mode" showing a URL input field
-2. If the user starts typing plain text, `handleInputChange` is defined but **never actually connected** as an event handler -- the URL input has its own inline onChange
-3. The "Or paste manually" toggle switches to a textarea, but there's no clear visual indication of which mode is active
-4. If URL parsing fails, it auto-shows the manual textarea, but the URL input remains visible above with stale content
-
-**Fix:** Simplify to a single smart input: one textarea that auto-detects URLs. If the pasted content contains a URL, show a "Parse URL" button inline. Remove the mode toggle entirely.
+**Fix:** For manual text input, send the text to `parse-job-url` edge function (or a new lightweight edge function) to extract structured data via AI instead of using the broken regex heuristic. For URL-parsed jobs, skip the fake progress entirely and go straight to results.
 
 ---
 
-## LOW: Inconsistent Param Names Across Callers
+## MEDIUM: No "Start Over" or "Edit" from Results
 
-- `AnalyzeJobSheet` uses `jobCompany` as a query param
-- `ApplicationsPage` uses `company` as a query param
-- Neither is read by EditorPage anyway (since `?tailor=true` isn't handled)
+Once `AnalyzeJobSheet` shows results, the only options are "Tailor a Resume" or "Save Job for Later". There's no way to:
+- Edit the job description
+- Analyze a different job
+- Go back to the input phase
 
-This will cause bugs when the deep-link is fixed if the param names aren't standardized.
+Users are stuck unless they close and reopen the sheet.
 
-**Fix:** Standardize on `jobTitle` and `company` across all callers.
+**Fix:** Add a "Start Over" or back-arrow button in the results phase header.
 
 ---
 
-## LOW: "What's new in AI Tailor" Tips Section
+## MEDIUM: JobAnalysisSheet Shows Stale Results
 
-The initial state of TailorSheet shows a permanent "What's new" tips section at the bottom. For returning users, this is wasted space that pushes the "Tailor My Resume" button further down. For new users, it's useful context.
+`JobAnalysisSheet` reads `matchScore` and `gapAnalysis` from the Zustand store. These persist across open/close cycles. If a user analyzes Job A, closes the sheet, edits their resume, then reopens the sheet, they see stale scores from Job A with no indication the data is outdated.
 
-**Fix:** Show this section only once per user, then collapse it. Use `localStorage` or `onboarding_flags` in user_preferences.
+**Fix:** Clear `matchScore` and `gapAnalysis` from the store when the sheet closes, or show a "Results may be outdated" warning if the resume was modified since the last analysis.
+
+---
+
+## LOW: AnalyzeJobSheet Doesn't Use Credits for URL Parsing
+
+The `parse-job-url` edge function uses `recordUsage()` server-side but the client doesn't gate it with `useAIAction`. This means no credit check before the AI call. Given that URL parsing is a lighter operation and already rate-limited server-side, this is lower priority but should be consistent with the rest of the app.
+
+---
+
+## LOW: "Supported Sites" Badges Are Misleading
+
+`JobUrlParser` shows badges for LinkedIn, Indeed, Glassdoor, and "Any URL". But the backend whitelist includes 25+ domains, and "Any URL" is false -- arbitrary domains are rejected. The badge should say "25+ job sites" or list the actual supported ones.
 
 ---
 
 ## Implementation Plan
 
-### Step 1: Fix the broken deep-link (Critical)
+### Step 1: Surface rich parsed data in AnalyzeJobSheet
 
-In `EditorPage.tsx`, extend the existing `useEffect` to also handle `?tailor=true`:
+- Update `parseJobUrl()` return type in `aiTailor.ts` to include all fields from the edge function
+- Redesign the `AnalyzeJobSheet` results phase to show: experience level badge, salary range, work mode, must-have skills, nice-to-have skills, benefits, red flags, culture signals
+- Remove fake progress animation when URL already parsed; go straight to rich results
+- For manual text input, send the text to the backend for AI extraction instead of using the heuristic regex
 
-```tsx
-useEffect(() => {
-  if (searchParams.get('openTailor') === '1' || searchParams.get('tailor') === 'true') {
-    setShowTailor(true);
-    // Clean up all tailor-related params
-    searchParams.delete('openTailor');
-    searchParams.delete('tailor');
-    searchParams.delete('jobTitle');
-    searchParams.delete('company');
-    searchParams.delete('jobCompany');
-    setSearchParams(searchParams, { replace: true });
-  }
-}, [searchParams, setSearchParams]);
-```
+### Step 2: Add credit gating to JobAnalysisSheet
 
-### Step 2: Carry job description through navigation
+- Add `'analyze': 2` to `AI_COST_MAP`
+- Wrap `analyzeResume()` in `useAIAction({ operation: 'analyze' }).execute()`
 
-In `AnalyzeJobSheet.handleTailor()` and `ApplicationsPage`, call `setJobDescription(description)` on the Zustand store before navigating. TailorSheet already reads `jobDescription` from the store on open, so it will be pre-populated.
+### Step 3: Add "Start Over" to AnalyzeJobSheet results
 
-### Step 3: Add credit gating to SetTargetJobSheet
+- Add a back button/link in the results phase that calls `resetState()` to return to the input phase
 
-Add `useAIAction({ operation: 'tailor' })` and wrap the `tailorResumeWithProgress` call in `execute()`.
+### Step 4: Clear stale results in JobAnalysisSheet
 
-### Step 4: Add resume picker fallback to TailorSheet
-
-When `currentResume` is null, show a compact resume selector (list of user's resumes from `useResumes()`) instead of the job input form.
+- On sheet close (`onOpenChange(false)`), clear `matchScore` and `gapAnalysis` from the Zustand store so reopening always starts fresh
 
 ### Step 5: Minor fixes
 
-- Standardize query param names to `jobTitle` and `company`
-- Auto-dismiss the "What's new" tips after first view
+- Update supported sites badges to be accurate ("25+ job sites supported")
+- Ensure consistent credit gating pattern
 
 ### Files to modify:
 
 | File | Change |
 |------|--------|
-| `src/pages/EditorPage.tsx` | Handle `?tailor=true` in addition to `?openTailor=1` |
-| `src/components/dashboard/AnalyzeJobSheet.tsx` | Store job description in Zustand before navigating; standardize param names |
-| `src/pages/ApplicationsPage.tsx` | Store job description in Zustand before navigating |
-| `src/components/dashboard/SetTargetJobSheet.tsx` | Wrap AI call in `useAIAction` for credit gating |
-| `src/components/editor/TailorSheet.tsx` | Add resume picker when no resume is loaded; auto-hide tips |
+| `src/lib/aiTailor.ts` | Expand `parseJobUrl()` return type to include all rich fields |
+| `src/components/dashboard/AnalyzeJobSheet.tsx` | Show rich parsed data, remove fake progress, add "Start Over" button |
+| `src/components/editor/JobAnalysisSheet.tsx` | Add `useAIAction` credit gating, clear stale results on close |
+| `src/lib/aiCostEstimates.ts` | Add `'analyze': 2` entry |
+| `src/components/editor/tailor/JobUrlParser.tsx` | Fix supported sites badges |
 
