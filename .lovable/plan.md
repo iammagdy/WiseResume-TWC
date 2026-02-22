@@ -1,167 +1,102 @@
 
 
-# Wise Orbit: Solar System Landing Page
+# Fix Wise Orbit: Visual Quality and Animation Overhaul
 
-## Overview
+## Problems Identified
 
-A new full-screen "Wise Orbit" solar system landing page becomes the app's entry point at `/`. The current landing page moves to a new route and is accessed by clicking the "WiseResume" planet. No existing code is removed or broken.
+1. **Mobile: Planets are completely static** -- they sit at fixed positions and never orbit the sun
+2. **Mobile: Sun looks flat/cartoonish** -- simple CSS gradient with no depth or surface detail
+3. **Mobile: No entrance animations** -- everything appears instantly with no visual flair
+4. **Mobile: Orbit rings are barely visible** -- thin 6% opacity borders
+5. **Desktop: Stars render as dark dots** -- the Milky Way background shader is too bright/gray, washing out the star points and inverting their appearance against the background
+6. **Desktop: Background looks gray/washed out** -- the milky way shader outputs too much light, making the space background look muddy instead of dark
 
-## Architecture
+## Solution
 
-**Routing change:**
-- `/` -- New Wise Orbit solar system page
-- `/home` -- Current landing page (moved here, code unchanged)
-- Clicking the "WiseResume" planet navigates to `/home`
+Rewrite the mobile solar system with smooth CSS orbit animations and a much richer sun, and fix the desktop shaders so the background is properly dark with bright stars.
 
-**Dual rendering:**
-- Desktop (768px+): 3D WebGL scene using `@react-three/fiber` + `@react-three/drei`
-- Mobile (<768px): Pure CSS + Canvas 2D (zero WebGL)
+## Changes
 
-**Code splitting:** Desktop 3D bundle is lazy-loaded and never downloaded on mobile.
+### 1. `src/components/solar/MobileSolarSystem.tsx` -- Full rewrite
 
-## New Dependencies
+**Orbiting planets using CSS animations:**
+- Each planet gets a wrapper div that uses `animation: orbit Xs linear infinite` (CSS transform rotate)
+- The planet is offset from center using `translateX(radius)`, so the parent's rotation makes it orbit
+- Different speeds per planet: WiseResume ~12s, PDF Tools ~18s, Finance ~25s
+- Each starts at a different angle via `animation-delay` negative offset
 
-- `three` (peer dependency for react-three)
-- `@react-three/fiber@^8.18.0` (React 18 compatible)
-- `@react-three/drei@^9.122.0` (helpers)
-- `@react-three/postprocessing@^2.16.0` (bloom, vignette)
+**Improved sun with Canvas 2D rendering:**
+- Replace flat CSS gradient with a Canvas 2D sun that draws:
+  - Animated radial gradient core with shifting colors
+  - Subtle noise-like surface texture using overlapping semi-transparent arcs
+  - Animated outer corona glow rings that pulse
+- Canvas runs at 30 FPS, shares the star animation loop
+- Much more realistic and less "cartoonish"
 
-## File Structure
+**Entrance animations:**
+- Header fades in with slight delay
+- Sun scales in from 0
+- Orbit rings fade in sequentially
+- Planets fade in after their ring appears
+- Bottom hint fades in last
+- All using CSS `@keyframes` with `animation-delay` and `animation-fill-mode: both`
 
+**Better orbit ring styling:**
+- Slightly thicker rings with subtle gradient or dashed pattern
+- Higher opacity (12-15% instead of 6%)
+- Subtle glow effect on the unlocked orbit
+
+### 2. `src/components/solar/shaders/milkyWay.glsl.ts` -- Fix background
+
+The current shader outputs too much light, making the scene look gray. Changes:
+- Reduce galactic plane brightness from 0.5 to 0.15
+- Reduce bulge intensity from 0.5 to 0.2
+- Make the base color darker (0.005 instead of 0.01)
+- Reduce emission and reflection nebula brightness
+- Overall: space should be predominantly dark with subtle hints of galaxy structure
+
+### 3. `src/components/solar/DesktopSolarSystem.tsx` -- Minor fixes
+
+- Increase star point size from 0.15 to 0.25 so they're visible against the dark background
+- Increase star opacity from 0.8 to 1.0
+
+### 4. `src/components/solar/SolarLoadingScreen.tsx` -- Polish
+
+- Add subtle star twinkle dots in the background
+- Smoother sun animation with scale + glow
+
+### 5. `tailwind.config.ts` -- Add mobile orbit keyframes
+
+Add new keyframes for the mobile orbit animations and entrance effects:
+- `orbit-planet`: `0% { transform: rotate(0deg) translateX(var(--orbit-r)) rotate(0deg) } 100% { rotate(360deg) translateX(var(--orbit-r)) rotate(-360deg) }` -- the counter-rotation keeps planet labels upright
+- `fade-in-up-delay`: for staggered entrance
+
+## Technical Details
+
+### Mobile orbit technique (pure CSS, no JS animation needed):
 ```text
-src/
-  pages/
-    Index.tsx              -- NEW: Wise Orbit (replaces current)
-    HomePage.tsx           -- RENAMED from current Index.tsx (no code changes)
-  components/
-    solar/
-      DesktopSolarSystem.tsx   -- 3D WebGL scene (lazy loaded)
-      MobileSolarSystem.tsx    -- CSS + Canvas 2D version
-      WiseAIModal.tsx          -- Dialog when tapping the sun
-      SolarLoadingScreen.tsx   -- Loading fallback during lazy load
-      shaders/
-        sunVertex.glsl.ts      -- Sun vertex shader as string
-        sunFragment.glsl.ts    -- Sun fragment shader as string
-        milkyWay.glsl.ts       -- Background galaxy shader
-        corona.glsl.ts         -- Corona material shader
+Container (centered)
+  Orbit wrapper (absolute, centered, animation: rotate 12s linear infinite)
+    Planet (offset via translateX, counter-rotate to stay upright)
 ```
 
-## Planets Configuration
+This is GPU-accelerated (transform only), runs at 60fps with zero JS cost, and pauses automatically via `animation-play-state: paused` when tab is hidden.
 
-| Planet | Status | Action on Click |
-|--------|--------|-----------------|
-| WiseResume | Unlocked | Navigate to `/home` (current landing page) |
-| PDF Tools | Locked | Toast: "Coming Soon" |
-| Finance | Locked | Toast: "Coming Soon" |
+### Performance budget:
+- Canvas 2D starfield: 150 stars at 30 FPS (unchanged)
+- Sun canvas: shares same animation loop, draws ~20 arcs per frame
+- CSS orbit animations: GPU-composited transforms, near-zero CPU
+- No new dependencies added
 
-Clicking the **Sun** opens the **Wise AI modal** (placeholder for future AI assistant).
+## Files Modified
 
-## Detailed Changes
+| File | Change |
+|------|--------|
+| `src/components/solar/MobileSolarSystem.tsx` | Add orbiting planets, better sun, entrance animations |
+| `src/components/solar/shaders/milkyWay.glsl.ts` | Darken background so stars are visible |
+| `src/components/solar/DesktopSolarSystem.tsx` | Increase star size and opacity |
+| `src/components/solar/SolarLoadingScreen.tsx` | Polish loading animation |
+| `tailwind.config.ts` | Add orbit keyframes |
 
-### 1. Rename current `Index.tsx` to `HomePage.tsx`
-
-Copy the current `src/pages/Index.tsx` to `src/pages/HomePage.tsx` with zero code changes. The current landing page lives on untouched.
-
-### 2. New `src/pages/Index.tsx` (Wise Orbit entry)
-
-```tsx
-import { lazy, Suspense } from 'react';
-import { SolarLoadingScreen } from '@/components/solar/SolarLoadingScreen';
-
-const DesktopSolarSystem = lazy(() => import('@/components/solar/DesktopSolarSystem'));
-const MobileSolarSystem = lazy(() => import('@/components/solar/MobileSolarSystem'));
-
-export default function Index() {
-  const [isMobile, setIsMobile] = useState(false);
-  // 768px breakpoint for mobile/desktop split
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)');
-    setIsMobile(mq.matches);
-    const handler = (e) => setIsMobile(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  return (
-    <Suspense fallback={<SolarLoadingScreen />}>
-      {isMobile ? <MobileSolarSystem /> : <DesktopSolarSystem />}
-    </Suspense>
-  );
-}
-```
-
-### 3. Update `src/App.tsx` routing
-
-- Add `/home` route pointing to `HomePage` (the old landing page)
-- Keep `/` pointing to the new `Index` (Wise Orbit)
-- `/home` stays public (no auth required)
-
-### 4. `SolarLoadingScreen.tsx`
-
-Full-screen dark background with animated sun loader and "Initializing universe..." text. Matches the space aesthetic.
-
-### 5. `MobileSolarSystem.tsx` (Mobile, <768px)
-
-- **Background**: Deep space gradient (CSS)
-- **Starfield**: Canvas 2D, 150 stars, 30 FPS cap, pauses when tab hidden
-- **Sun**: Layered CSS gradients with pulse animation, positioned center-top
-- **Orbit rings**: CSS circles with planet buttons positioned on them
-- **Planet buttons**: Tap triggers navigation or "Coming Soon" toast
-- **Header overlay**: "WISE AI" branding top-left with the wise-ai-logo
-- **Bottom hint**: "Tap the sun or planets to explore"
-- **Wise AI Modal**: Opens on sun tap (Radix Dialog)
-
-### 6. `DesktopSolarSystem.tsx` (Desktop, 768px+)
-
-- **Canvas**: `@react-three/fiber` with `antialias: false`, DPR capped at [1, 1.5]
-- **Sun**: Custom shader material with limb darkening, granulation noise, sunspots, 3 corona shells
-- **Planets**: 3 orbiting spheres (WiseResume blue, PDF Tools gray/locked, Finance gray/locked)
-- **Orbit rings**: Torus geometry, semi-transparent
-- **Starfield**: 5000 point particles with spectral color distribution
-- **Milky Way**: BackSide sphere with procedural galaxy shader
-- **Asteroid belt**: 250 instanced icosahedrons
-- **Post-processing**: Bloom + Vignette via `@react-three/postprocessing`
-- **Camera**: OrbitControls with damping, fly-to animation on planet/sun click
-- **Performance**: Frame throttling after 5s idle, Page Visibility API pause, `webglcontextlost` handling
-
-### 7. `WiseAIModal.tsx`
-
-Uses existing `Dialog` component from shadcn/ui. Shows:
-- Animated avatar with pulsing rings and orbiting sparkles
-- "WISE AI" title
-- "The omniscient guide of your universe" subtitle
-- Two feature cards (Navigate career, Intelligent suggestions)
-- "Awakening Soon" status indicator
-
-### 8. Tailwind config additions
-
-New colors added to `tailwind.config.ts`:
-- `space-deep`, `space-dark`, `space-medium`
-- `sun-core`, `sun-mid`, `sun-edge`, `sun-corona`
-- `sunPulse` keyframe animation
-
-### 9. Vite config update
-
-Add `three` to the manual chunks to keep the 3D bundle separate:
-```js
-if (id.includes('node_modules/three') || id.includes('node_modules/@react-three')) return 'three-scene';
-```
-
-## What is NOT changed
-
-- All existing pages, components, hooks, stores, and contexts remain untouched
-- Auth flow unchanged
-- Protected routes unchanged
-- AppShell, BottomTabBar, DesktopNav unchanged
-- The current landing page content is preserved at `/home`
-
-## Performance Guarantees
-
-- Mobile loads zero WebGL/Three.js code (tree-shaken via lazy loading)
-- Desktop DPR capped at 1.5, antialias off
-- Frame throttling after 5s idle
-- Page Visibility API pauses rendering
-- Mobile canvas capped at 30 FPS
-- All shader materials use `useMemo`
-- 3D bundle code-split into separate chunk
+No new dependencies. No routing changes. No existing features affected.
 
