@@ -1,49 +1,67 @@
 
 
-# Fix: Logo Navigates to Wise Orbit Landing Page
+# Fix: Always Load the Latest App Version
 
 ## Problem
 
-The "WiseResume" logo/text in the app header (both mobile and desktop) is a plain text span with no click behavior. Users expect tapping the logo to take them back to the Wise Orbit landing page (`/`).
+The app uses a service worker (PWA) that caches all files. When a new version is deployed, the old service worker stays active and serves stale cached files until the user manually closes ALL tabs. This means users often see an old version of the app.
 
-## Changes
+Two things are missing:
 
-### 1. `src/components/layout/AppShell.tsx` (line 46)
+1. **`skipWaiting()`** in the service worker -- this tells the new service worker to take over immediately instead of waiting for old tabs to close
+2. **`clients.claim()`** -- this makes the new service worker control the current page right away
+3. **No update detection in the app** -- the app never checks for a new service worker or reloads when one is found
 
-Change the "WiseResume" `<span>` to a clickable element that navigates to `/`:
+## Solution
 
+### File 1: `public/custom-sw.js`
+
+Add `skipWaiting()` and `clients.claim()` so the new service worker activates immediately:
+
+```js
+// At the top, after imports:
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
 ```
-Before: <span className="text-sm font-bold text-primary">WiseResume</span>
-After:  <button onClick={() => navigate('/')} className="text-sm font-bold text-primary">WiseResume</button>
+
+### File 2: `src/main.tsx`
+
+Register the service worker with update detection. When a new version is found, automatically reload the page so the user always gets the latest code:
+
+```tsx
+import { registerSW } from 'virtual:pwa-register';
+
+const updateSW = registerSW({
+  onNeedRefresh() {
+    // New version available -- update immediately
+    updateSW(true);
+  },
+  onOfflineReady() {
+    console.log('[SW] App ready for offline use');
+  },
+});
 ```
 
-Add `useNavigate` import from react-router-dom (already imported via `useLocation`).
-
-### 2. `src/components/layout/DesktopNav.tsx` (line 95)
-
-Same change -- make the desktop nav brand text clickable:
-
-```
-Before: <span className="text-sm font-bold text-primary mr-3 select-none">WiseResume</span>
-After:  <button onClick={() => navigate('/')} className="text-sm font-bold text-primary mr-3 select-none">WiseResume</button>
-```
-
-`useNavigate` is already imported in this file.
-
-### 3. `src/lib/navigation.ts` -- Update BACK_ROUTES
-
-Add `/home` to the back routes so pressing hardware back from the app landing page goes to Wise Orbit:
-
-```
-'/home': '/',
-```
+This calls `updateSW(true)` which tells the waiting service worker to activate and then reloads the page automatically.
 
 ## Summary
 
-| File | Change |
-|------|--------|
-| `src/components/layout/AppShell.tsx` | Make logo text a button that navigates to `/` |
-| `src/components/layout/DesktopNav.tsx` | Make logo text a button that navigates to `/` |
-| `src/lib/navigation.ts` | Add `/home` back route to `/` |
+| # | File | Change |
+|---|------|--------|
+| 1 | `public/custom-sw.js` | Add `skipWaiting()` on install + `clients.claim()` on activate |
+| 2 | `src/main.tsx` | Add `registerSW` with auto-refresh on new version |
 
-No new dependencies. No routing changes. Two lines changed per file.
+No database changes. No new dependencies (registerSW comes from vite-plugin-pwa which is already installed).
+
+## How it works after the fix
+
+1. User opens the app -- service worker is registered
+2. A new version is deployed -- browser detects the new service worker in the background
+3. New SW calls `skipWaiting()` to activate immediately
+4. `onNeedRefresh()` fires in the app, which triggers an automatic reload
+5. User always sees the latest version

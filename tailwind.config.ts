@@ -103,17 +103,6 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
-        space: {
-          deep: "hsl(240 20% 2%)",
-          dark: "hsl(250 25% 4%)",
-          medium: "hsl(240 20% 8%)",
-        },
-        sun: {
-          core: "hsl(43 96% 80%)",
-          mid: "hsl(33 100% 55%)",
-          edge: "hsl(20 100% 45%)",
-          corona: "hsl(33 100% 50%)",
-        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -197,10 +186,6 @@ export default {
           "70%": { opacity: "1" },
           "100%": { transform: "translateX(200%) translateY(200%)", opacity: "0" },
         },
-        "sun-pulse": {
-          "0%, 100%": { transform: "scale(1)", opacity: "0.8" },
-          "50%": { transform: "scale(1.15)", opacity: "1" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -218,7 +203,6 @@ export default {
         "float-slow": "float-slow 6s ease-in-out infinite",
         "pulse-glow-cosmic": "pulse-glow-cosmic 3s ease-in-out infinite",
         "shooting-star": "shooting-star 3s ease-out infinite",
-        "sun-pulse": "sun-pulse 3s ease-in-out infinite",
       },
     },
   },
