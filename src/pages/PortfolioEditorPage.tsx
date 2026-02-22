@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
 import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
 import { BackButton } from '@/components/ui/BackButton';
@@ -74,6 +75,18 @@ export default function PortfolioEditorPage() {
   const [testimonials, setTestimonials] = useState<Array<{id:string;quote:string;authorName:string;authorTitle:string}>>([]);
   const [highlights, setHighlights] = useState<Array<{id:string;value:string;label:string}>>([]);
   const [activeTab, setActiveTab] = useState<'setup' | 'design' | 'more'>('setup');
+
+  const tabIndexMap = { setup: 0, design: 1, more: 2 } as const;
+  const directionRef = useRef(0);
+  const prevTabRef = useRef(activeTab);
+  const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, []);
+
+  const handleTabChange = useCallback((tab: 'setup' | 'design' | 'more') => {
+    directionRef.current = tabIndexMap[tab] > tabIndexMap[prevTabRef.current] ? 1 : -1;
+    prevTabRef.current = tab;
+    haptics.light();
+    setActiveTab(tab);
+  }, []);
 
   const usernameCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -391,7 +404,7 @@ export default function PortfolioEditorPage() {
           ] as const).map(tab => (
             <button
               key={tab.id}
-              onClick={() => { haptics.light(); setActiveTab(tab.id); }}
+              onClick={() => handleTabChange(tab.id)}
               className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all min-h-[44px] touch-manipulation active:scale-[0.97] ${
                 activeTab === tab.id
                   ? 'glass-elevated text-foreground shadow-[0_0_16px_-4px_hsl(var(--primary)/0.2)]'
@@ -404,84 +417,94 @@ export default function PortfolioEditorPage() {
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'setup' && (
-          <SetupTab
-            username={username}
-            onUsernameChange={handleUsernameChange}
-            usernameError={usernameError}
-            usernameAvailable={usernameAvailable}
-            checkingUsername={checkingUsername}
-            resumes={resumes}
-            selectedResumeId={selectedResumeId}
-            onSelectedResumeIdChange={setSelectedResumeId}
-            bio={bio}
-            onBioChange={setBio}
-            onGenerateBio={handleGenerateBio}
-            generatingBio={generatingBio}
-            githubUrl={githubUrl}
-            onGithubUrlChange={setGithubUrl}
-            websiteUrl={websiteUrl}
-            onWebsiteUrlChange={setWebsiteUrl}
-            twitterUrl={twitterUrl}
-            onTwitterUrlChange={setTwitterUrl}
-            contactEmail={contactEmail}
-            onContactEmailChange={setContactEmail}
-            openToWork={openToWork}
-            onOpenToWorkChange={setOpenToWork}
-            availabilityHeadline={availabilityHeadline}
-            onAvailabilityHeadlineChange={setAvailabilityHeadline}
-            onGenerateAvailability={handleGenerateAvailability}
-            generatingAvailability={generatingAvailability}
-          />
-        )}
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={activeTab}
+            initial={reducedMotion ? false : { x: directionRef.current * 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={reducedMotion ? undefined : { x: directionRef.current * -20, opacity: 0 }}
+            transition={{ duration: reducedMotion ? 0 : 0.2, ease: 'easeInOut' }}
+          >
+            {activeTab === 'setup' && (
+              <SetupTab
+                username={username}
+                onUsernameChange={handleUsernameChange}
+                usernameError={usernameError}
+                usernameAvailable={usernameAvailable}
+                checkingUsername={checkingUsername}
+                resumes={resumes}
+                selectedResumeId={selectedResumeId}
+                onSelectedResumeIdChange={setSelectedResumeId}
+                bio={bio}
+                onBioChange={setBio}
+                onGenerateBio={handleGenerateBio}
+                generatingBio={generatingBio}
+                githubUrl={githubUrl}
+                onGithubUrlChange={setGithubUrl}
+                websiteUrl={websiteUrl}
+                onWebsiteUrlChange={setWebsiteUrl}
+                twitterUrl={twitterUrl}
+                onTwitterUrlChange={setTwitterUrl}
+                contactEmail={contactEmail}
+                onContactEmailChange={setContactEmail}
+                openToWork={openToWork}
+                onOpenToWorkChange={setOpenToWork}
+                availabilityHeadline={availabilityHeadline}
+                onAvailabilityHeadlineChange={setAvailabilityHeadline}
+                onGenerateAvailability={handleGenerateAvailability}
+                generatingAvailability={generatingAvailability}
+              />
+            )}
 
-        {activeTab === 'design' && (
-          <DesignTab
-            portfolioStyle={portfolioStyle}
-            onPortfolioStyleChange={setPortfolioStyle}
-            portfolioAccentColor={portfolioAccentColor}
-            onPortfolioAccentColorChange={setPortfolioAccentColor}
-            portfolioFont={portfolioFont}
-            onPortfolioFontChange={setPortfolioFont}
-            portfolioLayout={portfolioLayout}
-            onPortfolioLayoutChange={setPortfolioLayout}
-            selectedTheme={selectedTheme}
-            onSelectedThemeChange={setSelectedTheme}
-          />
-        )}
+            {activeTab === 'design' && (
+              <DesignTab
+                portfolioStyle={portfolioStyle}
+                onPortfolioStyleChange={setPortfolioStyle}
+                portfolioAccentColor={portfolioAccentColor}
+                onPortfolioAccentColorChange={setPortfolioAccentColor}
+                portfolioFont={portfolioFont}
+                onPortfolioFontChange={setPortfolioFont}
+                portfolioLayout={portfolioLayout}
+                onPortfolioLayoutChange={setPortfolioLayout}
+                selectedTheme={selectedTheme}
+                onSelectedThemeChange={setSelectedTheme}
+              />
+            )}
 
-        {activeTab === 'more' && (
-          <MoreTab
-            sections={sections}
-            onToggleSectionVisibility={toggleSectionVisibility}
-            syncMode={syncMode}
-            onSyncModeChange={setSyncMode}
-            openSections={openSections}
-            toggleSection={toggleSection}
-            caseStudies={caseStudies}
-            onCaseStudiesChange={setCaseStudies}
-            services={services}
-            onServicesChange={setServices}
-            testimonials={testimonials}
-            onTestimonialsChange={setTestimonials}
-            highlights={highlights}
-            onHighlightsChange={setHighlights}
-            metaTitle={metaTitle}
-            onMetaTitleChange={setMetaTitle}
-            metaDescription={metaDescription}
-            onMetaDescriptionChange={setMetaDescription}
-            onGenerateSEO={handleGenerateSEO}
-            generatingSEO={generatingSEO}
-            seoPlaceholderName={profile?.fullName || 'Name'}
-            seoPlaceholderTitle={profile?.jobTitle || 'Job Title'}
-            portfolioUsername={profile?.username || undefined}
-            userId={user?.id}
-            portfolioEnabled={portfolioEnabled}
-            views={profile?.views || 0}
-            onOpenCareerCard={() => setShowCareerCard(true)}
-            hasLivePortfolio={portfolioEnabled && !!username}
-          />
-        )}
+            {activeTab === 'more' && (
+              <MoreTab
+                sections={sections}
+                onToggleSectionVisibility={toggleSectionVisibility}
+                syncMode={syncMode}
+                onSyncModeChange={setSyncMode}
+                openSections={openSections}
+                toggleSection={toggleSection}
+                caseStudies={caseStudies}
+                onCaseStudiesChange={setCaseStudies}
+                services={services}
+                onServicesChange={setServices}
+                testimonials={testimonials}
+                onTestimonialsChange={setTestimonials}
+                highlights={highlights}
+                onHighlightsChange={setHighlights}
+                metaTitle={metaTitle}
+                onMetaTitleChange={setMetaTitle}
+                metaDescription={metaDescription}
+                onMetaDescriptionChange={setMetaDescription}
+                onGenerateSEO={handleGenerateSEO}
+                generatingSEO={generatingSEO}
+                seoPlaceholderName={profile?.fullName || 'Name'}
+                seoPlaceholderTitle={profile?.jobTitle || 'Job Title'}
+                portfolioUsername={profile?.username || undefined}
+                userId={user?.id}
+                portfolioEnabled={portfolioEnabled}
+                views={profile?.views || 0}
+                onOpenCareerCard={() => setShowCareerCard(true)}
+                hasLivePortfolio={portfolioEnabled && !!username}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       {/* Sticky Save Bar */}
