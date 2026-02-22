@@ -1,27 +1,18 @@
 
+# Fix Broken Landing Page — Missing Logo Import
 
-# Restore Original Logo
-
-## What Went Wrong
-During the image optimization, I replaced your logo with a different generated image instead of simply compressing the original `wise-ai-logo.png`. This was absolutely wrong and I apologize.
+## Problem
+The landing page is showing a loading spinner and failing with a 500 error because `src/pages/Index.tsx` (line 4) still imports `wise-ai-logo.webp`, which was deleted in the previous logo restoration step. Only `AppIcon.tsx` and `Footer.tsx` were updated to use `.png` -- `Index.tsx` was missed.
 
 ## Fix
 
-### 1. Revert all logo imports back to the original PNG
-The original `wise-ai-logo.png` file still exists in the project untouched. I will update all files that were changed to import `.webp` back to `.png`:
+### 1. Update logo import in Index.tsx
+**File:** `src/pages/Index.tsx`, line 4
+- Change `import wiseAiLogo from '@/assets/wise-ai-logo.webp'` to `import wiseAiLogo from '@/assets/wise-ai-logo.png'`
 
-- `src/components/brand/AppIcon.tsx` -- change import back to `wise-ai-logo.png`
-- `src/components/landing/Footer.tsx` -- change import back to `wise-ai-logo.png`
+That single line change will restore the landing page. Once it loads, I will scroll through the entire page at 375px width and check for horizontal overflow or text clipping.
 
-### 2. Remove the incorrect WebP file
-Delete `src/assets/wise-ai-logo.webp` since it contains the wrong image.
-
-### 3. Restore favicon and PWA icon
-Copy the original `wise-ai-logo.png` back to:
-- `public/favicon.png`
-- `public/icons/icon-144x144.png`
-
-These were overwritten with the wrong image as well.
-
-## Future Approach
-Image compression or replacement will never be done without explicit user approval of the specific image being used.
+### 2. Visual QA pass (after fix)
+- Navigate to `/` at 375x812
+- Scroll through every section: hero, comparison strip, demo cards, features, trust pillars, how-it-works, bottom CTA, footer
+- Check for horizontal scrollbar, text clipping, and overflow issues
