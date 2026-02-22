@@ -54,21 +54,21 @@ export function EditorDemo() {
       timerRef.current = setTimeout(() => setPhase('enhancing'), PAUSE_AFTER_TYPE);
     }
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [phase, typed, prefersReducedMotion]);
+  }, [phase, typed, prefersReducedMotion, inView]);
 
   // Enhancing → enhanced
   useEffect(() => {
     if (prefersReducedMotion || phase !== 'enhancing' || !inView) return;
     timerRef.current = setTimeout(() => setPhase('enhanced'), PAUSE_AFTER_ENHANCE);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [phase, prefersReducedMotion]);
+  }, [phase, prefersReducedMotion, inView]);
 
   // Enhanced → scoring
   useEffect(() => {
     if (prefersReducedMotion || phase !== 'enhanced' || !inView) return;
     timerRef.current = setTimeout(() => setPhase('scoring'), 800);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [phase, prefersReducedMotion]);
+  }, [phase, prefersReducedMotion, inView]);
 
   // Score animation
   useEffect(() => {
@@ -89,14 +89,14 @@ export function EditorDemo() {
     };
     frameRef.current = requestAnimationFrame(animate);
     return () => { if (frameRef.current) cancelAnimationFrame(frameRef.current); };
-  }, [phase, prefersReducedMotion]);
+  }, [phase, prefersReducedMotion, inView]);
 
   // Hold → restart
   useEffect(() => {
     if (prefersReducedMotion || phase !== 'hold' || !inView) return;
     timerRef.current = setTimeout(startLoop, HOLD_DURATION);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [phase, startLoop, prefersReducedMotion]);
+  }, [phase, startLoop, prefersReducedMotion, inView]);
 
   useEffect(() => cleanup, [cleanup]);
 
