@@ -797,14 +797,14 @@ export default function EditorPage() {
   const renderEditorContent = useCallback(() => (
     <>
       {activeTab === 'contact' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+        <div className="flex-1 flex flex-col" style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={User} title="Contact Information" tip="Include a professional email and phone number" status={getSectionStatus(sectionScores.contact)} action={<SectionAIAction section="contact" />}>
             <Suspense fallback={<SectionSkeleton />}><ContactSection /></Suspense>
           </SectionCard>
         </div>
       )}
       {activeTab === 'summary' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+        <div className="flex-1 flex flex-col" style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={AlignLeft} title="Professional Summary" tip="Write 2-4 sentences highlighting your key strengths" status={getSectionStatus(sectionScores.summary)} action={<SectionAIAction section="summary" />}>
             <Suspense fallback={<SectionSkeleton />}><SummarySection /></Suspense>
             <ATSInlineSuggestions section="summary" suggestions={getATSSuggestions('summary')} isAnalyzing={isAnalyzingSection('summary')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['summary']} onApplyDeep={(improved) => handleApplyDeep('summary', improved)} onDiscardDeep={() => clearDeepResult('summary')} />
@@ -812,7 +812,7 @@ export default function EditorPage() {
         </div>
       )}
       {activeTab === 'experience' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+        <div className="flex-1 flex flex-col" style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Briefcase} title="Work Experience" tip="Include 2-3 key achievements with metrics" status={getSectionStatus(sectionScores.experience)} action={<SectionAIAction section="experience" />}>
             <Suspense fallback={<SectionSkeleton />}><ExperienceSection /></Suspense>
             <ATSInlineSuggestions section="experience" suggestions={getATSSuggestions('experience')} isAnalyzing={isAnalyzingSection('experience')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['experience']} onApplyDeep={(improved) => handleApplyDeep('experience', improved)} onDiscardDeep={() => clearDeepResult('experience')} />
@@ -820,7 +820,7 @@ export default function EditorPage() {
         </div>
       )}
       {activeTab === 'education' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+        <div className="flex-1 flex flex-col" style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={GraduationCap} title="Education" tip="List your most relevant degrees and certifications" status={getSectionStatus(sectionScores.education)} action={<SectionAIAction section="education" />}>
             <Suspense fallback={<SectionSkeleton />}><EducationSection /></Suspense>
             {jobDescription && <ATSInlineSuggestions section="education" suggestions={getATSSuggestions('education')} isAnalyzing={isAnalyzingSection('education')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['education']} onApplyDeep={(improved) => handleApplyDeep('education', improved)} onDiscardDeep={() => clearDeepResult('education')} />}
@@ -828,7 +828,7 @@ export default function EditorPage() {
         </div>
       )}
       {activeTab === 'skills' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+        <div className="flex-1 flex flex-col" style={{ animation: 'spring-enter 0.35s ease-out' }}>
           <SectionCard icon={Wrench} title="Skills" tip="Add at least 5 relevant skills for ATS optimization" status={getSectionStatus(sectionScores.skills)} action={<SectionAIAction section="skills" />}>
             <Suspense fallback={<SectionSkeleton />}><SkillsSection /></Suspense>
             {jobDescription && <ATSInlineSuggestions section="skills" suggestions={getATSSuggestions('skills')} isAnalyzing={isAnalyzingSection('skills')} onDeepAnalyze={fetchDeepSuggestions} deepResult={deepResults['skills']} onApplyDeep={(improved) => handleApplyDeep('skills', improved)} onDiscardDeep={() => clearDeepResult('skills')} />}
@@ -836,7 +836,7 @@ export default function EditorPage() {
         </div>
       )}
       {activeTab === 'more' && (
-        <div style={{ animation: 'spring-enter 0.35s ease-out' }}>
+        <div className="flex-1 flex flex-col" style={{ animation: 'spring-enter 0.35s ease-out' }}>
           {!moreSubSection ? (
             <SectionCard icon={Plus} title="More Sections" tip="Add optional sections to stand out">
               <AddSectionSheet onSelectSection={(s) => setMoreSubSection(s)} />
@@ -1211,10 +1211,12 @@ export default function EditorPage() {
           >
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               <div
-                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0"
+                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0 flex flex-col"
                 ref={scrollContainerRef}
               >
-                {renderEditorContent()}
+                <div className="flex-1 flex flex-col">
+                  {renderEditorContent()}
+                </div>
               </div>
             </TabsContent>
             <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
