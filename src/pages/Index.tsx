@@ -424,16 +424,19 @@ const Index = () => {
               <Card className="p-5 border-t-2 border-border/30 border-t-primary/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-primary/20 transition-shadow duration-300">
                 <div className="text-center">
                   <motion.div
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2"
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.4, delay: 0.2 }}
-                    animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 0px hsl(var(--primary)/0)', '0 0 14px hsl(var(--primary)/0.35)', '0 0 0px hsl(var(--primary)/0)'] }}
-                    {...(!prefersReducedMotion && { transition: { boxShadow: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' }, opacity: { duration: 0.4, delay: 0.2 }, y: { duration: 0.4, delay: 0.2 } } })}
                   >
-                    <Sparkles className="w-3 h-3" />
-                    AI-Powered
+                    <motion.span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2"
+                      animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 0px hsl(var(--primary)/0)', '0 0 14px hsl(var(--primary)/0.35)', '0 0 0px hsl(var(--primary)/0)'] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      AI-Powered
+                    </motion.span>
                   </motion.div>
                   <motion.h3
                     className="text-lg font-bold text-foreground mb-1"
@@ -492,16 +495,19 @@ const Index = () => {
               <Card className="p-5 border-t-2 border-border/30 border-t-emerald-500/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-emerald-500/20 transition-shadow duration-300">
                 <div className="text-center">
                   <motion.div
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2"
                     initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.4, delay: 0.3 }}
-                    animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 0px hsl(142 71% 45%/0)', '0 0 14px hsl(142 71% 45%/0.4)', '0 0 0px hsl(142 71% 45%/0)'] }}
-                    {...(!prefersReducedMotion && { transition: { boxShadow: { duration: 2.5, repeat: Infinity, ease: 'easeInOut' }, opacity: { duration: 0.4, delay: 0.3 }, y: { duration: 0.4, delay: 0.3 } } })}
                   >
-                    <Globe className="w-3 h-3" />
-                    Live Website
+                    <motion.span
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2"
+                      animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 0px hsl(142 71% 45%/0)', '0 0 14px hsl(142 71% 45%/0.4)', '0 0 0px hsl(142 71% 45%/0)'] }}
+                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      <Globe className="w-3 h-3" />
+                      Live Website
+                    </motion.span>
                   </motion.div>
                   <motion.h3
                     className="text-lg font-bold text-foreground mb-1"
