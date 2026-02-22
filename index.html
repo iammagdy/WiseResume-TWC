@@ -47,7 +47,12 @@
 
     <script>
       (function() {
-        var t = localStorage.getItem('theme') || 'dark';
+        var t = 'dark';
+        try {
+          var raw = localStorage.getItem('wiseresume-settings');
+          if (raw) { t = JSON.parse(raw).state.theme || 'dark'; }
+          else { t = localStorage.getItem('theme') || 'dark'; }
+        } catch(e) {}
         var resolved = t === 'system'
           ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           : t;

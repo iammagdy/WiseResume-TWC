@@ -115,17 +115,23 @@ const queryClient = new QueryClient({
     },
   });
 
-   // Restore saved theme on mount (safety net for the inline script in index.html)
+   // Centralized theme sync — single source of truth from Zustand store
+   const theme = useSettingsStore((s) => s.theme);
    useEffect(() => {
-     const saved = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
-     const theme = saved || 'dark';
-     const resolved = theme === 'system'
-       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-       : theme;
      const root = document.documentElement;
-     root.classList.remove('light', 'dark');
-     root.classList.add(resolved);
-   }, []);
+     const apply = (resolved: 'light' | 'dark') => {
+       root.classList.remove('light', 'dark');
+       root.classList.add(resolved);
+     };
+     if (theme === 'system') {
+       const mq = window.matchMedia('(prefers-color-scheme: dark)');
+       apply(mq.matches ? 'dark' : 'light');
+       const handler = (e: MediaQueryListEvent) => apply(e.matches ? 'dark' : 'light');
+       mq.addEventListener('change', handler);
+       return () => mq.removeEventListener('change', handler);
+     }
+     apply(theme);
+   }, [theme]);
    
    const { biometricLockEnabled, biometricLockTimeout, hasSeenSplash, setHasSeenSplash } = useSettingsStore();
     const { isLocked, isAvailable, biometryType, isAuthenticating, authenticate } = useBiometricLock(biometricLockEnabled, biometricLockTimeout);

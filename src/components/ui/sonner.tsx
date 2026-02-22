@@ -1,25 +1,18 @@
-import { useState, useEffect } from "react";
 import { Toaster as Sonner, toast } from "sonner";
+import { useSettingsStore } from "@/store/settingsStore";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const [theme, setTheme] = useState<"light" | "dark" | "system">(() => {
-    if (typeof window === "undefined") return "dark";
-    return (localStorage.getItem("theme") as "light" | "dark" | "system") || "dark";
-  });
-
-  useEffect(() => {
-    const handleStorage = () => {
-      setTheme((localStorage.getItem("theme") as "light" | "dark" | "system") || "dark");
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+  const storeTheme = useSettingsStore((s) => s.theme);
+  const resolvedTheme: "light" | "dark" =
+    storeTheme === "system"
+      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+      : storeTheme;
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={resolvedTheme as ToasterProps["theme"]}
       className="toaster group"
       position="top-center"
       closeButton={false}

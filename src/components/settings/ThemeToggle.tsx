@@ -1,8 +1,9 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Monitor } from 'lucide-react';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { useSettingsStore } from '@/store/settingsStore';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -138,22 +139,8 @@ const glowMap: Record<Theme, string> = {
 
 
 export function ThemeToggle({ className }: ThemeToggleProps) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'dark';
-    return (localStorage.getItem('theme') as Theme) || 'dark';
-  });
-
-  const toggleRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    const resolved = theme === 'system'
-      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : theme;
-    const other = resolved === 'dark' ? 'light' : 'dark';
-    root.classList.replace(other, resolved) || root.classList.add(resolved);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
+  const theme = useSettingsStore((s) => s.theme);
+  const setTheme = useSettingsStore((s) => s.setTheme);
 
   const handleChange = useCallback(
     (newTheme: Theme, e: React.MouseEvent) => {
@@ -161,7 +148,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       haptics.selection();
       setTheme(newTheme);
     },
-    [theme]
+    [theme, setTheme]
   );
 
   const themes: { value: Theme; label: string }[] = [
@@ -173,7 +160,6 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
   return (
     <>
       <div
-        ref={toggleRef}
         className={cn(
           'relative flex items-center gap-0.5 p-1 rounded-xl bg-muted/60 backdrop-blur-sm',
           className

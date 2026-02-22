@@ -47,6 +47,9 @@ interface SettingsState {
   // Integrations (in-memory only, not persisted — keys stored server-side)
   elevenlabsApiKey: string;
   
+  // Theme
+  theme: 'light' | 'dark' | 'system';
+  
   // Proofread
   autoProofread: boolean;
   
@@ -81,6 +84,7 @@ interface SettingsState {
   setHasSeenAIStudioTour: (value: boolean) => void;
   setElevenlabsApiKey: (key: string) => void;
   setAutoProofread: (value: boolean) => void;
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
   
   // AI Provider Actions
   setAIProvider: (provider: AIProvider) => void;
@@ -121,6 +125,7 @@ const defaultSettings = {
   hasSeenAIStudioTour: false,
   elevenlabsApiKey: '',
   autoProofread: true,
+  theme: 'dark' as 'light' | 'dark' | 'system',
   // AI Provider defaults
   aiProvider: 'wiseresume' as AIProvider,
   geminiApiKey: '',
@@ -164,6 +169,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHasSeenAIStudioTour: (value) => set({ hasSeenAIStudioTour: value }),
       setElevenlabsApiKey: (key) => set({ elevenlabsApiKey: key }),
       setAutoProofread: (value) => set({ autoProofread: value }),
+      setTheme: (theme) => set({ theme }),
       
       // AI Provider Actions
       setAIProvider: (provider) => set({ aiProvider: provider }),
