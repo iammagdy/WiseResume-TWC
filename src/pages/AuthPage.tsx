@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
@@ -17,8 +17,6 @@ import { logAudit } from '@/lib/auditLogger';
 import { MagicLinkForm } from '@/components/auth/MagicLinkForm';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
-import { PasswordInput } from '@/components/auth/PasswordInput';
-import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
 import { VerifyEmailScreen } from '@/components/auth/VerifyEmailScreen';
 import { Mail } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -35,7 +33,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
 const COOLDOWN_KEY = 'wr-auth-cooldown';
 
-type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'magic-link' | 'verify-email' | 'email-not-confirmed';
+type AuthMode = 'login' | 'signup' | 'forgot-password' | 'magic-link' | 'verify-email' | 'email-not-confirmed';
 
 // Retry helper for transient network errors
 async function withNetworkRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
@@ -97,12 +95,6 @@ export default function AuthPage() {
     if (redirect) redirectRef.current = redirect;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Reset-password form state
-  const [resetPassword, setResetPassword] = useState('');
-  const [resetConfirm, setResetConfirm] = useState('');
-  const [showResetPassword, setShowResetPassword] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [resetTouched, setResetTouched] = useState({ password: false, confirm: false });
 
   // Forgot-password form state
   const [forgotEmail, setForgotEmail] = useState('');
@@ -116,20 +108,6 @@ export default function AuthPage() {
     }
   }, [searchParams]);
 
-  // Detect password reset callback
-  useEffect(() => {
-    if (searchParams.get('reset') === 'true') {
-      setMode('reset-password');
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setMode('reset-password');
-        window.history.replaceState({}, '', window.location.pathname);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [searchParams]);
 
   // Read ?mode= param
   useEffect(() => {
@@ -141,7 +119,7 @@ export default function AuthPage() {
 
   // Redirect authenticated users
   useEffect(() => {
-    if (session && mode !== 'reset-password') {
+    if (session) {
       navigate(redirectRef.current || '/dashboard', { replace: true });
     }
   }, [session, navigate, mode]);
@@ -313,7 +291,7 @@ export default function AuthPage() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: `${window.location.origin}/reset-password`,
       });
       if (error) { toast.error(error.message); return; }
       logAudit('auth', 'password_reset_requested', { email: forgotEmail });
@@ -323,27 +301,6 @@ export default function AuthPage() {
     finally { setIsLoading(false); }
   };
 
-  const getResetPasswordError = () => {
-    if (!resetPassword) return 'Password is required';
-    try { signupPasswordSchema.parse(resetPassword); return undefined; }
-    catch (e) { return e instanceof z.ZodError ? e.errors[0]?.message : 'Invalid password'; }
-  };
-
-  const handleUpdatePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setResetTouched({ password: true, confirm: true });
-    if (getResetPasswordError()) return;
-    if (resetPassword !== resetConfirm) { toast.error('Passwords do not match'); return; }
-    setIsLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ password: resetPassword });
-      if (error) { toast.error(error.message); return; }
-      logAudit('auth', 'password_updated', {});
-      toast.success('Password updated successfully!');
-      setTimeout(() => navigate('/dashboard'), 600);
-    } catch { toast.error('An unexpected error occurred.'); }
-    finally { setIsLoading(false); }
-  };
 
   const handleMagicLink = async (email: string) => {
     if (!navigator.onLine) { toast.error("You're offline — please check your connection and try again."); return; }
@@ -393,16 +350,13 @@ export default function AuthPage() {
   };
 
   const isForgotPassword = mode === 'forgot-password';
-  const isResetPassword = mode === 'reset-password';
   const isMagicLink = mode === 'magic-link';
   const isVerifyEmail = mode === 'verify-email';
   const isEmailNotConfirmed = mode === 'email-not-confirmed';
-  const resetPasswordError = getResetPasswordError();
   const forgotEmailError = !forgotEmail ? 'Email is required' : (() => { try { emailSchema.parse(forgotEmail); return undefined; } catch { return 'Please enter a valid email'; } })();
 
   // Header text
   const getHeaderTitle = () => {
-    if (isResetPassword) return 'Set New Password';
     if (isForgotPassword) return 'Reset Password';
     if (isMagicLink) return 'Sign In with Email Link';
     if (isVerifyEmail || isEmailNotConfirmed) return '';
@@ -410,7 +364,6 @@ export default function AuthPage() {
   };
 
   const getHeaderSubtitle = () => {
-    if (isResetPassword) return 'Enter your new password below';
     if (isForgotPassword) return "We'll send you a reset link";
     if (isMagicLink) return "We'll send a link to your inbox";
     if (isVerifyEmail || isEmailNotConfirmed) return '';
@@ -461,34 +414,6 @@ export default function AuthPage() {
               onBackToLogin={() => setMode('login')}
               variant="not-confirmed"
             />
-          ) : isResetPassword ? (
-            <form onSubmit={handleUpdatePassword} className="space-y-4">
-              <div>
-                <PasswordInput
-                  id="new-password" label="New Password"
-                  value={resetPassword} onChange={setResetPassword}
-                  onBlur={() => setResetTouched(p => ({ ...p, password: true }))}
-                  show={showResetPassword} onToggleShow={() => setShowResetPassword(!showResetPassword)}
-                  autoComplete="new-password"
-                  error={resetPasswordError} touched={resetTouched.password} required
-                />
-                <div className="mt-2">
-                  <PasswordStrengthMeter password={resetPassword} />
-                </div>
-              </div>
-              <PasswordInput
-                id="confirm-password" label="Confirm Password"
-                value={resetConfirm} onChange={setResetConfirm}
-                onBlur={() => setResetTouched(p => ({ ...p, confirm: true }))}
-                show={showResetConfirm} onToggleShow={() => setShowResetConfirm(!showResetConfirm)}
-                autoComplete="new-password"
-                error={resetTouched.confirm && resetConfirm && resetPassword !== resetConfirm ? 'Passwords do not match' : undefined}
-                touched={resetTouched.confirm} required
-              />
-              <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold gradient-primary glow-primary" disabled={isLoading}>
-                {isLoading ? <><MiniSpinner size={20} className="mr-2" />Updating...</> : 'Update Password'}
-              </Button>
-            </form>
           ) : isForgotPassword ? (
             <form onSubmit={handlePasswordReset} className="space-y-4">
               <InputFormField
