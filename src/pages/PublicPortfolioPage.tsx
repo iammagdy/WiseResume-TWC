@@ -7,9 +7,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen,
   Github, Globe, Mail, X, Download, ExternalLink,
-  Wrench, Layers, Sparkles, BookOpen, Heart, Trophy
+  Wrench, Layers, Sparkles, BookOpen, Heart, Trophy, ArrowUp
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useEffect, useState, useRef, useCallback, useMemo, Suspense } from 'react';
 import { toast } from 'sonner';
@@ -145,6 +145,7 @@ function PublicPortfolioContent() {
   const [showCareerCard, setShowCareerCard] = useState(false);
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const [nearFooter, setNearFooter] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const heroRef = useRef<HTMLDivElement>(null);
@@ -160,6 +161,8 @@ function PublicPortfolioContent() {
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const onScroll = () => {
       setNearFooter(window.scrollY + window.innerHeight >= document.body.scrollHeight - 200);
+      const max = document.body.scrollHeight - window.innerHeight;
+      setScrollProgress(max > 0 ? (window.scrollY / max) * 100 : 0);
       if (!prefersReduced) {
         document.documentElement.style.setProperty('--pf-scroll', String(window.scrollY));
       }
@@ -459,6 +462,47 @@ function PublicPortfolioContent() {
         accentColor={accentColor}
         visible={stickyVisible}
       />
+
+      {/* Scroll progress bar */}
+      {stickyVisible && scrollProgress > 0 && (
+        <div
+          className="fixed left-0 right-0 h-[3px] z-50 pointer-events-none"
+          style={{ top: '48px' }}
+        >
+          <div
+            className="h-full transition-[width] duration-75 ease-out"
+            style={{ width: `${scrollProgress}%`, backgroundColor: accentColor }}
+          />
+        </div>
+      )}
+
+      {/* Scroll-to-top button */}
+      <AnimatePresence>
+        {stickyVisible && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              haptics.light();
+            }}
+            className="fixed z-50 rounded-full shadow-lg active:scale-95 flex items-center justify-center"
+            style={{
+              bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
+              left: '16px',
+              width: '44px',
+              height: '44px',
+              backgroundColor: accentColor,
+              color: '#fff',
+            }}
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       <motion.div
         className="max-w-4xl mx-auto px-4 py-0"

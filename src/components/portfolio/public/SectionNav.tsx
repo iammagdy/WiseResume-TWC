@@ -20,7 +20,7 @@ export function SectionNav({ sections, accentColor }: SectionNavProps) {
           }
         }
       },
-      { threshold: 0.2, rootMargin: '-30% 0px -70% 0px' }
+      { threshold: 0.15, rootMargin: '-100px 0px -65% 0px' }
     );
 
     sections.forEach(s => {
@@ -44,7 +44,7 @@ export function SectionNav({ sections, accentColor }: SectionNavProps) {
     const el = document.getElementById(id);
     if (!el) return;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ behavior: prefersReduced ? 'auto' : 'smooth', block: 'start' });
+    window.scrollTo({ top: el.offsetTop - 100, behavior: prefersReduced ? 'auto' : 'smooth' });
     haptics.light();
   };
 
