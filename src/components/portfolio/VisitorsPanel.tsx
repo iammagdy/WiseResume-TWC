@@ -430,7 +430,7 @@ export function VisitorsPanel({ username, userId, portfolioEnabled }: VisitorsPa
     }
     haptics.light();
     createLink(
-      { userId, portfolioUsername: username, label: newLinkLabel.trim() },
+      { userId, portfolioUsername: username, label: newLinkLabel.trim(), targetUrl: `/p/${username.toLowerCase()}` },
       {
         onSuccess: () => {
           setNewLinkLabel('');
