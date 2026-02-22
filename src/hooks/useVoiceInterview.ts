@@ -323,8 +323,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     onNoSpeech: handleNoSpeech,
   });
 
-  // Check if speech is actually supported
-  const speechSupported = isWebSpeechSupported() || !!navigator.mediaDevices?.getUserMedia;
+  // Check if speech recognition and microphone are available separately
+  const speechRecognitionAvailable = isWebSpeechSupported();
+  const microphoneAvailable = !!navigator.mediaDevices?.getUserMedia;
+  const speechSupported = speechRecognitionAvailable && microphoneAvailable;
 
   useEffect(() => {
     // Pre-load voices
@@ -733,6 +735,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     error,
     interimText,
     speechSupported,
+    speechRecognitionAvailable,
     elapsedSeconds,
     silenceDetected,
     voiceGender,
