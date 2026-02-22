@@ -60,6 +60,7 @@ function InterviewPageContent() {
     error,
     interimText,
     speechSupported,
+    speechRecognitionAvailable,
     elapsedSeconds,
     silenceDetected,
     voiceGender,
@@ -294,6 +295,7 @@ function InterviewPageContent() {
           <InterviewSetup
             hasResume={!!currentResume && !!currentResume.contactInfo.fullName}
             speechSupported={speechSupported}
+            speechRecognitionAvailable={speechRecognitionAvailable}
             voiceGender={voiceGender}
             onVoiceGenderChange={setVoiceGender}
             onStart={handleSetupStart}

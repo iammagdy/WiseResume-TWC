@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2 } from 'lucide-react';
+import { Briefcase, FileText, AlertCircle, Sparkles, Rocket, User, UserRound, Zap, Mic, CheckCircle2, XCircle, Building2, Keyboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -13,6 +13,7 @@ type InterviewMode = 'general' | 'job-targeted' | 'quick-practice';
 interface InterviewSetupProps {
   hasResume: boolean;
   speechSupported: boolean;
+  speechRecognitionAvailable: boolean;
   voiceGender: VoiceGender;
   onVoiceGenderChange: (gender: VoiceGender) => void;
   onStart: (jobDescription?: string, options?: { quickPractice?: boolean }) => void;
@@ -23,7 +24,7 @@ interface InterviewSetupProps {
   };
 }
 
-export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoiceGenderChange, onStart, resumeData }: InterviewSetupProps) {
+export function InterviewSetup({ hasResume, speechSupported, speechRecognitionAvailable, voiceGender, onVoiceGenderChange, onStart, resumeData }: InterviewSetupProps) {
   const [mode, setMode] = useState<InterviewMode>(() => {
     const saved = localStorage.getItem('wiseresume_interview_mode');
     return (saved === 'general' || saved === 'job-targeted' || saved === 'quick-practice') ? saved : 'general';
@@ -174,7 +175,18 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
         </div>
       </div>
 
-      {!speechSupported && (
+      {!speechRecognitionAvailable && (
+        <motion.div 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-start gap-3 p-4 rounded-2xl bg-[hsl(45_90%_50%/0.1)] border border-[hsl(45_90%_50%/0.3)] text-foreground text-sm backdrop-blur-xl"
+        >
+          <Keyboard className="w-4 h-4 mt-0.5 shrink-0 text-[hsl(45_90%_50%)]" />
+          <p>Voice input is not available on this device. You can type your answers during the interview using the text input button.</p>
+        </motion.div>
+      )}
+
+      {speechRecognitionAvailable && !speechSupported && (
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -226,7 +238,8 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
           </button>
         </div>
 
-        {/* Mic Test Button */}
+        {/* Mic Test Button - only show when speech recognition is available */}
+        {speechRecognitionAvailable && (
         <div className="mt-3">
           <button
             onClick={handleMicTest}
@@ -272,6 +285,7 @@ export function InterviewSetup({ hasResume, speechSupported, voiceGender, onVoic
             )}
           </AnimatePresence>
         </div>
+        )}
       </div>
 
       <div className="space-y-3">
