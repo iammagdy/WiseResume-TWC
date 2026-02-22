@@ -450,7 +450,7 @@ function PublicPortfolioContent() {
   return (
     <div
       id="portfolio-content"
-      className={`min-h-screen ${pStyle === 'neon-cyber' ? 'pf-neon-scanline' : ''}`}
+      className={`min-h-screen overflow-y-auto ${pStyle === 'neon-cyber' ? 'pf-neon-scanline' : ''}`}
       style={{ ...rootStyle, backgroundColor: 'var(--pf-bg, #0a0a14)', color: 'var(--pf-fg, #f5f5ff)' }}
       data-portfolio-style={pStyle}
     >
