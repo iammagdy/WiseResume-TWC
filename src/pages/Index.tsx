@@ -306,7 +306,7 @@ const Index = () => {
 
       <main className="min-h-screen pb-12 max-w-4xl mx-auto w-full">
         {/* Hero */}
-        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-20 pb-8">
+        <section className="flex flex-col items-center text-center px-4 sm:px-6 pt-20 pb-8 min-h-[520px] sm:min-h-[560px]">
           <motion.div className="relative mb-6" {...fade(0)}>
             <div
               className="absolute inset-0 rounded-3xl blur-2xl opacity-50 animate-glow-pulse"
@@ -413,7 +413,7 @@ const Index = () => {
             From AI resume writing to a shareable personal website — all in one place
           </motion.p>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-w-4xl mx-auto min-h-[600px] lg:min-h-[420px]">
             {/* Card A — AI Resume Editor */}
             <motion.div
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
