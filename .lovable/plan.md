@@ -1,127 +1,136 @@
 
 
-# Fix Navigation: Unified Back Button, SwipeBack, and Page Transitions
+# Production Backend Audit -- Issues and Fixes
 
-## Overview
+## Summary of Findings
 
-The app has three navigation utilities (`SwipeBackWrapper`, `useBackNavigation`, `BACK_ROUTES`) that were built but never wired into actual pages. Every page currently hardcodes its own back destination and has inconsistent back button styling. This plan fixes all of it.
+The database schema is well-structured overall -- RLS is enabled on all 23 tables, indexes are comprehensive, and the cron jobs are properly configured. However, there are **2 critical issues** that will break the app for new users, plus several high-priority fixes needed before going live.
 
-## What Gets Created
+---
 
-### 1. Standardized Back Button Component: `src/components/ui/BackButton.tsx`
+## CRITICAL Issues
 
-A single reusable back button that:
-- Uses `useBackNavigation()` internally (no hardcoded routes)
-- Consistent 44x44px touch target, `ArrowLeft` icon, rounded-xl styling
-- Accepts optional `onBeforeBack` guard (for Editor's unsaved changes dialog)
-- Accepts optional `className` for header-specific tweaks
+### 1. Missing `handle_new_user` Trigger on `auth.users`
 
-```
-Props:
-- onBeforeBack?: () => boolean  (return true to block navigation)
-- className?: string
-```
+The function `handle_new_user()` exists and correctly inserts a profile row when a new user signs up. **But the trigger that calls it is missing.** This means any new user who signs up will have NO profile row, causing the entire app to break for them (no dashboard data, no portfolio, no settings).
 
-### 2. Fix `SwipeBackWrapper` to use `BACK_ROUTES`
+**Fix:** Re-create the trigger on `auth.users`.
 
-Currently uses `navigate(-1)` which is unreliable in Capacitor WebViews. Will be updated to use `getBackRoute()` from `src/lib/navigation.ts` instead, matching how the hardware back button already works.
-
-### 3. Integrate SwipeBack into AppShell
-
-Instead of wrapping every individual page, add `SwipeBackWrapper` once inside `AppShell.tsx` around the outlet content -- but only on non-dashboard/non-editor routes (dashboard is a root screen, editor has its own gesture handling). This gives swipe-back to all sub-pages automatically.
-
-### 4. Add CSS page transition
-
-Replace the static `animate-fade-in` class on the outlet wrapper in AppShell with a keyed CSS transition that fades content in on route change, using the existing `animate-fade-in` keyframe but re-triggered per route via a `key` on a lightweight `div` (not `AnimatePresence` which causes remounts).
-
-## What Gets Updated
-
-### Pages that need back button replacement (swap hardcoded `navigate('/...')` with `<BackButton />`):
-
-| Page | Current back target | After |
-|------|-------------------|-------|
-| SettingsPage | `navigate('/dashboard')` | `<BackButton />` |
-| ProfilePage | `navigate('/dashboard')` | `<BackButton />` |
-| TemplatesPage | `navigate('/dashboard')` | `<BackButton />` |
-| NotificationsPage | `navigate('/dashboard')` | `<BackButton />` |
-| ResumeDetailPage | `navigate('/dashboard')` | `<BackButton />` |
-| UploadPage | `navigate('/dashboard')` | `<BackButton />` |
-| ExamplesPage | `navigate('/dashboard')` | `<BackButton />` |
-| GuidesPage | `navigate('/dashboard')` | `<BackButton />` |
-| GuidePage | `navigate('/guides')` | `<BackButton />` |
-| CoverLettersPage | `navigate('/ai-studio')` | `<BackButton />` |
-| CoverLetterNewPage | `navigate('/cover-letters')` | `<BackButton />` |
-| CoverLetterEditPage | `navigate('/cover-letters')` | `<BackButton />` |
-| ResignationLettersPage | `navigate('/ai-studio')` | `<BackButton />` |
-| ResignationLetterNewPage | `navigate('/resignation-letters')` | `<BackButton />` |
-| ResignationLetterEditPage | `navigate('/resignation-letters')` | `<BackButton />` |
-| ApplicationTrackerPage | `navigate('/applications')` | `<BackButton />` |
-| PreviewPage | `navigate('/editor')` | `<BackButton />` |
-| PortfolioEditorPage | `navigate('/dashboard')` | `<BackButton />` |
-| AIStudioPage | `navigate('/dashboard')` | `<BackButton />` |
-| CareerPage | (if has back button) | `<BackButton />` |
-| InterviewPage | (if has back button) | `<BackButton />` |
-
-**Special case -- EditorPage**: Uses an unsaved-changes guard. Will use `<BackButton onBeforeBack={() => unsavedGuard.interceptNavigate(getBackRoute('/editor'))} />`.
-
-### Files modified:
-
-| File | Change |
-|------|--------|
-| `src/components/ui/BackButton.tsx` | **NEW** -- reusable back button component |
-| `src/components/layout/SwipeBackWrapper.tsx` | Fix `navigate(-1)` to use `getBackRoute()` |
-| `src/components/layout/AppShell.tsx` | Wrap outlet in `SwipeBackWrapper`, add route-keyed fade transition |
-| ~20 page files | Replace inline back button with `<BackButton />` |
-| `src/hooks/useBackNavigation.ts` | No changes needed (already correct) |
-| `src/lib/navigation.ts` | Add `/guides/:slug` -> `/guides` mapping |
-
-## Technical Details
-
-### BackButton component pattern:
-```tsx
-// Usage in any page header:
-<BackButton />
-
-// Usage in EditorPage with guard:
-<BackButton onBeforeBack={() => {
-  if (isDirty) { showDialog(); return true; }
-  return false;
-}} />
+```sql
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.handle_new_user();
 ```
 
-### SwipeBackWrapper fix:
-```tsx
-// Before (unreliable):
-navigate(-1);
+### 2. Resume Deletion Fails Due to NO ACTION Foreign Keys
 
-// After (deterministic):
-const backRoute = getBackRoute(location.pathname);
-navigate(backRoute);
+When a user deletes a resume, the operation will throw a database error because 6 child tables have foreign keys to `resumes` with `NO ACTION` on delete. Since `resume_id` is nullable on all these tables, the correct behavior is `SET NULL`.
+
+Affected tables and their FK constraints:
+- `ai_usage_logs.resume_id` (fk_ai_usage_logs_resume)
+- `career_assessments.resume_id` (fk_career_assessments_resume)
+- `cover_letters.resume_id` (fk_cover_letters_resume)
+- `interview_sessions.resume_id` (fk_interview_sessions_resume)
+- `job_applications.resume_id` (fk_job_applications_resume)
+- `tailor_history.resume_id` (fk_tailor_history_resume)
+- `profiles.portfolio_resume_id` (profiles_portfolio_resume_id_fkey)
+- `resumes.parent_resume_id` (resumes_parent_resume_id_fkey)
+
+**Fix:** Alter each FK to use `ON DELETE SET NULL`.
+
+---
+
+## HIGH Priority Issues
+
+### 3. 6 Users Missing `user_preferences` Records
+
+The `handle_new_profile_preferences` trigger exists on `profiles` and works for new profiles, but 6 existing users never got their `user_preferences` rows created (likely signed up before the trigger was added). These users may encounter errors when accessing settings.
+
+**Fix:** Backfill missing records:
+
+```sql
+INSERT INTO public.user_preferences (user_id)
+SELECT p.user_id FROM public.profiles p
+LEFT JOIN public.user_preferences up ON up.user_id = p.user_id
+WHERE up.user_id IS NULL;
 ```
 
-### AppShell integration:
-```tsx
-// Wrap outlet content (non-editor routes only):
-<SwipeBackWrapper className="flex-1 flex flex-col min-h-0">
-  <div key={location.pathname} className="flex-1 flex flex-col min-h-0 animate-fade-in">
-    {currentOutlet}
-  </div>
-</SwipeBackWrapper>
+### 4. Missing Foreign Keys on `short_links` and `audit_logs`
+
+- `short_links.owner_user_id` has NO foreign key to `auth.users`. If a user account is deleted, their short links become orphaned.
+- `audit_logs.user_id` has NO foreign key to `auth.users`. Same orphaning risk.
+
+**Fix:** Add FKs with CASCADE delete.
+
+```sql
+ALTER TABLE public.short_links
+  ADD CONSTRAINT short_links_owner_user_id_fkey
+  FOREIGN KEY (owner_user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+ALTER TABLE public.audit_logs
+  ADD CONSTRAINT audit_logs_user_id_fkey
+  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 ```
 
-The `key={location.pathname}` on the inner `div` (not on a component boundary) re-triggers the CSS fade-in animation without causing React remounts -- the outlet itself stays stable.
+### 5. `portfolio_visits.username` Has No FK to `profiles.username`
 
-### Navigation map addition:
-```ts
-'/guides': '/dashboard',  // already exists
-// Add:
-'/guide': '/guides',      // for /guides/:slug dynamic route
+Portfolio visits reference usernames but have no constraint ensuring the username exists. If a user changes their username, old visit records become unlinked. This is acceptable for analytics (historical data), but worth noting. No change needed -- the `record_portfolio_visit` RPC already validates the username exists.
+
+---
+
+## MEDIUM Priority Improvements
+
+### 6. Move `pg_net` Extension Out of Public Schema
+
+The linter flagged `pg_net` in the public schema. Best practice is to move it to the `extensions` schema to reduce the public API surface.
+
+```sql
+ALTER EXTENSION pg_net SET SCHEMA extensions;
 ```
 
-## Result
-- Every back button in the app routes through `BACK_ROUTES` -- one place to update
-- Swipe-right-to-go-back works on all sub-pages automatically
-- Smooth fade transition between pages without remounting
-- Consistent 44x44px back button styling everywhere
-- EditorPage retains its unsaved-changes guard
+### 7. `ai-health` Endpoint Accepts API Key in Query Parameter
+
+The `/ai-health` edge function accepts a Gemini API key as `?userGeminiKey=...` in the URL. Query parameters appear in server logs and browser history. Since this endpoint is just a health check and the key is only used for a lightweight GET request, the risk is low. However, for production, it should accept the key via the request body (POST) or use the server-side encrypted key lookup pattern already used by other functions.
+
+**Fix:** Update the edge function to retrieve the user's Gemini key from the `user_api_keys` table instead of accepting it as a parameter, consistent with all other AI functions.
+
+---
+
+## What's Already Good (no changes needed)
+
+- All 23 tables have RLS enabled with correct `auth.uid() = user_id` policies
+- All user_id columns use `ON DELETE CASCADE` FKs to `auth.users`
+- SECURITY DEFINER functions properly protect public portfolio data
+- Composite indexes on high-query tables (ai_usage_logs, job_applications, notifications, portfolio_visits)
+- `updated_at` triggers on all relevant tables
+- `notify_application_change` trigger on `job_applications` working
+- `cleanup_stale_data` cron job running weekly
+- Weekly digest and resume reminder cron jobs configured
+- `user_api_keys_safe` view with `security_invoker=on` properly hides encrypted keys
+- BCrypt password hashing for shared resume passwords
+
+---
+
+## Implementation Plan
+
+### Step 1: Database migration (single SQL migration)
+
+One migration that:
+1. Creates the `handle_new_user` trigger on `auth.users`
+2. Alters 8 FK constraints from NO ACTION to SET NULL
+3. Backfills missing `user_preferences` records
+4. Adds missing FKs on `short_links` and `audit_logs`
+5. Moves `pg_net` to extensions schema
+
+### Step 2: Update `ai-health` edge function
+
+Modify it to accept authentication and look up the user's Gemini key from `user_api_keys` server-side, removing the query parameter approach.
+
+### Expected result
+- New user signups will auto-create profiles (critical fix)
+- Resume deletion will work without FK errors (critical fix)
+- Account deletion will properly cascade to all child tables
+- All existing users will have their preferences records
+- Consistent API key handling across all edge functions
 
