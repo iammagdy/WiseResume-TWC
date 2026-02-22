@@ -1,26 +1,30 @@
 
-# Add Portfolio Editor Loading Skeleton
 
-## Problem
-The Portfolio Editor page renders immediately with empty/default state while profile data is fetching, causing a flash of empty content before the real data populates. There's no loading skeleton despite the page requiring async profile and resume data.
+# Add Smooth Tab Transitions with Framer Motion
 
-## Solution
-Add a loading skeleton that matches the new tabbed layout structure (StatusBar, LivePreview, Tabs, SaveBar) and show it while profile data is being fetched.
+## Overview
+Add animated tab content transitions in the Portfolio Editor so switching between Setup, Design, and More tabs feels fluid and polished.
+
+## Approach
+Use `framer-motion`'s `AnimatePresence` and `motion.div` with a horizontal slide + fade effect. The direction of the slide will match the tab order (sliding left when moving forward, right when going back).
 
 ## Changes
 
-### 1. Add `PortfolioEditorSkeleton` to `src/components/layout/PageSkeletons.tsx`
-- Add a new exported skeleton matching the portfolio editor layout:
-  - Status bar placeholder (thin strip with badge + URL placeholders)
-  - Live preview card placeholder (avatar + name + title)
-  - Tab row placeholder (3 pill buttons)
-  - Content area placeholder (3 input-like blocks)
-  - Sticky save bar placeholder at the bottom
+### `src/pages/PortfolioEditorPage.tsx`
+1. Import `AnimatePresence` and `motion` from `framer-motion`
+2. Track the previous tab index to determine slide direction (use a `useRef` to store previous tab index)
+3. Wrap the tab content area in `AnimatePresence mode="wait"`
+4. Wrap each tab's content (`SetupTab`, `DesignTab`, `MoreTab`) in a `motion.div` with:
+   - `key={activeTab}` so AnimatePresence detects the switch
+   - `initial`: slight horizontal offset (20px in slide direction) + opacity 0
+   - `animate`: x=0, opacity=1
+   - `exit`: slight offset in opposite direction + opacity 0
+   - `transition`: short duration (~0.2s) with easeInOut
+5. Respect reduced motion via a check on `window.matchMedia('(prefers-reduced-motion: reduce)')` -- if true, set duration to 0
 
-### 2. Modify `src/pages/PortfolioEditorPage.tsx`
-- Destructure `loading` from `useProfile()` (it's already returned as `loading` from the hook)
-- Import `PortfolioEditorSkeleton` from `PageSkeletons`
-- Add early return: `if (loading) return <PortfolioEditorSkeleton />`
-- Place this check after all hooks but before the main render
+### Technical Details
+- Tab index map: `setup=0`, `design=1`, `more=2`
+- Direction: `newIndex > oldIndex` slides content from right; otherwise from left
+- Animation duration: 200ms with `easeInOut` easing
+- No layout shifts: the container dimensions stay stable since all tabs render in the same scrollable area
 
-This ensures no blank/empty content flash while profile data loads, and the skeleton visually matches the final layout so the transition feels seamless.
