@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Search, FileSignature, Building2, Calendar } from 'lucide-react';
+import { Plus, Search, FileSignature, Building2, Calendar, Trash2 } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
@@ -141,9 +141,10 @@ export default function ResignationLettersPage() {
                         </h3>
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteId(letter.id); }}
-                          className="text-xs text-destructive/60 hover:text-destructive p-1"
+                          className="text-destructive/60 hover:text-destructive min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg touch-manipulation active:scale-95"
+                          aria-label="Delete resignation letter"
                         >
-                          ✕
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -177,7 +178,7 @@ export default function ResignationLettersPage() {
           whileTap={{ scale: 0.9 }}
           style={{ touchAction: 'pan-y' }}
           onClick={() => { haptics.light(); navigate('/resignation-letter/new'); }}
-          className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-2xl gradient-primary shadow-lg flex items-center justify-center active:scale-95 pr-safe"
+          className="fixed bottom-[7rem] right-4 z-50 w-14 h-14 rounded-2xl gradient-primary shadow-lg flex items-center justify-center active:scale-95 pr-safe"
           aria-label="New resignation letter"
         >
           <Plus className="w-6 h-6 text-primary-foreground" />
