@@ -1,120 +1,134 @@
 
 
-# Authentication Flow Audit -- Issues and Improvements
+# Tailor Tool -- User Flow Analysis and Gap Report
 
-## What's Already Good
+## Summary
 
-The auth system has solid foundations: brute-force cooldown (5 attempts / 30s lockdown), network retry logic, offline detection, slow-connection indicators, session-expired handling, anti-enumeration on signup ("if this email is not already registered..."), password strength enforcement, haptic feedback, and comprehensive audit logging. These are above-average for most apps.
+The Tailor tool is feature-rich but has several broken navigation flows, a credit bypass, and UX friction points that will confuse users in production. Here are the issues ranked by impact.
 
-## Issues Found
+---
 
-### CRITICAL: No "Email Not Confirmed" Handling on Login
+## CRITICAL: Broken Deep-Link (`?tailor=true` Never Opens TailorSheet)
 
-When a user signs up and hasn't verified their email, then tries to log in, Supabase returns `"Email not confirmed"`. The login handler treats this as a generic credential error showing "Invalid credentials" -- which is confusing and will make users think their password is wrong. Production apps like Notion and Linear show a specific message: "Please verify your email first" with a "Resend verification email" button.
+Two navigation flows use `?tailor=true` to open the tailor sheet from outside the editor:
 
-**Fix:** Detect the `"Email not confirmed"` error message and show a dedicated UI state with a resend-verification button that calls `supabase.auth.resend({ type: 'signup', email })`.
+- **AnalyzeJobSheet** navigates to `/editor?tailor=true&jobTitle=...&jobCompany=...`
+- **ApplicationsPage** navigates to `/editor?tailor=true&jobTitle=...&company=...`
 
-### CRITICAL: No Terms of Service / Privacy Policy Consent on Signup
+But **EditorPage only handles `?openTailor=1`** -- it never checks for `?tailor=true`. This means users who tap "Tailor Resume" from the dashboard job analysis or from the applications page land in the editor with **nothing happening**. The tailor sheet silently fails to open.
 
-The signup form collects name, phone, email, and password but never asks users to agree to Terms of Service or Privacy Policy. This is a legal requirement for production apps. The app already has `/terms` and `/privacy` pages but they're not linked from signup.
+**Fix:** Update EditorPage's `useEffect` to also handle `?tailor=true`, and pre-populate the job description in the store from the query params when available. Alternatively, standardize all callers to use `?openTailor=1`.
 
-**Fix:** Add a checkbox or implicit consent text below the signup button: "By creating an account, you agree to our Terms of Service and Privacy Policy" with links to `/terms` and `/privacy`.
+---
 
-### HIGH: Forgot-Password Validation Bug (Line 232)
+## HIGH: SetTargetJobSheet Bypasses Credit System
 
-```ts
-const err = !forgotEmail ? 'Email is required' : undefined;
-try { emailSchema.parse(forgotEmail); } catch { if (!err) { setIsLoading(false); return; } }
-```
+`SetTargetJobSheet` (opened from the resume detail page) calls `tailorResumeWithProgress()` directly without wrapping it in `useAIAction({ operation: 'tailor' })`. This means:
 
-This logic is broken: if the email is non-empty but invalid, `err` is `undefined`, so the `if (!err)` branch runs `setIsLoading(false)` and returns -- but `setIsLoading` was never set to `true` at that point (it's set on line 234, after this check). The function silently exits without any error message shown to the user.
+- No credit check before the AI call
+- No credit deduction after
+- Users can run unlimited tailoring from this entry point
 
-**Fix:** Restructure to validate first, show toast on invalid email, then proceed.
+Every other AI feature uses `useAIAction`. This is the only bypass.
 
-### HIGH: Login Redirect Reads `window.location.search` Instead of `searchParams`
+**Fix:** Wrap the `tailorResumeWithProgress` call in `useAIAction({ operation: 'tailor' }).execute()`.
 
-On successful login (line 162), the redirect param is read from `window.location.search` directly. But earlier (line 119), the `?mode=` param handling calls `window.history.replaceState({}, '', window.location.pathname)` which strips ALL query params -- including `?redirect=`. So if a user lands on `/auth?redirect=/editor&mode=signup`, switches to login, and signs in, the redirect is lost.
+---
 
-**Fix:** Read the redirect from `searchParams` at component mount and store it in a `useRef`, so it survives query param cleanup.
+## HIGH: Job Description Lost Between Screens
 
-### HIGH: No "Resend Verification Email" Flow
+When users navigate from `AnalyzeJobSheet` or `ApplicationsPage` to the editor with tailor intent, the job description they already entered is **not carried over**. The `AnalyzeJobSheet` only passes `jobTitle` and `jobCompany` as query params, but not the full job description text. Users have to paste the job description a second time in the TailorSheet.
 
-After signup, users see "you'll receive a verification link" and are sent back to the login form. If the email doesn't arrive (spam filter, typo in address), there's no way to request a new one. Production apps always provide a resend option.
+**Fix:** Before navigating, store the job description in the Zustand store (`setJobDescription()`), which the TailorSheet already reads from on open. This eliminates the need to pass it via URL params.
 
-**Fix:** After signup success (when no session is returned), show a dedicated "Check Your Email" screen with a "Resend" button and a "Didn't receive it?" helper text, using `supabase.auth.resend({ type: 'signup', email })`.
+---
 
-### MEDIUM: Cooldown Uses `sessionStorage` (Easily Bypassed)
+## MEDIUM: No Resume Selection When TailorSheet Opens Without Context
 
-The brute-force cooldown stores attempt counts in `sessionStorage`. Opening a new tab or incognito window resets it. While server-side rate limiting from Supabase is the real protection, the client-side cooldown should at least use `localStorage` with an expiry timestamp to be slightly harder to bypass.
+When TailorSheet is opened from AI Studio (`AIStudioPage`), it relies on `currentResume` being set in the Zustand store. If the user hasn't recently edited a resume, `currentResume` is null, and tapping "Tailor My Resume" shows a toast error: "No resume to tailor". There's no way to select a resume from within the sheet.
 
-**Fix:** Switch from `sessionStorage` to `localStorage`.
+**Fix:** Add a resume picker at the top of TailorSheet when `currentResume` is null -- a simple dropdown or list of the user's resumes that sets `currentResumeId` when selected.
 
-### MEDIUM: Social Auth Loading State Not Cleared on Error
+---
 
-For Google/Apple sign-in (lines 293-305), `setSocialLoading(null)` runs after a 2-second `setTimeout` regardless of success/failure. If the OAuth popup is closed or fails quickly, the buttons remain disabled for the full 2 seconds unnecessarily.
+## MEDIUM: Confusing Input Flow in JobUrlParser
 
-**Fix:** Clear `socialLoading` immediately in the `catch` block, only keep the timeout for the success path (where the page redirects).
+The `JobUrlParser` component has an unintuitive interaction pattern:
 
-### MEDIUM: No Loading Skeleton on Auth Page Initial Load
+1. It starts in "URL mode" showing a URL input field
+2. If the user starts typing plain text, `handleInputChange` is defined but **never actually connected** as an event handler -- the URL input has its own inline onChange
+3. The "Or paste manually" toggle switches to a textarea, but there's no clear visual indication of which mode is active
+4. If URL parsing fails, it auto-shows the manual textarea, but the URL input remains visible above with stale content
 
-When a logged-in user navigates to `/auth`, there's a flash of the login form before the redirect to `/dashboard` fires (line 124). This creates a jarring experience.
+**Fix:** Simplify to a single smart input: one textarea that auto-detects URLs. If the pasted content contains a URL, show a "Parse URL" button inline. Remove the mode toggle entirely.
 
-**Fix:** Show a loading skeleton or spinner while `loading` is true from `useAuth()`, before rendering the form.
+---
 
-### LOW: Password Reset Redirect URL Doesn't Use `/auth/callback`
+## LOW: Inconsistent Param Names Across Callers
 
-The forgot-password handler redirects to `/auth?reset=true` (line 237), which works but bypasses the standard callback handler. The `PASSWORD_RECOVERY` event listener on `onAuthStateChange` (line 106) is a duplicate mechanism. This is not broken but adds unnecessary complexity.
+- `AnalyzeJobSheet` uses `jobCompany` as a query param
+- `ApplicationsPage` uses `company` as a query param
+- Neither is read by EditorPage anyway (since `?tailor=true` isn't handled)
 
-### LOW: "Explore Without Account" Button on Auth Page
+This will cause bugs when the deep-link is fixed if the param names aren't standardized.
 
-Line 424-429 shows an "Explore without account" button that navigates to `/`. Since guest mode has been removed and all routes require auth, this button sends users to the landing page which has no useful functionality without an account. It's misleading.
+**Fix:** Standardize on `jobTitle` and `company` across all callers.
 
-**Fix:** Remove the "Explore without account" button, or change it to "View landing page" with clear expectations.
+---
+
+## LOW: "What's new in AI Tailor" Tips Section
+
+The initial state of TailorSheet shows a permanent "What's new" tips section at the bottom. For returning users, this is wasted space that pushes the "Tailor My Resume" button further down. For new users, it's useful context.
+
+**Fix:** Show this section only once per user, then collapse it. Use `localStorage` or `onboarding_flags` in user_preferences.
+
+---
 
 ## Implementation Plan
 
-### Step 1: Add "Email Not Confirmed" Handling + Resend Verification
+### Step 1: Fix the broken deep-link (Critical)
 
-- In `handleLoginSubmit`, detect `error.message` containing "Email not confirmed"
-- Show a dedicated UI state (`email-not-confirmed` mode) with the user's email and a "Resend Verification" button
-- The resend button calls `supabase.auth.resend({ type: 'signup', email })`
-- Include a cooldown on the resend button (60 seconds) to prevent spam
+In `EditorPage.tsx`, extend the existing `useEffect` to also handle `?tailor=true`:
 
-### Step 2: Add Post-Signup "Check Your Email" Screen
+```tsx
+useEffect(() => {
+  if (searchParams.get('openTailor') === '1' || searchParams.get('tailor') === 'true') {
+    setShowTailor(true);
+    // Clean up all tailor-related params
+    searchParams.delete('openTailor');
+    searchParams.delete('tailor');
+    searchParams.delete('jobTitle');
+    searchParams.delete('company');
+    searchParams.delete('jobCompany');
+    setSearchParams(searchParams, { replace: true });
+  }
+}, [searchParams, setSearchParams]);
+```
 
-- After successful signup with no session returned, instead of toasting and switching to login, switch to a new `verify-email` mode
-- Show the email address, a "Resend" button, and "Wrong email? Go back" link
-- Store the signup email in state so the resend button works
+### Step 2: Carry job description through navigation
 
-### Step 3: Add Terms/Privacy Consent to Signup
+In `AnalyzeJobSheet.handleTailor()` and `ApplicationsPage`, call `setJobDescription(description)` on the Zustand store before navigating. TailorSheet already reads `jobDescription` from the store on open, so it will be pre-populated.
 
-- Add consent text below the signup button in `SignupForm.tsx`: "By creating an account, you agree to our [Terms of Service](/terms) and [Privacy Policy](/privacy)"
-- Use `Link` components for the legal pages
-- No checkbox needed (implicit consent is the industry standard for consumer apps)
+### Step 3: Add credit gating to SetTargetJobSheet
 
-### Step 4: Fix Forgot-Password Validation Bug
+Add `useAIAction({ operation: 'tailor' })` and wrap the `tailorResumeWithProgress` call in `execute()`.
 
-- Restructure the validation in `handlePasswordReset` to properly validate email before proceeding
-- Show a toast error for invalid email format
+### Step 4: Add resume picker fallback to TailorSheet
 
-### Step 5: Preserve Redirect Param Across Mode Changes
+When `currentResume` is null, show a compact resume selector (list of user's resumes from `useResumes()`) instead of the job input form.
 
-- Read `redirect` from `searchParams` on mount and store in a `useRef`
-- Use this ref in all post-auth navigations (login, signup, social auth)
+### Step 5: Minor fixes
 
-### Step 6: Minor Fixes
-
-- Switch cooldown from `sessionStorage` to `localStorage`
-- Clear `socialLoading` immediately on error
-- Add auth loading check before rendering the form
-- Remove "Explore without account" button
+- Standardize query param names to `jobTitle` and `company`
+- Auto-dismiss the "What's new" tips after first view
 
 ### Files to modify:
 
 | File | Change |
 |------|--------|
-| `src/pages/AuthPage.tsx` | Email-not-confirmed handling, verify-email mode, redirect preservation, forgot-password fix, loading state, remove explore button |
-| `src/components/auth/SignupForm.tsx` | Add Terms/Privacy consent text |
-| `src/components/auth/VerifyEmailScreen.tsx` | **NEW** -- post-signup verification screen with resend |
-| `src/components/auth/EmailNotConfirmedBanner.tsx` | **NEW** -- banner shown on login when email not verified |
+| `src/pages/EditorPage.tsx` | Handle `?tailor=true` in addition to `?openTailor=1` |
+| `src/components/dashboard/AnalyzeJobSheet.tsx` | Store job description in Zustand before navigating; standardize param names |
+| `src/pages/ApplicationsPage.tsx` | Store job description in Zustand before navigating |
+| `src/components/dashboard/SetTargetJobSheet.tsx` | Wrap AI call in `useAIAction` for credit gating |
+| `src/components/editor/TailorSheet.tsx` | Add resume picker when no resume is loaded; auto-hide tips |
 
