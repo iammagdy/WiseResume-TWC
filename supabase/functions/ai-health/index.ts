@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getUserKeyFromDB } from "../_shared/aiClient.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,18 +13,38 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const url = new URL(req.url);
-  const userGeminiKey = url.searchParams.get('userGeminiKey') || undefined;
-
   const startTime = Date.now();
   let status: 'healthy' | 'degraded' | 'down' = 'down';
   let latencyMs = 0;
-  const provider: 'wiseresume' | 'gemini' = userGeminiKey ? 'gemini' : 'wiseresume';
+  let provider: 'wiseresume' | 'gemini' = 'wiseresume';
   let errorCode: number | null = null;
 
   try {
+    // Resolve user's Gemini key server-side from DB (if authenticated)
+    let userGeminiKey: string | undefined;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL')!,
+          Deno.env.get('SUPABASE_ANON_KEY')!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
+        const token = authHeader.replace('Bearer ', '');
+        const { data: claimsData } = await supabase.auth.getClaims(token);
+        const userId = claimsData?.claims?.sub;
+        if (userId) {
+          userGeminiKey = await getUserKeyFromDB(userId, 'gemini');
+        }
+      } catch {
+        // If auth fails, fall through to wiseresume check
+      }
+    }
+
+    provider = userGeminiKey ? 'gemini' : 'wiseresume';
+
     if (userGeminiKey) {
-      // Gemini: lightweight model list call (free, no tokens consumed)
+      // Gemini: lightweight model info call (free, no tokens consumed)
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10_000);
 
@@ -41,9 +63,7 @@ serve(async (req) => {
         status = (response.status === 429 || response.status === 402) ? 'degraded' : 'down';
       }
     } else {
-      // WiseResume (Lovable AI Gateway): no AI call needed.
-      // The edge function itself being reachable proves the backend is alive.
-      // Just verify LOVABLE_API_KEY is configured.
+      // WiseResume (Lovable AI Gateway): verify backend is alive
       const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
       latencyMs = Date.now() - startTime;
 
