@@ -200,7 +200,7 @@ function Starfield() {
 
   return (
     <points geometry={geo}>
-      <pointsMaterial size={0.15} vertexColors transparent opacity={0.8} sizeAttenuation />
+      <pointsMaterial size={0.25} vertexColors transparent opacity={1.0} sizeAttenuation />
     </points>
   );
 }

@@ -60,7 +60,7 @@ void main() {
   float spiral = fbm(vec2(angle * 2.0 + radius * 10.0, radius * 5.0), 3);
 
   // Galactic bulge
-  float bulge = exp(-length(uv - 0.5) * 8.0) * 0.5;
+  float bulge = exp(-length(uv - 0.5) * 8.0) * 0.2;
 
   // Dust
   float dust = fbm(uv * 10.0, 4) * galacticPlane;
@@ -76,13 +76,13 @@ void main() {
   // Background stars
   float bgStars = step(0.98, fbm(uv * 200.0, 1)) * 0.5;
 
-  vec3 color = vec3(0.01, 0.01, 0.02);
-  color += vec3(0.5, 0.5, 0.6) * galacticPlane * (spiral * 0.3 + 0.15);
-  color += vec3(1.0, 0.9, 0.7) * bulge;
-  color *= mix(1.0, 0.4, dust);
-  color += emissionColor * emission;
-  color += reflectionColor * reflection;
-  color += vec3(1.0) * bgStars;
+  vec3 color = vec3(0.005, 0.005, 0.012);
+  color += vec3(0.15, 0.15, 0.2) * galacticPlane * (spiral * 0.2 + 0.08);
+  color += vec3(0.4, 0.35, 0.25) * bulge * 0.4;
+  color *= mix(1.0, 0.5, dust);
+  color += emissionColor * emission * 0.4;
+  color += reflectionColor * reflection * 0.3;
+  color += vec3(1.0) * bgStars * 0.6;
 
   gl_FragColor = vec4(color, 1.0);
 }
