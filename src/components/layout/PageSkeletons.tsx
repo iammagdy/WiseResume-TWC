@@ -435,19 +435,51 @@ export function NotificationsSkeleton() {
 
 export function PortfolioEditorSkeleton() {
   return (
-    <div className="flex-1 flex flex-col animate-pulse">
-      <div className="sticky top-0 z-10 px-4 py-3 border-b border-border flex items-center gap-3">
-        <div className="w-10 h-10 bg-muted rounded-xl" />
-        <div className="h-6 w-36 bg-muted rounded flex-1" />
-        <div className="w-20 h-9 bg-muted rounded-lg" />
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-background animate-pulse">
+      {/* Header */}
+      <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border">
+        <div className="w-9 h-9 bg-muted rounded-lg" />
+        <div className="h-6 w-24 bg-muted rounded" />
       </div>
-      <div className="px-4 pt-4">
-        <div className="h-14 bg-muted rounded-2xl" />
+
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-36">
+        {/* Status bar */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/20">
+          <div className="h-5 w-12 bg-muted rounded-full" />
+          <div className="h-4 flex-1 bg-muted rounded" />
+          <div className="h-9 w-9 bg-muted rounded" />
+          <div className="h-9 w-9 bg-muted rounded" />
+          <div className="h-7 w-10 bg-muted rounded-lg" />
+        </div>
+
+        {/* Live preview card */}
+        <div className="rounded-2xl border border-border/40 bg-muted/10 p-5 flex flex-col items-center gap-3">
+          <div className="w-16 h-16 rounded-full bg-muted" />
+          <div className="h-5 w-32 bg-muted rounded" />
+          <div className="h-4 w-20 bg-muted rounded" />
+        </div>
+
+        {/* Tab row */}
+        <div className="flex gap-1.5 p-1 rounded-xl border border-border/30 bg-muted/10">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="flex-1 h-11 bg-muted rounded-lg" />
+          ))}
+        </div>
+
+        {/* Content area */}
+        <div className="space-y-3">
+          <div className="h-12 bg-muted rounded-xl" />
+          <div className="h-12 bg-muted rounded-xl" />
+          <div className="h-24 bg-muted rounded-xl" />
+        </div>
       </div>
-      <div className="px-4 pt-4 space-y-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className="h-20 bg-muted rounded-2xl" />
-        ))}
+
+      {/* Sticky save bar */}
+      <div className="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] left-0 right-0 z-40 px-4 pb-2">
+        <div className="border border-border/40 rounded-2xl p-3 flex items-center gap-3 bg-muted/20">
+          <div className="h-5 w-10 bg-muted rounded-full" />
+          <div className="flex-1 h-11 bg-muted rounded-xl" />
+        </div>
       </div>
     </div>
   );
