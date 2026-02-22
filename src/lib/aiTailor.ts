@@ -209,7 +209,23 @@ export async function tailorResume(
   return data;
 }
 
-export async function parseJobUrl(url: string): Promise<{ title: string; company: string; description: string }> {
+export interface ParsedJobData {
+  title: string;
+  company: string;
+  description: string;
+  experienceLevel?: 'entry' | 'mid' | 'senior' | 'executive';
+  salaryRange?: { min: number | null; max: number | null; currency: string } | null;
+  workMode?: 'remote' | 'hybrid' | 'onsite' | 'unknown';
+  mustHaveSkills?: string[];
+  niceToHaveSkills?: string[];
+  yearsExperience?: string | null;
+  companyCultureSignals?: string[];
+  benefits?: string[];
+  applicationDeadline?: string | null;
+  redFlags?: string[];
+}
+
+export async function parseJobUrl(url: string): Promise<ParsedJobData> {
   const { data, error } = await supabase.functions.invoke('parse-job-url', {
     body: { url },
   });
@@ -223,7 +239,24 @@ export async function parseJobUrl(url: string): Promise<{ title: string; company
   }
 
   trackGeminiUsage();
-  return data;
+  return data as ParsedJobData;
+}
+
+export async function parseJobText(text: string): Promise<ParsedJobData> {
+  const { data, error } = await supabase.functions.invoke('parse-job-text', {
+    body: { text },
+  });
+
+  if (error) {
+    console.error('Parse job text error:', error);
+    throw new Error(extractErrorMessage(error, data, 'Failed to analyze job description'));
+  }
+  if (data?.error) {
+    throw new Error(data.message || data.error);
+  }
+
+  trackGeminiUsage();
+  return data as ParsedJobData;
 }
 
 export async function generateCoverLetter(

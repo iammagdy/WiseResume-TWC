@@ -15,6 +15,7 @@ export const AI_COST_MAP: Record<string, number> = {
   'recruiter-sim': 2,
   'agentic-chat': 1,
   'company_briefing': 1,
+  'analyze': 2,
 } as const;
 
 export function getAICost(operation: string): number {

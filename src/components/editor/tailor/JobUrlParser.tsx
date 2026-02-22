@@ -21,7 +21,7 @@ const SUPPORTED_SITES = [
   { name: 'LinkedIn', icon: '🔗' },
   { name: 'Indeed', icon: '📋' },
   { name: 'Glassdoor', icon: '🚪' },
-  { name: 'Any URL', icon: '🌐' },
+  { name: '25+ sites', icon: '🌐' },
 ];
 
 export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {

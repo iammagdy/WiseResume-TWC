@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Briefcase, Building2, MapPin, FileText, Bookmark, ChevronRight, Check } from 'lucide-react';
+import { Search, Briefcase, Building2, FileText, Bookmark, ChevronRight, Check, ArrowLeft, MapPin, Clock, DollarSign, AlertTriangle, Sparkles, Star } from 'lucide-react';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { JobUrlParser } from '@/components/editor/tailor/JobUrlParser';
-import { parseJobUrl } from '@/lib/aiTailor';
+import { parseJobUrl, parseJobText, ParsedJobData } from '@/lib/aiTailor';
 import { useJobMutations } from '@/hooks/useJobs';
 import { useResumes, DatabaseResume } from '@/hooks/useResumes';
 import { useResumeStore } from '@/store/resumeStore';
@@ -17,13 +17,6 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 type Phase = 'input' | 'analyzing' | 'results';
-
-interface ParsedJob {
-  title: string;
-  company: string;
-  description: string;
-  url?: string;
-}
 
 interface AnalyzeJobSheetProps {
   open: boolean;
@@ -38,20 +31,22 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
 
   const [phase, setPhase] = useState<Phase>('input');
   const [jobDescription, setJobDescription] = useState('');
-  const [parsedJob, setParsedJob] = useState<ParsedJob | null>(null);
-  const [progress, setProgress] = useState(0);
+  const [parsedJob, setParsedJob] = useState<ParsedJobData | null>(null);
+  const [parsedJobUrl, setParsedJobUrl] = useState<string | undefined>();
   const [selectedResumeId, setSelectedResumeId] = useState<string | null>(null);
   const [showResumePicker, setShowResumePicker] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [urlParsedInfo, setUrlParsedInfo] = useState<{ title: string; company: string; url?: string } | null>(null);
 
   const resetState = () => {
     setPhase('input');
     setJobDescription('');
     setParsedJob(null);
-    setProgress(0);
+    setParsedJobUrl(undefined);
     setSelectedResumeId(null);
     setShowResumePicker(false);
     setSaving(false);
+    setUrlParsedInfo(null);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -60,7 +55,7 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
   };
 
   const handleParsed = (data: { title: string; company: string; url?: string }) => {
-    setParsedJob({ ...data, description: jobDescription });
+    setUrlParsedInfo(data);
   };
 
   const handleAnalyze = async () => {
@@ -70,48 +65,33 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
     }
     haptics.light();
     setPhase('analyzing');
-    setProgress(0);
 
-    // If we already have parsed info from JobUrlParser, skip to results
-    if (parsedJob?.title && parsedJob?.company) {
-      // Simulate brief progress for UX
-      const steps = [20, 45, 70, 90, 100];
-      for (const step of steps) {
-        await new Promise(r => setTimeout(r, 300));
-        setProgress(step);
+    try {
+      let result: ParsedJobData;
+      
+      if (urlParsedInfo?.url) {
+        // URL was already parsed by JobUrlParser — re-use the rich data from parseJobUrl
+        result = await parseJobUrl(urlParsedInfo.url);
+        setParsedJobUrl(urlParsedInfo.url);
+      } else {
+        // Manual text input — send to AI for structured extraction
+        result = await parseJobText(jobDescription);
       }
-      setParsedJob(prev => prev ? { ...prev, description: jobDescription } : null);
+
+      setParsedJob(result);
       setPhase('results');
       haptics.success();
-      return;
+    } catch (error) {
+      console.error('Analyze error:', error);
+      toast.error('Failed to analyze job. Please try again.');
+      setPhase('input');
     }
-
-    // For manual text input, extract title/company with simple heuristics
-    const lines = jobDescription.trim().split('\n').filter(l => l.trim());
-    const title = lines[0]?.substring(0, 100) || 'Untitled Position';
-    const companyLine = lines.find(l => /company|employer|at\s/i.test(l));
-    const company = companyLine?.replace(/.*(?:company|employer|at)\s*:?\s*/i, '').trim() || 'Unknown Company';
-
-    const steps = [15, 35, 55, 75, 95, 100];
-    for (const step of steps) {
-      await new Promise(r => setTimeout(r, 400));
-      setProgress(step);
-    }
-
-    setParsedJob({
-      title,
-      company,
-      description: jobDescription,
-    });
-    setPhase('results');
-    haptics.success();
   };
 
   const handleTailor = () => {
     if (!selectedResumeId || !parsedJob) return;
     haptics.medium();
     setCurrentResumeId(selectedResumeId);
-    // Store job description in Zustand so TailorSheet picks it up
     useResumeStore.getState().setJobDescription(parsedJob.description);
     handleOpenChange(false);
     navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(parsedJob.title)}&company=${encodeURIComponent(parsedJob.company)}`);
@@ -126,7 +106,7 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
         title: parsedJob.title,
         company: parsedJob.company,
         description: parsedJob.description,
-        source_url: parsedJob.url,
+        source_url: parsedJobUrl,
         is_saved: true,
       });
       handleOpenChange(false);
@@ -137,11 +117,32 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
     }
   };
 
+  const workModeLabel: Record<string, string> = {
+    remote: '🏠 Remote',
+    hybrid: '🏢 Hybrid',
+    onsite: '🏛️ On-site',
+  };
+
+  const expLevelLabel: Record<string, string> = {
+    entry: 'Entry Level',
+    mid: 'Mid Level',
+    senior: 'Senior',
+    executive: 'Executive',
+  };
+
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="bottom" className="h-[85vh] rounded-t-2xl pb-safe">
         <SheetHeader className="pb-2">
           <SheetTitle className="flex items-center gap-2">
+            {phase === 'results' && (
+              <button
+                onClick={resetState}
+                className="p-1 -ml-1 rounded-md hover:bg-muted transition-colors active:scale-95"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+            )}
             <Search className="w-5 h-5 text-primary" />
             Analyze Job
           </SheetTitle>
@@ -170,7 +171,7 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
                     disabled={!jobDescription.trim()}
                     className="w-full min-h-[48px] text-base font-semibold active:scale-95 transition-transform"
                   >
-                    <Search className="w-5 h-5 mr-2" />
+                    <Sparkles className="w-5 h-5 mr-2" />
                     Analyze Job
                   </Button>
                 </motion.div>
@@ -189,17 +190,11 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
                     <MiniSpinner size={64} />
                     <Briefcase className="w-6 h-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                   </div>
-
                   <div className="text-center space-y-2">
-                    <p className="font-semibold text-lg">Analyzing job posting...</p>
+                    <p className="font-semibold text-lg">Analyzing with AI...</p>
                     <p className="text-sm text-muted-foreground">
-                      Extracting requirements and key details
+                      Extracting skills, requirements & intelligence
                     </p>
-                  </div>
-
-                  <div className="w-full max-w-xs">
-                    <Progress value={progress} className="h-2" />
-                    <p className="text-xs text-muted-foreground text-center mt-2">{progress}%</p>
                   </div>
                 </motion.div>
               )}
@@ -211,9 +206,9 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="space-y-5"
+                  className="space-y-4"
                 >
-                  {/* Job Info Card */}
+                  {/* Job Header Card */}
                   <div className="rounded-xl border border-border bg-card p-4 space-y-3">
                     <div className="flex items-start gap-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -229,17 +224,100 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
                       <Check className="w-5 h-5 text-primary shrink-0 mt-1" />
                     </div>
 
-                    {parsedJob.description && (
-                      <p className="text-sm text-muted-foreground line-clamp-4 leading-relaxed">
-                        {parsedJob.description.substring(0, 300)}
-                        {parsedJob.description.length > 300 && '...'}
-                      </p>
-                    )}
+                    {/* Badges Row */}
+                    <div className="flex flex-wrap gap-2">
+                      {parsedJob.experienceLevel && parsedJob.experienceLevel !== 'mid' && (
+                        <Badge variant="secondary" className="text-xs">
+                          {expLevelLabel[parsedJob.experienceLevel] || parsedJob.experienceLevel}
+                        </Badge>
+                      )}
+                      {parsedJob.experienceLevel === 'mid' && (
+                        <Badge variant="secondary" className="text-xs">Mid Level</Badge>
+                      )}
+                      {parsedJob.workMode && parsedJob.workMode !== 'unknown' && (
+                        <Badge variant="outline" className="text-xs">
+                          {workModeLabel[parsedJob.workMode] || parsedJob.workMode}
+                        </Badge>
+                      )}
+                      {parsedJob.yearsExperience && (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <Clock className="w-3 h-3" />
+                          {parsedJob.yearsExperience}
+                        </Badge>
+                      )}
+                      {parsedJob.salaryRange?.min && (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <DollarSign className="w-3 h-3" />
+                          {parsedJob.salaryRange.currency || '$'}{parsedJob.salaryRange.min.toLocaleString()}
+                          {parsedJob.salaryRange.max ? ` - ${parsedJob.salaryRange.max.toLocaleString()}` : '+'}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Resume Picker for Tailoring */}
+                  {/* Must-Have Skills */}
+                  {parsedJob.mustHaveSkills && parsedJob.mustHaveSkills.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-4 space-y-2">
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Star className="w-4 h-4 text-primary" />
+                        Must-Have Skills
+                      </h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {parsedJob.mustHaveSkills.map((skill, i) => (
+                          <Badge key={i} className="text-xs bg-primary/10 text-primary border-primary/20 hover:bg-primary/20">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Nice-to-Have Skills */}
+                  {parsedJob.niceToHaveSkills && parsedJob.niceToHaveSkills.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <h4 className="text-xs font-semibold text-muted-foreground">Nice to Have</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {parsedJob.niceToHaveSkills.map((skill, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {skill}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Benefits */}
+                  {parsedJob.benefits && parsedJob.benefits.length > 0 && (
+                    <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+                      <h4 className="text-xs font-semibold text-muted-foreground">Benefits</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {parsedJob.benefits.slice(0, 6).map((benefit, i) => (
+                          <Badge key={i} variant="secondary" className="text-xs">
+                            {benefit}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Red Flags */}
+                  {parsedJob.redFlags && parsedJob.redFlags.length > 0 && (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+                      <h4 className="text-xs font-semibold text-destructive flex items-center gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        Watch Out
+                      </h4>
+                      <ul className="space-y-1">
+                        {parsedJob.redFlags.map((flag, i) => (
+                          <li key={i} className="text-xs text-muted-foreground">• {flag}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
                   {!showResumePicker ? (
-                    <div className="space-y-3">
+                    <div className="space-y-3 pt-2">
                       <Button
                         onClick={() => {
                           haptics.light();
