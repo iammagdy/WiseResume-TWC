@@ -34,9 +34,9 @@ export interface RoleAnalysis {
   industryInsights: string;
 }
 
-const SILENCE_TIMEOUT_MS = 3000;
+const SILENCE_TIMEOUT_MS = 5000;
 const MAX_TEXT_LENGTH = 2000;
-const COUNTDOWN_SECONDS = 1;
+const COUNTDOWN_SECONDS = 2;
 const NO_SPEECH_TIMEOUT_MS = 10000;
 
 const FEMALE_VOICE_KEYWORDS = ['female', 'samantha', 'zira', 'karen', 'fiona', 'moira', 'tessa', 'victoria', 'google uk english female', 'google us english female', 'microsoft zira'];
@@ -65,21 +65,24 @@ function pickBestVoice(gender: VoiceGender): SpeechSynthesisVoice | null {
 
 let sharedAudioContext: AudioContext | null = null;
 
+function getAudioContext(): AudioContext | null {
+  if (!sharedAudioContext) {
+    const ContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (ContextClass) sharedAudioContext = new ContextClass();
+  }
+  return sharedAudioContext;
+}
+
+function ensureAudioReady(ctx: AudioContext): Promise<AudioContext> {
+  if (ctx.state === 'suspended') return ctx.resume().then(() => ctx);
+  return Promise.resolve(ctx);
+}
+
 function playBeep(): Promise<void> {
   return new Promise((resolve) => {
     try {
-      if (!sharedAudioContext) {
-        const ContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (ContextClass) {
-          sharedAudioContext = new ContextClass();
-        }
-      }
-
-      const ctx = sharedAudioContext;
-      if (!ctx) {
-        resolve();
-        return;
-      }
+      const ctx = getAudioContext();
+      if (!ctx) { resolve(); return; }
 
       const play = () => {
         const oscillator = ctx.createOscillator();
@@ -92,27 +95,42 @@ function playBeep(): Promise<void> {
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
         oscillator.start(ctx.currentTime);
         oscillator.stop(ctx.currentTime + 0.2);
-
-        setTimeout(() => {
-          oscillator.disconnect();
-          gain.disconnect();
-          resolve();
-        }, 250);
+        setTimeout(() => { oscillator.disconnect(); gain.disconnect(); resolve(); }, 250);
       };
 
-      if (ctx.state === 'suspended') {
-        ctx.resume().then(play).catch((err) => {
-          console.error('Failed to resume AudioContext:', err);
-          resolve();
-        });
-      } else {
-        play();
-      }
-    } catch (error) {
-      console.error('Error playing beep:', error);
-      resolve();
-    }
+      ensureAudioReady(ctx).then(play).catch(() => resolve());
+    } catch { resolve(); }
   });
+}
+
+function playDoubleBeep(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  ensureAudioReady(ctx).then(() => {
+    // First beep
+    const osc1 = ctx.createOscillator();
+    const g1 = ctx.createGain();
+    osc1.connect(g1); g1.connect(ctx.destination);
+    osc1.frequency.value = 440; osc1.type = 'sine';
+    g1.gain.setValueAtTime(0.2, ctx.currentTime);
+    g1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc1.start(ctx.currentTime); osc1.stop(ctx.currentTime + 0.15);
+
+    // Second beep (lower pitch, slight delay)
+    const osc2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    osc2.connect(g2); g2.connect(ctx.destination);
+    osc2.frequency.value = 350; osc2.type = 'sine';
+    g2.gain.setValueAtTime(0.2, ctx.currentTime + 0.2);
+    g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+    osc2.start(ctx.currentTime + 0.2); osc2.stop(ctx.currentTime + 0.35);
+
+    setTimeout(() => {
+      osc1.disconnect(); g1.disconnect();
+      osc2.disconnect(); g2.disconnect();
+    }, 500);
+  }).catch(() => {});
 }
 
 function parseScoreBlock(text: string): { cleanText: string; score: AnswerScore | null } {
@@ -207,6 +225,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
   const noSpeechTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const usingFallbackRef = useRef(false);
   const quickPracticeRef = useRef(false);
+  const noSpeechCountRef = useRef(0);
 
   // Shared transcript handlers
   const handlePartialTranscript = useCallback((text: string) => {
@@ -249,10 +268,26 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setAudioLevel(level);
   }, []);
 
+  const handleNoSpeechEscalateRef = useRef<() => void>();
+  
   const handleNoSpeech = useCallback(() => {
-    toast.info('No speech detected', {
-      description: 'Please speak clearly or use the Type button.',
-    });
+    noSpeechCountRef.current++;
+    if (noSpeechCountRef.current === 1) {
+      // First timeout: gentle nudge + audio cue
+      toast.info('Take your time, I\'m still listening...', {
+        description: 'Speak when you\'re ready, or tap the Type button.',
+        duration: 4000,
+      });
+      playDoubleBeep();
+      // Set another timeout for second escalation
+      noSpeechTimerRef.current = setTimeout(() => {
+        if (isListeningRef.current && !finalTextRef.current.trim()) {
+          handleNoSpeechEscalateRef.current?.();
+        }
+      }, NO_SPEECH_TIMEOUT_MS);
+    } else {
+      handleNoSpeechEscalateRef.current?.();
+    }
   }, []);
 
   // ElevenLabs Scribe hook
@@ -483,6 +518,22 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     webSpeech.disconnect();
   }, [scribe, webSpeech]);
 
+  // Wire up the escalation ref now that all dependencies are declared
+  useEffect(() => {
+    handleNoSpeechEscalateRef.current = () => {
+      if (isListeningRef.current) {
+        clearSilenceTimer();
+        isListeningRef.current = false;
+        disconnectCurrentSTT();
+        finalTextRef.current = '';
+        setInterimText('');
+        addEntry('user', '(no response)');
+        messagesRef.current.push({ role: 'user', content: '(no response)' });
+        callAI();
+      }
+    };
+  }, [addEntry, callAI, clearSilenceTimer, disconnectCurrentSTT]);
+
   const stopListening = useCallback(async () => {
     clearSilenceTimer();
     isListeningRef.current = false;
@@ -497,7 +548,10 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     setInterimText('');
 
     if (!userText) {
-      setStatus('idle');
+      // Send silence marker so AI re-prompts naturally
+      addEntry('user', '(silence)');
+      messagesRef.current.push({ role: 'user', content: '(silence)' });
+      await callAI();
       return;
     }
 
@@ -515,6 +569,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
     finalTextRef.current = '';
     clearSilenceTimer();
     isListeningRef.current = true;
+    noSpeechCountRef.current = 0;
 
     setStatus('listening');
     setInterimText('');
@@ -593,6 +648,7 @@ export function useVoiceInterview(resumeData: ResumeData | null) {
       setAudioLevel(0);
       setSttEngine('none');
       usingFallbackRef.current = false;
+      noSpeechCountRef.current = 0;
       answerCountRef.current = 0;
       messagesRef.current = [];
       jobDescriptionRef.current = jobDescription || '';
