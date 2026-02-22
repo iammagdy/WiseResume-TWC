@@ -1,6 +1,6 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useRef, useEffect } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+
 import { BottomTabBar } from './BottomTabBar';
 import { DesktopNav } from './DesktopNav';
 import { OfflineBanner } from './OfflineBanner';
@@ -21,7 +21,7 @@ export function AppShell() {
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor');
   const scrollRef = useRef<HTMLDivElement>(null);
-  const prefersReducedMotion = useReducedMotion();
+  
 
   // Global keyboard awareness
   useKeyboardAwareScroll();
@@ -71,18 +71,9 @@ export function AppShell() {
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <ScrollProgressBar containerRef={scrollRef} />
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: -8 }}
-              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-              className="flex-1 flex flex-col min-h-0"
-            >
+          <div className="flex-1 flex flex-col min-h-0 animate-fade-in">
               {currentOutlet}
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </div>
       </main>
       {showBottomNav && <BottomTabBar className="lg:hidden" />}

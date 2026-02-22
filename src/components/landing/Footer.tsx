@@ -1,6 +1,6 @@
 import { Sparkles, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import wiseAiLogo from '@/assets/wise-ai-logo.png';
+import wiseAiLogo from '@/assets/wise-ai-logo.webp';
 
 export function Footer() {
   return (
