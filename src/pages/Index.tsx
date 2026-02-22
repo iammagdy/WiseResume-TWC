@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight, ShieldCheck, Lock, Brain, Trash2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 import { EditorDemo } from '@/components/landing/EditorDemo';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
@@ -256,7 +256,7 @@ const Index = () => {
             onClick={() => { triggerHaptic.light(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2 touch-manipulation"
           >
-            <img src={wiseAiLogo} alt="WiseResume" className="w-7 h-7 object-contain" />
+            <img src={wiseAiLogo} alt="WiseResume" className="w-7 h-7 object-contain rounded-lg" />
             <span className={`font-display font-bold text-sm text-foreground transition-opacity duration-300 ${scrolled ? 'opacity-100' : 'opacity-0'}`}>
               WiseResume
             </span>
@@ -319,7 +319,7 @@ const Index = () => {
               }}
               aria-hidden="true"
             />
-            <img src={wiseAiLogo} alt="Wise AI Logo" className="relative z-10 w-[120px] h-[120px] object-contain" />
+            <img src={wiseAiLogo} alt="Wise AI Logo" className="relative z-10 w-[120px] h-[120px] object-contain rounded-3xl" />
           </motion.div>
 
           <motion.h1
