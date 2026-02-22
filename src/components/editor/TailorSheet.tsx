@@ -34,7 +34,7 @@ import { activityTracker } from '@/lib/activityTracker';
 import haptics from '@/lib/haptics';
 
 import { AITrustBadge } from '@/components/ui/AITrustBadge';
-import { useResumeMutations, resumeDataToDb } from '@/hooks/useResumes';
+import { useResumeMutations, resumeDataToDb, useResumes, dbToResumeData, DatabaseResume } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { 
@@ -160,6 +160,9 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
     setPendingTailor: state.setPendingTailor,
     clearPendingTailor: state.clearPendingTailor,
   })));
+
+  const { data: allResumes } = useResumes();
+  const [tipsDismissed, setTipsDismissed] = useState(() => localStorage.getItem('wr-tailor-tips-seen') === 'true');
 
   const [isTailoring, setIsTailoring] = useState(false);
   const [tailorResult, setTailorResult] = useState<SuperTailorResult | null>(null);
@@ -1078,6 +1081,47 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
           {/* Initial State - Job Input */}
           {!tailorResult && !isTailoring && (
             <>
+              {/* Resume Picker — shown when no resume is loaded */}
+              {!currentResume && (
+                <div className="p-4 rounded-xl bg-muted/50 border border-border space-y-3">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    <h4 className="font-semibold text-sm">Select a resume to tailor</h4>
+                  </div>
+                  {allResumes && allResumes.length > 0 ? (
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {allResumes.map((r: DatabaseResume) => (
+                        <button
+                          key={r.id}
+                          onClick={() => {
+                            haptics.light();
+                            setCurrentResumeId(r.id);
+                            setCurrentResume(dbToResumeData(r));
+                          }}
+                          className={cn(
+                            'w-full text-left p-3 rounded-lg border transition-all active:scale-[0.98]',
+                            'min-h-[48px] flex items-center gap-3',
+                            'border-border bg-card hover:border-primary/30'
+                          )}
+                        >
+                          <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">{r.title}</p>
+                            {r.target_job_title && (
+                              <p className="text-xs text-muted-foreground truncate">
+                                {r.target_job_title}{r.target_company ? ` @ ${r.target_company}` : ''}
+                              </p>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No resumes yet. Create one first!</p>
+                  )}
+                </div>
+              )}
+
               <JobUrlParser
                 value={jobDescription}
                 onChange={setJobDescription}
@@ -1140,35 +1184,42 @@ export const TailorSheet = memo(function TailorSheet({ open, onOpenChange, onApp
                 )}
               </Button>
 
-              {/* Tips */}
-              <div className="p-4 rounded-xl bg-muted/50 border border-border">
-                <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  What's new in AI Tailor
-                </h4>
-                <ul className="text-sm text-muted-foreground space-y-2">
-                  <li className="flex items-start gap-2">
-                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Inline diffs</strong> - See exactly what changed word-by-word</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Edit before applying</strong> - Tweak AI output to your voice</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Projects & Certs</strong> - Now tailored alongside your resume</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Quick re-tailor</strong> - Adjust intensity and retry instantly</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
-                    <span><strong>Auto-saved</strong> - Results persist even if you close the sheet</span>
-                  </li>
-                </ul>
-              </div>
+              {/* Tips - only show once per user */}
+              {!tipsDismissed && (
+                <div className="p-4 rounded-xl bg-muted/50 border border-border relative">
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('wr-tailor-tips-seen', 'true');
+                      setTipsDismissed(true);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                  <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    What's new in AI Tailor
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-2">
+                    <li className="flex items-start gap-2">
+                      <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                      <span><strong>Inline diffs</strong> - See exactly what changed word-by-word</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                      <span><strong>Edit before applying</strong> - Tweak AI output to your voice</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                      <span><strong>Projects & Certs</strong> - Now tailored alongside your resume</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <ArrowRight className="w-3 h-3 mt-1.5 text-primary shrink-0" />
+                      <span><strong>Quick re-tailor</strong> - Adjust intensity and retry instantly</span>
+                    </li>
+                  </ul>
+                </div>
+              )}
             </>
           )}
         </div>

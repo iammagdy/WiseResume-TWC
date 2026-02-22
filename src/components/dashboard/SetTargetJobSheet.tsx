@@ -11,6 +11,7 @@ import { tailorResumeWithProgress } from '@/lib/aiTailor';
 import { DatabaseResume, dbToResumeData } from '@/hooks/useResumes';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
+import { useAIAction } from '@/hooks/useAIAction';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -50,6 +51,7 @@ function getScoreBarColor(score: number) {
 export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSheetProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { execute: executeAI } = useAIAction({ operation: 'tailor' });
   const [phase, setPhase] = useState<Phase>('input');
   const [jobDescription, setJobDescription] = useState('');
   const [parsedJob, setParsedJob] = useState<{ title: string; company: string; url?: string } | null>(null);
@@ -68,12 +70,18 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
     setPhase('analyzing');
 
     try {
-      const result = await tailorResumeWithProgress(
-        resumeData,
-        jobDescription,
-        (p) => setProgress(p as EnhancedTailorProgress),
-        'moderate'
-      );
+      const result = await executeAI(async () => {
+        return await tailorResumeWithProgress(
+          resumeData,
+          jobDescription,
+          (p) => setProgress(p as EnhancedTailorProgress),
+          'moderate'
+        );
+      });
+      if (!result) {
+        setPhase('input');
+        return;
+      }
       setTailorResult(result);
       setPhase('results');
 
