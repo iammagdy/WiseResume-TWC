@@ -5,10 +5,11 @@ import { QRGeneratorSheet } from '@/components/portfolio/qr/QRGeneratorSheet';
 import { VisitorsPanel } from '@/components/portfolio/VisitorsPanel';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
+  Globe, Copy, Check, Sparkles, Loader2, ExternalLink,
   Eye, QrCode, Plus, Briefcase, Star, Search,
   ArrowRight, AlertTriangle, X, MessageSquareQuote, TrendingUp,
 } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -380,9 +381,7 @@ export default function PortfolioEditorPage() {
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/portfolio')} className="w-12 h-12" aria-label="Go back">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+        <BackButton />
         <div>
           <h1 className="text-page-title leading-tight">My Portfolio Website</h1>
           <p className="text-[10px] text-muted-foreground leading-none">Share a beautiful profile link with the world</p>

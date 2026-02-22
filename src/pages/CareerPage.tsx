@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, RefreshCw, MapPin, Briefcase, Clock, TrendingUp } from 'lucide-react';
+import { Sparkles, RefreshCw, MapPin, Briefcase, Clock, TrendingUp } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -92,13 +93,7 @@ export default function CareerPage() {
       {/* Header */}
       <header className="shrink-0 sticky top-0 z-50 glass-header border-b border-border px-4 py-3 pt-safe">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/ai-studio')}
-            className="p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[48px] min-h-[48px] flex items-center justify-center"
-            aria-label="Go back"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
+          <BackButton />
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
             <h1 className="text-page-title">Career Plan</h1>

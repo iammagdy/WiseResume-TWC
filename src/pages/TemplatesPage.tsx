@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, AlertTriangle } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -45,9 +46,7 @@ export default function TemplatesPage() {
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 pt-safe border-b border-border glass-header backdrop-blur-md">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="w-12 h-12" aria-label="Go back">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+        <BackButton />
         <h1 className="text-lg font-bold text-foreground">Templates</h1>
       </div>
 

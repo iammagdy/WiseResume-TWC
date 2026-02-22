@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bookmark, ThumbsUp, ThumbsDown, Type } from 'lucide-react';
+import { Bookmark, ThumbsUp, ThumbsDown, Type } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import ReactMarkdown from 'react-markdown';
 import { Badge } from '@/components/ui/badge';
 import { getGuideBySlug, getGuidesByCategory, GUIDE_CATEGORIES } from '@/lib/guidesData';
@@ -62,13 +63,7 @@ export default function GuidePage() {
 
       {/* Header */}
       <header className="pt-safe pt-2 pb-2 px-4 flex items-center gap-2 glass-header">
-        <button
-          onClick={() => { haptics.light(); navigate('/guides'); }}
-          className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full touch-manipulation active:scale-95"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <BackButton />
         <span className="flex-1 min-w-0 text-sm font-medium truncate">{guide.title}</span>
         <button
           onClick={() => { setShowFontMenu(!showFontMenu); haptics.light(); }}

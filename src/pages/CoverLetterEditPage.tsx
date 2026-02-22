@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Copy, Download, Trash2, Save, Sparkles } from 'lucide-react';
+import { Copy, Download, Trash2, Save, Sparkles } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
@@ -142,13 +143,7 @@ export default function CoverLetterEditPage() {
       {/* Header */}
       <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/cover-letters')}
-            className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-            aria-label="Back"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          <BackButton />
           <div className="flex-1 min-w-0">
             <h1 className="text-base font-bold truncate">{letter.title || letter.job_title}</h1>
             <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic, AlertTriangle } from 'lucide-react';
+import { Check, Circle, Briefcase, FileText, Bell, Calendar, Trash2, Mail, Mic, AlertTriangle } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -90,9 +91,7 @@ export default function ApplicationTrackerPage() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
       {/* Header */}
       <div className="sticky top-0 z-10 glass-card border-b border-border/50 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate('/applications')} className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <BackButton />
         <h1 className="text-lg font-bold truncate flex-1">Application Details</h1>
       </div>
 

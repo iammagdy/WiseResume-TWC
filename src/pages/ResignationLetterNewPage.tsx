@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Sparkles, Loader2, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { Sparkles, Loader2, ChevronRight, ChevronLeft, Check } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { Input } from '@/components/ui/input';
@@ -14,6 +15,7 @@ import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useResignationLetterMutations } from '@/hooks/useResignationLetters';
 import { supabase, SUPABASE_URL } from '@/integrations/supabase/safeClient';
 import { haptics } from '@/lib/haptics';
+import { useBackNavigation } from '@/hooks/useBackNavigation';
 
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -62,6 +64,7 @@ export default function ResignationLetterNewPage() {
   const { user, loading: authLoading } = useAuth();
   const { data: resumes } = useResumes();
   const { saveLetter } = useResignationLetterMutations();
+  const goBack = useBackNavigation();
 
   const [step, setStep] = useState(0);
   const [generating, setGenerating] = useState(false);
@@ -186,11 +189,11 @@ export default function ResignationLetterNewPage() {
       <header className="sticky top-0 z-10 glass-header px-4 py-3 space-y-1">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => step > 0 ? setStep(step - 1) : navigate('/resignation-letters')}
+            onClick={() => step > 0 ? setStep(step - 1) : goBack()}
             className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
             aria-label="Back"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
           <h1 className="text-lg font-bold flex-1">New Resignation Letter</h1>
         </div>

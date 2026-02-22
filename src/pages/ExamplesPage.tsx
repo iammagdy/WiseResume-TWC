@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { motion } from 'framer-motion';
 import { haptics } from '@/lib/haptics';
 import { ExampleCard } from '@/components/examples/ExampleCard';
@@ -70,13 +70,7 @@ export default function ExamplesPage() {
     <div className="min-h-full flex flex-col">
       {/* Header */}
       <header className="pt-safe pt-3 pb-2 px-4 flex items-center gap-3 glass-header">
-        <button
-          onClick={() => { haptics.light(); navigate('/dashboard'); }}
-          className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full touch-manipulation active:scale-90"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5 text-foreground" />
-        </button>
+        <BackButton />
         <h1 className="text-fluid-lg font-bold text-foreground">Resume Examples</h1>
       </header>
 

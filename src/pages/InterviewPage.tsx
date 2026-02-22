@@ -1,7 +1,8 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward } from 'lucide-react';
+import { Square, Keyboard, KeyboardOff, Sparkles, History, Lightbulb, RotateCcw, SkipForward } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { InterviewSetup } from '@/components/interview/InterviewSetup';
 import { InterviewToggle } from '@/components/interview/InterviewToggle';
@@ -248,9 +249,13 @@ function InterviewPageContent() {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <button onClick={() => { setPendingJobDescription(undefined); }} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
+          <BackButton 
+            onBeforeBack={() => { 
+              setPendingJobDescription(undefined); 
+              return true; 
+            }} 
+            className="text-foreground" 
+          />
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
             <h1 className="text-lg font-bold text-foreground">Interview Preview</h1>
@@ -272,9 +277,7 @@ function InterviewPageContent() {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-          <button onClick={() => navigate('/ai-studio')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
+          <BackButton />
           <div className="flex items-center gap-2 flex-1">
             <Sparkles className="w-4 h-4 text-primary" />
             <h1 className="text-lg font-bold text-foreground">Wise AI Interview</h1>
@@ -309,9 +312,7 @@ function InterviewPageContent() {
       {/* Premium glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate('/ai-studio')} className="touch-manipulation p-3 -ml-3 rounded-full hover:bg-muted active:scale-95 transition-all min-w-[48px] min-h-[48px] flex items-center justify-center">
-            <ArrowLeft className="w-5 h-5 text-foreground" />
-          </button>
+          <BackButton />
           <div className="flex items-center gap-2">
             <motion.div
               animate={{ rotate: [0, 10, -10, 0] }}

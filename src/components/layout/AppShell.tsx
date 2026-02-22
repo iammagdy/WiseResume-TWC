@@ -7,9 +7,11 @@ import { OfflineBanner } from './OfflineBanner';
 import { ScrollProgressBar } from './ScrollProgressBar';
 import { SyncConflictDialog } from '@/components/editor/SyncConflictDialog';
 import { SlowConnectionBanner } from './SlowConnectionBanner';
+import { SwipeBackWrapper } from './SwipeBackWrapper';
 import { useKeyboardAwareScroll } from '@/hooks/useKeyboardAwareScroll';
 import { cn } from '@/lib/utils';
 import { getPageTitle } from '@/lib/pageTitles';
+import { shouldExitOnBack } from '@/lib/navigation';
 
 
 // Routes that show bottom nav
@@ -20,6 +22,8 @@ export function AppShell() {
   const currentOutlet = useOutlet();
   const showBottomNav = TAB_ROUTES.some(r => location.pathname.startsWith(r));
   const isEditorRoute = location.pathname.startsWith('/editor');
+  const isRootRoute = shouldExitOnBack(location.pathname);
+  const enableSwipeBack = showBottomNav && !isEditorRoute && !isRootRoute;
   const scrollRef = useRef<HTMLDivElement>(null);
   
 
@@ -71,9 +75,17 @@ export function AppShell() {
           style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
         >
           <ScrollProgressBar containerRef={scrollRef} />
-          <div className="flex-1 flex flex-col min-h-0 animate-fade-in">
+          {enableSwipeBack ? (
+            <SwipeBackWrapper className="flex-1 flex flex-col min-h-0">
+              <div key={location.pathname} className="flex-1 flex flex-col min-h-0 animate-fade-in">
+                {currentOutlet}
+              </div>
+            </SwipeBackWrapper>
+          ) : (
+            <div key={location.pathname} className="flex-1 flex flex-col min-h-0 animate-fade-in">
               {currentOutlet}
-          </div>
+            </div>
+          )}
         </div>
       </main>
       {showBottomNav && <BottomTabBar className="lg:hidden" />}

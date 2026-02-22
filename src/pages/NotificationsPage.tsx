@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Bell, Briefcase, Settings, Trash2, CheckCheck } from 'lucide-react';
+import { Bell, Briefcase, Settings, Trash2, CheckCheck } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -54,9 +55,7 @@ export default function NotificationsPage() {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 min-h-0 h-full overflow-y-auto overscroll-y-contain pb-6">
       {/* Header */}
       <div className="sticky top-0 z-10 glass-card border-b border-border/50 px-4 py-3 flex items-center gap-3">
-        <button onClick={() => navigate('/dashboard')} className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <BackButton />
         <h1 className="text-lg font-bold flex-1">Notifications</h1>
         <div className="flex items-center gap-1">
           {notifications.some(n => !n.is_read) && (

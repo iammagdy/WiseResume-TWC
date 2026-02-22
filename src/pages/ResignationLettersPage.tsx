@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Plus, Search, FileSignature, Building2, Calendar } from 'lucide-react';
+import { Plus, Search, FileSignature, Building2, Calendar } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Input } from '@/components/ui/input';
 import { PullToRefresh } from '@/components/ui/pull-to-refresh';
 import { SkeletonCardList } from '@/components/ui/skeleton-card';
@@ -59,13 +60,7 @@ export default function ResignationLettersPage() {
   return (
     <div className="min-h-full flex flex-col">
       <header className="sticky top-0 z-10 glass-header px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={() => navigate('/ai-studio')}
-          className="p-2 -ml-2 rounded-xl hover:bg-muted/50 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
-          aria-label="Back"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+        <BackButton />
         <h1 className="text-lg font-bold flex-1">Resignation Letters</h1>
         <motion.button
           whileTap={{ scale: 0.9 }}

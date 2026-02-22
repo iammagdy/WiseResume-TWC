@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
+import { Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -176,9 +177,7 @@ export default function ResumeDetailPage() {
     <div className="flex-1 flex flex-col min-h-0">
       {/* Header */}
       <div className="shrink-0 flex items-center gap-3 px-4 h-14 border-b border-border glass-elevated backdrop-blur-md">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} className="w-12 h-12" aria-label="Go back">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+        <BackButton />
         <h1 className="text-lg font-bold text-foreground truncate flex-1">{dbResume.title}</h1>
         {isMaster && (
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 gap-1 border-primary/30 text-primary shrink-0">
