@@ -353,27 +353,18 @@ const Index = () => {
           </motion.div>
 
           {/* Trust bar */}
-          <motion.div className="mt-5 flex items-center gap-4 text-xs text-muted-foreground flex-wrap justify-center" {...fade(0.28)}>
-            <span className="flex items-center gap-1">
-              {[...Array(5)].map((_, i) => (
-                <svg key={i} className="w-3 h-3 text-yellow-400 fill-current" viewBox="0 0 20 20"><path d="M10 15l-5.878 3.09 1.123-6.545L.489 6.91l6.572-.955L10 0l2.939 5.955 6.572.955-4.756 4.635 1.123 6.545z"/></svg>
-              ))}
-              <span className="ml-0.5">4.9</span>
-            </span>
-            <span className="w-px h-3 bg-border" />
-            <span className="flex items-center gap-1">
-              <span className="flex -space-x-1.5">
-                {[0,1,2].map(i => (
-                  <span key={i} className="w-5 h-5 rounded-full bg-muted border-2 border-background" />
-                ))}
+          <motion.div className="mt-5 flex items-center gap-3 sm:gap-4 text-xs text-muted-foreground flex-wrap justify-center" {...fade(0.28)}>
+            {[
+              { label: 'Free to start', icon: '✓' },
+              { label: 'No credit card', icon: '✓' },
+              { label: 'AI-powered', icon: '✓' },
+            ].map((item, i) => (
+              <span key={item.label} className="flex items-center gap-1.5">
+                {i > 0 && <span className="w-px h-3 bg-border mr-1.5 sm:mr-2 hidden xs:inline-block" />}
+                <span className="w-4 h-4 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">{item.icon}</span>
+                {item.label}
               </span>
-              12,000+ users
-            </span>
-            <span className="w-px h-3 bg-border" />
-            <span className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_1px_rgba(52,211,153,0.5)]" />
-              Free to start
-            </span>
+            ))}
           </motion.div>
         </section>
 
@@ -442,7 +433,7 @@ const Index = () => {
                 <div className="text-center">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2 shadow-[0_0_12px_-2px_hsl(142_71%_45%/0.4)]">
                     <Globe className="w-3 h-3" />
-                    New in v2.1
+                    Live Website
                   </div>
                   <h3 className="text-lg font-bold text-foreground mb-1">Public Portfolio Website</h3>
                   <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto">
@@ -521,6 +512,67 @@ const Index = () => {
                 <p className="text-[10px] text-muted-foreground leading-snug">{pillar.desc}</p>
               </Card>
             ))}
+          </div>
+        </section>
+
+        {/* How It Works */}
+        <section className="px-4 sm:px-6 mb-10 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+          <div className="text-center mb-6">
+            <p className="text-secondary text-xs font-medium tracking-wider uppercase mb-1">Simple as 1-2-3</p>
+            <h2 className="font-display text-xl font-bold text-foreground">How It Works</h2>
+          </div>
+
+          <div className="flex items-start justify-center gap-3 sm:gap-6 max-w-md mx-auto">
+            {[
+              { num: 1, title: 'Create or Upload', desc: 'Start from scratch or import your existing resume', icon: Sparkles },
+              { num: 2, title: 'AI Enhances It', desc: 'One tap turns weak bullets into quantified achievements', icon: Wand2 },
+              { num: 3, title: 'Export & Share', desc: 'Download as PDF or publish a portfolio website', icon: Globe },
+            ].map((step, i) => (
+              <div key={step.num} className="flex flex-col items-center text-center flex-1">
+                <div className="relative mb-3">
+                  <div
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%)',
+                      boxShadow: '0 0 24px hsl(var(--primary) / 0.3)',
+                    }}
+                  >
+                    <step.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary-foreground" />
+                  </div>
+                  {i < 2 && (
+                    <div
+                      className="absolute top-1/2 left-full w-4 sm:w-8 h-px -translate-y-1/2 ml-1.5 sm:ml-3"
+                      style={{ background: 'linear-gradient(90deg, hsl(var(--primary) / 0.6), hsl(var(--muted) / 0.3))' }}
+                    />
+                  )}
+                </div>
+                <span className="text-[10px] text-secondary mb-1 px-2 py-0.5 rounded-full bg-secondary/10">Step {step.num}</span>
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-0.5">{step.title}</h3>
+                <p className="text-[10px] sm:text-xs text-muted-foreground leading-snug">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Bottom CTA */}
+        <section className="px-4 sm:px-6 py-10 mb-6 animate-fade-in-up" style={{ animationDelay: '0.35s' }}>
+          <div className="max-w-md mx-auto text-center">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-3 leading-tight">
+              Ready to Build Your<br />
+              <span className="text-primary">Dream Resume?</span>
+            </h2>
+            <p className="text-sm text-muted-foreground mb-6">
+              AI-powered resume writing, interview coaching, and portfolio websites — all free to start.
+            </p>
+            <Button
+              size="lg"
+              className="w-full max-w-sm h-12 sm:h-14 text-base sm:text-lg font-semibold gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] touch-manipulation"
+              onClick={handleCTA}
+            >
+              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5" />
+              {isAuthenticated ? 'Go to Dashboard' : 'Get Started Free'}
+            </Button>
+            <p className="mt-3 text-xs text-muted-foreground">Free forever · No credit card required</p>
           </div>
         </section>
 
