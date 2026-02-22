@@ -104,6 +104,11 @@ const queryClient = new QueryClient({
   useStatusBarThemeSync();
   useDeepLinking();
 
+  // Remove body overflow:hidden set in index.html for splash screen
+  useEffect(() => {
+    document.body.style.overflow = '';
+  }, []);
+
   const { shakeToReportEnabled } = useSettingsStore();
   useShakeDetect(shakeToReportEnabled);
 
