@@ -230,9 +230,10 @@ export default function AuthPage() {
 
         // Handle pwned/weak password explicitly
         if (
+          (error as any).code === 'weak_password' ||
+          (error as any).status === 422 ||
           error.message?.toLowerCase().includes('weak') ||
-          error.message?.toLowerCase().includes('pwned') ||
-          (error as any).code === 'weak_password'
+          error.message?.toLowerCase().includes('pwned')
         ) {
           toast.error(
             'This password has been found in a data breach. Please choose a stronger, unique password.',
@@ -247,6 +248,16 @@ export default function AuthPage() {
         } else {
           toast.error(error.message || 'Signup failed. Please try again.');
         }
+        return;
+      }
+      // Handle soft warning: signup succeeded but password is weak/pwned
+      if ((data as any)?.weakPassword) {
+        haptics.error();
+        toast.error(
+          'This password has been found in a data breach. Please choose a different one.',
+          { duration: 6000 }
+        );
+        await supabase.auth.signOut({ scope: 'local' });
         return;
       }
       if (data.user) {
