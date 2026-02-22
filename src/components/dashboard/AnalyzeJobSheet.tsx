@@ -111,8 +111,10 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
     if (!selectedResumeId || !parsedJob) return;
     haptics.medium();
     setCurrentResumeId(selectedResumeId);
+    // Store job description in Zustand so TailorSheet picks it up
+    useResumeStore.getState().setJobDescription(parsedJob.description);
     handleOpenChange(false);
-    navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(parsedJob.title)}&jobCompany=${encodeURIComponent(parsedJob.company)}`);
+    navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(parsedJob.title)}&company=${encodeURIComponent(parsedJob.company)}`);
   };
 
   const handleSaveJob = async () => {

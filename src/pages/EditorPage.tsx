@@ -268,11 +268,16 @@ export default function EditorPage() {
   const [mobileEditorTab, setMobileEditorTab] = useState<'editor' | 'preview' | 'ats'>('editor');
   const [desktopPreviewMode, setDesktopPreviewMode] = useState<'visual' | 'ats'>('visual');
   const isMobile = useIsMobile();
-  // Auto-open Tailor sheet if navigated with ?openTailor=1
+  // Auto-open Tailor sheet if navigated with ?openTailor=1 or ?tailor=true
   useEffect(() => {
-    if (searchParams.get('openTailor') === '1') {
+    if (searchParams.get('openTailor') === '1' || searchParams.get('tailor') === 'true') {
       setShowTailor(true);
+      // Clean up all tailor-related params
       searchParams.delete('openTailor');
+      searchParams.delete('tailor');
+      searchParams.delete('jobTitle');
+      searchParams.delete('company');
+      searchParams.delete('jobCompany');
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);

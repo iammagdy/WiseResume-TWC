@@ -8,6 +8,7 @@ import { useUnreadNotificationCount } from '@/hooks/useNotifications';
 import { useJobActivityStats } from '@/hooks/useJobActivityStats';
 import { useAuth } from '@/hooks/useAuth';
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
+import { useResumeStore } from '@/store/resumeStore';
 import { JobActivityStatsCard } from '@/components/applications/JobActivityStats';
 import { ActivityTimeline } from '@/components/applications/ActivityTimeline';
 import { ActivityStreak } from '@/components/applications/ActivityStreak';
@@ -431,7 +432,12 @@ export default function ApplicationsPage() {
                       job={job}
                       onClick={() => navigate(`/job/${job.id}`)}
                       matchScore={matchScores[job.id] || null}
-                      onTailor={() => navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`)}
+                      onTailor={() => {
+                        // Store job description in Zustand so TailorSheet picks it up
+                        const { setJobDescription } = useResumeStore.getState();
+                        setJobDescription(job.description || '');
+                        navigate(`/editor?tailor=true&jobTitle=${encodeURIComponent(job.title)}&company=${encodeURIComponent(job.company)}`);
+                      }}
                       onMarkApplied={() => {
                         createApplication.mutate({
                           job_title: job.title,
