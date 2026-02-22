@@ -1,45 +1,67 @@
 
 
-# Remove the Black Bar and Its Buttons from Editor
+# Fix: Always Load the Latest App Version
 
-## What will be removed
+## Problem
 
-The following elements will be completely deleted from the editor page:
+The app uses a service worker (PWA) that caches all files. When a new version is deployed, the old service worker stays active and serves stale cached files until the user manually closes ALL tabs. This means users often see an old version of the app.
 
-1. **Floating action pill** (lines 1435-1467 in `EditorPage.tsx`) — the portal-rendered bar containing:
-   - **PDF button** — downloads resume as PDF
-   - **Preview button** — switches to preview tab
-   - **ATS button** — switches to ATS analysis tab
+Two things are missing:
 
-2. **The mobile tab bar for Preview/ATS** (lines 1207-1212) — the `TabsList` with Editor/Preview/ATS triggers that appears when NOT on the editor tab
+1. **`skipWaiting()`** in the service worker -- this tells the new service worker to take over immediately instead of waiting for old tabs to close
+2. **`clients.claim()`** -- this makes the new service worker control the current page right away
+3. **No update detection in the app** -- the app never checks for a new service worker or reloads when one is found
 
-3. **Preview tab bottom action bar** (lines 1230-1249) — the bar inside the Preview tab containing:
-   - **Download button**
-   - **Share button**
-   - **Template button**
-   - **Export/Eye button**
+## Solution
 
-## What will be changed to fix the black gap
+### File 1: `public/custom-sw.js`
 
-The root `<main>` element will get `bg-background` added to ensure no black background is ever visible, regardless of flex behavior.
+Add `skipWaiting()` and `clients.claim()` so the new service worker activates immediately:
 
-The `Tabs` wrapper and `TabsContent` for editor will also get `bg-background` to eliminate any transparent gaps.
+```js
+// At the top, after imports:
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
 
-## Buttons removed (for relocation later)
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+```
 
-| Button | Icon | Action |
-|--------|------|--------|
-| PDF | Download | Downloads resume as PDF |
-| Preview | Eye | Switches to preview tab |
-| ATS | BarChart3 | Switches to ATS analysis tab |
-| Share | Globe | Opens share sheet |
-| Template | LayoutTemplate | Opens template picker |
-| Export | Eye | Navigates to /preview |
+### File 2: `src/main.tsx`
 
-## Files changed
+Register the service worker with update detection. When a new version is found, automatically reload the page so the user always gets the latest code:
 
-| File | Change |
-|------|--------|
-| `src/pages/EditorPage.tsx` | Remove floating pill (lines 1435-1467), add `bg-background` to main/tabs, remove preview bottom bar |
+```tsx
+import { registerSW } from 'virtual:pwa-register';
 
-No database changes. No new dependencies.
+const updateSW = registerSW({
+  onNeedRefresh() {
+    // New version available -- update immediately
+    updateSW(true);
+  },
+  onOfflineReady() {
+    console.log('[SW] App ready for offline use');
+  },
+});
+```
+
+This calls `updateSW(true)` which tells the waiting service worker to activate and then reloads the page automatically.
+
+## Summary
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `public/custom-sw.js` | Add `skipWaiting()` on install + `clients.claim()` on activate |
+| 2 | `src/main.tsx` | Add `registerSW` with auto-refresh on new version |
+
+No database changes. No new dependencies (registerSW comes from vite-plugin-pwa which is already installed).
+
+## How it works after the fix
+
+1. User opens the app -- service worker is registered
+2. A new version is deployed -- browser detects the new service worker in the background
+3. New SW calls `skipWaiting()` to activate immediately
+4. `onNeedRefresh()` fires in the app, which triggers an automatic reload
+5. User always sees the latest version
