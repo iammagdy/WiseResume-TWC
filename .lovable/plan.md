@@ -1,50 +1,90 @@
 
 
-# Unify All Loading Spinners Across the App
+# Performance Enhancement Plan
 
-## Overview
-There are **61 files** using the generic `Loader2` spinning icon from Lucide. This plan creates a branded `MiniSpinner` component that mirrors the futuristic concentric-ring style of the `PageLoadingSpinner`, then replaces every `Loader2 animate-spin` usage across the entire app.
+## The Big Picture
 
-## What Gets Created
+Your app takes over 6 seconds to fully load, and the single biggest culprit is shocking: your logo images are **2.5 MB each**. That's 5 MB of images just for the logo -- before any actual content loads. For context, an entire well-optimized web app should be under 1-2 MB total.
 
-### New Component: `src/components/ui/MiniSpinner.tsx`
-A small, branded spinner using pure CSS animations (no framer-motion needed for inline spinners). It renders two concentric spinning rings matching the primary color, at any size.
+## Changes (ordered by impact)
 
-- Accepts a `size` prop (default: 16) and optional `className`
-- Uses CSS `@keyframes` for two counter-rotating rings (matching the PageLoadingSpinner look)
-- Works at all sizes: 12px (tiny badges), 16px (buttons), 20px (medium), 32px (section loaders)
-- Drop-in replacement anywhere `Loader2 className="w-4 h-4 animate-spin"` is used
+### 1. Compress logo images (biggest win -- saves ~4.9 MB)
 
-Visual: Two concentric rings spinning in opposite directions with primary-colored arcs -- the same visual DNA as the full-page spinner, just miniaturized.
+Both `public/favicon.png` and `src/assets/wise-ai-logo.png` are 2,504 KB each. These should be under 50 KB.
 
-## What Gets Updated
+- Convert `favicon.png` to a compressed PNG or WebP at the sizes actually used (40px in spinner, 192px max for PWA icon). A 192x192 PNG should be ~10-20 KB.
+- Convert `wise-ai-logo.png` to WebP format. At the sizes it's displayed (64px-120px), a high-quality WebP should be ~15-30 KB.
+- Create a new optimized `wise-ai-logo.webp` and update all 5 files that import it to use the WebP version.
+- Keep PNG as fallback only in index.html using the existing `<img>` tag.
 
-All **61 files** that currently use `Loader2` with `animate-spin` will be updated:
-- Replace `import { ..., Loader2, ... } from 'lucide-react'` with `import { MiniSpinner } from '@/components/ui/MiniSpinner'`
-- Replace `<Loader2 className="w-4 h-4 animate-spin" />` with `<MiniSpinner size={16} />`
-- Replace `<Loader2 className="w-5 h-5 animate-spin" />` with `<MiniSpinner size={20} />`
-- Replace `<Loader2 className="w-8 h-8 animate-spin" />` with `<MiniSpinner size={32} />`
-- Preserve any extra classes like `mr-2`, `text-primary`, `inline` by passing them via `className`
+This alone should cut load time by 2-3 seconds.
 
-### Size Mapping
-| Old Tailwind Class | Pixel Size | New Component |
-|---|---|---|
-| `w-3 h-3` | 12px | `<MiniSpinner size={12} />` |
-| `w-3.5 h-3.5` | 14px | `<MiniSpinner size={14} />` |
-| `w-4 h-4` | 16px | `<MiniSpinner size={16} />` |
-| `w-5 h-5` | 20px | `<MiniSpinner size={20} />` |
-| `w-6 h-6` | 24px | `<MiniSpinner size={24} />` |
-| `w-8 h-8` | 32px | `<MiniSpinner size={32} />` |
-| `w-16 h-16` | 64px | `<MiniSpinner size={64} />` |
+### 2. Remove route-change remount in AppShell
 
-## Files to Update (all 61)
+The `AnimatePresence` in AppShell uses `key={location.pathname}`, which completely destroys and recreates the page component on every navigation. This causes:
+- Full component tree teardown and rebuild
+- All queries re-fired
+- State lost
+- Visible jank between pages
 
-Pages: `PreviewPage`, `ResumeDetailPage`, `AuthPage`, `CoverLetterNewPage`, `CoverLetterEditPage`, `ResignationLetterEditPage`, `ResignationLetterNewPage`, `EditorPage`, `InterviewPage`, `DashboardPage`, `SettingsPage`, `ApplicationsPage`, `UploadPage`, `TemplatesPage`, `ProfilePage`, `CareerPage`, `PortfolioEditorPage`, `OnboardingPage`, `AIStudioPage`, `NotificationsPage`
+Fix: Remove the `key` prop and the `AnimatePresence` wrapper, or use a simpler CSS opacity transition that doesn't trigger remount. The page-level `Suspense` boundaries already handle loading states.
 
-Components: `LoginForm`, `SignupForm`, `MagicLinkForm`, `SocialAuthButtons`, `BugReportDialog`, `EditProfileSheet`, `AvatarCropSheet`, `AnalyzeJobSheet`, `GapExplainerSheet`, `ExportOptionsSheet`, `UnsavedChangesDialog`, `OfflineIndicator`, `UploadProgressSteps`, `InterviewToggle`, `ATSScoreBreakdown`, `JobUrlParser`, `VisitorsPanel`, `FollowUpEmailSheet`, `SaveJobSheet`, `JobSearchSheet`, `CareerCardSheet`, and many more AI/editor tool sheets.
+### 3. Optimize framer-motion usage
 
-## Result
-- Every loading state in the app uses the same branded concentric-ring spinner
-- Consistent visual language from the full-page spinner down to button-level loading indicators
-- The app feels polished and cohesive -- no more generic Lucide circles
+114 files import framer-motion (93 KB chunk). Many uses are trivial fade-in animations that can be replaced with CSS:
+
+- Replace simple `motion.div` with `initial={{ opacity: 0 }}` / `animate={{ opacity: 1 }}` with CSS `animate-fade-in` utility class
+- Keep framer-motion only where it's truly needed: gesture-based interactions (swipe cards), `AnimatePresence` exit animations, `LayoutGroup` (bottom tab pill), and spring physics
+- This won't remove framer-motion from the bundle (it's needed), but reduces component render overhead
+
+### 4. Add manualChunks for Radix UI
+
+Radix UI components are imported across many pages but not currently split. Add a chunk for them:
+
+```
+if (id.includes('node_modules/@radix-ui')) return 'radix';
+```
+
+This groups all Radix code into one cacheable chunk instead of duplicating it across page bundles.
+
+### 5. Defer non-critical providers
+
+`CommandPalette`, `WhatsNewDialog`, and `BugReportDialog` are loaded at the App root level. While they're lazy-loaded, their `Suspense` boundaries still evaluate on every render. Wrap them in a `useEffect`-gated mount so they only render after initial page load:
+
+```tsx
+const [ready, setReady] = useState(false);
+useEffect(() => { const t = setTimeout(() => setReady(true), 2000); return () => clearTimeout(t); }, []);
+```
+
+### 6. Reduce style recalculations
+
+101 style recalculations (84.7ms) on page load. This is partly caused by:
+- The inline `<style>` block in index.html for spinner keyframes (already cleaned up on React mount)
+- Multiple Google Fonts loading with `font-display: swap` causing reflows
+
+Fix: Add `font-display: optional` instead of `swap` for the Space Grotesk font to prevent layout shift. Inter can remain `swap` since it's the primary font.
+
+## Technical Details
+
+### Files to modify:
+
+| File | Change |
+|------|--------|
+| `public/favicon.png` | Replace with compressed ~20 KB version |
+| `src/assets/wise-ai-logo.png` | Replace with compressed WebP ~25 KB version |
+| `src/components/brand/AppIcon.tsx` | Update import to WebP |
+| `src/pages/Index.tsx` | Update import to WebP |
+| `src/components/landing/Footer.tsx` | Update import to WebP |
+| `src/components/applications/JobMatchScore.tsx` | Update import to WebP |
+| `src/components/portfolio/qr/QRGeneratorSheet.tsx` | Update import to WebP |
+| `src/components/layout/AppShell.tsx` | Remove AnimatePresence key remount |
+| `vite.config.ts` | Add Radix UI manual chunk |
+| `src/App.tsx` | Defer non-critical global components |
+| `index.html` | Update font-display strategy |
+
+### Expected results:
+- Initial load: 6.2s down to ~2-3s
+- Asset transfer: 5+ MB down to ~1.2 MB
+- Route transitions: Smoother, no full remounts
+- Perceived performance: Significantly faster navigation
 
