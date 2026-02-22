@@ -141,6 +141,13 @@ export function SignupForm({
           {isLoading ? <><MiniSpinner size={20} className="mr-2" />Creating Account...</> : 'Create Account'}
         </Button>
 
+        <p className="text-xs text-muted-foreground text-center mt-3 leading-relaxed">
+          By creating an account, you agree to our{' '}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Terms of Service</a>
+          {' '}and{' '}
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Privacy Policy</a>.
+        </p>
+
         {isSlowConnection && isLoading && (
           <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="flex items-center justify-center gap-1.5 text-xs text-muted-foreground text-center">
             <WifiOff className="w-3 h-3" />
