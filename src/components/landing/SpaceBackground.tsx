@@ -9,24 +9,6 @@ interface Star {
   delay: number;
 }
 
-interface ShootingStar {
-  id: number;
-  top: number;
-  left: number;
-  delay: number;
-  duration: number;
-}
-
-function generateShootingStars(count: number): ShootingStar[] {
-  return Array.from({ length: count }, (_, i) => ({
-    id: i,
-    top: 5 + Math.random() * 30,
-    left: 60 + Math.random() * 35,
-    delay: i * 6 + Math.random() * 4,
-    duration: 1 + Math.random() * 1,
-  }));
-}
-
 function generateStars(count: number): Star[] {
   return Array.from({ length: count }, (_, i) => ({
     id: i,
@@ -43,8 +25,7 @@ const prefersReducedMotion =
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 export function SpaceBackground({ children }: { children: React.ReactNode }) {
-  const stars = useMemo(() => generateStars(15), []);
-  const shootingStars = useMemo(() => generateShootingStars(2), []);
+  const stars = useMemo(() => generateStars(8), []);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[hsl(240_30%_3%)]">
@@ -67,10 +48,10 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         aria-hidden="true"
       />
 
-      {/* Layer 2: Floating orbs (reduced blur) */}
+      {/* Layer 2: Floating orbs (reduced blur for mobile perf) */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div
-          className="absolute w-[320px] h-[320px] rounded-full opacity-[0.08] blur-[40px]"
+          className="absolute w-[320px] h-[320px] rounded-full opacity-[0.06] blur-[20px]"
           style={{
             top: '10%',
             left: '20%',
@@ -78,7 +59,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
           }}
         />
         <div
-          className="absolute w-[260px] h-[260px] rounded-full opacity-[0.06] blur-[35px]"
+          className="absolute w-[260px] h-[260px] rounded-full opacity-[0.04] blur-[20px]"
           style={{
             top: '45%',
             right: '10%',
@@ -86,7 +67,7 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
           }}
         />
         <div
-          className="absolute w-[280px] h-[280px] rounded-full opacity-[0.07] blur-[40px]"
+          className="absolute w-[280px] h-[280px] rounded-full opacity-[0.05] blur-[20px]"
           style={{
             bottom: '15%',
             left: '55%',
@@ -115,37 +96,6 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         ))}
       </div>
 
-      {/* Layer 4: Shooting stars */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
-        {shootingStars.map((s) => (
-          <div
-            key={s.id}
-            className="absolute"
-            style={{
-              top: `${s.top}%`,
-              left: `${s.left}%`,
-              opacity: 0,
-              animation: prefersReducedMotion
-                ? 'none'
-                : `shootingStar ${s.duration}s ease-in ${s.delay}s infinite`,
-            }}
-          >
-            <div
-              className="absolute w-[80px] h-[3px] rounded-full blur-[3px]"
-              style={{
-                background: 'linear-gradient(to left, rgba(200, 220, 255, 0.6) 0%, transparent 100%)',
-              }}
-            />
-            <div
-              className="absolute w-[80px] h-[1px] rounded-full"
-              style={{
-                background: 'linear-gradient(to left, white 0%, transparent 100%)',
-              }}
-            />
-          </div>
-        ))}
-      </div>
-
       {/* Content */}
       <div className="relative z-10">
         {children}
@@ -155,11 +105,6 @@ export function SpaceBackground({ children }: { children: React.ReactNode }) {
         @keyframes twinkle {
           0%, 100% { opacity: 0.3; transform: scale(1); }
           50% { opacity: 0.9; transform: scale(1.4); }
-        }
-        @keyframes shootingStar {
-          0% { opacity: 0; transform: translate(0, 0) rotate(-35deg); }
-          5% { opacity: 1; }
-          20%, 100% { opacity: 0; transform: translate(-200px, 120px) rotate(-35deg); }
         }
       `}</style>
     </div>

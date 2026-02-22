@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight, ShieldCheck, Lock, Brain, Trash2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
-import wiseAiLogo from '@/assets/wise-ai-logo.png';
+import wiseAiLogo from '@/assets/wise-ai-logo.webp';
 import { EditorDemo } from '@/components/landing/EditorDemo';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
@@ -418,70 +418,33 @@ const Index = () => {
             <motion.div
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: '-40px' }}
+              viewport={{ once: true, margin: '-20px' }}
               transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
             >
               <Card className="p-5 border-t-2 border-border/30 border-t-primary/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-primary/20 transition-shadow duration-300">
                 <div className="text-center">
-                  <motion.div
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2 animate-pulse"
                   >
-                    <motion.span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold mb-2"
-                      animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 0px hsl(var(--primary)/0)', '0 0 14px hsl(var(--primary)/0.35)', '0 0 0px hsl(var(--primary)/0)'] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      AI-Powered
-                    </motion.span>
-                  </motion.div>
-                  <motion.h3
-                    className="text-lg font-bold text-foreground mb-1"
-                    initial={prefersReducedMotion ? false : { opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.25 }}
-                  >
+                    <Sparkles className="w-3 h-3" />
+                    AI-Powered
+                  </span>
+                  <h3 className="text-lg font-bold text-foreground mb-1">
                     AI-Enhanced Editor
-                  </motion.h3>
-                  <motion.p
-                    className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto"
-                    initial={prefersReducedMotion ? false : { opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.3 }}
-                  >
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto">
                     Write, improve, and tailor your resume with AI — one tap turns weak bullets into standout achievements.
-                  </motion.p>
+                  </p>
                 </div>
-                <motion.div
-                  initial={prefersReducedMotion ? false : { opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: 0.35 }}
+                <EditorDemo />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
+                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : '/auth'); }}
                 >
-                  <EditorDemo />
-                </motion.div>
-                <motion.div
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: 0.4 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full max-w-[200px] gap-1.5 touch-manipulation"
-                    onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/dashboard' : '/auth'); }}
-                  >
-                    Try the AI Editor <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </motion.div>
+                  Try the AI Editor <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
               </Card>
             </motion.div>
 
@@ -489,70 +452,33 @@ const Index = () => {
             <motion.div
               initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
+              viewport={{ once: true, margin: '-20px' }}
+              transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
             >
               <Card className="p-5 border-t-2 border-border/30 border-t-emerald-500/40 bg-card/50 backdrop-blur-sm h-full flex flex-col items-center gap-4 hover:shadow-lg hover:border-emerald-500/20 transition-shadow duration-300">
                 <div className="text-center">
-                  <motion.div
-                    initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.3 }}
+                  <span
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2 animate-pulse"
                   >
-                    <motion.span
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-semibold mb-2"
-                      animate={prefersReducedMotion ? {} : { boxShadow: ['0 0 0px hsl(142 71% 45%/0)', '0 0 14px hsl(142 71% 45%/0.4)', '0 0 0px hsl(142 71% 45%/0)'] }}
-                      transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                    >
-                      <Globe className="w-3 h-3" />
-                      Live Website
-                    </motion.span>
-                  </motion.div>
-                  <motion.h3
-                    className="text-lg font-bold text-foreground mb-1"
-                    initial={prefersReducedMotion ? false : { opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.35 }}
-                  >
+                    <Globe className="w-3 h-3" />
+                    Live Website
+                  </span>
+                  <h3 className="text-lg font-bold text-foreground mb-1">
                     Public Portfolio Website
-                  </motion.h3>
-                  <motion.p
-                    className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto"
-                    initial={prefersReducedMotion ? false : { opacity: 0 }}
-                    whileInView={{ opacity: 1 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.4, delay: 0.4 }}
-                  >
+                  </h3>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-[240px] mx-auto">
                     Turn your resume into a beautiful personal site with themes, projects, and a shareable link — not just a PDF.
-                  </motion.p>
+                  </p>
                 </div>
-                <motion.div
-                  initial={prefersReducedMotion ? false : { opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: 0.45 }}
+                <PortfolioDemo />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full max-w-[200px] gap-1.5 touch-manipulation active:scale-95 transition-transform"
+                  onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/portfolio' : '/auth'); }}
                 >
-                  <PortfolioDemo />
-                </motion.div>
-                <motion.div
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 12 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.4, delay: 0.5 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full max-w-[200px] gap-1.5 touch-manipulation"
-                    onClick={() => { triggerHaptic.light(); navigate(isAuthenticated ? '/portfolio' : '/auth'); }}
-                  >
-                    Build Your Portfolio <ArrowRight className="w-3.5 h-3.5" />
-                  </Button>
-                </motion.div>
+                  Build Your Portfolio <ArrowRight className="w-3.5 h-3.5" />
+                </Button>
               </Card>
             </motion.div>
           </div>

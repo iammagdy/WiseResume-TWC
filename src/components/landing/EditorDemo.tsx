@@ -21,7 +21,7 @@ export function EditorDemo() {
   const [score, setScore] = useState(45);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const frameRef = useRef<number | null>(null);
-  const { ref: containerRef, inView } = useInView({ threshold: 0.2, triggerOnce: false });
+  const { ref: containerRef, inView } = useInView({ threshold: 0.05, triggerOnce: false });
 
   const cleanup = useCallback(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
