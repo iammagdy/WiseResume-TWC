@@ -1,70 +1,55 @@
 
 
-# Landing Page Cleanup and Enhancements
+# Enhance "See It in Action" Section Animations
 
-## 1. Remove Fake Data
+## Current State
+The "See It in Action" section has two animated phone demos (EditorDemo and PortfolioDemo) inside cards, but several elements are completely static:
 
-The landing page currently shows fabricated social proof that could mislead users:
+- **Section heading and subtitle** use a basic CSS `animate-fade-in-up` that fires on page load (not on scroll into view)
+- **Badge pills** ("AI-Powered" and "Live Website") are static
+- **Card titles and descriptions** have no entrance animation
+- **CTA buttons** ("Try the AI Editor" / "Build Your Portfolio") are static with no hover or entrance effects
+- The cards use `scaleIn` which is good, but the inner content all appears at once instead of staggering in
 
-**Trust bar (Index.tsx, lines 356-377):**
-- "4.9" star rating with 5 gold stars
-- "12,000+ users" with avatar circles
-- These are not backed by real data
+## Planned Changes
 
-**Fix:** Replace the fake stats trust bar with a simple, honest value proposition bar. Instead of fabricated numbers, show factual statements about the product:
+All changes are in **`src/pages/Index.tsx`**, lines 395-455.
 
-```
-[check] Free to start  |  [check] No credit card required  |  [check] AI-powered
-```
+### 1. Scroll-triggered section header
+Replace the CSS `animate-fade-in-up` class on the section with a Framer Motion `useInView`-powered animation so the heading and subtitle animate in only when scrolled into view, with a staggered fade+slide effect.
 
-This is honest, still builds trust, and highlights real product benefits.
+### 2. Staggered card content
+Inside each card, stagger the inner elements so they cascade in after the card scales in:
+- Badge pill fades in and slides up (delay 0.1s)
+- Title fades in (delay 0.15s)
+- Description fades in (delay 0.2s)
+- Phone demo appears (delay 0.25s)
+- CTA button slides up from below (delay 0.3s)
 
-## 2. Remove Dead Landing Components
+### 3. Animated CTA buttons
+Add a subtle shimmer/glow pulse on the CTA buttons and a hover scale effect using Framer Motion `whileHover` and `whileTap`.
 
-11 component files in `src/components/landing/` are not used anywhere in the app. They are leftover from previous iterations and should be deleted to reduce codebase clutter:
+### 4. Badge pulse glow
+Add a subtle repeating glow/pulse animation on the "AI-Powered" and "Live Website" badge pills to draw attention, using Framer Motion's `animate` with `repeat: Infinity`.
 
-| File | Reason |
-|------|--------|
-| `SocialProofBar.tsx` | Contains fake testimonials; not imported anywhere |
-| `WhyWiseResume.tsx` | Not imported in Index.tsx (functionality inlined) |
-| `HowItWorks.tsx` | Not imported in Index.tsx |
-| `BottomCTA.tsx` | Not imported in Index.tsx |
-| `TemplateGallery.tsx` | Not imported in Index.tsx |
-| `HeroSection.tsx` | Not imported (Index has its own hero) |
-| `QuickActions.tsx` | Landing version not used (editor has its own) |
-| `FeatureGrid.tsx` | Not imported in Index.tsx |
-| `LandingSkeletons.tsx` | Not imported anywhere |
-| `LazySection.tsx` | Not imported anywhere |
-| `PlanetLogo.tsx` | Only used by the unused HeroSection |
+## Technical Details
 
-## 3. Enhancements
+- Use `motion.div` wrappers with `initial`, `whileInView`, and `viewport={{ once: true }}` for scroll-triggered animations -- avoids adding new state or refs
+- Stagger children using incremental `transition.delay` values
+- Add `whileHover={{ scale: 1.05 }}` and `whileTap={{ scale: 0.95 }}` on CTA buttons
+- Add a subtle `boxShadow` pulse animation on badges using Framer Motion `animate` with `repeat: Infinity`
+- All animations respect `prefersReducedMotion` (already available in the component)
+- No new dependencies needed
 
-### 3a. Add a "How It Works" section back (without fake data)
-The current landing page jumps from the comparison strip to the demo cards. A brief 3-step "How It Works" row would help users understand the flow. Rewrite it with accurate labels:
+## Summary
 
-| Step | Title | Description |
-|------|-------|-------------|
-| 1 | Create or Upload | Start from scratch or import your existing resume |
-| 2 | AI Enhances It | One tap turns weak bullets into quantified achievements |
-| 3 | Export and Share | Download as PDF or publish a portfolio website |
+| Element | Before | After |
+|---------|--------|-------|
+| Section heading | CSS fade on page load | Scroll-triggered fade+slide |
+| Subtitle | CSS fade on page load | Scroll-triggered with stagger |
+| Card content (badge, title, desc) | All appear at once | Staggered cascade inside card |
+| CTA buttons | Static | Shimmer hover + scale tap + entrance slide |
+| Badge pills | Static | Subtle glow pulse |
 
-### 3b. Add a bottom CTA section
-After the Trust pillars section and before the footer, add a simple closing CTA:
-- Headline: "Ready to Build Your Dream Resume?"
-- Subtext: "Join thousands of job seekers using AI to land interviews faster."
-- Button: "Get Started Free" (routes to /auth or /dashboard based on auth state)
-
-No fake numbers, just an honest call to action.
-
-### 3c. Improve the "New in v2.1" badge
-The portfolio demo card shows "New in v2.1" which will become stale over time. Replace with a generic "Portfolio" or "Live Website" badge that doesn't go out of date.
-
-## Summary of Changes
-
-| # | File | Change |
-|---|------|--------|
-| 1 | `src/pages/Index.tsx` | Replace fake trust bar stats with honest value props; update "New in v2.1" badge; add HowItWorks + BottomCTA sections inline |
-| 2 | 11 dead files in `src/components/landing/` | Delete unused components |
-
-No database changes. No new dependencies.
+Single file change: `src/pages/Index.tsx` (lines 395-455).
 
