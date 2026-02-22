@@ -1,118 +1,70 @@
 
 
-# Performance Analysis and Fixes for WiseResume
+# Landing Page Cleanup and Enhancements
 
-## Issues Found
+## 1. Remove Fake Data
 
-### 1. Landing Page Scroll Handler Updates State on Every Pixel (HIGH)
-**File:** `src/pages/Index.tsx` (lines 185-194)
+The landing page currently shows fabricated social proof that could mislead users:
 
-The `onScroll` listener calls `setScrollProgress()` on every scroll event, causing a React re-render on every frame. The `scrollProgress` state is only used for a thin progress bar at the top. This is expensive because it re-renders the entire `Index` component (530 lines of JSX) on every scroll tick.
+**Trust bar (Index.tsx, lines 356-377):**
+- "4.9" star rating with 5 gold stars
+- "12,000+ users" with avatar circles
+- These are not backed by real data
 
-**Fix:** Replace React state with a direct DOM ref for the scroll progress bar. This eliminates re-renders entirely.
+**Fix:** Replace the fake stats trust bar with a simple, honest value proposition bar. Instead of fabricated numbers, show factual statements about the product:
 
-```tsx
-// Replace scrollProgress state + onScroll with:
-const progressRef = useRef<HTMLDivElement>(null);
-
-useEffect(() => {
-  const onScroll = () => {
-    setScrolled(window.scrollY > 120);
-    if (progressRef.current) {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const pct = max > 0 ? (window.scrollY / max) * 100 : 0;
-      progressRef.current.style.width = `${pct}%`;
-      progressRef.current.parentElement!.style.display = pct > 0 ? '' : 'none';
-    }
-  };
-  window.addEventListener('scroll', onScroll, { passive: true });
-  return () => window.removeEventListener('scroll', onScroll);
-}, []);
+```
+[check] Free to start  |  [check] No credit card required  |  [check] AI-powered
 ```
 
-And update the progress bar JSX to use a ref instead of state:
-```tsx
-<div className="fixed top-0 left-0 right-0 h-[3px] z-[60] pointer-events-none" style={{ display: 'none' }}>
-  <div ref={progressRef} className="h-full bg-primary transition-[width] duration-75 ease-out" />
-</div>
-```
+This is honest, still builds trust, and highlights real product benefits.
 
-### 2. `BugReportDialog` Eagerly Loaded on Every Page (MEDIUM)
-**File:** `src/App.tsx` (line 176)
+## 2. Remove Dead Landing Components
 
-`BugReportDialog` is rendered outside the router on every page load. The profiler shows it's one of the slowest scripts (932ms). It should be lazy-loaded since it's rarely used (only on shake/error).
+11 component files in `src/components/landing/` are not used anywhere in the app. They are leftover from previous iterations and should be deleted to reduce codebase clutter:
 
-**Fix:** Lazy-load it:
-```tsx
-const BugReportDialog = lazyWithRetry(() => import("@/components/BugReportDialog"));
+| File | Reason |
+|------|--------|
+| `SocialProofBar.tsx` | Contains fake testimonials; not imported anywhere |
+| `WhyWiseResume.tsx` | Not imported in Index.tsx (functionality inlined) |
+| `HowItWorks.tsx` | Not imported in Index.tsx |
+| `BottomCTA.tsx` | Not imported in Index.tsx |
+| `TemplateGallery.tsx` | Not imported in Index.tsx |
+| `HeroSection.tsx` | Not imported (Index has its own hero) |
+| `QuickActions.tsx` | Landing version not used (editor has its own) |
+| `FeatureGrid.tsx` | Not imported in Index.tsx |
+| `LandingSkeletons.tsx` | Not imported anywhere |
+| `LazySection.tsx` | Not imported anywhere |
+| `PlanetLogo.tsx` | Only used by the unused HeroSection |
 
-// In App render:
-<Suspense fallback={null}><BugReportDialog /></Suspense>
-```
+## 3. Enhancements
 
-### 3. `WhatsNewDialog` Rendered on Every Route (LOW-MEDIUM)
-**File:** `src/App.tsx` (line ~163 inside AppRoutes)
+### 3a. Add a "How It Works" section back (without fake data)
+The current landing page jumps from the comparison strip to the demo cards. A brief 3-step "How It Works" row would help users understand the flow. Rewrite it with accurate labels:
 
-`WhatsNewDialog` is always rendered. It fires a `fetch('/changelog.json')` after 1.5s on every route. It should only render once (inside AppRoutes is fine) but should be lazy-loaded.
+| Step | Title | Description |
+|------|-------|-------------|
+| 1 | Create or Upload | Start from scratch or import your existing resume |
+| 2 | AI Enhances It | One tap turns weak bullets into quantified achievements |
+| 3 | Export and Share | Download as PDF or publish a portfolio website |
 
-**Fix:** Lazy-load it:
-```tsx
-const WhatsNewDialog = lazyWithRetry(() => import("@/components/WhatsNewDialog"));
+### 3b. Add a bottom CTA section
+After the Trust pillars section and before the footer, add a simple closing CTA:
+- Headline: "Ready to Build Your Dream Resume?"
+- Subtext: "Join thousands of job seekers using AI to land interviews faster."
+- Button: "Get Started Free" (routes to /auth or /dashboard based on auth state)
 
-// In AppRoutes render:
-<Suspense fallback={null}><WhatsNewDialog /></Suspense>
-```
+No fake numbers, just an honest call to action.
 
-### 4. `CommandPalette` Always Mounted (LOW)
-**File:** `src/App.tsx`
-
-The `CommandPalette` component + its 20 lucide icon imports are always loaded. It's a power-user feature (Cmd+K). Should be lazy-loaded.
-
-**Fix:** Lazy-load it:
-```tsx
-const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
-```
-
-### 5. Pre-warm Fetch on Landing Page Fires Unnecessarily (LOW)
-**File:** `src/pages/Index.tsx` (lines 178-183)
-
-The `HEAD` fetch to Supabase REST runs on every visit to `/`, even if the user is already authenticated and the connection is warm. Minor but unnecessary network request.
-
-**Fix:** Only fire it once per session:
-```tsx
-useEffect(() => {
-  if (sessionStorage.getItem('backend-warmed')) return;
-  sessionStorage.setItem('backend-warmed', '1');
-  fetch(SUPABASE_URL + '/rest/v1/', {
-    method: 'HEAD',
-    headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
-  }).catch(() => {});
-}, []);
-```
-
-### 6. `PortfolioDemo` Interval Never Pauses When Off-Screen (LOW)
-**File:** `src/pages/Index.tsx` (lines 60-63)
-
-The `setInterval` for theme cycling runs forever, even when the component is scrolled out of view. Should use `useInView` to pause.
-
-**Fix:** Add visibility check using the existing `useInView` hook, or accept it as low-impact (2s interval is cheap).
+### 3c. Improve the "New in v2.1" badge
+The portfolio demo card shows "New in v2.1" which will become stale over time. Replace with a generic "Portfolio" or "Live Website" badge that doesn't go out of date.
 
 ## Summary of Changes
 
-| # | File | Issue | Impact |
-|---|------|-------|--------|
-| 1 | `src/pages/Index.tsx` | Scroll handler causes re-renders every frame | HIGH |
-| 2 | `src/App.tsx` | `BugReportDialog` eagerly loaded (932ms) | MEDIUM |
-| 3 | `src/App.tsx` | `WhatsNewDialog` eagerly loaded | LOW-MEDIUM |
-| 4 | `src/App.tsx` | `CommandPalette` eagerly loaded | LOW |
-| 5 | `src/pages/Index.tsx` | Redundant backend pre-warm | LOW |
-| 6 | `src/pages/Index.tsx` | PortfolioDemo interval runs off-screen | LOW |
+| # | File | Change |
+|---|------|--------|
+| 1 | `src/pages/Index.tsx` | Replace fake trust bar stats with honest value props; update "New in v2.1" badge; add HowItWorks + BottomCTA sections inline |
+| 2 | 11 dead files in `src/components/landing/` | Delete unused components |
 
-## Additional Improvement Suggestions
+No database changes. No new dependencies.
 
-- **TTFB is 1021ms** ("needs improvement" per Web Vitals). This is server-side latency — consider enabling CDN caching headers or preloading critical resources.
-- **FCP is 1504ms** — the AnimatedSplash blocks content for 3.2s on first visit. Consider reducing splash duration to 2s or skipping it for returning users.
-- **lucide-react is 156KB** — the largest dependency. Consider using `lucide-react/dist/esm/icons/*` tree-shaking or importing individual icons to reduce bundle.
-- **React 18 ref warnings** in console for `CommandDialog` and `InstallPrompt` — these should be wrapped with `forwardRef` to eliminate warnings.
-
-No database changes required. No new dependencies needed.
