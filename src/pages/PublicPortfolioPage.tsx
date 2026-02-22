@@ -364,8 +364,17 @@ function PublicPortfolioContent() {
   const initials = profile.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
 
   const show = (key: string) => !sections || (sections as unknown as Record<string, boolean>)[key] !== false;
-  const hasExperience = show('experience') && resume.experience?.length > 0;
-  const hasEducation = show('education') && resume.education?.length > 0;
+
+  // Filter out "ghost" entries where key fields are all empty
+  const validExperience = resume.experience?.filter(
+    e => (e.position?.trim() || e.company?.trim())
+  ) || [];
+  const validEducation = resume.education?.filter(
+    e => (e.institution?.trim() || e.degree?.trim())
+  ) || [];
+
+  const hasExperience = show('experience') && validExperience.length > 0;
+  const hasEducation = show('education') && validEducation.length > 0;
   const hasSkills = show('skills') && resume.skills?.length > 0;
   const hasProjects = show('projects') && resume.projects?.length > 0;
   const hasCerts = show('certifications') && resume.certifications?.length > 0;
@@ -706,7 +715,7 @@ function PublicPortfolioContent() {
                 }}>
                   <div className="pf-timeline-line" style={{ background: `linear-gradient(to bottom, ${accentColor}, transparent)` }} />
                   <div className="space-y-4 pl-11 md:pl-14">
-                    {resume.experience.map((exp, i) => (
+                    {validExperience.map((exp, i) => (
                       <div key={exp.id || i} className="relative">
                         <div className="pf-timeline-dot" style={{ background: accentColor, borderColor: 'var(--pf-bg, #0a0a1a)' }} />
                         <div className="pf-timeline-connector" style={{ background: accentColor }} />
@@ -813,7 +822,7 @@ function PublicPortfolioContent() {
                   );
                   observer.observe(el);
                 }}>
-                  {resume.education.map((edu, i) => (
+                  {validEducation.map((edu, i) => (
                     <EducationCard key={edu.id || i} edu={edu} style={pStyle} />
                   ))}
                 </div>
