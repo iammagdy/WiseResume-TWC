@@ -19,7 +19,8 @@ import type { CapacitorConfig } from '@capacitor/cli';
      allowsLinkPreview: true,
      scrollEnabled: true
    },
-   plugins: {
+  /* Keyboard: let CSS 100dvh + useKeyboardAwareScroll handle resizing */
+  plugins: {
       SplashScreen: {
         launchShowDuration: 3000,
         launchAutoHide: false,
@@ -33,10 +34,10 @@ import type { CapacitorConfig } from '@capacitor/cli';
      PushNotifications: {
        presentationOptions: ['badge', 'sound', 'alert'],
      },
-     Keyboard: {
-       resize: 'body',
-       resizeOnFullScreen: true
-     }
+      Keyboard: {
+        resize: 'none',
+        resizeOnFullScreen: false
+      }
    }
  };
 

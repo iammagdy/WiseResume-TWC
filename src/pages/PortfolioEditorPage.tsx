@@ -24,6 +24,7 @@ import { haptics } from '@/lib/haptics';
 import { computeSkillFrequencies } from '@/lib/skillCloud';
 import type { Experience, Project } from '@/types/resume';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
+import { openExternal } from '@/lib/openExternal';
 
 import { CollapsibleCard } from '@/components/portfolio/editor/shared';
 import { ProfileSection } from '@/components/portfolio/editor/ProfileSection';
@@ -779,7 +780,7 @@ export default function PortfolioEditorPage() {
 
       {/* ── Floating "View Live" pill ──────────────────────────────── */}
       <FloatingViewLivePill
-        onViewLive={actualPortfolioUrl ? () => window.open(actualPortfolioUrl, '_blank', 'noopener,noreferrer') : undefined}
+        onViewLive={actualPortfolioUrl ? () => openExternal(actualPortfolioUrl) : undefined}
         hasLiveUrl={!!actualPortfolioUrl && portfolioEnabled}
       />
 

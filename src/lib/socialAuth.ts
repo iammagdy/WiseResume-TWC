@@ -10,7 +10,8 @@ const isLovableDomain =
 
 function getOAuthRedirectUrl(): string {
   if (Capacitor.isNativePlatform()) {
-    return 'https://localhost/auth/callback';
+    // Use custom scheme so Android intent filters can intercept the redirect
+    return 'com.wiseresume.app://auth/callback';
   }
   return `${window.location.origin}/auth/callback`;
 }

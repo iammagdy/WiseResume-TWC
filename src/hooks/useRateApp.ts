@@ -1,5 +1,5 @@
  import { useCallback, useEffect } from 'react';
- import { Capacitor } from '@capacitor/core';
+ import { openExternal } from '@/lib/openExternal';
  
  const RATE_APP_KEY = 'wiseresume_rate_app_prompted';
  const POSITIVE_ACTIONS_KEY = 'wiseresume_positive_actions';
@@ -40,16 +40,7 @@
  
    const openAppStore = useCallback(() => {
      markAsPrompted();
-     
-     // For Android, open Play Store
-     if (Capacitor.getPlatform() === 'android') {
-        // TODO: Replace with actual Play Store URL
-        window.open('https://play.google.com/store/apps/details?id=com.wiseresume.app', '_blank');
-     }
-     // For iOS, would open App Store
-     else if (Capacitor.getPlatform() === 'ios') {
-       // window.open('https://apps.apple.com/app/idXXXXXXXXXX', '_blank');
-     }
+     openExternal('https://play.google.com/store/apps/details?id=com.wiseresume.app');
    }, [markAsPrompted]);
  
    const dismissRating = useCallback(() => {
