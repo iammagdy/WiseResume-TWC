@@ -50,7 +50,7 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${hexToRgb(hex)}, ${alpha})`;
 }
 
-// ─── Motion variants (only used ones) ──────────────────────────────────────────
+// ─── Motion variants (theme-adaptive) ──────────────────────────────────────────
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] as const } },
@@ -62,6 +62,97 @@ const bioFade = {
   hidden: { opacity: 0, filter: 'blur(4px)' },
   visible: { opacity: 1, filter: 'blur(0px)', transition: { duration: 0.6, ease: [0, 0, 0.2, 1] as const } },
 };
+
+// Theme-specific motion variants
+function getThemeItemVariant(style: string) {
+  switch (style) {
+    case 'developer-terminal':
+      return {
+        hidden: { opacity: 0, x: -20 },
+        visible: { opacity: 1, x: 0, transition: { duration: 0.4, ease: [0.22, 1, 0.36, 1] as const } },
+      };
+    case 'neon-cyber':
+      return {
+        hidden: { opacity: 0, scale: 0.92 },
+        visible: { opacity: 1, scale: 1, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] as const } },
+      };
+    case 'creative-spotlight':
+      return {
+        hidden: { opacity: 0, x: 40 },
+        visible: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 200, damping: 20 } },
+      };
+    case 'executive-suite':
+      return {
+        hidden: { opacity: 0, y: 16 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const } },
+      };
+    case 'freelancer-starter':
+      return {
+        hidden: { opacity: 0, scale: 0.85 },
+        visible: { opacity: 1, scale: 1, transition: { type: 'spring' as const, stiffness: 300, damping: 15 } },
+      };
+    default:
+      return fadeUp;
+  }
+}
+
+function getThemeSectionVariant(style: string) {
+  switch (style) {
+    case 'developer-terminal':
+      return {
+        hidden: { opacity: 0, x: -30 },
+        visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const, staggerChildren: 0.1 } },
+      };
+    case 'neon-cyber':
+      return {
+        hidden: { opacity: 0, scale: 0.95 },
+        visible: { opacity: 1, scale: 1, transition: { duration: 0.6, ease: [0, 0, 0.2, 1] as const, staggerChildren: 0.08 } },
+      };
+    case 'creative-spotlight':
+      return {
+        hidden: { opacity: 0, x: 50 },
+        visible: { opacity: 1, x: 0, transition: { type: 'spring' as const, stiffness: 180, damping: 22, staggerChildren: 0.1 } },
+      };
+    case 'executive-suite':
+      return {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] as const, staggerChildren: 0.12 } },
+      };
+    case 'freelancer-starter':
+      return {
+        hidden: { opacity: 0, scale: 0.9, y: 20 },
+        visible: { opacity: 1, scale: 1, y: 0, transition: { type: 'spring' as const, stiffness: 250, damping: 18, staggerChildren: 0.08 } },
+      };
+    default:
+      return stagger;
+  }
+}
+
+// Theme-aware generic card helper for About, Certifications, Awards, Publications, Volunteering
+function getGenericCardProps(style: string): { className: string; style: React.CSSProperties } {
+  switch (style) {
+    case 'developer-terminal':
+      return { className: 'pf-terminal-card', style: {} };
+    case 'neon-cyber':
+      return { className: 'pf-neon-card', style: {} };
+    case 'creative-spotlight':
+      return { className: 'pf-spotlight-card', style: {} };
+    case 'executive-suite':
+      return { className: 'pf-executive-card', style: {} };
+    case 'freelancer-starter':
+      return { className: 'pf-starter-card', style: {} };
+    case 'classic-clean':
+      return { className: '', style: { borderLeft: '2px solid var(--pf-accent)', paddingLeft: '1.25rem', paddingTop: '0.75rem', paddingBottom: '0.75rem' } };
+    case 'bold-dark':
+      return { className: 'rounded-xl p-4', style: { background: 'rgba(255,255,255,0.03)', border: '1px solid color-mix(in srgb, var(--pf-accent) 20%, transparent)' } };
+    case 'glass-pro':
+      return { className: 'rounded-xl p-4 backdrop-blur-sm', style: { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' } };
+    default:
+      return { className: 'p-4 rounded-xl', style: { background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' } };
+  }
+}
+
+const LIGHT_THEMES = ['classic-clean', 'executive-suite', 'creative-spotlight', 'freelancer-starter'];
 
 // ─── Theme CSS injection ───────────────────────────────────────────────────────
 import { getThemeById, buildThemeCSSVars } from '@/lib/portfolioThemes';
@@ -461,6 +552,7 @@ function PublicPortfolioContent() {
         contactEmail={profile.contactEmail}
         accentColor={accentColor}
         visible={stickyVisible}
+        pStyle={pStyle}
       />
 
       {/* Scroll progress bar */}
@@ -727,16 +819,24 @@ function PublicPortfolioContent() {
             {profile.portfolioBio && (
               <motion.section id="section-about" variants={bioFade} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-60px' }}>
                 <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="About" style={pStyle} />
-                <div className="p-5 rounded-2xl"
-                  style={{ background: 'var(--pf-card, rgba(255,255,255,0.04))', border: '1px solid var(--pf-border, rgba(255,255,255,0.08))' }}>
-                  <BioReveal bio={profile.portfolioBio} />
-                </div>
+                {(() => {
+                  const cardProps = getGenericCardProps(pStyle);
+                  const isTerminal = pStyle === 'developer-terminal';
+                  return (
+                    <div className={`${cardProps.className} ${!cardProps.className.includes('p-') && !isTerminal ? 'p-5 rounded-2xl' : ''}`} style={cardProps.style}>
+                      {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                      <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                        <BioReveal bio={profile.portfolioBio} />
+                      </div>
+                    </div>
+                  );
+                })()}
               </motion.section>
             )}
 
             {/* Experience */}
             {hasExperience && (
-              <motion.section variants={stagger} id="section-experience">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-experience">
                 <SectionHeader icon={<Briefcase className="w-5 h-5" />} title="Experience" style={pStyle} />
                 <div className="pf-timeline-container relative" ref={(node) => {
                   if (!node || node.dataset.observed) return;
@@ -773,7 +873,7 @@ function PublicPortfolioContent() {
 
             {/* Case Studies */}
             {hasCaseStudies && (
-              <motion.section variants={stagger} id="section-case-studies">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-case-studies">
                 <SectionHeader icon={<Layers className="w-5 h-5" />} title="Case Studies" style={pStyle} />
                 <div className="space-y-5">
                   {profile.caseStudies.map((cs) => (
@@ -785,7 +885,7 @@ function PublicPortfolioContent() {
 
             {/* Projects */}
             {hasProjects && (
-              <motion.section id="section-projects" variants={stagger}>
+              <motion.section id="section-projects" variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }}>
                 <SectionHeader icon={<FolderOpen className="w-5 h-5" />} title="Projects" style={pStyle} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {resume.projects.map((p, i) => (
@@ -797,7 +897,7 @@ function PublicPortfolioContent() {
 
             {/* Services */}
             {hasServices && (
-              <motion.section variants={stagger} id="section-services">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-services">
                 <SectionHeader icon={<Wrench className="w-5 h-5" />} title="Services" style={pStyle} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {profile.services.map((s) => (
@@ -809,7 +909,7 @@ function PublicPortfolioContent() {
 
             {/* Testimonials */}
             {hasTestimonials && (
-              <motion.section variants={stagger} id="section-testimonials">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-testimonials">
                 <SectionHeader icon={<Sparkles className="w-5 h-5" />} title="Testimonials" style={pStyle} />
                 <div className="space-y-4">
                   {testimonials.map((t) => (
@@ -847,7 +947,7 @@ function PublicPortfolioContent() {
 
             {/* Education */}
             {hasEducation && (
-              <motion.section variants={stagger} id="section-education">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-education">
                 <SectionHeader icon={<GraduationCap className="w-5 h-5" />} title="Education" style={pStyle} />
                 <div className="space-y-4" ref={(el) => {
                   if (!el || (el as HTMLElement & { __eduObserved?: boolean }).__eduObserved) return;
@@ -875,100 +975,116 @@ function PublicPortfolioContent() {
 
             {/* Certifications */}
             {hasCerts && (
-              <motion.section variants={stagger} id="section-certifications">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-certifications">
                 <SectionHeader icon={<Award className="w-5 h-5" />} title="Certifications" style={pStyle} />
                 <div className="space-y-3">
-                  {resume.certifications.map((cert, i) => (
-                    <motion.div key={cert.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
-                      background: 'var(--pf-card, rgba(255,255,255,0.04))',
-                      border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-                    }}>
-                      <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cert.issuer} · {cert.date}</p>
-                    </motion.div>
-                  ))}
+                  {resume.certifications.map((cert, i) => {
+                    const cardProps = getGenericCardProps(pStyle);
+                    const isTerminal = pStyle === 'developer-terminal';
+                    return (
+                      <motion.div key={cert.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                        {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                        <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                          <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{cert.name}</h4>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{cert.issuer} · {cert.date}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.section>
             )}
 
             {/* Awards */}
             {hasAwards && (
-              <motion.section variants={stagger} id="section-awards">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-awards">
                 <SectionHeader icon={<Trophy className="w-5 h-5" />} title="Awards" style={pStyle} />
                 <div className="space-y-3">
-                  {resume.awards.map((award, i) => (
-                    <motion.div key={award.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
-                      background: 'var(--pf-card, rgba(255,255,255,0.04))',
-                      border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-                    }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{award.title}</h4>
-                        {award.date && <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.date}</span>}
-                      </div>
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-accent)' }}>{award.issuer}</p>
-                      {award.description && (
-                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.description}</p>
-                      )}
-                    </motion.div>
-                  ))}
+                  {resume.awards.map((award, i) => {
+                    const cardProps = getGenericCardProps(pStyle);
+                    const isTerminal = pStyle === 'developer-terminal';
+                    return (
+                      <motion.div key={award.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                        {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                        <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{award.title}</h4>
+                            {award.date && <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.date}</span>}
+                          </div>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--pf-accent)' }}>{award.issuer}</p>
+                          {award.description && (
+                            <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{award.description}</p>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.section>
             )}
 
             {/* Publications */}
             {hasPublications && (
-              <motion.section variants={stagger} id="section-publications">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-publications">
                 <SectionHeader icon={<BookOpen className="w-5 h-5" />} title="Publications" style={pStyle} />
                 <div className="space-y-3">
-                  {resume.publications.map((pub, i) => (
-                    <motion.div key={pub.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
-                      background: 'var(--pf-card, rgba(255,255,255,0.04))',
-                      border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-                    }}>
-                      {pub.url ? (
-                        <a href={pub.url} target="_blank" rel="noopener noreferrer"
-                          className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
-                          style={{ color: 'var(--pf-fg, inherit)' }}>
-                          {pub.title}
-                          <ExternalLink className="w-3 h-3" style={{ color: 'var(--pf-accent)' }} />
-                        </a>
-                      ) : (
-                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{pub.title}</h4>
-                      )}
-                      <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                        {pub.publisher}{pub.date ? ` · ${pub.date}` : ''}
-                      </p>
-                      {pub.description && (
-                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{pub.description}</p>
-                      )}
-                    </motion.div>
-                  ))}
+                  {resume.publications.map((pub, i) => {
+                    const cardProps = getGenericCardProps(pStyle);
+                    const isTerminal = pStyle === 'developer-terminal';
+                    return (
+                      <motion.div key={pub.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                        {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                        <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                          {pub.url ? (
+                            <a href={pub.url} target="_blank" rel="noopener noreferrer"
+                              className="font-semibold text-sm inline-flex items-center gap-1 hover:opacity-80 transition-opacity"
+                              style={{ color: 'var(--pf-fg, inherit)' }}>
+                              {pub.title}
+                              <ExternalLink className="w-3 h-3" style={{ color: 'var(--pf-accent)' }} />
+                            </a>
+                          ) : (
+                            <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{pub.title}</h4>
+                          )}
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                            {pub.publisher}{pub.date ? ` · ${pub.date}` : ''}
+                          </p>
+                          {pub.description && (
+                            <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{pub.description}</p>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.section>
             )}
 
             {/* Volunteering */}
             {hasVolunteering && (
-              <motion.section variants={stagger} id="section-volunteering">
+              <motion.section variants={getThemeSectionVariant(pStyle)} initial="hidden" whileInView="visible" viewport={{ once: true, margin: '-80px' }} id="section-volunteering">
                 <SectionHeader icon={<Heart className="w-5 h-5" />} title="Volunteering" style={pStyle} />
                 <div className="space-y-3">
-                  {resume.volunteering.map((vol, i) => (
-                    <motion.div key={vol.id || i} variants={fadeUp} className="p-4 rounded-xl" style={{
-                      background: 'var(--pf-card, rgba(255,255,255,0.04))',
-                      border: '1px solid var(--pf-border, rgba(255,255,255,0.08))',
-                    }}>
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{vol.role}</h4>
-                        <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
-                          {vol.startDate} – {vol.endDate || 'Present'}
-                        </span>
-                      </div>
-                      <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--pf-accent)' }}>{vol.organization}</p>
-                      {vol.description && (
-                        <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{vol.description}</p>
-                      )}
-                    </motion.div>
-                  ))}
+                  {resume.volunteering.map((vol, i) => {
+                    const cardProps = getGenericCardProps(pStyle);
+                    const isTerminal = pStyle === 'developer-terminal';
+                    return (
+                      <motion.div key={vol.id || i} variants={getThemeItemVariant(pStyle)} className={cardProps.className} style={cardProps.style}>
+                        {isTerminal && <div className="pf-terminal-dots"><span /><span /><span /></div>}
+                        <div className={isTerminal ? 'pf-terminal-card-body' : ''}>
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-semibold text-sm" style={{ color: 'var(--pf-fg, inherit)' }}>{vol.role}</h4>
+                            <span className="text-xs shrink-0" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
+                              {vol.startDate} – {vol.endDate || 'Present'}
+                            </span>
+                          </div>
+                          <p className="text-xs mt-0.5 font-medium" style={{ color: 'var(--pf-accent)' }}>{vol.organization}</p>
+                          {vol.description && (
+                            <p className="text-xs mt-1.5 leading-relaxed" style={{ color: 'var(--pf-muted, #9ca3af)' }}>{vol.description}</p>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </motion.section>
             )}

@@ -1574,6 +1574,119 @@ button,
   transform: translateY(calc(var(--pf-scroll, 0) * -0.15px));
 }
 
+/* ─── Light-Aware Hero Ambient ───────────────────────────────────────────── */
+[data-portfolio-style="classic-clean"] .pf-hero-ambient,
+[data-portfolio-style="executive-suite"] .pf-hero-ambient,
+[data-portfolio-style="creative-spotlight"] .pf-hero-ambient,
+[data-portfolio-style="freelancer-starter"] .pf-hero-ambient {
+  background: linear-gradient(135deg, rgba(254,254,254,0.5), rgba(248,246,240,0.5), rgba(240,234,255,0.3), rgba(254,254,254,0.5)) !important;
+}
+
+/* ─── Enhanced Terminal Hover ────────────────────────────────────────────── */
+@keyframes pf-terminal-scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+@media (hover: hover) {
+  .pf-terminal-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .pf-terminal-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(180deg, transparent 0%, rgba(158,206,106,0.04) 50%, transparent 100%);
+    opacity: 0;
+    transform: translateY(-100%);
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .pf-terminal-card:hover::after {
+    opacity: 1;
+    animation: pf-terminal-scanline 1.5s ease-in-out infinite;
+  }
+}
+
+/* ─── Enhanced Spotlight Hover ───────────────────────────────────────────── */
+@media (hover: hover) {
+  .pf-spotlight-card {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .pf-spotlight-card:hover {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.06);
+  }
+}
+
+/* ─── Enhanced Executive Hover ───────────────────────────────────────────── */
+@media (hover: hover) {
+  .pf-executive-card {
+    position: relative;
+    transition: border-color 0.3s ease;
+  }
+  .pf-executive-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 1.5rem;
+    right: 1.5rem;
+    height: 2px;
+    background: var(--pf-accent, #1e3a5f);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .pf-executive-card:hover::after {
+    transform: scaleX(1);
+  }
+  .pf-executive-card:hover {
+    border-color: color-mix(in srgb, var(--pf-accent, #1e3a5f) 40%, transparent);
+  }
+}
+
+/* ─── Enhanced Starter Hover ─────────────────────────────────────────────── */
+@keyframes pf-starter-gradient-reveal {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@media (hover: hover) {
+  .pf-starter-card {
+    position: relative;
+    overflow: hidden;
+  }
+  .pf-starter-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, var(--pf-accent, #7c3aed), color-mix(in srgb, var(--pf-accent, #7c3aed) 40%, #ec4899));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+  .pf-starter-card:hover::before {
+    opacity: 1;
+  }
+}
+
+/* ─── Enhanced Neon Glow ─────────────────────────────────────────────────── */
+@keyframes pf-neon-border-pulse {
+  0%, 100% { border-color: color-mix(in srgb, var(--pf-accent) 35%, transparent); }
+  50% { border-color: color-mix(in srgb, var(--pf-accent) 70%, transparent); }
+}
+.pf-neon-card {
+  animation: pf-neon-border-pulse 3s ease-in-out infinite;
+}
+
 /* ─── Section Line Divider (draw on scroll) ──────────────────────────────── */
 .pf-section-line {
   height: 2px;
