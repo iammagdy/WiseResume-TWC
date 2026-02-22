@@ -1,136 +1,120 @@
 
 
-# Production Backend Audit -- Issues and Fixes
+# Authentication Flow Audit -- Issues and Improvements
 
-## Summary of Findings
+## What's Already Good
 
-The database schema is well-structured overall -- RLS is enabled on all 23 tables, indexes are comprehensive, and the cron jobs are properly configured. However, there are **2 critical issues** that will break the app for new users, plus several high-priority fixes needed before going live.
+The auth system has solid foundations: brute-force cooldown (5 attempts / 30s lockdown), network retry logic, offline detection, slow-connection indicators, session-expired handling, anti-enumeration on signup ("if this email is not already registered..."), password strength enforcement, haptic feedback, and comprehensive audit logging. These are above-average for most apps.
 
----
+## Issues Found
 
-## CRITICAL Issues
+### CRITICAL: No "Email Not Confirmed" Handling on Login
 
-### 1. Missing `handle_new_user` Trigger on `auth.users`
+When a user signs up and hasn't verified their email, then tries to log in, Supabase returns `"Email not confirmed"`. The login handler treats this as a generic credential error showing "Invalid credentials" -- which is confusing and will make users think their password is wrong. Production apps like Notion and Linear show a specific message: "Please verify your email first" with a "Resend verification email" button.
 
-The function `handle_new_user()` exists and correctly inserts a profile row when a new user signs up. **But the trigger that calls it is missing.** This means any new user who signs up will have NO profile row, causing the entire app to break for them (no dashboard data, no portfolio, no settings).
+**Fix:** Detect the `"Email not confirmed"` error message and show a dedicated UI state with a resend-verification button that calls `supabase.auth.resend({ type: 'signup', email })`.
 
-**Fix:** Re-create the trigger on `auth.users`.
+### CRITICAL: No Terms of Service / Privacy Policy Consent on Signup
 
-```sql
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_new_user();
+The signup form collects name, phone, email, and password but never asks users to agree to Terms of Service or Privacy Policy. This is a legal requirement for production apps. The app already has `/terms` and `/privacy` pages but they're not linked from signup.
+
+**Fix:** Add a checkbox or implicit consent text below the signup button: "By creating an account, you agree to our Terms of Service and Privacy Policy" with links to `/terms` and `/privacy`.
+
+### HIGH: Forgot-Password Validation Bug (Line 232)
+
+```ts
+const err = !forgotEmail ? 'Email is required' : undefined;
+try { emailSchema.parse(forgotEmail); } catch { if (!err) { setIsLoading(false); return; } }
 ```
 
-### 2. Resume Deletion Fails Due to NO ACTION Foreign Keys
+This logic is broken: if the email is non-empty but invalid, `err` is `undefined`, so the `if (!err)` branch runs `setIsLoading(false)` and returns -- but `setIsLoading` was never set to `true` at that point (it's set on line 234, after this check). The function silently exits without any error message shown to the user.
 
-When a user deletes a resume, the operation will throw a database error because 6 child tables have foreign keys to `resumes` with `NO ACTION` on delete. Since `resume_id` is nullable on all these tables, the correct behavior is `SET NULL`.
+**Fix:** Restructure to validate first, show toast on invalid email, then proceed.
 
-Affected tables and their FK constraints:
-- `ai_usage_logs.resume_id` (fk_ai_usage_logs_resume)
-- `career_assessments.resume_id` (fk_career_assessments_resume)
-- `cover_letters.resume_id` (fk_cover_letters_resume)
-- `interview_sessions.resume_id` (fk_interview_sessions_resume)
-- `job_applications.resume_id` (fk_job_applications_resume)
-- `tailor_history.resume_id` (fk_tailor_history_resume)
-- `profiles.portfolio_resume_id` (profiles_portfolio_resume_id_fkey)
-- `resumes.parent_resume_id` (resumes_parent_resume_id_fkey)
+### HIGH: Login Redirect Reads `window.location.search` Instead of `searchParams`
 
-**Fix:** Alter each FK to use `ON DELETE SET NULL`.
+On successful login (line 162), the redirect param is read from `window.location.search` directly. But earlier (line 119), the `?mode=` param handling calls `window.history.replaceState({}, '', window.location.pathname)` which strips ALL query params -- including `?redirect=`. So if a user lands on `/auth?redirect=/editor&mode=signup`, switches to login, and signs in, the redirect is lost.
 
----
+**Fix:** Read the redirect from `searchParams` at component mount and store it in a `useRef`, so it survives query param cleanup.
 
-## HIGH Priority Issues
+### HIGH: No "Resend Verification Email" Flow
 
-### 3. 6 Users Missing `user_preferences` Records
+After signup, users see "you'll receive a verification link" and are sent back to the login form. If the email doesn't arrive (spam filter, typo in address), there's no way to request a new one. Production apps always provide a resend option.
 
-The `handle_new_profile_preferences` trigger exists on `profiles` and works for new profiles, but 6 existing users never got their `user_preferences` rows created (likely signed up before the trigger was added). These users may encounter errors when accessing settings.
+**Fix:** After signup success (when no session is returned), show a dedicated "Check Your Email" screen with a "Resend" button and a "Didn't receive it?" helper text, using `supabase.auth.resend({ type: 'signup', email })`.
 
-**Fix:** Backfill missing records:
+### MEDIUM: Cooldown Uses `sessionStorage` (Easily Bypassed)
 
-```sql
-INSERT INTO public.user_preferences (user_id)
-SELECT p.user_id FROM public.profiles p
-LEFT JOIN public.user_preferences up ON up.user_id = p.user_id
-WHERE up.user_id IS NULL;
-```
+The brute-force cooldown stores attempt counts in `sessionStorage`. Opening a new tab or incognito window resets it. While server-side rate limiting from Supabase is the real protection, the client-side cooldown should at least use `localStorage` with an expiry timestamp to be slightly harder to bypass.
 
-### 4. Missing Foreign Keys on `short_links` and `audit_logs`
+**Fix:** Switch from `sessionStorage` to `localStorage`.
 
-- `short_links.owner_user_id` has NO foreign key to `auth.users`. If a user account is deleted, their short links become orphaned.
-- `audit_logs.user_id` has NO foreign key to `auth.users`. Same orphaning risk.
+### MEDIUM: Social Auth Loading State Not Cleared on Error
 
-**Fix:** Add FKs with CASCADE delete.
+For Google/Apple sign-in (lines 293-305), `setSocialLoading(null)` runs after a 2-second `setTimeout` regardless of success/failure. If the OAuth popup is closed or fails quickly, the buttons remain disabled for the full 2 seconds unnecessarily.
 
-```sql
-ALTER TABLE public.short_links
-  ADD CONSTRAINT short_links_owner_user_id_fkey
-  FOREIGN KEY (owner_user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+**Fix:** Clear `socialLoading` immediately in the `catch` block, only keep the timeout for the success path (where the page redirects).
 
-ALTER TABLE public.audit_logs
-  ADD CONSTRAINT audit_logs_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-```
+### MEDIUM: No Loading Skeleton on Auth Page Initial Load
 
-### 5. `portfolio_visits.username` Has No FK to `profiles.username`
+When a logged-in user navigates to `/auth`, there's a flash of the login form before the redirect to `/dashboard` fires (line 124). This creates a jarring experience.
 
-Portfolio visits reference usernames but have no constraint ensuring the username exists. If a user changes their username, old visit records become unlinked. This is acceptable for analytics (historical data), but worth noting. No change needed -- the `record_portfolio_visit` RPC already validates the username exists.
+**Fix:** Show a loading skeleton or spinner while `loading` is true from `useAuth()`, before rendering the form.
 
----
+### LOW: Password Reset Redirect URL Doesn't Use `/auth/callback`
 
-## MEDIUM Priority Improvements
+The forgot-password handler redirects to `/auth?reset=true` (line 237), which works but bypasses the standard callback handler. The `PASSWORD_RECOVERY` event listener on `onAuthStateChange` (line 106) is a duplicate mechanism. This is not broken but adds unnecessary complexity.
 
-### 6. Move `pg_net` Extension Out of Public Schema
+### LOW: "Explore Without Account" Button on Auth Page
 
-The linter flagged `pg_net` in the public schema. Best practice is to move it to the `extensions` schema to reduce the public API surface.
+Line 424-429 shows an "Explore without account" button that navigates to `/`. Since guest mode has been removed and all routes require auth, this button sends users to the landing page which has no useful functionality without an account. It's misleading.
 
-```sql
-ALTER EXTENSION pg_net SET SCHEMA extensions;
-```
-
-### 7. `ai-health` Endpoint Accepts API Key in Query Parameter
-
-The `/ai-health` edge function accepts a Gemini API key as `?userGeminiKey=...` in the URL. Query parameters appear in server logs and browser history. Since this endpoint is just a health check and the key is only used for a lightweight GET request, the risk is low. However, for production, it should accept the key via the request body (POST) or use the server-side encrypted key lookup pattern already used by other functions.
-
-**Fix:** Update the edge function to retrieve the user's Gemini key from the `user_api_keys` table instead of accepting it as a parameter, consistent with all other AI functions.
-
----
-
-## What's Already Good (no changes needed)
-
-- All 23 tables have RLS enabled with correct `auth.uid() = user_id` policies
-- All user_id columns use `ON DELETE CASCADE` FKs to `auth.users`
-- SECURITY DEFINER functions properly protect public portfolio data
-- Composite indexes on high-query tables (ai_usage_logs, job_applications, notifications, portfolio_visits)
-- `updated_at` triggers on all relevant tables
-- `notify_application_change` trigger on `job_applications` working
-- `cleanup_stale_data` cron job running weekly
-- Weekly digest and resume reminder cron jobs configured
-- `user_api_keys_safe` view with `security_invoker=on` properly hides encrypted keys
-- BCrypt password hashing for shared resume passwords
-
----
+**Fix:** Remove the "Explore without account" button, or change it to "View landing page" with clear expectations.
 
 ## Implementation Plan
 
-### Step 1: Database migration (single SQL migration)
+### Step 1: Add "Email Not Confirmed" Handling + Resend Verification
 
-One migration that:
-1. Creates the `handle_new_user` trigger on `auth.users`
-2. Alters 8 FK constraints from NO ACTION to SET NULL
-3. Backfills missing `user_preferences` records
-4. Adds missing FKs on `short_links` and `audit_logs`
-5. Moves `pg_net` to extensions schema
+- In `handleLoginSubmit`, detect `error.message` containing "Email not confirmed"
+- Show a dedicated UI state (`email-not-confirmed` mode) with the user's email and a "Resend Verification" button
+- The resend button calls `supabase.auth.resend({ type: 'signup', email })`
+- Include a cooldown on the resend button (60 seconds) to prevent spam
 
-### Step 2: Update `ai-health` edge function
+### Step 2: Add Post-Signup "Check Your Email" Screen
 
-Modify it to accept authentication and look up the user's Gemini key from `user_api_keys` server-side, removing the query parameter approach.
+- After successful signup with no session returned, instead of toasting and switching to login, switch to a new `verify-email` mode
+- Show the email address, a "Resend" button, and "Wrong email? Go back" link
+- Store the signup email in state so the resend button works
 
-### Expected result
-- New user signups will auto-create profiles (critical fix)
-- Resume deletion will work without FK errors (critical fix)
-- Account deletion will properly cascade to all child tables
-- All existing users will have their preferences records
-- Consistent API key handling across all edge functions
+### Step 3: Add Terms/Privacy Consent to Signup
+
+- Add consent text below the signup button in `SignupForm.tsx`: "By creating an account, you agree to our [Terms of Service](/terms) and [Privacy Policy](/privacy)"
+- Use `Link` components for the legal pages
+- No checkbox needed (implicit consent is the industry standard for consumer apps)
+
+### Step 4: Fix Forgot-Password Validation Bug
+
+- Restructure the validation in `handlePasswordReset` to properly validate email before proceeding
+- Show a toast error for invalid email format
+
+### Step 5: Preserve Redirect Param Across Mode Changes
+
+- Read `redirect` from `searchParams` on mount and store in a `useRef`
+- Use this ref in all post-auth navigations (login, signup, social auth)
+
+### Step 6: Minor Fixes
+
+- Switch cooldown from `sessionStorage` to `localStorage`
+- Clear `socialLoading` immediately on error
+- Add auth loading check before rendering the form
+- Remove "Explore without account" button
+
+### Files to modify:
+
+| File | Change |
+|------|--------|
+| `src/pages/AuthPage.tsx` | Email-not-confirmed handling, verify-email mode, redirect preservation, forgot-password fix, loading state, remove explore button |
+| `src/components/auth/SignupForm.tsx` | Add Terms/Privacy consent text |
+| `src/components/auth/VerifyEmailScreen.tsx` | **NEW** -- post-signup verification screen with resend |
+| `src/components/auth/EmailNotConfirmedBanner.tsx` | **NEW** -- banner shown on login when email not verified |
 
