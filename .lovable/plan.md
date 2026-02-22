@@ -1,49 +1,50 @@
 
 
-# Fix Logo Progressive Loading in Spinner
+# Unify All Loading Spinners Across the App
 
-## Problem
-The logo image (`/favicon.png`) in the HTML fallback spinner loads progressively over the network, appearing in stages (25% -> 50% -> 100%). This creates an unprofessional "building up" effect instead of the logo appearing all at once.
+## Overview
+There are **61 files** using the generic `Loader2` spinning icon from Lucide. This plan creates a branded `MiniSpinner` component that mirrors the futuristic concentric-ring style of the `PageLoadingSpinner`, then replaces every `Loader2 animate-spin` usage across the entire app.
 
-## Root Cause
-The browser renders PNG images as data arrives. Since the spinner displays immediately but the image takes time to download, the user sees partial rendering.
+## What Gets Created
 
-## Solution
+### New Component: `src/components/ui/MiniSpinner.tsx`
+A small, branded spinner using pure CSS animations (no framer-motion needed for inline spinners). It renders two concentric spinning rings matching the primary color, at any size.
 
-### 1. Hide the logo until fully loaded (`index.html`)
+- Accepts a `size` prop (default: 16) and optional `className`
+- Uses CSS `@keyframes` for two counter-rotating rings (matching the PageLoadingSpinner look)
+- Works at all sizes: 12px (tiny badges), 16px (buttons), 20px (medium), 32px (section loaders)
+- Drop-in replacement anywhere `Loader2 className="w-4 h-4 animate-spin"` is used
 
-Make the `<img>` invisible by default (`opacity: 0`), then reveal it instantly once fully loaded using an inline `onload` handler with a smooth CSS transition:
+Visual: Two concentric rings spinning in opposite directions with primary-colored arcs -- the same visual DNA as the full-page spinner, just miniaturized.
 
-```html
-<img src="/favicon.png" alt="" width="40" height="40"
-  style="position:relative; opacity:0; transition:opacity 0.2s ease-in;
-         filter:drop-shadow(0 0 24px rgba(220,38,38,0.7));"
-  onload="this.style.opacity='1'" />
-```
+## What Gets Updated
 
-This ensures the logo is completely downloaded and decoded before it becomes visible -- no partial rendering.
+All **61 files** that currently use `Loader2` with `animate-spin` will be updated:
+- Replace `import { ..., Loader2, ... } from 'lucide-react'` with `import { MiniSpinner } from '@/components/ui/MiniSpinner'`
+- Replace `<Loader2 className="w-4 h-4 animate-spin" />` with `<MiniSpinner size={16} />`
+- Replace `<Loader2 className="w-5 h-5 animate-spin" />` with `<MiniSpinner size={20} />`
+- Replace `<Loader2 className="w-8 h-8 animate-spin" />` with `<MiniSpinner size={32} />`
+- Preserve any extra classes like `mr-2`, `text-primary`, `inline` by passing them via `className`
 
-### 2. Preload the favicon image (`index.html` head)
+### Size Mapping
+| Old Tailwind Class | Pixel Size | New Component |
+|---|---|---|
+| `w-3 h-3` | 12px | `<MiniSpinner size={12} />` |
+| `w-3.5 h-3.5` | 14px | `<MiniSpinner size={14} />` |
+| `w-4 h-4` | 16px | `<MiniSpinner size={16} />` |
+| `w-5 h-5` | 20px | `<MiniSpinner size={20} />` |
+| `w-6 h-6` | 24px | `<MiniSpinner size={24} />` |
+| `w-8 h-8` | 32px | `<MiniSpinner size={32} />` |
+| `w-16 h-16` | 64px | `<MiniSpinner size={64} />` |
 
-Add a `<link rel="preload">` tag in the `<head>` so the browser starts fetching the image early, before it even encounters the `<img>` tag:
+## Files to Update (all 61)
 
-```html
-<link rel="preload" href="/favicon.png" as="image" />
-```
+Pages: `PreviewPage`, `ResumeDetailPage`, `AuthPage`, `CoverLetterNewPage`, `CoverLetterEditPage`, `ResignationLetterEditPage`, `ResignationLetterNewPage`, `EditorPage`, `InterviewPage`, `DashboardPage`, `SettingsPage`, `ApplicationsPage`, `UploadPage`, `TemplatesPage`, `ProfilePage`, `CareerPage`, `PortfolioEditorPage`, `OnboardingPage`, `AIStudioPage`, `NotificationsPage`
 
-This reduces the delay between spinner appearing and logo appearing.
-
-### 3. Fix the React `PageLoadingSpinner` too (`PageLoadingSpinner.tsx`)
-
-The React spinner uses `AppIcon` which loads `wise-ai-logo.png` -- same progressive loading issue. Update `AppIcon` to hide the image until loaded:
-
-- Add an `onLoad` callback to set visibility
-- Use React state (`useState`) to track loaded status
-- Render with `opacity: 0` until loaded, then transition to `opacity: 1`
+Components: `LoginForm`, `SignupForm`, `MagicLinkForm`, `SocialAuthButtons`, `BugReportDialog`, `EditProfileSheet`, `AvatarCropSheet`, `AnalyzeJobSheet`, `GapExplainerSheet`, `ExportOptionsSheet`, `UnsavedChangesDialog`, `OfflineIndicator`, `UploadProgressSteps`, `InterviewToggle`, `ATSScoreBreakdown`, `JobUrlParser`, `VisitorsPanel`, `FollowUpEmailSheet`, `SaveJobSheet`, `JobSearchSheet`, `CareerCardSheet`, and many more AI/editor tool sheets.
 
 ## Result
-- Logo appears instantly and fully rendered (no partial/progressive stages)
-- Preloading ensures minimal delay between spinner and logo appearing
-- Both the HTML fallback and React spinner are fixed
-- No changes to the actual logo image file
+- Every loading state in the app uses the same branded concentric-ring spinner
+- Consistent visual language from the full-page spinner down to button-level loading indicators
+- The app feels polished and cohesive -- no more generic Lucide circles
 
