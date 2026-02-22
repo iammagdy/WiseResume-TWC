@@ -20,10 +20,11 @@ import { SetupTab } from '@/components/portfolio/editor/SetupTab';
 import { DesignTab } from '@/components/portfolio/editor/DesignTab';
 import { MoreTab } from '@/components/portfolio/editor/MoreTab';
 import { SaveBar } from '@/components/portfolio/editor/SaveBar';
+import { PortfolioEditorSkeleton } from '@/components/layout/PageSkeletons';
 
 export default function PortfolioEditorPage() {
   const { user } = useAuth();
-  const { profile, updateProfile } = useProfile(user?.id, user);
+  const { profile, loading, updateProfile } = useProfile(user?.id, user);
   const { data: resumes = [] } = useResumes();
 
   // Collapsible sections state — all collapsed by default
@@ -155,6 +156,7 @@ export default function PortfolioEditorPage() {
 
 
   if (!user) return null;
+  if (loading) return <PortfolioEditorSkeleton />;
 
   const validateUsername = (value: string) => {
     if (!value) { setUsernameError(''); return; }
