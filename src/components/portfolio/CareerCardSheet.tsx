@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
-import html2canvas from 'html2canvas';
+import { captureWithRetry } from '@/lib/html2canvasRetry';
 import { Download, Linkedin, Share2, Sparkles } from 'lucide-react';
 import { openExternal } from '@/lib/openExternal';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -417,12 +417,9 @@ export function CareerCardSheet({
     haptics.medium();
     setGenerating(true);
     try {
-      const canvas = await html2canvas(cardRef.current, {
+      const canvas = await captureWithRetry(cardRef.current, {
         scale: 1,
-        useCORS: true,
-        allowTaint: false,
         backgroundColor: null,
-        logging: false,
         width: 1200,
         height: 630,
       });
@@ -439,8 +436,9 @@ export function CareerCardSheet({
       });
       toast.success('Career Card saved!');
       haptics.success();
-    } catch {
-      toast.error('Failed to generate image. Please try again.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Capture failed';
+      toast.error(msg, { action: { label: 'Retry', onClick: () => handleDownload() } });
     } finally {
       setGenerating(false);
     }
@@ -451,9 +449,8 @@ export function CareerCardSheet({
     haptics.medium();
     setGenerating(true);
     try {
-      const canvas = await html2canvas(cardRef.current, {
-        scale: 1, useCORS: true, allowTaint: false, backgroundColor: null, logging: false,
-        width: 1200, height: 630,
+      const canvas = await captureWithRetry(cardRef.current, {
+        scale: 1, backgroundColor: null, width: 1200, height: 630,
       });
       await new Promise<void>((resolve, reject) => {
         canvas.toBlob(async (blob) => {
