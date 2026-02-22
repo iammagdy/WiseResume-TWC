@@ -1,4 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion';
+import { AppIcon } from '@/components/brand/AppIcon';
 
 const particles = Array.from({ length: 6 }, (_, i) => ({
   id: i,
@@ -20,7 +21,7 @@ export function PageLoadingSpinner() {
           transition={{ duration: 0.3 }}
         >
           <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-            <div className="w-4 h-4 rounded-full bg-primary" />
+            <AppIcon size={20} />
           </div>
           <span className="text-sm text-muted-foreground">Loading...</span>
         </motion.div>
@@ -75,19 +76,15 @@ export function PageLoadingSpinner() {
             transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
           />
 
-          {/* Pulsing core */}
+          {/* Pulsing core — branded logo */}
           <motion.div
-            className="relative w-6 h-6 rounded-full bg-primary shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
-            animate={{
-              scale: [1, 1.25, 1],
-              boxShadow: [
-                '0 0 15px hsl(var(--primary) / 0.4)',
-                '0 0 30px hsl(var(--primary) / 0.7)',
-                '0 0 15px hsl(var(--primary) / 0.4)',
-              ],
-            }}
+            className="relative"
+            animate={{ scale: [1, 1.15, 1] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-          />
+            style={{ filter: 'drop-shadow(0 0 20px hsl(var(--primary) / 0.5))' }}
+          >
+            <AppIcon size={32} />
+          </motion.div>
 
           {/* Particles */}
           {particles.map((p) => {
