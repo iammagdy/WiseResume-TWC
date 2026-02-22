@@ -1,4 +1,4 @@
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 
 interface AppIconProps {
   size?: number | string;
