@@ -8,7 +8,8 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, Loader2, ScanText } from 'lucide-react';
+import { AlertTriangle, ScanText } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 
 interface OCRPromptDialogProps {
   open: boolean;
@@ -39,7 +40,7 @@ export function OCRPromptDialog({
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                <MiniSpinner size={20} />
                 Extracting Text with OCR
               </DialogTitle>
               <DialogDescription>

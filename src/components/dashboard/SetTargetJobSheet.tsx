@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Target, Loader2, Sparkles, CheckCircle, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
+import { Target, Sparkles, CheckCircle, AlertTriangle, XCircle, ArrowRight } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -198,7 +199,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
             className="space-y-6 py-8"
           >
             <div className="text-center space-y-3">
-              <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+              <MiniSpinner size={32} className="text-primary mx-auto" />
               <p className="text-sm font-medium">{progress.message}</p>
               {progress.funFact && (
                 <p className="text-xs text-muted-foreground italic">{progress.funFact}</p>
@@ -303,7 +304,7 @@ export function SetTargetJobSheet({ open, onOpenChange, resume }: SetTargetJobSh
                 className="w-full min-h-[48px] active:scale-95 transition-transform"
               >
                 {isTailoring ? (
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  <MiniSpinner size={16} className="mr-2" />
                 ) : (
                   <Sparkles className="w-4 h-4 mr-2" />
                 )}

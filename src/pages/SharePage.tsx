@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Sparkles, Lock, MessageSquare, ChevronDown, ChevronUp, Send, Loader2 } from 'lucide-react';
+import { Sparkles, Lock, MessageSquare, ChevronDown, ChevronUp, Send } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -238,7 +239,7 @@ export default function SharePage() {
                   disabled={addComment.isPending}
                   className="w-full min-h-[48px]"
                 >
-                  {addComment.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                  {addComment.isPending ? <MiniSpinner size={16} className="mr-2" /> : <Send className="w-4 h-4 mr-2" />}
                   Submit Feedback
                 </Button>
               </div>

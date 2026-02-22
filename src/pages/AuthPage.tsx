@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Button } from '@/components/ui/button';
 import { InputFormField } from '@/components/ui/form-field';
@@ -366,7 +367,7 @@ export default function AuthPage() {
                 touched={resetTouched.confirm} required
               />
               <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold gradient-primary glow-primary" disabled={isLoading}>
-                {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Updating...</> : 'Update Password'}
+                {isLoading ? <><MiniSpinner size={20} className="mr-2" />Updating...</> : 'Update Password'}
               </Button>
             </form>
           ) : isForgotPassword ? (
@@ -380,7 +381,7 @@ export default function AuthPage() {
                 error={forgotEmailError} touched={forgotTouched} required
               />
               <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold gradient-primary glow-primary" disabled={isLoading}>
-                {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Sending...</> : 'Send Reset Link'}
+                {isLoading ? <><MiniSpinner size={20} className="mr-2" />Sending...</> : 'Send Reset Link'}
               </Button>
               <div className="text-center">
                 <button type="button" onClick={() => setMode('login')} className="text-primary hover:underline text-sm min-h-[44px] touch-manipulation">

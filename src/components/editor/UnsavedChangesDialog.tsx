@@ -9,7 +9,7 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 
 interface UnsavedChangesDialogProps {
   open: boolean;
@@ -50,7 +50,7 @@ export function UnsavedChangesDialog({
           <AlertDialogAction onClick={onSaveAndLeave} disabled={isSaving}>
             {isSaving ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <MiniSpinner size={16} className="mr-2" />
                 Saving…
               </>
             ) : (

@@ -2,7 +2,8 @@ import { useState, useEffect, forwardRef } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Key, Trash2, Loader2 } from 'lucide-react';
+import { Key, Trash2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { logAudit } from '@/lib/auditLogger';
@@ -107,12 +108,12 @@ export const ElevenLabsKeySheet = forwardRef<HTMLDivElement, ElevenLabsKeySheetP
             />
             <div className="flex gap-2">
               <Button onClick={handleSave} className="flex-1" disabled={isSaving || !key.trim()}>
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                {isSaving ? <MiniSpinner size={16} className="mr-2" /> : null}
                 Save
               </Button>
               {hasServerKey && (
                 <Button variant="outline" onClick={handleClear} disabled={isClearing}>
-                  {isClearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  {isClearing ? <MiniSpinner size={16} /> : <Trash2 className="w-4 h-4" />}
                 </Button>
               )}
             </div>

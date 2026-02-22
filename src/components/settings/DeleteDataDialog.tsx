@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -119,7 +120,7 @@ export function DeleteDataDialog({
           >
             {isDeleting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <MiniSpinner size={16} className="mr-2" />
                 Deleting...
               </>
             ) : (

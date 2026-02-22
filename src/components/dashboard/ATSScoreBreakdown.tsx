@@ -1,5 +1,6 @@
 import { useState, memo } from 'react';
-import { CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, Sparkles, Loader2 } from 'lucide-react';
+import { CheckCircle, AlertTriangle, XCircle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { ResumeHealthScore } from '@/hooks/useResumeScore';
 import { cn } from '@/lib/utils';
@@ -81,7 +82,7 @@ export const ATSScoreBreakdown = memo(function ATSScoreBreakdown({
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-foreground">ATS Score:</span>
             <span className={cn('text-lg font-bold', colorClass)}>
-              {isScoring ? <Loader2 className="w-4 h-4 animate-spin inline" /> : `${overall}/100`}
+              {isScoring ? <MiniSpinner size={16} className="inline" /> : `${overall}/100`}
             </span>
             <span className={cn('text-xs font-medium px-2 py-0.5 rounded-full', 
               overall >= 90 ? 'bg-success/10 text-success' :

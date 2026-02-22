@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } fro
 import { TemplateSkeleton } from '@/components/layout/PageSkeletons';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Download, Share2, ArrowLeft, Loader2, Check, Scissors, FileText, Mic, FolderDown } from 'lucide-react';
+import { Download, Share2, ArrowLeft, Check, Scissors, FileText, Mic, FolderDown } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { PageBreakIndicator } from '@/components/editor/PageBreakIndicator';
@@ -619,7 +620,7 @@ export default function PreviewPage() {
             disabled={isGenerating}
             title="Quick PDF download">
               {isGenerating ? (
-                <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" />
+                <MiniSpinner size={16} />
               ) : (
                 <Download className="w-4 h-4 sm:w-5 sm:h-5" />
               )}

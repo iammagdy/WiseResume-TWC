@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, lazy, Suspense } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, Loader2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
+import { ArrowLeft, Edit2, Eye, Download, Share2, Copy, Trash2, GitBranch, Crown, CheckCircle2, FileText, Zap, BarChart3, RefreshCw, Mic } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -63,7 +64,7 @@ export default function ResumeDetailPage() {
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <MiniSpinner size={32} className="text-primary" />
       </div>
     );
   }
@@ -202,7 +203,7 @@ export default function ResumeDetailPage() {
           <Eye className="w-4 h-4" /> Preview
         </Button>
         <Button variant="outline" size="sm" className="flex-1 gap-2 min-h-[44px] active:scale-95 transition-transform" onClick={handleDownload} disabled={isDownloading}>
-          {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} PDF
+          {isDownloading ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />} PDF
         </Button>
       </div>
 
@@ -247,7 +248,7 @@ export default function ResumeDetailPage() {
                   }}
                 >
                   {scoringId === dbResume.id ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <MiniSpinner size={16} />
                   ) : (
                     <RefreshCw className="w-4 h-4" />
                   )}
@@ -274,7 +275,7 @@ export default function ResumeDetailPage() {
               onClick={() => scoreResume(dbResume.id, resumeData, dbResume.updated_at)}
             >
               {scoringId === dbResume.id ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <MiniSpinner size={16} />
               ) : (
                 <BarChart3 className="w-4 h-4" />
               )}
@@ -347,7 +348,7 @@ export default function ResumeDetailPage() {
               aria-label={action.label}
             >
               {action.loading ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
+                <MiniSpinner size={24} />
               ) : (
                 <action.icon className="w-6 h-6" />
               )}

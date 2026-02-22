@@ -6,10 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen,
-  Github, Globe, Mail, X, Download, ExternalLink, Loader2,
+  Github, Globe, Mail, X, Download, ExternalLink,
   Wrench, Layers, Sparkles, BookOpen, Heart, Trophy
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useEffect, useState, useRef, useCallback, useMemo, Suspense } from 'react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
@@ -638,7 +639,7 @@ function PublicPortfolioContent() {
               className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance pf-cta-shimmer pf-cta-shimmer-d2"
               style={{ background: 'transparent', borderColor: 'var(--pf-border, rgba(255,255,255,0.2))', color: 'var(--pf-fg, #f5f5ff)', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
             >
-              {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isDownloading ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />}
               {isDownloading ? 'Saving…' : 'Save as PDF'}
             </button>
           </div>

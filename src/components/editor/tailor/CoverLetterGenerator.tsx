@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { FileText, Loader2, Copy, Check, Download, Sparkles, History, Edit3, Eye, X, Circle } from 'lucide-react';
+import { FileText, Copy, Check, Download, Sparkles, History, Edit3, Eye, X, Circle } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -407,7 +408,7 @@ export function CoverLetterGenerator({
                       disabled={isDownloading}
                     >
                       {isDownloading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        <MiniSpinner size={16} className="mr-2" />
                       ) : (
                         <Download className="w-4 h-4 mr-2" />
                       )}

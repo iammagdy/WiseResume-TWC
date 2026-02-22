@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Sparkles, Copy, Download, Save, Loader2, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Sparkles, Copy, Download, Save, RotateCcw } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { Textarea } from '@/components/ui/textarea';
@@ -222,7 +223,7 @@ export default function CoverLetterNewPage() {
             onClick={handleGenerate}
             disabled={generating || !selectedResumeId || !jobDescription.trim()}
           >
-            {generating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+            {generating ? <MiniSpinner size={20} /> : <Sparkles className="w-5 h-5" />}
             {generating ? 'Generating...' : 'Generate with AI'}
           </Button>
 

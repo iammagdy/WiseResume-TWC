@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Loader2, FileText, GitBranch, Target, X } from 'lucide-react';
+import { Plus, FileText, GitBranch, Target, X } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -134,7 +135,7 @@ export function FloatingCreateButton({ onClick, onTailor, onAnalyzeJob, pulse = 
           />
         )}
         {isLoading ? (
-          <Loader2 className="w-6 h-6 text-primary-foreground relative z-10 animate-spin" />
+          <MiniSpinner size={24} className="text-primary-foreground relative z-10" />
         ) : menuOpen && isMobile ? (
           <X className="w-6 h-6 text-primary-foreground relative z-10" />
         ) : (
