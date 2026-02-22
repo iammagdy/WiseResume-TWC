@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { Download, Linkedin, Share2, Sparkles } from 'lucide-react';
+import { openExternal } from '@/lib/openExternal';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 import {
@@ -480,7 +481,7 @@ export function CareerCardSheet({
       ? getPortfolioUrl(username)
       : getAppUrl();
     const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(portfolioUrl)}`;
-    window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    openExternal(shareUrl);
   }, [username]);
 
   const canWebShare = typeof navigator !== 'undefined' && !!navigator.share;

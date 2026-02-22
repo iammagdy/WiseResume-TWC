@@ -395,8 +395,8 @@ function InterviewPageContent() {
       </div>
 
       {/* Controls */}
-      <div className="shrink-0 border-t border-border/20 bg-card/50 backdrop-blur-xl px-4 py-4 space-y-3 pb-safe">
-        <div className="flex items-center justify-center gap-6">
+      <div className="shrink-0 border-t border-border/20 bg-card/80 px-4 py-3 space-y-3 pb-safe max-h-[40vh] overflow-y-auto">
+        <div className="flex items-center justify-center gap-6 relative">
           {/* Replay button */}
           <motion.button
             initial={{ opacity: 0 }}
@@ -444,16 +444,16 @@ function InterviewPageContent() {
             <span className="text-muted-foreground text-[10px]">Skip</span>
           </motion.button>
           
-          {/* Premium countdown overlay */}
+          {/* Premium countdown overlay — absolutely positioned to avoid pushing siblings */}
           <AnimatePresence>
             {countdown !== null && status === 'speaking' && (
               <motion.div
                 key={countdown}
-                initial={{ scale: 0.3, opacity: 0, y: 10 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
+                initial={{ scale: 0.3, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 1.3, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                className="flex flex-col items-center gap-1"
+                className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10"
               >
                 <span className="text-3xl font-black text-primary tabular-nums drop-shadow-[0_0_15px_hsl(var(--primary)/0.5)]">
                   {countdown}

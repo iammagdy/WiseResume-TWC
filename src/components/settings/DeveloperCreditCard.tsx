@@ -42,7 +42,7 @@ export function DeveloperCreditCard({
   const handleWebsiteClick = () => {
     haptics.light();
     if (websiteUrl) {
-      window.open(websiteUrl, '_blank', 'noopener,noreferrer');
+      openExternal(websiteUrl);
     }
   };
 

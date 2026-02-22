@@ -1014,7 +1014,7 @@ export default function SettingsPage() {
               avatarUrl={developerPhoto}
               websiteUrl="https://magdysaber.com"
               githubUrl="https://github.com/iammagdy"
-              onContactClick={() => window.open('mailto:contact@magdysaber.com')}
+              onContactClick={() => openExternal('mailto:contact@magdysaber.com')}
             />
           </Suspense>
 

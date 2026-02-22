@@ -18,6 +18,7 @@ import { dbToResumeData, useResumeMutations } from '@/hooks/useResumes';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { getPortfolioUrl } from '@/lib/portfolioUrl';
+import { openExternal } from '@/lib/openExternal';
 import { formatDistanceToNow } from 'date-fns';
 import { ProfilePageSkeleton } from '@/components/layout/PageSkeletons';
 
@@ -191,7 +192,7 @@ export default function ProfilePage() {
                 variant="outline"
                 size="sm"
                 className="h-9 rounded-xl text-xs active:scale-95 touch-manipulation"
-                onClick={() => { haptics.light(); window.open(getPortfolioUrl(profile.username), '_blank', 'noopener,noreferrer'); }}
+                onClick={() => { haptics.light(); openExternal(getPortfolioUrl(profile.username)); }}
               >
                 <ExternalLink className="w-3.5 h-3.5 mr-1" /> Preview
               </Button>

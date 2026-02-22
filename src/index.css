@@ -425,6 +425,28 @@ button,
     background: hsl(var(--background) / 0.85);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* ── Native APK: disable expensive backdrop-filter for WebView perf ── */
+  body.native-app .glass,
+  body.native-app .glass-card,
+  body.native-app .glass-surface,
+  body.native-app .glass-elevated,
+  body.native-app .glass-input,
+  body.native-app .glass-header {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  body.native-app .glass { background: hsl(var(--card) / 0.95); }
+  body.native-app .glass-card { background: hsl(var(--card) / 0.92); }
+  body.native-app .glass-surface { background: hsl(var(--card) / 0.93); }
+  body.native-app .glass-elevated { background: hsl(var(--card) / 0.95); }
+  body.native-app .glass-input { background: hsl(var(--input) / 0.9); }
+  body.native-app .glass-header { background: hsl(var(--background) / 0.97); }
+  /* Also kill inline backdrop-blur on native */
+  body.native-app [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     border-bottom: 1px solid hsl(var(--border) / 0.5);
     box-shadow: 
       0 4px 24px -4px hsl(var(--background) / 0.5),
@@ -519,7 +541,7 @@ button,
 
   /* Safe area padding for Android navigation bar */
   .pb-safe {
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 
   .pt-safe {
