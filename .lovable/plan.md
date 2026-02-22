@@ -1,90 +1,127 @@
 
 
-# Performance Enhancement Plan
+# Fix Navigation: Unified Back Button, SwipeBack, and Page Transitions
 
-## The Big Picture
+## Overview
 
-Your app takes over 6 seconds to fully load, and the single biggest culprit is shocking: your logo images are **2.5 MB each**. That's 5 MB of images just for the logo -- before any actual content loads. For context, an entire well-optimized web app should be under 1-2 MB total.
+The app has three navigation utilities (`SwipeBackWrapper`, `useBackNavigation`, `BACK_ROUTES`) that were built but never wired into actual pages. Every page currently hardcodes its own back destination and has inconsistent back button styling. This plan fixes all of it.
 
-## Changes (ordered by impact)
+## What Gets Created
 
-### 1. Compress logo images (biggest win -- saves ~4.9 MB)
+### 1. Standardized Back Button Component: `src/components/ui/BackButton.tsx`
 
-Both `public/favicon.png` and `src/assets/wise-ai-logo.png` are 2,504 KB each. These should be under 50 KB.
-
-- Convert `favicon.png` to a compressed PNG or WebP at the sizes actually used (40px in spinner, 192px max for PWA icon). A 192x192 PNG should be ~10-20 KB.
-- Convert `wise-ai-logo.png` to WebP format. At the sizes it's displayed (64px-120px), a high-quality WebP should be ~15-30 KB.
-- Create a new optimized `wise-ai-logo.webp` and update all 5 files that import it to use the WebP version.
-- Keep PNG as fallback only in index.html using the existing `<img>` tag.
-
-This alone should cut load time by 2-3 seconds.
-
-### 2. Remove route-change remount in AppShell
-
-The `AnimatePresence` in AppShell uses `key={location.pathname}`, which completely destroys and recreates the page component on every navigation. This causes:
-- Full component tree teardown and rebuild
-- All queries re-fired
-- State lost
-- Visible jank between pages
-
-Fix: Remove the `key` prop and the `AnimatePresence` wrapper, or use a simpler CSS opacity transition that doesn't trigger remount. The page-level `Suspense` boundaries already handle loading states.
-
-### 3. Optimize framer-motion usage
-
-114 files import framer-motion (93 KB chunk). Many uses are trivial fade-in animations that can be replaced with CSS:
-
-- Replace simple `motion.div` with `initial={{ opacity: 0 }}` / `animate={{ opacity: 1 }}` with CSS `animate-fade-in` utility class
-- Keep framer-motion only where it's truly needed: gesture-based interactions (swipe cards), `AnimatePresence` exit animations, `LayoutGroup` (bottom tab pill), and spring physics
-- This won't remove framer-motion from the bundle (it's needed), but reduces component render overhead
-
-### 4. Add manualChunks for Radix UI
-
-Radix UI components are imported across many pages but not currently split. Add a chunk for them:
+A single reusable back button that:
+- Uses `useBackNavigation()` internally (no hardcoded routes)
+- Consistent 44x44px touch target, `ArrowLeft` icon, rounded-xl styling
+- Accepts optional `onBeforeBack` guard (for Editor's unsaved changes dialog)
+- Accepts optional `className` for header-specific tweaks
 
 ```
-if (id.includes('node_modules/@radix-ui')) return 'radix';
+Props:
+- onBeforeBack?: () => boolean  (return true to block navigation)
+- className?: string
 ```
 
-This groups all Radix code into one cacheable chunk instead of duplicating it across page bundles.
+### 2. Fix `SwipeBackWrapper` to use `BACK_ROUTES`
 
-### 5. Defer non-critical providers
+Currently uses `navigate(-1)` which is unreliable in Capacitor WebViews. Will be updated to use `getBackRoute()` from `src/lib/navigation.ts` instead, matching how the hardware back button already works.
 
-`CommandPalette`, `WhatsNewDialog`, and `BugReportDialog` are loaded at the App root level. While they're lazy-loaded, their `Suspense` boundaries still evaluate on every render. Wrap them in a `useEffect`-gated mount so they only render after initial page load:
+### 3. Integrate SwipeBack into AppShell
 
-```tsx
-const [ready, setReady] = useState(false);
-useEffect(() => { const t = setTimeout(() => setReady(true), 2000); return () => clearTimeout(t); }, []);
-```
+Instead of wrapping every individual page, add `SwipeBackWrapper` once inside `AppShell.tsx` around the outlet content -- but only on non-dashboard/non-editor routes (dashboard is a root screen, editor has its own gesture handling). This gives swipe-back to all sub-pages automatically.
 
-### 6. Reduce style recalculations
+### 4. Add CSS page transition
 
-101 style recalculations (84.7ms) on page load. This is partly caused by:
-- The inline `<style>` block in index.html for spinner keyframes (already cleaned up on React mount)
-- Multiple Google Fonts loading with `font-display: swap` causing reflows
+Replace the static `animate-fade-in` class on the outlet wrapper in AppShell with a keyed CSS transition that fades content in on route change, using the existing `animate-fade-in` keyframe but re-triggered per route via a `key` on a lightweight `div` (not `AnimatePresence` which causes remounts).
 
-Fix: Add `font-display: optional` instead of `swap` for the Space Grotesk font to prevent layout shift. Inter can remain `swap` since it's the primary font.
+## What Gets Updated
 
-## Technical Details
+### Pages that need back button replacement (swap hardcoded `navigate('/...')` with `<BackButton />`):
 
-### Files to modify:
+| Page | Current back target | After |
+|------|-------------------|-------|
+| SettingsPage | `navigate('/dashboard')` | `<BackButton />` |
+| ProfilePage | `navigate('/dashboard')` | `<BackButton />` |
+| TemplatesPage | `navigate('/dashboard')` | `<BackButton />` |
+| NotificationsPage | `navigate('/dashboard')` | `<BackButton />` |
+| ResumeDetailPage | `navigate('/dashboard')` | `<BackButton />` |
+| UploadPage | `navigate('/dashboard')` | `<BackButton />` |
+| ExamplesPage | `navigate('/dashboard')` | `<BackButton />` |
+| GuidesPage | `navigate('/dashboard')` | `<BackButton />` |
+| GuidePage | `navigate('/guides')` | `<BackButton />` |
+| CoverLettersPage | `navigate('/ai-studio')` | `<BackButton />` |
+| CoverLetterNewPage | `navigate('/cover-letters')` | `<BackButton />` |
+| CoverLetterEditPage | `navigate('/cover-letters')` | `<BackButton />` |
+| ResignationLettersPage | `navigate('/ai-studio')` | `<BackButton />` |
+| ResignationLetterNewPage | `navigate('/resignation-letters')` | `<BackButton />` |
+| ResignationLetterEditPage | `navigate('/resignation-letters')` | `<BackButton />` |
+| ApplicationTrackerPage | `navigate('/applications')` | `<BackButton />` |
+| PreviewPage | `navigate('/editor')` | `<BackButton />` |
+| PortfolioEditorPage | `navigate('/dashboard')` | `<BackButton />` |
+| AIStudioPage | `navigate('/dashboard')` | `<BackButton />` |
+| CareerPage | (if has back button) | `<BackButton />` |
+| InterviewPage | (if has back button) | `<BackButton />` |
+
+**Special case -- EditorPage**: Uses an unsaved-changes guard. Will use `<BackButton onBeforeBack={() => unsavedGuard.interceptNavigate(getBackRoute('/editor'))} />`.
+
+### Files modified:
 
 | File | Change |
 |------|--------|
-| `public/favicon.png` | Replace with compressed ~20 KB version |
-| `src/assets/wise-ai-logo.png` | Replace with compressed WebP ~25 KB version |
-| `src/components/brand/AppIcon.tsx` | Update import to WebP |
-| `src/pages/Index.tsx` | Update import to WebP |
-| `src/components/landing/Footer.tsx` | Update import to WebP |
-| `src/components/applications/JobMatchScore.tsx` | Update import to WebP |
-| `src/components/portfolio/qr/QRGeneratorSheet.tsx` | Update import to WebP |
-| `src/components/layout/AppShell.tsx` | Remove AnimatePresence key remount |
-| `vite.config.ts` | Add Radix UI manual chunk |
-| `src/App.tsx` | Defer non-critical global components |
-| `index.html` | Update font-display strategy |
+| `src/components/ui/BackButton.tsx` | **NEW** -- reusable back button component |
+| `src/components/layout/SwipeBackWrapper.tsx` | Fix `navigate(-1)` to use `getBackRoute()` |
+| `src/components/layout/AppShell.tsx` | Wrap outlet in `SwipeBackWrapper`, add route-keyed fade transition |
+| ~20 page files | Replace inline back button with `<BackButton />` |
+| `src/hooks/useBackNavigation.ts` | No changes needed (already correct) |
+| `src/lib/navigation.ts` | Add `/guides/:slug` -> `/guides` mapping |
 
-### Expected results:
-- Initial load: 6.2s down to ~2-3s
-- Asset transfer: 5+ MB down to ~1.2 MB
-- Route transitions: Smoother, no full remounts
-- Perceived performance: Significantly faster navigation
+## Technical Details
+
+### BackButton component pattern:
+```tsx
+// Usage in any page header:
+<BackButton />
+
+// Usage in EditorPage with guard:
+<BackButton onBeforeBack={() => {
+  if (isDirty) { showDialog(); return true; }
+  return false;
+}} />
+```
+
+### SwipeBackWrapper fix:
+```tsx
+// Before (unreliable):
+navigate(-1);
+
+// After (deterministic):
+const backRoute = getBackRoute(location.pathname);
+navigate(backRoute);
+```
+
+### AppShell integration:
+```tsx
+// Wrap outlet content (non-editor routes only):
+<SwipeBackWrapper className="flex-1 flex flex-col min-h-0">
+  <div key={location.pathname} className="flex-1 flex flex-col min-h-0 animate-fade-in">
+    {currentOutlet}
+  </div>
+</SwipeBackWrapper>
+```
+
+The `key={location.pathname}` on the inner `div` (not on a component boundary) re-triggers the CSS fade-in animation without causing React remounts -- the outlet itself stays stable.
+
+### Navigation map addition:
+```ts
+'/guides': '/dashboard',  // already exists
+// Add:
+'/guide': '/guides',      // for /guides/:slug dynamic route
+```
+
+## Result
+- Every back button in the app routes through `BACK_ROUTES` -- one place to update
+- Swipe-right-to-go-back works on all sub-pages automatically
+- Smooth fade transition between pages without remounting
+- Consistent 44x44px back button styling everywhere
+- EditorPage retains its unsaved-changes guard
 
