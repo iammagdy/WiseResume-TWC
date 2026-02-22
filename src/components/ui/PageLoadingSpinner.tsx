@@ -30,7 +30,7 @@ export function PageLoadingSpinner() {
   }
 
   return (
-    <div className="min-h-screen min-h-[100dvh] bg-background flex items-center justify-center">
+    <div className="fixed inset-0 bg-background flex items-center justify-center z-50">
       <motion.div
         className="flex flex-col items-center gap-6"
         initial={{ opacity: 0, scale: 0.8 }}
@@ -40,31 +40,31 @@ export function PageLoadingSpinner() {
         <div className="relative w-36 h-36 flex items-center justify-center">
           {/* Outer glow */}
           <motion.div
-            className="absolute inset-0 rounded-full bg-primary/10"
-            animate={{ scale: [1, 1.15, 1], opacity: [0.4, 0.8, 0.4] }}
+            className="absolute -inset-2 rounded-full bg-primary/20"
+            animate={{ scale: [1, 1.25, 1], opacity: [0.3, 0.7, 0.3] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
           />
 
           {/* Ring 1 — outer */}
           <motion.div
-            className="absolute inset-2 rounded-full border-2 border-primary/15"
-            style={{ borderTopColor: 'hsl(var(--primary))' }}
+            className="absolute inset-0 rounded-full border-[3px] border-primary/40"
+            style={{ borderTopColor: 'hsl(var(--primary))', borderRightColor: 'hsl(var(--primary) / 0.6)' }}
             animate={{ rotate: 360 }}
             transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
           />
 
           {/* Ring 2 — middle, counter-rotate */}
           <motion.div
-            className="absolute inset-5 rounded-full border-2 border-primary/10"
-            style={{ borderTopColor: 'hsl(var(--primary) / 0.7)', borderLeftColor: 'hsl(var(--primary) / 0.4)' }}
+            className="absolute inset-4 rounded-full border-[3px] border-primary/30"
+            style={{ borderTopColor: 'hsl(var(--primary))', borderLeftColor: 'hsl(var(--primary) / 0.6)' }}
             animate={{ rotate: -360 }}
             transition={{ duration: 2.4, repeat: Infinity, ease: 'linear' }}
           />
 
           {/* Ring 3 — inner */}
           <motion.div
-            className="absolute inset-8 rounded-full border-2 border-primary/10"
-            style={{ borderBottomColor: 'hsl(var(--primary) / 0.6)' }}
+            className="absolute inset-8 rounded-full border-[3px] border-primary/30"
+            style={{ borderBottomColor: 'hsl(var(--primary))', borderRightColor: 'hsl(var(--primary) / 0.5)' }}
             animate={{ rotate: 360 }}
             transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
           />
@@ -75,8 +75,8 @@ export function PageLoadingSpinner() {
             animate={{ scale: [1, 1.12, 1] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
           >
-            <div className="absolute w-14 h-14 rounded-full bg-primary/10" />
-            <div style={{ filter: 'drop-shadow(0 0 24px hsl(var(--primary) / 0.6))' }}>
+            <div className="absolute w-14 h-14 rounded-full bg-primary/15" />
+            <div style={{ filter: 'drop-shadow(0 0 24px hsl(var(--primary) / 0.7))' }}>
               <AppIcon size={40} />
             </div>
           </motion.div>
@@ -89,7 +89,7 @@ export function PageLoadingSpinner() {
             return (
               <motion.div
                 key={p.id}
-                className="absolute w-2 h-2 rounded-full bg-primary/80"
+                className="absolute w-2 h-2 rounded-full bg-primary"
                 style={{
                   left: '50%',
                   top: '50%',
@@ -99,8 +99,8 @@ export function PageLoadingSpinner() {
                 animate={{
                   x: [0, x, 0],
                   y: [0, y, 0],
-                  opacity: [0, 0.9, 0],
-                  scale: [0.5, 1, 0.5],
+                  opacity: [0, 1, 0],
+                  scale: [0.5, 1.2, 0.5],
                 }}
                 transition={{
                   duration: 2.2,
