@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Target, Sparkles, Loader2, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { Target, Sparkles, AlertCircle, CheckCircle, TrendingUp } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -96,7 +97,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
           >
             {isAnalyzing ? (
               <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                <MiniSpinner size={20} className="mr-2" />
                 Analyzing...
               </>
             ) : (

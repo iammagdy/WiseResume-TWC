@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Loader2, Plus, ArrowUpDown, Hash } from 'lucide-react';
+import { Plus, ArrowUpDown, Hash } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { trackGeminiUsage } from '@/lib/aiProvider';
@@ -119,7 +120,7 @@ Return JSON: { "recommendedOrder": ["section1", "section2", ...], "reasoning": "
               onClick={() => handleAction(id)}
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin shrink-0" />
+                <MiniSpinner size={16} className="mr-2 shrink-0" />
               ) : (
                 <Icon className="w-4 h-4 mr-2 shrink-0" />
               )}

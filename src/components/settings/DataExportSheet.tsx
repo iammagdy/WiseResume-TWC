@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
-import { Download, FileJson, Database, Loader2, Check, Upload, AlertCircle } from 'lucide-react';
+import { Download, FileJson, Database, Check, Upload, AlertCircle } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -142,7 +143,7 @@ export function DataExportSheet({
                 exportedType === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted'
               )}>
                 {isExporting === 'all' ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <MiniSpinner size={20} />
                 ) : exportedType === 'all' ? (
                   <Check className="w-5 h-5" />
                 ) : (
@@ -174,7 +175,7 @@ export function DataExportSheet({
                 exportedType === 'single' ? 'bg-primary text-primary-foreground' : 'bg-muted'
               )}>
                 {isExporting === 'single' ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <MiniSpinner size={20} />
                 ) : exportedType === 'single' ? (
                   <Check className="w-5 h-5" />
                 ) : (
@@ -209,7 +210,7 @@ export function DataExportSheet({
             <div className="flex items-center gap-3 w-full">
               <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-muted">
                 {isImporting ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <MiniSpinner size={20} />
                 ) : (
                   <Upload className="w-5 h-5" />
                 )}

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Mail, Loader2, WifiOff } from 'lucide-react';
+import { Mail, WifiOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { InputFormField } from '@/components/ui/form-field';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { z } from 'zod';
 
 const emailSchema = z.string().email('Please enter a valid email');
@@ -45,7 +46,7 @@ export function MagicLinkForm({ onSubmit, onBackToLogin, isLoading, isSlowConnec
       />
 
       <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold gradient-primary glow-primary" disabled={isLoading}>
-        {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Sending...</> : 'Send Magic Link'}
+        {isLoading ? <><MiniSpinner size={20} className="mr-2" />Sending...</> : 'Send Magic Link'}
       </Button>
 
       {isSlowConnection && isLoading && (

@@ -1,5 +1,6 @@
 import { memo, useState, useCallback, Suspense, lazy, useRef, CSSProperties, useEffect } from 'react';
-import { ZoomIn, ZoomOut, Download, Loader2, Eye, EyeOff, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, Download, Eye, EyeOff, X } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { useResumeStore } from '@/store/resumeStore';
 import { applyCustomizationCSS, generateCustomizationCSS } from '@/lib/templateCustomization';
@@ -214,7 +215,7 @@ export const LivePreviewPanel = memo(function LivePreviewPanel({ onClose, classN
             onClick={handleDownload}
             disabled={isGenerating}
           >
-            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isGenerating ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />}
             <span className="ml-1.5 hidden sm:inline text-xs">PDF</span>
           </Button>
 

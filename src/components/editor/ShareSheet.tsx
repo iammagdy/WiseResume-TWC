@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { FileText, Link, Type, Loader2, MessageSquare } from 'lucide-react';
+import { FileText, Link, Type, MessageSquare } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { haptics } from '@/lib/haptics';
@@ -132,7 +133,7 @@ export function ShareSheet({
               >
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                   {action.loading ? (
-                    <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                    <MiniSpinner size={20} />
                   ) : (
                     <action.icon className="w-5 h-5 text-primary" />
                   )}

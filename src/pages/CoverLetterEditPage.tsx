@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Copy, Download, Trash2, Save, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Trash2, Save, Sparkles } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { Textarea } from '@/components/ui/textarea';
@@ -216,7 +217,7 @@ export default function CoverLetterEditPage() {
               rows={6}
             />
             <Button className="w-full gap-2" onClick={handleTailor} disabled={tailoring || !tailorJobDesc.trim()}>
-              {tailoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              {tailoring ? <MiniSpinner size={16} /> : <Sparkles className="w-4 h-4" />}
               {tailoring ? 'Tailoring...' : 'Regenerate Cover Letter'}
             </Button>
           </div>

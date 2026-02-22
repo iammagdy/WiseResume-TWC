@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { HeartHandshake, Send, CheckCircle2, Loader2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { HeartHandshake, Send, CheckCircle2, MapPin, Info, Wrench, AlertTriangle, ToggleLeft, ToggleRight } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { supabase } from '@/integrations/supabase/safeClient';
 import {
   onBugReport,
@@ -272,7 +273,7 @@ export function BugReportDialog() {
                 size="lg"
               >
                 {status === 'sending' ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <MiniSpinner size={16} className="mr-2" />
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
                 )}

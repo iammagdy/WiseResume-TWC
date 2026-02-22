@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, Upload, Loader2, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download, X, ChevronDown, Crown, GraduationCap, Wrench } from 'lucide-react';
+import { Camera, Upload, MapPin, Briefcase, Linkedin, CheckCircle2, Sparkles, Download, X, ChevronDown, Crown, GraduationCap, Wrench } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import {
   Sheet,
   SheetContent,
@@ -451,7 +452,7 @@ export function EditProfileSheet({
                   className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center border-2 border-background hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
                   {isUploading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <MiniSpinner size={16} />
                   ) : (
                     <Camera className="w-4 h-4" />
                   )}

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Loader2, ChevronDown } from 'lucide-react';
+import { Sparkles, ChevronDown } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -54,7 +55,7 @@ export function AIActionBar({
             className="shrink-0 h-11 px-4 text-sm gap-2 border-primary/30 hover:bg-primary hover:text-primary-foreground transition-colors snap-start touch-manipulation"
           >
             {isLoading && loadingAction === action.id ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <MiniSpinner size={16} />
             ) : action.icon ? (
               <span className="[&>svg]:w-4 [&>svg]:h-4">{action.icon}</span>
             ) : null}

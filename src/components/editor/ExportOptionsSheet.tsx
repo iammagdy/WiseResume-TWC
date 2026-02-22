@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Download, FileText, Package, Loader2, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic, WifiOff } from 'lucide-react';
+import { Download, FileText, Package, Check, Minimize2, FileType, AlertTriangle, Shield, Linkedin, AlignLeft, Link2, Copy, Mic, WifiOff } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { useNavigate } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -335,7 +336,7 @@ export function ExportOptionsSheet({
           >
             {isExporting ? (
               <>
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                <MiniSpinner size={20} className="mr-2" />
                 {exportProgress?.isActive ? exportProgress.message : 'Generating...'}
               </>
             ) : (

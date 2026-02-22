@@ -3,7 +3,8 @@ import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Lightbulb, Send, CheckCircle2, Loader2 } from 'lucide-react';
+import { Lightbulb, Send, CheckCircle2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { supabase } from '@/integrations/supabase/safeClient';
 
 const SESSION_CACHE_KEY = 'sb-auth-session-cache';
@@ -164,7 +165,7 @@ export function FeatureRequestDialog({ open, onOpenChange }: FeatureRequestDialo
                 size="lg"
               >
                 {status === 'sending' ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <MiniSpinner size={16} className="mr-2" />
                 ) : (
                   <Send className="w-4 h-4 mr-2" />
                 )}

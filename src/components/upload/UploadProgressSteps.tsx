@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Loader2 } from 'lucide-react';
+import { Check } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { cn } from '@/lib/utils';
 
 export type ParseStep = 
@@ -51,7 +52,7 @@ export function UploadProgressSteps({ currentStep, fileName }: UploadProgressSte
             <Check className="w-8 h-8 text-primary-foreground" />
           </motion.div>
         ) : (
-          <Loader2 className="w-8 h-8 text-primary-foreground animate-spin" />
+          <MiniSpinner size={32} className="text-primary-foreground" />
         )}
       </motion.div>
 

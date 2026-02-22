@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link2, Loader2, Check, Globe, ChevronDown, FileText } from 'lucide-react';
+import { Link2, Check, Globe, ChevronDown, FileText } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -109,7 +110,7 @@ export function JobUrlParser({ value, onChange, onParsed }: JobUrlParserProps) {
                 disabled={isParsing || !urlInput.trim()}
               >
                 {isParsing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <MiniSpinner size={16} />
                 ) : (
                   'Parse'
                 )}

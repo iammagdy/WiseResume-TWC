@@ -1,5 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mic, MicOff, Loader2, Volume2, Hand } from 'lucide-react';
+import { Mic, MicOff, Volume2, Hand } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { cn } from '@/lib/utils';
 import { haptics } from '@/lib/haptics';
 import type { InterviewStatus, SttEngine } from '@/hooks/useVoiceInterview';
@@ -20,7 +21,8 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
   const isIdle = status === 'idle';
   const isReady = status === 'ready';
 
-  const Icon = isListening ? Mic : isThinking ? Loader2 : isSpeaking ? Volume2 : isReady ? Hand : MicOff;
+  // Icon component selection (Loader2 removed, handled explicitly)
+  const Icon = isListening ? Mic : isSpeaking ? Volume2 : isReady ? Hand : MicOff;
 
   const handlePress = () => {
     haptics.medium();
@@ -188,16 +190,19 @@ export function InterviewToggle({ status, onPress, disabled, silenceDetected, au
           disabled && 'opacity-50 cursor-not-allowed'
         )}
       >
-        <Icon
-          className={cn(
-            'w-9 h-9 transition-all',
-            isListening && 'text-primary',
-            isThinking && 'text-muted-foreground animate-spin',
-            isSpeaking && 'text-[hsl(142_70%_50%)]',
-            isReady && 'text-[hsl(45_90%_55%)]',
-            isIdle && 'text-muted-foreground'
-          )}
-        />
+        {isThinking ? (
+          <MiniSpinner size={36} className="text-muted-foreground animate-spin" />
+        ) : (
+          <Icon
+            className={cn(
+              'w-9 h-9 transition-all',
+              isListening && 'text-primary',
+              isSpeaking && 'text-[hsl(142_70%_50%)]',
+              isReady && 'text-[hsl(45_90%_55%)]',
+              isIdle && 'text-muted-foreground'
+            )}
+          />
+        )}
       </motion.button>
 
       {/* VU meter bars when listening */}

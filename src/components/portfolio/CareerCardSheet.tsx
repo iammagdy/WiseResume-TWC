@@ -1,6 +1,7 @@
 import { useRef, useState, useCallback, useEffect } from 'react';
 import html2canvas from 'html2canvas';
-import { Download, Linkedin, Share2, Sparkles, Loader2 } from 'lucide-react';
+import { Download, Linkedin, Share2, Sparkles } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -663,7 +664,7 @@ export function CareerCardSheet({
               onClick={handleDownload}
               disabled={generating}
             >
-              {generating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+              {generating ? <MiniSpinner size={16} className="mr-2" /> : <Download className="w-4 h-4 mr-2" />}
               Download Image
             </Button>
 

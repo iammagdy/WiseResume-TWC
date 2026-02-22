@@ -1,4 +1,5 @@
-import { Bell, BellRing, Smartphone, AlertCircle, Send, Loader2 } from 'lucide-react';
+import { Bell, BellRing, Smartphone, AlertCircle, Send } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { SettingsRow } from '@/components/settings/SettingsRow';
 import { Separator } from '@/components/ui/separator';
@@ -125,7 +126,7 @@ export function PushNotificationSettings() {
             className="ml-11 gap-2"
           >
             {isLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <MiniSpinner size={14} />
             ) : (
               <Send className="w-3.5 h-3.5" />
             )}

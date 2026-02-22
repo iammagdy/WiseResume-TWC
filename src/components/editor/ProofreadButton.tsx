@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { SpellCheck, Loader2 } from 'lucide-react';
+import { SpellCheck } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { cn } from '@/lib/utils';
 import haptics from '@/lib/haptics';
 
@@ -36,7 +37,7 @@ export const ProofreadButton = memo(function ProofreadButton({
       aria-label={`Proofread: ${issueCount} issues found`}
     >
       {isChecking ? (
-        <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
+        <MiniSpinner size={20} />
       ) : (
         <SpellCheck className="w-5 h-5 text-primary" />
       )}

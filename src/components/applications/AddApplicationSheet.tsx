@@ -9,7 +9,7 @@ import { useJobApplicationMutations, ApplicationStatus } from '@/hooks/useJobApp
 import { useQuery } from '@tanstack/react-query';
 import { supabase, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from '@/integrations/supabase/safeClient';
 import { useAuth } from '@/hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { toast } from 'sonner';
 
 interface AddApplicationSheetProps {
@@ -124,7 +124,7 @@ export function AddApplicationSheet({ open, onOpenChange, defaultValues }: AddAp
                 onBlur={handleUrlBlur}
               />
               {isParsingUrl && (
-                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground" />
+                <MiniSpinner size={16} className="absolute right-3 top-1/2 -translate-y-1/2" />
               )}
             </div>
           </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, Briefcase, Building2, MapPin, FileText, Bookmark, ChevronRight, Check } from 'lucide-react';
+import { Search, Briefcase, Building2, MapPin, FileText, Bookmark, ChevronRight, Check } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -183,7 +184,7 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
                   className="flex flex-col items-center justify-center py-12 space-y-6"
                 >
                   <div className="relative w-16 h-16">
-                    <Loader2 className="w-16 h-16 text-primary animate-spin" />
+                    <MiniSpinner size={64} />
                     <Briefcase className="w-6 h-6 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                   </div>
 
@@ -256,7 +257,7 @@ export function AnalyzeJobSheet({ open, onOpenChange }: AnalyzeJobSheetProps) {
                         className="w-full min-h-[48px] text-base font-semibold active:scale-95 transition-transform"
                       >
                         {saving ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          <MiniSpinner size={20} className="mr-2" />
                         ) : (
                           <Bookmark className="w-5 h-5 mr-2" />
                         )}

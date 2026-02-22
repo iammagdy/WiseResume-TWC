@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Mail, User, Phone, Loader2, WifiOff } from 'lucide-react';
+import { Mail, User, Phone, WifiOff } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { InputFormField } from '@/components/ui/form-field';
@@ -137,7 +138,7 @@ export function SignupForm({
         </div>
 
         <Button type="submit" size="lg" className="w-full h-12 text-base font-semibold gradient-primary glow-primary mt-2" disabled={isLoading || socialLoading !== null}>
-          {isLoading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />Creating Account...</> : 'Create Account'}
+          {isLoading ? <><MiniSpinner size={20} className="mr-2" />Creating Account...</> : 'Create Account'}
         </Button>
 
         {isSlowConnection && isLoading && (

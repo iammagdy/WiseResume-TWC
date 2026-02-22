@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Copy, Download, Trash2, Save, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Copy, Download, Trash2, Save, Sparkles } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { Button } from '@/components/ui/button';
 import { Breadcrumb } from '@/components/layout/Breadcrumb';
 import { Textarea } from '@/components/ui/textarea';
@@ -252,7 +253,7 @@ export default function ResignationLetterEditPage() {
             <Download className="w-4 h-4" /> PDF
           </Button>
           <Button variant="outline" size="sm" className="gap-1 h-10" onClick={handleRegenerate} disabled={regenerating}>
-            {regenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+            {regenerating ? <MiniSpinner size={16} /> : <Sparkles className="w-4 h-4" />}
           </Button>
           <Button variant="outline" size="sm" className="gap-1 h-10 text-destructive" onClick={() => setShowDeleteConfirm(true)}>
             <Trash2 className="w-4 h-4" />

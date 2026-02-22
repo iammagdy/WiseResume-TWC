@@ -1,6 +1,7 @@
 import { useState, useRef, ReactNode, useEffect, useCallback } from 'react';
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion';
-import { Loader2, ArrowDown } from 'lucide-react';
+import { ArrowDown } from 'lucide-react';
+import { MiniSpinner } from '@/components/ui/MiniSpinner';
 import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 
@@ -148,7 +149,7 @@ export function PullToRefresh({
       >
         <div className="w-10 h-10 rounded-full bg-background/95 backdrop-blur border border-border flex items-center justify-center shadow-lg">
           {isRefreshing ? (
-            <Loader2 className="w-5 h-5 text-primary animate-spin" />
+            <MiniSpinner size={20} />
           ) : (
             <motion.div style={{ rotate: rotation }}>
               <ArrowDown className="w-5 h-5 text-muted-foreground" />
