@@ -993,7 +993,8 @@ export type Database = {
           id: string
           label: string
           owner_user_id: string
-          portfolio_username: string
+          portfolio_username: string | null
+          target_url: string | null
         }
         Insert: {
           click_count?: number
@@ -1001,7 +1002,8 @@ export type Database = {
           id: string
           label?: string
           owner_user_id: string
-          portfolio_username: string
+          portfolio_username?: string | null
+          target_url?: string | null
         }
         Update: {
           click_count?: number
@@ -1009,7 +1011,8 @@ export type Database = {
           id?: string
           label?: string
           owner_user_id?: string
-          portfolio_username?: string
+          portfolio_username?: string | null
+          target_url?: string | null
         }
         Relationships: []
       }

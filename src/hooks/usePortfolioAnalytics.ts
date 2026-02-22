@@ -94,7 +94,7 @@ export function useShortLinks(userId: string | undefined, portfolioUsername: str
   });
 }
 
-/** Create a new short link */
+/** Create a new short link (supports portfolio links and universal target URLs) */
 export function useCreateShortLink() {
   const qc = useQueryClient();
   return useMutation({
@@ -102,10 +102,12 @@ export function useCreateShortLink() {
       userId,
       portfolioUsername,
       label,
+      targetUrl,
     }: {
       userId: string;
-      portfolioUsername: string;
+      portfolioUsername?: string;
       label: string;
+      targetUrl?: string;
     }) => {
       // Generate a slug and retry on conflict (astronomically rare)
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -115,9 +117,10 @@ export function useCreateShortLink() {
           .insert({
             id: slug,
             owner_user_id: userId,
-            portfolio_username: portfolioUsername.toLowerCase(),
+            portfolio_username: portfolioUsername?.toLowerCase() ?? null,
             label: label.trim() || 'My Link',
-          })
+            target_url: targetUrl ?? (portfolioUsername ? `/p/${portfolioUsername.toLowerCase()}` : null),
+          } as any)
           .select()
           .single();
 

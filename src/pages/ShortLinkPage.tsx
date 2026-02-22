@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { supabase } from '@/integrations/supabase/safeClient';
 import { Link2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -20,13 +19,6 @@ export default function ShortLinkPage() {
 
     (async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('resolve-short-link', {
-          method: 'GET',
-          headers: { 'x-link-id': linkId },
-          body: undefined,
-        });
-
-        // Functions invoke doesn't support query params directly; use fetch
         const res = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/resolve-short-link?id=${encodeURIComponent(linkId)}`,
           {
@@ -45,13 +37,16 @@ export default function ShortLinkPage() {
         }
 
         const result = await res.json();
-        if (!result?.username) {
-          setNotFound(true);
-          return;
-        }
 
-        // Redirect to portfolio with ref attribution
-        navigate(`/p/${result.username}?ref=${linkId}`, { replace: true });
+        if (result?.target_url) {
+          // Universal redirect via target_url (relative path)
+          navigate(result.target_url, { replace: true });
+        } else if (result?.username) {
+          // Legacy portfolio link fallback
+          navigate(`/p/${result.username}?ref=${linkId}`, { replace: true });
+        } else {
+          setNotFound(true);
+        }
       } catch {
         if (!cancelled) setNotFound(true);
       }
