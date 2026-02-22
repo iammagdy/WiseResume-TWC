@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Target, Wand2, Mic, LogIn, User, LayoutDashboard, Settings, LogOut, LayoutGrid, Users, Globe, ArrowRight, ShieldCheck, Lock, Brain, Trash2 } from 'lucide-react';
 import { Footer } from '@/components/landing/Footer';
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 import { EditorDemo } from '@/components/landing/EditorDemo';
 import { SpaceBackground } from '@/components/landing/SpaceBackground';
 import { Button } from '@/components/ui/button';
