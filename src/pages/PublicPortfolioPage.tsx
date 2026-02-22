@@ -46,6 +46,10 @@ function hexToRgb(hex: string): string {
   return m ? `${parseInt(m[1], 16)}, ${parseInt(m[2], 16)}, ${parseInt(m[3], 16)}` : '239, 68, 68';
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  return `rgba(${hexToRgb(hex)}, ${alpha})`;
+}
+
 // ─── Motion variants (only used ones) ──────────────────────────────────────────
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -381,43 +385,8 @@ function PublicPortfolioContent() {
   const rootStyle: React.CSSProperties = {
     ...themeVars,
     fontFamily: 'var(--pf-body-font, Inter, system-ui, sans-serif)',
-    ...(themeConfig ? {
-      '--pf-bg': themeConfig.colors.bg,
-      '--pf-bg-alpha': themeConfig.colors.bg.replace(')', ', 0.88)').replace('rgb(', 'rgba(').replace('#', ''),
-      '--pf-card': themeConfig.colors.card,
-      '--pf-border': themeConfig.colors.border,
-      '--pf-fg': themeConfig.colors.fg,
-      '--pf-muted': themeConfig.colors.muted,
-    } as React.CSSProperties : pStyle === 'bold-dark' ? {
-      '--pf-bg': '#0a0a0f',
-      '--pf-bg-alpha': 'rgba(10,10,15,0.88)',
-      '--pf-card': 'rgba(255,255,255,0.03)',
-      '--pf-border': 'rgba(255,255,255,0.08)',
-      '--pf-fg': '#f8f8ff',
-      '--pf-muted': '#9ca3af',
-    } as React.CSSProperties : pStyle === 'glass-pro' ? {
-      '--pf-bg': '#0d1117',
-      '--pf-bg-alpha': 'rgba(13,17,23,0.88)',
-      '--pf-card': 'rgba(255,255,255,0.06)',
-      '--pf-border': 'rgba(255,255,255,0.1)',
-      '--pf-fg': '#f0f4ff',
-      '--pf-muted': '#a0aec0',
-    } as React.CSSProperties : pStyle === 'classic-clean' ? {
-      '--pf-bg': '#ffffff',
-      '--pf-bg-alpha': 'rgba(255,255,255,0.92)',
-      '--pf-card': '#f9f9f9',
-      '--pf-border': '#e5e7eb',
-      '--pf-fg': '#111827',
-      '--pf-muted': '#6b7280',
-    } as React.CSSProperties : {
-      '--pf-bg': '#0a0a14',
-      '--pf-bg-alpha': 'rgba(10,10,20,0.88)',
-      '--pf-card': 'rgba(255,255,255,0.04)',
-      '--pf-border': 'rgba(255,255,255,0.08)',
-      '--pf-fg': '#f5f5ff',
-      '--pf-muted': '#9ca3af',
-    } as React.CSSProperties),
-  };
+    '--pf-bg-alpha': hexToRgba(themeConfig?.colors.bg || '#0a0a14', 0.88),
+  } as React.CSSProperties;
 
   const heroBg: React.CSSProperties = pStyle === 'developer-terminal'
     ? { background: `linear-gradient(180deg, color-mix(in srgb, ${accentColor} 8%, #1a1b26), #1a1b26 70%)` }
@@ -439,7 +408,11 @@ function PublicPortfolioContent() {
 
   // Hero alignment from theme config
   const heroAlign = themeConfig?.layout.heroAlign || 'center';
-  const heroAlignClass = heroAlign === 'left' ? 'items-start text-left' : 'items-center text-center';
+  const isSplitHero = heroAlign === 'split';
+  const heroAlignClass = heroAlign === 'left' ? 'items-start text-left'
+    : isSplitHero ? 'items-center text-center md:flex-row md:items-center md:text-left md:gap-12'
+    : 'items-center text-center';
+  const heroJustify = heroAlign === 'center' ? 'justify-center' : 'justify-center md:justify-start';
 
   const isTwoCol = pLayout === 'two-col';
 
@@ -465,7 +438,7 @@ function PublicPortfolioContent() {
   return (
     <div
       id="portfolio-content"
-      className="min-h-screen"
+      className={`min-h-screen ${pStyle === 'neon-cyber' ? 'pf-neon-scanline' : ''}`}
       style={{ ...rootStyle, backgroundColor: 'var(--pf-bg, #0a0a14)', color: 'var(--pf-fg, #f5f5ff)' }}
       data-portfolio-style={pStyle}
     >
@@ -488,7 +461,7 @@ function PublicPortfolioContent() {
         <motion.div
           ref={heroRef}
           variants={fadeUp}
-          className={`relative flex flex-col ${heroAlignClass} pt-16 pb-12 px-4`}
+          className={`relative flex flex-col ${heroAlignClass} pt-16 pb-12 px-4 ${isSplitHero ? 'md:flex-row md:flex-wrap' : ''}`}
           style={heroBg}
         >
           {pStyle !== 'classic-clean' && (
@@ -523,7 +496,7 @@ function PublicPortfolioContent() {
             const ctaBaseDelay = badgeDelay + 150;
             let ctaIdx = 0;
             return (<>
-          <div className="flex items-center justify-center gap-2.5 flex-wrap mb-3 pf-badge-entrance" style={{ animationDelay: `${badgeDelay}ms` }}>
+          <div className={`flex items-center ${heroJustify} gap-2.5 flex-wrap mb-3 pf-badge-entrance`} style={{ animationDelay: `${badgeDelay}ms` }}>
             {profile.jobTitle && (
               <span className="inline-flex items-center gap-1.5 text-sm font-bold px-4 py-1.5 rounded-full"
                 style={{ background: `color-mix(in srgb, ${accentColor} 15%, transparent)`, color: accentColor, border: `1px solid color-mix(in srgb, ${accentColor} 35%, transparent)` }}>
@@ -578,7 +551,7 @@ function PublicPortfolioContent() {
             </div>
           )}
 
-          <div className="flex items-center justify-center gap-3 mb-3 flex-wrap pf-fade-entrance" style={{ animationDelay: `${locationDelay}ms` }}>
+          <div className={`flex items-center ${heroJustify} gap-3 mb-3 flex-wrap pf-fade-entrance`} style={{ animationDelay: `${locationDelay}ms` }}>
             {profile.location && (
               <span className="inline-flex items-center gap-1 text-sm" style={{ color: 'var(--pf-muted, #9ca3af)' }}>
                 <MapPin className="w-3.5 h-3.5" />{profile.location}
@@ -603,7 +576,7 @@ function PublicPortfolioContent() {
           </div>
 
           {(profile.linkedinUrl || profile.githubUrl || profile.websiteUrl || profile.twitterUrl) && (
-            <div className="flex items-center justify-center gap-2 mb-6">
+            <div className={`flex items-center ${heroJustify} gap-2 mb-6`}>
               {profile.linkedinUrl && (
                 <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
                   className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
@@ -639,7 +612,7 @@ function PublicPortfolioContent() {
             </div>
           )}
 
-          <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className={`flex items-center ${heroJustify} gap-3 flex-wrap`}>
             {profile.contactEmail && (
               <a
                 href={`mailto:${profile.contactEmail}`}
