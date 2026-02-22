@@ -1,73 +1,97 @@
 
 
-# Fix Logo Black Background + Theme Feature Verification
+# Fix Public Portfolio Issues
 
-## Problem
+## Issue 1: Splash Screen, Loading Spinner, and "What's New" Pop-up on Public Portfolio
 
-The app logo (`wise-ai-logo.webp`) has a black background baked into the image file itself. This causes an ugly dark square to appear behind the logo across the entire app -- on the landing page, splash screen, loading spinner, home screen, footer, and other locations.
+The public portfolio page (`/p/:username`) is meant to be a standalone website visitors see -- not part of the app experience. However, three app-only UI elements leak into it:
 
-## Solution
+1. **Splash screen** (`AnimatedSplash`) -- Renders for ALL routes on first visit (line 146 in App.tsx). When someone visits `/p/username` for the first time, they see the full app splash animation before the portfolio loads.
 
-Since the `.webp` file has a non-transparent background, we need to:
+2. **"What's New" dialog** (`WhatsNewDialog`) -- Rendered globally at line 215, outside any route guard. Every visitor to any route (including `/p/username`) sees this changelog pop-up.
 
-1. **Create a new transparent logo** by converting the existing `.png` file or creating a CSS-based approach to mask out the black background
-2. **Update all references** from `.webp` to the transparent version
+3. **Install PWA prompt** (`InstallPrompt`) -- Rendered globally at line 242. Portfolio visitors get prompted to install the app.
 
-## Affected Locations (7 places)
+### Fix
 
-| Location | File | How Logo Is Used |
-|----------|------|-----------------|
-| Landing page header | `src/pages/Index.tsx` | Small logo in top-left nav |
-| Landing page hero | `src/pages/Index.tsx` | Large 120x120 hero logo |
-| App Icon (splash, spinner, home) | `src/components/brand/AppIcon.tsx` | Central component used everywhere |
-| Footer | `src/components/landing/Footer.tsx` | Brand logo in footer |
-| QR Code Studio | `src/components/portfolio/qr/QRGeneratorSheet.tsx` | Logo overlay on QR codes |
-| Job Match Score | `src/components/applications/JobMatchScore.tsx` | Badge-style logo |
-| HTML loading spinner | `index.html` | Uses `favicon.png` (separate file) |
+In `src/App.tsx`, wrap the splash screen, WhatsNewDialog, and InstallPrompt logic to skip when the current route is a public page (`/p/`, `/share/`, `/l/`).
 
-## Changes
+**Splash screen**: Move the `hasSeenSplash` check inside the Routes, so `/p/:username`, `/share/:token`, and `/l/:linkId` bypass it entirely. The simplest approach: check if the current URL path starts with `/p/`, `/share/`, or `/l/` before showing the splash.
 
-### 1. `src/components/brand/AppIcon.tsx`
-- Switch import from `wise-ai-logo.webp` to `wise-ai-logo.png`
-- Add `border-radius: 16px` (rounded corners like an app icon) to visually soften the appearance if the PNG also has the same issue
-- Add a CSS approach to handle non-transparent logos: apply `border-radius` and `overflow: hidden` so the square edges are masked
+**WhatsNewDialog**: Wrap in a small component that checks `useLocation()` and returns `null` for public routes.
 
-### 2. `src/pages/Index.tsx`
-- Change import from `wise-ai-logo.webp` to `wise-ai-logo.png`
-- Apply rounded styling to both the header logo (line 259) and hero logo (line 322)
+**InstallPrompt**: Already has logic to hide on `/p/` routes (line 52 of InstallPrompt.tsx), but we should verify it works. If not, add the same guard.
 
-### 3. `src/components/landing/Footer.tsx`
-- Change import from `.webp` to `.png`
-- Apply consistent rounded styling
+### Changes in `src/App.tsx`
 
-### 4. `src/components/portfolio/qr/QRGeneratorSheet.tsx`
-- Change import from `.webp` to `.png`
+- Add a `useLocation()` check at the top of `AppRoutes` to detect public routes
+- Skip `AnimatedSplash` when on public routes (`/p/`, `/share/`, `/l/`)
+- Skip `WhatsNewDialog` when on public routes
+- Skip `InstallPrompt` when on public routes (backup guard)
 
-### 5. `src/components/applications/JobMatchScore.tsx`
-- Change import from `.webp` to `.png`
+## Issue 2: Portfolio Only Shows Name and Photo
 
-### 6. `index.html`
-- The inline loading spinner uses `favicon.png` -- add `border-radius: 12px` to the img tag to round corners if needed
+After investigating the database, the RPC `get_public_portfolio` IS returning all data correctly (bio, skills, experience, education, etc.). The user's resume data has:
+- 14 skills (populated)
+- Bio text (populated)
+- Location (populated)
+- 2 experience entries (but with empty `position` and `company` fields)
+- 1 education entry (but with empty `institution`, `degree`, and `field` fields)
 
-### 7. `src/components/AnimatedSplash.tsx`
-- Uses `AppIcon` component, so it gets fixed automatically when AppIcon is updated
+The portfolio page correctly renders all sections that have data. The experience and education cards appear but look empty because the underlying resume fields (company, position, institution, degree) were never filled in by the user. Skills and bio should be visible.
 
-### 8. `src/components/ui/PageLoadingSpinner.tsx`
-- Uses `AppIcon` component, so it gets fixed automatically when AppIcon is updated
+However, there may be a rendering issue where empty-string fields cause cards to render as blank. The fix is to add better empty-state filtering: skip experience entries where both `company` and `position` are empty, and skip education entries where `institution` and `degree` are both empty.
 
-## Technical Notes
+### Changes in `src/pages/PublicPortfolioPage.tsx`
 
-- The `.png` version (`wise-ai-logo.png`) exists in `src/assets/` and may already have transparency. If it does, the fix is simply swapping the import. If it also has a black background, we'll apply `border-radius: 16px` as an app-icon-style mask to make it look intentional and polished.
-- All 5 files that directly import `wise-ai-logo.webp` need their import path updated
-- The 3 components that use `AppIcon` (AnimatedSplash, PageLoadingSpinner, HomeHeroSection) are fixed automatically
+- Filter out experience entries where both `position` and `company` are empty/whitespace
+- Filter out education entries where both `institution` and `degree` are empty/whitespace
+- This prevents "ghost cards" from appearing with no visible content
 
-## Files Modified
+## Technical Details
 
-| File | Change |
-|------|--------|
-| `src/components/brand/AppIcon.tsx` | Switch to `.png`, add rounded styling |
-| `src/pages/Index.tsx` | Switch to `.png`, add rounded styling |
-| `src/components/landing/Footer.tsx` | Switch to `.png` |
-| `src/components/portfolio/qr/QRGeneratorSheet.tsx` | Switch to `.png` |
-| `src/components/applications/JobMatchScore.tsx` | Switch to `.png` |
-| `index.html` | Add border-radius to favicon img |
+| File | Changes |
+|------|---------|
+| `src/App.tsx` | Add public route detection; conditionally skip AnimatedSplash, WhatsNewDialog, InstallPrompt for `/p/`, `/share/`, `/l/` routes |
+| `src/pages/PublicPortfolioPage.tsx` | Filter out experience/education entries with all-empty fields before rendering |
+
+### App.tsx approach
+
+```text
+function AppRoutes() {
+  // ... existing hooks ...
+  
+  // Detect public standalone routes that should skip app chrome
+  const isPublicStandalone = window.location.pathname.startsWith('/p/')
+    || window.location.pathname.startsWith('/share/')
+    || window.location.pathname.startsWith('/l/');
+
+  // Skip splash for public routes
+  if (!hasSeenSplash && !isPublicStandalone) {
+    return <AnimatedSplash onComplete={() => setHasSeenSplash(true)} />;
+  }
+
+  // ... routes ...
+  
+  // Only show WhatsNewDialog for non-public routes
+  {!isPublicStandalone && <WhatsNewDialog />}
+}
+```
+
+### PublicPortfolioPage.tsx filtering
+
+```text
+// Filter ghost entries before computing hasExperience/hasEducation
+const validExperience = resume.experience?.filter(
+  e => (e.position?.trim() || e.company?.trim())
+) || [];
+const validEducation = resume.education?.filter(
+  e => (e.institution?.trim() || e.degree?.trim())
+) || [];
+
+const hasExperience = show('experience') && validExperience.length > 0;
+const hasEducation = show('education') && validEducation.length > 0;
+```
+
+Then use `validExperience` and `validEducation` in the render loops instead of `resume.experience` and `resume.education`.
+
