@@ -9,6 +9,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useResumeStore } from '@/store/resumeStore';
 import { analyzeResume } from '@/lib/aiAnalysis';
+import { useAIAction } from '@/hooks/useAIAction';
 import { toast } from 'sonner';
 import { activityTracker } from '@/lib/activityTracker';
 
@@ -18,6 +19,8 @@ interface JobAnalysisSheetProps {
 }
 
 export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) {
+  const { execute } = useAIAction({ operation: 'analyze' });
+
   useEffect(() => {
     if (open) { activityTracker.setActiveFeature('Job Match Analysis'); }
     return () => { activityTracker.setActiveFeature(null); };
@@ -35,6 +38,15 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
     setIsAnalyzing 
   } = useResumeStore();
 
+  // Clear stale results when sheet closes
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      setMatchScore(null);
+      setGapAnalysis(null);
+    }
+    onOpenChange(isOpen);
+  };
+
   const handleAnalyze = async () => {
     if (!jobDescription.trim()) {
       toast.error('Please paste a job description');
@@ -48,10 +60,15 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
 
     setIsAnalyzing(true);
     try {
-      const result = await analyzeResume(currentResume, jobDescription);
-      setMatchScore(result.score);
-      setGapAnalysis(result.gaps);
-      toast.success('Analysis complete!');
+      const result = await execute(async () => {
+        return await analyzeResume(currentResume, jobDescription);
+      });
+      
+      if (result) {
+        setMatchScore(result.score);
+        setGapAnalysis(result.gaps);
+        toast.success('Analysis complete!');
+      }
     } catch (error) {
       console.error('Analysis error:', error);
       toast.error('Failed to analyze. Please try again.');
@@ -67,7 +84,7 @@ export function JobAnalysisSheet({ open, onOpenChange }: JobAnalysisSheetProps) 
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
+    <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetContent side="bottom" className="h-[90vh]">
         <SheetHeader className="pb-4 shrink-0">
           <SheetTitle className="flex items-center gap-2">
