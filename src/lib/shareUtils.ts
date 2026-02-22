@@ -1,6 +1,8 @@
 import { downloadFile } from '@/lib/downloadUtils';
 import { toast } from 'sonner';
 import type { ResumeData } from '@/types/resume';
+import { supabase } from '@/integrations/supabase/safeClient';
+import { PORTFOLIO_DOMAIN } from '@/lib/portfolioUrl';
 
 export async function shareAsPDF(blob: Blob, fileName: string): Promise<boolean> {
   const file = new File([blob], fileName, { type: 'application/pdf' });
@@ -23,8 +25,51 @@ export function generateShareableUrl(resumeId: string): string {
   return `${window.location.origin}/preview?shared=${resumeId}`;
 }
 
+/** Generate a random 5-char alphanumeric slug */
+function generateSlug(length = 5): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return result;
+}
+
+/** Create a universal short URL for any app path */
+export async function createShortUrl(targetPath: string, label?: string): Promise<string | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const slug = generateSlug(5);
+      const { error } = await supabase
+        .from('short_links')
+        .insert({
+          id: slug,
+          owner_user_id: user.id,
+          target_url: targetPath,
+          label: label || 'Shared Link',
+        } as any);
+
+      if (error) {
+        if (error.code === '23505') continue; // duplicate slug — retry
+        console.error('Short link creation error:', error);
+        return null;
+      }
+      return `${PORTFOLIO_DOMAIN}/l/${slug}`;
+    }
+    return null;
+  } catch (err) {
+    console.error('createShortUrl error:', err);
+    return null;
+  }
+}
+
 export async function shareAsLink(resumeId: string): Promise<void> {
-  const url = generateShareableUrl(resumeId);
+  const targetPath = `/preview?shared=${resumeId}`;
+  const shortUrl = await createShortUrl(targetPath, 'Resume Share');
+  const url = shortUrl || generateShareableUrl(resumeId); // fallback to long URL
 
   if (navigator.share) {
     try {
