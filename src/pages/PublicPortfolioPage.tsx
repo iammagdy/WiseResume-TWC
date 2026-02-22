@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   MapPin, Linkedin, Briefcase, GraduationCap, Award, FolderOpen,
   Github, Globe, Mail, X, Download, ExternalLink,
-  Wrench, Layers, Sparkles, BookOpen, Heart, Trophy, ArrowUp
+  Wrench, Layers, Sparkles, BookOpen, Heart, Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MiniSpinner } from '@/components/ui/MiniSpinner';
@@ -15,7 +15,7 @@ import { useEffect, useState, useRef, useCallback, useMemo, Suspense } from 'rea
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import type { PublicProfile, PublicResume } from '@/hooks/usePublicPortfolio';
-import { CareerCardSheet } from '@/components/portfolio/CareerCardSheet';
+// CareerCardSheet removed from public page — it's a creator tool, not visitor tool
 import { lazyWithRetry } from '@/lib/lazyWithRetry';
 
 // Extracted components
@@ -233,7 +233,6 @@ function PublicPortfolioContent() {
 
   const { data: portfolio, isLoading, error } = usePublicPortfolio(username);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [showCareerCard, setShowCareerCard] = useState(false);
   const [showMoreSkills, setShowMoreSkills] = useState(false);
   const [stickyVisible, setStickyVisible] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -568,33 +567,7 @@ function PublicPortfolioContent() {
         </div>
       )}
 
-      {/* Scroll-to-top button */}
-      <AnimatePresence>
-        {stickyVisible && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.2 }}
-            onClick={() => {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-              haptics.light();
-            }}
-            className="fixed z-50 rounded-full shadow-lg active:scale-95 flex items-center justify-center"
-            style={{
-              bottom: 'calc(24px + env(safe-area-inset-bottom, 0px))',
-              left: '16px',
-              width: '44px',
-              height: '44px',
-              backgroundColor: accentColor,
-              color: '#fff',
-            }}
-            aria-label="Scroll to top"
-          >
-            <ArrowUp className="w-5 h-5" />
-          </motion.button>
-        )}
-      </AnimatePresence>
+      {/* Scroll-to-top removed — sticky header handles navigation */}
 
       <motion.div
         className="max-w-4xl mx-auto px-4 py-0"
@@ -724,34 +697,34 @@ function PublicPortfolioContent() {
             <div className={`flex items-center ${heroJustify} gap-2 mb-6`}>
               {profile.linkedinUrl && (
                 <a href={profile.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="LinkedIn">
-                  <Linkedin className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
+                  <Linkedin className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
               )}
               {profile.githubUrl && (
                 <a href={profile.githubUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="GitHub">
-                  <Github className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
+                  <Github className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
               )}
               {profile.websiteUrl && (
                 <a href={profile.websiteUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="Website">
-                  <Globe className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
+                  <Globe className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
               )}
               {profile.twitterUrl && (
                 <a href={profile.twitterUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
+                  className="w-9 h-9 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 pf-cta-entrance"
                   style={{ background: 'var(--pf-card, rgba(255,255,255,0.06))', border: '1px solid var(--pf-border, rgba(255,255,255,0.1))', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
                   title="X / Twitter">
-                  <X className="w-4.5 h-4.5" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
+                  <X className="w-4 h-4" style={{ color: 'var(--pf-fg, #f5f5ff)' }} />
                 </a>
               )}
             </div>
@@ -767,36 +740,6 @@ function PublicPortfolioContent() {
                 <Mail className="w-4 h-4" /> Get in Touch
               </a>
             )}
-            {hasProjects && (
-              <a
-                href="#projects"
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance"
-                style={{ borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`, color: accentColor, background: `color-mix(in srgb, ${accentColor} 8%, transparent)`, animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
-              >
-                <FolderOpen className="w-4 h-4" /> View Projects
-              </a>
-            )}
-            <button
-              onClick={() => { haptics.light(); setShowCareerCard(true); }}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-semibold text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance pf-cta-shimmer pf-cta-shimmer-subtle pf-cta-shimmer-d1"
-              style={{
-                borderColor: `color-mix(in srgb, ${accentColor} 50%, transparent)`,
-                color: accentColor,
-                background: `color-mix(in srgb, ${accentColor} 8%, transparent)`,
-                animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms`,
-              }}
-            >
-              <Sparkles className="w-4 h-4" /> Share Card
-            </button>
-            <button
-              onClick={handleDownload}
-              disabled={isDownloading}
-              className="inline-flex items-center gap-2 px-5 py-3 rounded-full font-medium text-sm transition-all hover:scale-105 active:scale-95 border pf-cta-entrance pf-cta-shimmer pf-cta-shimmer-d2"
-              style={{ background: 'transparent', borderColor: 'var(--pf-border, rgba(255,255,255,0.2))', color: 'var(--pf-fg, #f5f5ff)', animationDelay: `${ctaBaseDelay + (ctaIdx++) * 120}ms` }}
-            >
-              {isDownloading ? <MiniSpinner size={16} /> : <Download className="w-4 h-4" />}
-              {isDownloading ? 'Saving…' : 'Save as PDF'}
-            </button>
           </div>
             </>);
           })()}
@@ -808,7 +751,7 @@ function PublicPortfolioContent() {
           <HighlightsStrip highlights={highlights} accentColor={accentColor} />
         )}
 
-        <SectionNav sections={navSections} accentColor={accentColor} />
+        <SectionNav sections={navSections} accentColor={accentColor} pStyle={pStyle} />
 
         {/* ── Body content ─────────────────────────────────────────────── */}
         <div className={`px-2 pb-20 pt-10 ${isTwoCol ? 'md:grid md:grid-cols-5 md:gap-10' : 'space-y-10'}`}>
@@ -1092,38 +1035,32 @@ function PublicPortfolioContent() {
         </div>
 
         {/* ── Footer ────────────────────────────────────────────────────── */}
-        <motion.div variants={fadeUp} className="text-center py-10 border-t" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>
-          <a
-            href={window.location.origin}
-            target="_blank"
-            rel="noopener noreferrer"
+        <motion.div variants={fadeUp} className="text-center py-10 border-t space-y-3" style={{ borderColor: 'var(--pf-border, rgba(255,255,255,0.08))' }}>
+          <button
+            onClick={handleDownload}
+            disabled={isDownloading}
             className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
             style={{ color: 'var(--pf-muted, #9ca3af)' }}
+            data-pdf-exclude
           >
-            Built with <span className="font-bold" style={{ color: accentColor }}>WiseResume</span> · Create your free portfolio →
-          </a>
+            {isDownloading ? <MiniSpinner size={14} /> : <Download className="w-3.5 h-3.5" />}
+            {isDownloading ? 'Saving…' : 'Save as PDF'}
+          </button>
+          <div>
+            <a
+              href={window.location.origin}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs transition-opacity hover:opacity-80"
+              style={{ color: 'var(--pf-muted, #9ca3af)' }}
+            >
+              Built with <span className="font-bold" style={{ color: accentColor }}>WiseResume</span> · Create your free portfolio →
+            </a>
+          </div>
         </motion.div>
       </motion.div>
 
-      {contactHref && (
-        <div
-          className={`pf-contact-cta ${ctaVisible ? 'pf-contact-visible' : 'pf-contact-hidden'}`}
-          style={{
-            '--pf-cta-accent': accentColor,
-            '--pf-cta-shadow-rgb': hexToRgb(accentColor),
-          } as React.CSSProperties}
-        >
-          <a
-            href={contactHref}
-            target={contactIsExternal ? '_blank' : undefined}
-            rel={contactIsExternal ? 'noopener noreferrer' : undefined}
-            className="pf-contact-cta-inner active:scale-95"
-          >
-            <Mail className="w-4 h-4" />
-            <span>Contact Me</span>
-          </a>
-        </div>
-      )}
+      {/* Floating Contact CTA removed — sticky header handles this */}
 
       {/* Lazy-loaded ChatWidget — only renders when FAB is clicked */}
       <Suspense fallback={null}>
@@ -1135,26 +1072,7 @@ function PublicPortfolioContent() {
         />
       </Suspense>
 
-      <CareerCardSheet
-        open={showCareerCard}
-        onOpenChange={setShowCareerCard}
-        profile={{
-          fullName: profile.fullName,
-          avatarUrl: profile.avatarUrl,
-          jobTitle: profile.jobTitle,
-          location: profile.location,
-          openToWork: profile.openToWork,
-          username: profile.username,
-          portfolioAccentColor: profile.portfolioAccentColor,
-        }}
-        selectedResume={{
-          id: resume.id,
-          title: resume.title,
-          skills: resume.skills,
-          experience: resume.experience,
-        }}
-        accentColor={accentColor}
-      />
+      {/* CareerCardSheet removed from public page */}
     </div>
   );
 }

@@ -801,7 +801,7 @@ function FloatingViewLivePill({ onViewLive, hasLiveUrl }: { onViewLive?: () => v
   if (!hasLiveUrl || !onViewLive) return null;
   return (
     <motion.div
-      className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-4 right-4 z-40 flex items-center justify-center max-w-sm mx-auto"
+      className="fixed bottom-[calc(7rem+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-40 flex items-center justify-center"
       initial={prefersReduced ? { opacity: 1 } : { opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 300, damping: 25, delay: 0.5 }}
