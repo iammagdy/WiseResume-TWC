@@ -90,7 +90,7 @@ export function DesktopNav() {
       aria-label="Main navigation"
     >
       {/* Brand mark */}
-      <span className="text-sm font-bold text-primary mr-3 select-none">WiseResume</span>
+      <button onClick={() => navigate('/')} className="text-sm font-bold text-primary mr-3 select-none">WiseResume</button>
 
       <div className="flex items-center gap-0.5">
         {tabs.map((tab) => {

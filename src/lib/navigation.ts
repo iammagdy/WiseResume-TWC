@@ -34,6 +34,7 @@ const BACK_ROUTES: Record<string, string> = {
   '/examples': '/dashboard',
   '/guides': '/dashboard',
   '/ai-studio': '/dashboard',
+  '/home': '/',
 };
 
 /**
