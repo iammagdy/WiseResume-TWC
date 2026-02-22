@@ -249,11 +249,25 @@ export default function AuthPage() {
       );
       if (error) {
         haptics.error();
+
+        // Handle pwned/weak password explicitly
+        if (
+          error.message?.toLowerCase().includes('weak') ||
+          error.message?.toLowerCase().includes('pwned') ||
+          (error as any).code === 'weak_password'
+        ) {
+          toast.error(
+            'This password has been found in a data breach. Please choose a stronger, unique password.',
+            { duration: 6000 }
+          );
+          return;
+        }
+
         // Generic message to prevent email enumeration
         if (error.message.includes('already registered')) {
           toast.success("If this email is not already registered, you'll receive a verification link shortly.");
         } else {
-          toast.error(error.message);
+          toast.error(error.message || 'Signup failed. Please try again.');
         }
         return;
       }
