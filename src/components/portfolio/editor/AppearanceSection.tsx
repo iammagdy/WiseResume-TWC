@@ -1,96 +1,28 @@
 import React from 'react';
-import { Palette, Type, Layout, Eye, Check } from 'lucide-react';
+import { Palette, Type, Layout, Eye } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { CollapsibleCard, SubSectionHeading } from './shared';
+import { ThemeStorePicker } from './ThemeStorePicker';
+import { PORTFOLIO_THEMES } from '@/lib/portfolioThemes';
 import { haptics } from '@/lib/haptics';
 
-export type PortfolioStyle = 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean';
+export type PortfolioStyle = 'minimal' | 'bold-dark' | 'glass-pro' | 'classic-clean' | 'developer-terminal' | 'creative-spotlight' | 'executive-suite' | 'freelancer-starter' | 'neon-cyber';
 export type PortfolioLayout = 'single' | 'two-col';
 export type PortfolioFont = 'inter' | 'space-grotesk' | 'serif';
-
-export const THEMES: { id: PortfolioStyle; name: string; desc: string; preview: { bg: string; accent: string; card: string; text: string } }[] = [
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    desc: 'Clean & spacious. Works for everyone.',
-    preview: { bg: '#0a0a14', accent: '#e84545', card: 'rgba(255,255,255,0.05)', text: '#f5f5ff' },
-  },
-  {
-    id: 'bold-dark',
-    name: 'Bold Dark',
-    desc: 'High contrast with glow cards.',
-    preview: { bg: '#0a0a0f', accent: '#e84545', card: 'rgba(255,255,255,0.03)', text: '#f8f8ff' },
-  },
-  {
-    id: 'glass-pro',
-    name: 'Glass Pro',
-    desc: 'Frosted glass. Modern & polished.',
-    preview: { bg: '#0d1117', accent: '#e84545', card: 'rgba(255,255,255,0.08)', text: '#f0f4ff' },
-  },
-  {
-    id: 'classic-clean',
-    name: 'Classic Clean',
-    desc: 'White, serif-accented. Formal & timeless.',
-    preview: { bg: '#ffffff', accent: '#e84545', card: '#f9f9f9', text: '#111827' },
-  },
-];
 
 export const ACCENT_PRESETS = [
   '#e84545', '#6366f1', '#0ea5e9', '#10b981',
   '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6',
 ];
 
-function ThemePreviewCard({
-  theme, selected, accent, onSelect,
-}: {
-  theme: typeof THEMES[0];
-  selected: boolean;
-  accent: string;
-  onSelect: () => void;
-}) {
-  const displayAccent = accent || theme.preview.accent;
-  return (
-    <button
-      onClick={onSelect}
-      className={`relative rounded-2xl overflow-hidden transition-all shrink-0 w-36 active:scale-[0.97] ${selected ? 'ring-2 ring-offset-2' : 'ring-1 opacity-75 hover:opacity-100'}`}
-      style={{
-        '--tw-ring-color': selected ? displayAccent : 'rgba(255,255,255,0.1)',
-      } as React.CSSProperties}
-    >
-      <div className="h-20 p-2 space-y-1.5" style={{ background: theme.preview.bg }}>
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-full" style={{ background: displayAccent }} />
-          <div className="flex-1 space-y-0.5">
-            <div className="h-1.5 rounded-full w-3/4" style={{ background: theme.preview.text, opacity: 0.8 }} />
-            <div className="h-1 rounded-full w-1/2" style={{ background: displayAccent, opacity: 0.8 }} />
-          </div>
-        </div>
-        <div className="h-6 rounded-lg p-1 space-y-0.5" style={{ background: theme.preview.card }}>
-          <div className="h-1 rounded-full w-4/5" style={{ background: theme.preview.text, opacity: 0.5 }} />
-          <div className="h-1 rounded-full w-3/5" style={{ background: theme.preview.text, opacity: 0.3 }} />
-        </div>
-        <div className="flex gap-1">
-          {[0, 1, 2].map(i => (
-            <div key={i} className="h-2 rounded-full px-1 text-[4px]" style={{
-              background: `color-mix(in srgb, ${displayAccent} 20%, transparent)`,
-              border: `1px solid color-mix(in srgb, ${displayAccent} 35%, transparent)`,
-              width: i === 0 ? '28%' : i === 1 ? '22%' : '20%',
-            }} />
-          ))}
-        </div>
-      </div>
-      <div className="p-2 text-left" style={{ background: 'var(--card)' }}>
-        <p className="text-xs font-bold text-foreground truncate">{theme.name}</p>
-      </div>
-      {selected && (
-        <div className="absolute top-1.5 right-1.5 w-4 h-4 rounded-full flex items-center justify-center" style={{ background: displayAccent }}>
-          <Check className="w-2.5 h-2.5 text-white" />
-        </div>
-      )}
-    </button>
-  );
-}
+// Keep THEMES export for backward compat (LivePreviewCard etc.)
+export const THEMES = PORTFOLIO_THEMES.map(t => ({
+  id: t.id as PortfolioStyle,
+  name: t.name,
+  desc: t.description,
+  preview: t.preview,
+}));
 
 export interface AppearanceSectionProps {
   openSections: Set<string>;
@@ -115,30 +47,26 @@ export function AppearanceSection(props: AppearanceSectionProps) {
     selectedTheme, onSelectedThemeChange,
   } = props;
 
+  const currentTheme = PORTFOLIO_THEMES.find(t => t.id === portfolioStyle);
+
   return (
     <CollapsibleCard
       id="appearance"
       icon={<Palette className="w-4 h-4" />}
       title="Appearance"
-      hint={<Badge variant="outline" className="text-[10px] py-0 px-1.5">{THEMES.find(t => t.id === portfolioStyle)?.name || 'Minimal'}</Badge>}
+      hint={<Badge variant="outline" className="text-[10px] py-0 px-1.5">{currentTheme?.name || 'Minimal'}</Badge>}
       openSections={openSections}
       toggleSection={toggleSection}
     >
-      {/* Theme picker */}
-      <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-        {THEMES.map(theme => (
-          <ThemePreviewCard
-            key={theme.id}
-            theme={theme}
-            selected={portfolioStyle === theme.id}
-            accent={portfolioAccentColor}
-            onSelect={() => { haptics.light(); onPortfolioStyleChange(theme.id); }}
-          />
-        ))}
-      </div>
-      <p className="text-xs text-muted-foreground">
-        {THEMES.find(t => t.id === portfolioStyle)?.desc}
-      </p>
+      {/* Theme Store Picker */}
+      <ThemeStorePicker
+        selectedThemeId={portfolioStyle}
+        onSelectTheme={(id) => onPortfolioStyleChange(id as PortfolioStyle)}
+        userAccent={portfolioAccentColor}
+      />
+      {currentTheme && (
+        <p className="text-xs text-muted-foreground">{currentTheme.description}</p>
+      )}
 
       {/* Accent Color */}
       <SubSectionHeading icon={<Palette className="w-3.5 h-3.5" />} label="Accent Color" />
