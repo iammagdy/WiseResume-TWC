@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { RotateCcw, Home, Sparkles, ChevronDown, ChevronUp, Lightbulb, TrendingUp, Share2, BookOpen, ArrowLeft, Download } from 'lucide-react';
+import { InterviewResultsCardSheet } from './InterviewResultsCardSheet';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -49,6 +50,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
   const mins = Math.floor(duration / 60);
   const secs = duration % 60;
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [showShareCard, setShowShareCard] = useState(false);
   const reducedMotion = useReducedMotion();
 
   const overallScore = useMemo(() => {
@@ -209,10 +211,7 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
           <Button
             variant="outline"
             className="backdrop-blur-sm min-h-[44px]"
-            onClick={async () => {
-              await navigator.clipboard.writeText(summary);
-              import('sonner').then(({ toast }) => toast.success('Summary copied!'));
-            }}
+            onClick={() => setShowShareCard(true)}
           >
             <Share2 className="w-4 h-4 mr-2" />
             Share Results
@@ -245,6 +244,14 @@ export function InterviewSummary({ summary, duration, scores, onRestart, onGoHom
           </span>
         </div>
       </motion.div>
+
+      <InterviewResultsCardSheet
+        open={showShareCard}
+        onOpenChange={setShowShareCard}
+        overallScore={overallScore}
+        duration={duration}
+        scores={scores}
+      />
     </div>
   );
 }
