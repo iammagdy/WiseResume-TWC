@@ -24,21 +24,51 @@ function styleToBg(style: string): string {
     case 'bold-dark': return '#0a0a1f';
     case 'glass-pro': return '#0d1117';
     case 'classic-clean': return '#f8faff';
+    case 'developer-terminal': return '#1a1b26';
+    case 'creative-spotlight': return '#faf9f6';
+    case 'executive-suite': return '#fefefe';
+    case 'freelancer-starter': return '#ffffff';
+    case 'neon-cyber': return '#0a0a0a';
     default: return '#0a0a14'; // minimal
   }
 }
 
 function styleToFg(style: string): string {
-  return style === 'classic-clean' ? '#111827' : '#f0f0ff';
+  switch (style) {
+    case 'classic-clean': return '#111827';
+    case 'creative-spotlight': return '#1a1a2e';
+    case 'executive-suite': return '#0f172a';
+    case 'freelancer-starter': return '#18181b';
+    case 'developer-terminal': return '#c0caf5';
+    case 'neon-cyber': return '#e4e4e7';
+    default: return '#f0f0ff';
+  }
 }
 
 function styleToMuted(style: string): string {
-  return style === 'classic-clean' ? '#6b7280' : '#9ca3af';
+  switch (style) {
+    case 'classic-clean': return '#6b7280';
+    case 'creative-spotlight': return '#6b7280';
+    case 'executive-suite': return '#64748b';
+    case 'freelancer-starter': return '#71717a';
+    case 'developer-terminal': return '#565f89';
+    case 'neon-cyber': return '#71717a';
+    default: return '#9ca3af';
+  }
 }
 
-function styleToCardBg(style: string, accent: string): string {
-  if (style === 'classic-clean') return '#e8ecf4';
-  return accent + '22'; // low opacity accent
+function isLightTheme(style: string): boolean {
+  return ['classic-clean', 'creative-spotlight', 'executive-suite', 'freelancer-starter'].includes(style);
+}
+
+function styleToFont(style: string): string {
+  switch (style) {
+    case 'developer-terminal': return '"Fira Code", monospace, system-ui';
+    case 'executive-suite': return 'Georgia, "Times New Roman", serif';
+    case 'creative-spotlight': return '"Space Grotesk", system-ui, sans-serif';
+    case 'neon-cyber': return '"Space Grotesk", system-ui, sans-serif';
+    default: return 'system-ui, sans-serif';
+  }
 }
 
 function wrapText(text: string, maxCharsPerLine: number): string[] {
@@ -112,6 +142,92 @@ function styleToDecoLayer(style: string, accent: string): string {
   <rect x="0" y="0" width="6" height="630" fill="${accent}"/>
   <rect x="0" y="0" width="1200" height="200" fill="${accent}" fill-opacity="0.04"/>`;
 
+    case 'developer-terminal':
+      return `
+  <defs>
+    <pattern id="scanlines" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <rect width="4" height="2" fill="rgba(255,255,255,0.015)"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#scanlines)"/>
+  <!-- Terminal title bar -->
+  <rect x="48" y="28" width="1104" height="36" rx="8" fill="rgba(255,255,255,0.06)"/>
+  <circle cx="72" cy="46" r="6" fill="#ff5f56"/>
+  <circle cx="92" cy="46" r="6" fill="#ffbd2e"/>
+  <circle cx="112" cy="46" r="6" fill="#27c93f"/>
+  <text x="600" y="52" font-family="monospace" font-size="13" fill="rgba(255,255,255,0.3)" text-anchor="middle">~/portfolio</text>
+  <rect x="48" y="64" width="1104" height="530" rx="0" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+  <text x="72" y="110" font-family="monospace" font-size="14" fill="${accent}" fill-opacity="0.5">$</text>`;
+
+    case 'creative-spotlight':
+      return `
+  <defs>
+    <linearGradient id="spotlightGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#faf9f6"/>
+      <stop offset="40%" stop-color="#f0e6ff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffe6e6" stop-opacity="0.3"/>
+    </linearGradient>
+    <radialGradient id="spotGlow" cx="70%" cy="20%" r="50%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#spotlightGrad)"/>
+  <rect width="1200" height="630" fill="url(#spotGlow)"/>
+  <rect x="0" y="0" width="1200" height="6" fill="${accent}"/>
+  <rect x="60" y="80" width="1080" height="470" rx="20" fill="#ffffff" fill-opacity="0.6" stroke="rgba(0,0,0,0.04)" stroke-width="1"/>`;
+
+    case 'executive-suite':
+      return `
+  <defs>
+    <pattern id="exDots" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="10" cy="10" r="0.8" fill="#e2e8f0"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#exDots)"/>
+  <rect x="0" y="0" width="4" height="630" fill="${accent}"/>
+  <rect x="0" y="0" width="1200" height="3" fill="${accent}"/>
+  <rect x="0" y="627" width="1200" height="3" fill="${accent}" fill-opacity="0.3"/>`;
+
+    case 'freelancer-starter':
+      return `
+  <defs>
+    <linearGradient id="starterBar" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="${accent}"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0.6"/>
+    </linearGradient>
+    <radialGradient id="starterGlow" cx="50%" cy="10%" r="60%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#starterGlow)"/>
+  <rect x="0" y="0" width="1200" height="8" fill="url(#starterBar)"/>
+  <rect x="56" y="88" width="1088" height="454" rx="24" fill="#ffffff" stroke="${accent}" stroke-opacity="0.12" stroke-width="1.5"/>`;
+
+    case 'neon-cyber':
+      return `
+  <defs>
+    <radialGradient id="neonGlow1" cx="50%" cy="50%" r="55%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="neonGlow2" cx="20%" cy="80%" r="40%">
+      <stop offset="0%" stop-color="${accent}" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="neonGrid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <rect width="40" height="40" fill="none" stroke="${accent}" stroke-opacity="0.04" stroke-width="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#neonGlow1)"/>
+  <rect width="1200" height="630" fill="url(#neonGlow2)"/>
+  <rect width="1200" height="630" fill="url(#neonGrid)"/>
+  <rect x="0" y="0" width="1200" height="4" fill="${accent}"/>
+  <rect x="0" y="626" width="1200" height="4" fill="${accent}" fill-opacity="0.4"/>
+  <rect x="0" y="0" width="2" height="630" fill="${accent}" fill-opacity="0.2"/>
+  <rect x="1198" y="0" width="2" height="630" fill="${accent}" fill-opacity="0.2"/>`;
+
     default: // minimal
       return `
   <defs>
@@ -144,28 +260,54 @@ function buildSkillPills(
   const pillY = 460;
   const rx = 21;
 
-  // Per-theme pill appearance
   let pillFill: string;
   let pillStroke: string;
   let textColor: string;
+  let fontFamily = 'system-ui,sans-serif';
 
-  if (style === 'classic-clean') {
-    pillFill = '#ffffff';
-    pillStroke = accent;
-    textColor = accent;
-  } else if (style === 'bold-dark') {
-    pillFill = accent;
-    pillStroke = accent;
-    textColor = '#ffffff';
-  } else if (style === 'glass-pro') {
-    pillFill = 'rgba(255,255,255,0.12)';
-    pillStroke = 'rgba(255,255,255,0.35)';
-    textColor = '#ffffff';
-  } else {
-    // minimal — accent-tinted
-    pillFill = accent + '28';
-    pillStroke = accent + '66';
-    textColor = accent;
+  switch (style) {
+    case 'classic-clean':
+      pillFill = '#ffffff';
+      pillStroke = accent;
+      textColor = accent;
+      break;
+    case 'bold-dark':
+    case 'freelancer-starter':
+      pillFill = accent;
+      pillStroke = accent;
+      textColor = '#ffffff';
+      break;
+    case 'glass-pro':
+      pillFill = 'rgba(255,255,255,0.12)';
+      pillStroke = 'rgba(255,255,255,0.35)';
+      textColor = '#ffffff';
+      break;
+    case 'developer-terminal':
+      pillFill = 'rgba(255,255,255,0.04)';
+      pillStroke = accent;
+      textColor = accent;
+      fontFamily = 'monospace,system-ui';
+      break;
+    case 'creative-spotlight':
+      pillFill = '#ffffff';
+      pillStroke = 'rgba(0,0,0,0.08)';
+      textColor = accent;
+      break;
+    case 'executive-suite':
+      pillFill = '#ffffff';
+      pillStroke = accent;
+      textColor = accent;
+      break;
+    case 'neon-cyber':
+      pillFill = 'rgba(255,255,255,0.04)';
+      pillStroke = accent;
+      textColor = accent;
+      break;
+    default: // minimal
+      pillFill = accent + '28';
+      pillStroke = accent + '66';
+      textColor = accent;
+      break;
   }
 
   const parts: string[] = [];
@@ -176,7 +318,7 @@ function buildSkillPills(
     const textY = pillY + pillH / 2 + fontSize * 0.36;
     parts.push(`
     <rect x="${x}" y="${pillY}" width="${pillW}" height="${pillH}" rx="${rx}" fill="${pillFill}" stroke="${pillStroke}" stroke-width="1.5"/>
-    <text x="${x + pillW / 2}" y="${textY}" font-family="system-ui,sans-serif" font-size="${fontSize}" fill="${textColor}" text-anchor="middle" font-weight="700">${escapeXml(skill)}</text>`);
+    <text x="${x + pillW / 2}" y="${textY}" font-family="${fontFamily}" font-size="${fontSize}" fill="${textColor}" text-anchor="middle" font-weight="700">${escapeXml(skill)}</text>`);
     x += pillW + 16;
   }
   return parts.join('');
@@ -197,18 +339,17 @@ function buildSVG(data: {
   const bg = styleToBg(style);
   const fg = styleToFg(style);
   const muted = styleToMuted(style);
+  const font = styleToFont(style);
+  const light = isLightTheme(style);
   const monogram = name?.charAt(0)?.toUpperCase() || '?';
-  const isLight = style === 'classic-clean';
 
   const displayName = truncate(name, 32);
   const displayRole = truncate(role, 48);
   const bioLines = bio ? wrapText(truncate(bio, 120), 60) : [];
 
-  const dividerColor = isLight ? '#d1d5db' : accent + '44';
-
-  // Wordmark badge
-  const wordmarkBg = isLight ? accent : 'rgba(255,255,255,0.10)';
-  const wordmarkFg = isLight ? '#ffffff' : accent;
+  const dividerColor = light ? '#d1d5db' : accent + '44';
+  const wordmarkBg = light ? accent : 'rgba(255,255,255,0.10)';
+  const wordmarkFg = light ? '#ffffff' : accent;
 
   const decoLayer = styleToDecoLayer(style, accent);
   const skillPillsSVG = buildSkillPills(skills, style, accent, fg);
@@ -232,13 +373,13 @@ function buildSVG(data: {
 
   <!-- Avatar monogram circle -->
   <circle cx="132" cy="180" r="68" fill="${accent}22" stroke="${accent}" stroke-width="2.5"/>
-  <text x="132" y="200" font-family="system-ui,sans-serif" font-size="64" font-weight="800" fill="${accent}" text-anchor="middle">${escapeXml(monogram)}</text>
+  <text x="132" y="200" font-family="${font}" font-size="64" font-weight="800" fill="${accent}" text-anchor="middle">${escapeXml(monogram)}</text>
 
   <!-- Name -->
-  <text x="232" y="148" font-family="system-ui,sans-serif" font-size="52" font-weight="800" fill="${fg}" dominant-baseline="auto">${escapeXml(displayName)}</text>
+  <text x="232" y="148" font-family="${font}" font-size="52" font-weight="800" fill="${fg}" dominant-baseline="auto">${escapeXml(displayName)}</text>
 
   <!-- Role -->
-  <text x="232" y="198" font-family="system-ui,sans-serif" font-size="26" font-weight="400" fill="${muted}">${escapeXml(displayRole)}</text>
+  <text x="232" y="198" font-family="${font}" font-size="26" font-weight="400" fill="${muted}">${escapeXml(displayRole)}</text>
 
   <!-- Location -->
   ${location ? `<text x="232" y="234" font-family="system-ui,sans-serif" font-size="22" fill="${muted}">📍 ${escapeXml(truncate(location, 40))}</text>` : ''}
@@ -298,7 +439,6 @@ Deno.serve(async (req: Request) => {
     const username = url.searchParams.get('username')?.toLowerCase();
 
     if (!username) {
-      // Return fallback branded image
       const svg = buildFallbackSVG();
       return new Response(svg, {
         headers: {
