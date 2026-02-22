@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Lock } from 'lucide-react';
@@ -19,7 +19,9 @@ import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter';
+import { VerifyEmailScreen } from '@/components/auth/VerifyEmailScreen';
 import { Mail } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import haptics from '@/lib/haptics';
 
 const emailSchema = z.string().email('Please enter a valid email');
@@ -33,7 +35,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const COOLDOWN_SECONDS = 30;
 const COOLDOWN_KEY = 'wr-auth-cooldown';
 
-type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'magic-link';
+type AuthMode = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'magic-link' | 'verify-email' | 'email-not-confirmed';
 
 // Retry helper for transient network errors
 async function withNetworkRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T> {
@@ -49,33 +51,51 @@ async function withNetworkRetry<T>(fn: () => Promise<T>, retries = 1): Promise<T
   }
 }
 
-// sessionStorage-backed cooldown
+// localStorage-backed cooldown (survives tab closes)
 function readCooldown(): { failedAttempts: number; cooldownUntil: number | null } {
   try {
-    const raw = sessionStorage.getItem(COOLDOWN_KEY);
-    if (raw) return JSON.parse(raw);
+    const raw = localStorage.getItem(COOLDOWN_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      // Clear expired cooldown
+      if (data.cooldownUntil && Date.now() >= data.cooldownUntil) {
+        localStorage.removeItem(COOLDOWN_KEY);
+        return { failedAttempts: 0, cooldownUntil: null };
+      }
+      return data;
+    }
   } catch { /* ignore */ }
   return { failedAttempts: 0, cooldownUntil: null };
 }
 
 function writeCooldown(failedAttempts: number, cooldownUntil: number | null) {
-  sessionStorage.setItem(COOLDOWN_KEY, JSON.stringify({ failedAttempts, cooldownUntil }));
+  localStorage.setItem(COOLDOWN_KEY, JSON.stringify({ failedAttempts, cooldownUntil }));
 }
 
 function clearCooldown() {
-  sessionStorage.removeItem(COOLDOWN_KEY);
+  localStorage.removeItem(COOLDOWN_KEY);
 }
 
 export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { session } = useAuth();
+  const { session, loading: authLoading } = useAuth();
   useGuestMigration(session);
 
   const [mode, setMode] = useState<AuthMode>('login');
   const [isLoading, setIsLoading] = useState(false);
   const [isSlowConnection, setIsSlowConnection] = useState(false);
   const [socialLoading, setSocialLoading] = useState<'google' | 'apple' | null>(null);
+
+  // Store pending verification email for verify-email and email-not-confirmed screens
+  const [pendingEmail, setPendingEmail] = useState('');
+
+  // Preserve redirect param across mode changes (survives query param cleanup)
+  const redirectRef = useRef<string | null>(null);
+  useEffect(() => {
+    const redirect = searchParams.get('redirect');
+    if (redirect) redirectRef.current = redirect;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Reset-password form state
   const [resetPassword, setResetPassword] = useState('');
@@ -121,8 +141,39 @@ export default function AuthPage() {
 
   // Redirect authenticated users
   useEffect(() => {
-    if (session && mode !== 'reset-password') navigate('/dashboard', { replace: true });
+    if (session && mode !== 'reset-password') {
+      navigate(redirectRef.current || '/dashboard', { replace: true });
+    }
   }, [session, navigate, mode]);
+
+  // Show loading skeleton while auth is resolving (prevents flash of login form)
+  if (authLoading) {
+    return (
+      <MobileLayout>
+        <div className="flex-1 flex flex-col px-4 py-6 pb-safe">
+          <div className="flex items-center gap-2 mb-4 min-h-[44px]">
+            <Skeleton className="w-5 h-5 rounded" />
+            <Skeleton className="w-12 h-4 rounded" />
+          </div>
+          <div className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full space-y-6">
+            <Skeleton className="w-12 h-12 rounded-xl mx-auto" />
+            <div className="space-y-2 text-center">
+              <Skeleton className="w-40 h-7 rounded mx-auto" />
+              <Skeleton className="w-56 h-4 rounded mx-auto" />
+            </div>
+            <div className="space-y-4">
+              <Skeleton className="w-full h-12 rounded-lg" />
+              <Skeleton className="w-full h-12 rounded-lg" />
+              <Skeleton className="w-full h-12 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      </MobileLayout>
+    );
+  }
+
+  // --- Helpers ---
+  const getRedirect = () => redirectRef.current || '/dashboard';
 
   // --- Handlers ---
 
@@ -145,6 +196,14 @@ export default function AuthPage() {
       if (error) {
         haptics.error();
         logAudit('auth', 'login_failed', { method: 'email', reason: error.message });
+
+        // Handle "Email not confirmed" specifically
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          setPendingEmail(email);
+          setMode('email-not-confirmed');
+          return;
+        }
+
         const newAttempts = failedAttempts + 1;
         if (newAttempts >= MAX_FAILED_ATTEMPTS) {
           const until = Date.now() + COOLDOWN_SECONDS * 1000;
@@ -159,8 +218,7 @@ export default function AuthPage() {
       clearCooldown();
       logAudit('auth', 'login_succeeded', { method: 'email' });
       toast.success('Welcome back!');
-      const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
-      setTimeout(() => navigate(redirectTo), 600);
+      setTimeout(() => navigate(getRedirect()), 600);
     } catch (err) {
       const isNetworkErr = err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
       haptics.error();
@@ -208,11 +266,11 @@ export default function AuthPage() {
       logAudit('auth', 'signup_succeeded', { method: 'email', confirmed: !!data.session });
       if (data.session) {
         toast.success('Account created!');
-        const redirectTo = new URLSearchParams(window.location.search).get('redirect') || '/dashboard';
-        setTimeout(() => navigate(redirectTo), 600);
+        setTimeout(() => navigate(getRedirect()), 600);
       } else {
-        toast.success("If this email is not already registered, you'll receive a verification link shortly.");
-        setMode('login');
+        // Show verify-email screen instead of just toasting
+        setPendingEmail(email);
+        setMode('verify-email');
       }
     } catch (err) {
       const isNetworkErr = err instanceof Error && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed'));
@@ -228,9 +286,16 @@ export default function AuthPage() {
   const handlePasswordReset = async (e: React.FormEvent) => {
     e.preventDefault();
     setForgotTouched(true);
-    const err = !forgotEmail ? 'Email is required' : undefined;
-    try { emailSchema.parse(forgotEmail); } catch { if (!err) { setIsLoading(false); return; } }
-    if (err) return;
+
+    // Validate email before proceeding
+    if (!forgotEmail) return;
+    try {
+      emailSchema.parse(forgotEmail);
+    } catch {
+      toast.error('Please enter a valid email address.');
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
@@ -293,22 +358,50 @@ export default function AuthPage() {
   const handleGoogleSignIn = async () => {
     setSocialLoading('google');
     logAudit('auth', 'login_attempted', { method: 'google' });
-    try { await signInWithGoogle(); } catch { /* handled */ }
-    finally { setTimeout(() => setSocialLoading(null), 2000); }
+    try {
+      await signInWithGoogle();
+      // Only keep timeout on success path (page will redirect)
+      setTimeout(() => setSocialLoading(null), 2000);
+    } catch {
+      setSocialLoading(null); // Clear immediately on error
+    }
   };
 
   const handleAppleSignIn = async () => {
     setSocialLoading('apple');
     logAudit('auth', 'login_attempted', { method: 'apple' });
-    try { await signInWithApple(); } catch { /* handled */ }
-    finally { setTimeout(() => setSocialLoading(null), 2000); }
+    try {
+      await signInWithApple();
+      setTimeout(() => setSocialLoading(null), 2000);
+    } catch {
+      setSocialLoading(null); // Clear immediately on error
+    }
   };
 
   const isForgotPassword = mode === 'forgot-password';
   const isResetPassword = mode === 'reset-password';
   const isMagicLink = mode === 'magic-link';
+  const isVerifyEmail = mode === 'verify-email';
+  const isEmailNotConfirmed = mode === 'email-not-confirmed';
   const resetPasswordError = getResetPasswordError();
   const forgotEmailError = !forgotEmail ? 'Email is required' : (() => { try { emailSchema.parse(forgotEmail); return undefined; } catch { return 'Please enter a valid email'; } })();
+
+  // Header text
+  const getHeaderTitle = () => {
+    if (isResetPassword) return 'Set New Password';
+    if (isForgotPassword) return 'Reset Password';
+    if (isMagicLink) return 'Sign In with Email Link';
+    if (isVerifyEmail || isEmailNotConfirmed) return '';
+    return mode === 'login' ? 'Welcome Back' : 'Create Account';
+  };
+
+  const getHeaderSubtitle = () => {
+    if (isResetPassword) return 'Enter your new password below';
+    if (isForgotPassword) return "We'll send you a reset link";
+    if (isMagicLink) return "We'll send a link to your inbox";
+    if (isVerifyEmail || isEmailNotConfirmed) return '';
+    return mode === 'login' ? 'Sign in to access your resumes' : 'Sign up to save your work';
+  };
 
   return (
     <MobileLayout>
@@ -326,23 +419,35 @@ export default function AuthPage() {
           className="flex-1 flex flex-col justify-center max-w-sm mx-auto w-full"
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         >
-          {/* App Icon */}
-          <motion.div className="flex justify-center mb-4" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }}>
-            <AppIcon size={48} className="drop-shadow-[0_0_8px_rgba(139,92,246,0.35)]" />
-          </motion.div>
+          {/* App Icon - hidden on verify screens */}
+          {!isVerifyEmail && !isEmailNotConfirmed && (
+            <motion.div className="flex justify-center mb-4" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ type: 'spring', stiffness: 200, damping: 20 }}>
+              <AppIcon size={48} className="drop-shadow-[0_0_8px_rgba(139,92,246,0.35)]" />
+            </motion.div>
+          )}
 
-          {/* Header */}
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-display font-bold mb-1">
-              {isResetPassword ? 'Set New Password' : isForgotPassword ? 'Reset Password' : isMagicLink ? 'Sign In with Email Link' : mode === 'login' ? 'Welcome Back' : 'Create Account'}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {isResetPassword ? 'Enter your new password below' : isForgotPassword ? "We'll send you a reset link" : isMagicLink ? "We'll send a link to your inbox" : mode === 'login' ? 'Sign in to access your resumes' : 'Sign up to save your work'}
-            </p>
-          </div>
+          {/* Header - hidden on verify screens (they have their own) */}
+          {getHeaderTitle() && (
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-display font-bold mb-1">{getHeaderTitle()}</h1>
+              <p className="text-sm text-muted-foreground">{getHeaderSubtitle()}</p>
+            </div>
+          )}
 
           {/* Forms */}
-          {isResetPassword ? (
+          {isVerifyEmail ? (
+            <VerifyEmailScreen
+              email={pendingEmail}
+              onBackToLogin={() => setMode('login')}
+              variant="post-signup"
+            />
+          ) : isEmailNotConfirmed ? (
+            <VerifyEmailScreen
+              email={pendingEmail}
+              onBackToLogin={() => setMode('login')}
+              variant="not-confirmed"
+            />
+          ) : isResetPassword ? (
             <form onSubmit={handleUpdatePassword} className="space-y-4">
               <div>
                 <PasswordInput
@@ -418,15 +523,6 @@ export default function AuthPage() {
               isSlowConnection={isSlowConnection}
               socialLoading={socialLoading}
             />
-          )}
-
-          {/* "Explore without account" - hidden on reset-password */}
-          {mode !== 'reset-password' && (
-            <motion.div className="mt-6 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-              <Button variant="ghost" onClick={() => navigate('/')} className="text-muted-foreground text-sm">
-                Explore without account
-              </Button>
-            </motion.div>
           )}
         </motion.div>
       </div>
