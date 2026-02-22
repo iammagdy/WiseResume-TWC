@@ -1,38 +1,24 @@
 
-# Add Spring Bounce to Active Tab Indicator
+# Fix Black Bar Above Bottom Tab Bar on Editor Page
 
-## Overview
-Replace the static CSS-based active tab styling with a `motion.div` layout animation that slides behind the active tab with a spring bounce effect.
+## Problem
+On the mobile editor (`/editor`), there is a visible black gap between the editor content and the bottom tab bar. This happens because:
 
-## Changes
+1. The AppShell intentionally skips adding `pb-20` (bottom padding for the tab bar) on editor routes
+2. The editor's scroll container uses `pb-16` (4rem) which is too small to account for the bottom tab bar height (~5rem)
+3. The resulting gap shows the dark background color as a "black bar"
 
-### `src/pages/PortfolioEditorPage.tsx` (lines 398-417)
+## Fix
 
-Replace the current tab row with a `position: relative` container that includes:
+### `src/pages/EditorPage.tsx` (line 1214)
+Change the mobile editor scroll container's bottom padding from `pb-16` to `pb-24`:
 
-1. **A `motion.div` background indicator** using `layoutId="activeTab"` that automatically animates between tab positions with a spring transition:
-   - `transition={{ type: "spring", stiffness: 400, damping: 28 }}` for a snappy bounce
-   - Styled with the existing `glass-elevated` class and the primary glow shadow
-   - Positioned absolutely behind the active tab button
+- **Before**: `className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0"`
+- **After**: `className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"`
 
-2. **Tab buttons become relative** so they layer above the sliding indicator. Each button keeps its text styling but the active background class moves to the `motion.div`.
+The extra padding (`pb-24` = 6rem) ensures the scrollable content clears the bottom tab bar (5rem) plus leaves room for the floating action pill positioned at `bottom-[7rem]`. This prevents the black gap from appearing when the user scrolls to the bottom of the editor.
 
-The structure becomes:
-```
-<div className="relative flex gap-1.5 p-1 ...">
-  {tabs.map(tab => (
-    <button key={tab.id} className="relative z-10 flex-1 ...">
-      {activeTab === tab.id && (
-        <motion.div
-          layoutId="activeTab"
-          className="absolute inset-0 rounded-lg glass-elevated shadow-..."
-          transition={{ type: "spring", stiffness: 400, damping: 28 }}
-        />
-      )}
-      <span className="relative z-10">{tab.label}</span>
-    </button>
-  ))}
-</div>
-```
-
-This gives a smooth, physics-based sliding indicator that bounces subtly into position when switching tabs -- no extra state needed, just `layoutId` magic from framer-motion.
+### Why `pb-24`?
+- Bottom tab bar height: ~5rem (`pb-20` equivalent)
+- The editor is `overflow-hidden` at the AppShell level, so the scroll container itself needs the padding
+- `pb-24` (6rem) gives enough clearance for both the tab bar and the floating action pill
