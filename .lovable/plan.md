@@ -1,86 +1,104 @@
 
 
-# Create Dedicated `/reset-password` Page
+# AI Credit System Audit: Bypass Vulnerabilities
 
-## Problem
+## Summary
 
-The current password reset flow uses a brittle dual mechanism:
-1. The forgot-password email links to `/auth?reset=true`
-2. AuthPage detects `?reset=true` **and** listens for `PASSWORD_RECOVERY` auth state change
-3. Both set a local `mode` state to show the reset form inline within the monolithic AuthPage
+After analyzing all 32 files that call `supabase.functions.invoke` and cross-referencing with `useAIAction` / `useAICreditsMutations` usage, I found **6 AI features that bypass the credit system entirely** -- they call AI edge functions but never check or deduct credits.
 
-This is fragile because:
-- The `?reset=true` param and the `PASSWORD_RECOVERY` event can race or conflict
-- The reset form shares state with login/signup, making the component harder to maintain
-- The `session && mode !== 'reset-password'` guard is a special case that complicates the redirect logic
-- If the user refreshes the page after landing on `/auth?reset=true`, the `PASSWORD_RECOVERY` event may not re-fire, leaving them on the login form
+---
 
-## Solution
+## Findings
 
-Create a standalone `/reset-password` page that:
-- Handles the `PASSWORD_RECOVERY` callback flow cleanly
-- Contains its own form, validation, and submission logic (extracted from AuthPage)
-- Is a **public route** (not behind ProtectedRoute) since the user arrives with a recovery token
-- Redirects to `/auth` if no recovery session is detected
+### BYPASSING CREDITS (no check, no deduct)
 
-Then remove all reset-password logic from AuthPage.
+| # | File | Feature | AI Function Called | Issue |
+|---|------|---------|--------------------|-------|
+| 1 | `src/components/editor/tailor/QuickActions.tsx` | Quick Actions (Quantify, Projects, Reorder) | `enhance-section` | Calls AI directly with no `useAIAction`, no `checkCredits`, no `incrementUsage`. Only calls `trackGeminiUsage()` which is a local Gemini free-tier counter, not the credit system. |
+| 2 | `src/pages/CareerPage.tsx` | Career Assessment (quiz) | `career-assessment` | Calls AI directly. Only has client-side rate limit (`checkAIRateLimit`) and `trackGeminiUsage()`. No credit check or deduction. |
+| 3 | `src/hooks/useATSSuggestions.ts` | Deep ATS Analysis per section | `enhance-section` | Calls AI with no credit wrapper at all. No `useAIAction`, no `checkCredits`, no `incrementUsage`, no `trackGeminiUsage`. Completely free. |
+| 4 | `src/hooks/useVoiceInterview.ts` | Mock Interview (each AI turn) | `interview-chat` | Each interview turn calls AI with zero credit check or deduction. A multi-turn interview could consume 10+ AI calls for free. |
+| 5 | `src/components/settings/AvatarCropSheet.tsx` | AI Headshot Generation | `generate-headshot` | Calls AI with no credit system integration at all. |
+| 6 | `src/components/editor/ai/RecruiterSimSheet.tsx` `handleApplyFix` | Apply Fix (after simulation) | `enhance-section` | The initial simulation correctly uses `executeAI` (line 67), but the "Apply Fix" action (line 116) calls `enhance-section` directly without any credit check or deduction. |
 
-## Changes
+### CORRECTLY USING CREDITS (for reference)
 
-### 1. Create `src/pages/ResetPasswordPage.tsx`
+These features properly use `useAIAction` which wraps `checkCredits` + `incrementUsage`:
 
-A new standalone page that:
-- Listens for `PASSWORD_RECOVERY` auth state change on mount
-- Also checks the URL hash for `type=recovery` tokens (Supabase implicit flow)
-- Shows the "Set New Password" form (reuses existing `PasswordInput` and `PasswordStrengthMeter` components)
-- On success, navigates to `/dashboard`
-- If no recovery session detected within 3 seconds, redirects to `/auth` with a toast
+| Feature | Hook/Component | Operation Key |
+|---------|---------------|---------------|
+| Section Enhance | `useAIEnhance.ts` | `enhance` |
+| Job Tailoring | `TailorSheet.tsx` | `tailor` |
+| Job Analysis / Score | `JobAnalysisSheet.tsx` | `analyze` |
+| Gap Filler | `GapFillerSheet.tsx` | `gap-fill` |
+| Gap Explainer | `GapExplainerSheet.tsx` | `gap-explain` |
+| One-Page Optimizer | `OnePageWizardSheet.tsx` | `one-page` |
+| LinkedIn Optimizer | `LinkedInOptimizerSheet.tsx` | `linkedin` |
+| AI Detector/Humanizer | `AIDetectorSheet.tsx` (detect only) | `detect-humanize` |
+| Recruiter Simulation (initial) | `RecruiterSimSheet.tsx` | `recruiter-sim` |
+| Company Briefing | `useCompanyBriefing.ts` | `company_briefing` |
+| Career Path Sheet | `CareerPathSheet.tsx` | `career-assessment` |
+| Set Target Job | `SetTargetJobSheet.tsx` | `tailor` |
+| Agentic Chat | `useAgenticChat.ts` | manual `incrementUsage` |
+| AI Enhance Sheet | `AIEnhanceSheet.tsx` | manual `checkCredits` + `incrementUsage` |
 
-### 2. Update `src/App.tsx` routing
+### SECONDARY ISSUE: AI Detector Humanize bypass
 
-- Add `/reset-password` as a public route (alongside `/auth`, `/privacy`, `/terms`)
-- Lazy-load the new page component
+In `AIDetectorSheet.tsx`, the **detect** action (line 263) uses `executeAI`, but the **humanize re-check** (line 294) calls `detect-and-humanize` directly without credits -- though this is a re-scan of already-humanized text, so it may be intentional as a "free verification."
 
-### 3. Clean up `src/pages/AuthPage.tsx`
+---
 
-- Remove `'reset-password'` from the `AuthMode` type
-- Remove `resetPassword`, `resetConfirm`, `showResetPassword`, `showResetConfirm`, `resetTouched` state
-- Remove the `?reset=true` detection useEffect
-- Remove the `PASSWORD_RECOVERY` listener
-- Remove the `mode !== 'reset-password'` guard from the session redirect
-- Remove the `handleUpdatePassword` handler and `getResetPasswordError` helper
-- Remove the reset-password form JSX block
-- Remove unused imports (`PasswordInput`, `PasswordStrengthMeter`, `Lock`) if no longer needed
+## Fix Plan
 
-### 4. Update forgot-password `redirectTo`
+### 1. `src/components/editor/tailor/QuickActions.tsx`
+- Add `useAIAction({ operation: 'enhance' })` (cost: 1 credit per quick action)
+- Wrap the `supabase.functions.invoke` call inside `executeAI(async () => { ... })`
+- Remove direct `trackGeminiUsage()` call (handled by `useAIAction`)
 
-Change `resetPasswordForEmail` redirect from:
-```
-`${window.location.origin}/auth?reset=true`
-```
-to:
-```
-`${window.location.origin}/reset-password`
-```
+### 2. `src/pages/CareerPage.tsx`
+- Add `useAIAction({ operation: 'career-assessment' })` (cost: 2)
+- Wrap the `career-assessment` invoke inside `executeAI(async () => { ... })`
+- Remove direct `trackGeminiUsage()` call
 
-## Technical Details
+### 3. `src/hooks/useATSSuggestions.ts`
+- This is a hook, so it needs `useAICreditsMutations()` directly
+- Add `checkCredits()` before the `enhance-section` call
+- Add `incrementUsage.mutate()` after success
+- Add `trackGeminiUsage()` after success
 
-### ResetPasswordPage structure
+### 4. `src/hooks/useVoiceInterview.ts`
+- Add `useAICreditsMutations()` to the hook
+- Add `checkCredits()` before each `interview-chat` call
+- Add `incrementUsage.mutate()` after each successful AI response
+- The `analyzeRole` call (line 489) also needs credit deduction
 
-```
-- Mount: listen for PASSWORD_RECOVERY event
-- Mount: check hash for type=recovery token
-- If recovery detected: show form
-- If not detected after 3s: redirect to /auth with "Invalid or expired reset link" toast
-- Form: new password + confirm + strength meter
-- Submit: supabase.auth.updateUser({ password }) -> navigate to /dashboard
-```
+### 5. `src/components/settings/AvatarCropSheet.tsx`
+- Add `useAIAction({ operation: 'enhance' })` (or a new `'headshot'` operation key)
+- Add `'headshot': 1` to `AI_COST_MAP` in `aiCostEstimates.ts`
+- Wrap the `generate-headshot` invoke inside `executeAI`
 
-### Files to create/modify
+### 6. `src/components/editor/ai/RecruiterSimSheet.tsx` (handleApplyFix)
+- Wrap the `enhance-section` call in `handleApplyFix` with the existing `executeAI` wrapper (already available in the component)
 
-| File | Action |
+### 7. `src/lib/aiCostEstimates.ts`
+- Add missing operation keys: `'headshot': 1`, `'interview-turn': 1`, `'ats-deep': 1`
+- Consider adding `'quick-action': 1` or reusing `'enhance'`
+
+### 8. `src/components/editor/ai/AIDetectorSheet.tsx` (optional)
+- Decide if the humanize re-check at line 294 should cost a credit
+- If yes, wrap it in `executeAI` as well
+
+---
+
+## Files to modify
+
+| File | Change |
 |------|--------|
-| `src/pages/ResetPasswordPage.tsx` | Create -- standalone reset password page |
-| `src/App.tsx` | Add `/reset-password` public route |
-| `src/pages/AuthPage.tsx` | Remove all reset-password mode logic, state, and UI |
+| `src/lib/aiCostEstimates.ts` | Add `headshot`, `interview-turn`, `ats-deep` to `AI_COST_MAP` |
+| `src/components/editor/tailor/QuickActions.tsx` | Add `useAIAction`, wrap AI call |
+| `src/pages/CareerPage.tsx` | Add `useAIAction`, wrap AI call |
+| `src/hooks/useATSSuggestions.ts` | Add `useAICreditsMutations`, add check + deduct |
+| `src/hooks/useVoiceInterview.ts` | Add `useAICreditsMutations`, add check + deduct per turn |
+| `src/components/settings/AvatarCropSheet.tsx` | Add `useAIAction`, wrap AI call |
+| `src/components/editor/ai/RecruiterSimSheet.tsx` | Wrap `handleApplyFix` AI call in existing `executeAI` |
 
