@@ -1,21 +1,22 @@
 
-
-# Remove "What's New" Dialog
+# Add Changelog Badge to Settings Gear Icon
 
 ## What Changes
 
-The auto-popup `WhatsNewDialog` that appears 1.5 seconds after app load will be removed. Users will only see the changelog through the Settings page, where it already exists as a full changelog viewer.
+A small pulsing dot indicator will appear on the Settings gear icon in the Dashboard header when there's a new changelog entry the user hasn't seen. Tapping the gear navigates to `/settings`, and once the user opens the changelog in Settings, the dot disappears (the existing `markSeen` logic handles this).
 
-## Files Modified
+## How It Works
 
-| File | Change |
-|------|--------|
-| `src/App.tsx` | Remove the `WhatsNewDialog` lazy import and its `<Suspense>` render in `AppRoutes` |
-| `src/components/WhatsNewDialog.tsx` | Delete this file entirely |
+The `useChangelogBadge` hook already tracks whether there's an unseen changelog version. The Dashboard page already imports and uses this hook (indirectly through BottomTabBar). We just need to:
 
-## What Stays
+1. Import and call `useChangelogBadge()` in the DashboardPage
+2. Add a small badge dot (`w-2 h-2 rounded-full bg-primary animate-pulse`) positioned on the Settings gear icon button when `hasNew` is true
 
-- The `useChangelogBadge` hook and `getChangelog()` utility remain -- they power the "new updates" badge dot on the Dashboard/Settings tabs and the full changelog viewer in Settings.
-- The changelog section inside `SettingsPage` remains fully functional.
-- The badge dot on BottomTabBar/DesktopNav still appears to nudge users toward Settings when a new version is available.
+## File Modified
 
+**`src/pages/DashboardPage.tsx`**
+- Import `useChangelogBadge` from `@/hooks/useChangelogBadge`
+- Call `const { hasNew } = useChangelogBadge()` in the component
+- Wrap the Settings `<Button>` icon area with a `relative` div and add a conditional badge dot span (same pattern used on the Home tab icon in BottomTabBar)
+
+The badge dot will look identical to the one already used on the Home tab in the bottom navigation -- a small primary-colored pulsing circle at the top-right corner of the icon.
