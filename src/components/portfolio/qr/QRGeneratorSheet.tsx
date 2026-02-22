@@ -8,7 +8,7 @@ import { Download, Share2, QrCode, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import wiseAiLogo from '@/assets/wise-ai-logo.png';
+import wiseAiLogo from '@/assets/wise-ai-logo.webp';
 
 import type { QRCustomizationState } from './qr-types';
 import { DEFAULT_QR_STATE } from './qr-types';
