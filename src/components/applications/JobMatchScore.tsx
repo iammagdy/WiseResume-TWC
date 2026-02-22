@@ -7,7 +7,7 @@ import { haptics } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { Scissors, Info, Sparkles, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import wiseAiLogo from '@/assets/wise-ai-logo.webp';
+import wiseAiLogo from '@/assets/wise-ai-logo.png';
 
 interface Props {
   score: JobMatchResult | null;
