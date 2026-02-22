@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { haptics } from '@/lib/haptics';
 
+const LIGHT_THEMES = ['classic-clean', 'executive-suite', 'creative-spotlight', 'freelancer-starter'];
+
 interface SectionNavProps {
   sections: { id: string; label: string }[];
   accentColor: string;
+  pStyle?: string;
 }
 
-export function SectionNav({ sections, accentColor }: SectionNavProps) {
+export function SectionNav({ sections, accentColor, pStyle = 'minimal' }: SectionNavProps) {
+  const isLight = LIGHT_THEMES.includes(pStyle);
   const [activeId, setActiveId] = useState(sections[0]?.id || '');
   const pillRowRef = useRef<HTMLDivElement>(null);
 
@@ -55,7 +59,7 @@ export function SectionNav({ sections, accentColor }: SectionNavProps) {
       className="md:hidden sticky z-40"
       style={{
         top: '48px',
-        background: 'var(--pf-bg-alpha, rgba(10,10,20,0.88))',
+        background: isLight ? 'rgba(255,255,255,0.92)' : 'var(--pf-bg-alpha, rgba(10,10,20,0.88))',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}
