@@ -18,6 +18,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { RedirectJobRoute } from "@/components/layout/RedirectJobRoute";
 
 const CommandPalette = lazyWithRetry(() => import("@/components/layout/CommandPalette"));
 
@@ -219,6 +220,8 @@ const queryClient = new QueryClient({
                 <Route path="/guides/:slug" element={<Suspense fallback={<DetailSkeleton />}><GuidePage /></Suspense>} />
                  <Route path="/ai-studio" element={<Suspense fallback={<AIStudioSkeleton />}><AIStudioPage /></Suspense>} />
                  <Route path="/activity" element={<Navigate to="/applications" replace />} />
+                 <Route path="/jobs/:id" element={<RedirectJobRoute />} />
+                 <Route path="/jobs" element={<Navigate to="/applications" replace />} />
               </Route>
            </Route>
 

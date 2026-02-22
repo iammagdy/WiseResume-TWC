@@ -1,9 +1,15 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { motion } from "framer-motion";
-import { Home, AlertCircle, LayoutDashboard } from "lucide-react";
+import { Home, AlertCircle, LayoutDashboard, FileText, Briefcase, Sparkles, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+
+const quickLinks = [
+  { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
+  { label: "Applications", icon: Briefcase, path: "/applications" },
+  { label: "AI Studio", icon: Sparkles, path: "/ai-studio" },
+];
 
 const NotFound = () => {
   const location = useLocation();
@@ -53,6 +59,7 @@ const NotFound = () => {
         </motion.p>
         
         <motion.div
+          className="space-y-3"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
@@ -64,6 +71,31 @@ const NotFound = () => {
           >
             <Icon className="w-5 h-5 mr-2" />
             {label}
+          </Button>
+
+          {isAuthenticated && (
+            <div className="grid grid-cols-3 gap-2">
+              {quickLinks.map(({ label, icon: QIcon, path }) => (
+                <Button
+                  key={path}
+                  variant="outline"
+                  className="flex flex-col items-center gap-1 h-auto py-3"
+                  onClick={() => navigate(path)}
+                >
+                  <QIcon className="w-5 h-5 text-muted-foreground" />
+                  <span className="text-xs">{label}</span>
+                </Button>
+              ))}
+            </div>
+          )}
+
+          <Button
+            variant="ghost"
+            className="w-full text-muted-foreground"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Go Back
           </Button>
         </motion.div>
       </motion.div>
