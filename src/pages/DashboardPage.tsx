@@ -28,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { calculateProfileCompletion } from '@/hooks/useProfile';
 import { AIHealthBadge } from '@/components/ai/AIHealthBadge';
 import { AICreditsIndicator } from '@/components/editor/ai/AICreditsIndicator';
+import { useChangelogBadge } from '@/hooks/useChangelogBadge';
 
 // Lazy-loaded dialogs
 const CreateResumeDialog = lazy(() => import('@/components/dashboard/CreateResumeDialog').then(m => ({ default: m.CreateResumeDialog })));
@@ -67,6 +68,7 @@ export default function DashboardPage() {
   const { setCurrentResume, setCurrentResumeId } = useResumeStore();
   const { scoreResume, getCachedScore, scoringId } = useResumeScore();
   const { profile } = useProfile(user?.id, user);
+  const { hasNew: hasNewChangelog } = useChangelogBadge();
   const [healthScores, setHealthScores] = useState<Record<string, ResumeHealthScore>>({});
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -500,11 +502,14 @@ export default function DashboardPage() {
             <Button
               variant="ghost"
               size="icon"
-              className="w-11 h-11 rounded-xl touch-manipulation active:scale-95"
+              className="w-11 h-11 rounded-xl touch-manipulation active:scale-95 relative"
               onClick={() => { haptics.light(); navigate('/settings'); }}
               aria-label="Settings"
             >
               <Settings className="w-5 h-5 text-muted-foreground" />
+              {hasNewChangelog && (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary border-2 border-background animate-pulse" aria-label="New updates available" />
+              )}
             </Button>
             <Popover onOpenChange={(open) => {
               if (open && !profilePulseSeen) {
