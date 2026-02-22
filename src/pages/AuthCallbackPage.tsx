@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { PageLoadingSpinner } from '@/components/ui/PageLoadingSpinner';
+import { ThemeDropdown } from '@/components/settings/ThemeDropdown';
 
 export default function AuthCallbackPage() {
   const navigate = useNavigate();
@@ -56,5 +57,12 @@ export default function AuthCallbackPage() {
     handleCallback();
   }, [navigate]);
 
-  return <PageLoadingSpinner />;
+  return (
+    <>
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeDropdown />
+      </div>
+      <PageLoadingSpinner />
+    </>
+  );
 }
