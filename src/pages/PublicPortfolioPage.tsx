@@ -494,7 +494,7 @@ function PublicPortfolioContent() {
             </Avatar>
           </div>
 
-          <h1 className="text-5xl md:text-6xl font-black leading-tight mb-3" style={{ fontFamily: 'var(--pf-heading-font)' }}>
+          <h1 className="relative z-[1] text-5xl md:text-6xl font-black leading-tight mb-3" style={{ fontFamily: 'var(--pf-heading-font)' }}>
             {profile.fullName || 'Anonymous'}
           </h1>
 
