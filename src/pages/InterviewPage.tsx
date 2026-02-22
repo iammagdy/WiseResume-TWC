@@ -220,7 +220,7 @@ function InterviewPageContent() {
           <p className="text-sm text-muted-foreground max-w-xs">Select or create a resume from your dashboard to start interview practice.</p>
         </div>
         <Button onClick={() => navigate('/ai-studio')} className="min-h-[48px] px-6">
-          Go to Dashboard
+          Go to AI Studio
         </Button>
       </div>
     );
@@ -312,7 +312,7 @@ function InterviewPageContent() {
       {/* Premium glassmorphism header */}
       <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border/20 bg-card/50 backdrop-blur-xl">
         <div className="flex items-center gap-3">
-          <BackButton />
+          <BackButton onBeforeBack={() => { setShowEndConfirm(true); return true; }} />
           <div className="flex items-center gap-2">
             <motion.div
               animate={{ rotate: [0, 10, -10, 0] }}

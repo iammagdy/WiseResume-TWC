@@ -400,7 +400,7 @@ export default function SettingsPage() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="pt-safe sticky top-0 z-10 pt-4 pb-1 px-4 glass-header backdrop-blur-xl">
+        <header className="pt-safe sticky top-0 z-10 pb-1 px-4 glass-header backdrop-blur-xl">
           <div className="flex items-center gap-3">
             <BackButton />
             <h1 className="text-page-title">Settings</h1>
@@ -417,7 +417,7 @@ export default function SettingsPage() {
                   key={id}
                   onClick={() => scrollToSection(id)}
                   className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation shrink-0',
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation shrink-0 min-h-[44px]',
                     isActive
                       ? 'bg-primary text-primary-foreground shadow-sm'
                       : 'bg-muted/60 text-muted-foreground hover:bg-muted'

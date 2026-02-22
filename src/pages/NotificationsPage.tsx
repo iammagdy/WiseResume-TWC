@@ -9,8 +9,19 @@ import { useAuth } from '@/hooks/useAuth';
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/safeClient';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type FilterTab = 'all' | 'unread' | 'applications' | 'system';
+
 
 export default function NotificationsPage() {
   const navigate = useNavigate();
@@ -19,6 +30,7 @@ export default function NotificationsPage() {
   const { data: notifications = [] } = useNotifications();
   const { markAsRead, markAllAsRead, clearAll } = useNotificationMutations();
   const [filter, setFilter] = useState<FilterTab>('all');
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   // Realtime subscription for notifications
   useEffect(() => {
@@ -64,7 +76,7 @@ export default function NotificationsPage() {
             </Button>
           )}
           {notifications.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => clearAll.mutate()} className="text-destructive gap-1 text-xs">
+            <Button variant="ghost" size="sm" onClick={() => setShowClearConfirm(true)} className="text-destructive gap-1 text-xs">
               <Trash2 className="w-3.5 h-3.5" /> Clear
             </Button>
           )}
@@ -77,7 +89,7 @@ export default function NotificationsPage() {
           <button
             key={t.key}
             onClick={() => setFilter(t.key)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors min-h-[44px] flex items-center ${
               filter === t.key ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
             }`}
           >
@@ -126,6 +138,24 @@ export default function NotificationsPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Clear all confirmation */}
+      <AlertDialog open={showClearConfirm} onOpenChange={setShowClearConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear all notifications?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove all your notifications. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => clearAll.mutate()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Clear All
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

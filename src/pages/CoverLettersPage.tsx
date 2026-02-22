@@ -172,7 +172,7 @@ export default function CoverLettersPage() {
           whileTap={{ scale: 0.9 }}
           style={{ touchAction: 'pan-y' }}
           onClick={() => { haptics.light(); navigate('/cover-letter/new'); }}
-          className="fixed bottom-20 right-4 z-50 w-14 h-14 rounded-2xl gradient-primary shadow-lg flex items-center justify-center active:scale-95 pr-safe"
+          className="fixed bottom-[7rem] right-4 z-50 w-14 h-14 rounded-2xl gradient-primary shadow-lg flex items-center justify-center active:scale-95 pr-safe"
           aria-label="New cover letter"
         >
           <Plus className="w-6 h-6 text-primary-foreground" />

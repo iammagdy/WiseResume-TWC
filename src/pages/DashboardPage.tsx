@@ -649,7 +649,7 @@ export default function DashboardPage() {
                       placeholder={`Search in ${activeTab === 'my-cvs' ? 'My CVs' : 'Tailored'}...`}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 rounded-full h-12 sm:h-11 text-base glass-input"
+                      className="pl-10 rounded-full h-10 sm:h-11 text-base glass-input"
                     />
                   </div>
                   {!selectionMode && (
@@ -780,7 +780,7 @@ export default function DashboardPage() {
 
                 {/* Swipeable tab panels via Embla */}
                 <div className="overflow-hidden" ref={emblaRef}>
-                  <div className="flex">
+                  <div className="flex" style={{ touchAction: 'pan-x' }}>
                     {/* Slide 0: My CVs */}
                     <div className="flex-[0_0_100%] min-w-0">
                       <motion.div 
