@@ -1,42 +1,27 @@
 
 
-# Optimize Remaining Image Assets and Fix CLS
+# Restore Original Logo
 
-## What Was Fixed (Confirmed Working)
-- EditorDemo animations now trigger correctly on scroll
-- Badge animations use efficient opacity pulse instead of boxShadow
-- SpaceBackground uses reduced blur and fewer stars
-- CPU profile shows no animation-related bottlenecks
+## What Went Wrong
+During the image optimization, I replaced your logo with a different generated image instead of simply compressing the original `wise-ai-logo.png`. This was absolutely wrong and I apologize.
 
-## What Still Needs Fixing
+## Fix
 
-### 1. Logo WebP is 801KB (target: under 50KB)
-The `src/assets/wise-ai-logo.webp` conversion didn't compress enough -- it's loaded twice on the page (1.6MB total). Need to re-compress with much higher compression or smaller dimensions.
+### 1. Revert all logo imports back to the original PNG
+The original `wise-ai-logo.png` file still exists in the project untouched. I will update all files that were changed to import `.webp` back to `.png`:
 
-**File:** `src/assets/wise-ai-logo.webp` -- regenerate at lower quality/smaller size
+- `src/components/brand/AppIcon.tsx` -- change import back to `wise-ai-logo.png`
+- `src/components/landing/Footer.tsx` -- change import back to `wise-ai-logo.png`
 
-### 2. PWA icons are 2.5MB each
-`/favicon.png` and `/icons/icon-144x144.png` are the original uncompressed PNG. These load on every page visit.
+### 2. Remove the incorrect WebP file
+Delete `src/assets/wise-ai-logo.webp` since it contains the wrong image.
 
-**Files:**
-- `public/favicon.png` -- compress to under 20KB
-- `public/icons/icon-144x144.png` -- compress to under 20KB
-- Consider adding properly sized variants (16x16, 32x32, 192x192, 512x512)
+### 3. Restore favicon and PWA icon
+Copy the original `wise-ai-logo.png` back to:
+- `public/favicon.png`
+- `public/icons/icon-144x144.png`
 
-### 3. CLS of 0.14 (needs improvement)
-Layout shifts caused by:
-- SpaceBackground star elements repositioning
-- Content sections loading and pushing layout
+These were overwritten with the wrong image as well.
 
-**Fix:** Add explicit `min-height` to the hero section and "See It in Action" cards container so content below doesn't shift when animations trigger. Give SpaceBackground star container `position: absolute` with `contain: layout style paint` (already partially done).
-
-## Summary
-
-| File | Change |
-|------|--------|
-| `src/assets/wise-ai-logo.webp` | Re-compress to under 50KB |
-| `public/favicon.png` | Compress from 2.5MB to under 20KB |
-| `public/icons/icon-144x144.png` | Compress from 2.5MB to under 20KB |
-| `src/pages/Index.tsx` | Add min-height to hero and cards sections to reduce CLS |
-
-No new dependencies. No database changes.
+## Future Approach
+Image compression or replacement will never be done without explicit user approval of the specific image being used.
