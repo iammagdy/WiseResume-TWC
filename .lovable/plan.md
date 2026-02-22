@@ -1,104 +1,83 @@
 
+# Interview Tool Analysis and Improvement Recommendations
 
-# AI Credit System Audit: Bypass Vulnerabilities
+## Current Architecture Overview
 
-## Summary
+The interview tool is a well-structured multi-component system:
+- **Edge Function** (`interview-chat/index.ts`): Handles AI calls for role analysis, interview turns, and end-of-interview summaries
+- **Client Hook** (`useVoiceInterview.ts`): Manages STT (ElevenLabs + Web Speech fallback), TTS, transcript, scoring, and AI communication
+- **Page** (`InterviewPage.tsx`): Orchestrates phases (setup, preview, active, summary)
+- **Supporting Components**: Setup, Toggle, TranscriptBubble, AnswerScoreSheet, InterviewSummary, InterviewHistory
 
-After analyzing all 32 files that call `supabase.functions.invoke` and cross-referencing with `useAIAction` / `useAICreditsMutations` usage, I found **6 AI features that bypass the credit system entirely** -- they call AI edge functions but never check or deduct credits.
+## Issues Found
 
----
+### 1. Message Role Validation Missing (Security - Edge Function)
+The edge function validates message `content` type and length but never validates `msg.role`. A malicious client could inject messages with `role: "system"` to override the system prompt, potentially bypassing grounding rules or manipulating scoring.
 
-## Findings
+**Fix**: Validate that each message role is strictly `"user"` or `"assistant"`.
 
-### BYPASSING CREDITS (no check, no deduct)
+### 2. Resume Context Not Sanitized (Prompt Injection Risk)
+The `resumeContext` string is built by directly interpolating `resumeData` fields into the system prompt. A crafted resume with text like `"Ignore all previous instructions..."` in the summary or experience fields could manipulate the AI's behavior.
 
-| # | File | Feature | AI Function Called | Issue |
-|---|------|---------|--------------------|-------|
-| 1 | `src/components/editor/tailor/QuickActions.tsx` | Quick Actions (Quantify, Projects, Reorder) | `enhance-section` | Calls AI directly with no `useAIAction`, no `checkCredits`, no `incrementUsage`. Only calls `trackGeminiUsage()` which is a local Gemini free-tier counter, not the credit system. |
-| 2 | `src/pages/CareerPage.tsx` | Career Assessment (quiz) | `career-assessment` | Calls AI directly. Only has client-side rate limit (`checkAIRateLimit`) and `trackGeminiUsage()`. No credit check or deduction. |
-| 3 | `src/hooks/useATSSuggestions.ts` | Deep ATS Analysis per section | `enhance-section` | Calls AI with no credit wrapper at all. No `useAIAction`, no `checkCredits`, no `incrementUsage`, no `trackGeminiUsage`. Completely free. |
-| 4 | `src/hooks/useVoiceInterview.ts` | Mock Interview (each AI turn) | `interview-chat` | Each interview turn calls AI with zero credit check or deduction. A multi-turn interview could consume 10+ AI calls for free. |
-| 5 | `src/components/settings/AvatarCropSheet.tsx` | AI Headshot Generation | `generate-headshot` | Calls AI with no credit system integration at all. |
-| 6 | `src/components/editor/ai/RecruiterSimSheet.tsx` `handleApplyFix` | Apply Fix (after simulation) | `enhance-section` | The initial simulation correctly uses `executeAI` (line 67), but the "Apply Fix" action (line 116) calls `enhance-section` directly without any credit check or deduction. |
+**Fix**: Apply `sanitizeInputText()` (already available in `_shared/aiClient.ts`) to resume fields before interpolation, and add a prompt fence.
 
-### CORRECTLY USING CREDITS (for reference)
+### 3. Job Description Not Sanitized
+Same prompt injection risk as resume -- `jobDescription` is injected raw into the system prompt. The existing `sanitizeInputText()` utility is not used.
 
-These features properly use `useAIAction` which wraps `checkCredits` + `incrementUsage`:
+**Fix**: Apply `sanitizeInputText()` to the job description before embedding in the prompt.
 
-| Feature | Hook/Component | Operation Key |
-|---------|---------------|---------------|
-| Section Enhance | `useAIEnhance.ts` | `enhance` |
-| Job Tailoring | `TailorSheet.tsx` | `tailor` |
-| Job Analysis / Score | `JobAnalysisSheet.tsx` | `analyze` |
-| Gap Filler | `GapFillerSheet.tsx` | `gap-fill` |
-| Gap Explainer | `GapExplainerSheet.tsx` | `gap-explain` |
-| One-Page Optimizer | `OnePageWizardSheet.tsx` | `one-page` |
-| LinkedIn Optimizer | `LinkedInOptimizerSheet.tsx` | `linkedin` |
-| AI Detector/Humanizer | `AIDetectorSheet.tsx` (detect only) | `detect-humanize` |
-| Recruiter Simulation (initial) | `RecruiterSimSheet.tsx` | `recruiter-sim` |
-| Company Briefing | `useCompanyBriefing.ts` | `company_briefing` |
-| Career Path Sheet | `CareerPathSheet.tsx` | `career-assessment` |
-| Set Target Job | `SetTargetJobSheet.tsx` | `tailor` |
-| Agentic Chat | `useAgenticChat.ts` | manual `incrementUsage` |
-| AI Enhance Sheet | `AIEnhanceSheet.tsx` | manual `checkCredits` + `incrementUsage` |
+### 4. Score Parsing Fragility
+`parseScoreBlock()` uses a regex for `---SCORE---\s*(\{[\s\S]*?\})\s*---END_SCORE---`. The `\{[\s\S]*?\}` is non-greedy which works for simple JSON but can fail if the AI includes nested objects or extra whitespace. Also, if the AI omits the score block entirely (which happens), the client silently gets `null` -- no fallback scoring occurs.
 
-### SECONDARY ISSUE: AI Detector Humanize bypass
+**Fix**: Use the existing `parseAIJSON` from the shared client for more robust parsing; add a fallback that attempts to extract a score from the feedback text itself.
 
-In `AIDetectorSheet.tsx`, the **detect** action (line 263) uses `executeAI`, but the **humanize re-check** (line 294) calls `detect-and-humanize` directly without credits -- though this is a re-scan of already-humanized text, so it may be intentional as a "free verification."
+### 5. Conversation History Grows Unbounded on Client
+`messagesRef.current` accumulates every message during the interview with no trimming. For long interviews (20+ exchanges), the payload sent to the edge function grows large, increasing latency and token consumption. The edge function caps at 50 messages but doesn't trim -- it just rejects.
 
----
+**Fix**: Implement a sliding window on the client side (e.g., keep the first 2 messages + last 16) to manage context size without hitting the 50-message hard limit.
 
-## Fix Plan
+### 6. `endInterview` Summary Lacks Resume/Job Context
+When `endInterview` is true, the system prompt includes formatting instructions and grounding rules referencing "the candidate's resume above" -- but `resumeContext` and `jobContext` are never inserted into the end-interview prompt. The AI has the conversation history, but not the original resume/job context explicitly.
 
-### 1. `src/components/editor/tailor/QuickActions.tsx`
-- Add `useAIAction({ operation: 'enhance' })` (cost: 1 credit per quick action)
-- Wrap the `supabase.functions.invoke` call inside `executeAI(async () => { ... })`
-- Remove direct `trackGeminiUsage()` call (handled by `useAIAction`)
+**Fix**: Append `resumeContext` and `jobContext` to the end-interview system prompt.
 
-### 2. `src/pages/CareerPage.tsx`
-- Add `useAIAction({ operation: 'career-assessment' })` (cost: 2)
-- Wrap the `career-assessment` invoke inside `executeAI(async () => { ... })`
-- Remove direct `trackGeminiUsage()` call
+### 7. `recordUsage` Called for All Paths but `analyzeRole`
+The `recordUsage(user.id, 'interview')` call at line 177 only runs for the regular interview path. The `analyzeRole` path returns early at line 118 without calling `recordUsage`. Server-side usage tracking is inconsistent.
 
-### 3. `src/hooks/useATSSuggestions.ts`
-- This is a hook, so it needs `useAICreditsMutations()` directly
-- Add `checkCredits()` before the `enhance-section` call
-- Add `incrementUsage.mutate()` after success
-- Add `trackGeminiUsage()` after success
+**Fix**: Add `recordUsage(user.id, 'interview')` to the `analyzeRole` success path.
 
-### 4. `src/hooks/useVoiceInterview.ts`
-- Add `useAICreditsMutations()` to the hook
-- Add `checkCredits()` before each `interview-chat` call
-- Add `incrementUsage.mutate()` after each successful AI response
-- The `analyzeRole` call (line 489) also needs credit deduction
+### 8. Quick Practice Auto-End Not Enforced Server-Side
+The "ask exactly 5 questions" rule for Quick Practice mode is only in the prompt instruction. The AI can ignore it. There's no server-side enforcement to auto-trigger the summary after 5 user messages.
 
-### 5. `src/components/settings/AvatarCropSheet.tsx`
-- Add `useAIAction({ operation: 'enhance' })` (or a new `'headshot'` operation key)
-- Add `'headshot': 1` to `AI_COST_MAP` in `aiCostEstimates.ts`
-- Wrap the `generate-headshot` invoke inside `executeAI`
+**Fix**: Count user messages server-side; if `quickPractice` is true and user messages >= 5, auto-append the end-interview instruction.
 
-### 6. `src/components/editor/ai/RecruiterSimSheet.tsx` (handleApplyFix)
-- Wrap the `enhance-section` call in `handleApplyFix` with the existing `executeAI` wrapper (already available in the component)
+### 9. No `temperature` Control
+The edge function uses the default `temperature: 0.7` from `callAI`. Interview questions benefit from moderate creativity, but scoring/analysis benefits from low temperature for consistency.
 
-### 7. `src/lib/aiCostEstimates.ts`
-- Add missing operation keys: `'headshot': 1`, `'interview-turn': 1`, `'ats-deep': 1`
-- Consider adding `'quick-action': 1` or reusing `'enhance'`
+**Fix**: Use `temperature: 0.3` for `analyzeRole` (structured JSON output) and `temperature: 0.5` for end-interview summaries to ensure consistent scoring.
 
-### 8. `src/components/editor/ai/AIDetectorSheet.tsx` (optional)
-- Decide if the humanize re-check at line 294 should cost a credit
-- If yes, wrap it in `executeAI` as well
+### 10. TTS `onend` Reliability Issue
+The `speak()` function relies on `utterance.onend` to trigger the countdown and auto-start listening. On some mobile browsers (especially Android WebView/Capacitor), `onend` fires unreliably or not at all for long utterances. This can leave the user stuck in "speaking" status.
 
----
+**Fix**: Add a safety timeout based on estimated speech duration (word count / ~2.5 words per second) that auto-resolves if `onend` doesn't fire within the expected window.
 
-## Files to modify
+### 11. No Streaming Support
+Each AI response waits for the full completion before showing anything. For longer responses (especially end-interview summaries at 1500 tokens), this creates a noticeable wait.
 
-| File | Change |
-|------|--------|
-| `src/lib/aiCostEstimates.ts` | Add `headshot`, `interview-turn`, `ats-deep` to `AI_COST_MAP` |
-| `src/components/editor/tailor/QuickActions.tsx` | Add `useAIAction`, wrap AI call |
-| `src/pages/CareerPage.tsx` | Add `useAIAction`, wrap AI call |
-| `src/hooks/useATSSuggestions.ts` | Add `useAICreditsMutations`, add check + deduct |
-| `src/hooks/useVoiceInterview.ts` | Add `useAICreditsMutations`, add check + deduct per turn |
-| `src/components/settings/AvatarCropSheet.tsx` | Add `useAIAction`, wrap AI call |
-| `src/components/editor/ai/RecruiterSimSheet.tsx` | Wrap `handleApplyFix` AI call in existing `executeAI` |
+**Recommendation** (future): Consider implementing SSE streaming for the interview-chat function to show AI responses progressively. This is a larger architectural change.
 
+## Summary of Changes
+
+| # | File | Change | Priority |
+|---|------|--------|----------|
+| 1 | `interview-chat/index.ts` | Validate message roles (reject `system`) | High (Security) |
+| 2 | `interview-chat/index.ts` | Sanitize resume fields with `sanitizeInputText()` | High (Security) |
+| 3 | `interview-chat/index.ts` | Sanitize job description | High (Security) |
+| 4 | `useVoiceInterview.ts` | Improve score parsing robustness + fallback | Medium |
+| 5 | `useVoiceInterview.ts` | Add sliding window for message history | Medium |
+| 6 | `interview-chat/index.ts` | Add resumeContext + jobContext to end-interview prompt | Medium |
+| 7 | `interview-chat/index.ts` | Add `recordUsage` to analyzeRole path | Medium |
+| 8 | `interview-chat/index.ts` | Server-side Quick Practice 5-question enforcement | Medium |
+| 9 | `interview-chat/index.ts` | Set explicit temperature per mode | Low |
+| 10 | `useVoiceInterview.ts` | Add TTS `onend` safety timeout | Medium |
+| 11 | Future | SSE streaming for progressive responses | Low (Enhancement) |
