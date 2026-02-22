@@ -14,7 +14,7 @@ import { useCareerAssessment, useCareerMutations } from '@/hooks/useCareerAssess
 import { useResumes, dbToResumeData } from '@/hooks/useResumes';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/safeClient';
-import { trackGeminiUsage } from '@/lib/aiProvider';
+import { useAIAction } from '@/hooks/useAIAction';
 import { checkAIRateLimit } from '@/lib/rateLimiter';
 import { CareerPathResult } from '@/lib/careerPath';
 import { haptics } from '@/lib/haptics';
@@ -29,6 +29,7 @@ export default function CareerPage() {
   const { toggleMilestone } = useCareerMutations();
   const [showQuiz, setShowQuiz] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { execute: executeAI } = useAIAction({ operation: 'career-assessment' });
 
   // Auth guard handled by ProtectedRoute
 
@@ -50,17 +51,20 @@ export default function CareerPage() {
     try {
       const resumeData = dbToResumeData(primaryResume);
 
-      const { data, error } = await supabase.functions.invoke('career-assessment', {
-        body: { resume: resumeData, quizAnswers: answers },
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('career-assessment', {
+          body: { resume: resumeData, quizAnswers: answers },
+        });
+
+        if (error) throw new Error(error.message || 'Analysis failed');
+        return data;
       });
 
-      if (error) throw new Error(error.message || 'Analysis failed');
-
-      trackGeminiUsage();
+      if (!result) { setIsAnalyzing(false); return; }
 
       await createAssessment.mutateAsync({
         resumeId: primaryResume.id,
-        result: data as CareerPathResult,
+        result: result as CareerPathResult,
         quizAnswers: answers as unknown as Record<string, unknown>,
       });
 

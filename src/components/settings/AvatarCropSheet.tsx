@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { haptics } from '@/lib/haptics';
 import { supabase } from '@/integrations/supabase/safeClient';
+import { useAIAction } from '@/hooks/useAIAction';
 
 interface AvatarCropSheetProps {
   open: boolean;
@@ -53,6 +54,7 @@ export function AvatarCropSheet({
   const [aiResult, setAiResult] = useState<string | null>(null);
   const [showAIPreview, setShowAIPreview] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { execute: executeAI } = useAIAction({ operation: 'headshot' });
 
   // Load image when file changes
   useState(() => {
@@ -147,15 +149,20 @@ export function AvatarCropSheet({
         reader.readAsDataURL(croppedBlob);
       });
 
-      // Call the edge function
-      const { data, error } = await supabase.functions.invoke('generate-headshot', {
-        body: { imageBase64: base64 },
+      // Call the edge function with credit check
+      const result = await executeAI(async () => {
+        const { data, error } = await supabase.functions.invoke('generate-headshot', {
+          body: { imageBase64: base64 },
+        });
+
+        if (error) throw error;
+        if (!data?.imageUrl) throw new Error('No image returned');
+        return data;
       });
 
-      if (error) throw error;
-      if (!data?.imageUrl) throw new Error('No image returned');
+      if (!result) { setIsGeneratingAI(false); return; }
 
-      setAiResult(data.imageUrl);
+      setAiResult(result.imageUrl);
       setShowAIPreview(true);
       haptics.success();
       toast.success('AI headshot generated!');

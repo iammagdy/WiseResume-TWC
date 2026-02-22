@@ -16,6 +16,9 @@ export const AI_COST_MAP: Record<string, number> = {
   'agentic-chat': 1,
   'company_briefing': 1,
   'analyze': 2,
+  'headshot': 1,
+  'interview-turn': 1,
+  'ats-deep': 1,
 } as const;
 
 export function getAICost(operation: string): number {
