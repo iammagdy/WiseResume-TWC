@@ -28,6 +28,13 @@ body.wr-security-curtain [data-biometric-lock] {
 .editor-scroll-container {
   background: hsl(var(--card)) !important;
 }
+
+/* Editor: make glass-cards opaque so they blend with the scroll container */
+.editor-scroll-container .glass-card {
+  background: hsl(var(--card)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
 @keyframes save-check-pop {
   0% { transform: scale(0); }
   60% { transform: scale(1.2); }
