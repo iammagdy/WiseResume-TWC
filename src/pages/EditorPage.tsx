@@ -98,10 +98,10 @@ export default function EditorPage() {
   const [templateBtnSeen, setTemplateBtnSeen] = useState(() => localStorage.getItem('template_btn_seen') === 'true');
 
   // Use shallow selector to prevent unnecessary re-renders when unrelated store parts change
-  const { 
-    currentResume, 
+  const {
+    currentResume,
     currentResumeId,
-    matchScore, 
+    matchScore,
     jobDescription,
     selectedTemplate,
     isSaving,
@@ -121,7 +121,7 @@ export default function EditorPage() {
     setLastSavedAt: state.setLastSavedAt,
     setCurrentResumeId: state.setCurrentResumeId,
   })));
-  
+
   // Validate that the resume ID exists in the database
   const { data: resumeFromDb, isLoading: isValidating } = useResume(currentResumeId);
   const { updateResume } = useResumeMutations();
@@ -216,7 +216,7 @@ export default function EditorPage() {
 
   const { isSyncing } = useOfflineSync();
   const addPendingChange = useOfflineSyncStore(s => s.addPendingChange);
-  
+
   const [showJobSheet, setShowJobSheet] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTailor, setShowTailor] = useState(false);
@@ -282,7 +282,7 @@ export default function EditorPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, setSearchParams]);
-  
+
   // Track last saved version to detect changes
   const lastSavedResumeRef = useRef<string>('');
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -290,10 +290,10 @@ export default function EditorPage() {
   const lastScoreTimeRef = useRef<number>(0);
 
   // Background ATS scoring uses standalone function (no hook state to avoid re-render loops)
-  
+
   // Smart tab change handler with auto-scroll
   const handleTabChange = useCallback((newTab: string) => {
-    const optionalIds = ['awards','projects','certifications','publications','volunteering','languages','hobbies','references'];
+    const optionalIds = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
     if (optionalIds.includes(newTab)) {
       setActiveTab('more');
       setMoreSubSection(newTab);
@@ -350,7 +350,7 @@ export default function EditorPage() {
   const saveToCloud = useCallback(async () => {
     const resume = resumeRef.current;
     if (!user || !currentResumeId || !resume) return;
-    
+
     const currentResumeJson = JSON.stringify(resume);
     if (currentResumeJson === lastSavedResumeRef.current) return;
 
@@ -369,7 +369,7 @@ export default function EditorPage() {
       setIsSaving(false);
       return;
     }
-    
+
     setIsSaving(true);
     try {
       await updateResume.mutateAsync({
@@ -426,17 +426,17 @@ export default function EditorPage() {
   // Debounced auto-save effect
   useEffect(() => {
     if (!user || !currentResumeId || !currentResume) return;
-    
+
     // Clear existing timeout
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
-    
+
     // Set new timeout for debounced save
     saveTimeoutRef.current = setTimeout(() => {
       saveToCloud();
     }, 3000); // 3 second debounce
-    
+
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -584,12 +584,12 @@ export default function EditorPage() {
 
   // Granular section scores — each memo only re-runs when its own slice changes,
   // so typing in Summary does NOT recompute contactScore/experienceScore/etc.
-  const contactScore    = useMemo(() => currentResume ? calcContactScore(currentResume.contactInfo)   : 0, [currentResume?.contactInfo]);
-  const summaryScore    = useMemo(() => currentResume ? calcSummaryScore(currentResume.summary)        : 0, [currentResume?.summary]);
-  const experienceScore = useMemo(() => currentResume ? calcExperienceScore(currentResume.experience)  : 0, [currentResume?.experience]);
-  const educationScore  = useMemo(() => currentResume ? calcEducationScore(currentResume.education)    : 0, [currentResume?.education]);
-  const skillsScore     = useMemo(() => currentResume ? calcSkillsScore(currentResume.skills)          : 0, [currentResume?.skills]);
-  const sectionScores   = useMemo(() => ({
+  const contactScore = useMemo(() => currentResume ? calcContactScore(currentResume.contactInfo) : 0, [currentResume?.contactInfo]);
+  const summaryScore = useMemo(() => currentResume ? calcSummaryScore(currentResume.summary) : 0, [currentResume?.summary]);
+  const experienceScore = useMemo(() => currentResume ? calcExperienceScore(currentResume.experience) : 0, [currentResume?.experience]);
+  const educationScore = useMemo(() => currentResume ? calcEducationScore(currentResume.education) : 0, [currentResume?.education]);
+  const skillsScore = useMemo(() => currentResume ? calcSkillsScore(currentResume.skills) : 0, [currentResume?.skills]);
+  const sectionScores = useMemo(() => ({
     contact: contactScore, summary: summaryScore, experience: experienceScore, education: educationScore, skills: skillsScore,
   }), [contactScore, summaryScore, experienceScore, educationScore, skillsScore]);
 
@@ -638,7 +638,7 @@ export default function EditorPage() {
       skills: sectionScores.skills >= 100,
     };
     if (currentResume) {
-      const optionalIds = ['awards','projects','certifications','publications','volunteering','languages','hobbies','references'];
+      const optionalIds = ['awards', 'projects', 'certifications', 'publications', 'volunteering', 'languages', 'hobbies', 'references'];
       for (const id of optionalIds) {
         const data = currentResume[id as keyof typeof currentResume];
         if (Array.isArray(data) && data.length > 0) {
@@ -651,7 +651,7 @@ export default function EditorPage() {
 
   // Section completion celebrations
   const prevCompletedRef = useRef<Record<string, boolean>>({});
-  
+
   const CELEBRATION_MESSAGES: Record<string, string> = useMemo(() => ({
     contact: 'Excellent! Contact section complete 🎉',
     summary: 'Summary nailed! 🎉',
@@ -683,7 +683,7 @@ export default function EditorPage() {
     if (!currentResume) return;
     const prev = prevCompletedRef.current;
     const sectionIds = ['contact', 'summary', 'experience', 'education', 'skills'] as const;
-    
+
     for (const id of sectionIds) {
       const nowComplete = sectionScores[id] >= 100;
       if (nowComplete && prev[id] === false) {
@@ -877,7 +877,10 @@ export default function EditorPage() {
         </div>
       )}
 
-      {/* Section Navigation */}
+      {/* Spacer to push nav buttons to bottom of visible scroll area */}
+      <div className="flex-1" />
+
+      {/* Section Navigation — pinned to bottom */}
       <div className="flex flex-row items-center gap-2 sm:gap-3 pt-3 pb-4 overflow-hidden">
         <Button
           variant="outline"
@@ -920,8 +923,6 @@ export default function EditorPage() {
           </Button>
         )}
       </div>
-      {/* Spacer to fill remaining viewport height */}
-      <div className="flex-1" />
     </>
   ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, deepResults, handleApplyDeep, clearDeepResult]);
 
@@ -978,61 +979,61 @@ export default function EditorPage() {
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 sm:gap-2 min-w-0 flex-1">
-              <button 
-                onClick={handleBack}
-                className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
-                aria-label="Go back"
+            <button
+              onClick={handleBack}
+              className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation min-w-[40px] min-h-[40px] flex items-center justify-center"
+              aria-label="Go back"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <button
+              className="flex items-center gap-1 min-w-0 max-w-[40vw] sm:max-w-[55vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
+              title={resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
+              onClick={() => navigate('/dashboard')}
+              aria-label="Switch resume"
+            >
+              <span className="text-h3 truncate">
+                {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
+              </span>
+              {/* ChevronDown removed — tapping title navigates to dashboard */}
+            </button>
+            <OfflineIndicator isSyncing={isSyncing} />
+            {/* Undo/Redo buttons */}
+            <div className="hidden sm:flex items-center gap-0.5">
+              <button
+                onClick={handleUndo}
+                disabled={!canUndo}
+                className={cn(
+                  'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
+                  canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                )}
+                aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
+                title={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
               >
-                <ArrowLeft className="w-5 h-5" />
+                <Undo2 className="w-4 h-4" />
               </button>
               <button
-                className="flex items-center gap-1 min-w-0 max-w-[40vw] sm:max-w-[55vw] cursor-pointer hover:text-primary/80 transition-colors active:scale-95 touch-manipulation"
-                title={resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
-                onClick={() => navigate('/dashboard')}
-                aria-label="Switch resume"
+                onClick={handleRedo}
+                disabled={!canRedo}
+                className={cn(
+                  'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
+                  canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
+                )}
+                aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
+                title={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
               >
-                <span className="text-h3 truncate">
-                  {resumeFromDb?.title || currentResume?.contactInfo?.fullName || 'Edit Resume'}
-                </span>
-                {/* ChevronDown removed — tapping title navigates to dashboard */}
+                <Redo2 className="w-4 h-4" />
               </button>
-              <OfflineIndicator isSyncing={isSyncing} />
-              {/* Undo/Redo buttons */}
-              <div className="hidden sm:flex items-center gap-0.5">
-                <button
-                  onClick={handleUndo}
-                  disabled={!canUndo}
-                  className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                    canUndo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-                  )}
-                  aria-label={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
-                  title={canUndo ? `Undo: ${undoDescription}` : 'Nothing to undo'}
-                >
-                  <Undo2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={handleRedo}
-                  disabled={!canRedo}
-                  className={cn(
-                    'p-2 rounded-lg transition-all touch-manipulation active:scale-95 min-w-[44px] min-h-[44px] flex items-center justify-center',
-                    canRedo ? 'hover:bg-muted text-foreground' : 'text-muted-foreground/30 cursor-not-allowed'
-                  )}
-                  aria-label={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
-                  title={canRedo ? `Redo: ${redoDescription}` : 'Nothing to redo'}
-                >
-                  <Redo2 className="w-4 h-4" />
-                </button>
-              </div>
-              {user && currentResumeId && (
-                <button
-                  onClick={() => setShowVersionHistory(true)}
-                  className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex min-w-[44px] min-h-[44px] items-center justify-center"
-                  aria-label="Version history"
-                >
-                  <Clock className="w-4 h-4 text-muted-foreground" />
-                </button>
-              )}
+            </div>
+            {user && currentResumeId && (
+              <button
+                onClick={() => setShowVersionHistory(true)}
+                className="keyboard-hide p-2 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation hidden sm:inline-flex min-w-[44px] min-h-[44px] items-center justify-center"
+                aria-label="Version history"
+              >
+                <Clock className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
           </div>
           {/* Desktop buttons - hidden on mobile */}
           <div className="hidden md:flex items-center gap-1.5">
@@ -1112,87 +1113,87 @@ export default function EditorPage() {
       </header>
 
 
-        {/* Progress Bar with Save Status — compact on mobile, full on desktop */}
-        <div className="shrink-0 px-4 py-1 sm:py-3 border-b border-border">
-          <div className="flex flex-row items-center justify-between gap-2">
-            <div className="flex-1 min-w-0">
-              <ProgressBar resume={currentResume} compact />
-            </div>
-            {user && currentResumeId && (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
-                {!isOnline ? (
-                  <>
-                    <CloudOff className="w-3 h-3 text-warning" />
-                    <span className="text-warning hidden xs:inline">Offline</span>
-                  </>
-                ) : isSaving ? (
-                  <Cloud className="w-3 h-3 animate-pulse" />
-                ) : showSavedCheck ? (
-                  <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
-                ) : hasUnsavedChanges ? (
-                  <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block" />
-                ) : (
-                  <Cloud className="w-3 h-3 opacity-40" />
-                )}
-              </div>
-            )}
-            {user && !currentResumeId && (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                <CloudOff className="w-3 h-3" />
-              </div>
-            )}
+      {/* Progress Bar with Save Status — compact on mobile, full on desktop */}
+      <div className="shrink-0 px-4 py-1 sm:py-3 border-b border-border">
+        <div className="flex flex-row items-center justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <ProgressBar resume={currentResume} compact />
           </div>
-          {/* Expandable completeness details — hidden on mobile to save vertical space */}
-          <div className="hidden sm:block">
-            <details className="mt-1 group">
-              <summary
-                className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[36px] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
-                aria-label="View completeness breakdown"
-              >
-                <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">
-                  {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length}/{steps.filter(s => s.id !== 'more').length} sections
-                </span>
-                <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-open:rotate-180" />
-              </summary>
-              {localHealthScore && (
-                <div className="mt-2 border-t border-border pt-2">
-                  <ATSScoreBreakdown
-                    healthScore={localHealthScore}
-                    compact
-                    defaultOpen
-                    onImprove={() => setShowTailor(true)}
-                  />
-                </div>
+          {user && currentResumeId && (
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
+              {!isOnline ? (
+                <>
+                  <CloudOff className="w-3 h-3 text-warning" />
+                  <span className="text-warning hidden xs:inline">Offline</span>
+                </>
+              ) : isSaving ? (
+                <Cloud className="w-3 h-3 animate-pulse" />
+              ) : showSavedCheck ? (
+                <Check className="w-3 h-3 text-success" style={{ animation: 'save-check-pop 0.3s ease-out' }} />
+              ) : hasUnsavedChanges ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-warning inline-block" />
+              ) : (
+                <Cloud className="w-3 h-3 opacity-40" />
               )}
-            </details>
-          </div>
-        </div>
-
-        {/* Tailored Resume Indicator Banner */}
-        {resumeFromDb?.parent_resume_id && (
-          <div className="shrink-0 flex items-center gap-2 px-4 py-1 bg-primary/10 border-b border-primary/20" style={{ minHeight: 36 }}>
-            <div className="flex items-center gap-1.5 min-w-0 flex-1">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-semibold uppercase tracking-wide shrink-0">
-                <Scissors className="w-3 h-3" />
-                Tailored
-              </span>
-              <span className="text-xs text-foreground/80 truncate">
-                {resumeFromDb.target_job_title || 'Job'}
-                {resumeFromDb.target_company ? ` @ ${resumeFromDb.target_company}` : ''}
-              </span>
             </div>
-            <button
-              onClick={() => { navigate(`/editor?id=${resumeFromDb.parent_resume_id}`); haptics.light(); }}
-              className="text-[11px] font-medium text-primary hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
+          )}
+          {user && !currentResumeId && (
+            <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <CloudOff className="w-3 h-3" />
+            </div>
+          )}
+        </div>
+        {/* Expandable completeness details — hidden on mobile to save vertical space */}
+        <div className="hidden sm:block">
+          <details className="mt-1 group">
+            <summary
+              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-muted transition-colors touch-manipulation active:scale-95 min-h-[36px] cursor-pointer list-none [&::-webkit-details-marker]:hidden"
+              aria-label="View completeness breakdown"
             >
-              View Original
-            </button>
-          </div>
-        )}
+              <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                {steps.filter(s => s.id !== 'more' && sectionStatus[s.id]).length}/{steps.filter(s => s.id !== 'more').length} sections
+              </span>
+              <ChevronDown className="w-3 h-3 text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            {localHealthScore && (
+              <div className="mt-2 border-t border-border pt-2">
+                <ATSScoreBreakdown
+                  healthScore={localHealthScore}
+                  compact
+                  defaultOpen
+                  onImprove={() => setShowTailor(true)}
+                />
+              </div>
+            )}
+          </details>
+        </div>
+      </div>
 
-        {/* Stepper Nav */}
-        <div className="shrink-0">
+      {/* Tailored Resume Indicator Banner */}
+      {resumeFromDb?.parent_resume_id && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1 bg-primary/10 border-b border-primary/20" style={{ minHeight: 36 }}>
+          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-semibold uppercase tracking-wide shrink-0">
+              <Scissors className="w-3 h-3" />
+              Tailored
+            </span>
+            <span className="text-xs text-foreground/80 truncate">
+              {resumeFromDb.target_job_title || 'Job'}
+              {resumeFromDb.target_company ? ` @ ${resumeFromDb.target_company}` : ''}
+            </span>
+          </div>
+          <button
+            onClick={() => { navigate(`/editor?id=${resumeFromDb.parent_resume_id}`); haptics.light(); }}
+            className="text-[11px] font-medium text-primary hover:underline shrink-0 active:scale-95 transition-transform touch-manipulation min-h-[44px] flex items-center"
+          >
+            View Original
+          </button>
+        </div>
+      )}
+
+      {/* Stepper Nav */}
+      <div className="shrink-0">
         <StepperNav
           steps={steps}
           activeStep={activeTab}
@@ -1203,118 +1204,112 @@ export default function EditorPage() {
           onMoreSectionSelect={handleMoreSectionSelect}
           activeMoreSection={moreSubSection}
         />
-        </div>
+      </div>
 
-        {/* Editor + Preview layout */}
-        {isMobile ? (
-          <Tabs
-            value={mobileEditorTab}
-            onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
-            className="flex-1 flex flex-col min-h-0 overflow-hidden"
-          >
-            <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
-              <div
-                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
-                ref={scrollContainerRef}
-              >
-                <div className="flex flex-col min-h-full flex-1">
-                  {renderEditorContent()}
-                </div>
+      {/* Editor + Preview layout */}
+      {isMobile ? (
+        <Tabs
+          value={mobileEditorTab}
+          onValueChange={(v) => setMobileEditorTab(v as 'editor' | 'preview' | 'ats')}
+          className="flex-1 flex flex-col min-h-0 overflow-hidden"
+        >
+          <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
+            <div
+              className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
+              ref={scrollContainerRef}
+            >
+              <div className="flex flex-col" style={{ minHeight: '100%' }}>
+                {renderEditorContent()}
               </div>
-            </TabsContent>
-            <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
-              {mobileEditorTab === 'preview' && (
-                <>
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    <Suspense fallback={null}>
-                      <LivePreviewPanel highlightSection={activeTab} />
-                    </Suspense>
-                  </div>
-                </>
-              )}
-            </TabsContent>
-            <TabsContent value="ats" className="flex-1 min-h-0 overflow-hidden mt-0">
-              {mobileEditorTab === 'ats' && (
-                <Suspense fallback={null}>
-                  <ATSParserPreview />
-                </Suspense>
-              )}
-            </TabsContent>
-          </Tabs>
-        ) : showPreview ? (
-          <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
-            <ResizablePanel defaultSize={55} minSize={35}>
-              <div className="flex flex-col h-full min-h-0 overflow-hidden">
-                <div
-                  className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
-                  ref={scrollContainerRef}
-                >
-                  {renderEditorContent()}
-                </div>
-              </div>
-            </ResizablePanel>
-            <ResizableHandle withHandle />
-            <ResizablePanel defaultSize={45} minSize={25}>
-              <div className="flex flex-col h-full min-h-0">
-                {/* Visual / ATS toggle */}
-                <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-background/80 backdrop-blur-sm">
-                  <button
-                    onClick={() => setDesktopPreviewMode('visual')}
-                    className={cn(
-                      'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                      desktopPreviewMode === 'visual' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    )}
-                  >
-                    Visual
-                  </button>
-                  <button
-                    onClick={() => setDesktopPreviewMode('ats')}
-                    className={cn(
-                      'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                      desktopPreviewMode === 'ats' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-                    )}
-                  >
-                    ATS View
-                  </button>
-                </div>
-                <div className="flex-1 min-h-0">
+            </div>
+          </TabsContent>
+          <TabsContent value="preview" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
+            {mobileEditorTab === 'preview' && (
+              <>
+                <div className="flex-1 min-h-0 overflow-hidden">
                   <Suspense fallback={null}>
-                    {desktopPreviewMode === 'visual' ? (
-                      <LivePreviewPanel
-                        onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
-                        highlightSection={activeTab}
-                      />
-                    ) : (
-                      <ATSParserPreview
-                        onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
-                      />
-                    )}
+                    <LivePreviewPanel highlightSection={activeTab} />
                   </Suspense>
                 </div>
-              </div>
-            </ResizablePanel>
-          </ResizablePanelGroup>
-        ) : (
-          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+              </>
+            )}
+          </TabsContent>
+          <TabsContent value="ats" className="flex-1 min-h-0 overflow-hidden mt-0">
+            {mobileEditorTab === 'ats' && (
+              <Suspense fallback={null}>
+                <ATSParserPreview />
+              </Suspense>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : showPreview ? (
+        <ResizablePanelGroup direction="horizontal" className="flex-1 min-h-0">
+          <ResizablePanel defaultSize={55} minSize={35}>
+            <div className="flex flex-col h-full min-h-0 overflow-hidden">
               <div
-                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-8 pb-safe space-y-0"
+                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 space-y-0"
                 ref={scrollContainerRef}
               >
                 {renderEditorContent()}
               </div>
             </div>
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel defaultSize={45} minSize={25}>
+            <div className="flex flex-col h-full min-h-0">
+              {/* Visual / ATS toggle */}
+              <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-background/80 backdrop-blur-sm">
+                <button
+                  onClick={() => setDesktopPreviewMode('visual')}
+                  className={cn(
+                    'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                    desktopPreviewMode === 'visual' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                >
+                  Visual
+                </button>
+                <button
+                  onClick={() => setDesktopPreviewMode('ats')}
+                  className={cn(
+                    'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                    desktopPreviewMode === 'ats' ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                  )}
+                >
+                  ATS View
+                </button>
+              </div>
+              <div className="flex-1 min-h-0">
+                <Suspense fallback={null}>
+                  {desktopPreviewMode === 'visual' ? (
+                    <LivePreviewPanel
+                      onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
+                      highlightSection={activeTab}
+                    />
+                  ) : (
+                    <ATSParserPreview
+                      onClose={() => { setShowPreview(false); localStorage.setItem('wr-live-preview', 'false'); }}
+                    />
+                  )}
+                </Suspense>
+              </div>
+            </div>
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+            <div
+              className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-8 pb-safe space-y-0"
+              ref={scrollContainerRef}
+            >
+              {renderEditorContent()}
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
 
-        {/* Proofread FAB */}
-        <ProofreadButton
-          issueCount={proofreadIssueCount}
-          errorCount={proofreadErrorCount}
-          isChecking={isProofreadChecking}
-          onClick={handleProofread}
-        />
+
 
       {/* Keyboard Toolbar - floats above keyboard */}
       <KeyboardToolbar />
@@ -1397,14 +1392,7 @@ export default function EditorPage() {
         onCancel={unsavedGuard.cancel}
       />
 
-      {/* Add Section FAB (mobile only, hidden on "more" tab) */}
-      {isMobile && activeTab !== 'more' && (
-        <AddSectionFAB
-          onSelectSection={(sectionId) => {
-            handleMoreSectionSelect(sectionId);
-          }}
-        />
-      )}
+
 
     </main>
   );
@@ -1431,7 +1419,7 @@ function AddSectionFAB({ onSelectSection }: { onSelectSection: (id: string) => v
         onClick={handleFabTap}
         className="fixed z-40 md:hidden w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center touch-manipulation active:scale-95"
         style={{
-          bottom: 'calc(5rem + env(safe-area-inset-bottom))',
+          bottom: 'calc(8.5rem + env(safe-area-inset-bottom))',
           right: '1rem',
           boxShadow: '0 8px 32px -8px hsl(var(--primary) / 0.5)',
         }}

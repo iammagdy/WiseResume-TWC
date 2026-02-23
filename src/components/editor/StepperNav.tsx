@@ -101,10 +101,10 @@ export const StepperNav = memo(function StepperNav({
                     isActive
                       ? 'bg-primary/15 border-primary/40 text-primary'
                       : isCompleted
-                      ? 'bg-success/10 border-success/30 text-success'
-                      : isInProgress
-                      ? 'bg-warning/10 border-warning/30 text-warning'
-                      : 'bg-card border-border text-muted-foreground'
+                        ? 'bg-success/10 border-success/30 text-success'
+                        : isInProgress
+                          ? 'bg-warning/10 border-warning/30 text-warning'
+                          : 'bg-card border-border text-muted-foreground'
                   )}
                   aria-current={isActive ? 'step' : undefined}
                 >
@@ -122,17 +122,7 @@ export const StepperNav = memo(function StepperNav({
                 </button>
               );
             })}
-            {/* + More pill */}
-            {onMoreSectionSelect && !activeMoreSection && (
-              <button
-                onClick={() => { setShowMoreSheet(true); haptics.light(); }}
-                className="flex items-center gap-1 px-3 h-7 rounded-full border border-dashed border-border text-xs font-medium text-muted-foreground whitespace-nowrap touch-manipulation active:scale-95 shrink-0 hover:bg-muted/50"
-                aria-label="Add more sections"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                More
-              </button>
-            )}
+
           </div>
         </div>
 
