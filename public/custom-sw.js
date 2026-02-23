@@ -6,15 +6,36 @@ self.addEventListener('install', () => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      caches.keys().then(keys =>
+        Promise.all(
+          keys
+            .filter(k => !k.startsWith('workbox-') && !k.startsWith('google-fonts') && !k.startsWith('gstatic-fonts') && !k.startsWith('supabase-api') && !k.startsWith('navigation-cache'))
+            .map(k => caches.delete(k))
+        )
+      ),
+    ])
+  );
 });
-import { registerRoute } from 'workbox-routing';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { CacheFirst, NetworkFirst, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 // Workbox precaching injection point
 precacheAndRoute(self.__WB_MANIFEST);
+
+// Always fetch latest HTML for page navigations (network-first)
+// Falls back to cache only when offline
+const navigationHandler = new NetworkFirst({
+  cacheName: 'navigation-cache',
+  plugins: [
+    new CacheableResponsePlugin({ statuses: [0, 200] }),
+  ],
+});
+registerRoute(new NavigationRoute(navigationHandler));
 
 // Runtime caching for Google Fonts
 registerRoute(
