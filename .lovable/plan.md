@@ -1,43 +1,35 @@
 
 
-# Fix: Make Editor Scroll Area Transparent (No Black Bar)
+# Fix: AI Credits Not Reflecting Provider Change
 
 ## Problem
-The current approach forces `hsl(var(--card))` on the scroll container and glass-cards. But `--card` differs from `--background`, creating a visible color band ("black bar") between the editor content and the bottom nav/app shell which uses `--background`. The opaque card color also obscures editor icons.
+The `useAICredits` hook decides whether to show "Unlimited" (BYOK) or normal credits based on `isBYOK` (derived from `aiProvider` and `geminiKeyValidated` in the settings store). However, `isBYOK` is **not included in the React Query cache key**.
+
+The query key is:
+```
+['ai-credits', user?.id]
+```
+
+So when the user switches between WiseResume AI and their own Gemini key, React Query serves the **stale cached result** because the key hasn't changed. This causes the inconsistent display -- sometimes showing "Unlimited / using your own API key" and sometimes showing the normal credit counter, depending on which result was cached first.
 
 ## Solution
-Switch everything to **transparent** backgrounds so the base `bg-background` from the outer `<main>` shows through uniformly. No color mismatch = no visible bar.
+Add `isBYOK` to the query key so the cache invalidates when the provider changes.
 
-### 1. `src/pages/EditorPage.tsx` (line 976)
-Change the outer container from `bg-card` to `bg-background`:
-```tsx
-<main className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-background">
+### File: `src/hooks/useAICredits.ts`
+
+**Change line 28** from:
+```typescript
+queryKey: ['ai-credits', user?.id],
+```
+to:
+```typescript
+queryKey: ['ai-credits', user?.id, isBYOK],
 ```
 
-### 2. `src/index.css` (lines 27-39)
-Replace the opaque card-color overrides with transparent backgrounds:
-```css
-.editor-scroll-container {
-  background: transparent !important;
-}
+This single change ensures that whenever the user switches AI providers (or validates/clears their Gemini key), the query re-executes and returns the correct credits shape -- either unlimited for BYOK or the actual database credits for WiseResume AI.
 
-.editor-scroll-container .glass-card {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: none !important;
-  box-shadow: none !important;
-}
-```
+## Technical Details
+- One file modified: `src/hooks/useAICredits.ts`
+- One line changed (query key)
+- No risk to other functionality -- the query simply re-fetches with the correct branch when the provider state changes
 
-## Why This Works
-- The outer `<main>` provides a single uniform `bg-background` color
-- The scroll container is transparent, so `bg-background` shows through
-- The glass-cards are transparent, so `bg-background` shows through
-- There is no color boundary anywhere -- the entire editor is one flat surface
-- Icons and text render directly against `bg-background`, ensuring full visibility
-
-## What Changes Visually
-- Editor section cards become fully flat (no card background, no border, no shadow)
-- The entire editor area is one uniform background color
-- All icons and text remain fully visible against the background
