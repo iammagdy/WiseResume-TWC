@@ -1,34 +1,28 @@
 
-# Fix: Editor Dark Gap Below Content
+# Fix: Black Bar Above Bottom Tab Bar in Editor
 
 ## Problem
 
-The dark area below the editor card (visible below the Previous/Next buttons) is the page's `bg-background` color showing through. Making the scroll container transparent (the last fix) actually made things worse because now the very dark page background is fully visible in the empty space.
+The editor page is excluded from the AppShell's `pb-20` bottom padding (line 66 of AppShell.tsx: `showBottomNav && !isEditorRoute`). This means the editor content area extends to the very bottom of the viewport, but the BottomTabBar overlays on top. When the editor content (e.g., the Contact section) is short, the dark `bg-background` color from the parent containers is visible between the end of the content and the bottom tab bar -- this is the persistent "black bar."
 
-## Root Issue
+The CSS rule making `.editor-scroll-container` use `hsl(var(--card))` works for the scroll container itself, but the parent `<main>` element at line 974 still has `bg-background`, which is visible whenever the scroll container doesn't fill the entire height.
 
-The scroll container takes `flex-1` to fill the screen height, but the card content is shorter than the available space. The remaining space shows whatever background color is behind it. No matter what color we set, if the card and the area below it don't match, there's a visible seam.
+## Solution
 
-## Solution: Match Everything to the Card Color
+Change the editor's outermost `<main>` background from `bg-background` to `bg-card`. This ensures that **every pixel** of the editor page -- including any empty space between the content and the bottom tab bar -- matches the card color. No more dark gap.
 
-Instead of transparency or stretching, simply set the **scroll container background to match the card background exactly**. Since the card sits on top of the container, if both are the same solid color, the gap becomes invisible.
+## File Changed
 
-### Changes
+### `src/pages/EditorPage.tsx` (line 974)
 
-**`src/index.css`** (lines 27-30):
-
-Replace the transparent rule with a rule that sets the scroll container to the exact card color, using `!important` to beat the native-app cascade:
-
-```css
-/* Editor: match scroll container to card color so no gap is visible */
-.editor-scroll-container {
-  background: hsl(var(--card)) !important;
-}
+Change:
+```jsx
+<main className="flex-1 flex flex-col overflow-hidden bg-background">
 ```
 
-This single CSS change ensures:
-- The scroll container and the glass-card are the same solid color
-- No visible seam or "black bar" between the card bottom and the container
-- Works on both web and native-app contexts (the `!important` beats all overrides)
-- No layout hacks needed (no flex-1 stretching, no min-h-full wrappers)
-- Other pages keep their normal styling since `.editor-scroll-container` only exists on the editor page
+To:
+```jsx
+<main className="flex-1 flex flex-col overflow-hidden bg-card">
+```
+
+This single change makes the entire editor page background match the card/scroll-container color, eliminating the dark gap completely. The existing CSS `!important` override on `.editor-scroll-container` ensures consistency.
