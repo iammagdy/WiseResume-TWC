@@ -1212,7 +1212,7 @@ export default function EditorPage() {
           >
             <TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
               <div
-                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0 flex flex-col"
+                className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
                 ref={scrollContainerRef}
               >
                 {renderEditorContent()}
