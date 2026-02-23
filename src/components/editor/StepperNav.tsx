@@ -168,7 +168,7 @@ export const StepperNav = memo(function StepperNav({
           }}
         />
 
-        {steps.map((step, i) => {
+        {steps.filter(s => s.id !== 'more').map((step, i) => {
           const Icon = STEP_ICONS[step.id] || Plus;
           const isActive = step.id === activeStep;
           const isCompleted = completedSteps[step.id];
