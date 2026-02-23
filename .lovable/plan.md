@@ -1,43 +1,56 @@
 
-
-# Fix the Mobile Black Bar -- The Real Root Cause
+# Fix the Mobile Black Bar -- Remove Card Visual Boundaries
 
 ## Problem
-All previous attempts changed background colors between `--card` and `--background`, but the actual issue is **transparency contrast**. The `.glass-card` class uses `background: hsl(var(--card) / 0.5)` (50% opacity) with `backdrop-filter: blur(16px)`. This means the card surfaces appear visually different from the solid `--card` background behind them. When content is short (e.g., Contact tab with only 3 fields), the solid-colored empty space below the last card contrasts with the semi-transparent cards above, creating the visible dark band.
+Despite making the glass-card background and the scroll container the same solid `--card` color, the cards still have visible **borders and shadows** from the `.glass-card` class:
+- `border: 1px solid hsl(var(--border) / 0.4)`
+- `box-shadow: 0 4px 24px -4px hsl(var(--primary) / 0.08), inset 0 1px 0 hsl(var(--foreground) / 0.04)`
 
-## Root Cause
-- `.glass-card` background: `hsl(var(--card) / 0.5)` -- 50% transparent with blur
-- `.editor-scroll-container` background: `hsl(var(--card))` -- 100% solid
-- These look different to the eye, creating a visible seam where the card ends and empty space begins
+These create a visible edge at the bottom of the card. Below that edge, the empty scroll container area (same `--card` color) appears as a distinct "dark bar" because the card has a bordered, shadowed appearance that makes the unbounded area below stand out by contrast.
 
-## Solution
+## Solution: Two-Part Fix
 
-Make `.glass-card` elements inside the editor fully opaque so they match the scroll container background exactly. This eliminates any visual contrast between card surfaces and the empty space below them.
+### 1. Remove borders and shadows from editor glass-cards
+Update the existing scoped CSS rule to also strip borders and shadows, so the card surface and the empty space below are visually indistinguishable.
 
-### File: `src/index.css`
-
-Add a scoped CSS rule that forces editor section cards to be opaque:
+**File: `src/index.css` (lines 32-37)**
 
 ```css
-/* Editor: make glass-cards opaque so they blend with the scroll container */
 .editor-scroll-container .glass-card {
   background: hsl(var(--card)) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 ```
 
-This makes the cards and the scroll container visually identical -- both solid `--card` color -- so there is no visible seam regardless of content height.
+### 2. Make the content wrapper actually stretch to fill the viewport
+Add `flex-1` to the wrapper div so it fills the scroll container's visible height. Then add a spacer element at the bottom of `renderEditorContent()` that grows to consume remaining space, preventing any background from peeking through.
 
-## Why Previous Fixes Failed
-- Changing `bg-card` to `bg-background` (or vice versa) only shifted which shade of dark the empty space was. It never addressed the transparency difference between the glass-card surfaces and the solid background.
-- Adding `min-h-full` wrapper didn't stretch the content because the parent is a flex container with `overflow-y-auto` -- `min-h-full` has no fixed reference height to expand to.
+**File: `src/pages/EditorPage.tsx`**
+
+On line 1218, change the wrapper to also include `flex-1`:
+```tsx
+<div className="flex flex-col min-h-full flex-1">
+```
+
+At the end of `renderEditorContent()` (after the Section Navigation div, before the closing Fragment), add a flex spacer:
+```tsx
+{/* Spacer to fill remaining viewport height */}
+<div className="flex-1" />
+```
+
+## Why This Works
+- Removing borders and shadows means the card blends seamlessly into the scroll container background -- no visible edge between "card" and "empty space"
+- The flex spacer ensures the content wrapper stretches to fill any remaining height, so even if there were a color difference, no gap would appear
+- Both fixes together guarantee zero visible seam on any content height
 
 ## Trade-off
-Editor cards lose the frosted-glass blur effect and become flat solid surfaces. This is consistent with the existing native-app optimization (which already does the same for `body.native-app .glass-card`) and actually improves rendering performance on mobile.
+- Editor section cards lose their subtle border and shadow styling, making them appear as flat surfaces without distinct card edges. The content is still visually organized by the section header and left accent stripe (the `before` pseudo-element on SectionCard).
 
 ## Technical Details
-- One CSS rule addition in `src/index.css`
-- No changes to `EditorPage.tsx`
-- Desktop layout is also affected but since content fills the viewport there, it's invisible
-- The scoped selector `.editor-scroll-container .glass-card` ensures only editor cards are affected; all other glass-cards in the app remain semi-transparent
+- Two files modified: `src/index.css` and `src/pages/EditorPage.tsx`
+- Two CSS properties added to existing rule (`border: none`, `box-shadow: none`)
+- One class addition (`flex-1`) and one small spacer div added
+- No impact on desktop layout (content fills viewport there already)
