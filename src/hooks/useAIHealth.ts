@@ -18,7 +18,7 @@ export function useAIHealth() {
   const geminiKeyValidated = useSettingsStore((s) => s.geminiKeyValidated);
 
   const provider: 'wiseresume' | 'gemini' =
-    aiProvider === 'gemini' && geminiApiKey && geminiKeyValidated ? 'gemini' : 'wiseresume';
+    aiProvider === 'gemini' && geminiKeyValidated ? 'gemini' : 'wiseresume';
 
   return {
     status: deriveHealthStatus(results),
@@ -26,6 +26,6 @@ export function useAIHealth() {
     lastChecked: deriveLastChecked(results),
     provider,
     errorCode: deriveErrorCode(results),
-    refetch: () => {}, // no-op — status is derived from real calls
+    refetch: () => { }, // no-op — status is derived from real calls
   };
 }
