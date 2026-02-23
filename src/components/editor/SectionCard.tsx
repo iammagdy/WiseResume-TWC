@@ -16,7 +16,7 @@ export const SectionCard = memo(function SectionCard({ icon: Icon, title, tip, s
     <div
       className={cn(
         'animate-in fade-in-0 slide-in-from-bottom-2 duration-300',
-        'glass-card rounded-2xl overflow-hidden relative flex flex-col flex-1',
+        'glass-card rounded-2xl overflow-hidden relative flex flex-col',
         // Left accent stripe
         'before:absolute before:left-0 before:top-0 before:bottom-0 before:w-1 before:rounded-l-2xl',
         status === 'complete' && 'before:bg-success',
