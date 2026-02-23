@@ -15,7 +15,9 @@ reportWebVitals();
 
 const updateSW = registerSW({
   onNeedRefresh() {
-    updateSW(true);
+    updateSW(true).then(() => {
+      window.location.reload();
+    });
   },
   onOfflineReady() {
     console.log('[SW] App ready for offline use');
