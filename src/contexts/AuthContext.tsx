@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           .from('profiles')
           .update({ last_active_at: new Date().toISOString() })
           .eq('user_id', user.id)
-          .then(() => {});
+          .then(() => { });
       }
       setState(prev => {
         if (prev.user?.id === user?.id && !prev.loading) {
@@ -87,11 +87,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Safety timeout: force loading=false after 3s, also hide splash
     const timeout = setTimeout(() => {
       if (!initialResolved) {
-        console.warn('Auth session fetch timed out after 3s');
+        console.warn('Auth session fetch timed out after 5s');
         hideSplashScreen();
         resolveInitialLoad(null, null);
       }
-    }, 3000);
+    }, 5000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -136,7 +136,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     wasAuthenticatedRef.current = false;
     activeUserIdRef.current = null;
     setState({ user: null, session: null, loading: false });
-    await supabase.auth.signOut({ scope: 'local' });
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch (e) {
+      console.error('Sign-out failed:', e);
+    }
   };
 
   const value = {
