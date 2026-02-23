@@ -1,27 +1,36 @@
 
 
-# Fix Empty Space Below Section Navigation in Editor
+# Fix the Empty Black Gap in Editor Tab Content
 
 ## Problem
-After removing the NextStepBanner components, there's a visible empty gap (dark background) below the "Previous / Next" buttons at the bottom of the editor. This space was previously occupied by the banner tips, but now it's just dead space.
+On mobile, the editor tab content area stretches to fill available vertical space (`flex-1`), but the actual content (section cards + Previous/Next buttons) often doesn't fill the full height. This creates a large dark empty gap between the navigation buttons and the bottom tab bar.
 
-## Root Cause
-The section navigation buttons (Previous / Next) inside `renderEditorContent()` have `pt-6 pb-2` spacing (line 881), and the scroll container doesn't fill the remaining viewport. The `pb-20` on the main container (for bottom tab bar clearance) adds to this gap, making it look like an empty "black bar."
+The `mt-2` default on `TabsContent` (line 42 of tabs.tsx) is already overridden with `mt-0` in EditorPage, so that's not the direct cause -- the real culprit is the flex layout forcing the scroll container to be taller than its content needs.
 
 ## Changes
 
-### 1. Reduce section navigation top padding
-**File:** `src/pages/EditorPage.tsx` (line 881)
-- Change `pt-6 pb-2` to `pt-3 pb-4` on the section navigation container
-- This tightens the gap above the buttons and adds more padding below so the buttons sit closer to the content
+### 1. Remove flex-col stretching from mobile editor TabsContent
+**File:** `src/pages/EditorPage.tsx` (line 1213)
 
-### 2. Add bottom padding to scroll container to fill the gap
-**File:** `src/pages/EditorPage.tsx` (lines 1297 and similar)
-- Ensure the scroll container's `pb-4` is increased to `pb-8` so content pushes further down, reducing the visible empty area below the navigation
+Change the editor TabsContent from stretching (`flex-1 flex flex-col`) to simply allowing natural overflow scrolling. The content should fill available space but the scroll container shouldn't force empty space below content.
 
-### 3. Clean up leftover empty lines and comments
-**File:** `src/pages/EditorPage.tsx` (lines 1305-1308)
-- Remove the blank lines and the "AI Studio Bar removed" comment that were left behind after the banner deletion -- just housekeeping
+- Change `pb-16` on the scroll container (line 1215) to `pb-24` -- this ensures the last piece of content can scroll above the bottom tab bar, but only when there IS content to scroll.
+- The key fix: make the scroll container use `flex-1` but ensure its children don't create dead space by removing `flex flex-col` from the inner content wrapper if present.
 
-These are small CSS spacing tweaks. No functional changes, no component additions or removals.
+### 2. Make renderEditorContent fill naturally without dead space
+**File:** `src/pages/EditorPage.tsx` (line 1215)
+
+Change the scroll container class from:
+```
+editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0 flex flex-col
+```
+to:
+```
+editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0
+```
+
+Removing `flex flex-col` prevents the container from stretching its children to fill the viewport, so content ends naturally. Increasing `pb-16` to `pb-24` ensures the Previous/Next buttons have enough clearance above the bottom tab bar when scrolled to the bottom.
+
+### Summary
+Two class changes on one line in `EditorPage.tsx`. The empty black gap disappears because the scroll container no longer forces its children into a flex column layout that stretches to fill the viewport.
 
