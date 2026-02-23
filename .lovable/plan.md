@@ -1,60 +1,43 @@
 
-# Fix the Mobile Black Bar in Editor -- For Real This Time
+
+# Fix the Mobile Black Bar -- The Real Root Cause
 
 ## Problem
-The previous fixes changed background colors but haven't solved the core issue. The empty space below the last form card (e.g., the Phone field on the Contact tab) and above the bottom tab bar is still clearly visible as a dark band on mobile. Changing between `--card` and `--background` just shifts the shade of darkness -- neither eliminates the visual gap.
+All previous attempts changed background colors between `--card` and `--background`, but the actual issue is **transparency contrast**. The `.glass-card` class uses `background: hsl(var(--card) / 0.5)` (50% opacity) with `backdrop-filter: blur(16px)`. This means the card surfaces appear visually different from the solid `--card` background behind them. When content is short (e.g., Contact tab with only 3 fields), the solid-colored empty space below the last card contrasts with the semi-transparent cards above, creating the visible dark band.
 
 ## Root Cause
-On mobile, the editor content (form cards) doesn't fill the full scrollable area. The `editor-scroll-container` has `pb-24` (padding for the tab bar), but the actual card content is shorter than the viewport. The remaining empty space shows the container's background color, which contrasts with the semi-transparent `glass-card` surfaces above it, creating a visible "black bar."
+- `.glass-card` background: `hsl(var(--card) / 0.5)` -- 50% transparent with blur
+- `.editor-scroll-container` background: `hsl(var(--card))` -- 100% solid
+- These look different to the eye, creating a visible seam where the card ends and empty space begins
 
-## Solution: Three-Part Fix
+## Solution
 
-### 1. Make editor content fill the full scroll area
-Add `min-h-full` to the content wrapper and make the last section card stretch to fill remaining space using flexbox. This ensures there's no empty gap below the content.
+Make `.glass-card` elements inside the editor fully opaque so they match the scroll container background exactly. This eliminates any visual contrast between card surfaces and the empty space below them.
 
-**File: `src/pages/EditorPage.tsx` (line 1213-1219)**
+### File: `src/index.css`
 
-Wrap the content in a flex container that fills the scroll area:
-
-```tsx
-<TabsContent value="editor" className="flex-1 min-h-0 overflow-hidden mt-0 flex flex-col">
-  <div
-    className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
-    ref={scrollContainerRef}
-  >
-    <div className="flex flex-col min-h-full">
-      {renderEditorContent()}
-    </div>
-  </div>
-</TabsContent>
-```
-
-### 2. Revert scroll container background to match cards
-Change the `.editor-scroll-container` CSS back to use `--card` so the empty space (if any) blends with the card surfaces rather than showing the darker base background.
-
-**File: `src/index.css` (line 29)**
+Add a scoped CSS rule that forces editor section cards to be opaque:
 
 ```css
-.editor-scroll-container {
+/* Editor: make glass-cards opaque so they blend with the scroll container */
+.editor-scroll-container .glass-card {
   background: hsl(var(--card)) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 ```
 
-### 3. Set the editor `main` back to `bg-card`
-The outer fixed container should also use `bg-card` to ensure consistent coloring across the full viewport.
+This makes the cards and the scroll container visually identical -- both solid `--card` color -- so there is no visible seam regardless of content height.
 
-**File: `src/pages/EditorPage.tsx` (line 974)**
+## Why Previous Fixes Failed
+- Changing `bg-card` to `bg-background` (or vice versa) only shifted which shade of dark the empty space was. It never addressed the transparency difference between the glass-card surfaces and the solid background.
+- Adding `min-h-full` wrapper didn't stretch the content because the parent is a flex container with `overflow-y-auto` -- `min-h-full` has no fixed reference height to expand to.
 
-```tsx
-<main className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-card">
-```
+## Trade-off
+Editor cards lose the frosted-glass blur effect and become flat solid surfaces. This is consistent with the existing native-app optimization (which already does the same for `body.native-app .glass-card`) and actually improves rendering performance on mobile.
 
-## Why This Works
-- The `min-h-full` wrapper ensures content stretches to fill the scroll area, eliminating most of the visible gap
-- Using `bg-card` / `--card` everywhere in the editor makes any remaining empty space blend seamlessly with the glass-card surfaces (both use `--card` as their base)
-- The bottom tab bar's `glass-surface` (which also uses `--card`) will blend naturally with the editor behind it
-
-## Technical Notes
-- Only two files are modified: `src/pages/EditorPage.tsx` and `src/index.css`
-- Desktop and tablet layouts are unaffected (they already fill the viewport)
-- The `pb-24` padding remains to ensure content doesn't hide behind the bottom tab bar
+## Technical Details
+- One CSS rule addition in `src/index.css`
+- No changes to `EditorPage.tsx`
+- Desktop layout is also affected but since content fills the viewport there, it's invisible
+- The scoped selector `.editor-scroll-container .glass-card` ensures only editor cards are affected; all other glass-cards in the app remain semi-transparent
