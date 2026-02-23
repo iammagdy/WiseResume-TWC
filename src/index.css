@@ -24,14 +24,14 @@ body.wr-security-curtain [data-biometric-lock] {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Editor: match scroll container to card color so no gap is visible */
+/* Editor: transparent scroll container so bg-background shows through */
 .editor-scroll-container {
-  background: hsl(var(--card)) !important;
+  background: transparent !important;
 }
 
-/* Editor: make glass-cards opaque so they blend with the scroll container */
+/* Editor: transparent glass-cards so bg-background shows through */
 .editor-scroll-container .glass-card {
-  background: hsl(var(--card)) !important;
+  background: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
   border: none !important;
