@@ -81,8 +81,9 @@ export function useAICreditsMutations() {
   const incrementUsage = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('Not authenticated');
-      // BYOK: skip credit deduction (usage still logged by edge functions)
-      if (isBYOK) return;
+      // BYOK: skip credit deduction — read fresh state to avoid stale closures
+      const { aiProvider, geminiKeyValidated } = useSettingsStore.getState();
+      if (aiProvider === 'gemini' && geminiKeyValidated) return;
 
       const { error } = await supabase.rpc('increment_ai_usage', {
         p_user_id: user.id,
@@ -98,7 +99,9 @@ export function useAICreditsMutations() {
 
   const checkCredits = async (): Promise<boolean> => {
     if (!user) return true;
-    if (isBYOK) return true; // BYOK: unlimited
+    // Read fresh state to avoid stale closures after provider switch
+    const { aiProvider, geminiKeyValidated } = useSettingsStore.getState();
+    if (aiProvider === 'gemini' && geminiKeyValidated) return true;
 
     const { data } = await supabase
       .from('ai_credits')
