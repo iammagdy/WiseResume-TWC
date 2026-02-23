@@ -230,6 +230,14 @@ body.wr-security-curtain [data-biometric-lock] {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     scroll-behavior: smooth;
+    /* Compact mobile density: ~10% smaller than browser default */
+    font-size: 14.5px;
+  }
+
+  @media (min-width: 768px) {
+    html {
+      font-size: 16px;
+    }
   }
 
   #root {
@@ -285,7 +293,7 @@ button,
   /* ── Semantic Typography System ── */
   .text-h1 {
     @apply font-display font-bold tracking-tight;
-    font-size: clamp(1.75rem, 8vw, 2rem); /* 28-32px */
+    font-size: clamp(1.5rem, 7vw, 2rem); /* 24-32px (was 28-32) */
     line-height: 1.2;
   }
 
@@ -317,7 +325,7 @@ button,
   /* ── Standardized Page Typography ── */
   .text-page-title {
     @apply font-display font-bold;
-    font-size: clamp(1.25rem, 5vw, 1.375rem); /* 20-22px */
+    font-size: clamp(1.125rem, 4.5vw, 1.375rem); /* 18-22px (was 20-22) */
     line-height: 1.3;
   }
 
@@ -332,10 +340,10 @@ button,
     line-height: 1.4;
   }
 
-  /* ── Semantic Spacing System ── */
-  .px-edge { @apply px-4; }           /* 16px screen edges */
-  .space-section { @apply mb-6; }     /* 24px between sections */
-  .p-card { @apply p-4; }             /* 16px inside cards */
+  /* ── Semantic Spacing System (compact on mobile) ── */
+  .px-edge { @apply px-3 md:px-4; }           /* 12px mobile, 16px desktop */
+  .space-section { @apply mb-4 md:mb-6; }     /* 16px mobile, 24px desktop */
+  .p-card { @apply p-3 md:p-4; }              /* 12px mobile, 16px desktop */
 
   .gradient-primary {
     background: linear-gradient(
