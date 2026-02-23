@@ -24,11 +24,9 @@ body.wr-security-curtain [data-biometric-lock] {
   100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Editor: make glass-card opaque so stretched cards match container bg */
-.editor-scroll-container .glass-card {
-  background: hsl(var(--card)) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+/* Editor: transparent container so page background shows through */
+.editor-scroll-container {
+  background: transparent !important;
 }
 @keyframes save-check-pop {
   0% { transform: scale(0); }
