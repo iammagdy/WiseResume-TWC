@@ -1,62 +1,34 @@
 
-# Fix: Editor Black Bar -- Definitive Solution (Attempt 4)
+# Fix: Editor Dark Gap Below Content
 
-## Root Cause (The Real One This Time)
+## Problem
 
-The previous fix added a CSS override to make glass-cards opaque inside the editor:
+The dark area below the editor card (visible below the Previous/Next buttons) is the page's `bg-background` color showing through. Making the scroll container transparent (the last fix) actually made things worse because now the very dark page background is fully visible in the empty space.
 
-```css
-.editor-scroll-container .glass-card {
-  background: hsl(var(--card));  /* line 28 */
-}
-```
+## Root Issue
 
-However, this is overridden by the **native-app rule** later in the file (line 448):
+The scroll container takes `flex-1` to fill the screen height, but the card content is shorter than the available space. The remaining space shows whatever background color is behind it. No matter what color we set, if the card and the area below it don't match, there's a visible seam.
 
-```css
-body.native-app .glass-card {
-  background: hsl(var(--card) / 0.92);  /* 92% opaque -- wins due to cascade order */
-}
-```
+## Solution: Match Everything to the Card Color
 
-Since the native rule appears later and has equal specificity, the card remains semi-transparent on mobile. The `bg-card` container is fully opaque while the stretched card is 92% opaque, creating a visible color mismatch -- the "black bar" that keeps appearing.
+Instead of transparency or stretching, simply set the **scroll container background to match the card background exactly**. Since the card sits on top of the container, if both are the same solid color, the gap becomes invisible.
 
-The `flex-1` / `min-h-full` stretching from previous fixes adds complexity and makes the semi-transparent card stretch over the dark background, making the problem MORE visible, not less.
+### Changes
 
-## Solution: Simplify Everything
+**`src/index.css`** (lines 27-30):
 
-**Remove all stretching hacks** and **fix the CSS specificity** so the override actually works:
-
-1. Remove `flex-1` stretching from section wrappers (lines 801-840 in EditorPage.tsx) -- let cards size naturally to content
-2. Remove `min-h-full flex flex-col` wrapper (line 1218) -- unnecessary
-3. Remove `flex-1` from SectionCard (line 19) -- cards should not stretch
-4. Fix the CSS override to use `!important` so it wins over the native-app rule
-
-With proper color matching (no transparency), the area below the card and the card itself will be identical in color. No gap, no bar.
-
-## Files Changed
-
-### 1. `src/index.css` (line 28-31)
-Add `!important` to the editor glass-card override so it beats the native-app rule:
+Replace the transparent rule with a rule that sets the scroll container to the exact card color, using `!important` to beat the native-app cascade:
 
 ```css
-.editor-scroll-container .glass-card {
+/* Editor: match scroll container to card color so no gap is visible */
+.editor-scroll-container {
   background: hsl(var(--card)) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
 }
 ```
 
-### 2. `src/pages/EditorPage.tsx`
-- **Lines 801, 808, 816, 824, 832, 840**: Remove `className="flex-1 flex flex-col"` from each section wrapper div
-- **Line 1218**: Remove the `min-h-full flex flex-col` wrapper div around `renderEditorContent()`
-
-### 3. `src/components/editor/SectionCard.tsx`
-- **Line 19**: Remove `flex-1` from the outer div class list
-
-## Why This Works
-
-- Cards size naturally to their content (no awkward stretching)
-- The CSS `!important` ensures the card background is fully opaque inside the editor, matching the `bg-card` container exactly
-- The space below the card is `bg-card`; the card itself is also `hsl(var(--card))` at 100% opacity -- identical colors, zero visual gap
-- Works on both web and native-app contexts
+This single CSS change ensures:
+- The scroll container and the glass-card are the same solid color
+- No visible seam or "black bar" between the card bottom and the container
+- Works on both web and native-app contexts (the `!important` beats all overrides)
+- No layout hacks needed (no flex-1 stretching, no min-h-full wrappers)
+- Other pages keep their normal styling since `.editor-scroll-container` only exists on the editor page
