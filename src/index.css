@@ -26,7 +26,7 @@ body.wr-security-curtain [data-biometric-lock] {
 
 /* Editor: match scroll container to card color so no gap is visible */
 .editor-scroll-container {
-  background: hsl(var(--background)) !important;
+  background: hsl(var(--card)) !important;
 }
 @keyframes save-check-pop {
   0% { transform: scale(0); }
