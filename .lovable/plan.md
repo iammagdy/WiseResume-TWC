@@ -1,67 +1,27 @@
 
-
-# Always Load the Latest App Version
+# Fix the Mobile Black Bar in Editor
 
 ## Problem
-When a user visits the app (especially when not logged in), the service worker can serve a stale cached version of the HTML shell from a previous deployment. This happens because `precacheAndRoute` intercepts navigation requests and serves the old cached `index.html` before the new service worker has a chance to activate and take over.
+The editor's outer `<main>` uses `bg-card` as its background color. On mobile, when the section content (e.g., Contact) doesn't fill the full viewport, a large empty dark area appears between the last content card and the bottom tab bar. This reads as a "black bar" to users.
+
+This only appears on mobile because:
+- Mobile has a single-column layout with shorter content
+- Desktop uses a side-by-side layout that fills the viewport
+- The BottomTabBar only renders on mobile, creating a visible boundary
 
 ## Root Cause
-The `precacheAndRoute(self.__WB_MANIFEST)` in `custom-sw.js` caches all assets including the HTML document. For navigation requests (page loads), the old service worker serves the cached HTML immediately. Even though `skipWaiting` + `clients.claim` + auto-update are configured, there's a race condition: the stale page loads first, then the new SW activates in the background.
+`bg-card` (HSL 240 15% 8%) is slightly different from `bg-background` (HSL 240 20% 4%), creating a subtle but visible color contrast in the empty space. Combined with the glass-surface content cards above and the glass bottom tab bar below, this area stands out as a distinct dark band.
 
-There is no explicit `NetworkFirst` route for navigation requests, so the precache always wins.
+## Fix
+**File: `src/pages/EditorPage.tsx` (~line 974)**
 
-## Solution
-Two changes to ensure users always get the latest version:
+Change the editor's `<main>` background from `bg-card` to `bg-background`:
 
-### 1. Add NetworkFirst strategy for navigation requests (custom-sw.js)
-Add a `NavigationRoute` with `NetworkFirst` strategy **after** `precacheAndRoute`. This ensures:
-- The app always tries to fetch the latest HTML from the network first
-- Falls back to cache only if offline (so the app still works offline)
-- JS/CSS assets remain precached (they have hashed filenames so staleness isn't an issue)
-
-### 2. Clean up old caches on activation (custom-sw.js)
-Add cache cleanup in the `activate` handler to delete any stale precache entries from previous service worker versions, preventing old assets from lingering.
-
-## Technical Details
-
-**File: `public/custom-sw.js`**
-
-Add import for `NavigationRoute`:
-```js
-import { registerRoute, NavigationRoute } from 'workbox-routing';
+```
+Before: "fixed inset-0 z-40 flex flex-col overflow-hidden bg-card"
+After:  "fixed inset-0 z-40 flex flex-col overflow-hidden bg-background"
 ```
 
-Add after `precacheAndRoute(self.__WB_MANIFEST)`:
-```js
-// Always fetch latest HTML for page navigations (network-first)
-// Falls back to cache only when offline
-const navigationHandler = new NetworkFirst({
-  cacheName: 'navigation-cache',
-  plugins: [
-    new CacheableResponsePlugin({ statuses: [0, 200] }),
-  ],
-});
-registerRoute(new NavigationRoute(navigationHandler));
-```
+This makes the empty space match the app's base background, so it blends seamlessly with the area behind the bottom tab bar instead of appearing as a distinct dark band.
 
-Add old-cache cleanup in the `activate` handler:
-```js
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    Promise.all([
-      self.clients.claim(),
-      // Purge any old non-workbox caches
-      caches.keys().then(keys =>
-        Promise.all(
-          keys
-            .filter(k => !k.startsWith('workbox-') && !k.startsWith('google-fonts') && !k.startsWith('gstatic-fonts') && !k.startsWith('supabase-api') && !k.startsWith('navigation-cache'))
-            .map(k => caches.delete(k))
-        )
-      ),
-    ])
-  );
-});
-```
-
-These two additions ensure every page load attempts to fetch the latest HTML from the server, eliminating stale landing pages.
-
+One-line change, mobile-only visual impact. Desktop and tablet are unaffected since the editor content fills the viewport on those screen sizes.
