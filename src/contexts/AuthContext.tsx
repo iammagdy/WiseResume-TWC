@@ -30,6 +30,9 @@ async function hideSplashScreen() {
   }
 }
 
+// Eagerly start auth fetch at module load time so it runs in parallel with splash
+const earlySessionPromise = supabase.auth.getSession().catch(() => ({ data: { session: null as Session | null } }));
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({
     user: null,
@@ -81,14 +84,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
     };
 
-    // Safety timeout: force loading=false after 5s, also hide splash
+    // Safety timeout: force loading=false after 3s, also hide splash
     const timeout = setTimeout(() => {
       if (!initialResolved) {
-        console.warn('Auth session fetch timed out after 5s');
+        console.warn('Auth session fetch timed out after 3s');
         hideSplashScreen();
         resolveInitialLoad(null, null);
       }
-    }, 5000);
+    }, 3000);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -110,7 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    supabase.auth.getSession()
+    // Use the eagerly-started session promise instead of a fresh call
+    earlySessionPromise
       .then(({ data: { session } }) => {
         resolveInitialLoad(session?.user ?? null, session);
       })
