@@ -1,38 +1,43 @@
 
 
-# Fix: Stale App Version After PWA Update
+# Fix: Make Editor Scroll Area Transparent (No Black Bar)
 
 ## Problem
-The app keeps loading old versions after deployments. The current `onNeedRefresh` handler calls `updateSW(true)` which activates the new service worker, but the page itself is never reloaded. The old JavaScript bundles remain in memory, so the user sees a stale UI until they manually refresh the browser.
+The current approach forces `hsl(var(--card))` on the scroll container and glass-cards. But `--card` differs from `--background`, creating a visible color band ("black bar") between the editor content and the bottom nav/app shell which uses `--background`. The opaque card color also obscures editor icons.
 
 ## Solution
-Add `window.location.reload()` after the service worker update completes. This ensures the page reloads with the new assets served by the freshly activated service worker.
+Switch everything to **transparent** backgrounds so the base `bg-background` from the outer `<main>` shows through uniformly. No color mismatch = no visible bar.
 
-### File: `src/main.tsx`
-
-Change the `onNeedRefresh` callback to reload the page after activating the new SW:
-
-```typescript
-const updateSW = registerSW({
-  onNeedRefresh() {
-    updateSW(true).then(() => {
-      window.location.reload();
-    });
-  },
-  onOfflineReady() {
-    console.log('[SW] App ready for offline use');
-  },
-});
+### 1. `src/pages/EditorPage.tsx` (line 976)
+Change the outer container from `bg-card` to `bg-background`:
+```tsx
+<main className="fixed inset-0 z-40 flex flex-col overflow-hidden bg-background">
 ```
 
-`updateSW(true)` returns a Promise that resolves once `skipWaiting` + `clients.claim` have completed. Calling `reload()` after that guarantees the browser fetches all assets through the new service worker.
+### 2. `src/index.css` (lines 27-39)
+Replace the opaque card-color overrides with transparent backgrounds:
+```css
+.editor-scroll-container {
+  background: transparent !important;
+}
 
-## Why Previous Behavior Was Broken
-- `updateSW(true)` activates the new service worker in the background
-- But the page's already-loaded JavaScript bundles (from the old deployment) stay in memory
-- The user continues seeing the old UI until a manual page refresh
-- This explains why changes "don't stick" -- the code was deployed but never actually loaded
+.editor-scroll-container .glass-card {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+```
 
-## Risk
-- Minimal. The reload happens only when a new service worker version is detected (i.e., after a deployment). Users experience one automatic page refresh per deployment, which is standard PWA behavior.
+## Why This Works
+- The outer `<main>` provides a single uniform `bg-background` color
+- The scroll container is transparent, so `bg-background` shows through
+- The glass-cards are transparent, so `bg-background` shows through
+- There is no color boundary anywhere -- the entire editor is one flat surface
+- Icons and text render directly against `bg-background`, ensuring full visibility
 
+## What Changes Visually
+- Editor section cards become fully flat (no card background, no border, no shadow)
+- The entire editor area is one uniform background color
+- All icons and text remain fully visible against the background
