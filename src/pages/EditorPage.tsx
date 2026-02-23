@@ -971,7 +971,7 @@ export default function EditorPage() {
   // === Past this point, currentResume is guaranteed non-null ===
 
   return (
-    <main className="flex-1 flex flex-col overflow-hidden bg-background">
+    <main className="flex-1 flex flex-col overflow-hidden bg-card">
       {/* Header */}
       <header className="editor-header shrink-0 sticky top-0 z-50 glass border-b border-border px-4 py-3 pt-safe transition-all duration-200">
         <div className="flex items-center justify-between">
