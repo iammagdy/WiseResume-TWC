@@ -1,36 +1,67 @@
 
 
-# Fix the Empty Black Gap in Editor Tab Content
+# Always Load the Latest App Version
 
 ## Problem
-On mobile, the editor tab content area stretches to fill available vertical space (`flex-1`), but the actual content (section cards + Previous/Next buttons) often doesn't fill the full height. This creates a large dark empty gap between the navigation buttons and the bottom tab bar.
+When a user visits the app (especially when not logged in), the service worker can serve a stale cached version of the HTML shell from a previous deployment. This happens because `precacheAndRoute` intercepts navigation requests and serves the old cached `index.html` before the new service worker has a chance to activate and take over.
 
-The `mt-2` default on `TabsContent` (line 42 of tabs.tsx) is already overridden with `mt-0` in EditorPage, so that's not the direct cause -- the real culprit is the flex layout forcing the scroll container to be taller than its content needs.
+## Root Cause
+The `precacheAndRoute(self.__WB_MANIFEST)` in `custom-sw.js` caches all assets including the HTML document. For navigation requests (page loads), the old service worker serves the cached HTML immediately. Even though `skipWaiting` + `clients.claim` + auto-update are configured, there's a race condition: the stale page loads first, then the new SW activates in the background.
 
-## Changes
+There is no explicit `NetworkFirst` route for navigation requests, so the precache always wins.
 
-### 1. Remove flex-col stretching from mobile editor TabsContent
-**File:** `src/pages/EditorPage.tsx` (line 1213)
+## Solution
+Two changes to ensure users always get the latest version:
 
-Change the editor TabsContent from stretching (`flex-1 flex flex-col`) to simply allowing natural overflow scrolling. The content should fill available space but the scroll container shouldn't force empty space below content.
+### 1. Add NetworkFirst strategy for navigation requests (custom-sw.js)
+Add a `NavigationRoute` with `NetworkFirst` strategy **after** `precacheAndRoute`. This ensures:
+- The app always tries to fetch the latest HTML from the network first
+- Falls back to cache only if offline (so the app still works offline)
+- JS/CSS assets remain precached (they have hashed filenames so staleness isn't an issue)
 
-- Change `pb-16` on the scroll container (line 1215) to `pb-24` -- this ensures the last piece of content can scroll above the bottom tab bar, but only when there IS content to scroll.
-- The key fix: make the scroll container use `flex-1` but ensure its children don't create dead space by removing `flex flex-col` from the inner content wrapper if present.
+### 2. Clean up old caches on activation (custom-sw.js)
+Add cache cleanup in the `activate` handler to delete any stale precache entries from previous service worker versions, preventing old assets from lingering.
 
-### 2. Make renderEditorContent fill naturally without dead space
-**File:** `src/pages/EditorPage.tsx` (line 1215)
+## Technical Details
 
-Change the scroll container class from:
+**File: `public/custom-sw.js`**
+
+Add import for `NavigationRoute`:
+```js
+import { registerRoute, NavigationRoute } from 'workbox-routing';
 ```
-editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-16 space-y-0 flex flex-col
-```
-to:
-```
-editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0
+
+Add after `precacheAndRoute(self.__WB_MANIFEST)`:
+```js
+// Always fetch latest HTML for page navigations (network-first)
+// Falls back to cache only when offline
+const navigationHandler = new NetworkFirst({
+  cacheName: 'navigation-cache',
+  plugins: [
+    new CacheableResponsePlugin({ statuses: [0, 200] }),
+  ],
+});
+registerRoute(new NavigationRoute(navigationHandler));
 ```
 
-Removing `flex flex-col` prevents the container from stretching its children to fill the viewport, so content ends naturally. Increasing `pb-16` to `pb-24` ensures the Previous/Next buttons have enough clearance above the bottom tab bar when scrolled to the bottom.
+Add old-cache cleanup in the `activate` handler:
+```js
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      // Purge any old non-workbox caches
+      caches.keys().then(keys =>
+        Promise.all(
+          keys
+            .filter(k => !k.startsWith('workbox-') && !k.startsWith('google-fonts') && !k.startsWith('gstatic-fonts') && !k.startsWith('supabase-api') && !k.startsWith('navigation-cache'))
+            .map(k => caches.delete(k))
+        )
+      ),
+    ])
+  );
+});
+```
 
-### Summary
-Two class changes on one line in `EditorPage.tsx`. The empty black gap disappears because the scroll container no longer forces its children into a flex column layout that stretches to fill the viewport.
+These two additions ensure every page load attempts to fetch the latest HTML from the server, eliminating stale landing pages.
 
