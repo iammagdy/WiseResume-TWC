@@ -25,7 +25,7 @@ export function useAICredits() {
   const isBYOK = useIsBYOK();
 
   const query = useQuery({
-    queryKey: ['ai-credits', user?.id],
+    queryKey: ['ai-credits', user?.id, isBYOK],
     queryFn: async () => {
       if (!user) return null;
 
