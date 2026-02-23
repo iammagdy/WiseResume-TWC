@@ -63,7 +63,7 @@ export function AppShell() {
         id="main-content"
         className={cn(
           "flex-1 flex flex-col min-h-0 overflow-hidden",
-          showBottomNav && "pb-20 lg:pb-0"
+          showBottomNav && !isEditorRoute && "pb-20 lg:pb-0"
         )}
       >
         <div
