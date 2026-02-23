@@ -920,6 +920,8 @@ export default function EditorPage() {
           </Button>
         )}
       </div>
+      {/* Spacer to fill remaining viewport height */}
+      <div className="flex-1" />
     </>
   ), [activeTab, sectionScores, moreSubSection, steps, handleTabChange, navigate, jobDescription, getATSSuggestions, isAnalyzingSection, fetchDeepSuggestions, deepResults, handleApplyDeep, clearDeepResult]);
 
@@ -1215,7 +1217,7 @@ export default function EditorPage() {
                 className="editor-scroll-container flex-1 min-h-0 overflow-y-auto px-4 py-3 pb-24 space-y-0"
                 ref={scrollContainerRef}
               >
-                <div className="flex flex-col min-h-full">
+                <div className="flex flex-col min-h-full flex-1">
                   {renderEditorContent()}
                 </div>
               </div>
