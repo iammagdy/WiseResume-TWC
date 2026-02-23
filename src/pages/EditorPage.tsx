@@ -878,7 +878,7 @@ export default function EditorPage() {
       )}
 
       {/* Section Navigation */}
-      <div className="flex flex-row items-center gap-2 sm:gap-3 pt-6 pb-2 overflow-hidden">
+      <div className="flex flex-row items-center gap-2 sm:gap-3 pt-3 pb-4 overflow-hidden">
         <Button
           variant="outline"
           size="lg"
@@ -1294,7 +1294,7 @@ export default function EditorPage() {
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
               <div
-                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-4 pb-safe space-y-0"
+                className="editor-scroll-container flex-1 overflow-y-auto px-4 py-4 pb-8 pb-safe space-y-0"
                 ref={scrollContainerRef}
               >
                 {renderEditorContent()}
@@ -1303,9 +1303,6 @@ export default function EditorPage() {
           </div>
         )}
 
-
-
-        {/* AI Studio Bar removed — now lives at /ai-studio tab */}
 
         {/* Proofread FAB */}
         <ProofreadButton
