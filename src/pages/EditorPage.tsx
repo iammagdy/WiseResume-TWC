@@ -39,7 +39,7 @@ import { useATSSuggestions } from '@/hooks/useATSSuggestions';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AIIntroTooltip } from '@/components/editor/AIIntroTooltip';
 import { ProgressBar } from '@/components/editor/ProgressBar';
-import { NextStepBanner } from '@/components/editor/NextStepBanner';
+
 import { useShallow } from 'zustand/react/shallow';
 const ApplyPromptDialog = lazy(() => import('@/components/applications/ApplyPromptDialog').then(m => ({ default: m.ApplyPromptDialog })));
 const ATSScanSheet = lazy(() => import('@/components/editor/ATSScanSheet').then(m => ({ default: m.ATSScanSheet })));
@@ -1303,13 +1303,7 @@ export default function EditorPage() {
           </div>
         )}
 
-        {/* Next Step Banners - contextual suggestions */}
-        {sectionStatus.contact && sectionStatus.experience && sectionStatus.summary && sectionStatus.skills && (
-          <>
-            <NextStepBanner variant="preview" onAction={() => navigate('/preview')} />
-            <NextStepBanner variant="tailor" onAction={() => setShowTailor(true)} />
-          </>
-        )}
+
 
         {/* AI Studio Bar removed — now lives at /ai-studio tab */}
 
