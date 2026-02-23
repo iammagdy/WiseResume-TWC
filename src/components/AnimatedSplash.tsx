@@ -52,9 +52,16 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   }, [visible]);
 
   useEffect(() => {
-    const timeout = setTimeout(dismiss, prefersReduced ? 1000 : 3200);
+    const timeout = setTimeout(dismiss, prefersReduced ? 1000 : 1800);
     return () => clearTimeout(timeout);
   }, [dismiss, prefersReduced]);
+
+  // Prefetch editor chunk during splash if user is heading there
+  useEffect(() => {
+    if (window.location.pathname === '/editor') {
+      import('../pages/EditorPage');
+    }
+  }, []);
 
   
 
